@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Runtime
+logs/
+state/
+output/
+staging/
+tmp/
+temp/
+
+# Databases/runtime state
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets
+*.key
+*.pem
+*.crt
+secrets/
+credentials/
+token*
+*_token*
+
+# Source data / heavy files
+*.pdf
+*.mp3
+*.wav
+*.m4a
+*.mp4
+*.mkv
+*.zip
+*.rar
+*.7z
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Neo4j dumps/backups
+*.dump
+*.backup

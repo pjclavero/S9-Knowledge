@@ -1,0 +1,724 @@
+#!/usr/bin/env python3
+"""
+Ingesta de PDFs narrativos RPG en el grafo de propiedades.
+Uso: property-graph-rpg --workspace leyenda --pdf /ruta/al/archivo.pdf [--pages 1-20]
+"""
+from __future__ import annotations
+
+import argparse
+import fcntl
+import hashlib
+import json
+import logging
+import os
+import re
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Optional
+
+import yaml
+
+# ── Exit codes ────────────────────────────────────────────────────────────────
+EXIT_OK = 0
+EXIT_NO_ENTITIES = 10
+EXIT_PDF_READ_ERROR = 20
+EXIT_NO_TEXT_PAGES = 21
+EXIT_MODEL_ERROR = 30
+EXIT_INVALID_JSON = 31
+EXIT_NEO4J_ERROR = 40
+EXIT_NO_SPACE = 50
+EXIT_LOCKED = 60
+
+NEXTCLOUD_BASE = "/mnt/nextcloud-rol"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger("property-graph-rpg")
+
+
+# ── Config ────────────────────────────────────────────────────────────────────
+def load_config(config_path: str) -> dict:
+    with open(config_path) as f:
+        return yaml.safe_load(f)
+
+
+def read_password(password_file: str) -> str:
+    with open(password_file) as f:
+        return f.read().strip()
+
+
+# ── Path validation ───────────────────────────────────────────────────────────
+def validate_pdf_path(pdf_path: str) -> Path:
+    if ".." in pdf_path:
+        log.error("Path traversal detectado")
+        sys.exit(EXIT_PDF_READ_ERROR)
+    p = Path(pdf_path).resolve()
+    base = Path(NEXTCLOUD_BASE).resolve()
+    try:
+        p.relative_to(base)
+    except ValueError:
+        log.error("La ruta %s no está dentro de %s", pdf_path, NEXTCLOUD_BASE)
+        sys.exit(EXIT_PDF_READ_ERROR)
+    if not p.exists():
+        log.error("El archivo no existe: %s", p)
+        sys.exit(EXIT_PDF_READ_ERROR)
+    return p
+
+
+# ── SHA-256 ───────────────────────────────────────────────────────────────────
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+# ── PDF reading ───────────────────────────────────────────────────────────────
+def extract_text_by_page(pdf_path: Path, page_range=None) -> dict:
+    """Devuelve {page_number (1-based): text}."""
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        log.error("pypdf no disponible")
+        sys.exit(EXIT_PDF_READ_ERROR)
+
+    reader = PdfReader(str(pdf_path))
+    total = len(reader.pages)
+    start, end = (page_range[0] - 1, page_range[1]) if page_range else (0, total)
+    start = max(0, start)
+    end = min(total, end)
+
+    pages = {}
+    for i in range(start, end):
+        try:
+            text = reader.pages[i].extract_text() or ""
+            pages[i + 1] = text.strip()
+        except Exception as e:
+            log.warning("Error extrayendo página %d: %s", i + 1, e)
+            pages[i + 1] = ""
+    return pages
+
+
+def get_page_count(pdf_path: Path) -> int:
+    try:
+        from pypdf import PdfReader
+        return len(PdfReader(str(pdf_path)).pages)
+    except Exception:
+        return 0
+
+
+# ── Chunking ──────────────────────────────────────────────────────────────────
+def chunk_pages(pages: dict, chunk_size: int, chunk_overlap: int) -> list:
+    """Divide páginas en chunks manteniendo referencia de página."""
+    page_nums = sorted(pages.keys())
+    chunks = []
+    i = 0
+    while i < len(page_nums):
+        chunk_pages_nums = page_nums[i:i + chunk_size]
+        text = "\n\n".join(pages[p] for p in chunk_pages_nums if pages[p])
+        if text.strip():
+            chunks.append({
+                "text": text,
+                "page_start": chunk_pages_nums[0],
+                "page_end": chunk_pages_nums[-1],
+            })
+        step = max(1, chunk_size - chunk_overlap)
+        i += step
+    return chunks
+
+
+# ── Ollama extractor ──────────────────────────────────────────────────────────
+class OllamaExtractor:
+    def __init__(self, config: dict, model_override=None):
+        self.base_url = config["ollama"]["base_url"].rstrip("/")
+        self.model = model_override or config["ollama"]["model"]
+        self.temperature = config["ollama"].get("temperature", 0)
+        self.timeout = config["ollama"].get("request_timeout", 600)
+
+    def extract(self, text: str, workspace: str, source_document: str,
+                page_start: int, page_end: int) -> dict:
+        import urllib.request
+        import urllib.error
+
+        from prompts.rpg_extraction_prompt import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
+
+        user_msg = USER_PROMPT_TEMPLATE.format(
+            workspace=workspace,
+            source_document=source_document,
+            page_start=page_start,
+            page_end=page_end,
+            text=text[:8000],
+        )
+
+        payload = json.dumps({
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_msg},
+            ],
+            "temperature": self.temperature,
+            "stream": False,
+        }).encode()
+
+        url = f"{self.base_url}/v1/chat/completions"
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                data = json.loads(resp.read().decode())
+        except urllib.error.URLError as e:
+            log.error("Error conectando a Ollama: %s", e)
+            sys.exit(EXIT_MODEL_ERROR)
+
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return self._parse_json(content)
+
+    def _parse_json(self, content: str) -> dict:
+        content = content.strip()
+        match = re.search(r'\{.*\}', content, re.DOTALL)
+        if match:
+            content = match.group(0)
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            return {}
+
+
+# ── Neo4j writer ──────────────────────────────────────────────────────────────
+class Neo4jWriter:
+    LABEL_MAP = {
+        "Character": "Character",
+        "Location": "Location",
+        "Faction": "Faction",
+        "Clan": "Clan",
+        "Family": "Family",
+        "School": "School",
+        "Creature": "Creature",
+        "Object": "Object",
+        "Spell": "Spell",
+        "Rule": "Rule",
+        "Event": "Event",
+        "Concept": "Concept",
+        "Chapter": "Chapter",
+        "Document": "Document",
+    }
+
+    def __init__(self, config: dict):
+        try:
+            from neo4j import GraphDatabase
+        except ImportError:
+            log.error("Driver neo4j no disponible")
+            sys.exit(EXIT_NEO4J_ERROR)
+
+        neo4j_cfg = config["neo4j"]
+        password = read_password(neo4j_cfg["password_file"])
+        self.driver = GraphDatabase.driver(
+            neo4j_cfg["uri"],
+            auth=(neo4j_cfg["username"], password),
+        )
+        self.driver.verify_connectivity()
+        log.info("Neo4j conectado")
+
+    def write_entity(self, entity) -> bool:
+        label = self.LABEL_MAP.get(entity.entity_type, "Concept")
+        query = (
+            f"MERGE (n:Entity:{label} {{workspace: $workspace, canonical_name: $canonical_name}}) "
+            "ON CREATE SET n.created_at = $updated_at "
+            "SET n.display_name = $display_name, "
+            "    n.aliases = $aliases, "
+            "    n.description = $description, "
+            "    n.entity_type = $entity_type, "
+            "    n.source_document = $source_document, "
+            "    n.source_pages = $source_pages, "
+            "    n.confidence = $confidence, "
+            "    n.updated_at = $updated_at "
+            "RETURN n.canonical_name AS name"
+        )
+        params = entity.to_neo4j_params()
+        params["updated_at"] = datetime.now(timezone.utc).isoformat()
+        try:
+            with self.driver.session() as session:
+                session.run(query, **params)
+            return True
+        except Exception as e:
+            log.error("Error escribiendo entidad %s: %s", entity.canonical_name, e)
+            return False
+
+    def write_relationship(self, rel, workspace: str) -> bool:
+        rel_type = rel.relation_type
+        query = (
+            "MATCH (a:Entity {workspace: $workspace, canonical_name: $source_canonical}) "
+            "MATCH (b:Entity {workspace: $workspace, canonical_name: $target_canonical}) "
+            f"MERGE (a)-[r:{rel_type}]->(b) "
+            "ON CREATE SET r.created_at = $updated_at "
+            "SET r.evidence = $evidence, "
+            "    r.source_document = $source_document, "
+            "    r.source_pages = $source_pages, "
+            "    r.confidence = $confidence, "
+            "    r.updated_at = $updated_at "
+            "RETURN type(r) AS rel_type"
+        )
+        params = rel.to_neo4j_params()
+        params["workspace"] = workspace
+        params["updated_at"] = datetime.now(timezone.utc).isoformat()
+        try:
+            with self.driver.session() as session:
+                session.run(query, **params)
+            return True
+        except Exception as e:
+            log.warning("Error escribiendo relación %s->%s: %s",
+                        rel.source_canonical, rel.target_canonical, e)
+            return False
+
+    def query_entities(self, workspace: str, limit: int = 25) -> list:
+        query = (
+            "MATCH (n {workspace: $workspace}) "
+            "RETURN labels(n) AS labels, n.canonical_name AS name, "
+            "       n.source_pages AS pages "
+            "LIMIT $limit"
+        )
+        with self.driver.session() as session:
+            result = session.run(query, workspace=workspace, limit=limit)
+            return [dict(r) for r in result]
+
+    def close(self):
+        self.driver.close()
+
+
+# ── State management ──────────────────────────────────────────────────────────
+def safe_name(name: str) -> str:
+    return re.sub(r'[^a-zA-Z0-9._-]', '_', name)[:100]
+
+
+def load_state(state_dir: str, workspace: str, pdf_name: str) -> dict:
+    state_file = Path(state_dir) / f"{workspace}_{safe_name(pdf_name)}.json"
+    if state_file.exists():
+        try:
+            with open(state_file) as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def save_state(state_dir: str, workspace: str, pdf_name: str, data: dict):
+    Path(state_dir).mkdir(parents=True, exist_ok=True)
+    state_file = Path(state_dir) / f"{workspace}_{safe_name(pdf_name)}.json"
+    with open(state_file, "w") as f:
+        json.dump(data, f, indent=2, default=str)
+
+
+def save_chunk_state(state_dir: str, workspace: str, pdf_name: str,
+                     chunk_idx: int, page_start: int, page_end: int,
+                     status: str, n_entities: int, n_rels: int,
+                     error: str = "", model: str = "",
+                     prompt_version: str = "1.0.0",
+                     schema_version: str = "1.0.0") -> None:
+    """Guarda estado por chunk de forma incremental."""
+    chunk_dir = Path(state_dir) / f"{workspace}_{safe_name(pdf_name)}_chunks"
+    chunk_dir.mkdir(parents=True, exist_ok=True)
+    chunk_file = chunk_dir / f"chunk_{chunk_idx:04d}.json"
+    with open(chunk_file, "w") as f:
+        json.dump({
+            "pdf": pdf_name,
+            "workspace": workspace,
+            "chunk_index": chunk_idx,
+            "page_start": page_start,
+            "page_end": page_end,
+            "model": model,
+            "prompt_version": prompt_version,
+            "schema_version": schema_version,
+            "status": status,
+            "entities": n_entities,
+            "relationships": n_rels,
+            "error": error,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }, f, indent=2)
+
+
+# ── Markdown export ───────────────────────────────────────────────────────────
+def export_to_markdown(entities, relationships, workspace: str,
+                       source_document: str, spaces_dir: str):
+    base = Path(spaces_dir) / "Grafo"
+    base.mkdir(parents=True, exist_ok=True)
+
+    type_map = {
+        "Character": "Personajes",
+        "Location": "Lugares",
+        "Faction": "Facciones",
+        "Clan": "Facciones",
+        "Family": "Facciones",
+        "School": "Facciones",
+        "Rule": "Reglas",
+        "Event": "Eventos",
+        "Creature": "Criaturas",
+        "Object": "Objetos",
+        "Spell": "Magia",
+        "Concept": "Conceptos",
+        "Chapter": "Documentos",
+        "Document": "Documentos",
+    }
+
+    rel_map = {}
+    for r in relationships:
+        rel_map.setdefault(r.source_canonical, []).append(r)
+
+    for entity in entities:
+        folder_name = type_map.get(entity.entity_type, "Varios")
+        entity_dir = Path(spaces_dir) / folder_name
+        entity_dir.mkdir(parents=True, exist_ok=True)
+
+        note_path = entity_dir / f"{safe_name(entity.canonical_name)}.md"
+        if note_path.exists():
+            content = note_path.read_text()
+            if "manual: true" in content or "generated_by" not in content:
+                pending = base / "Pendientes"
+                pending.mkdir(parents=True, exist_ok=True)
+                proposal = pending / f"{safe_name(entity.canonical_name)}.md"
+                log.info("Conflicto: %s ya existe como nota manual -> %s", entity.canonical_name, proposal)
+                note_path = proposal
+
+        rels_text = ""
+        for r in rel_map.get(entity.canonical_name, []):
+            rels_text += f"- {r.relation_type}: [[{r.target_canonical}]] _{r.evidence[:100]}_\n"
+
+        note_content = f"""---
+generated_by: llamaindex-property-graph
+workspace: {workspace}
+entity_type: {entity.entity_type}
+source_documents:
+  - {source_document}
+source_pages: {entity.source_pages}
+confidence: {entity.confidence}
+---
+
+# {entity.display_name}
+
+{entity.description}
+
+{"**Aliases:** " + ", ".join(entity.aliases) if entity.aliases else ""}
+
+## Relaciones
+
+{rels_text if rels_text else "_Sin relaciones registradas_"}
+"""
+        note_path.write_text(note_content)
+        log.info("Nota creada: %s", note_path)
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+def parse_args():
+    p = argparse.ArgumentParser(description="Ingesta de PDFs RPG en Property Graph")
+    p.add_argument("--workspace", required=True)
+    p.add_argument("--pdf", required=True)
+    p.add_argument("--pages", help="Rango de páginas, ej: 1-20")
+    p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--keep-staging", action="store_true")
+    p.add_argument("--model")
+    p.add_argument("--no-neo4j", action="store_true")
+    p.add_argument("--export-json", action="store_true")
+    p.add_argument("--export-markdown", action="store_true")
+    p.add_argument("--chunk-pages", type=int, default=None,
+                   help="Páginas por chunk (override del config)")
+    p.add_argument("--config",
+                   default="/opt/knowledge-services/property-graph/config/settings.yaml")
+    return p.parse_args()
+
+
+def main():
+    args = parse_args()
+
+    config = load_config(args.config)
+    state_dir = config.get("state", {}).get("base_dir",
+        "/opt/knowledge-services/property-graph/state")
+    staging_dir = config.get("staging", {}).get("base_dir",
+        "/opt/knowledge-services/property-graph/staging")
+    lock_file = config.get("staging", {}).get("lock_file",
+        "/tmp/property-graph-process.lock")
+    output_dir = config.get("output", {}).get("base_dir",
+        "/opt/knowledge-services/property-graph/output")
+    spaces = config.get("spaces", {})
+    chunk_size = config.get("processing", {}).get("chunk_size", 3000)
+    chunk_overlap = config.get("processing", {}).get("chunk_overlap", 300)
+    PAGE_CHUNK = args.chunk_pages or config.get("processing", {}).get("chunk_pages", 3)
+
+    allowed_workspaces = config.get("workspaces", [])
+    if args.workspace not in allowed_workspaces:
+        log.error("Workspace '%s' no permitido. Permitidos: %s", args.workspace, allowed_workspaces)
+        sys.exit(EXIT_PDF_READ_ERROR)
+
+    pdf_path = validate_pdf_path(args.pdf)
+    pdf_name = pdf_path.name
+
+    lock_fd = open(lock_file, "w")
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        log.error("Otra instancia en ejecución (lock: %s)", lock_file)
+        sys.exit(EXIT_LOCKED)
+
+    state = load_state(state_dir, args.workspace, pdf_name)
+    pdf_hash = sha256_file(pdf_path)
+    if not args.force and state.get("sha256") == pdf_hash and state.get("status") == "ok":
+        log.info("Sin cambios en %s (hash idéntico, estado ok). Usa --force para reprocesar.", pdf_name)
+        sys.exit(EXIT_OK)
+
+    page_range = None
+    if args.pages:
+        m = re.match(r"(\d+)-(\d+)", args.pages)
+        if m:
+            page_range = (int(m.group(1)), int(m.group(2)))
+
+    size_bytes = pdf_path.stat().st_size
+    size_mb = size_bytes // (1024 * 1024)
+    stat = os.statvfs(staging_dir if Path(staging_dir).exists() else "/opt")
+    avail_bytes = stat.f_bavail * stat.f_frsize
+    if avail_bytes < size_bytes * 3:
+        log.error("Espacio insuficiente: disponible=%dMB, necesario=%dMB",
+                  avail_bytes // (1024 * 1024), size_mb * 3)
+        sys.exit(EXIT_NO_SPACE)
+
+    Path(staging_dir).mkdir(parents=True, exist_ok=True)
+    import shutil
+    staging_pdf = Path(staging_dir) / safe_name(pdf_name)
+    try:
+        shutil.copy2(str(pdf_path), str(staging_pdf))
+    except OSError:
+        # Fallback: copy without metadata (needed for network filesystems)
+        shutil.copy(str(pdf_path), str(staging_pdf))
+    log.info("PDF copiado a staging: %s (%d MB)", staging_pdf, size_mb)
+
+    num_pages = get_page_count(staging_pdf)
+    log.info("Páginas totales: %d", num_pages)
+
+    try:
+        pages = extract_text_by_page(staging_pdf, page_range)
+        empty_pages = [p for p, t in pages.items() if not t.strip()]
+        if empty_pages:
+            log.warning("Páginas sin texto: %s", empty_pages[:10])
+        text_pages = {p: t for p, t in pages.items() if t.strip()}
+        if not text_pages:
+            log.error("Ninguna página con texto extraíble")
+            save_state(state_dir, args.workspace, pdf_name, {
+                "sha256": pdf_hash, "status": "no_text",
+                "processed_at": datetime.now(timezone.utc).isoformat(),
+            })
+            sys.exit(EXIT_NO_TEXT_PAGES)
+
+        log.info("Páginas con texto: %d/%d", len(text_pages), len(pages))
+
+        chunks = chunk_pages(text_pages, PAGE_CHUNK, 1)
+        log.info("Chunks generados: %d (chunk_pages=%d)", len(chunks), PAGE_CHUNK)
+
+        extractor = OllamaExtractor(config, args.model)
+
+        writer = None
+        if not args.no_neo4j and not args.dry_run:
+            try:
+                writer = Neo4jWriter(config)
+            except SystemExit:
+                raise
+            except Exception as e:
+                log.error("No se puede conectar a Neo4j: %s", e)
+                save_state(state_dir, args.workspace, pdf_name, {
+                    "sha256": pdf_hash, "status": "neo4j_error",
+                    "error": str(e),
+                    "processed_at": datetime.now(timezone.utc).isoformat(),
+                })
+                sys.exit(EXIT_NEO4J_ERROR)
+
+        all_entities = []
+        all_relationships = []
+        all_warnings = []
+        chunk_statuses = []
+
+        for idx, chunk in enumerate(chunks):
+            log.info("Procesando chunk %d/%d (páginas %d-%d)...",
+                     idx + 1, len(chunks), chunk["page_start"], chunk["page_end"])
+            chunk_status = "empty"
+            chunk_entities = []
+            chunk_rels = []
+            chunk_error = ""
+
+            if args.dry_run:
+                log.info("  [dry-run] omitiendo llamada al modelo")
+                chunk_status = "dry_run"
+            else:
+                raw = extractor.extract(
+                    text=chunk["text"],
+                    workspace=args.workspace,
+                    source_document=pdf_name,
+                    page_start=chunk["page_start"],
+                    page_end=chunk["page_end"],
+                )
+
+                if not raw:
+                    log.warning("  Chunk %d: respuesta vacía, reintentando...", idx + 1)
+                    raw = extractor.extract(
+                        text=chunk["text"],
+                        workspace=args.workspace,
+                        source_document=pdf_name,
+                        page_start=chunk["page_start"],
+                        page_end=chunk["page_end"],
+                    )
+
+                if not raw:
+                    chunk_error = f"Respuesta vacía tras reintento"
+                    chunk_status = "model_error"
+                    all_warnings.append(f"Chunk {idx+1} (pp.{chunk['page_start']}-{chunk['page_end']}): {chunk_error}")
+                else:
+                    try:
+                        from schemas.rpg_schema import ExtractionResult, EntityBase, RelationshipBase
+                        for e in raw.get("entities", []):
+                            e.setdefault("workspace", args.workspace)
+                        result = ExtractionResult(**raw)
+                        chunk_entities = result.entities
+                        chunk_rels = result.relationships
+                        all_warnings.extend(result.warnings)
+
+                        if chunk_entities or chunk_rels:
+                            chunk_status = "success"
+                        else:
+                            chunk_status = "empty"
+
+                        log.info("  -> %d entidades, %d relaciones",
+                                 len(chunk_entities), len(chunk_rels))
+
+                        # Escribir en Neo4j inmediatamente
+                        if writer and chunk_entities:
+                            n_ok = sum(1 for e in chunk_entities if writer.write_entity(e))
+                            r_ok = sum(1 for r in chunk_rels if writer.write_relationship(r, args.workspace))
+                            log.info("  Neo4j: %d/%d entidades, %d/%d relaciones escritas",
+                                     n_ok, len(chunk_entities), r_ok, len(chunk_rels))
+
+                        all_entities.extend(chunk_entities)
+                        all_relationships.extend(chunk_rels)
+
+                        # Exportar JSON parcial acumulado
+                        if args.export_json:
+                            out = Path(output_dir) / args.workspace / safe_name(pdf_name)
+                            out.mkdir(parents=True, exist_ok=True)
+                            with open(out / "entities.json", "w") as f:
+                                json.dump({
+                                    "entities": [e.model_dump() for e in all_entities],
+                                    "relationships": [r.model_dump() for r in all_relationships],
+                                    "warnings": all_warnings,
+                                    "chunks_processed": idx + 1,
+                                    "chunks_total": len(chunks),
+                                }, f, indent=2, default=str)
+
+                    except Exception as e:
+                        chunk_error = str(e)
+                        chunk_status = "invalid_json"
+                        log.warning("  Chunk %d: validación fallida: %s", idx + 1, e)
+                        all_warnings.append(f"Chunk {idx+1}: {e}")
+
+            chunk_statuses.append(chunk_status)
+            save_chunk_state(
+                state_dir, args.workspace, pdf_name,
+                chunk_idx=idx,
+                page_start=chunk["page_start"],
+                page_end=chunk["page_end"],
+                status=chunk_status,
+                n_entities=len(chunk_entities),
+                n_rels=len(chunk_rels),
+                error=chunk_error,
+                model=config["ollama"]["model"],
+            )
+
+        if writer:
+            writer.close()
+
+        log.info("Total: %d entidades, %d relaciones, %d advertencias",
+                 len(all_entities), len(all_relationships), len(all_warnings))
+
+        # Determinar estado final del documento
+        success_chunks = chunk_statuses.count("success")
+        failed_chunks = sum(1 for s in chunk_statuses if s in ("model_error", "invalid_json"))
+
+        if failed_chunks == 0 and success_chunks > 0:
+            doc_status = "complete"
+        elif failed_chunks == 0 and success_chunks == 0:
+            doc_status = "no_entities"
+        elif success_chunks > 0 and failed_chunks > 0:
+            doc_status = "partial_success"
+        else:
+            doc_status = "failed"
+
+        log.info("Estado del documento: %s (%d/%d chunks ok)",
+                 doc_status, success_chunks, len(chunks))
+
+        if not all_entities and not args.dry_run:
+            log.warning("Sin entidades extraídas")
+            save_state(state_dir, args.workspace, pdf_name, {
+                "sha256": pdf_hash, "status": doc_status,
+                "processed_at": datetime.now(timezone.utc).isoformat(),
+                "warnings": all_warnings,
+                "chunks": chunk_statuses,
+            })
+            sys.exit(EXIT_NO_ENTITIES)
+
+        # Export Markdown (al final, con todas las entidades acumuladas)
+        if args.export_markdown and not args.dry_run:
+            spaces_dir = spaces.get(args.workspace,
+                f"/opt/knowledge-services/spaces/{args.workspace}")
+            export_to_markdown(
+                all_entities, all_relationships,
+                args.workspace, pdf_name, spaces_dir,
+            )
+
+        # Estado final
+        save_state(state_dir, args.workspace, pdf_name, {
+            "sha256": pdf_hash,
+            "status": doc_status,
+            "processed_at": datetime.now(timezone.utc).isoformat(),
+            "pages": num_pages,
+            "page_range": f"{page_range[0]}-{page_range[1]}" if page_range else "all",
+            "entities": len(all_entities),
+            "relationships": len(all_relationships),
+            "warnings": len(all_warnings),
+            "chunks": chunk_statuses,
+            "model": config["ollama"]["model"],
+        })
+
+        # Limpiar staging solo si exito completo
+        if doc_status == "complete" and not args.keep_staging and not args.dry_run:
+            staging_pdf.unlink(missing_ok=True)
+            log.info("Staging eliminado")
+        elif doc_status != "complete":
+            log.info("Staging conservado (estado: %s)", doc_status)
+
+        log.info("Completado: %d entidades, %d relaciones [%s]",
+                 len(all_entities), len(all_relationships), doc_status)
+
+        if doc_status == "complete":
+            return EXIT_OK
+        elif doc_status == "partial_success":
+            return EXIT_NO_ENTITIES  # parcial: código 10
+        else:
+            return EXIT_NO_ENTITIES
+
+    except SystemExit:
+        raise
+    except Exception as e:
+        log.exception("Error inesperado: %s", e)
+        return EXIT_PDF_READ_ERROR
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        lock_fd.close()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

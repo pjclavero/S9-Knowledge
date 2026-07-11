@@ -1,0 +1,41 @@
+ollama:
+  base_url: "http://192.168.1.157:11434"
+  model: "qwen2.5:7b"
+  temperature: 0
+  request_timeout: 600
+  context_window: 32768
+
+neo4j:
+  uri: "bolt://127.0.0.1:7687"
+  username: "neo4j"
+  password_file: "/opt/knowledge-services/neo4j/secrets/neo4j_password"
+
+processing:
+  max_concurrency: 1
+  chunk_size: 3000
+  chunk_overlap: 300
+  retain_staging_on_error: true
+  delete_staging_on_success: true
+  size_threshold_mb: 20
+  page_threshold: 150
+
+staging:
+  base_dir: "/opt/knowledge-services/property-graph/staging"
+  lock_file: "/tmp/property-graph-process.lock"
+
+state:
+  base_dir: "/opt/knowledge-services/property-graph/state"
+
+output:
+  base_dir: "/opt/knowledge-services/property-graph/output"
+
+spaces:
+  leyenda: "/opt/knowledge-services/spaces/leyenda"
+  mundo_tinieblas: "/opt/knowledge-services/spaces/mundo_tinieblas"
+  trudvang: "/opt/knowledge-services/spaces/trudvang"
+
+workspaces:
+  - leyenda
+  - mundo_tinieblas
+  - trudvang
+  - infrastructure

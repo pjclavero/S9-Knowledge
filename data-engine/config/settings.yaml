@@ -1,0 +1,92 @@
+ollama:
+  base_url: "http://192.168.1.157:11434"
+  model: "qwen2.5:7b"
+  temperature: 0
+  request_timeout: 900
+  context_window: 32768
+
+neo4j:
+  uri: "bolt://127.0.0.1:7687"
+  username: "neo4j"
+  password_file: "/opt/knowledge-services/neo4j/secrets/neo4j_password"
+
+processing:
+  max_concurrency: 1
+  chunk_size: 3000
+  chunk_overlap: 300
+  chunk_pages: 3
+  chunk_chars: 6000
+  overlap_chars: 500
+  retain_staging_on_error: true
+  delete_staging_on_success: true
+  size_threshold_mb: 20
+  page_threshold: 150
+
+staging:
+  base_dir: "/opt/knowledge-services/property-graph/staging"
+  lock_file: "/tmp/property-graph-process.lock"
+
+state:
+  base_dir: "/opt/knowledge-services/property-graph/state"
+
+output:
+  base_dir: "/opt/knowledge-services/property-graph/output"
+
+spaces:
+  leyenda: "/opt/knowledge-services/spaces/leyenda"
+  mundo_tinieblas: "/opt/knowledge-services/spaces/mundo_tinieblas"
+  trudvang: "/opt/knowledge-services/spaces/trudvang"
+
+workspaces:
+  - leyenda
+  - mundo_tinieblas
+  - trudvang
+  - infrastructure
+
+profiles:
+  short:
+    chunk_pages: 3
+    request_timeout: 900
+    export_markdown: true
+    export_json: true
+    description: "Documentos cortos: fichas, notas"
+  transcript:
+    chunk_chars: 6000
+    overlap_chars: 500
+    request_timeout: 900
+    export_markdown: true
+    export_json: true
+    detect_speakers: true
+    description: "Transcripciones, crónicas de sesión"
+  book:
+    chunk_pages: 3
+    request_timeout: 900
+    export_markdown: true
+    export_json: true
+    require_page_range: true
+    description: "Libros grandes, solo con --pages"
+  image-text:
+    export_markdown: true
+    export_json: true
+    description: "Imágenes con texto, requiere OCR"
+
+audio:
+  engine: "faster-whisper"
+  model: "small"
+  device: "cpu"
+  compute_type: "int8"
+  language: "es"
+  task: "transcribe"
+  vad_filter: true
+  beam_size: 5
+  max_audio_mb: 500
+  delete_staging_on_success: true
+  retain_staging_on_error: true
+  staging_dir: "/opt/knowledge-services/property-graph/staging/audio"
+  output_dir: "/opt/knowledge-services/property-graph/output/audio"
+  state_dir: "/opt/knowledge-services/property-graph/state/audio"
+  log_dir: "/opt/knowledge-services/property-graph/logs/audio"
+  spaces:
+    leyenda: "/opt/knowledge-services/spaces/leyenda/Transcripciones"
+    mundo_tinieblas: "/opt/knowledge-services/spaces/mundo_tinieblas/Transcripciones"
+    trudvang: "/opt/knowledge-services/spaces/trudvang/Transcripciones"

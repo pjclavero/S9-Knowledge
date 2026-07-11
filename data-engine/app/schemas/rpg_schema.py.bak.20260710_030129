@@ -1,0 +1,105 @@
+"""Schema Pydantic para extracción de entidades RPG narrativas."""
+from __future__ import annotations
+from typing import Literal, Optional
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+SCHEMA_VERSION = "1.0.0"
+
+ALLOWED_NODE_TYPES: frozenset[str] = frozenset({
+    "Document", "Chapter", "Character", "Location", "Faction", "Clan",
+    "Family", "School", "Creature", "Object", "Spell", "Rule", "Event", "Concept",
+})
+
+ALLOWED_RELATION_TYPES: frozenset[str] = frozenset({
+    "CONTAINS", "MENTIONS", "APPEARS_IN", "BELONGS_TO", "MEMBER_OF",
+    "ALLIED_WITH", "ENEMY_OF", "RELATED_TO", "LOCATED_IN", "OCCURS_IN",
+    "OWNS", "USES", "TEACHES", "LEARNS", "CREATED_BY", "DESCENDANT_OF",
+    "PARENT_OF", "SERVES", "GOVERNS", "AFFECTS", "REQUIRES", "CONTRADICTS",
+})
+
+
+class EntityBase(BaseModel):
+    canonical_name: str = Field(..., min_length=1, max_length=500)
+    display_name: str = Field(..., min_length=1, max_length=500)
+    aliases: list[str] = Field(default_factory=list)
+    description: str = Field(default="")
+    entity_type: str
+    workspace: str = Field(..., min_length=1)
+    source_document: str = Field(default="")
+    source_pages: list[int] = Field(default_factory=list)
+    confidence: float = Field(default=0.8, ge=0.0, le=1.0)
+
+    @field_validator("entity_type")
+    @classmethod
+    def validate_entity_type(cls, v: str) -> str:
+        if v not in ALLOWED_NODE_TYPES:
+            raise ValueError(
+                f"entity_type '{v}' no permitido. Permitidos: {sorted(ALLOWED_NODE_TYPES)}"
+            )
+        return v
+
+    @field_validator("canonical_name")
+    @classmethod
+    def sanitize_canonical_name(cls, v: str) -> str:
+        return v.strip()
+
+    def to_neo4j_params(self) -> dict:
+        return {
+            "canonical_name": self.canonical_name,
+            "display_name": self.display_name,
+            "aliases": self.aliases,
+            "description": self.description,
+            "entity_type": self.entity_type,
+            "workspace": self.workspace,
+            "source_document": self.source_document,
+            "source_pages": self.source_pages,
+            "confidence": self.confidence,
+        }
+
+
+class RelationshipBase(BaseModel):
+    source_canonical: str = Field(..., min_length=1)
+    relation_type: str
+    target_canonical: str = Field(..., min_length=1)
+    evidence: str = Field(default="")
+    source_document: str = Field(default="")
+    source_pages: list[int] = Field(default_factory=list)
+    confidence: float = Field(default=0.7, ge=0.0, le=1.0)
+
+    @field_validator("relation_type")
+    @classmethod
+    def validate_relation_type(cls, v: str) -> str:
+        if v not in ALLOWED_RELATION_TYPES:
+            raise ValueError(
+                f"relation_type '{v}' no permitido. Permitidos: {sorted(ALLOWED_RELATION_TYPES)}"
+            )
+        return v
+
+    def to_neo4j_params(self) -> dict:
+        return {
+            "source_canonical": self.source_canonical,
+            "relation_type": self.relation_type,
+            "target_canonical": self.target_canonical,
+            "evidence": self.evidence,
+            "source_document": self.source_document,
+            "source_pages": self.source_pages,
+            "confidence": self.confidence,
+        }
+
+
+class ExtractionResult(BaseModel):
+    entities: list[EntityBase] = Field(default_factory=list)
+    relationships: list[RelationshipBase] = Field(default_factory=list)
+    raw_pages: list[int] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class DocumentMeta(BaseModel):
+    path: str
+    workspace: str
+    sha256: str
+    size_bytes: int
+    num_pages: int
+    model: str
+    schema_version: str = SCHEMA_VERSION
+    prompt_version: str = "1.0.0"

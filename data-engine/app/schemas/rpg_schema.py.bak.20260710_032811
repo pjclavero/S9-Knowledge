@@ -1,0 +1,183 @@
+"""Schema Pydantic para extracción de entidades RPG narrativas."""
+from __future__ import annotations
+from typing import Literal, Optional
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+SCHEMA_VERSION = "1.1.0"
+
+ALLOWED_NODE_TYPES: frozenset[str] = frozenset({
+    "Document", "Chapter", "Character", "Location", "Faction", "Clan",
+    "Family", "School", "Creature", "Object", "Spell", "Rule", "Event", "Concept",
+    "Task",
+})
+
+ALLOWED_RELATION_TYPES: frozenset[str] = frozenset({
+    "CONTAINS", "MENTIONS", "APPEARS_IN", "BELONGS_TO", "MEMBER_OF",
+    "ALLIED_WITH", "ENEMY_OF", "RELATED_TO", "LOCATED_IN", "OCCURS_IN",
+    "OWNS", "USES", "TEACHES", "LEARNS", "CREATED_BY", "DESCENDANT_OF",
+    "PARENT_OF", "SERVES", "GOVERNS", "AFFECTS", "REQUIRES", "CONTRADICTS",
+    # Tipos narrativos para transcripciones de sesión
+    "DECIDES", "SUSPECTS", "AGREES_TO", "HAS_VISION_OF", "SEES_IN_VISION",
+    "WARNED_BY", "WARNS", "INVESTIGATES", "SEARCHES_FOR", "INTERROGATES",
+    "CHECKS", "HAS_SYMBOL_OF", "HOLDS", "DISAPPEARED_NEAR",
+    "TASK_ASSIGNED_TO", "TASK_TARGETS",
+})
+
+
+class EntityBase(BaseModel):
+    canonical_name: str = Field(..., min_length=1, max_length=500)
+    display_name: str = Field(..., min_length=1, max_length=500)
+    aliases: list[str] = Field(default_factory=list)
+    description: str = Field(default="")
+    entity_type: str
+    workspace: str = Field(..., min_length=1)
+    source_document: str = Field(default="")
+    source_pages: list[int] = Field(default_factory=list)
+    confidence: float = Field(default=0.8, ge=0.0, le=1.0)
+
+    @field_validator("entity_type")
+    @classmethod
+    def validate_entity_type(cls, v: str) -> str:
+        if v not in ALLOWED_NODE_TYPES:
+            raise ValueError(
+                f"entity_type '{v}' no permitido. Permitidos: {sorted(ALLOWED_NODE_TYPES)}"
+            )
+        return v
+
+    @field_validator("canonical_name")
+    @classmethod
+    def sanitize_canonical_name(cls, v: str) -> str:
+        return v.strip()
+
+    def to_neo4j_params(self) -> dict:
+        return {
+            "canonical_name": self.canonical_name,
+            "display_name": self.display_name,
+            "aliases": self.aliases,
+            "description": self.description,
+            "entity_type": self.entity_type,
+            "workspace": self.workspace,
+            "source_document": self.source_document,
+            "source_pages": self.source_pages,
+            "confidence": self.confidence,
+        }
+
+
+
+
+# Mapa de normalización: variantes en español/inglés → tipo canónico SNAKE_CASE
+# Permite que el LLM devuelva tipos en español sin descartar la relación.
+RELATION_TYPE_NORMALIZE: dict[str, str] = {
+    # Español → canónico
+    "miembro de": "MEMBER_OF",
+    "pertenece a": "BELONGS_TO",
+    "aliado con": "ALLIED_WITH",
+    "enemigo de": "ENEMY_OF",
+    "relacionado con": "RELATED_TO",
+    "localizado en": "LOCATED_IN",
+    "ubicado en": "LOCATED_IN",
+    "ocurre en": "OCCURS_IN",
+    "aparece en": "APPEARS_IN",
+    "contiene": "CONTAINS",
+    "menciona": "MENTIONS",
+    "posee": "OWNS",
+    "usa": "USES",
+    "enseña": "TEACHES",
+    "aprende": "LEARNS",
+    "creado por": "CREATED_BY",
+    "descendiente de": "DESCENDANT_OF",
+    "padre de": "PARENT_OF",
+    "sirve a": "SERVES",
+    "gobierna": "GOVERNS",
+    "afecta": "AFFECTS",
+    "requiere": "REQUIRES",
+    "contradice": "CONTRADICTS",
+    "decide": "DECIDES",
+    "sospecha": "SUSPECTS",
+    "sospecha de": "SUSPECTS",
+    "acuerda": "AGREES_TO",
+    "tiene visión de": "HAS_VISION_OF",
+    "ve en visión": "SEES_IN_VISION",
+    "advertido por": "WARNED_BY",
+    "advierte": "WARNS",
+    "investiga": "INVESTIGATES",
+    "busca": "SEARCHES_FOR",
+    "interroga": "INTERROGATES",
+    "comprueba": "CHECKS",
+    "tiene símbolo de": "HAS_SYMBOL_OF",
+    "sostiene": "HOLDS",
+    "desaparecido cerca de": "DISAPPEARED_NEAR",
+    "tarea asignada a": "TASK_ASSIGNED_TO",
+    "tarea dirigida a": "TASK_TARGETS",
+    # Inglés informal → canónico
+    "member of": "MEMBER_OF",
+    "belongs to": "BELONGS_TO",
+    "allied with": "ALLIED_WITH",
+    "enemy of": "ENEMY_OF",
+    "related to": "RELATED_TO",
+    "located in": "LOCATED_IN",
+    "occurs in": "OCCURS_IN",
+    "appears in": "APPEARS_IN",
+}
+
+
+def normalize_relation_type(v: str) -> str:
+    """Normaliza un tipo de relación al formato SNAKE_CASE canónico."""
+    # Ya es canónico
+    if v in ALLOWED_RELATION_TYPES:
+        return v
+    # Intentar normalizar desde el mapa (case-insensitive)
+    mapped = RELATION_TYPE_NORMALIZE.get(v.lower().strip())
+    if mapped and mapped in ALLOWED_RELATION_TYPES:
+        return mapped
+    # No reconocido
+    return v
+
+class RelationshipBase(BaseModel):
+    source_canonical: str = Field(..., min_length=1)
+    relation_type: str
+    target_canonical: str = Field(..., min_length=1)
+    evidence: str = Field(default="")
+    source_document: str = Field(default="")
+    source_pages: list[int] = Field(default_factory=list)
+    confidence: float = Field(default=0.7, ge=0.0, le=1.0)
+
+    @field_validator("relation_type")
+    @classmethod
+    def validate_relation_type(cls, v: str) -> str:
+        # Intentar normalizar antes de rechazar
+        normalized = normalize_relation_type(v)
+        if normalized not in ALLOWED_RELATION_TYPES:
+            raise ValueError(
+                f"relation_type '{v}' no permitido. Permitidos: {sorted(ALLOWED_RELATION_TYPES)}"
+            )
+        return normalized
+
+    def to_neo4j_params(self) -> dict:
+        return {
+            "source_canonical": self.source_canonical,
+            "relation_type": self.relation_type,
+            "target_canonical": self.target_canonical,
+            "evidence": self.evidence,
+            "source_document": self.source_document,
+            "source_pages": self.source_pages,
+            "confidence": self.confidence,
+        }
+
+
+class ExtractionResult(BaseModel):
+    entities: list[EntityBase] = Field(default_factory=list)
+    relationships: list[RelationshipBase] = Field(default_factory=list)
+    raw_pages: list[int] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class DocumentMeta(BaseModel):
+    path: str
+    workspace: str
+    sha256: str
+    size_bytes: int
+    num_pages: int
+    model: str
+    schema_version: str = SCHEMA_VERSION
+    prompt_version: str = "1.1.0"

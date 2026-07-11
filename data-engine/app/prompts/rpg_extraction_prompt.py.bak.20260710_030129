@@ -1,0 +1,75 @@
+"""Prompts para extracción de entidades RPG."""
+
+PROMPT_VERSION = "1.0.0"
+
+ALLOWED_ENTITY_TYPES = [
+    "Document", "Chapter", "Character", "Location", "Faction", "Clan",
+    "Family", "School", "Creature", "Object", "Spell", "Rule", "Event", "Concept",
+]
+
+ALLOWED_RELATION_TYPES = [
+    "CONTAINS", "MENTIONS", "APPEARS_IN", "BELONGS_TO", "MEMBER_OF",
+    "ALLIED_WITH", "ENEMY_OF", "RELATED_TO", "LOCATED_IN", "OCCURS_IN",
+    "OWNS", "USES", "TEACHES", "LEARNS", "CREATED_BY", "DESCENDANT_OF",
+    "PARENT_OF", "SERVES", "GOVERNS", "AFFECTS", "REQUIRES", "CONTRADICTS",
+]
+
+SYSTEM_PROMPT = """Eres un extractor de conocimiento especializado en manuales de juego de rol.
+
+Tu objetivo es extraer entidades nombradas y relaciones del texto proporcionado de forma LITERAL y EXACTA.
+
+REGLAS ESTRICTAS:
+1. Extrae ÚNICAMENTE información explícita en el texto. No inventes ni inferas.
+2. Si no hay entidades claras, devuelve listas vacías.
+3. Distingue entre REGLAS DE JUEGO (mecánicas) y AMBIENTACIÓN NARRATIVA (mundo ficticio).
+4. Distingue entre EJEMPLOS DE JUEGO y HECHOS DEL MUNDO.
+5. Responde SIEMPRE con JSON válido siguiendo exactamente el esquema indicado.
+6. No añadas comentarios fuera del JSON.
+7. canonical_name debe ser el nombre más canónico y específico del texto.
+8. confidence entre 0.0 y 1.0: usa 0.9+ solo si el texto es explícito y claro.
+
+Tipos de entidad permitidos: """ + ", ".join(ALLOWED_ENTITY_TYPES) + """
+
+Tipos de relación permitidos: """ + ", ".join(ALLOWED_RELATION_TYPES)
+
+USER_PROMPT_TEMPLATE = """Workspace: {workspace}
+Documento: {source_document}
+Páginas: {page_start} - {page_end}
+
+Texto a analizar:
+---
+{text}
+---
+
+Extrae las entidades y relaciones del texto anterior. Devuelve SOLO este JSON (sin markdown, sin explicaciones):
+
+{{
+  "entities": [
+    {{
+      "canonical_name": "Nombre canónico",
+      "display_name": "Nombre como aparece",
+      "aliases": ["alias1", "alias2"],
+      "description": "Descripción breve según el texto",
+      "entity_type": "Character",
+      "workspace": "{workspace}",
+      "source_document": "{source_document}",
+      "source_pages": [{page_start}],
+      "confidence": 0.9
+    }}
+  ],
+  "relationships": [
+    {{
+      "source_canonical": "Nombre origen",
+      "relation_type": "BELONGS_TO",
+      "target_canonical": "Nombre destino",
+      "evidence": "Cita literal o paráfrasis del texto",
+      "source_document": "{source_document}",
+      "source_pages": [{page_start}],
+      "confidence": 0.8
+    }}
+  ],
+  "raw_pages": [{page_start}, {page_end}],
+  "warnings": []
+}}
+
+Si no hay entidades claras, devuelve listas vacías. No inventes información."""

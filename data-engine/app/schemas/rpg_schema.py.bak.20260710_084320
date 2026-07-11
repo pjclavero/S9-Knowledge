@@ -1,0 +1,444 @@
+"""Schema Pydantic para extracción de entidades RPG narrativas."""
+from __future__ import annotations
+import logging
+import unicodedata
+from typing import Optional
+from pydantic import BaseModel, Field, field_validator
+
+log = logging.getLogger(__name__)
+
+SCHEMA_VERSION = "1.2.0"
+
+ALLOWED_NODE_TYPES: frozenset[str] = frozenset({
+    "Document", "Chapter", "Character", "Location", "Faction", "Clan",
+    "Family", "School", "Creature", "Object", "Spell", "Rule", "Event", "Concept",
+    "Task",
+})
+
+ALLOWED_RELATION_TYPES: frozenset[str] = frozenset({
+    "CONTAINS", "MENTIONS", "APPEARS_IN", "BELONGS_TO", "MEMBER_OF",
+    "ALLIED_WITH", "ENEMY_OF", "RELATED_TO", "LOCATED_IN", "OCCURS_IN",
+    "OWNS", "USES", "TEACHES", "LEARNS", "CREATED_BY", "DESCENDANT_OF",
+    "PARENT_OF", "SERVES", "GOVERNS", "AFFECTS", "REQUIRES", "CONTRADICTS",
+    # Tipos narrativos para transcripciones de sesión
+    "DECIDES", "SUSPECTS", "AGREES_TO", "HAS_VISION_OF", "SEES_IN_VISION",
+    "WARNED_BY", "WARNS", "INVESTIGATES", "SEARCHES_FOR", "INTERROGATES",
+    "CHECKS", "HAS_SYMBOL_OF", "HOLDS", "DISAPPEARED_NEAR",
+    "TASK_ASSIGNED_TO", "TASK_TARGETS",
+})
+
+# ── Etiquetas visibles en español ─────────────────────────────────────────────
+# Idioma de uso: español. Identificadores internos: técnicos y estables.
+# Presentación al usuario: español (ver ARCHITECTURE.md).
+RELATION_LABELS_ES: dict[str, str] = {
+    "MEMBER_OF": "pertenece a",
+    "BELONGS_TO": "pertenece a",
+    "ALLIED_WITH": "aliado con",
+    "ENEMY_OF": "enemigo de",
+    "RELATED_TO": "está relacionado con",
+    "LOCATED_IN": "se ubica en",
+    "OCCURS_IN": "ocurre en",
+    "APPEARS_IN": "aparece en",
+    "CONTAINS": "contiene",
+    "MENTIONS": "menciona",
+    "OWNS": "posee",
+    "USES": "usa",
+    "TEACHES": "enseña a",
+    "LEARNS": "aprende de",
+    "CREATED_BY": "fue creado por",
+    "DESCENDANT_OF": "desciende de",
+    "PARENT_OF": "es padre/madre de",
+    "SERVES": "sirve a",
+    "GOVERNS": "gobierna",
+    "AFFECTS": "afecta a",
+    "REQUIRES": "requiere",
+    "CONTRADICTS": "contradice",
+    "DECIDES": "decide",
+    "SUSPECTS": "sospecha de",
+    "AGREES_TO": "acuerda",
+    "HAS_VISION_OF": "tuvo una visión de",
+    "SEES_IN_VISION": "vio en una visión",
+    "WARNED_BY": "fue advertido por",
+    "WARNS": "advierte a",
+    "INVESTIGATES": "investiga",
+    "SEARCHES_FOR": "busca",
+    "INTERROGATES": "interroga a",
+    "CHECKS": "comprueba",
+    "HAS_SYMBOL_OF": "tiene el símbolo de",
+    "HOLDS": "sostiene",
+    "DISAPPEARED_NEAR": "desapareció cerca de",
+    "TASK_ASSIGNED_TO": "tarea asignada a",
+    "TASK_TARGETS": "tiene como objetivo",
+}
+
+
+def _strip_accents(s: str) -> str:
+    """Elimina tildes y diacríticos para comparación robusta."""
+    return "".join(
+        c for c in unicodedata.normalize("NFD", s)
+        if unicodedata.category(c) != "Mn"
+    )
+
+
+def _normalize_key(s: str) -> str:
+    """Convierte a minúsculas sin tildes, reemplaza guiones/underscores por espacio."""
+    s = s.lower().strip()
+    s = _strip_accents(s)
+    s = s.replace("_", " ").replace("-", " ")
+    # colapsar espacios múltiples
+    return " ".join(s.split())
+
+
+# ── Mapa de normalización ampliado ────────────────────────────────────────────
+# Claves en minúsculas sin tildes (la función de lookup normaliza la entrada).
+# Cubre tipos en español libre, verbos conjugados, frases complejas.
+# Los casos detectados en el run de prueba están marcados con [DETECTADO].
+_RAW_NORMALIZE: list[tuple[str, str]] = [
+    # ── WARNED_BY / WARNS ─────────────────────────────────────────────────────
+    ("recibio advertencia", "WARNED_BY"),          # [DETECTADO]
+    ("recibio una advertencia", "WARNED_BY"),
+    ("recibe advertencia", "WARNED_BY"),
+    ("advertido por", "WARNED_BY"),
+    ("fue advertido por", "WARNED_BY"),
+    ("warned by", "WARNED_BY"),
+    ("advirtio", "WARNS"),
+    ("advierte", "WARNS"),
+    ("advierte a", "WARNS"),
+    ("advirtio a", "WARNS"),
+    ("dio una advertencia", "WARNS"),
+    ("warns", "WARNS"),
+
+    # ── HAS_VISION_OF / SEES_IN_VISION ────────────────────────────────────────
+    ("tiene vision de", "HAS_VISION_OF"),
+    ("tiene una vision de", "HAS_VISION_OF"),
+    ("vision de", "HAS_VISION_OF"),
+    ("tuvo una vision de", "HAS_VISION_OF"),
+    ("tuvo vision de", "HAS_VISION_OF"),
+    ("ha visionado", "HAS_VISION_OF"),
+    ("vio en una vision", "SEES_IN_VISION"),
+    ("vio en vision", "SEES_IN_VISION"),
+    ("vista sosten fragmento", "SEES_IN_VISION"),  # [DETECTADO]
+    ("vista sosten", "SEES_IN_VISION"),
+    ("ve en vision", "SEES_IN_VISION"),
+    ("aparece en vision", "SEES_IN_VISION"),
+    ("aparece en una vision", "SEES_IN_VISION"),
+    ("has vision of", "HAS_VISION_OF"),
+    ("sees in vision", "SEES_IN_VISION"),
+
+    # ── HAS_SYMBOL_OF ─────────────────────────────────────────────────────────
+    ("vista mascara", "HAS_SYMBOL_OF"),            # [DETECTADO]
+    ("mascara con simbolo", "HAS_SYMBOL_OF"),
+    ("tiene el simbolo de", "HAS_SYMBOL_OF"),
+    ("tiene simbolo de", "HAS_SYMBOL_OF"),
+    ("simbolo de", "HAS_SYMBOL_OF"),
+    ("simbolo del", "HAS_SYMBOL_OF"),
+    ("lleva el simbolo de", "HAS_SYMBOL_OF"),
+    ("has symbol of", "HAS_SYMBOL_OF"),
+
+    # ── INVESTIGATES ──────────────────────────────────────────────────────────
+    ("investigacion", "INVESTIGATES"),             # [DETECTADO]
+    ("investigacion de", "INVESTIGATES"),
+    ("investiga", "INVESTIGATES"),
+    ("investiga a", "INVESTIGATES"),
+    ("decidio investigar", "INVESTIGATES"),
+    ("decide investigar", "INVESTIGATES"),
+    ("investiga el", "INVESTIGATES"),
+    ("investiga la", "INVESTIGATES"),
+    ("investigates", "INVESTIGATES"),
+
+    # ── SEARCHES_FOR ──────────────────────────────────────────────────────────
+    ("busca rastros", "SEARCHES_FOR"),
+    ("buscar rastros", "SEARCHES_FOR"),
+    ("busca a", "SEARCHES_FOR"),
+    ("busca", "SEARCHES_FOR"),
+    ("searches for", "SEARCHES_FOR"),
+
+    # ── AGREES_TO ─────────────────────────────────────────────────────────────
+    ("acordo tarea", "AGREES_TO"),                 # [DETECTADO]
+    ("acuerda tarea", "AGREES_TO"),
+    ("acordaron", "AGREES_TO"),
+    ("acordaron hacer", "AGREES_TO"),
+    ("acordaron realizar", "AGREES_TO"),
+    ("acuerda", "AGREES_TO"),
+    ("llego a un acuerdo sobre", "AGREES_TO"),
+    ("agrees to", "AGREES_TO"),
+
+    # ── SUSPECTS ──────────────────────────────────────────────────────────────
+    ("sospecha", "SUSPECTS"),
+    ("sospecha de", "SUSPECTS"),
+    ("sospecha que", "SUSPECTS"),
+    ("sospechoso", "SUSPECTS"),
+    ("oculta informacion", "SUSPECTS"),
+    ("sospecha sobre", "SUSPECTS"),
+    ("suspects", "SUSPECTS"),
+
+    # ── HOLDS ─────────────────────────────────────────────────────────────────
+    ("sostiene", "HOLDS"),
+    ("sosteniendo", "HOLDS"),
+    ("tiene en su poder", "HOLDS"),
+    ("porta", "HOLDS"),
+    ("lleva consigo", "HOLDS"),
+    ("holds", "HOLDS"),
+
+    # ── DECIDES ───────────────────────────────────────────────────────────────
+    ("decide", "DECIDES"),
+    ("decidio", "DECIDES"),
+    ("tomo la decision de", "DECIDES"),
+    ("decides", "DECIDES"),
+
+    # ── INTERROGATES ──────────────────────────────────────────────────────────
+    ("interrogar", "INTERROGATES"),
+    ("interroga", "INTERROGATES"),
+    ("interroga a", "INTERROGATES"),
+    ("interrogates", "INTERROGATES"),
+
+    # ── CHECKS ────────────────────────────────────────────────────────────────
+    ("comprobar", "CHECKS"),
+    ("comprueba", "CHECKS"),
+    ("verificar", "CHECKS"),
+    ("verifica", "CHECKS"),
+    ("checks", "CHECKS"),
+
+    # ── TASK_TARGETS / TASK_ASSIGNED_TO ───────────────────────────────────────
+    ("tarea sobre", "TASK_TARGETS"),
+    ("objetivo de tarea", "TASK_TARGETS"),
+    ("tarea dirigida a", "TASK_TARGETS"),
+    ("task targets", "TASK_TARGETS"),
+    ("tarea asignada a", "TASK_ASSIGNED_TO"),
+    ("task assigned to", "TASK_ASSIGNED_TO"),
+
+    # ── DISAPPEARED_NEAR ──────────────────────────────────────────────────────
+    ("desaparecio cerca de", "DISAPPEARED_NEAR"),
+    ("desaparecieron cerca de", "DISAPPEARED_NEAR"),
+    ("desaparecido cerca de", "DISAPPEARED_NEAR"),
+    ("disappeared near", "DISAPPEARED_NEAR"),
+
+    # ── MEMBER_OF / BELONGS_TO ────────────────────────────────────────────────
+    ("miembro de", "MEMBER_OF"),
+    ("pertenece a", "BELONGS_TO"),
+    ("es miembro de", "MEMBER_OF"),
+    ("member of", "MEMBER_OF"),
+    ("belongs to", "BELONGS_TO"),
+
+    # ── ALLIED_WITH / ENEMY_OF ────────────────────────────────────────────────
+    ("aliado con", "ALLIED_WITH"),
+    ("aliado de", "ALLIED_WITH"),
+    ("enemigo de", "ENEMY_OF"),
+    ("allied with", "ALLIED_WITH"),
+    ("enemy of", "ENEMY_OF"),
+
+    # ── RELATED_TO ────────────────────────────────────────────────────────────
+    ("relacionado con", "RELATED_TO"),
+    ("relacionada con", "RELATED_TO"),
+    ("related to", "RELATED_TO"),
+
+    # ── LOCATED_IN ────────────────────────────────────────────────────────────
+    ("localizado en", "LOCATED_IN"),
+    ("ubicado en", "LOCATED_IN"),
+    ("se encuentra en", "LOCATED_IN"),
+    ("located in", "LOCATED_IN"),
+
+    # ── APPEARS_IN ────────────────────────────────────────────────────────────
+    ("aparece en", "APPEARS_IN"),
+    ("appears in", "APPEARS_IN"),
+
+    # ── CONTAINS / MENTIONS ───────────────────────────────────────────────────
+    ("contiene", "CONTAINS"),
+    ("menciona", "MENTIONS"),
+    ("contains", "CONTAINS"),
+    ("mentions", "MENTIONS"),
+]
+
+# Pre-compilar el mapa con claves ya normalizadas
+RELATION_TYPE_NORMALIZE: dict[str, str] = {
+    _normalize_key(k): v for k, v in _RAW_NORMALIZE
+}
+
+
+def normalize_relation_type(v: str) -> str:
+    """Normalización básica usada por RelationshipBase validator (sin contexto)."""
+    if v in ALLOWED_RELATION_TYPES:
+        return v
+    key = _normalize_key(v)
+    mapped = RELATION_TYPE_NORMALIZE.get(key)
+    if mapped and mapped in ALLOWED_RELATION_TYPES:
+        return mapped
+    return v
+
+
+def normalize_relation_type_full(
+    raw_relation_type: str,
+    source: str = "",
+    target: str = "",
+    evidence: str = "",
+    chunk_id: int = 0,
+    pages: list[int] | None = None,
+) -> tuple[str | None, str | None]:
+    """Normaliza un tipo de relación libre al tipo canónico en inglés.
+
+    Devuelve (normalized_type, warning_message).
+    Si ya es canónico: (tipo, None).
+    Si se normaliza: (tipo_canónico, warning_informativo).
+    Si no se puede normalizar: (None, warning_de_descarte).
+
+    La función usa source, target y evidence para desambiguar casos ambiguos.
+    No inventa relaciones nuevas: solo mapea lo que el LLM ya intentó crear.
+    """
+    pages = pages or []
+
+    # Paso 1: ya es canónico
+    if raw_relation_type in ALLOWED_RELATION_TYPES:
+        return raw_relation_type, None
+
+    # Paso 2: normalizar clave y buscar en mapa
+    key = _normalize_key(raw_relation_type)
+    mapped = RELATION_TYPE_NORMALIZE.get(key)
+
+    # Paso 3: si no hay match exacto, buscar por prefijo/contenido
+    if not mapped:
+        for norm_key, canon in RELATION_TYPE_NORMALIZE.items():
+            if key.startswith(norm_key) or norm_key in key:
+                mapped = canon
+                break
+
+    # Paso 4: desambiguación contextual para tipos ambiguos
+    if mapped in ("SEES_IN_VISION", "HAS_SYMBOL_OF", "HAS_VISION_OF"):
+        src_l = _normalize_key(source)
+        tgt_l = _normalize_key(target)
+        ev_l = _normalize_key(evidence)
+
+        # "vista mascara" + target contiene clan → HAS_SYMBOL_OF
+        if "mascara" in key or "simbolo" in key:
+            if "clan" in tgt_l or "simbolo" in ev_l:
+                mapped = "HAS_SYMBOL_OF"
+            else:
+                mapped = "SEES_IN_VISION"
+
+        # "vista sosten fragmento" + evidence contiene "sosteniendo" → SEES_IN_VISION
+        elif "sosten" in key or "fragmento" in key:
+            if "sosteniendo" in ev_l or "sostiene" in ev_l:
+                mapped = "SEES_IN_VISION"
+
+        # origen Kimi + vision → HAS_VISION_OF
+        elif "kimi" in src_l and "vision" in key:
+            mapped = "HAS_VISION_OF"
+
+    # Paso 5: resultado
+    if mapped and mapped in ALLOWED_RELATION_TYPES:
+        warn = (
+            f"[normalizer] Chunk {chunk_id} pp.{pages}: "
+            f"'{raw_relation_type}' → '{mapped}' "
+            f"(src='{source}', tgt='{target}', ev='{evidence[:60]}')"
+        )
+        log.info(warn)
+        return mapped, warn
+
+    # No mapeado
+    warn = (
+        f"[normalizer] Chunk {chunk_id} pp.{pages}: "
+        f"DESCARTADO tipo '{raw_relation_type}' sin mapeo "
+        f"(src='{source}', tgt='{target}', ev='{evidence[:60]}')"
+    )
+    log.warning(warn)
+    return None, warn
+
+
+class EntityBase(BaseModel):
+    canonical_name: str = Field(..., min_length=1, max_length=500)
+    display_name: str = Field(..., min_length=1, max_length=500)
+    aliases: list[str] = Field(default_factory=list)
+    description: str = Field(default="")
+    entity_type: str
+    workspace: str = Field(..., min_length=1)
+    source_document: str = Field(default="")
+    source_pages: list[int] = Field(default_factory=list)
+    confidence: float = Field(default=0.8, ge=0.0, le=1.0)
+    evidence: str = Field(default="")
+
+    @field_validator("entity_type")
+    @classmethod
+    def validate_entity_type(cls, v: str) -> str:
+        if v not in ALLOWED_NODE_TYPES:
+            raise ValueError(
+                f"entity_type '{v}' no permitido. Permitidos: {sorted(ALLOWED_NODE_TYPES)}"
+            )
+        return v
+
+    @field_validator("canonical_name")
+    @classmethod
+    def sanitize_canonical_name(cls, v: str) -> str:
+        return v.strip()
+
+    def to_neo4j_params(self) -> dict:
+        return {
+            "canonical_name": self.canonical_name,
+            "display_name": self.display_name,
+            "aliases": self.aliases,
+            "description": self.description,
+            "entity_type": self.entity_type,
+            "workspace": self.workspace,
+            "source_document": self.source_document,
+            "source_pages": self.source_pages,
+            "confidence": self.confidence,
+        }
+
+
+class RelationshipBase(BaseModel):
+    source_canonical: str = Field(..., min_length=1)
+    relation_type: str
+    target_canonical: str = Field(..., min_length=1)
+    evidence: str = Field(default="")
+    source_document: str = Field(default="")
+    source_pages: list[int] = Field(default_factory=list)
+    confidence: float = Field(default=0.7, ge=0.0, le=1.0)
+    # Campo de presentación: etiqueta visible en español
+    relation_label_es: str = Field(default="")
+
+    @field_validator("relation_type")
+    @classmethod
+    def validate_relation_type(cls, v: str) -> str:
+        # Intentar normalización básica (sin contexto) antes de rechazar
+        normalized = normalize_relation_type(v)
+        if normalized not in ALLOWED_RELATION_TYPES:
+            raise ValueError(
+                f"relation_type '{v}' no permitido. Permitidos: {sorted(ALLOWED_RELATION_TYPES)}"
+            )
+        return normalized
+
+    def model_post_init(self, __context) -> None:
+        # Rellenar relation_label_es si no viene del LLM
+        if not self.relation_label_es:
+            object.__setattr__(
+                self, "relation_label_es",
+                RELATION_LABELS_ES.get(self.relation_type, self.relation_type.lower().replace("_", " "))
+            )
+
+    def to_neo4j_params(self) -> dict:
+        return {
+            "source_canonical": self.source_canonical,
+            "relation_type": self.relation_type,
+            "target_canonical": self.target_canonical,
+            "evidence": self.evidence,
+            "source_document": self.source_document,
+            "source_pages": self.source_pages,
+            "confidence": self.confidence,
+            "relation_label_es": self.relation_label_es,
+        }
+
+
+class ExtractionResult(BaseModel):
+    entities: list[EntityBase] = Field(default_factory=list)
+    relationships: list[RelationshipBase] = Field(default_factory=list)
+    raw_pages: list[int] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class DocumentMeta(BaseModel):
+    path: str
+    workspace: str
+    sha256: str
+    size_bytes: int
+    num_pages: int
+    model: str
+    schema_version: str = SCHEMA_VERSION
+    prompt_version: str = "1.2.0"

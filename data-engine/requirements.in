@@ -1,0 +1,11 @@
+llama-index-core
+llama-index-graph-stores-neo4j
+llama-index-llms-ollama
+llama-index-embeddings-ollama
+neo4j
+pydantic
+pypdf
+markdownify
+python-dotenv
+tenacity
+PyYAML
