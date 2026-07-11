@@ -23,7 +23,7 @@ VALID_STATUSES = {
 }
 
 VALID_SOURCE_KINDS = {
-    "book", "pdf", "audio", "transcript", "text",
+    "book", "pdf", "audio", "video", "transcript", "text",
     "image", "youtube", "web", "manual_note", "test",
 }
 
