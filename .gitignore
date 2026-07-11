@@ -54,3 +54,4 @@ Thumbs.db
 # Neo4j dumps/backups
 *.dump
 *.backup
+*.bak
