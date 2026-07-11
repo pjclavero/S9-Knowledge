@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}S9 Knowledge · Inicio{% endblock %}
+{% block body %}
+<main class="page">
+  <div class="card">
+    <h1>S9 Knowledge</h1>
+    <p>Visor mínimo de solo lectura para consultar el grafo de conocimiento.</p>
+    <p>
+      <span class="pill">Proveedor actual: {{ provider_name }}</span>
+      <span class="pill">Workspace: {{ workspace }}</span>
+    </p>
+    <p>
+      <a class="btn" href="/graph">Abrir grafo</a>
+      <a class="btn secondary" href="/status">Estado</a>
+    </p>
+  </div>
+</main>
+{% endblock %}

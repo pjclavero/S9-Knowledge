@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}S9 Knowledge · Estado{% endblock %}
+{% block body %}
+<main class="page">
+  <div class="card">
+    <h1>Estado del visor</h1>
+    <p>
+      {% if status.ok %}
+        <span class="pill ok">OK</span>
+      {% else %}
+        <span class="pill error">ERROR</span>
+      {% endif %}
+      <span class="pill">Proveedor: {{ status.provider }}</span>
+      <span class="pill {{ 'ok' if status.neo4j_connected else '' }}">
+        Neo4j conectado: {{ status.neo4j_connected }}
+      </span>
+    </p>
+    <table class="rel-table">
+      <tr><td>Workspaces</td><td>{{ status.workspaces | join(', ') }}</td></tr>
+      <tr><td>Nodos</td><td>{{ status.nodes }}</td></tr>
+      <tr><td>Relaciones</td><td>{{ status.relationships }}</td></tr>
+      {% if status.error %}
+      <tr><td>Error</td><td>{{ status.error }}</td></tr>
+      {% endif %}
+    </table>
+  </div>
+</main>
+{% endblock %}
