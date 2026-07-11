@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}S9 Knowledge · {{ entity.label }}{% endblock %}
+{% block body %}
+<main class="page">
+  <div class="card">
+    <h1>{{ entity.label }}</h1>
+    <p><span class="pill">{{ entity.type_label }}</span>
+       {% if entity.confidence_label %}<span class="pill">Confianza: {{ entity.confidence_label }}</span>{% endif %}
+       {% if entity.visibility_label %}<span class="pill">{{ entity.visibility_label }}</span>{% endif %}
+    </p>
+    {% if entity.description %}<p>{{ entity.description }}</p>{% endif %}
+
+    <div class="field">
+      <div class="field-label">Alias</div>
+      <div class="field-value">{{ entity.aliases | join(', ') if entity.aliases else '—' }}</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Fuente</div>
+      <div class="field-value">{{ entity.source_document or '—' }}</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Páginas</div>
+      <div class="field-value">{{ entity.source_pages | join(', ') if entity.source_pages else '—' }}</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Capa de conocimiento / Revisión</div>
+      <div class="field-value">{{ entity.knowledge_layer_label or '—' }} · {{ entity.review_status_label or '—' }}</div>
+    </div>
+
+    <details>
+      <summary>Datos técnicos</summary>
+      <pre>{{ entity.technical }}</pre>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>Relaciones salientes ({{ outgoing | length }})</h2>
+    {% if outgoing %}
+    <table class="rel-table">
+      {% for rel in outgoing %}
+      <tr>
+        <td>{{ entity.label }} → <strong>{{ rel.label }}</strong> →
+          {% if rel.other_entity %}<a href="/entity/{{ rel.other_entity.id }}">{{ rel.other_entity.label }}</a>{% else %}?{% endif %}
+        </td>
+        <td>{{ rel.confidence_label }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="empty-hint">Sin relaciones salientes.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Relaciones entrantes ({{ incoming | length }})</h2>
+    {% if incoming %}
+    <table class="rel-table">
+      {% for rel in incoming %}
+      <tr>
+        <td>
+          {% if rel.other_entity %}<a href="/entity/{{ rel.other_entity.id }}">{{ rel.other_entity.label }}</a>{% else %}?{% endif %}
+          → <strong>{{ rel.label }}</strong> → {{ entity.label }}
+        </td>
+        <td>{{ rel.confidence_label }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="empty-hint">Sin relaciones entrantes.</p>
+    {% endif %}
+  </div>
+</main>
+{% endblock %}

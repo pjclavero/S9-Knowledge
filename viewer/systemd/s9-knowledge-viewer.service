@@ -1,0 +1,14 @@
+[Unit]
+Description=S9 Knowledge Viewer
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/knowledge-services/s9-knowledge-repo/viewer
+EnvironmentFile=/opt/knowledge-services/s9-knowledge-repo/viewer/.env
+ExecStart=/opt/knowledge-services/s9-knowledge-repo/viewer/.venv/bin/uvicorn app.main:app --host ${S9K_VIEWER_HOST} --port ${S9K_VIEWER_PORT}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

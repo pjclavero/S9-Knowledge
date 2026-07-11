@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}S9 Knowledge · Grafo{% endblock %}
+{% block head %}
+<!-- vis-network vía CDN (documentado en viewer/README.md). Para producción sin
+     Internet, descargar dist/vis-network.min.js y servirlo desde /static/js/vendor/. -->
+<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+{% endblock %}
+{% block body %}
+<div class="graph-toolbar">
+  <span class="pill">Workspace: <strong id="workspace-label">{{ workspace }}</strong></span>
+  <input id="search-input" type="text" placeholder="Buscar (ej. Tamori)">
+  <select id="type-filter">
+    <option value="">Todos los tipos</option>
+  </select>
+  <select id="limit-select">
+    <option value="100">100</option>
+    <option value="300" selected>300</option>
+    <option value="1000">1000</option>
+  </select>
+  <button class="btn" id="reload-btn">Recargar</button>
+</div>
+<div class="graph-layout">
+  <div id="graph-canvas"></div>
+  <aside id="side-panel">
+    <p class="empty-hint">Pincha un nodo o una relación para ver su ficha.</p>
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  window.S9K_WORKSPACE = {{ workspace | tojson }};
+  window.S9K_GRAPH_LIMIT = {{ graph_limit | tojson }};
+</script>
+<script src="/static/js/graph.js"></script>
+{% endblock %}

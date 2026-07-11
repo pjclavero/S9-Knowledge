@@ -298,6 +298,26 @@ def _check_relation_semantics(rel, chunk_entities: list, warnings_path):
     verdict = "ok"
     problem: str | None = None
 
+    # ── NORMALIZACIÓN SILENCIOSA (preferida sobre marcar "dudoso") ────────────
+    # HAS_FOUGHT con target Location/Region: no es una relación dudosa, es un
+    # tipo de relación equivocado — el vocabulario controlado ya tiene FOUGHT_AT
+    # con semántica correcta de "combate en un lugar", así que se normaliza el
+    # relation_type in-place (igual que hace el resolver de arriba con otros
+    # campos, vía object.__setattr__) en vez de escribir la relación errónea
+    # marcada para revisión manual.
+    if rt == "HAS_FOUGHT" and target_type in _SEM_PLACE_LIKE:
+        from schemas.rpg_schema import RELATION_LABELS_ES
+        new_label = RELATION_LABELS_ES.get("FOUGHT_AT", "combatido en")
+        object.__setattr__(rel, "relation_type", "FOUGHT_AT")
+        object.__setattr__(rel, "relation_label_es", new_label)
+        rt = "FOUGHT_AT"
+        info = (
+            f"[semantic:normalized] HAS_FOUGHT→FOUGHT_AT target={target_type}: "
+            f"'{rel.source_canonical}' → '{rel.target_canonical}'"
+        )
+        log.info("  %s", info)
+        return "ok", info
+
     # ── INVÁLIDAS (descartar antes de escribir) ───────────────────────────────
     # Una localización no puede estar "dentro de" un personaje.
     if rt == "LOCATED_IN" and target_type in _SEM_PERSON_LIKE:
