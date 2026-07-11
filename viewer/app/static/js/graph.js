@@ -93,7 +93,7 @@
         <strong>${esc(edge.label || edge.type)}</strong> →
         ${toNode ? esc(toNode.label) : "?"}
       </p>
-      <p><span class="pill">${esc(edge.type)}</span>
+      <p>
          ${edge.confidence_label ? `<span class="pill">Confianza: ${esc(edge.confidence_label)}</span>` : ""}
       </p>
       ${fieldRow("Descripción / evidencia", edge.description)}
@@ -102,7 +102,7 @@
       ${fieldRow("Estado de revisión", edge.review_status_label)}
       <details>
         <summary>Datos técnicos</summary>
-        <pre>${esc(JSON.stringify(edge.technical || {}, null, 2))}</pre>
+        <pre>${esc(JSON.stringify({ relation_type: edge.type, ...(edge.technical || {}) }, null, 2))}</pre>
       </details>
     `;
   }
