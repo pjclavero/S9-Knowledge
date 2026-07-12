@@ -1,7 +1,7 @@
 # 02 · Estado actual
 
 Instantánea a 2026-07-12.
-
+revisar [project dossier and checklist.md](docs/project%20dossier%20and%20checklist.md)
 ## HECHO
 
 ### Motor de datos y grafo
