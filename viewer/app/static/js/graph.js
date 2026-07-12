@@ -40,6 +40,7 @@
 
   const canvas = document.getElementById("graph-canvas");
   const sidePanel = document.getElementById("side-panel");
+  const closePanelBtn = document.getElementById("side-panel-close");
   const searchInput = document.getElementById("search-input");
   const typeFilter = document.getElementById("type-filter");
   const limitSelect = document.getElementById("limit-select");
@@ -50,6 +51,29 @@
   let network = null;
   let nodesById = {};
   let edgesById = {};
+
+  // Mobile panel helpers
+  function isMobile() {
+    return window.innerWidth <= 768;
+  }
+
+  function openPanel() {
+    sidePanel.classList.remove("side-panel-closed");
+  }
+
+  function closePanel() {
+    sidePanel.classList.add("side-panel-closed");
+    // Restore empty hint when closed
+    sidePanel.innerHTML =
+      '<button id="side-panel-close" class="side-panel-close-btn" aria-label="Cerrar panel">&#x2715;</button>' +
+      '<p class="empty-hint">Pincha un nodo o una relación para ver su ficha.</p>';
+    // Re-bind close button after innerHTML reset
+    document.getElementById("side-panel-close").addEventListener("click", closePanel);
+  }
+
+  if (closePanelBtn) {
+    closePanelBtn.addEventListener("click", closePanel);
+  }
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => (
@@ -62,8 +86,18 @@
            `<div class="field-value">${value != null && value !== "" ? esc(value) : "—"}</div></div>`;
   }
 
+  function setPanelContent(html) {
+    const closeHtml = '<button id="side-panel-close" class="side-panel-close-btn" aria-label="Cerrar panel">&#x2715;</button>';
+    sidePanel.innerHTML = closeHtml + html;
+    // Re-bind close button after innerHTML change
+    const btn = document.getElementById("side-panel-close");
+    if (btn) btn.addEventListener("click", closePanel);
+    // On mobile, open the panel when content is set
+    if (isMobile()) openPanel();
+  }
+
   function renderNodePanel(node) {
-    sidePanel.innerHTML = `
+    setPanelContent(`
       <h2>${esc(node.label)}</h2>
       <p><span class="pill">${esc(node.type_label)}</span>
          ${node.confidence_label ? `<span class="pill">Confianza: ${esc(node.confidence_label)}</span>` : ""}
@@ -80,13 +114,13 @@
         <summary>Datos técnicos</summary>
         <pre>${esc(JSON.stringify(node.technical || {}, null, 2))}</pre>
       </details>
-    `;
+    `);
   }
 
   function renderEdgePanel(edge) {
     const fromNode = nodesById[edge.from];
     const toNode = nodesById[edge.to];
-    sidePanel.innerHTML = `
+    setPanelContent(`
       <h2>Relación</h2>
       <p>
         ${fromNode ? esc(fromNode.label) : "?"} →
@@ -104,7 +138,7 @@
         <summary>Datos técnicos</summary>
         <pre>${esc(JSON.stringify({ relation_type: edge.type, ...(edge.technical || {}) }, null, 2))}</pre>
       </details>
-    `;
+    `);
   }
 
   async function loadEntityTypes() {
@@ -131,7 +165,7 @@
 
     const res = await fetch(`/api/graph?${params.toString()}`);
     if (!res.ok) {
-      sidePanel.innerHTML = `<p class="empty-hint">Error cargando el grafo (${res.status}).</p>`;
+      setPanelContent(`<p class="empty-hint">Error cargando el grafo (${res.status}).</p>`);
       return;
     }
     const data = await res.json();
@@ -183,7 +217,15 @@
         const edge = edgesById[params.edges[0]];
         if (edge) renderEdgePanel(edge);
       } else {
-        sidePanel.innerHTML = '<p class="empty-hint">Pincha un nodo o una relación para ver su ficha.</p>';
+        // Click on empty canvas: on mobile close panel; on desktop show hint
+        if (isMobile()) {
+          closePanel();
+        } else {
+          sidePanel.innerHTML =
+            '<button id="side-panel-close" class="side-panel-close-btn" aria-label="Cerrar panel">&#x2715;</button>' +
+            '<p class="empty-hint">Pincha un nodo o una relación para ver su ficha.</p>';
+          document.getElementById("side-panel-close").addEventListener("click", closePanel);
+        }
       }
     });
   }

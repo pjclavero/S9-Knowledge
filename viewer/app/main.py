@@ -1,6 +1,7 @@
 """S9 Knowledge — visor mínimo de solo lectura (FastAPI)."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -20,6 +21,9 @@ from app.serializers import serialize_edge, serialize_node
 
 BASE_DIR = Path(__file__).resolve().parent
 
+# Directorio raíz del repositorio (dos niveles por encima de viewer/app/)
+REPO_ROOT = BASE_DIR.parent.parent
+
 app = FastAPI(title="S9 Knowledge Viewer", version="0.2.0")
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -30,6 +34,132 @@ app.include_router(api_entities.router)
 app.include_router(api_graph.router)
 app.include_router(api_jobs.router)
 
+
+# ---------------------------------------------------------------------------
+# Helper: lectura de datos de reviews
+# ---------------------------------------------------------------------------
+
+PIPELINE_FILE_NAMES = [
+    "segments.json",
+    "segments.classified.json",
+    "candidates.json",
+    "validated.json",
+    "resolved.json",
+    "approved_payload.json",
+    "review_queue.json",
+    "rejected.json",
+    "review.md",
+    "quality_report.json",
+    "quality_report.md",
+]
+
+
+def _reviews_dir(workspace: str) -> Path:
+    return REPO_ROOT / "output" / "reviews" / workspace
+
+
+def _read_json_safe(path: Path) -> list | dict | None:
+    """Lee JSON tolerando ausencia del fichero y errores de parseo."""
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _count_items(data) -> int:
+    if isinstance(data, list):
+        return len(data)
+    if isinstance(data, dict):
+        return len(data)
+    return 0
+
+
+def _source_counters(source_dir: Path) -> dict:
+    approved = _count_items(_read_json_safe(source_dir / "approved_payload.json"))
+    pending = _count_items(_read_json_safe(source_dir / "review_queue.json"))
+    rejected = _count_items(_read_json_safe(source_dir / "rejected.json"))
+    return {"approved": approved, "pending": pending, "rejected": rejected}
+
+
+def _extract_package_meta(source_dir: Path) -> dict:
+    """Extrae metadatos del paquete: origin, producer, model si existen."""
+    meta: dict = {}
+
+    # Intentar leer desde pipeline_state.json (campo 'package' o 'meta')
+    pipeline_state = _read_json_safe(source_dir / "pipeline_state.json")
+    if isinstance(pipeline_state, dict):
+        pkg = pipeline_state.get("package") or pipeline_state.get("meta") or {}
+        if isinstance(pkg, dict):
+            for field in ("origin", "producer", "model", "external_confidence",
+                          "local_confidence", "decision_reason"):
+                if field in pkg:
+                    meta[field] = pkg[field]
+        # También puede estar en nivel raíz
+        for field in ("origin", "producer", "model"):
+            if field in pipeline_state and field not in meta:
+                meta[field] = pipeline_state[field]
+
+    # Intentar leer desde candidates.json (primer ítem, campos de paquete)
+    if not meta.get("origin"):
+        candidates = _read_json_safe(source_dir / "candidates.json")
+        if isinstance(candidates, list) and candidates:
+            first = candidates[0]
+            if isinstance(first, dict):
+                for field in ("origin", "producer", "model"):
+                    if field in first and field not in meta:
+                        meta[field] = first[field]
+
+    return meta
+
+
+def _extract_quality_report(source_dir: Path) -> dict:
+    """Extrae info del quality_report si existe (json o md)."""
+    qr: dict = {"json_exists": False, "md_exists": False, "summary": None}
+    json_path = source_dir / "quality_report.json"
+    md_path = source_dir / "quality_report.md"
+    qr["json_exists"] = json_path.exists()
+    qr["md_exists"] = md_path.exists()
+
+    if qr["json_exists"]:
+        data = _read_json_safe(json_path)
+        if isinstance(data, dict):
+            # Extrae campos de resumen conocidos
+            for field in ("score", "summary", "total", "issues", "warnings"):
+                if field in data:
+                    qr[field] = data[field]
+            # Fallback: preview de las primeras claves
+            if "summary" not in qr:
+                qr["summary"] = {k: v for k, v in list(data.items())[:5]}
+    elif qr["md_exists"]:
+        try:
+            text = md_path.read_text(encoding="utf-8")
+            # Extracto: primeras 400 chars
+            qr["md_preview"] = text[:400].strip()
+        except Exception:
+            pass
+    return qr
+
+
+def _list_sources(workspace: str) -> list[dict]:
+    reviews_dir = _reviews_dir(workspace)
+    if not reviews_dir.exists():
+        return []
+    sources = []
+    for source_dir in sorted(reviews_dir.iterdir()):
+        if source_dir.is_dir():
+            counters = _source_counters(source_dir)
+            pkg_meta = _extract_package_meta(source_dir)
+            sources.append({
+                "source_id": source_dir.name,
+                **counters,
+                "origin": pkg_meta.get("origin"),
+            })
+    return sources
+
+
+# ---------------------------------------------------------------------------
+# Rutas HTML
+# ---------------------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request, provider: GraphProvider = Depends(get_provider)):
@@ -130,4 +260,79 @@ def job_detail_view(request: Request, job_id: str):
         request,
         "job_detail.html",
         {"job": job, "error": error},
+    )
+
+
+@app.get("/reviews", response_class=HTMLResponse)
+def reviews_view(request: Request, workspace: str | None = None):
+    settings = get_settings()
+    ws = workspace or settings.S9K_DEFAULT_WORKSPACE
+    sources = _list_sources(ws)
+    return templates.TemplateResponse(
+        request,
+        "reviews.html",
+        {"workspace": ws, "sources": sources},
+    )
+
+
+@app.get("/reviews/{source_id}", response_class=HTMLResponse)
+def reviews_detail_view(request: Request, source_id: str, workspace: str | None = None):
+    settings = get_settings()
+    ws = workspace or settings.S9K_DEFAULT_WORKSPACE
+    source_dir = _reviews_dir(ws) / source_id
+
+    if not source_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Fuente no encontrada: {source_id}")
+
+    counters = _source_counters(source_dir)
+
+    # Metadatos del paquete
+    pkg_meta = _extract_package_meta(source_dir)
+
+    # Quality report
+    quality_report = _extract_quality_report(source_dir)
+
+    # Pipeline files state
+    pipeline_files = [
+        {"name": fname, "path": str(source_dir / fname), "exists": (source_dir / fname).exists()}
+        for fname in PIPELINE_FILE_NAMES
+    ]
+
+    # Review queue (pending items)
+    rq_data = _read_json_safe(source_dir / "review_queue.json")
+    review_queue: list[dict] = []
+    if isinstance(rq_data, list):
+        review_queue = rq_data
+    elif isinstance(rq_data, dict):
+        # Accept {items: [...]} or flat dict
+        review_queue = rq_data.get("items", list(rq_data.values()))
+
+    # Approved payload preview
+    approved_path = source_dir / "approved_payload.json"
+    approved_exists = approved_path.exists()
+    approved_data = _read_json_safe(approved_path) if approved_exists else None
+    approved_count = _count_items(approved_data)
+    if isinstance(approved_data, list):
+        preview_data = approved_data[:3]
+    elif isinstance(approved_data, dict):
+        preview_data = dict(list(approved_data.items())[:3])
+    else:
+        preview_data = {}
+    approved_preview = json.dumps(preview_data, ensure_ascii=False, indent=2) if approved_data else ""
+
+    return templates.TemplateResponse(
+        request,
+        "reviews_detail.html",
+        {
+            "workspace": ws,
+            "source_id": source_id,
+            "counters": counters,
+            "pkg_meta": pkg_meta,
+            "quality_report": quality_report,
+            "pipeline_files": pipeline_files,
+            "review_queue": review_queue,
+            "approved_exists": approved_exists,
+            "approved_count": approved_count,
+            "approved_preview": approved_preview,
+        },
     )

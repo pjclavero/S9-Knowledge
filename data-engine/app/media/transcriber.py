@@ -28,7 +28,25 @@ class Transcriber:
 
     name = "base"
 
-    def transcribe(self, audio_path: Path, language: str = "es") -> TranscriptResult:
+    def transcribe(
+        self,
+        audio_path: Path,
+        language: str = "es",
+        initial_prompt: str | None = None,
+        hotwords: list[str] | None = None,
+    ) -> TranscriptResult:
+        """Transcribe el audio.
+
+        Args:
+            audio_path: Ruta al fichero de audio.
+            language: Codigo de idioma ISO 639-1 (default 'es').
+            initial_prompt: Texto de contexto para faster-whisper initial_prompt.
+                Generado por GlossaryExporter.export()['initial_prompt'].
+                Si es None, faster-whisper no usa prompt inicial.
+            hotwords: Lista de terminos a priorizar (faster-whisper hotwords).
+                Generado por GlossaryExporter.export()['hotwords'] con .splitlines().
+                Si es None, no se pasa hotwords al transcriptor.
+        """
         raise NotImplementedError
 
 
@@ -37,7 +55,13 @@ class StubTranscriber(Transcriber):
 
     name = "stub"
 
-    def transcribe(self, audio_path: Path, language: str = "es") -> TranscriptResult:
+    def transcribe(
+        self,
+        audio_path: Path,
+        language: str = "es",
+        initial_prompt: str | None = None,
+        hotwords: list[str] | None = None,
+    ) -> TranscriptResult:
         audio_path = Path(audio_path)
         text = (
             f"[TRANSCRIPCIÓN DE PRUEBA] Contenido simulado para el archivo "
@@ -87,10 +111,40 @@ class FasterWhisperTranscriber(Transcriber):
         except Exception as exc:  # noqa: BLE001
             raise TranscriberError(f"No se pudo cargar el modelo faster-whisper: {exc}") from exc
 
-    def transcribe(self, audio_path: Path, language: str = "es") -> TranscriptResult:
+    def transcribe(
+        self,
+        audio_path: Path,
+        language: str = "es",
+        initial_prompt: str | None = None,
+        hotwords: list[str] | None = None,
+    ) -> TranscriptResult:
+        """Transcribe con faster-whisper.
+
+        initial_prompt e hotwords son opcionales. Si se proporcionan se pasan
+        directamente a faster_whisper.WhisperModel.transcribe():
+        - initial_prompt: str guia al modelo con contexto del dominio.
+        - hotwords: list[str] de terminos a priorizar en el beam search.
+
+        Ejemplo de uso con el glosario:
+            from glossary.glossary_store import GlossaryStore
+            from glossary.glossary_exporter import GlossaryExporter
+            from pathlib import Path
+
+            store = GlossaryStore()
+            paths = GlossaryExporter(store).export("leyenda", Path("output/transcriptions/glossary-test"))
+            prompt = paths["initial_prompt"].read_text()
+            hwords = paths["hotwords"].read_text().splitlines()
+
+            result = transcriber.transcribe(audio_path, initial_prompt=prompt, hotwords=hwords)
+        """
         self._ensure_model()
         try:
-            segments_iter, info = self._model.transcribe(str(audio_path), language=language)
+            transcribe_kwargs: dict = {"language": language}
+            if initial_prompt is not None:
+                transcribe_kwargs["initial_prompt"] = initial_prompt
+            if hotwords is not None:
+                transcribe_kwargs["hotwords"] = hotwords
+            segments_iter, info = self._model.transcribe(str(audio_path), **transcribe_kwargs)
             segments: list[TranscriptSegment] = []
             texts: list[str] = []
             for seg in segments_iter:
