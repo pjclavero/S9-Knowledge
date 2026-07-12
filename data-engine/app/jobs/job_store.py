@@ -46,7 +46,7 @@ VALID_STATUSES = {
 }
 
 VALID_SOURCE_KINDS = {
-    "book", "pdf", "audio", "transcript", "text",
+    "book", "pdf", "audio", "video", "transcript", "text",
     "image", "youtube", "web", "manual_note", "test",
     # "generic": jobs de la cola genérica, identificados por job_type.
     "generic",
