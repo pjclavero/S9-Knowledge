@@ -36,6 +36,29 @@ Instantánea a 2026-07-12.
     no lo recibe. Ver [20](20-data-review-and-approved-ingest.md).
 - Revisión humana mínima: solo los candidatos dudosos llegan a `review.md`.
 
+## Bloque de tratamiento de datos — cerrado (v0.2.5b)
+
+El bloque de tratamiento de datos está completo y protegido:
+
+- **Transcripción/fuente** — faster-whisper medium, rclone mount Nextcloud, pipeline multimedia
+- **Segmentación** — por tiempo/silencio antes de extraer
+- **Extracción endurecida** — heurística con anti-falsos-positivos; LLM/hybrid disponibles
+- **Stopwords** — lista ES, filtra términos vacíos antes de aprobar
+- **Glosario por workspace** — SQLite, 1044 términos L5A, normalizador determinista
+- **Validación** — schema, evidence, origin, workspace, schema_version
+- **Resolución** — similitud con Neo4j, delta ambigüedad 0.10, variantes EN/ES
+- **decision_reason** — 21 razones vocabulario controlado por decisión
+- **approved_payload** — schema_version 1.0, origin, source_kind, generated_at
+- **review_queue** — candidatos que requieren revisión humana antes de ingestar
+- **ingest-approved protegido** — doble guard: `--dry-run` + `S9K_ALLOW_REAL_INGEST=true`
+- **`/reviews`** — panel web con origin, decision_reason, quality_report por fuente
+- **audit-graph** — solo lectura, detecta anomalías en Neo4j sin escribir
+- **export/import** — 4 tipos de paquete, sanitización de rutas/IPs/tokens
+- **Soporte procesamiento externo** — ExternalReviewRequest/Response, ImportedCandidatePackage
+- **Replicabilidad preparada** — variables documentadas, modos A/B/C, hardcode audit
+- **Neo4j protegido** — puertos cerrados a 127.0.0.1, sin escritura sin doble guard
+- **Sin escritura accidental** — external/imported → needs_review, nunca auto_approve
+
 ### Infraestructura y seguridad (ver [21](21-external-access-and-security.md))
 - Acceso externo: `https://knowledge.seccionnueve.duckdns.org` (nginx VM104 + Basic Auth).
 - Neo4j cerrado a solo 127.0.0.1 (antes expuesto en LAN/Tailscale).
@@ -59,7 +82,7 @@ Instantánea a 2026-07-12.
 
 ## Limitaciones conocidas
 
-- Extractor heurístico con falsos positivos (ver arriba) — no ingerir sin revisar.
+- Extractor heurístico con falsos positivos (ver arriba) — no ingestar sin revisar.
 - Recall de **relaciones** limitado con qwen2.5:7b; entidades estables.
 - Nodos históricos sin `source_id`/`source_kind` (~87/~51) detectados por audit-graph.
 - Corrección LLM de transcripción (qwen2.5:7b, bloque completo) no preserva timestamps → queda deshabilitada; se usa el normalizador determinista.
