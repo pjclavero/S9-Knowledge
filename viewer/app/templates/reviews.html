@@ -10,6 +10,9 @@
     {% for src in sources %}
     <li>
       <a href="/reviews/{{ src.source_id }}">{{ src.source_id }}</a>
+      {% if src.origin %}
+      <span class="origin-badge origin-{{ src.origin }}" title="Origen del paquete">{{ src.origin }}</span>
+      {% endif %}
       <div class="reviews-counters">
         <span class="counter-badge approved" title="Autoaprobados">&#10003; {{ src.approved }}</span>
         <span class="counter-badge pending" title="Pendientes de revisión">&#9203; {{ src.pending }}</span>

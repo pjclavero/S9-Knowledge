@@ -6,19 +6,21 @@ Uso:
 Subcomandos:
   segment         Segmenta la transcripción
   classify        Clasifica los segmentos
-  extract         Extrae candidatos
+  extract         Extrae candidatos [--extractor {heuristic,llm,hybrid}]
   validate        Valida candidatos contra el schema RPG
   resolve         Resuelve entidades contra Neo4j (solo lectura)
   decide          Decide auto_approve/needs_review/auto_reject
-  run             Ejecuta el pipeline completo (--dry-run obligatorio)
-  ingest-approved Ingesta aprobada en Neo4j (--dry-run obligatorio en esta fase)
+  run             Ejecuta el pipeline completo (--dry-run obligatorio) [--extractor ...]
+  ingest-approved Ingesta aprobada en Neo4j (--dry-run obligatorio / S9K_ALLOW_REAL_INGEST)
   summary         Muestra resumen del estado del pipeline
   audit-graph     Audita calidad del grafo Neo4j (solo lectura)
+  quality-report  Genera informe de calidad sobre outputs existentes
 """
 from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -53,6 +55,10 @@ def cmd_classify(args):
 
 def cmd_extract(args):
     from review import extractor
+    # Pasar extractor como env si se especifica
+    if getattr(args, "extractor", None):
+        os.environ["S9K_REVIEW_EXTRACTOR"] = args.extractor
+        log.info("Extractor seleccionado: %s (S9K_REVIEW_EXTRACTOR=%s)", args.extractor, args.extractor)
     path = extractor.run(args.workspace, args.source_id, _REPO_ROOT)
     print(f"OK: {path}")
 
@@ -81,6 +87,11 @@ def cmd_run(args):
         print("ERROR: --dry-run es obligatorio en esta fase. Usa: --dry-run")
         sys.exit(1)
 
+    # Pasar extractor como env si se especifica
+    if getattr(args, "extractor", None):
+        os.environ["S9K_REVIEW_EXTRACTOR"] = args.extractor
+        log.info("Extractor seleccionado: %s (S9K_REVIEW_EXTRACTOR=%s)", args.extractor, args.extractor)
+
     result = run_pipeline(args.workspace, args.source_id, _REPO_ROOT, dry_run=True)
     summary = result.get("summary", {})
 
@@ -102,10 +113,18 @@ def cmd_run(args):
 def cmd_ingest_approved(args):
     from review import ingest_approved
     if not args.dry_run:
-        print(_DRY_RUN_ABORT_MSG)
+        # El módulo revisa S9K_ALLOW_REAL_INGEST internamente; el CLI informa antes
+        allow_real = os.environ.get("S9K_ALLOW_REAL_INGEST", "").strip().lower()
+        if allow_real != "true":
+            print(ingest_approved._ENV_GUARD_ABORT_MSG)
+            sys.exit(1)
+
+    try:
+        result = ingest_approved.run(args.workspace, args.source_id, _REPO_ROOT, dry_run=args.dry_run)
+        print(f"\nCompletado: {result}")
+    except (RuntimeError, ValueError) as e:
+        print(f"\n{e}")
         sys.exit(1)
-    result = ingest_approved.run(args.workspace, args.source_id, _REPO_ROOT, dry_run=True)
-    print(f"\nDRY-RUN completado: {result}")
 
 
 _DRY_RUN_ABORT_MSG = (
@@ -130,12 +149,42 @@ def cmd_summary(args):
             for k, v in details.items():
                 print(f"    {k}: {v}")
 
+    # Mostrar decision_reasons agregados si existen en decisions.json
+    decisions_path = (
+        _REPO_ROOT / "output" / "reviews" / args.workspace / args.source_id / "decisions.json"
+    )
+    if decisions_path.exists():
+        try:
+            decisions = json.loads(decisions_path.read_text(encoding="utf-8"))
+            reasons_agg: dict[str, int] = {}
+            for d in decisions:
+                for r in d.get("decision_reason", []):
+                    reasons_agg[r] = reasons_agg.get(r, 0) + 1
+            if reasons_agg:
+                print(f"\n  Decision reasons agregados:")
+                for r, count in sorted(reasons_agg.items(), key=lambda x: -x[1])[:10]:
+                    print(f"    [{count:3d}] {r}")
+        except Exception as e:
+            log.debug("No se pudieron leer decision_reasons: %s", e)
+
 
 def cmd_audit_graph(args):
     from review.audit_graph import run as audit_run
     md_path = audit_run(args.workspace, _REPO_ROOT)
     print(f"OK: {md_path}")
     print(md_path.read_text(encoding="utf-8")[:2000])
+
+
+def cmd_quality_report(args):
+    from review.quality_report import generate
+    try:
+        md_path = generate(args.workspace, args.source_id, _REPO_ROOT)
+        print(f"OK: {md_path}")
+        print()
+        print(md_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as e:
+        print(f"ERROR: {e}")
+        sys.exit(1)
 
 
 def main():
@@ -153,6 +202,14 @@ def main():
     def _add_dry_run(p):
         p.add_argument("--dry-run", action="store_true", dest="dry_run", help="Simular sin escribir")
 
+    def _add_extractor(p):
+        p.add_argument(
+            "--extractor",
+            choices=["heuristic", "llm", "hybrid"],
+            default=None,
+            help="Extractor a usar (setea S9K_REVIEW_EXTRACTOR; el pipeline lo lee)",
+        )
+
     # segment
     p = sub.add_parser("segment", help="Segmenta la transcripción")
     _add_common(p)
@@ -164,6 +221,7 @@ def main():
     # extract
     p = sub.add_parser("extract", help="Extrae candidatos")
     _add_common(p)
+    _add_extractor(p)
 
     # validate
     p = sub.add_parser("validate", help="Valida candidatos")
@@ -181,9 +239,13 @@ def main():
     p = sub.add_parser("run", help="Ejecuta pipeline completo (--dry-run obligatorio)")
     _add_common(p)
     _add_dry_run(p)
+    _add_extractor(p)
 
     # ingest-approved
-    p = sub.add_parser("ingest-approved", help="Ingesta aprobada (--dry-run obligatorio en esta fase)")
+    p = sub.add_parser(
+        "ingest-approved",
+        help="Ingesta aprobada (--dry-run obligatorio / S9K_ALLOW_REAL_INGEST=true para escritura real)"
+    )
     _add_common(p)
     _add_dry_run(p)
 
@@ -194,6 +256,10 @@ def main():
     # audit-graph
     p = sub.add_parser("audit-graph", help="Audita calidad del grafo Neo4j (solo lectura)")
     p.add_argument("--workspace", required=True, help="Nombre del workspace")
+
+    # quality-report
+    p = sub.add_parser("quality-report", help="Genera informe de calidad sobre outputs existentes")
+    _add_common(p)
 
     args = parser.parse_args()
 
@@ -208,6 +274,7 @@ def main():
         "ingest-approved": cmd_ingest_approved,
         "summary": cmd_summary,
         "audit-graph": cmd_audit_graph,
+        "quality-report": cmd_quality_report,
     }
     fn = dispatch.get(args.cmd)
     if fn:

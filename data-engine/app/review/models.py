@@ -59,6 +59,11 @@ class Candidate:
     timestamp_end: str = ""
     source_kind: str = "audio"
     status: str = "pending"   # pending | approved | rejected | needs_review
+    # Flags de calidad (opcionales, informados por extractor)
+    weak: bool = False        # True si el extractor detecta término débil/stopword
+    glossary_match: bool = False  # True si hay match en glosario del workspace
+    # Origen del candidato
+    origin: str = "local"     # local | external | manual | imported
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -108,11 +113,16 @@ class ResolutionResult:
 
 # ── Decision ──────────────────────────────────────────────────────────────────
 
+_VALID_ORIGINS = {"local", "external", "manual", "imported"}
+
+
 @dataclass
 class Decision:
     candidate_id: str
     decision: str             # auto_approve | needs_review | auto_reject
     reason: str = ""
+    decision_reason: list[str] = field(default_factory=list)
+    origin: str = "local"     # local | external | manual | imported
     # Snapshot de los datos para el payload final
     candidate: Optional[dict] = None
     validation: Optional[dict] = None

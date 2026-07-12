@@ -204,7 +204,7 @@ def test_auto_decider_needs_review_duplicado_ambiguo():
 def test_ingest_approved_dry_run_no_escribe(tmp_path):
     """ingest con dry_run=True debe retornar dict con dry_run=True y no llamar a Neo4j."""
     payload = {
-        "metadata": {"workspace": "test", "source_id": "src", "generated_at": "2026-01-01T00:00:00Z", "total_approved": 1},
+        "metadata": {"workspace": "test", "source_id": "src", "generated_at": "2026-01-01T00:00:00Z", "total_approved": 1, "schema_version": "1.0"},
         "approved": [
             {
                 "kind": "entity",
@@ -245,7 +245,7 @@ def test_review_md_solo_muestra_pendientes(tmp_path):
     """review.md no debe mostrar auto-aprobados ni rechazados, solo needs_review."""
     from review.models import Candidate, ValidationResult, ResolutionResult, Decision
 
-    c_approved = _make_entity("Doji", conf=0.92)
+    c_approved = _make_entity("Doji Satsume", conf=0.92)  # ajuste: single-token ahora requiere use_existing/glossary
     c_approved.candidate_id = "app001"
     d_approved = Decision(
         candidate_id="app001",

@@ -1,9 +1,12 @@
-"""Extractor de candidatos a partir de segmentos clasificados.
+"""Extractor de candidatos a partir de segmentos clasificados (v2 — endurecido).
 
-Extrae entidades, relaciones, eventos, localizaciones, objetos, rumores y
-session_facts de segmentos con should_extract=True.
-
-Usa heurísticas + glosario (glossary.db). NO usa LLM ni Neo4j.
+Mejoras respecto a v1:
+- Integra stopwords.py: filtra/baja confianza en candidatos débiles
+- Anti-Character débil: una sola palabra capitalizada a inicio de frase NO es Character
+  con confianza alta; solo sube si: 2+ tokens capitalizados, match en glosario, o
+  patrón de evidencia explícita ("soy X", "se llama X", "el personaje X").
+- Glosario POR WORKSPACE: carga state/glossary.db con el workspace real recibido.
+- Ninguna stopword puede salir con confidence >= 0.85.
 """
 from __future__ import annotations
 import hashlib
@@ -12,6 +15,7 @@ import logging
 import re
 import sqlite3
 import sys
+import unicodedata
 from pathlib import Path
 from typing import Optional
 
@@ -21,6 +25,7 @@ if str(_APP_DIR) not in sys.path:
 
 from review.models import Candidate
 from review.classifier import ClassifiedSegment
+from review.stopwords import is_stopword, is_weak_single_token
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +36,17 @@ log = logging.getLogger(__name__)
 _PROPER_NAME_RE = re.compile(
     r'\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}){0,3})\b'
 )
+
+# Patrones de evidencia explícita de personaje
+_CHAR_EVIDENCE_PATTERNS = [
+    re.compile(r'\bsoy\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,})*)\b', re.IGNORECASE),
+    re.compile(r'\bme\s+llamo\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,})*)\b', re.IGNORECASE),
+    re.compile(r'\bse\s+llama\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,})*)\b', re.IGNORECASE),
+    re.compile(r'\bel\s+personaje\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,})*)\b', re.IGNORECASE),
+    re.compile(r'\bla\s+personaje\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,})*)\b', re.IGNORECASE),
+    re.compile(r'\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,})*)\s+del\s+Clan\b', re.IGNORECASE),
+    re.compile(r'\bpersonaje\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,})*)\b', re.IGNORECASE),
+]
 
 # Clanes L5A conocidos
 _CLANS = {
@@ -68,69 +84,208 @@ _RELATION_PATTERNS = [
 ]
 
 
+def _normalize_for_compare(text: str) -> str:
+    """Minúsculas + elimina diacríticos."""
+    nfkd = unicodedata.normalize("NFKD", text.lower())
+    return "".join(c for c in nfkd if unicodedata.category(c) != "Mn")
+
+
 def _make_candidate_id(source_id: str, segment_id: str, kind: str, name: str) -> str:
     key = f"{source_id}|{segment_id}|{kind}|{name}"
     return hashlib.md5(key.encode()).hexdigest()[:12]
 
 
-def _load_glossary_names(repo_root: Path, workspace: str) -> set[str]:
-    """Carga nombres canónicos del glosario para boost de confianza."""
+def _load_glossary(repo_root: Path, workspace: str) -> dict[str, str]:
+    """Carga glosario del workspace → {normalized_name: canonical_term}.
+
+    Usa el workspace real recibido (no hardcodeado). Si glossary.db no existe
+    o el workspace no tiene términos, retorna dict vacío y funciona con más
+    conservadurismo (sin boosts de glosario).
+    """
     db_path = repo_root / "state" / "glossary.db"
     if not db_path.exists():
-        return set()
+        log.debug("glossary.db no encontrado en %s — modo sin glosario", db_path)
+        return {}
     try:
         con = sqlite3.connect(str(db_path))
         cur = con.cursor()
         cur.execute(
-            "SELECT canonical_term FROM glossary_terms WHERE workspace=? AND enabled=1",
+            "SELECT canonical_term, normalized_term FROM glossary_terms WHERE workspace=? AND enabled=1",
             (workspace,),
         )
-        names = {row[0].strip().lower() for row in cur.fetchall()}
+        result = {}
+        for canonical, normalized in cur.fetchall():
+            # Guardar por normalized (ya lo trae la DB) y también por nuestra normalización
+            result[normalized.strip().lower()] = canonical.strip()
+            result[_normalize_for_compare(canonical)] = canonical.strip()
         con.close()
-        return names
+        log.debug("Glosario cargado: %d términos para workspace '%s'", len(result), workspace)
+        return result
     except Exception as e:
-        log.warning("No se pudo cargar el glosario: %s", e)
-        return set()
+        log.warning("No se pudo cargar el glosario para workspace '%s': %s", workspace, e)
+        return {}
+
+
+def _glossary_snapshot(repo_root: Path, workspace: str, limit: int = 100) -> list[str]:
+    """Retorna lista de canonical_term del glosario para el workspace (top por priority)."""
+    db_path = repo_root / "state" / "glossary.db"
+    if not db_path.exists():
+        return []
+    try:
+        con = sqlite3.connect(str(db_path))
+        cur = con.cursor()
+        cur.execute(
+            "SELECT canonical_term FROM glossary_terms WHERE workspace=? AND enabled=1 ORDER BY priority DESC, confidence DESC LIMIT ?",
+            (workspace, limit),
+        )
+        terms = [row[0] for row in cur.fetchall()]
+        con.close()
+        return terms
+    except Exception as e:
+        log.warning("No se pudo obtener snapshot de glosario: %s", e)
+        return []
+
+
+def _has_explicit_char_evidence(name: str, text: str) -> bool:
+    """True si el texto contiene un patrón de evidencia explícita para el nombre como personaje."""
+    for pattern in _CHAR_EVIDENCE_PATTERNS:
+        for m in pattern.finditer(text):
+            matched = m.group(1).strip()
+            if _normalize_for_compare(matched) == _normalize_for_compare(name):
+                return True
+            # Suficiencia parcial: el nombre está contenido en el match
+            if _normalize_for_compare(name) in _normalize_for_compare(matched):
+                return True
+    return False
+
+
+def _is_compound_proper_name(name: str) -> bool:
+    """True si el nombre tiene 2+ tokens todos capitalizados (nombre propio compuesto)."""
+    tokens = name.strip().split()
+    if len(tokens) < 2:
+        return False
+    return all(t[0].isupper() for t in tokens if t)
+
+
+def _character_confidence(name: str, text: str, glossary: dict[str, str], base_conf: float) -> float:
+    """Calcula la confidence final de un candidato Character con reglas anti-débil.
+
+    Reglas:
+    1. Stopword → max 0.40 (weak)
+    2. Single-token débil → max 0.50 (weak)
+    3. Single-token no en glosario, sin evidencia explícita → max 0.70 (needs_review)
+    4. Compound name (2+ tokens) → sube base
+    5. Match en glosario → boost +0.20
+    6. Evidencia explícita → boost +0.15
+    Ninguna stopword puede superar 0.85.
+    """
+    norm = _normalize_for_compare(name)
+
+    # Regla 1: stopword
+    if is_stopword(name):
+        return min(base_conf, 0.40)
+
+    # Regla 2: single token débil (stopword o <3 chars)
+    if is_weak_single_token(name):
+        return min(base_conf, 0.50)
+
+    conf = base_conf
+    in_glossary = norm in glossary or any(
+        norm in k or k in norm for k in glossary if len(k) > 3
+    )
+
+    # Regla 3: single token sin glosario y sin evidencia → cap 0.70
+    tokens = name.strip().split()
+    is_single = len(tokens) == 1
+    has_evidence = _has_explicit_char_evidence(name, text)
+
+    if is_single and not in_glossary and not has_evidence:
+        conf = min(conf, 0.70)
+
+    # Regla 4: compound name boost
+    if _is_compound_proper_name(name):
+        conf = min(conf + 0.05, 0.95)
+
+    # Regla 5: glosario boost
+    if in_glossary:
+        conf = min(conf + 0.20, 0.95)
+
+    # Regla 6: evidencia explícita boost
+    if has_evidence:
+        conf = min(conf + 0.15, 0.95)
+
+    return round(conf, 3)
 
 
 def _extract_entities(
     seg: ClassifiedSegment,
-    glossary_names: set[str],
+    glossary: dict[str, str],
 ) -> list[Candidate]:
     candidates: list[Candidate] = []
     text = seg["text"]
     seen_names: set[str] = set()
 
-    # Nombres propios
     for m in _PROPER_NAME_RE.finditer(text):
         name = m.group(1).strip()
-        # Filtros básicos: longitud, no es solo artículo/preposición
         words = name.split()
+
+        # Filtro básico: longitud mínima, no demasiado largo
         if len(name) < 4 or len(words) > 4:
             continue
-        if name.lower() in {"esta", "este", "esos", "esas", "pero", "para"}:
+
+        # Filtro: stopword pura → skip si la confidence resultante sería <= 0.40
+        # (no vale la pena emitir basura aunque sea con flag weak)
+        if is_stopword(name) and len(words) == 1:
+            log.debug("Extractor: '%s' es stopword — descartado", name)
             continue
+
         if name in seen_names:
             continue
         seen_names.add(name)
 
-        # Determinar tipo
         lower_name = name.lower()
+        norm_name = _normalize_for_compare(name)
+
+        # Determinar tipo base
         if any(kw in lower_name for kw in _LOCATION_KW):
             etype = "Location"
-            confidence = 0.70
+            base_conf = 0.70
         elif any(kw in lower_name for kw in _FACTION_KW):
             etype = "Faction"
-            confidence = 0.72
+            base_conf = 0.72
         else:
             etype = "Character"
-            confidence = 0.65
+            base_conf = 0.65
 
-        # Boost si está en el glosario
-        if lower_name in glossary_names or any(
-            lower_name in gn or gn in lower_name for gn in glossary_names
-        ):
-            confidence = min(confidence + 0.20, 0.95)
+        # Aplicar reglas de confianza según tipo
+        if etype == "Character":
+            confidence = _character_confidence(name, text, glossary, base_conf)
+        else:
+            # Para Location y Faction: boost de glosario
+            in_gloss = norm_name in glossary or any(
+                norm_name in k or k in norm_name for k in glossary if len(k) > 3
+            )
+            if in_gloss:
+                base_conf = min(base_conf + 0.20, 0.95)
+            # Canonicalizar si está en glosario
+            canonical = glossary.get(norm_name)
+            if canonical and canonical != name:
+                name = canonical
+            confidence = base_conf
+
+        # Canonicalizar nombre si está en glosario (Character también)
+        if etype == "Character":
+            canonical = glossary.get(norm_name)
+            if canonical and canonical != name:
+                log.debug("Extractor: canonicalizando '%s' → '%s'", name, canonical)
+                name = canonical
+
+        # Garantía final: ninguna stopword puede superar 0.85
+        if is_stopword(name):
+            confidence = min(confidence, 0.84)
+
+        # Flag weak para el agente B (auto_decider puede usar esto)
+        weak = confidence <= 0.50 or is_stopword(name) or is_weak_single_token(name)
 
         cid = _make_candidate_id(seg["source_id"], seg["segment_id"], "entity", name)
         c = Candidate(
@@ -147,6 +302,10 @@ def _extract_entities(
             timestamp_end=seg["timestamp_end"],
             source_kind=seg["source_kind"],
         )
+        # Añadir flag weak en el dict al serializar (Candidate no tiene el campo pero lo añadimos
+        # al to_dict vía un atributo dinámico — solo lo usará el serializado JSON)
+        if weak:
+            c._weak = True  # type: ignore[attr-defined]
         candidates.append(c)
 
     # Clanes explícitos
@@ -213,7 +372,7 @@ def _extract_relations(
 
 def extract_from_segments(
     classified: list[ClassifiedSegment],
-    glossary_names: set[str],
+    glossary: dict[str, str],
 ) -> list[Candidate]:
     """Extrae candidatos de todos los segmentos marcados should_extract."""
     all_candidates: list[Candidate] = []
@@ -221,7 +380,7 @@ def extract_from_segments(
     for seg in classified:
         if not seg["should_extract"]:
             continue
-        entities = _extract_entities(seg, glossary_names)
+        entities = _extract_entities(seg, glossary)
         entity_names = [c.name for c in entities if c.name]
         relations = _extract_relations(seg, entity_names)
         all_candidates.extend(entities)
@@ -235,7 +394,7 @@ def extract_from_segments(
             seen.add(c.candidate_id)
             unique.append(c)
 
-    log.info("Extracción: %d candidatos únicos de %d segmentos", len(unique), len(classified))
+    log.info("Extracción heurística: %d candidatos únicos de %d segmentos", len(unique), len(classified))
     return unique
 
 
@@ -248,8 +407,8 @@ def run(workspace: str, source_id: str, repo_root: Path) -> Path:
     with in_path.open(encoding="utf-8") as f:
         classified: list[ClassifiedSegment] = json.load(f)
 
-    glossary_names = _load_glossary_names(repo_root, workspace)
-    candidates = extract_from_segments(classified, glossary_names)
+    glossary = _load_glossary(repo_root, workspace)
+    candidates = extract_from_segments(classified, glossary)
 
     out_path = in_path.parent / "candidates.json"
     with out_path.open("w", encoding="utf-8") as f:

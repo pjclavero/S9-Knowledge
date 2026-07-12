@@ -49,6 +49,8 @@ PIPELINE_FILE_NAMES = [
     "review_queue.json",
     "rejected.json",
     "review.md",
+    "quality_report.json",
+    "quality_report.md",
 ]
 
 
@@ -79,6 +81,65 @@ def _source_counters(source_dir: Path) -> dict:
     return {"approved": approved, "pending": pending, "rejected": rejected}
 
 
+def _extract_package_meta(source_dir: Path) -> dict:
+    """Extrae metadatos del paquete: origin, producer, model si existen."""
+    meta: dict = {}
+
+    # Intentar leer desde pipeline_state.json (campo 'package' o 'meta')
+    pipeline_state = _read_json_safe(source_dir / "pipeline_state.json")
+    if isinstance(pipeline_state, dict):
+        pkg = pipeline_state.get("package") or pipeline_state.get("meta") or {}
+        if isinstance(pkg, dict):
+            for field in ("origin", "producer", "model", "external_confidence",
+                          "local_confidence", "decision_reason"):
+                if field in pkg:
+                    meta[field] = pkg[field]
+        # También puede estar en nivel raíz
+        for field in ("origin", "producer", "model"):
+            if field in pipeline_state and field not in meta:
+                meta[field] = pipeline_state[field]
+
+    # Intentar leer desde candidates.json (primer ítem, campos de paquete)
+    if not meta.get("origin"):
+        candidates = _read_json_safe(source_dir / "candidates.json")
+        if isinstance(candidates, list) and candidates:
+            first = candidates[0]
+            if isinstance(first, dict):
+                for field in ("origin", "producer", "model"):
+                    if field in first and field not in meta:
+                        meta[field] = first[field]
+
+    return meta
+
+
+def _extract_quality_report(source_dir: Path) -> dict:
+    """Extrae info del quality_report si existe (json o md)."""
+    qr: dict = {"json_exists": False, "md_exists": False, "summary": None}
+    json_path = source_dir / "quality_report.json"
+    md_path = source_dir / "quality_report.md"
+    qr["json_exists"] = json_path.exists()
+    qr["md_exists"] = md_path.exists()
+
+    if qr["json_exists"]:
+        data = _read_json_safe(json_path)
+        if isinstance(data, dict):
+            # Extrae campos de resumen conocidos
+            for field in ("score", "summary", "total", "issues", "warnings"):
+                if field in data:
+                    qr[field] = data[field]
+            # Fallback: preview de las primeras claves
+            if "summary" not in qr:
+                qr["summary"] = {k: v for k, v in list(data.items())[:5]}
+    elif qr["md_exists"]:
+        try:
+            text = md_path.read_text(encoding="utf-8")
+            # Extracto: primeras 400 chars
+            qr["md_preview"] = text[:400].strip()
+        except Exception:
+            pass
+    return qr
+
+
 def _list_sources(workspace: str) -> list[dict]:
     reviews_dir = _reviews_dir(workspace)
     if not reviews_dir.exists():
@@ -87,7 +148,12 @@ def _list_sources(workspace: str) -> list[dict]:
     for source_dir in sorted(reviews_dir.iterdir()):
         if source_dir.is_dir():
             counters = _source_counters(source_dir)
-            sources.append({"source_id": source_dir.name, **counters})
+            pkg_meta = _extract_package_meta(source_dir)
+            sources.append({
+                "source_id": source_dir.name,
+                **counters,
+                "origin": pkg_meta.get("origin"),
+            })
     return sources
 
 
@@ -220,6 +286,12 @@ def reviews_detail_view(request: Request, source_id: str, workspace: str | None 
 
     counters = _source_counters(source_dir)
 
+    # Metadatos del paquete
+    pkg_meta = _extract_package_meta(source_dir)
+
+    # Quality report
+    quality_report = _extract_quality_report(source_dir)
+
     # Pipeline files state
     pipeline_files = [
         {"name": fname, "path": str(source_dir / fname), "exists": (source_dir / fname).exists()}
@@ -255,6 +327,8 @@ def reviews_detail_view(request: Request, source_id: str, workspace: str | None 
             "workspace": ws,
             "source_id": source_id,
             "counters": counters,
+            "pkg_meta": pkg_meta,
+            "quality_report": quality_report,
             "pipeline_files": pipeline_files,
             "review_queue": review_queue,
             "approved_exists": approved_exists,

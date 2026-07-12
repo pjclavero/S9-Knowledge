@@ -4,15 +4,17 @@ Por cada candidato de tipo 'entity' busca:
 1. Match exacto de nombre canónico
 2. Match exacto de alias
 3. Match normalizado (sin tildes, lowercase)
-4. Similitud básica EN/ES
+4. Similitud básica EN/ES (variantes cross-idioma por token clave compartido)
 
 Acciones resultantes:
-  use_existing  — match exacto fuerte y tipo compatible
+  use_existing  — match exacto único fuerte y tipo compatible
   create_new    — sin match y confidence alta
-  needs_review  — varios matches, tipo contradictorio, o ambigüedad
+  needs_review  — varios matches con score similar, variante EN/ES detectada,
+                  tipo contradictorio, o ambigüedad
   reject        — tipo incompatible claro
 
 Degrada con gracia si Neo4j no responde: marca needs_review, no crashea.
+NO fusiona duplicados.
 """
 from __future__ import annotations
 import json
@@ -31,12 +33,30 @@ from review.models import Candidate, ValidationResult, ResolutionResult
 
 log = logging.getLogger(__name__)
 
+# ── Umbral de similitud para considerar dos scores "iguales" ─────────────────
+_SCORE_AMBIGUITY_DELTA = 0.10
+
 # ── Utilidades de normalización ───────────────────────────────────────────────
 
 def _normalize(text: str) -> str:
     """Minúsculas sin tildes."""
     nfkd = unicodedata.normalize("NFKD", text)
     return "".join(c for c in nfkd if not unicodedata.combining(c)).lower().strip()
+
+
+def _key_tokens(name: str) -> set[str]:
+    """Tokens significativos (>= 4 chars) del nombre normalizado."""
+    return {t for t in _normalize(name).split() if len(t) >= 4}
+
+
+def _is_cross_language_variant(name_a: str, name_b: str) -> bool:
+    """Detecta si dos nombres son variantes EN/ES por token clave compartido.
+
+    Ejemplo: 'Tamori Family' vs 'Familia Tamori' comparten el token 'tamori'.
+    """
+    tokens_a = _key_tokens(name_a)
+    tokens_b = _key_tokens(name_b)
+    return bool(tokens_a & tokens_b)
 
 
 def _get_neo4j_driver(neo4j_uri: str, user: str, password: str):
@@ -122,7 +142,7 @@ def _resolve_one(
         )
 
     if driver is None:
-        # Neo4j no disponible: marcar needs_review
+        # Neo4j no disponible: marcar needs_review, no crashear
         return ResolutionResult(
             candidate_id=c.candidate_id,
             action="needs_review",
@@ -143,9 +163,41 @@ def _resolve_one(
             neo4j_available=True,
         )
 
-    # Un solo match exacto fuerte
     best = max(matches, key=lambda x: x["score"])
-    if len(matches) == 1 and best["score"] >= 0.90:
+    alternatives = [m["canonical"] for m in matches]
+
+    # Varios matches con scores similares → ambigüedad → needs_review
+    if len(matches) >= 2:
+        scores = sorted([m["score"] for m in matches], reverse=True)
+        if scores[0] - scores[1] <= _SCORE_AMBIGUITY_DELTA:
+            return ResolutionResult(
+                candidate_id=c.candidate_id,
+                action="needs_review",
+                matched_canonical=best["canonical"],
+                match_score=best["score"],
+                match_type=best["match_type"],
+                alternatives=alternatives,
+                reason=f"múltiples matches con score similar ({len(matches)}): {alternatives[:3]}",
+                neo4j_available=True,
+            )
+
+    # Un solo match (o best claramente superior)
+    if best["score"] >= 0.90:
+        # Verificar variante cross-idioma antes de usar_existing
+        if _is_cross_language_variant(c.name, best["canonical"]) and \
+                _normalize(c.name) != _normalize(best["canonical"]) and \
+                best["match_type"] not in ("exact", "alias"):
+            return ResolutionResult(
+                candidate_id=c.candidate_id,
+                action="needs_review",
+                matched_canonical=best["canonical"],
+                match_score=best["score"],
+                match_type=best["match_type"],
+                alternatives=alternatives,
+                reason=f"posible variante EN/ES de '{best['canonical']}': revisión manual recomendada",
+                neo4j_available=True,
+            )
+
         # Verificar tipo compatible
         expected_label = c.entity_type or ""
         neo4j_labels = best.get("labels", [])
@@ -172,8 +224,7 @@ def _resolve_one(
                 neo4j_available=True,
             )
 
-    # Varios matches: needs_review
-    alternatives = [m["canonical"] for m in matches]
+    # Score < 0.90 con varios matches → needs_review
     return ResolutionResult(
         candidate_id=c.candidate_id,
         action="needs_review",
@@ -181,7 +232,7 @@ def _resolve_one(
         match_score=best["score"],
         match_type=best["match_type"],
         alternatives=alternatives,
-        reason=f"múltiples matches ({len(matches)}): {alternatives[:3]}",
+        reason=f"match débil (score={best['score']:.2f}): {alternatives[:3]}",
         neo4j_available=True,
     )
 

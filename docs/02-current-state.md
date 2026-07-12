@@ -14,7 +14,12 @@ Instantánea a 2026-07-12.
 
 ### Visor
 - **Visor web desplegado** (FastAPI/uvicorn, `s9-knowledge-viewer.service`, puerto 8088).
-- `/graph` (vis.js), `/jobs` (panel de cola), `/reviews` (cola de revisión).
+- `/graph` (vis.js), `/jobs` (panel de cola), `/reviews` (panel de revisión enriquecido).
+- `/reviews`: lista de fuentes con badge de origen (local/external/manual/imported),
+  contadores por estado. Detalle de fuente: metadatos del paquete (origin, producer,
+  model, confidence externa/local), cola de revisión con confianza y motivo de decisión
+  por ítem, informe de calidad (`quality_report.json/.md`) cuando existe, estado de
+  todos los ficheros del pipeline.
 - Fix móvil: la ficha lateral ya no tapa el grafo (se cierra/abre al tocar).
 
 ### Multimedia y transcripción
@@ -24,7 +29,11 @@ Instantánea a 2026-07-12.
 
 ### Pipeline de revisión de datos (rama feat/data-processing-final-v0.2.5)
 - `data-engine/app/review/` — segment → classify → extract → validate → resolve → decide → approved_payload.
-- CLI `data_review.py`, `audit-graph`, ingesta **solo dry-run** (requiere autorización explícita para escribir). Ver [20](20-data-review-and-approved-ingest.md).
+- CLI `data_review.py`, `audit-graph`, ingesta **solo dry-run**:
+  - `ingest_approved.py` aborta con mensaje de autorización si se invoca sin `--dry-run`.
+  - Sin `--dry-run`, no hay escritura en Neo4j bajo ninguna circunstancia.
+  - Doble guard: (1) el propio CLI requiere `--dry-run`; (2) el writer aborta si
+    no lo recibe. Ver [20](20-data-review-and-approved-ingest.md).
 - Revisión humana mínima: solo los candidatos dudosos llegan a `review.md`.
 
 ### Infraestructura y seguridad (ver [21](21-external-access-and-security.md))
@@ -45,6 +54,8 @@ Instantánea a 2026-07-12.
 - Login propio del visor (hoy solo Basic Auth en el proxy).
 - Importación web real (trafilatura/readability) e integración de YouTube en la cola.
 - Fusión de duplicados del grafo (audit-graph los detecta, no los corrige).
+- Export/import externo de paquetes de revisión: preparado, no completado (ver docs/22
+  cuando esté disponible).
 
 ## Limitaciones conocidas
 

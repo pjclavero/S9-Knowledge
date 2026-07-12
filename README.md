@@ -8,20 +8,48 @@ Pensada para campañas de rol (L5A "Leyenda", Mundo de Tinieblas, Trudvang…): 
 personajes, criaturas, lugares, facciones, objetos, eventos, combates y sesiones, y
 la evolución del conocimiento de cada personaje a lo largo de la campaña.
 
-## Estado actual
+## Estado actual (v0.2.5)
 
-- `data-engine` existente y funcional (extracción PDF/texto/audio → Neo4j).
+### Listo y operativo
+
+- `data-engine` funcional: motor de extracción PDF/texto/audio → pipeline de revisión → Neo4j.
 - Schema RPG **v1.5.0** (27 tipos de nodo, 113 relaciones, etiquetas ES).
 - Prompt RPG **v1.4.0** (transcripción + libro + conocimiento de personaje).
-- Writer Neo4j actualizado (trazabilidad, metadatos temporales, sesiones, imágenes,
-  validación semántica, estado de revisión).
-- Cola de trabajos `job_store.py` (SQLite) diseñada/implementada.
-- Modelo de acceso `access_store.py` (usuario-personaje + permisos) implementado.
-- **Visor web: todavía no implementado.**
-- **Panel de gestión: todavía no implementado.**
+- Writer Neo4j con trazabilidad, metadatos temporales, sesiones, imágenes y estado de revisión.
+- Cola de trabajos `job_store.py` (SQLite) con worker.
+- Modelo de acceso `access_store.py` (usuario-personaje + permisos).
+- Transcripción de audio con faster-whisper (`medium`); glosario L5A + normalizador determinista.
+- **Visor web desplegado** (FastAPI/uvicorn, puerto 8088, `s9-knowledge-viewer.service`):
+  - `/graph` — grafo interactivo con vis.js.
+  - `/jobs` — panel de cola de trabajos.
+  - `/reviews` — panel de revisión de candidatos: lista de fuentes con badges de origen,
+    contadores (aprobados/pendientes/rechazados), detalle por fuente con metadatos del
+    paquete (origin, producer, model, confidence), cola de revisión enriquecida con
+    motivo de decisión y confianza, e informe de calidad (`quality_report.json/.md`)
+    cuando lo genera el pipeline.
+- Pipeline de revisión completo: segment → classify → extract → validate → resolve →
+  decide → approved_payload. CLI `data_review.py`.
 
-Detalle en [`docs/02-current-state.md`](docs/02-current-state.md) y en el informe de
-entrega [`docs/current/INFORME_ENTREGA.md`](docs/current/INFORME_ENTREGA.md).
+### Bloqueado (ingesta real en Neo4j)
+
+La ingesta real de candidatos aprobados en Neo4j **está bloqueada** hasta que se
+sustituya el extractor heurístico actual por uno basado en LLM + stopwords. El
+extractor heurístico produce falsos positivos (`Llevás`/`Todo`/`Como` como
+Character). `ingest_approved.py` requiere `--dry-run`; la escritura real aborta con
+mensaje de autorización. No ingerir sin revisar.
+
+### Preparado pero no completado
+
+- Export/import externo de paquetes de revisión: diseño y estructura preparados;
+  pendiente de completar (ver `docs/22-installation-and-replicability.md` cuando
+  esté disponible).
+- Replicabilidad del entorno: `.env.example` y documentación de despliegue en
+  `docs/08-deployment-vm105.md`; no existe script de setup automatizado aún.
+- Gestión de usuarios y filtros de visibilidad en la UI: implementados en
+  `access_store.py` pero no aplicados en el visor.
+- Login propio del visor: actualmente solo Basic Auth en el proxy nginx (VM104).
+
+Detalle completo en [`docs/02-current-state.md`](docs/02-current-state.md).
 
 ## Arquitectura (resumen)
 
@@ -29,13 +57,16 @@ entrega [`docs/current/INFORME_ENTREGA.md`](docs/current/INFORME_ENTREGA.md).
 Fuentes (PDF, texto, audio, YouTube, web, notas)
       │
       ▼
- data-engine  ── Whisper (audio) ── Ollama/LlamaIndex (extracción)
+ data-engine  ── Whisper (audio) ── Extractor heurístico (LLM pendiente)
       │
-      ▼
-   Neo4j  (grafo de conocimiento, multi-workspace, con trazabilidad)
+      ▼  pipeline de revisión (segment/classify/extract/validate/resolve/decide)
       │
-      ├── SilverBullet (edición manual opcional en Markdown)
-      └── Visor web + Panel (FUTURO: filtros de visibilidad por personaje)
+      ├── approved_payload.json  ──(dry-run)──► Neo4j (escritura real: bloqueada)
+      │
+      └── Visor web (FastAPI, puerto 8088)
+            ├── /graph  — grafo vis.js
+            ├── /jobs   — cola de trabajos
+            └── /reviews — panel de revisión de candidatos
 ```
 
 ## Estructura del repositorio
@@ -47,11 +78,11 @@ s9-knowledge-repo/
 ├── ROADMAP.md         · fases y plan
 ├── .gitignore
 ├── .env.example       · variables de entorno (sin secretos)
-├── docs/              · documentación del proyecto (00–10 + current/)
-├── data-engine/       · motor de datos (código actual: app/, tests/, docs/…)
-├── viewer/            · visor web (FUTURO, vacío)
+├── docs/              · documentación del proyecto (00–22 + current/)
+├── data-engine/       · motor de datos (app/, tests/, docs/…)
+├── viewer/            · visor web (FastAPI, desplegado en VM105:8088)
 ├── shared/            · utilidades compartidas (FUTURO)
-├── deployments/       · despliegue VM105 (FUTURO)
+├── deployments/       · despliegue VM105
 ├── scripts/           · scripts auxiliares
 └── examples/          · ejemplos
 ```
@@ -67,13 +98,17 @@ datos SQLite de runtime, `.env` con secretos ni archivos fuente pesados (PDF/aud
 1. Copia `.env.example` a `.env` y rellena los valores reales.
 2. El motor de datos (`data-engine/`) requiere Python 3.11+, Neo4j y Ollama.
    Instalación en `docs/08-deployment-vm105.md`.
+3. El visor (`viewer/`) requiere Python 3.11+ y se sirve con uvicorn.
+   Servicio systemd: `s9-knowledge-viewer.service`.
 
 ## Seguridad
 
 - No se versionan secretos (`.env`, tokens, claves, certificados) ni datos de
   campaña sensibles (audios, PDFs originales, transcripciones privadas).
 - Neo4j y Ollama no se exponen a Internet.
+- Acceso externo via `https://knowledge.seccionnueve.duckdns.org` (nginx VM104 + Basic Auth).
 - Ver `docs/07-users-permissions.md` para el modelo de permisos.
+- Ver `docs/21-external-access-and-security.md` para acceso externo y hardening.
 
 ## Licencia
 

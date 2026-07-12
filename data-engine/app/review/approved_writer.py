@@ -1,7 +1,7 @@
 """Generador de outputs del pipeline de revisión.
 
 Produce:
-  approved_payload.json — candidatos auto_approve
+  approved_payload.json — candidatos auto_approve (con metadatos completos de paquete)
   review_queue.json     — candidatos needs_review
   rejected.json         — candidatos auto_reject
   review.md             — SOLO lo dudoso + resumen de contadores
@@ -21,13 +21,19 @@ from review.models import Decision
 
 log = logging.getLogger(__name__)
 
+# Versión de formato del payload aprobado
+PAYLOAD_SCHEMA_VERSION = "1.0"
+
 
 def _build_neo4j_payload(d: Decision) -> dict:
-    """Construye el payload listo para ingest en Neo4j."""
+    """Construye el payload listo para ingest en Neo4j, con metadatos completos."""
     c = d.candidate or {}
     rr = d.resolution or {}
-    vr = d.validation or {}
-    return {
+
+    # decision_reason: tolerante si falta
+    decision_reason = d.decision_reason if d.decision_reason else []
+
+    payload = {
         "candidate_id": c.get("candidate_id", d.candidate_id),
         "kind": c.get("kind", "entity"),
         "name": c.get("name"),
@@ -41,18 +47,26 @@ def _build_neo4j_payload(d: Decision) -> dict:
         # Provenance
         "source_id": c.get("source_id", ""),
         "source_kind": c.get("source_kind", "audio"),
-        "source_document": c.get("source_id", ""),
+        "source_document": c.get("source_id", ""),  # source_document = source_id si no hay otro
         "source_timestamp_start": c.get("timestamp_start", ""),
         "source_timestamp_end": c.get("timestamp_end", ""),
         "workspace": c.get("workspace", ""),
-        # Metadatos de review
+        # Metadatos de review (por candidato)
         "review_status": "auto_approved",
         "knowledge_layer": "transcript",
         "visibility": "player",
         # Resolución
         "resolver_action": rr.get("action", ""),
         "matched_canonical": rr.get("matched_canonical"),
+        # Origin
+        "origin": c.get("origin", d.origin if d.origin else "local"),
     }
+
+    # decision_reason: solo si el decisor lo puso (tolerante si falta o vacío)
+    if decision_reason:
+        payload["decision_reason"] = decision_reason
+
+    return payload
 
 
 def write_outputs(
@@ -60,6 +74,9 @@ def write_outputs(
     out_dir: Path,
     workspace: str,
     source_id: str,
+    source_kind: str = "audio",
+    source_document: str | None = None,
+    origin: str = "local",
 ) -> dict[str, int]:
     """Escribe todos los outputs y retorna contadores."""
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -77,11 +94,15 @@ def write_outputs(
         else:
             rejected.append(d.to_dict())
 
-    # approved_payload.json
+    # approved_payload.json — metadatos completos a nivel de paquete
     payload = {
         "metadata": {
             "workspace": workspace,
             "source_id": source_id,
+            "source_kind": source_kind,
+            "source_document": source_document or source_id,
+            "schema_version": PAYLOAD_SCHEMA_VERSION,
+            "origin": origin,
             "generated_at": now,
             "total_approved": len(approved),
         },
@@ -157,36 +178,23 @@ def _write_review_md(
             if kind == "entity":
                 desc = f"**{c.get('name', '?')}** ({c.get('entity_type', '?')})"
             elif kind == "relation":
-                desc = f"{c.get('from_entity', '?')} → `{c.get('relation_type', '?')}` → {c.get('to_entity', '?')}"
+                desc = f"{c.get('from_entity','?')} --[{c.get('relation_type','?')}]--> {c.get('to_entity','?')}"
             else:
-                desc = c.get("event_description", "?")[:80]
+                desc = f"[{kind}] {c.get('event_description', '?')[:60]}"
 
             lines += [
                 f"### {i}. {desc}",
                 f"",
-                f"- **Razón**: {d.get('reason', '')}",
-                f"- **Confidence**: {c.get('confidence', 0):.2f}",
-                f"- **Resolver**: {rr.get('action', '?')} — {rr.get('reason', '')}",
-                f"- **Validación**: {vr.get('valid', '?')} — {'; '.join(vr.get('issues', []) + vr.get('warnings', []))}",
-                f"- **Evidence**: {str(c.get('evidence', ''))[:150]}",
-                f"- **Segmento**: {c.get('timestamp_start', '?')} – {c.get('timestamp_end', '?')}",
+                f"- **Confianza**: {c.get('confidence', 0):.2f}",
+                f"- **Evidence**: {c.get('evidence', '')[:120]}",
+                f"- **Razón de revisión**: {d.get('reason', '')}",
+            ]
+            if d.get("decision_reason"):
+                lines.append(f"- **Decision reasons**: {', '.join(d['decision_reason'])}")
+            lines += [
+                f"- **Resolución**: {rr.get('action', '?')} — {rr.get('reason', '')}",
+                f"- **Timestamp**: {c.get('timestamp_start', '?')} → {c.get('timestamp_end', '?')}",
                 f"",
             ]
-    else:
-        lines += ["## Pendientes de revisión humana", "", "Ninguno. Todo fue auto-aprobado o auto-rechazado.", ""]
 
     (out_dir / "review.md").write_text("\n".join(lines), encoding="utf-8")
-
-
-def run(workspace: str, source_id: str, repo_root: Path) -> dict[str, int]:
-    """Entry point: lee decisions.json y escribe outputs."""
-    in_path = repo_root / "output" / "reviews" / workspace / source_id / "decisions.json"
-    if not in_path.exists():
-        raise FileNotFoundError(f"decisions.json no encontrado: {in_path}")
-
-    with in_path.open(encoding="utf-8") as f:
-        raw = json.load(f)
-    decisions = [Decision.from_dict(d) for d in raw]
-
-    out_dir = repo_root / "output" / "reviews" / workspace / source_id
-    return write_outputs(decisions, out_dir, workspace, source_id)

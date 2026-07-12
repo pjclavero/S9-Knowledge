@@ -20,6 +20,8 @@
 - [18 · Glosario L5A: transcripción, normalización y corrección](18-l5a-transcription-glossary-plan-and-test.md)
 - [20 · Revisión de datos e ingesta aprobada](20-data-review-and-approved-ingest.md)
 - [21 · Acceso externo y seguridad](21-external-access-and-security.md)
+- [22 · Instalación y replicabilidad](22-installation-and-replicability.md)
+- [23 · Knowledge Packages: export/import](23-knowledge-packages.md)
 
 ## Documentos de diseño generados en el servidor (`docs/current/`)
 

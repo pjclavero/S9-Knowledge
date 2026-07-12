@@ -4,10 +4,12 @@ Comprueba:
 - tipo de entidad o relación en schema (ALLOWED_NODE_TYPES, ALLOWED_RELATION_TYPES)
 - tipos from/to compatibles para relaciones
 - confidence numérica en [0, 1]
-- evidence no vacía
+- evidence no vacía y con contenido mínimo (>10 chars)
 - timestamps válidos (HH:MM:SS)
 - source_id, source_kind, workspace presentes
-- relaciones semánticamente absurdas (HAS_FOUGHT contra Location → sugiere FOUGHT_AT)
+- origin válido (local | external | manual | imported)
+- schema_version si viene en el paquete (tolera ausencia con dubious solo en candidatos locales)
+- relaciones semánticamente absurdas (HAS_FOUGHT contra Location → invalid con sugerencia FOUGHT_AT)
 """
 from __future__ import annotations
 import json
@@ -27,7 +29,13 @@ log = logging.getLogger(__name__)
 
 TS_RE = re.compile(r'^\d{2}:\d{2}:\d{2}$')
 
-# Relaciones que no tienen sentido contra Location → marcar dubious
+# Orígenes válidos para candidatos
+_VALID_ORIGINS = {"local", "external", "manual", "imported"}
+
+# Longitud mínima de evidence para que sea significativa
+_EVIDENCE_MIN_CHARS = 10
+
+# Relaciones que no tienen sentido contra ciertos tipos de nodo → marcar invalid
 _ENTITY_RELATION_CONFLICT: dict[str, set[str]] = {
     "HAS_FOUGHT": {"Location", "Region", "Faction", "Clan"},
     "LOVES": {"Location", "Region", "Faction", "Clan", "Object", "Artifact"},
@@ -45,7 +53,7 @@ def validate_candidate(c: Candidate) -> ValidationResult:
     issues: list[str] = []
     warnings: list[str] = []
 
-    # Campos obligatorios presentes
+    # ── Campos obligatorios ────────────────────────────────────────────────────
     if not c.source_id:
         issues.append("source_id ausente")
     if not c.source_kind:
@@ -53,20 +61,27 @@ def validate_candidate(c: Candidate) -> ValidationResult:
     if not c.workspace:
         issues.append("workspace ausente")
 
-    # Confidence
+    # ── Origin válido ──────────────────────────────────────────────────────────
+    origin = getattr(c, "origin", "local") or "local"
+    if origin not in _VALID_ORIGINS:
+        issues.append(f"origin '{origin}' no válido; valores permitidos: {sorted(_VALID_ORIGINS)}")
+
+    # ── Confidence ────────────────────────────────────────────────────────────
     if not (0.0 <= c.confidence <= 1.0):
         issues.append(f"confidence fuera de rango: {c.confidence}")
 
-    # Evidence
+    # ── Evidence (mínima y significativa) ─────────────────────────────────────
     if not c.evidence or not c.evidence.strip():
         issues.append("evidence vacía")
+    elif len(c.evidence.strip()) <= _EVIDENCE_MIN_CHARS:
+        issues.append(f"evidence demasiado corta ({len(c.evidence.strip())} chars, mínimo {_EVIDENCE_MIN_CHARS})")
 
-    # Timestamps
+    # ── Timestamps ────────────────────────────────────────────────────────────
     for ts_field, ts_val in [("timestamp_start", c.timestamp_start), ("timestamp_end", c.timestamp_end)]:
         if ts_val and not TS_RE.match(ts_val):
             issues.append(f"{ts_field} formato inválido: '{ts_val}'")
 
-    # Validación específica por kind
+    # ── Validación específica por kind ────────────────────────────────────────
     if c.kind == "entity":
         if not c.name or not c.name.strip():
             issues.append("name vacío para entidad")
@@ -87,7 +102,7 @@ def validate_candidate(c: Candidate) -> ValidationResult:
         elif c.relation_type not in ALLOWED_RELATION_TYPES:
             issues.append(f"relation_type '{c.relation_type}' no en schema")
         else:
-            # Detectar conflictos semánticos
+            # Detectar conflictos semánticos HAS_FOUGHT → Location es INVALID (no dubious)
             conflict_types = _ENTITY_RELATION_CONFLICT.get(c.relation_type, set())
             if c.to_type and c.to_type in conflict_types:
                 suggestion = _CONFLICT_SUGGESTION.get(c.relation_type, "")
@@ -95,8 +110,14 @@ def validate_candidate(c: Candidate) -> ValidationResult:
                 if suggestion:
                     msg += f"; sugerencia: {suggestion}"
                 issues.append(msg)
+            elif c.from_type and c.from_type in conflict_types:
+                suggestion = _CONFLICT_SUGGESTION.get(c.relation_type, "")
+                msg = f"relación '{c.relation_type}' desde tipo '{c.from_type}' semánticamente inválida"
+                if suggestion:
+                    msg += f"; sugerencia: {suggestion}"
+                issues.append(msg)
 
-    # Determinar estado
+    # ── Determinar estado ─────────────────────────────────────────────────────
     if issues:
         valid = "invalid"
     elif warnings:

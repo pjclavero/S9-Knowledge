@@ -20,6 +20,33 @@
         &#10007; {{ counters.rejected }} rechazados
       </span>
     </div>
+
+    <!-- Metadatos del paquete (si existen) -->
+    {% if pkg_meta %}
+    <div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+      {% if pkg_meta.origin %}
+      <span class="origin-badge origin-{{ pkg_meta.origin }}" title="Origen del paquete">
+        Origen: {{ pkg_meta.origin }}
+      </span>
+      {% endif %}
+      {% if pkg_meta.producer %}
+      <span class="pill" title="Productor del paquete">&#128295; {{ pkg_meta.producer }}</span>
+      {% endif %}
+      {% if pkg_meta.model %}
+      <span class="pill" title="Modelo LLM usado">&#129302; {{ pkg_meta.model }}</span>
+      {% endif %}
+      {% set ext_conf = pkg_meta.external_confidence | default(none) %}
+      {% set loc_conf = pkg_meta.local_confidence | default(none) %}
+      {% if ext_conf is not none and loc_conf is not none %}
+      <span class="pill" title="Confianza externa vs local">
+        ext: {{ "%.2f" | format(ext_conf) }} /
+        local: {{ "%.2f" | format(loc_conf) }}
+      </span>
+      {% elif ext_conf is not none %}
+      <span class="pill" title="Confianza externa">ext conf: {{ "%.2f" | format(ext_conf) }}</span>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
 
   <!-- Estado del pipeline -->
@@ -34,29 +61,81 @@
     </div>
   </div>
 
+  <!-- Quality report (si existe) -->
+  {% if quality_report.json_exists or quality_report.md_exists %}
+  <div class="card">
+    <h2 style="margin-top:0">Informe de calidad</h2>
+    {% if quality_report.json_exists %}
+    <p style="margin-bottom:8px;">
+      <code>quality_report.json</code> disponible.
+      {% if quality_report.score is defined and quality_report.score is not none %}
+      Puntuaci&oacute;n: <strong>{{ quality_report.score }}</strong>.
+      {% endif %}
+      {% if quality_report.total is defined and quality_report.total is not none %}
+      Total candidatos: <strong>{{ quality_report.total }}</strong>.
+      {% endif %}
+    </p>
+    {% if quality_report.issues is defined and quality_report.issues is not none %}
+    <p style="color:var(--text-dim); font-size:13px;">Problemas: {{ quality_report.issues }}</p>
+    {% endif %}
+    {% if quality_report.warnings is defined and quality_report.warnings is not none %}
+    <p style="color:var(--text-dim); font-size:13px;">Advertencias: {{ quality_report.warnings }}</p>
+    {% endif %}
+    {% set qr_summary = quality_report.summary | default(none) %}
+    {% if qr_summary is not none %}
+    <details>
+      <summary>Resumen del informe</summary>
+      <pre style="font-size:12px; white-space:pre-wrap;">{% if qr_summary is mapping %}{{ qr_summary | tojson(indent=2) }}{% else %}{{ qr_summary }}{% endif %}</pre>
+    </details>
+    {% endif %}
+    {% elif quality_report.md_exists %}
+    <p><code>quality_report.md</code> disponible.</p>
+    {% set md_preview = quality_report.md_preview | default(none) %}
+    {% if md_preview %}
+    <details>
+      <summary>Vista previa</summary>
+      <pre style="font-size:12px; white-space:pre-wrap;">{{ md_preview }}</pre>
+    </details>
+    {% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+
   <!-- Cola de revisión pendiente -->
   {% if review_queue %}
   <div class="card">
-    <h2 style="margin-top:0">Cola de revisión ({{ review_queue | length }} ítems)</h2>
+    <h2 style="margin-top:0">Cola de revisi&oacute;n ({{ review_queue | length }} &iacute;tems)</h2>
     <table class="review-queue-table">
       <thead>
         <tr>
           <th>#</th>
           <th>ID / Tipo</th>
           <th>Texto / Label</th>
+          <th>Confianza</th>
           <th>Motivo</th>
         </tr>
       </thead>
       <tbody>
         {% for item in review_queue %}
+        {% set cand = item.candidate if item.candidate is defined and item.candidate is mapping else item %}
+        {% set res = item.resolution if item.resolution is defined and item.resolution is mapping else {} %}
         <tr>
           <td style="color:var(--text-dim); width:30px;">{{ loop.index }}</td>
           <td>
-            {% if item.id %}<code>{{ item.id }}</code>{% endif %}
-            {% if item.type %}<br><span class="pill">{{ item.type }}</span>{% endif %}
+            {% set item_id = item.candidate_id | default(item.id | default(none)) %}
+            {% if item_id %}<code>{{ item_id }}</code>{% endif %}
+            {% set item_type = cand.entity_type | default(cand.type | default(item.type | default(none))) %}
+            {% if item_type %}<br><span class="pill">{{ item_type }}</span>{% endif %}
           </td>
-          <td>{{ item.label or item.text or item.name or '—' }}</td>
-          <td style="color:var(--text-dim);">{{ item.reason or item.review_reason or '—' }}</td>
+          <td>{{ cand.name | default(cand.label | default(cand.text | default(item.label | default(item.name | default(item.text | default('&#8212;')))))) }}</td>
+          <td style="color:var(--text-dim);">
+            {% set conf = cand.confidence | default(item.confidence | default(none)) %}
+            {% if conf is not none and conf is number %}{{ "%.2f" | format(conf) }}{% else %}&#8212;{% endif %}
+          </td>
+          <td style="color:var(--text-dim);">
+            {% set reason = item.reason | default(item.decision_reason | default(item.review_reason | default(res.reason | default(none)))) %}
+            {{ reason if reason else '&#8212;' }}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -64,7 +143,7 @@
   </div>
   {% else %}
   <div class="card">
-    <p class="empty-hint">No hay ítems en la cola de revisión{% if not pipeline_files[4].exists %} (review_queue.json no generado aún){% endif %}.</p>
+    <p class="empty-hint">No hay &iacute;tems en la cola de revisi&oacute;n{% if not pipeline_files[6].exists %} (review_queue.json no generado a&uacute;n){% endif %}.</p>
   </div>
   {% endif %}
 
