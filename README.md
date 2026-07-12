@@ -49,7 +49,7 @@ mensaje de autorización. No ingerir sin revisar.
   `access_store.py` pero no aplicados en el visor.
 - Login propio del visor: actualmente solo Basic Auth en el proxy nginx (VM104).
 
-Detalle completo en [Ver dossier y checklist del proyecto](docs/project%20dossier%20and%20checklist.md)
+Detalle completo en [project dossier and checklist.md](docs/project%20dossier%20and%20checklist.md)
 
 ## Arquitectura (resumen)
 
