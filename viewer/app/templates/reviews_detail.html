@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}S9 Knowledge · Review: {{ source_id }}{% endblock %}
+{% block body %}
+<main class="page">
+  <p><a href="/reviews">&larr; Volver a la lista</a></p>
+  <h1>{{ source_id }}</h1>
+  <p class="empty-hint">Workspace: <strong>{{ workspace }}</strong></p>
+
+  <!-- Contadores -->
+  <div class="card">
+    <h2 style="margin-top:0">Resumen</h2>
+    <div class="reviews-counters" style="font-size:14px; gap:12px;">
+      <span class="counter-badge approved" style="font-size:14px; padding:4px 14px;">
+        &#10003; {{ counters.approved }} autoaprobados
+      </span>
+      <span class="counter-badge pending" style="font-size:14px; padding:4px 14px;">
+        &#9203; {{ counters.pending }} pendientes
+      </span>
+      <span class="counter-badge rejected" style="font-size:14px; padding:4px 14px;">
+        &#10007; {{ counters.rejected }} rechazados
+      </span>
+    </div>
+  </div>
+
+  <!-- Estado del pipeline -->
+  <div class="card">
+    <h2 style="margin-top:0">Ficheros del pipeline</h2>
+    <div class="pipeline-files">
+      {% for f in pipeline_files %}
+      <span class="pipeline-file {{ 'exists' if f.exists else '' }}" title="{{ f.path }}">
+        {{ f.name }}{% if f.exists %} &#10003;{% endif %}
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Cola de revisión pendiente -->
+  {% if review_queue %}
+  <div class="card">
+    <h2 style="margin-top:0">Cola de revisión ({{ review_queue | length }} ítems)</h2>
+    <table class="review-queue-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>ID / Tipo</th>
+          <th>Texto / Label</th>
+          <th>Motivo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in review_queue %}
+        <tr>
+          <td style="color:var(--text-dim); width:30px;">{{ loop.index }}</td>
+          <td>
+            {% if item.id %}<code>{{ item.id }}</code>{% endif %}
+            {% if item.type %}<br><span class="pill">{{ item.type }}</span>{% endif %}
+          </td>
+          <td>{{ item.label or item.text or item.name or '—' }}</td>
+          <td style="color:var(--text-dim);">{{ item.reason or item.review_reason or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card">
+    <p class="empty-hint">No hay ítems en la cola de revisión{% if not pipeline_files[4].exists %} (review_queue.json no generado aún){% endif %}.</p>
+  </div>
+  {% endif %}
+
+  <!-- Enlace a approved_payload si existe -->
+  {% if approved_exists %}
+  <div class="card">
+    <h2 style="margin-top:0">Payload aprobado</h2>
+    <p>El fichero <code>approved_payload.json</code> existe con
+       <strong>{{ approved_count }}</strong> entrada(s) aprobada(s).</p>
+    <details>
+      <summary>Vista previa (primeras entradas)</summary>
+      <pre>{{ approved_preview }}</pre>
+    </details>
+  </div>
+  {% endif %}
+</main>
+{% endblock %}

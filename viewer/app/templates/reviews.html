@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}S9 Knowledge · Reviews{% endblock %}
+{% block body %}
+<main class="page">
+  <h1>Revisiones pendientes</h1>
+  <p class="empty-hint">Workspace: <strong>{{ workspace }}</strong></p>
+
+  {% if sources %}
+  <ul class="reviews-list">
+    {% for src in sources %}
+    <li>
+      <a href="/reviews/{{ src.source_id }}">{{ src.source_id }}</a>
+      <div class="reviews-counters">
+        <span class="counter-badge approved" title="Autoaprobados">&#10003; {{ src.approved }}</span>
+        <span class="counter-badge pending" title="Pendientes de revisión">&#9203; {{ src.pending }}</span>
+        <span class="counter-badge rejected" title="Rechazados">&#10007; {{ src.rejected }}</span>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="card">
+    <p class="empty-hint">No hay fuentes con revisión en el workspace <strong>{{ workspace }}</strong>.</p>
+    <p style="color:var(--text-dim); font-size:13px;">Los ficheros de revisión se generan en
+       <code>output/reviews/{{ workspace }}/&lt;source_id&gt;/</code> durante el pipeline de procesado.</p>
+  </div>
+  {% endif %}
+</main>
+{% endblock %}
