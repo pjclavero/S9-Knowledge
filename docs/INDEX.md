@@ -4,7 +4,7 @@
 
 - [00 · Visión](00-vision.md)
 - [01 · Arquitectura](01-architecture.md)
-- [02 · Estado actual](02-current-state.md) — qué está HECHO y qué NO
+- [02 · Estado actual](02-current-state.md) y [project dossier and checklist.md](docs/project%20dossier%20and%20checklist.md)— qué está HECHO y qué NO
 - [03 · Fases](03-phases.md)
 - [04 · Estructura del repositorio](04-repository-structure.md)
 - [05 · Motor de datos (data-engine)](05-data-engine.md)
