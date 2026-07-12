@@ -1,5 +1,8 @@
 # ROADMAP — S9 Knowledge
 
+
+revisar [project dossier and checklist.md](docs/project%20dossier%20and%20checklist.md) para una mayor aclaracion del estado
+
 ## Fase 0 — Motor de datos (HECHO)
 
 - Extracción PDF/texto/audio → Neo4j con LlamaIndex + Ollama (qwen2.5:7b).
