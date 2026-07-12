@@ -10,7 +10,10 @@ def test_entity_type_unknown_falls_back_to_raw_value():
 
 
 def test_relation_label_uses_dictionary_when_no_override():
-    assert relation_label("RELATED_TO") == "relacionado con"
+    # APPEARS_IN -> "aparece en" coincide tanto en el diccionario real de
+    # data-engine (schemas.rpg_schema.RELATION_LABELS_ES) como en el fallback
+    # local, así que el test es estable independientemente de cuál se use.
+    assert relation_label("APPEARS_IN") == "aparece en"
 
 
 def test_relation_label_prefers_explicit_override():

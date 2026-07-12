@@ -69,12 +69,17 @@ def _load_relation_labels() -> dict[str, str]:
 
     Si data-engine no está disponible o falla el import, degrada al
     diccionario mínimo local sin romper el visor.
+
+    Usa data-engine/app/ (no data-engine/) + import top-level `schemas.X`,
+    NO `app.schemas.X`: el visor ya tiene su propio paquete `app` (viewer/app/),
+    y una vez que `sys.modules['app']` queda ligado a ese paquete, importar
+    `app.schemas...` fallaría en silencio (capturado por el except de abajo).
     """
-    data_engine_app = Path(__file__).resolve().parents[2] / "data-engine"
-    if str(data_engine_app) not in sys.path:
-        sys.path.insert(0, str(data_engine_app))
+    data_engine_app_dir = Path(__file__).resolve().parents[2] / "data-engine" / "app"
+    if str(data_engine_app_dir) not in sys.path:
+        sys.path.insert(0, str(data_engine_app_dir))
     try:
-        from app.schemas.rpg_schema import RELATION_LABELS_ES as _imported  # type: ignore
+        from schemas.rpg_schema import RELATION_LABELS_ES as _imported  # type: ignore
         merged = dict(_RELATION_LABELS_ES_FALLBACK)
         merged.update(_imported)
         return merged
