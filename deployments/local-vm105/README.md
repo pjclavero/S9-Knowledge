@@ -160,6 +160,32 @@ Esto hace que el visor sirva los datos de ejemplo (`examples/sample_graph.json`)
 en vez de fallar — útil para verificar que el problema es de conectividad a
 Neo4j y no del propio visor. Revertir a `neo4j` cuando se resuelva la causa.
 
+## Jobs panel / worker manual (v0.2.4)
+
+Además del visor de grafo, `viewer/.env` puede incluir `S9K_JOBS_DB` para que
+el panel de solo lectura `/jobs` muestre la cola de trabajos:
+
+```env
+S9K_JOBS_DB=/opt/knowledge-services/s9-knowledge-repo/state/jobs.db
+```
+
+Probarlo manualmente (sin tocar Neo4j ni datos reales):
+
+```bash
+cd /opt/knowledge-services/s9-knowledge-repo
+export S9K_JOBS_DB=/opt/knowledge-services/s9-knowledge-repo/state/jobs.db
+python data-engine/app/cli/jobs.py create --type echo --workspace leyenda \
+    --payload '{"message":"prueba vm105"}'
+python data-engine/app/jobs/worker.py --once --limit 1
+python data-engine/app/cli/jobs.py list --workspace leyenda
+```
+
+Luego, con el visor arrancado (paso 5 de esta guía), abrir
+`http://192.168.1.205:8088/jobs` y comprobar que aparece el job `echo` en
+estado `complete`. Detalle completo en `docs/15-jobs-worker-panel.md`. Esta
+fase no instala systemd para el worker; se ejecuta manualmente o vía
+`scripts/run-jobs-worker.sh`.
+
 ## Qué NO hace esta guía
 
 - No abre el visor a Internet ni configura Cloudflare/dominio externo — el

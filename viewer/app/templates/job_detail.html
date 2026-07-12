@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}S9 Knowledge · Job {{ job.job_id[:8] if job else '' }}{% endblock %}
+{% block body %}
+<main class="page">
+  {% if not job %}
+  <div class="card">
+    <p><span class="pill error">{{ error or 'job_not_found' }}</span></p>
+  </div>
+  {% else %}
+  <div class="card">
+    <h1>Job {{ job.job_id }}</h1>
+    <p>
+      <span class="pill">{{ job.type }}</span>
+      <span class="pill">{{ job.workspace }}</span>
+      <span class="pill">{{ job.status }}</span>
+      <span class="pill">intentos: {{ job.attempts }}/{{ job.max_attempts }}</span>
+    </p>
+
+    <div class="field">
+      <div class="field-label">Creado</div>
+      <div class="field-value">{{ job.created_at }}</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Actualizado</div>
+      <div class="field-value">{{ job.updated_at }}</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Iniciado / Terminado</div>
+      <div class="field-value">{{ job.started_at or '—' }} / {{ job.finished_at or '—' }}</div>
+    </div>
+    {% if job.error_message %}
+    <div class="field">
+      <div class="field-label">Error</div>
+      <div class="field-value">{{ job.error_message }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Payload</h2>
+    <pre>{{ job.payload | tojson(indent=2) if job.payload is not none else '—' }}</pre>
+  </div>
+
+  <div class="card">
+    <h2>Result</h2>
+    <pre>{{ job.result | tojson(indent=2) if job.result is not none else '—' }}</pre>
+  </div>
+  {% endif %}
+</main>
+{% endblock %}

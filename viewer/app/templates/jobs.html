@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}S9 Knowledge · Jobs{% endblock %}
+{% block body %}
+<main class="page">
+  <div class="card">
+    <h1>Jobs</h1>
+    {% if not status.ok %}
+      <p><span class="pill error">{{ status.error }}</span></p>
+      <p class="empty-hint">
+        No se encontró la base de datos de jobs
+        {% if status.db_path %}({{ status.db_path }}){% endif %}.
+        Se crea automáticamente al ejecutar el worker o la CLI de jobs por
+        primera vez (ver <code>docs/15-jobs-worker-panel.md</code>).
+      </p>
+    {% else %}
+      <p>
+        {% for st, n in counts.items() %}
+        <span class="pill">{{ st }}: {{ n }}</span>
+        {% endfor %}
+        {% if not counts %}<span class="pill">Sin jobs registrados.</span>{% endif %}
+      </p>
+    {% endif %}
+  </div>
+
+  {% if status.ok %}
+  <div class="card">
+    <form method="get" action="/jobs" class="graph-toolbar" style="padding:0; margin-bottom:12px;">
+      <input type="text" name="workspace" placeholder="workspace" value="{{ filters.workspace or '' }}">
+      <input type="text" name="status" placeholder="status" value="{{ filters.status or '' }}">
+      <input type="text" name="job_type" placeholder="job_type" value="{{ filters.job_type or '' }}">
+      <button class="btn secondary" type="submit">Filtrar</button>
+    </form>
+
+    <table class="rel-table">
+      <thead>
+        <tr>
+          <td><strong>ID</strong></td>
+          <td><strong>Tipo</strong></td>
+          <td><strong>Workspace</strong></td>
+          <td><strong>Estado</strong></td>
+          <td><strong>Intentos</strong></td>
+          <td><strong>Creado</strong></td>
+          <td><strong>Actualizado</strong></td>
+          <td><strong>Error</strong></td>
+        </tr>
+      </thead>
+      {% for job in jobs %}
+      <tr>
+        <td><a href="/jobs/{{ job.job_id }}">{{ job.job_id[:8] }}…</a></td>
+        <td>{{ job.type }}</td>
+        <td>{{ job.workspace }}</td>
+        <td><span class="pill">{{ job.status }}</span></td>
+        <td>{{ job.attempts }}/{{ job.max_attempts }}</td>
+        <td>{{ job.created_at }}</td>
+        <td>{{ job.updated_at }}</td>
+        <td>{{ (job.error_message or '')[:60] }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% if not jobs %}<p class="empty-hint">No hay jobs que coincidan con el filtro.</p>{% endif %}
+  </div>
+  {% endif %}
+</main>
+{% endblock %}

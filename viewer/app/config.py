@@ -24,6 +24,11 @@ class Settings(BaseSettings):
 
     S9K_SAMPLE_GRAPH_PATH: str = "examples/sample_graph.json"
 
+    # Panel de jobs (Fase v0.2.4 "jobs worker and jobs panel"). Vacío por
+    # defecto: se resuelve en tiempo de uso contra data-engine/state/jobs.db
+    # o la ruta que indique job_store.DEFAULT_DB_PATH si tampoco se ha fijado.
+    S9K_JOBS_DB: str = ""
+
     @property
     def neo4j_password(self) -> str:
         """Resuelve la contraseña de Neo4j: archivo primero, luego variable directa."""
