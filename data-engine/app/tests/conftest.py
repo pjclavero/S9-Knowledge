@@ -1,6 +1,6 @@
 """Config de pytest para data-engine: añade `data-engine/app` a sys.path.
 
-Los paquetes del proyecto (`jobs`, `access`, `schemas`, ...) son top-level bajo
+Los paquetes del proyecto (`media`, `jobs`, `access`, `schemas`, ...) son top-level bajo
 `data-engine/app`. Se calcula la ruta de forma portable (no rutas fijas de
 despliegue) para que los tests corran igual en Windows y en VM105.
 """
