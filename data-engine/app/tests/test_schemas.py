@@ -1,7 +1,5 @@
 """Tests unitarios para rpg_schema."""
 import pytest
-import sys
-sys.path.insert(0, "/opt/knowledge-services/property-graph/app")
 
 from schemas.rpg_schema import EntityBase, RelationshipBase, ExtractionResult
 
