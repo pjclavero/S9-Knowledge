@@ -294,4 +294,4 @@ Persistent=true
 
 | Fecha | Tipo | Archivo | SHA256 (parcial) | Resultado |
 |-------|------|---------|-----------------|-----------|
-| 2026-07-13 | Backup producción | neo4j-knowledge-YYYYMMDD-HHMMSS.dump | [PENDIENTE datos backup] | EN CURSO |
+| 2026-07-13 21:49 UTC | Backup producción | neo4j-20260713-174909/neo4j.dump (132 KB) | c3179c01... | COMPLETADO ✅ |
