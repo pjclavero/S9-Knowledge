@@ -4,6 +4,23 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### Fixed — 2026-07-13 (rama fix/tests-imports-cache-and-ci)
+
+- Eliminar `data-engine/app/__init__.py` vacío: el archivo registraba el directorio
+  como paquete Python `app`, colisionando con `viewer/app` en corrida combinada y
+  causando 5 errores de colección.
+- Eliminar `data-engine/app/tests/__init__.py` y `viewer/tests/__init__.py` vacíos:
+  causaban `ImportPathMismatchError` en corrida combinada.
+- Reescribir `conftest.py` raíz con documentación clara de por qué se insertan
+  `data-engine/app` y `viewer/` en sys.path.
+- Suite combinada: 220 passed, 0 errores de colección, 0 fallidos.
+
+### Added — 2026-07-13 (rama fix/tests-imports-cache-and-ci)
+
+- `.github/workflows/ci.yml`: 4 jobs (data-engine, viewer, combined, check-imports).
+  Sin dependencias externas (no Neo4j real, no Ollama, no Nextcloud).
+- `docs/31-test-remediation-and-ci-report.md`: informe de remediación y CI.
+
 ### Documentación — 2026-07-13
 
 - Auditoría completa de VM105 y cierre documental de fases 0A y 0B.

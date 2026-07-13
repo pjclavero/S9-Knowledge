@@ -9,7 +9,6 @@ import sys
 _APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _APP_DIR not in sys.path:
     sys.path.insert(0, _APP_DIR)
-sys.path.insert(0, "/opt/knowledge-services/property-graph/app")
 
 import types  # noqa: E402
 
