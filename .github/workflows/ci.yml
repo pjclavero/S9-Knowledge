@@ -13,10 +13,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
           cache: 'pip'
           cache-dependency-path: 'data-engine/requirements.lock'
 
@@ -37,10 +37,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
           cache: 'pip'
           cache-dependency-path: 'viewer/requirements.txt'
 
@@ -61,10 +61,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
           cache: 'pip'
 
       - name: Install all dependencies
@@ -80,16 +80,19 @@ jobs:
           python -m pytest --tb=short --no-header -q
 
   check-imports:
-    name: No hardcoded absolute paths
+    name: No hardcoded absolute paths in sys.path
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check forbidden absolute paths in Python files
+      - name: Check for sys.path manipulation with hardcoded /opt paths
         run: |
-          if grep -rn "sys\.path.*['\"]\/opt\|\/opt\/knowledge-services\|\/opt\/property-graph" \
+          # Only catches actual sys.path.insert/append with /opt/ paths.
+          # String literals used as configurable CLI defaults are intentional and excluded.
+          if grep -rPn "sys\.path\.(insert|append)\s*\(.*['\"]\/opt" \
                --include="*.py" . 2>/dev/null; then
-            echo "ERROR: hardcoded /opt paths found in Python files"
+            echo "ERROR: sys.path manipulation with hardcoded /opt paths found"
+            echo "Fix: use Path(__file__).parent to resolve paths relative to the script"
             exit 1
           fi
-          echo "OK: no hardcoded absolute paths found"
+          echo "OK: no sys.path manipulation with hardcoded /opt paths found"

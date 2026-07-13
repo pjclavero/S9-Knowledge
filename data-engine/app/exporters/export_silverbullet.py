@@ -17,7 +17,7 @@ def main():
     with open(args.entities_json) as f:
         data = json.load(f)
 
-    sys.path.insert(0, "/opt/knowledge-services/property-graph/app")
+    sys.path.insert(0, str(Path(__file__).parent.parent))
     from ingest_rpg import export_to_markdown
     from schemas.rpg_schema import EntityBase, RelationshipBase
 
