@@ -37,3 +37,7 @@
 
 - Estado consolidado: [02 · Estado actual](02-current-state.md).
 - Infraestructura/servidor (dominio, Basic Auth, seguridad, CPU): repo `pjclavero/s9-server`.
+- [26 · Operaciones: Backup y Restore de Neo4j](26-operations-backup-and-restore.md) — **Método verificado en lab 2026-07-13**
+- [27 · Runbook de Ingesta Controlada](27-controlled-ingest-runbook.md) — Checklist + guard doble + rollback de emergencia
+- [28 · Migraciones del Grafo y Rollback por source_id](28-graph-migrations-and-rollback.md) — Diseño completo, implementación pendiente
+- [29 · Informe de Preparación Prioridad 1](29-priority-1-readiness-report.md) — **Dictamen: PREPARADA**
