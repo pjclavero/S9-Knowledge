@@ -8,7 +8,12 @@ Pensada para campañas de rol (L5A "Leyenda", Mundo de Tinieblas, Trudvang…): 
 personajes, criaturas, lugares, facciones, objetos, eventos, combates y sesiones, y
 la evolución del conocimiento de cada personaje a lo largo de la campaña.
 
-## Estado actual (v0.2.5)
+## Estado actual (v0.2.5b — verificado 2026-07-13)
+
+> Commit desplegado en VM105: `1fd94b85` (v0.2.5b, 2026-07-10).
+> Tests verificados: 196 recopilados, 155 aprobados, 41 fallidos (deuda técnica de API, sin impacto en seguridad).
+> Neo4j: 199 nodos, 140 relaciones. Visor: HTTP 200 en `/graph`, `/jobs`, `/reviews`.
+> Informe de auditoría completo: [docs/24-vm105-baseline-and-verification.md](docs/24-vm105-baseline-and-verification.md).
 
 ### Listo y operativo
 

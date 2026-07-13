@@ -50,3 +50,10 @@ Detalle en `docs/current/RPG_GRAPH_MODEL_UPDATE.md` y `docs/current/VISOR_DESIGN
 cd data-engine && .venv/bin/python -m pytest app/tests/ -q     # 8/8
 ```
 (el `.venv` no se versiona; se recrea con `requirements.lock`.)
+
+> **Nota de auditoría (2026-07-13):** El número de tests ha crecido desde la redacción inicial de este documento.
+> En commit `1fd94b85` (v0.2.5b), ejecutando desde la raíz del repo con el venv de producción:
+> **196 tests recopilados, 155 aprobados, 41 fallidos** (deuda técnica de API — cambio de firma `create_job()`,
+> mapeo semántico `FOUGHT_AT`, `source_kind='video'`, imports rotos en viewer tests).
+> Ningún fallo afecta a la seguridad ni al guard de ingesta.
+> Ver [docs/24-vm105-baseline-and-verification.md §10](24-vm105-baseline-and-verification.md) para desglose completo.

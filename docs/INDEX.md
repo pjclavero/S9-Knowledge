@@ -22,6 +22,7 @@
 - [21 · Acceso externo y seguridad](21-external-access-and-security.md)
 - [22 · Instalación y replicabilidad](22-installation-and-replicability.md)
 - [23 · Knowledge Packages: export/import](23-knowledge-packages.md)
+- [24 · Baseline VM105 y Verificación Fase 0A](24-vm105-baseline-and-verification.md) — **Informe de auditoría verificable 2026-07-13**
 
 ## Documentos de diseño generados en el servidor (`docs/current/`)
 

@@ -2207,12 +2207,12 @@ Una función se considera terminada cuando:
 
 ## Cierre inmediato
 
-- [ ] Confirmar commit en VM105.
-- [ ] Ejecutar pruebas.
-- [ ] Corregir documentación.
+- [x] Confirmar commit en VM105 — `1fd94b85` (v0.2.5b, 2026-07-10). Verificado 2026-07-13.
+- [x] Ejecutar pruebas — 196 recopilados, 155 aprobados, 41 fallidos (deuda técnica API). Verificado 2026-07-13.
+- [x] Corregir documentación — docs/06 (visor en prod), docs/05 (tests), docs/02 (fecha), CHANGELOG, INDEX, README. Verificado 2026-07-13.
 - [ ] Actualizar roadmap.
-- [ ] Actualizar changelog.
-- [ ] Añadir este dosier.
+- [x] Actualizar changelog — sección Unreleased con auditoría 2026-07-13.
+- [x] Añadir este dosier — presente en `origin/main` desde `ffaf84c`.
 
 ## Seguridad de datos
 
@@ -2220,7 +2220,7 @@ Una función se considera terminada cuando:
 - [ ] Restore.
 - [ ] Rollback.
 - [ ] Audit-graph antes y después.
-- [ ] Bloqueo de ingesta por defecto.
+- [x] Bloqueo de ingesta por defecto — guard doble capa confirmado, `S9K_ALLOW_REAL_INGEST` no activa. Verificado 2026-07-13.
 
 ## Calidad
 
@@ -2289,11 +2289,15 @@ Ese es el punto en el que el proyecto deja de ser una suma de componentes funcio
 
 ## Historial del dosier
 
-### 2026-07-13
+### 2026-07-13 — Auditoría y cierre fase 0A/0B
 
-- Creación inicial.
+- Creación inicial del dosier.
 - Consolidación de los dos informes aportados.
 - Contraste con documentación de `main`.
 - Identificación de contradicciones.
 - Definición del estado por componente.
 - Creación del plan priorizado y checklist.
+- Auditoría verificable de VM105: commit `1fd94b85` (v0.2.5b), Neo4j 199 nodos, visor HTTP 200, tests 155/196.
+- **Dictamen fase 0A: CERRADA CON EXCEPCIONES DOCUMENTADAS** — Ollama no disponible, 41 tests fallidos (debt técnico), sin backup automático.
+- **Dictamen fase 0B: CERRADA CON EXCEPCIONES DOCUMENTADAS** — Documentación corregida y PR abierto; roadmap pendiente de actualización.
+- Informe de baseline: [`docs/24-vm105-baseline-and-verification.md`](24-vm105-baseline-and-verification.md).
