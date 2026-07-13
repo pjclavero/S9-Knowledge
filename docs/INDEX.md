@@ -36,3 +36,5 @@
 
 - Estado consolidado: [02 · Estado actual](02-current-state.md).
 - Infraestructura/servidor (dominio, Basic Auth, seguridad, CPU): repo `pjclavero/s9-server`.
+
+- [25 · Análisis de fallos de tests (2026-07-13)](25-test-failure-analysis.md) — Diagnóstico completo de 41 tests fallidos, 2 causas raíz y orden de corrección
