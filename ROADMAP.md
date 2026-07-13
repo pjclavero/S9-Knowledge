@@ -1,64 +1,119 @@
 # ROADMAP — S9 Knowledge
 
+Ver [project dossier and checklist.md](docs/project%20dossier%20and%20checklist.md) para el estado detallado por componente.
 
-revisar [project dossier and checklist.md](docs/project%20dossier%20and%20checklist.md) para una mayor aclaracion del estado
+---
+
+## Secuencia de prioridades
+
+```
+Prioridad 0: COMPLETADA — Motor de datos, pipeline de revisión, tests, CI
+Prioridad 1: COMPLETADA (ver dictamen) — Backup, restore, rollback
+Prioridad 2: EN DEFINICIÓN — Calidad del extractor y del pipeline
+Prioridad 3: PENDIENTE — Primera ingesta real controlada
+Prioridad 4: PENDIENTE — Limpieza del grafo histórico
+Prioridad 5: PENDIENTE — Autenticación y seguridad del visor
+```
+
+---
+
+## Prioridad 0 — Motor de datos y repositorio (COMPLETADA ✅)
+
+- Schema RPG v1.5.0: 27 tipos de nodo, 113 relaciones, vocabularios controlados.
+- Pipeline de revisión: segment → classify → extract → validate → resolve → decide → approved_payload.
+- Extractor: modos heurístico, LLM (qwen2.5:7b) e híbrido implementados.
+- Tests: 220/220 en corrida combinada, 0 errores de colección.
+- CI: GitHub Actions con 4 jobs verdes (Python 3.13).
+- VM105: commit cef9233 desplegado, working tree limpio.
+- Commit: `cef9233`
+
+---
 
 ## Prioridad 1 — Backup, Restore y Rollback (COMPLETADA ✅)
 
 - [x] Backup/restore de Neo4j verificado en lab (2026-07-13)
 - [x] Scripts backup/restore en main (`scripts/backup/`)
-- [x] Backup real de producción ejecutado
-- [x] Restore real en instancia aislada verificado
-- [x] Rollback por source_id validado en laboratorio
-- [x] Documentación de operaciones actualizada (docs/26-32)
+- [x] Backup real de producción ejecutado (2026-07-13 21:49 UTC, 132 KB, 25 s parada)
+- [x] Restore real en instancia aislada verificado (199 nodos, 140 relaciones, idéntico a producción)
+- [x] Rollback por source_id validado en laboratorio con datos sintéticos
+- [x] Documentación de operaciones actualizada (docs/26–32)
+- [x] Copia externa a yggdrasil verificada (2026-07-14, SHA256 coincide)
 
-**Dictamen: PRIORIDAD 1 COMPLETADA**
+**Dictamen:** COMPLETADA — ver [docs/32-production-backup-restore-validation.md](docs/32-production-backup-restore-validation.md)
 
-Documentación: [docs/29-priority-1-readiness-report.md](docs/29-priority-1-readiness-report.md), [docs/32-production-backup-restore-validation.md](docs/32-production-backup-restore-validation.md)
+### P1.1 — Endurecimiento operativo pendiente
+
+- [x] Copia externa verificada a yggdrasil (2026-07-14)
+- [ ] Automatización de copia en neo4j-backup.sh
+- [ ] Timer systemd para backup semanal
+- [ ] Script transaccional de rollback con --dry-run
+- [ ] Prueba periódica programada de restore
 
 ---
 
-## Fase 0 — Motor de datos (HECHO)
+## Prioridad 2 — Calidad del extractor y del pipeline (EN DEFINICIÓN)
 
-- Extracción PDF/texto/audio → Neo4j con LlamaIndex + Ollama (qwen2.5:7b).
-- Schema RPG v1.5.0: personajes, criaturas/espíritus/demonios/bestias, lugares,
-  facciones, objetos, eventos, combates, tareas, sesiones, documentos, imágenes.
-- Trazabilidad completa (source_id/kind/path/hash, extractor/prompt version).
-- Metadatos temporales y de sesión; validación semántica; estado de revisión.
-- Capa de conocimiento por personaje (relaciones HAS_SEEN/HAS_FOUGHT/TELLS…).
+El bloqueo real no es ausencia de LLM — los tres modos (heurístico, LLM, híbrido) están implementados. El bloqueo es la falta de validación de calidad sobre un corpus representativo.
 
-## Fase 1 — Orden y versionado (EN CURSO)
+- [ ] Corpus de evaluación: fuentes representativas con verdad esperada
+- [ ] Métricas: precisión, recall, F1, falsos positivos, falsos negativos, duplicados, relaciones inválidas
+- [ ] Comparativa: heurístico vs LLM vs híbrido por tipo de fuente
+- [ ] Criterio de autoaprobado: umbral verificable
+- [ ] Criterio de envío a revisión humana
+- [ ] Criterio de rechazo
+- [ ] Pruebas de regresión
+- [ ] Condiciones para habilitar la primera ingesta real
 
-- Repositorio Git limpio con código + documentación.
-- `.gitignore`/`.env.example` seguros; sin secretos ni datos pesados.
-- Preparado para remoto y clonado en el PC.
+Ver [docs/33-extractor-quality-benchmark-plan.md](docs/33-extractor-quality-benchmark-plan.md) para el plan de evaluación.
 
-## Fase 2 — Fuentes externas (DISEÑADO, parcial)
+---
 
-- Cola de trabajos `job_store.py` (SQLite) — implementada.
-- Audio Nextcloud vía cola — parcial (base existente `property-graph-audio`).
-- YouTube — módulo `fetch_youtube.py` existente, falta integrarlo en la cola.
-- Web (trafilatura/readability) — solo diseño; dependencia no instalada.
-- Worker que consume la cola — pendiente.
+## Prioridad 3 — Primera ingesta real controlada (PENDIENTE)
 
-## Fase 3 — Acceso: usuarios, personajes y permisos (DISEÑADO/IMPLEMENTADO base)
+Requiere: Prioridad 1 completa + Prioridad 2 con criterios aceptados.
 
-- `access_store.py`: vínculos usuario-personaje (multi-workspace), permisos por
-  bóveda, audit log — implementado (SQLite).
-- Aplicación real de reglas de visibilidad — pendiente (vive en API/visor).
+- [ ] Fuente pequeña y representativa seleccionada
+- [ ] Auditoría pre-ingesta del grafo
+- [ ] Dry-run completo del pipeline
+- [ ] Backup inmediatamente antes
+- [ ] Ingesta real con S9K_ALLOW_REAL_INGEST
+- [ ] Auditoría post-ingesta
+- [ ] Verificación de que el resto del grafo no cambió
 
-## Fase 4 — Visor web (PENDIENTE)
+---
 
-- Visor de solo lectura del grafo (vistas de `docs/06-viewer-panel.md`).
-- Filtros por workspace, visibilidad, capa de conocimiento y personaje activo.
+## Prioridad 4 — Limpieza del grafo histórico (PENDIENTE)
 
-## Fase 5 — Panel de gestión (PENDIENTE)
+- [ ] Migración controlada de ~87 nodos sin source_id/source_kind
+- [ ] Corrección de relaciones semánticamente inválidas (HAS_FOUGHT → FOUGHT_AT)
+- [ ] Eliminación de duplicados detectados por audit-graph
 
-- "Fuentes / Importar" (alta de trabajos).
-- `/control/users` (usuarios-personajes) y `/control/visibility` (conocimiento).
-- Endpoints REST documentados en `docs/06-viewer-panel.md`.
+---
 
-## Fase 6 — Acceso externo (PENDIENTE)
+## Prioridad 5 — Autenticación y seguridad del visor (PENDIENTE)
 
-- Publicación controlada (dominio/Cloudflare/HTTPS local ya disponible para
-  SilverBullet en 4100–4112). Sin exponer Neo4j/Ollama.
+- [ ] Login propio (hoy solo Basic Auth en proxy nginx)
+- [ ] Usuarios y roles en API/UI
+- [ ] Acciones de revisión desde visor
+- [ ] Permisos RPG aplicados en consultas
+
+---
+
+## Estado del visor actual (IMPLEMENTADO Y DESPLEGADO)
+
+- `/graph`: vis.js — operativo ✅
+- `/jobs`: panel de cola — implementado como base ✅
+- `/reviews`: panel de revisión en lectura ✅
+- Login propio: PENDIENTE (Prioridad 5)
+- Acciones de revisión desde UI: PENDIENTE
+- Permisos RPG en API/UI: PENDIENTE
+- Acceso externo: https://knowledge.seccionnueve.duckdns.org (nginx + Basic Auth) ✅
+
+---
+
+## Componentes transversales activos
+
+- Worker genérico: base implementada (job_store.py + worker.py con echo/noop)
+- Handlers multimedia completos: PENDIENTE (transcripción faster-whisper operativa en manual)
+- Nextcloud mount: rclone-nextcloud-rol.service activo (solo lectura) ✅
+- Ollama: qwen2.5:7b en ia-server (192.168.1.157:11434) ✅

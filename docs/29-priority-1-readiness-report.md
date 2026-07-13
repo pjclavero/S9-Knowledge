@@ -1,8 +1,8 @@
 # 29 · Informe de Preparación — Prioridad 1
 
-**Fecha:** 2026-07-13
-**Agente:** C (backup/restore/rollback)
-**Dictamen: PREPARADA**
+**Fecha de preparación:** 2026-07-13  
+**Fecha de ejecución:** 2026-07-13–14  
+**Dictamen final:** ver sección "Actualización 2026-07-13: Ejecución completada"
 
 ---
 
@@ -81,14 +81,18 @@ Se levantó un contenedor temporal `neo4j-restore` con el volumen restaurado y s
 
 ## Actualización 2026-07-13: Ejecución completada
 
-La Prioridad 1 ha sido ejecutada en producción:
+La Prioridad 1 ha sido ejecutada en producción. Este documento conserva el informe de preparación y laboratorio como historial; el dictamen definitivo con datos reales está en [docs/32-production-backup-restore-validation.md](32-production-backup-restore-validation.md).
 
-- **Backup real**: ✅ Ejecutado (ver docs/32 para detalles)
-- **Restore real aislado**: ✅ Verificado
-- **Rollback laboratorio**: ✅ Validado
-- **Dictamen**: PRIORIDAD 1 COMPLETADA
+| Ítem | Estado | Detalle |
+|------|--------|---------|
+| Backup real de producción | ✅ EJECUTADO | neo4j-20260713-174909/neo4j.dump, 132 KB, SHA256 c3179c01... |
+| Restore real en instancia aislada | ✅ VERIFICADO | 199 nodos, 140 relaciones, 14 labels, 2 índices — idéntico a producción |
+| Rollback por source_id en laboratorio | ✅ VALIDADO | Datos sintéticos; patrón Cypher transaccional demostrado |
+| Copia externa a yggdrasil | ✅ COMPLETADA Y VERIFICADA | 2026-07-14 01:07 UTC, SHA256 coincide, permisos 700 root:root |
+| Script transaccional de rollback con --dry-run | ⏳ PENDIENTE (P1.1) | Las consultas Cypher directas están validadas; orquestación pendiente |
+| Timer systemd para backup periódico | ⏳ PENDIENTE (P1.1) | Diseñado, sin activar |
 
-Documentación completa: [docs/32-production-backup-restore-validation.md](32-production-backup-restore-validation.md)
+**Prioridad 1** queda cerrada operativamente. Ver dictamen completo en [docs/32](32-production-backup-restore-validation.md).
 
 ---
 
@@ -104,8 +108,8 @@ Documentación completa: [docs/32-production-backup-restore-validation.md](32-pr
 - [x] Backup ejecutado en lab con éxito
 - [x] Checksum calculado y verificado
 - [x] Script `neo4j-backup.sh` creado con `--dry-run`
-- [ ] Backup real de producción (PENDIENTE — requiere ventana de mantenimiento)
-- [ ] Timer systemd automático (PENDIENTE — diseñado, sin ventana acordada)
+- [x] Backup real de producción — **EJECUTADO 2026-07-13 21:49 UTC** (ver docs/32)
+- [ ] Timer systemd automático (P1.1 — diseñado, pendiente de activar)
 
 ### Restore
 
@@ -113,7 +117,7 @@ Documentación completa: [docs/32-production-backup-restore-validation.md](32-pr
 - [x] Sintaxis correcta de `neo4j-admin database load` verificada en 5.26.0
 - [x] Restore validado: antes=3 nodos, después=3 nodos
 - [x] Script `neo4j-restore.sh` creado con `--dry-run` y validación de checksum
-- [ ] Restore de producción real no probado (requiere ventana)
+- [x] Restore del backup real en instancia aislada — **VERIFICADO 2026-07-13** (199 nodos, 140 relaciones)
 
 ### Rollback por source_id
 
@@ -123,7 +127,8 @@ Documentación completa: [docs/32-production-backup-restore-validation.md](32-pr
 - [x] Cypher de análisis previo documentado
 - [x] Script dry-run `neo4j-rollback-dryrun.sh` creado (solo lectura)
 - [x] Caso especial de ~87 nodos históricos sin source_id documentado
-- [ ] Script de ejecución de rollback (PENDIENTE — diseño aprobado, implementación pendiente)
+- [x] Rollback por source_id validado en laboratorio — **VALIDADO 2026-07-13** (ver docs/32)
+- [ ] Script transaccional de rollback con --dry-run (P1.1 — endurecimiento operativo pendiente)
 
 ### Documentación
 
@@ -144,17 +149,22 @@ Documentación completa: [docs/32-production-backup-restore-validation.md](32-pr
 
 | Riesgo | Severidad | Estado |
 |---|---|---|
-| Sin backup real de producción aún | Alto | Pendiente de ventana de mantenimiento |
-| 87 nodos históricos sin source_id no son rollbackeables selectivamente | Medio | Documentado, migración propuesta |
-| Parada de ~5 min para cada backup (Community Edition) | Medio | Documentado, ventana requerida |
-| Script de ejecución de rollback no implementado | Bajo | Diseño completo, implementación pendiente |
+| ~~Sin backup real de producción~~ | ~~Alto~~ | **CERRADO** — backup ejecutado 2026-07-13 |
+| 87 nodos históricos sin source_id no son rollbackeables selectivamente | Medio | Documentado, migración propuesta en Prioridad 2 |
+| Parada de ~25 s para cada backup (Community Edition) | Bajo | Ejecutada sin incidencia — ventana gestionable |
+| Script de ejecución de rollback no implementado | Bajo | P1.1 — Cypher validado en lab, orquestación pendiente |
+| ~~Copia externa sin verificar~~ | ~~Medio~~ | **CERRADO** — verificada 2026-07-14 en yggdrasil |
 
 ---
 
-## Dictamen
+## Dictamen de preparación (histórico)
 
-**Prioridad 1: PREPARADA**
+**Estado en 2026-07-13 antes de ejecución:** PREPARADA
 
-Los procedimientos de backup, restore y rollback están diseñados, documentados y verificados en laboratorio. El único paso de producción pendiente (backup real de `neo4j-knowledge`) requiere una ventana de mantenimiento acordada de ~5 minutos. Todos los demás elementos de Prioridad 1 están completos.
+Los procedimientos de backup, restore y rollback estaban diseñados, documentados y verificados en laboratorio.
 
-**Siguiente acción recomendada:** Acordar ventana de mantenimiento para ejecutar el primer backup real de producción y configurar el timer systemd de backup semanal.
+## Dictamen de ejecución (definitivo)
+
+Ver [docs/32-production-backup-restore-validation.md](32-production-backup-restore-validation.md) para el dictamen con datos reales.
+
+**Siguiente acción recomendada (P1.1):** Verificar copia externa a yggdrasil, configurar timer systemd de backup semanal, implementar script de rollback con `--dry-run`.

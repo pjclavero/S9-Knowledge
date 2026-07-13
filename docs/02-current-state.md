@@ -1,8 +1,11 @@
 # 02 · Estado actual
 
-> Última verificación en VM105: **2026-07-13** — commit `1fd94b85` (v0.2.5b, 2026-07-10), `origin/main` 7 commits adelante (documentales).
-> Tests verificados: 196 recopilados, **155 aprobados**, 41 fallidos (deuda técnica funcional — semántica del grafo, jobs, multimedia, visor; guard de ingesta 16/16 confirmado).
-> Informe de auditoría completo: [docs/24-vm105-baseline-and-verification.md](24-vm105-baseline-and-verification.md).
+> Última verificación en VM105: **2026-07-13–14** — commit `cef9233` desplegado (fix: make test suite reproducible and add CI).
+> Tests: 220 recopilados, **220 aprobados**, 0 fallidos, 0 errores de colección (corrida combinada).
+> CI: GitHub Actions activa, 4 jobs verdes (data-engine, viewer, combined, check-imports).
+> Informe de auditoría histórica (v0.2.5b): [docs/24-vm105-baseline-and-verification.md](24-vm105-baseline-and-verification.md) — estado anterior a cef9233.
+> Informe de remediación de tests y CI: [docs/31-test-remediation-and-ci-report.md](31-test-remediation-and-ci-report.md).
+> Backup y validación de Prioridad 1: [docs/32-production-backup-restore-validation.md](32-production-backup-restore-validation.md).
 > Revisar también [project dossier and checklist.md](project%20dossier%20and%20checklist.md).
 
 Instantánea verificada a 2026-07-13 (basada en auditoría de VM105 del mismo día).
@@ -69,14 +72,12 @@ El bloque de tratamiento de datos está completo y protegido:
 - VM105 ampliada a 6 vCPUs.
 
 ### Integración
-- **main**: integración v0.2.4 (jobs + multimedia + validaciones).
-- Ramas: `feat/l5a-transcription-glossary` (glosario) y `feat/data-processing-final-v0.2.5` (pipeline de revisión) → **PR draft #2**.
+- **main** (cef9233): 220/220 tests, CI 4 jobs verdes, scripts de backup operativos, docs/26–32.
+- Ramas activas: `feat/l5a-transcription-glossary` (glosario), `feat/data-processing-final-v0.2.5` (pipeline de revisión) y otras — pendientes de integración en la secuencia correcta.
 
 ## NO HECHO / pendiente
 
-- **Extractor LLM.** El extractor de candidatos es heurístico y da falsos positivos
-  (`Llevás`/`Todo`/`Como` como Character). **La ingesta real a Neo4j está bloqueada**
-  hasta sustituirlo por LLM + stopwords. De momento el pipeline queda en dry-run.
+- **Calidad del extractor (Prioridad 2).** El pipeline implementa tres modalidades: heurístico, LLM (qwen2.5:7b vía Ollama) e híbrido. El modo heurístico produce falsos positivos conocidos (`Llevás`/`Todo`/`Como` como Character). Los modos LLM/híbrido existen pero no han sido evaluados con un corpus representativo. **La ingesta real a Neo4j está bloqueada** hasta validar la calidad con métricas (precisión, recall, falsos positivos, falsos negativos) sobre un corpus suficiente. Ver docs/33 para el plan de evaluación.
 - Gestión de usuarios y aplicación real de filtros de visibilidad en API/UI.
 - Login propio del visor (hoy solo Basic Auth en el proxy).
 - Importación web real (trafilatura/readability) e integración de YouTube en la cola.
@@ -88,12 +89,14 @@ El bloque de tratamiento de datos está completo y protegido:
 
 **Backup real de Neo4j**: ✅ Ejecutado y verificado 2026-07-13
 - Método: neo4j-admin database dump (Community Edition, único método consistente)
-- Ventana de parada: ~2-3 minutos
-- Checksum SHA256 generado y verificado
-- Restore real en instancia aislada: VERIFICADO (recuentos coinciden)
-- Rollback por source_id: VALIDADO en laboratorio aislado
+- Parada real del contenedor: ~25 segundos
+- Archivo: neo4j-20260713-174909/neo4j.dump — 132 KB — SHA256: c3179c01...
+- Checksum SHA256 generado y verificado en origen
+- Restore en instancia aislada: VERIFICADO (199 nodos / 140 relaciones / 14 labels — idéntico a producción)
+- Rollback por source_id: VALIDADO en laboratorio con datos sintéticos
+- Copia externa a yggdrasil: VERIFICADA 2026-07-14 (SHA256 coincide, permisos 700 root:root)
 - Scripts: scripts/backup/neo4j-backup.sh, neo4j-restore.sh, neo4j-rollback-dryrun.sh
-- Documentación: docs/26 (backup/restore), docs/28 (rollback), docs/32 (validación producción)
+- Documentación completa: [docs/32-production-backup-restore-validation.md](32-production-backup-restore-validation.md)
 
 ## Limitaciones conocidas
 

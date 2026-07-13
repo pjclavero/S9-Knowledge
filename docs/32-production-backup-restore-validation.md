@@ -61,10 +61,20 @@ Primer backup real de Neo4j (producción) ejecutado el 2026-07-13 21:49 UTC, res
 
 | Campo | Valor |
 |-------|-------|
-| Destino previsto | /var/backups/s9-knowledge/neo4j/ (yggdrasil 192.168.1.152) |
-| Resultado | **PENDIENTE** |
-| Motivo | VM105 no tiene acceso SSH directo a yggdrasil; la clave está en ia-server |
-| Acción recomendada | Ejecutar `scp /opt/knowledge-services/backups/neo4j-20260713-174909/* root@192.168.1.152:/var/backups/s9-knowledge/neo4j/` desde ia-server |
+| Fecha y hora | 2026-07-14 01:07:06 UTC |
+| Método | SCP en dos etapas via ia-server como intermediario (VM105→ia-server→yggdrasil) |
+| Motivo del método | VM105 no tiene acceso SSH directo a yggdrasil (clave en ia-server) |
+| Origen | /opt/knowledge-services/backups/neo4j-20260713-174909/ (VM105, common) |
+| Destino | /var/backups/s9-knowledge/neo4j/neo4j-20260713-174909/ (yggdrasil 192.168.1.152) |
+| Archivos copiados | neo4j.dump (134.510 bytes), neo4j.dump.sha256 (131 bytes), manifest.md (769 bytes) |
+| Tamaño en destino | 132 KB |
+| SHA256 en origen | c3179c01b7437722056a7e17ca50b2a55cc16d60a9adc7436a0c7f73e2438e74 |
+| SHA256 en destino | c3179c01b7437722056a7e17ca50b2a55cc16d60a9adc7436a0c7f73e2438e74 |
+| Checksums coinciden | **SÍ** ✅ |
+| Permisos directorio destino | drwx------ (700, root:root) — tres niveles de directorio protegidos |
+| Permisos archivos | -rw-r--r-- (644, root:root) |
+| Backup local conservado | Sí ✅ — íntegro en VM105 |
+| Resultado | **COMPLETADA Y VERIFICADA** ✅ |
 
 ---
 
@@ -108,7 +118,7 @@ El rollback por `source_id` sigue tres operaciones transaccionales en Cypher:
 2. **Actualizar** nodos con la fuente en `source_ids` → retirar fuente de la lista (si quedan otros)
 3. **Eliminar** relaciones exclusivas de la fuente (misma lógica)
 
-Limitación: no existe aún un script de orquestación con `--dry-run`. Las consultas Cypher directas son correctas y replicables; su automatización queda como tarea de la Prioridad 2.
+Limitación: no existe aún un script de orquestación con `--dry-run`. Las consultas Cypher directas son correctas y replicables; su automatización es **P1.1 — Automatización del rollback** (endurecimiento operativo pendiente de Prioridad 1, no parte de Prioridad 2).
 
 ---
 
@@ -130,13 +140,18 @@ Limitación: no existe aún un script de orquestación con `--dry-run`. Las cons
 
 ```
 Backup real:              COMPLETADO ✅
+Checksum local:           VERIFICADO ✅
+Copia externa:            COMPLETADA Y VERIFICADA ✅ (2026-07-14 01:07 UTC)
 Restore real aislado:     COMPLETADO ✅
-Rollback por fuente:      VALIDADO EN LAB ✅
-Copia externa:            PENDIENTE ⚠️
+Rollback por fuente:      VALIDADO EN LABORATORIO ✅
 Prioridad 1:              COMPLETADA ✅
 ```
 
-**Pendiente post-Prioridad 1:**
-- Copiar backup desde ia-server a yggdrasil (una sola operación manual)
-- Automatizar copia externa en el script neo4j-backup.sh
-- Implementar script de rollback con --dry-run (Prioridad 2)
+**Endurecimiento operativo pendiente (P1.1):**
+- Completar copia externa a yggdrasil (ver sección 4)
+- Automatizar copia externa en neo4j-backup.sh (backup periódico)
+- Implementar script transaccional de rollback con `--dry-run`
+- Configurar timer systemd para backup semanal automático
+- Programar prueba periódica de restore
+
+**Prioridad 2** sigue siendo la calidad del extractor y del pipeline (ver docs/33).

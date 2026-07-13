@@ -88,22 +88,27 @@ S9 Knowledge ya dispone de una base técnica considerable. El repositorio muestr
 
 El proyecto, por tanto, **no está en una fase inicial**.
 
-Sin embargo, tampoco puede considerarse terminado. Los principales bloqueos reales son:
+Sin embargo, tampoco puede considerarse terminado. Los bloqueos resueltos y pendientes son:
 
-1. No existe una fotografía única y verificable del estado de `main`, VM105 y las pruebas.
-2. La documentación mezcla diseño antiguo, informes históricos y estado actual.
-3. La calidad del extractor todavía no está aceptada para ingesta real general.
-4. No se ha documentado una primera ingesta real, controlada y reversible.
-5. La auditoría del grafo detecta problemas, pero la limpieza histórica no está aplicada.
-6. No consta un procedimiento completo y probado de backup, restore y rollback por fuente.
-7. El visor no tiene autenticación propia ni permisos aplicados.
+**RESUELTOS (2026-07-13–14):**
+
+1. ✅ Fotografía verificable del estado: commit `cef9233` en VM105, 220/220 tests, CI activa.
+2. ✅ Documentación reconciliada: docs/02, 26–33, ROADMAP, CHANGELOG, INDEX, dossier actualizados.
+6. ✅ Backup, restore y rollback: primer backup real ejecutado, restore aislado verificado, rollback validado en lab, copia externa a yggdrasil verificada. Ver docs/32.
+11. ✅ CI en GitHub Actions: 4 jobs verdes (Python 3.13).
+
+**PENDIENTES:**
+
+3. La calidad del extractor no está aceptada para ingesta real general (Prioridad 2 — ver docs/33).
+4. No se ha ejecutado una primera ingesta real controlada (Prioridad 3).
+5. La auditoría del grafo detecta problemas, pero la limpieza histórica no está aplicada (Prioridad 4).
+7. El visor no tiene autenticación propia ni permisos aplicados (Prioridad 5).
 8. El panel de revisión es principalmente de lectura.
 9. El modo jugador y la visibilidad RPG no están implementados en la consulta.
 10. La automatización de despliegue y la replicabilidad siguen incompletas.
-11. No existe CI visible en GitHub Actions.
 12. El ciclo Nextcloud → worker → revisión → ingesta necesita una definición operativa única.
 
-La prioridad no debe ser añadir más funciones. La siguiente etapa debe demostrar que una fuente real puede procesarse, revisarse, ingerirse y retirarse sin contaminar el resto del grafo.
+La siguiente etapa (Prioridad 2) debe evaluar la calidad del extractor con métricas cuantitativas antes de autorizar la primera ingesta real.
 
 ---
 
@@ -501,25 +506,34 @@ No habilitar ingesta masiva hasta completar el bloque de primera ingesta control
 
 ## 7.7. Neo4j
 
-**Estado:** 🟢 Operativo declarado. 🟡 Calidad histórica pendiente.
+**Estado:** ✅ Operativo y verificado (commit cef9233). ✅ Backup y restore demostrados.
 
-La documentación actual declara Neo4j operativo y limitado a localhost después del endurecimiento de seguridad.
+Neo4j 5.26.0 Community en VM105, puertos limitados a 127.0.0.1 desde 2026-07-12. Estado verificado: 199 nodos, 140 relaciones, 14 labels, 2 índices.
 
-### Contradicciones documentales
+### Prioridad 1 — COMPLETADA (2026-07-13–14)
 
-Algunos documentos todavía dicen que Neo4j está disponible en LAN o mediante túnel como estado normal. Deben marcarse como descripciones históricas o corregirse.
+| Ítem | Estado | Evidencia |
+|------|--------|-----------|
+| Backup real de producción | ✅ | neo4j-20260713-174909/neo4j.dump, 132 KB, SHA256 c3179c01... |
+| Restore en instancia aislada | ✅ | 199/140 nodos/relaciones, idéntico a producción |
+| Rollback por source_id | ✅ | Patrón Cypher validado en lab |
+| Copia externa a yggdrasil | ✅ | /var/backups/s9-knowledge/neo4j/, SHA256 verificado, 2026-07-14 |
+| Scripts backup/restore/rollback | ✅ | scripts/backup/ en main |
+| Documentación | ✅ | docs/26–29, 32 |
 
-### Pendiente
+### Pendiente operativo (P1.1)
 
-- backup y restore;
-- índices medidos;
-- política de migraciones;
-- nodos históricos sin procedencia;
-- relaciones históricas inválidas;
-- duplicados;
-- rollback por fuente;
-- auditoría programada;
-- dashboard de calidad o informes periódicos.
+- Timer systemd para backup periódico (diseñado, sin activar)
+- Script transaccional de rollback con --dry-run (patrón Cypher validado, orquestación pendiente)
+- Prueba periódica programada de restore
+
+### Pendiente calidad del grafo
+
+- ~87 nodos históricos sin source_id/source_kind (detectados por audit-graph)
+- Relaciones históricas semánticamente inválidas (HAS_FOUGHT → FOUGHT_AT con destino Location)
+- Duplicados detectados por audit-graph, no corregidos
+- Política de migraciones de esquema
+- Dashboard de calidad o informes periódicos
 
 ---
 
