@@ -2,6 +2,23 @@
 
 Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
+## [Unreleased] — Prioridad 1: Backup Real y Validación de Producción
+
+### 2026-07-13
+
+#### Operaciones
+- Primer backup real de Neo4j producción ejecutado y verificado (ventana ~2-3 min, checksum SHA256)
+- Restore del backup real en instancia aislada verificado: recuentos de nodos y relaciones coinciden con producción
+- Rollback por `source_id` validado en laboratorio aislado (instancia sin datos reales)
+
+#### Calidad
+- Prioridad 1 completada: backup+restore+rollback operativos y documentados
+
+#### Limpieza
+- PRs obsoletos #4, #7, #8 cerrados con justificación documentada
+- Ramas remotas huérfanas eliminadas: audit/test-failures-20260713, feat/neo4j-backup-restore-foundation, docs/session-final-report-20260713, docs/coordinator-final-report-20260713, docs/phase-0a-0b-baseline-20260713
+- Repositorio: 0 PRs abiertos, ramas activas solo con trabajo en curso
+
 ## [Unreleased]
 
 ### Fixed — 2026-07-13 (rama fix/tests-imports-cache-and-ci)

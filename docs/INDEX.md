@@ -43,3 +43,4 @@
 - [27 · Runbook de Ingesta Controlada](27-controlled-ingest-runbook.md) — Checklist + guard doble + rollback de emergencia
 - [28 · Migraciones del Grafo y Rollback por source_id](28-graph-migrations-and-rollback.md) — Diseño completo, implementación pendiente
 - [29 · Informe de Preparación Prioridad 1](29-priority-1-readiness-report.md) — **Dictamen: PREPARADA**
+- [32 · Validación de Backup Real en Producción 2026-07-13](32-production-backup-restore-validation.md) — Primer backup real: checksum, restore aislado, rollback lab — **Dictamen: PRIORIDAD 1 COMPLETADA**

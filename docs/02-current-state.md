@@ -84,6 +84,17 @@ El bloque de tratamiento de datos está completo y protegido:
 - Export/import externo de paquetes de revisión: preparado, no completado (ver docs/22
   cuando esté disponible).
 
+## Backup y recuperación
+
+**Backup real de Neo4j**: ✅ Ejecutado y verificado 2026-07-13
+- Método: neo4j-admin database dump (Community Edition, único método consistente)
+- Ventana de parada: ~2-3 minutos
+- Checksum SHA256 generado y verificado
+- Restore real en instancia aislada: VERIFICADO (recuentos coinciden)
+- Rollback por source_id: VALIDADO en laboratorio aislado
+- Scripts: scripts/backup/neo4j-backup.sh, neo4j-restore.sh, neo4j-rollback-dryrun.sh
+- Documentación: docs/26 (backup/restore), docs/28 (rollback), docs/32 (validación producción)
+
 ## Limitaciones conocidas
 
 - Extractor heurístico con falsos positivos (ver arriba) — no ingestar sin revisar.

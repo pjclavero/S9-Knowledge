@@ -3,6 +3,21 @@
 
 revisar [project dossier and checklist.md](docs/project%20dossier%20and%20checklist.md) para una mayor aclaracion del estado
 
+## Prioridad 1 — Backup, Restore y Rollback (COMPLETADA ✅)
+
+- [x] Backup/restore de Neo4j verificado en lab (2026-07-13)
+- [x] Scripts backup/restore en main (`scripts/backup/`)
+- [x] Backup real de producción ejecutado
+- [x] Restore real en instancia aislada verificado
+- [x] Rollback por source_id validado en laboratorio
+- [x] Documentación de operaciones actualizada (docs/26-32)
+
+**Dictamen: PRIORIDAD 1 COMPLETADA**
+
+Documentación: [docs/29-priority-1-readiness-report.md](docs/29-priority-1-readiness-report.md), [docs/32-production-backup-restore-validation.md](docs/32-production-backup-restore-validation.md)
+
+---
+
 ## Fase 0 — Motor de datos (HECHO)
 
 - Extracción PDF/texto/audio → Neo4j con LlamaIndex + Ollama (qwen2.5:7b).

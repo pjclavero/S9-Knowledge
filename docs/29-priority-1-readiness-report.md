@@ -79,6 +79,19 @@ Se levantó un contenedor temporal `neo4j-restore` con el volumen restaurado y s
 
 ---
 
+## Actualización 2026-07-13: Ejecución completada
+
+La Prioridad 1 ha sido ejecutada en producción:
+
+- **Backup real**: ✅ Ejecutado (ver docs/32 para detalles)
+- **Restore real aislado**: ✅ Verificado
+- **Rollback laboratorio**: ✅ Validado
+- **Dictamen**: PRIORIDAD 1 COMPLETADA
+
+Documentación completa: [docs/32-production-backup-restore-validation.md](32-production-backup-restore-validation.md)
+
+---
+
 ## Checklist de cierre — Prioridad 1
 
 ### Backup
