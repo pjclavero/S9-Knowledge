@@ -20,7 +20,7 @@
 | `origin/main` en momento de auditoría | `ffaf84c9715e8c7b5674416b2ed4ed21fb7920a3` (7 commits más reciente) |
 | Autor | Agentes A/B/C + Coordinador (ia02, 2026-07-13) |
 | Alcance | Fase 0A: fotografía verificable. Fase 0B: corrección documental. |
-| Limitaciones | Ollama no disponible en VM105; tests viewer rotos por import errors; sin backup restaurado; `CALL db.indexes()` no disponible en Neo4j Community. |
+| Limitaciones | Ollama remoto (ia-server 192.168.1.157:11434) — accesible, modelo qwen2.5:7b operativo — pero endpoint NO configurado en `.env` (hardcodeado en `llm_extractor.py`); tests viewer rotos por import errors; sin backup restaurado; `CALL db.indexes()` no disponible en Neo4j Community. |
 | Declaración | SOLO LECTURA. Sin escrituras en Neo4j, sin ingesta real, sin cambios en servicios, código ni configuración de producción. |
 
 ---
@@ -52,7 +52,7 @@
 
 ### Qué no pudo verificarse
 
-- Ollama: no disponible en VM105 — extractor LLM y corrector LLM del glosario no pueden ejecutarse.
+- Ollama: endpoint remoto (ia-server 192.168.1.157:11434, modelo qwen2.5:7b) accesible desde VM105, pero NO configurado en `.env` — hardcodeado en `llm_extractor.py`. El extractor LLM puede ejecutarse si se configura `S9K_OLLAMA_BASE_URL` en `.env`.
 - Índices y constraints de Neo4j: `CALL db.indexes()` y `CALL db.constraints()` no disponibles en Neo4j Community.
 - Backup de Neo4j: sin timer automático visible; sin evidencia de restore/rollback ejecutado.
 - faster-whisper en producción: instalado, no probado con audio real durante esta auditoría.
@@ -77,8 +77,8 @@
 | rclone/Nextcloud mount | ✅ | — | ✅ | ✅ | ✅ (5 workspaces) | **CONFIRMADO** |
 | Segmentación pipeline | ✅ | ✅ (5) | 🟡 | — | — | **CONFIRMADO CON LIMITACIONES** |
 | Extracción heurística | ✅ | ✅ (20) | 🟡 | — | — | **CONFIRMADO CON LIMITACIONES** |
-| Extracción LLM | ✅ | ✅ (mocks) | ❌ | ❌ | ❌ | **BLOQUEADO** (Ollama no disponible) |
-| Extracción híbrida | ✅ | ✅ (mocks) | ❌ | ❌ | ❌ | **BLOQUEADO** (Ollama no disponible) |
+| Extracción LLM | ✅ | ✅ (mocks) | ❌ | ❌ | ❌ | **BLOQUEADO** (endpoint Ollama remoto accesible pero no configurado en `.env`) |
+| Extracción híbrida | ✅ | ✅ (mocks) | ❌ | ❌ | ❌ | **BLOQUEADO** (endpoint Ollama remoto accesible pero no configurado en `.env`) |
 | Validación | ✅ | ✅ | 🟡 | — | — | **CONFIRMADO CON LIMITACIONES** |
 | Resolución | ✅ | ✅ | 🟡 | — | — | **CONFIRMADO CON LIMITACIONES** |
 | Decisión automática | ✅ | ✅ (17) | 🟡 | — | — | **CONFIRMADO CON LIMITACIONES** |
@@ -89,7 +89,7 @@
 | Worker multimedia (código) | ✅ | ✅ (3) | ❌ | ❌ | — | **PARCIAL** (sin servicio systemd) |
 | faster-whisper | ✅ | ✅ | ✅ (instalado) | — | ❌ | **DECLARADO, NO VERIFICADO** |
 | Glosario ASR | ✅ | ✅ (26) | ✅ | ✅ | ✅ (1044 términos) | **CONFIRMADO** |
-| Ollama | ✅ (cliente) | ✅ (mocks) | ❌ | ❌ | ❌ | **BLOQUEADO** (no en VM105) |
+| Ollama | ✅ (cliente) | ✅ (mocks) | ❌ | ❌ | ❌ | **PENDIENTE CONFIG** (remoto en ia-server, accesible, endpoint no en `.env`) |
 | Acceso externo (nginx + Basic Auth) | ✅ | — | ✅ | ✅ | — | **CONFIRMADO** |
 | Autenticación propia del visor | ❌ | ❌ | ❌ | ❌ | — | **PENDIENTE** |
 | Permisos RPG en UI | ✅ (DB) | — | ❌ | ❌ | — | **PENDIENTE** |
@@ -135,7 +135,7 @@
 | Git | 2.47.3 |
 | Java | No instalado |
 | rclone | Instalado (`/usr/bin/rclone`) |
-| Ollama | No disponible en PATH ni como proceso |
+| Ollama | No instalado localmente (no en PATH, no como proceso); endpoint remoto en ia-server (192.168.1.157:11434), accesible, modelo qwen2.5:7b disponible |
 | faster-whisper | 1.2.1 (venv `/opt/knowledge-services/property-graph/.venv`) |
 
 ---
@@ -253,7 +253,7 @@ Puertos Neo4j vinculados SOLO a `127.0.0.1` desde el cambio de seguridad del 202
 
 `test_access_store` (3) · `test_audio_extract` (5) · `test_glossary_matcher` (14) · `test_glossary_store` (12) · `test_markdown_writer` (3) · `test_media_cli` (3) · `test_media_scanner` (5) · `test_media_transcriber` (5) · `test_media_worker` (3) · `test_review_cli` (16) · `test_review_decider` (17) · `test_review_export_import` (21) · `test_review_extractor` (20) · `test_review_pipeline` (10) · `test_schemas` (8) · `test_transcript_normalizer` (5)
 
-### Fallos y causas (deuda técnica; sin impacto en seguridad)
+### Fallos y causas (deuda técnica — impacto funcional, no en guard de ingesta)
 
 | Suite | Fallos | Causa |
 |---|:---:|---|
@@ -264,7 +264,7 @@ Puertos Neo4j vinculados SOLO a `127.0.0.1` desde el cambio de seguridad del 202
 | `viewer/tests/test_reviews.py` | 14 | `ModuleNotFoundError: No module named 'app.main'` |
 | Otros viewer tests | 2 | Ídem import errors |
 
-El guard de ingesta (`test_review_cli.py`, 16 tests) **pasa completamente**. Ningún fallo afecta a seguridad.
+El guard de ingesta (`test_review_cli.py`, 16 tests) **pasa completamente**. No se ha demostrado impacto directo sobre la doble protección de escritura (`--dry-run` + `S9K_ALLOW_REAL_INGEST`), pero los fallos afectan a la fiabilidad funcional en múltiples componentes (semántica del grafo — `FOUGHT_AT`; jobs — firma `create_job`; multimedia — `source_kind='video'`; visor — imports `app.main`) y deben resolverse antes de la primera ingesta real.
 
 ### Discrepancia histórica
 
@@ -350,11 +350,17 @@ Doble protección activa y verificada. No se activó la escritura real durante e
 
 ## 15. Ollama
 
-**No disponible en VM105.** Proceso no encontrado, puerto 11434 no responde.
+**No instalado localmente en VM105.** Proceso no encontrado en PATH, puerto 11434 no responde localmente.
 
-Archivos que lo referencian: `ingest_rpg.py`, `llm_extractor.py`, `review/pipeline.py`, `glossary/llm_corrector.py`. Endpoint configurado: desconocido (no visible en `.env`). Posiblemente en otra máquina del homelab.
+**Endpoint remoto verificado:** Ollama corre en ia-server (192.168.1.157:11434). Modelo disponible: `qwen2.5:7b` (4.4 GiB, Q4_K_M, contexto 32768 tokens). Conectividad desde VM105 confirmada (`/api/tags` responde HTTP 200).
 
-Impacto: extractor LLM, híbrido y corrector de glosario no pueden ejecutarse en VM105 sin Ollama. La ingesta real ya estaba bloqueada por el extractor heurístico con falsos positivos; Ollama añade un bloqueo adicional.
+Archivos que lo referencian: `ingest_rpg.py`, `llm_extractor.py`, `review/pipeline.py`, `glossary/llm_corrector.py`.
+
+**Configuración de endpoint:** `llm_extractor.py` tiene hardcoded `OLLAMA_URL = "http://192.168.1.157:11434/api/generate"`. El `.env.example` define `S9K_OLLAMA_BASE_URL=http://192.168.1.157:11434` pero el `.env` de producción NO tiene esta variable — el código usa la URL hardcodeada.
+
+**Clasificación:** A — Ollama remoto configurado (hardcoded) y accesible.
+
+Impacto: el extractor LLM puede ejecutarse en producción tal como está, pues la URL hardcodeada apunta a un endpoint operativo. Sin embargo, la configuración via `.env` es la práctica correcta. La ingesta real sigue bloqueada por el guard doble (`--dry-run` + `S9K_ALLOW_REAL_INGEST`) hasta validación explícita.
 
 ---
 
@@ -428,14 +434,14 @@ El grafo Neo4j (199 nodos, 3.1 MiB) no tiene backup automatizado. Riesgo manejab
 - [x] Tests ejecutados: 196 recopilados, 155 aprobados, 41 fallidos (deuda técnica)
 - [x] Worker multimedia: inventariado (código sin servicio)
 - [x] rclone: mount activo, 5 workspaces
-- [x] Ollama: estado verificado (no disponible en VM105)
+- [x] Ollama: estado verificado (remoto en ia-server, accesible; endpoint hardcodeado en código, no en `.env`)
 - [x] Protección de ingesta: guard doble capa confirmado, variable no activa
 - [x] Inventario de backups: sin backup automático
 - [x] Contradicciones documentales: detectadas y corregidas en fase 0B
 - [x] Informe completo: este documento
 - [~] Índices/constraints Neo4j: no disponibles en Community (limitación del motor)
 - [~] faster-whisper en producción: instalado, no probado con audio real
-- [!] Ollama: no disponible — extractor LLM no verificable
+- [~] Ollama: remoto accesible (ia-server); endpoint no en `.env` (hardcodeado) — correctivo menor pendiente
 - [!] Backup Neo4j: sin automatizar — Prioridad 1
 - [ ] Restore/rollback: no probado
 
@@ -450,13 +456,13 @@ El grafo Neo4j (199 nodos, 3.1 MiB) no tiene backup automatizado. Riesgo manejab
 - Commit desplegado identificado y verificado (`1fd94b85`, v0.2.5b).
 - Servicios esenciales operativos: visor, Neo4j, rclone.
 - Guard de ingesta doble capa activo y testeado (16/16 pasan).
-- 155/196 tests pasan; ningún fallo afecta a seguridad.
+- 155/196 tests pasan; guard de ingesta 16/16 confirmado; fallos son deuda técnica funcional (ver §10).
 - Contradicciones documentales críticas corregidas en fase 0B.
 
 ### Excepciones documentadas
 
-1. **Ollama no disponible en VM105** — Extractor LLM no operativo. Sin impacto en seguridad; la ingesta real ya estaba bloqueada.
-2. **41 tests fallidos** — Deuda técnica de API. Sin impacto en seguridad ni en funcionalidad del visor.
+1. **Ollama remoto (ia-server, accesible) — endpoint no en `.env`** — `llm_extractor.py` usa URL hardcodeada que apunta a un endpoint operativo. El extractor LLM puede ejecutarse, pero la configuración debe migrarse a `.env` antes de considerar el setup como production-ready.
+2. **41 tests fallidos** — Deuda técnica de API. No se ha demostrado impacto directo sobre la doble protección de escritura (`--dry-run` + `S9K_ALLOW_REAL_INGEST`), pero los fallos afectan a la fiabilidad funcional en múltiples componentes (semántica del grafo, jobs, multimedia, visor) y deben resolverse antes de la primera ingesta real.
 3. **Sin backup automatizado de Neo4j** — Riesgo manejable con el volumen actual; debe resolverse antes de cualquier ingesta real.
 4. **Tests viewer rotos** — `ModuleNotFoundError 'app.main'` en 6 archivos. El visor en producción funciona correctamente.
 

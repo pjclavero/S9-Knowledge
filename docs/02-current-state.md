@@ -1,7 +1,7 @@
 # 02 · Estado actual
 
 > Última verificación en VM105: **2026-07-13** — commit `1fd94b85` (v0.2.5b, 2026-07-10), `origin/main` 7 commits adelante (documentales).
-> Tests verificados: 196 recopilados, **155 aprobados**, 41 fallidos (deuda técnica API, sin impacto en seguridad).
+> Tests verificados: 196 recopilados, **155 aprobados**, 41 fallidos (deuda técnica funcional — semántica del grafo, jobs, multimedia, visor; guard de ingesta 16/16 confirmado).
 > Informe de auditoría completo: [docs/24-vm105-baseline-and-verification.md](24-vm105-baseline-and-verification.md).
 > Revisar también [project dossier and checklist.md](project%20dossier%20and%20checklist.md).
 

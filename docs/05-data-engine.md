@@ -55,5 +55,5 @@ cd data-engine && .venv/bin/python -m pytest app/tests/ -q     # 8/8
 > En commit `1fd94b85` (v0.2.5b), ejecutando desde la raíz del repo con el venv de producción:
 > **196 tests recopilados, 155 aprobados, 41 fallidos** (deuda técnica de API — cambio de firma `create_job()`,
 > mapeo semántico `FOUGHT_AT`, `source_kind='video'`, imports rotos en viewer tests).
-> Ningún fallo afecta a la seguridad ni al guard de ingesta.
+> No se ha demostrado impacto directo sobre la doble protección de escritura (`--dry-run` + `S9K_ALLOW_REAL_INGEST`), pero los fallos afectan a la fiabilidad funcional en múltiples componentes y deben resolverse antes de la primera ingesta real.
 > Ver [docs/24-vm105-baseline-and-verification.md §10](24-vm105-baseline-and-verification.md) para desglose completo.

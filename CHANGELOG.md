@@ -9,7 +9,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 - Auditoría completa de VM105 y cierre documental de fases 0A y 0B.
 - Commit auditado: `1fd94b85` (v0.2.5b). Estado verificado: Neo4j 199 nodos / 140 relaciones,
   visor HTTP 200 en todos los endpoints, 2 servicios systemd activos, guard de ingesta confirmado.
-- Tests verificados: 196 recopilados, 155 aprobados, 41 fallidos (deuda técnica de API, sin impacto en seguridad).
+- Tests verificados: 196 recopilados, 155 aprobados, 41 fallidos (deuda técnica funcional — semántica del grafo, jobs, multimedia, visor; guard de ingesta 16/16 confirmado).
 - Nuevo informe de baseline: [`docs/24-vm105-baseline-and-verification.md`](docs/24-vm105-baseline-and-verification.md).
 - Corrección: `docs/06-viewer-panel.md` — visor marcado como en producción (no "no implementado").
 - Corrección: `docs/05-data-engine.md` — cifra de tests actualizada (196/155 vs histórico 8/8).
