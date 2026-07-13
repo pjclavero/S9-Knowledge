@@ -297,3 +297,64 @@ Impacto en producción:   NINGUNO — los fallos son de test infrastructure,
                           no de código de producción. La protección de escritura
                           (doble guard S9K_ALLOW_REAL_INGEST) está intacta.
 ```
+
+---
+
+## Anexo — Análisis Agente B: divergencia código producción vs repo (2026-07-13)
+
+> Hallazgos adicionales obtenidos reproduciendo los fallos en clone aislado del repo
+> (`/tmp/s9k-work-agentB`, commit `9dd92b4`, rama `main`). Complementa el análisis
+> principal del Agente A (commit auditado `1fd94b85`, producción).
+
+### Entorno Agente B
+
+| Campo | Valor |
+|-------|-------|
+| Clone aislado | `/tmp/s9k-work-agentB` |
+| Commit HEAD (clone) | `9dd92b4` |
+| Código producción comparado | `/opt/knowledge-services/property-graph/app/` |
+| PYTHONPATH | `/tmp/s9k-work-agentB` |
+| Fallos reproducidos (suite por separado) | 22 fallos + 6 errores colección |
+
+### Divergencias detectadas entre repo (main) y producción
+
+El Agente B confirmó que además del mecanismo de path poisoning (CR-1) y lru_cache (CR-2),
+existen divergencias reales entre el código del repo y el código desplegado en producción
+que harían fallar tests incluso si se corrigiera CR-1:
+
+#### `jobs/job_store.py` — Firma extendida en repo, no sincronizada a producción
+
+**Producción** `create_job(workspace, source_kind: str, ...)` — `source_kind` posicional OBLIGATORIO, sin `job_type`, sin `resolve_db_path()`, sin `worker.py`.
+
+**Repo** `create_job(workspace, source_kind: str = None, ..., job_type: str = None, ...)` — `source_kind` opcional, soporte cola genérica, `resolve_db_path()`, `worker.py`.
+
+Tests afectados si CR-1 se corrige pero el código no se sincroniza: 19 de `test_job_store.py` + 2 de `test_resolve_db_path` + `test_job_store_accepts_video_kind`.
+
+#### `VALID_SOURCE_KINDS` — `'video'` y `'generic'` faltan en producción
+
+- Producción: `{"book", "pdf", "audio", "transcript", "text", "image", "youtube", "web", "manual_note", "test"}`
+- Repo: añade `"video"` y `"generic"`
+- Test afectado: `test_job_store_accepts_video_kind` → `ValueError: source_kind inválido: 'video'`
+
+#### `ingest_rpg._check_relation_semantics` — normalización `HAS_FOUGHT→FOUGHT_AT`
+
+El bloque de normalización (repo, líneas 302-315) no existe en producción. Los 2 tests `test_has_fought_*` fallarán incluso con CR-1 corregido hasta que se sincronice `ingest_rpg.py`.
+
+### Pasos para corrección completa
+
+| Paso | Acción | Riesgo | Responsable |
+|------|--------|--------|-------------|
+| 1 | Eliminar `sys.path.insert(0, "/opt/.../property-graph/app")` en `test_ingest_semantics.py` y `test_schemas.py` | Ninguno | s9-code |
+| 2 | Añadir fixture `autouse` `cache_clear` en `viewer/tests/conftest.py` | Bajo | s9-code |
+| 3 | Sincronizar `data-engine/app/jobs/job_store.py` (con `_MIGRATION_COLUMNS`) a producción | Medio (BD) | s9-sysadmin |
+| 4 | Copiar `data-engine/app/jobs/worker.py` a producción | Bajo | s9-sysadmin |
+| 5 | Sincronizar bloque `HAS_FOUGHT→FOUGHT_AT` de `ingest_rpg.py` a producción | Bajo | s9-code + s9-sysadmin |
+
+### Estado
+
+```
+Análisis Agente B:        COMPLETO (2026-07-13)
+Clone aislado:            /tmp/s9k-work-agentB (no producción)
+Divergencias adicionales: 3 (job_store firma, VALID_SOURCE_KINDS, HAS_FOUGHT normalizer)
+Impacto en producción:    NINGUNO — solo análisis, sin escritura en Neo4j
+```
