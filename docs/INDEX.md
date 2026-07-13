@@ -23,6 +23,7 @@
 - [22 · Instalación y replicabilidad](22-installation-and-replicability.md)
 - [23 · Knowledge Packages: export/import](23-knowledge-packages.md)
 - [24 · Baseline VM105 y Verificación Fase 0A](24-vm105-baseline-and-verification.md) — **Informe de auditoría verificable 2026-07-13**
+- [30 · Informe coordinador — Cierre Fase 0 y Prioridad 1](30-coordinator-final-report.md) — Consolidado: PR #3, VM105 sync, tests (2 causas raíz), backup/restore lab, rollback diseño
 
 ## Documentos de diseño generados en el servidor (`docs/current/`)
 
