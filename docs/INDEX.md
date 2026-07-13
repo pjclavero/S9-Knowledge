@@ -39,7 +39,9 @@
 
 - Estado consolidado: [02 · Estado actual](02-current-state.md).
 - Infraestructura/servidor (dominio, Basic Auth, seguridad, CPU): repo `pjclavero/s9-server`.
-- [26 · Operaciones: Backup y Restore de Neo4j](26-operations-backup-and-restore.md) — **Método verificado en lab 2026-07-13**
+- [26 · Operaciones: Backup y Restore de Neo4j](26-operations-backup-and-restore.md) — Método verificado, backup real ejecutado 2026-07-13
 - [27 · Runbook de Ingesta Controlada](27-controlled-ingest-runbook.md) — Checklist + guard doble + rollback de emergencia
-- [28 · Migraciones del Grafo y Rollback por source_id](28-graph-migrations-and-rollback.md) — Diseño completo, implementación pendiente
-- [29 · Informe de Preparación Prioridad 1](29-priority-1-readiness-report.md) — **Dictamen: PREPARADA**
+- [28 · Migraciones del Grafo y Rollback por source_id](28-graph-migrations-and-rollback.md) — Diseño completo, patrón Cypher validado en lab
+- [29 · Informe de Preparación y Ejecución Prioridad 1](29-priority-1-readiness-report.md) — Historial de lab + **dictamen de ejecución: ver docs/32**
+- [32 · Validación de Backup Real en Producción 2026-07-13](32-production-backup-restore-validation.md) — Backup, restore aislado, rollback lab, copia externa — **COMPLETADA ✅**
+- [33 · Plan de evaluación del extractor — Prioridad 2](33-extractor-quality-benchmark-plan.md) — Corpus, métricas, criterios, condiciones para ingesta real

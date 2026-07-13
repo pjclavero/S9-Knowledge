@@ -287,3 +287,11 @@ Persistent=true
 | Validación | Nodos antes=3, nodos después=3 |
 | Producción | `neo4j-knowledge` NO interrumpido durante todo el lab |
 | Limpieza | Todos los volúmenes y contenedores de lab eliminados |
+
+---
+
+## Historial de ejecuciones reales
+
+| Fecha | Tipo | Archivo | SHA256 (parcial) | Resultado |
+|-------|------|---------|-----------------|-----------|
+| 2026-07-13 21:49 UTC | Backup producción | neo4j-20260713-174909/neo4j.dump (132 KB) | c3179c01... | COMPLETADO ✅ |

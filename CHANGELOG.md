@@ -4,6 +4,51 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-07-13 — Prioridad 1: Backup real, restore aislado, rollback laboratorio
+
+#### Operaciones
+- Primer backup real de Neo4j producción ejecutado (parada ~25 s, 132 KB, SHA256 c3179c01...)
+- Restore en instancia aislada verificado: 199 nodos, 140 relaciones, 14 labels, 2 índices — idéntico a producción
+- Rollback por `source_id` validado en laboratorio con datos sintéticos (patrón Cypher transaccional)
+- Copia externa a yggdrasil completada y verificada: 2026-07-14 01:07 UTC, SHA256 coincide en destino
+
+#### Limpieza de repositorio
+- PRs obsoletos #4, #7, #8 cerrados con justificación documentada
+- Ramas remotas huérfanas eliminadas: audit/test-failures-20260713, feat/neo4j-backup-restore-foundation, docs/session-final-report-20260713, docs/coordinator-final-report-20260713, docs/phase-0a-0b-baseline-20260713
+- Repositorio: 0 PRs abiertos, ramas activas solo con trabajo en curso
+
+#### Documentación
+- docs/32: informe completo de validación de Prioridad 1
+- docs/29, docs/26, docs/02, ROADMAP, CHANGELOG, INDEX, dossier: actualizados
+- docs/33: plan de evaluación para Prioridad 2
+
+### 2026-07-13 — Tests y CI (commit cef9233)
+
+#### Fixed
+
+- Eliminar `data-engine/app/__init__.py` vacío: registraba el directorio
+  como paquete Python `app`, colisionando con `viewer/app` en corrida combinada y
+  causando 5 errores de colección.
+- Eliminar `data-engine/app/tests/__init__.py` y `viewer/tests/__init__.py` vacíos:
+  causaban `ImportPathMismatchError` en corrida combinada.
+- Reescribir `conftest.py` raíz con rutas relativas (Path(__file__).parent).
+- Suite combinada: 220 passed, 0 errores de colección, 0 fallidos.
+- `export_silverbullet.py`: ruta sys.path relativa (antes hardcoded /opt/).
+
+#### Added
+
+- `.github/workflows/ci.yml`: 4 jobs (data-engine, viewer, combined, check-imports), Python 3.13.
+- `docs/31-test-remediation-and-ci-report.md`: informe de remediación y CI.
+
+### 2026-07-13 — Auditoría inicial (historial)
+
+#### Auditoría inicial de VM105 (estado antes de correcciones)
+- Estado verificado en commit `1fd94b85` (v0.2.5b): 196 recopilados, 155 aprobados, 41 fallidos.
+- Los 41 fallos eran deuda técnica funcional (semántica del grafo, jobs, multimedia, visor).
+- Guard de ingesta 16/16 confirmado en estado histórico.
+- Baseline: [`docs/24-vm105-baseline-and-verification.md`](docs/24-vm105-baseline-and-verification.md).
+- Estado corregido posteriormente a 220/220 (commit cef9233).
+
 ### Fixed — 2026-07-13 (rama fix/tests-imports-cache-and-ci)
 
 - Eliminar `data-engine/app/__init__.py` vacío: el archivo registraba el directorio
