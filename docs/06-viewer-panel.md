@@ -1,6 +1,17 @@
-# 06 · Visor y panel (FUTURO)
+# 06 · Visor y panel
 
-Estado: **no implementado**. Solo diseño. Fuente de detalle:
+> Estado del documento: **ACTUALIZADO — 2026-07-13**
+> **El visor básico está EN PRODUCCIÓN en VM105 desde commit `1fd94b85` (v0.2.5b, 2026-07-10).**
+> Endpoints operativos verificados (HTTP 200, 2026-07-12): `/`, `/graph`, `/jobs`, `/reviews`, `/docs`, `/api/status`.
+> Acceso externo: `https://knowledge.seccionnueve.duckdns.org` con Basic Auth vía nginx.
+> Para el estado completo verificado consultar [docs/24-vm105-baseline-and-verification.md](24-vm105-baseline-and-verification.md).
+>
+> El resto de este documento describe el diseño de funcionalidades aún pendientes
+> (administración, autenticación propia, permisos RPG, modo jugador). Se conserva como referencia de roadmap.
+
+---
+
+Fuente de detalle del diseño:
 `docs/current/VISOR_DESIGN.md`, `docs/current/EXTERNAL_SOURCES_DESIGN.md`,
 `docs/current/KNOWLEDGE_VISIBILITY_DESIGN.md`.
 
