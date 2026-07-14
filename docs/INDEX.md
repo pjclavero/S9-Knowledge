@@ -28,6 +28,7 @@
 - [32 · Backup y restore de producción — Validación P1](32-production-backup-restore-validation.md) — Backup real 132 KB, restore verificado, copia externa completada
 - [33 · Plan de evaluación del extractor — Prioridad 2](33-extractor-quality-benchmark-plan.md) — Plan de benchmark: corpus, métricas, umbrales, criterios de ingesta
 - [34 · Resultados del benchmark del extractor — Prioridad 2](34-extractor-quality-benchmark-results.md) — 35/35 runs OK; F1 ent hybrid 0.728 / llm 0.718; relaciones F1≈0; autoaprobación 0.85. Dictamen PARCIAL — REQUIERE CORRECCIONES; ingesta BLOQUEADA.
+- [35 · Informe de sesión — ejecución del benchmark (Prioridad 2)](35-priority2-benchmark-session-report.md) — cómo se ejecutó el benchmark en VM105, 2 fixes, dictamen PARCIAL, ingesta BLOQUEADA
 
 ## Documentos de diseño generados en el servidor (`docs/current/`)
 
