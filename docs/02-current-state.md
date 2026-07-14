@@ -2,7 +2,7 @@
 
 > Última verificación en VM105: **2026-07-13–14** — commit `cef9233` desplegado (fix: make test suite reproducible and add CI).
 > Tests: **249 recopilados, 249 aprobados**, 0 fallidos, 0 errores de colección (rama `feat/priority-2-extractor-benchmark`, commit `13fcab9`).
-> Benchmark del extractor (Prioridad 2) ejecutado en VM105 — ver [docs/34](34-extractor-quality-benchmark-results.md). Dictamen: PARCIAL — REQUIERE CORRECCIONES; ingesta BLOQUEADA.
+> Benchmark del extractor (Prioridad 2) — ver [docs/34](34-extractor-quality-benchmark-results.md). Mejora Prioridad 2.1 (ver [docs/36](36-extractor-quality-improvement-results.md)): hybrid pasa los umbrales de entidad (F1 0.806, P 0.851, R 0.775); relaciones aún <0.60 y excluidas de autoaprobación. Dictamen 2.1: PARCIAL — MEJORA DEMOSTRADA; primera ingesta DESBLOQUEADA PARA ENTIDADES CON REVISIÓN HUMANA TOTAL.
 > CI: GitHub Actions activa, 4 jobs verdes (data-engine, viewer, combined, check-imports).
 > Informe de auditoría histórica (v0.2.5b): [docs/24-vm105-baseline-and-verification.md](24-vm105-baseline-and-verification.md) — estado anterior a cef9233.
 > Informe de remediación de tests y CI: [docs/31-test-remediation-and-ci-report.md](31-test-remediation-and-ci-report.md).
