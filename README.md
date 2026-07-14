@@ -24,6 +24,7 @@ la evolución del conocimiento de cada personaje a lo largo de la campaña.
 - Cola de trabajos `job_store.py` (SQLite) con worker.
 - Modelo de acceso `access_store.py` (usuario-personaje + permisos).
 - Transcripción de audio con faster-whisper (`medium`); glosario L5A + normalizador determinista.
+- **Benchmark de transcripción** (docs/40): faster-whisper medium APTA CON REVISIÓN DE SEGMENTOS CONFLICTIVOS vs YouTube-ASR (91% auto-aceptable; conflictos = nombres propios).
 - **Visor web desplegado** (FastAPI/uvicorn, puerto 8088, `s9-knowledge-viewer.service`):
   - `/graph` — grafo interactivo con vis.js.
   - `/jobs` — panel de cola de trabajos.
