@@ -18,6 +18,7 @@ Umbrales:
                   OR relación imposible OR segmento noise/intro_outro OR stopword
 """
 from __future__ import annotations
+import os
 import json
 import logging
 import re
@@ -73,6 +74,18 @@ def _timestamps_valid(c: Candidate) -> bool:
 def _is_single_token(name: str) -> bool:
     """True si el nombre es una sola palabra (sin espacios)."""
     return len(name.strip().split()) == 1
+
+
+def _relation_autoapproval_enabled() -> bool:
+    """Quality gate de relaciones.
+
+    Cerrado por defecto: ninguna relacion se autoaprueba. El benchmark
+    (docs/34) demostro F1 de relaciones ~= 0 y 3 relaciones autoaprobadas
+    erroneamente. Solo se abre con una politica explicita
+    (S9K_ALLOW_RELATION_AUTOAPPROVAL=true) tras confirmar en un benchmark:
+    F1 rel >= 0.60, P rel >= 0.75 y 0 relaciones invalidas autoaprobadas.
+    """
+    return os.environ.get("S9K_ALLOW_RELATION_AUTOAPPROVAL", "").strip().lower() == "true"
 
 
 def decide_one(
@@ -273,6 +286,21 @@ def decide_one(
     # Llegamos aquí: conf >= 0.85, valid, resolver claro (use_existing|create_new),
     # evidence presente, timestamps ok, no stopword, no weak, no duplicado ambiguo,
     # origin local, workspace presente.
+    # ── QUALITY GATE: las relaciones nunca se autoaprueban ───────────────────
+    # Impide la autoaprobacion de relaciones (no bloquea su extraccion). Ver
+    # _relation_autoapproval_enabled(). Cualquier relacion que llegaria a
+    # AUTO_APPROVE se desvia a needs_review con motivo identificable.
+    if getattr(c, "kind", None) == "relation" and not _relation_autoapproval_enabled():
+        reasons.append("relation_autoapproval_disabled_quality_gate")
+        return Decision(
+            candidate_id=c.candidate_id,
+            decision="needs_review",
+            reason="relaciones a revision humana hasta que el quality gate se abra",
+            decision_reason=reasons,
+            origin=origin,
+            candidate=c.to_dict(), validation=vr.to_dict(), resolution=rr.to_dict(),
+        )
+
     if rr.action in ("use_existing", "create_new"):
         # Construir lista de razones positivas
         reasons.append("valid_schema")
