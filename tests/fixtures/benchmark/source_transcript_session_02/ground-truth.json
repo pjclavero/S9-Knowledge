@@ -1,0 +1,175 @@
+{
+  "source_id": "source_transcript_session_02",
+  "annotator": "auto-agent-A-2026-07-14",
+  "annotation_pass": 1,
+  "entities": [
+    {
+      "name": "Kakita Asuka",
+      "canonical_name": "Kakita Asuka",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Nombre propio compuesto explícito; víctima del ataque del Oni"
+    },
+    {
+      "name": "Kimi",
+      "canonical_name": "Kimi",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Token único recurrente; mismo caso que en source_transcript_clean_01 — heurístico <= 0.70"
+    },
+    {
+      "name": "Bayushi Hisao",
+      "canonical_name": "Bayushi Hisao",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Nombre propio compuesto explícito"
+    },
+    {
+      "name": "Oni de la Montaña Negra",
+      "canonical_name": "Oni de la Montaña Negra",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": ["el oni"],
+      "expected": true,
+      "confidence_note": "Criatura: subtipo no en el esquema de tipos del heurístico (que usa Character/Location/Faction). El LLM debería clasificarlo como Character (criatura). Presencia explícita y recurrente."
+    },
+    {
+      "name": "Espíritu del Río",
+      "canonical_name": "Espíritu del Río",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Entidad sobrenatural; clasificación Character (o Concept). 'Río' podría trigger Location keyword — riesgo de clasificación errónea por el heurístico."
+    },
+    {
+      "name": "Bosque Viejo",
+      "canonical_name": "Bosque Viejo",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Contiene keyword 'bosque'; clasificación Location correcta"
+    },
+    {
+      "name": "Santuario abandonado",
+      "canonical_name": "Santuario abandonado",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Lugar con nombre propio; 'abandonado' en minúscula puede dificultar la detección por regex de mayúsculas"
+    },
+    {
+      "name": "Montaña Negra",
+      "canonical_name": "Montaña Negra",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Contiene keyword 'montaña'; clasificación Location correcta"
+    },
+    {
+      "name": "Puente Viejo",
+      "canonical_name": "Puente Viejo",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Lugar mencionado una sola vez; sin keyword de ubicación habitual — puede perderse por el heurístico"
+    },
+    {
+      "name": "Clan Escorpión",
+      "canonical_name": "Clan Escorpión",
+      "entity_type": "Faction",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Detectado por bloque de clanes del heurístico (símbolo del Clan Escorpión en la máscara)"
+    },
+    {
+      "name": "Culto del Pozo Viejo",
+      "canonical_name": "Culto del Pozo Viejo",
+      "entity_type": "Faction",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Facción sin keyword de clan; el heurístico puede no detectarlo (no está en _FACTION_KW). El LLM debería identificarlo como Faction."
+    },
+    {
+      "name": "máscara rota",
+      "canonical_name": "máscara rota",
+      "entity_type": "Object",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Mismo objeto que en source_transcript_clean_01 — objeto compartido entre sesiones"
+    }
+  ],
+  "relations": [
+    {
+      "from_entity": "Oni de la Montaña Negra",
+      "relation_type": "FOUGHT_AT",
+      "to_entity": "Santuario abandonado",
+      "expected": true,
+      "evidence": "el grupo luchó contra él dentro del santuario"
+    },
+    {
+      "from_entity": "Oni de la Montaña Negra",
+      "relation_type": "MEMBER_OF",
+      "to_entity": "Culto del Pozo Viejo",
+      "expected": true,
+      "evidence": "Kimi cree que el oni sirve al Culto del Pozo Viejo"
+    },
+    {
+      "from_entity": "Kakita Asuka",
+      "relation_type": "HAS_FOUGHT",
+      "to_entity": "Oni de la Montaña Negra",
+      "expected": true,
+      "evidence": "el oni atacó a Kakita Asuka y el grupo luchó contra él"
+    },
+    {
+      "from_entity": "Kimi",
+      "relation_type": "KNOWS",
+      "to_entity": "Espíritu del Río",
+      "expected": true,
+      "evidence": "el Espíritu del Río habló con Kimi en el Puente Viejo"
+    }
+  ],
+  "negative_entities": [
+    {"name": "Más tarde", "reason": "locución temporal, no entidad"},
+    {"name": "norte", "reason": "punto cardinal genérico, no nombre propio"},
+    {"name": "grupo", "reason": "sustantivo colectivo genérico, no entidad nombrada"}
+  ],
+  "negative_relations": [
+    {
+      "from_entity": "Oni de la Montaña Negra",
+      "relation_type": "LOCATED_IN",
+      "to_entity": "Montaña Negra",
+      "reason": "El Oni escapa hacia la Montaña Negra pero no reside allí permanentemente según el texto; la relación LOCATED_IN implicaría residencia — no hay evidencia suficiente"
+    },
+    {
+      "from_entity": "Kimi",
+      "relation_type": "OWNS",
+      "to_entity": "máscara rota",
+      "reason": "El Espíritu del Río ayudó a encontrar la máscara, pero el texto no asigna propiedad a ningún personaje"
+    }
+  ],
+  "ambiguous": [
+    {
+      "name": "Espíritu del Río",
+      "note": "Podría ser Character (entidad con agencia) o Concept (ente espiritual sin forma física). Clasificación preferida: Character, dado que habla e interactúa activamente."
+    },
+    {
+      "name": "Santuario abandonado",
+      "note": "Escrito con 'abandonado' en minúscula — el heurístico regex puede extraerlo como 'Santuario' (solo primera palabra). La forma canónica debería normalizarse a 'Santuario abandonado'."
+    }
+  ],
+  "annotator_notes": "Esta fuente introduce criaturas (Oni, Espíritu) que los tipos base del heurístico no contemplan; el LLM debería mapearlos a Character. El Culto del Pozo Viejo es un caso de Faction sin keyword de clan — test para detectar facciones por contexto. La máscara rota también aparece en source_transcript_clean_01, lo que sirve para cross-session object linking."
+}

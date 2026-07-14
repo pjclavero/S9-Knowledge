@@ -1,0 +1,150 @@
+{
+  "source_id": "source_transcript_asr_01",
+  "annotator": "auto-agent-A-2026-07-14",
+  "annotation_pass": 1,
+  "entities": [
+    {
+      "name": "Kakita Asuka",
+      "canonical_name": "Kakita Asuka",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": ["Kakita Asuca", "Asuca"],
+      "expected": true,
+      "confidence_note": "El texto contiene 'Kakita Asuca' (error ASR). El extractor heurístico lo extraerá como 'Kakita Asuca' (distinto de 'Kakita Asuka'). Para superar el benchmark, el sistema debe resolver 'Kakita Asuca' → 'Kakita Asuka' vía glosario o LLM."
+    },
+    {
+      "name": "Bayushi Hisao",
+      "canonical_name": "Bayushi Hisao",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": ["Bayusi"],
+      "expected": true,
+      "confidence_note": "El texto contiene solo 'Bayusi' (error ASR de 'Bayushi'). Token único, no compuesto → heurístico lo marcará needs_review. El LLM con glosario debería resolverlo."
+    },
+    {
+      "name": "Isawa Seiji",
+      "canonical_name": "Isawa Seiji",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": ["Isaba"],
+      "expected": true,
+      "confidence_note": "El texto contiene 'Isaba' (error ASR de 'Isawa'). Token único; sin glosario el sistema no puede saber si es 'Isawa Seiji' u otro personaje. Caso de máxima ambigüedad ASR."
+    },
+    {
+      "name": "Shinjo Haru",
+      "canonical_name": "Shinjo Haru",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": ["Sinjo Haru"],
+      "expected": true,
+      "confidence_note": "El texto contiene 'Sinjo Haru' (error ASR: Shinjo → Sinjo). Nombre compuesto, se extrae aunque mal transcrito. Resolución necesaria vía glosario."
+    },
+    {
+      "name": "Bayushi Reika",
+      "canonical_name": "Bayushi Reika",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": ["Bayushi Reica"],
+      "expected": true,
+      "confidence_note": "El texto contiene 'Bayushi Reica' (error ASR: Reika → Reica). Nombre compuesto, extraíble; resolución vía glosario."
+    },
+    {
+      "name": "Clan Escorpión",
+      "canonical_name": "Clan Escorpión",
+      "entity_type": "Faction",
+      "workspace": "leyenda",
+      "aliases": ["Clan Escorpion"],
+      "expected": true,
+      "confidence_note": "El texto contiene 'Clan Escorpion' (sin tilde). El heurístico normaliza para comparar (elimina diacríticos) — debería detectarlo. La forma canónica es con tilde."
+    },
+    {
+      "name": "Portador del Lamento",
+      "canonical_name": "Portador del Lamento",
+      "entity_type": "Object",
+      "workspace": "leyenda",
+      "aliases": ["fragmentos del ritual del Portador del Lamento"],
+      "expected": true,
+      "confidence_note": "Misma entidad que en source_transcript_clean_01; aparece aquí también — test de consistencia cross-source"
+    },
+    {
+      "name": "Árbol Blanco del Vacío",
+      "canonical_name": "Árbol Blanco del Vacío",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": ["Árbol Blanco del Vacio"],
+      "expected": true,
+      "confidence_note": "El texto contiene 'Vacio' sin tilde (error ASR). La normalización del heurístico debería permitir la resolución."
+    },
+    {
+      "name": "Santuario Abandonado",
+      "canonical_name": "Santuario abandonado",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "En este fixture aparece en mayúsculas ('Santuario Abandonado'), a diferencia de source_transcript_session_02. Mismo lugar, distinta capitalización — caso de normalización."
+    },
+    {
+      "name": "Bosque Viejo",
+      "canonical_name": "Bosque Viejo",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Keyword 'bosque'; clasificación correcta como Location"
+    },
+    {
+      "name": "Montaña Negra",
+      "canonical_name": "Montaña Negra",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Keyword 'montaña'; clasificación correcta como Location"
+    }
+  ],
+  "relations": [
+    {
+      "from_entity": "Bayushi Hisao",
+      "relation_type": "ENEMY_OF",
+      "to_entity": "Clan Unicornio",
+      "expected": false,
+      "evidence": "N/A — no hay evidencia en este texto"
+    },
+    {
+      "from_entity": "Kakita Asuka",
+      "relation_type": "PARTICIPATED_IN",
+      "to_entity": "ritual del Portador del Lamento",
+      "expected": false,
+      "evidence": "N/A — el texto menciona que encontraron huellas del uso del ritual, pero no que Asuka participó"
+    }
+  ],
+  "negative_entities": [
+    {"name": "Llevás", "reason": "verbo conjugado (voseo), no entidad — falso positivo esperado del heurístico por inicial mayúscula en inicio de oración"},
+    {"name": "Todo", "reason": "pronombre/adverbio indefinido, stopword — posible falso positivo del heurístico"},
+    {"name": "Como", "reason": "conjunción comparativa, stopword — posible falso positivo del heurístico"},
+    {"name": "Bayusi", "reason": "forma mal transcrita: no es entidad canónica independiente, debe resolverse a Bayushi Hisao"},
+    {"name": "Isaba", "reason": "forma mal transcrita: no es entidad canónica independiente, debe resolverse (probablemente Isawa Seiji)"},
+    {"name": "Sinjo Haru", "reason": "forma mal transcrita: no es entidad canónica independiente, debe resolverse a Shinjo Haru"},
+    {"name": "Bayushi Reica", "reason": "forma mal transcrita: no es entidad canónica independiente, debe resolverse a Bayushi Reika"}
+  ],
+  "negative_relations": [
+    {
+      "from_entity": "Isaba",
+      "relation_type": "CREATED_BY",
+      "to_entity": "ritual del Portador del Lamento",
+      "reason": "Isaba preparaba el ritual pero no lo creó — CREATED_BY incorrecto; el texto no establece autoría"
+    }
+  ],
+  "ambiguous": [
+    {
+      "name": "Isaba",
+      "note": "Puede ser Isawa Seiji (aparece en source_transcript_clean_01 con ese nombre) u otro personaje. Sin glosario no es posible resolver con certeza. Marcado como probable Isawa Seiji por contexto ritual."
+    },
+    {
+      "name": "Clan Unicornio",
+      "note": "Aparece en el texto solo como 'guardia Unicornio' (sin 'Clan'). El heurístico puede o no detectarlo según el bloque de clanes. Incluido como entidad esperada por inferencia contextual."
+    }
+  ],
+  "annotator_notes": "Este fixture es el principal test de robustez ASR. Los errores fonéticos son sistemáticos (c/k, sh/s/j, i/aw, ca/ka). El benchmark debe medir: (1) tasa de extracción de formas erróneas, (2) tasa de resolución a canónico con glosario, (3) falsos positivos de palabras comunes (Llevás, Todo, Como). Ninguno de los tres (Llevás, Todo, Como) debe aparecer en la salida del extractor con confianza >= 0.5."
+}
