@@ -55,12 +55,30 @@ def cmd_classify(args):
 
 def cmd_extract(args):
     from review import extractor
+    mode = getattr(args, "extractor", None)
     # Pasar extractor como env si se especifica
-    if getattr(args, "extractor", None):
-        os.environ["S9K_REVIEW_EXTRACTOR"] = args.extractor
-        log.info("Extractor seleccionado: %s (S9K_REVIEW_EXTRACTOR=%s)", args.extractor, args.extractor)
-    path = extractor.run(args.workspace, args.source_id, _REPO_ROOT)
-    print(f"OK: {path}")
+    if mode:
+        os.environ["S9K_REVIEW_EXTRACTOR"] = mode
+        log.info("Extractor seleccionado: %s (S9K_REVIEW_EXTRACTOR=%s)", mode, mode)
+    # El paso extract aislado (usado por el benchmark) DEBE honrar el extractor
+    # solicitado. extractor.run() es solo heurístico; para llm/hybrid delegamos
+    # en el dispatch del pipeline (heurístico + LLM Ollama, con degradación
+    # explícita si Ollama no responde).
+    if mode in ("llm", "hybrid"):
+        from review.pipeline import _run_extract_step
+        in_path = (
+            _REPO_ROOT / "output" / "reviews" / args.workspace / args.source_id
+            / "segments.classified.json"
+        )
+        if not in_path.exists():
+            raise FileNotFoundError(f"segments.classified.json no encontrado: {in_path}")
+        with in_path.open(encoding="utf-8") as f:
+            classified = json.load(f)
+        _run_extract_step(args.workspace, args.source_id, _REPO_ROOT, mode, classified)
+        print(f"OK: {in_path.parent / 'candidates.json'}")
+    else:
+        path = extractor.run(args.workspace, args.source_id, _REPO_ROOT)
+        print(f"OK: {path}")
 
 
 def cmd_validate(args):
