@@ -65,6 +65,7 @@ STOPWORDS_ES: set[str] = {
     "jugar", "juego", "juega", "jugamos", "juegan",
     "tirar", "tira", "tiro", "tiramos", "tiran",
     "llevar", "lleva", "llevo", "llevas", "llevamos", "llevan",
+    "soy", "eres", "somos", "sois",
 
     # Conversacionales / muletillas españolas
     "vale", "venga", "bueno", "vamos", "mira", "claro", "oye", "oyes",
