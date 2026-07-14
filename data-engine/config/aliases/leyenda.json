@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "workspace": "leyenda",
+  "note": "Alias de campaña sintéticos/sanitizados para el benchmark. No contienen datos privados.",
+  "aliases": [
+    {"alias": "La Cazadora", "canonical": "Kakita Asuka", "type": "Character", "confidence": 0.9, "source": "campaign", "reviewed": true},
+    {"alias": "El Espía", "canonical": "Bayushi Hisao", "type": "Character", "confidence": 0.9, "source": "campaign", "reviewed": true},
+    {"alias": "Asuka", "canonical": "Kakita Asuka", "type": "Character", "confidence": 0.85, "source": "campaign", "reviewed": true},
+    {"alias": "Hisao", "canonical": "Bayushi Hisao", "type": "Character", "confidence": 0.85, "source": "campaign", "reviewed": true}
+  ]
+}

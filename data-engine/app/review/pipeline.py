@@ -134,10 +134,25 @@ def _run_extract_step(
 
     log.info("[pipeline] Extracción (%s): %d candidatos únicos totales", mode, len(unique))
 
-    with out_path.open("w", encoding="utf-8") as f:
-        json.dump([c.to_dict() for c in unique], f, ensure_ascii=False, indent=2)
+    result_dicts = [c.to_dict() for c in unique]
 
-    return [c.to_dict() for c in unique]
+    # Prioridad 2.1: normaliza extremos de relación (alias del source + glosario
+    # de workspace + corrección de dirección). No consulta Neo4j.
+    try:
+        from review.relation_normalizer import normalize_relations
+        from review.workspace_aliases import load_workspace_aliases
+        ents = [d for d in result_dicts if d.get("kind") == "entity"]
+        rels = [d for d in result_dicts if d.get("kind") == "relation"]
+        if rels:
+            normalize_relations(ents, rels, load_workspace_aliases(repo_root, workspace))
+            log.info("[pipeline] relaciones normalizadas: %d", len(rels))
+    except Exception as e:
+        log.warning("[pipeline] normalización de relaciones omitida: %s", e)
+
+    with out_path.open("w", encoding="utf-8") as f:
+        json.dump(result_dicts, f, ensure_ascii=False, indent=2)
+
+    return result_dicts
 
 
 def run_pipeline(
