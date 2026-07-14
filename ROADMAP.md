@@ -10,7 +10,8 @@ Ver [project dossier and checklist.md](docs/project%20dossier%20and%20checklist.
 Prioridad 0: COMPLETADA — Motor de datos, pipeline de revisión, tests, CI
 Prioridad 1: COMPLETADA (ver dictamen) — Backup, restore, rollback
 Prioridad 2: PARCIAL — REQUIERE CORRECCIONES. Benchmark real ejecutado (run 20260714-094125): F1 ent hybrid 0.728 / llm 0.718 (P llm 0.810, recall hybrid 0.856); relaciones F1≈0; autoaprobación 0.85<0.95. Ver docs/34.
-Prioridad 2.1: PARCIAL — MEJORA DEMOSTRADA (run 20260714-121026): hybrid F1 ent 0.806, P 0.851, R 0.775 → **pasa los umbrales de entidad**; relaciones F1 0.089 (<0.60, excluidas de autoaprobación por gate). Primera ingesta DESBLOQUEADA PARA ENTIDADES CON REVISIÓN HUMANA TOTAL. Ver docs/36.
+Prioridad 2.1: MEJORA (run 20260714-121026, 5 fuentes): hybrid F1 ent 0.806. Ver docs/36.
+Prioridad 2.1: COMPLETADA — PREPARADA PARA INGESTA CONTROLADA CON REVISIÓN TOTAL. Benchmark confirmatorio (run 20260714-151119, 7 fuentes, 49 OK): hybrid P 0.878 / R 0.823 / F1 0.846 (pasa umbrales de entidad); relaciones F1 0.163 (<0.60, excluidas). Revisión humana total impuesta por código (política + procedencia, 15 tests). Primera ingesta PREPARADA, NO EJECUTADA. Ver docs/37.
 Prioridad 3: PENDIENTE — Primera ingesta real controlada
 Prioridad 4: PENDIENTE — Limpieza del grafo histórico
 Prioridad 5: PENDIENTE — Autenticación y seguridad del visor

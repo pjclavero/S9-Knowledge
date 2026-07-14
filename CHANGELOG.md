@@ -4,6 +4,19 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-07-14 — Prioridad 2.1: revisión humana total + benchmark confirmatorio (7 fuentes)
+
+#### Seguridad de ingesta (impuesta por código)
+- **auto_decider**: `S9K_REVIEW_POLICY={normal,full_human_review}`. Bajo `full_human_review` TODO candidato → needs_review (`full_human_review_policy`); 0 autoaprobados; payload automático vacío. Política desconocida → error.
+- **ingest_approved**: bajo `full_human_review`, rechaza (sin escribir) payloads sin procedencia de revisión humana (`review_status=approved`, `reviewed_by`, `reviewed_at`, `review_action`, `evidence`, `source_id`).
+- **review_manual.py**: CLI mínima approve/reject/edit/use-existing con log append-only y `approved_payload.reviewed.json`; nunca toca Neo4j.
+- 15 tests (`test_full_human_review.py`) + E2E: 17 candidatos → 0 autoaprobados; payload con auto_approved rechazado.
+
+#### Benchmark confirmatorio (run `20260714-151119`, 7 fuentes, 49 OK / 0 INVALID / 0 FAIL)
+- Hybrid entidades: **P 0.878 · R 0.823 · F1 0.846** (pasa los 3 umbrales); llm también los pasa. Relaciones F1 0.163 (<0.60).
+- Fuentes nuevas: narrativo F1e 1.000, manual F1e 0.889. Reproducibilidad varianza 0.0. Neo4j intacto 199/140. 304 tests.
+- **Dictamen: Prioridad 2.1 COMPLETADA — PREPARADA PARA INGESTA CONTROLADA CON REVISIÓN TOTAL. Primera ingesta: PREPARADA, NO EJECUTADA.** Detalle: docs/37.
+
 ### 2026-07-14 — Prioridad 2.1: Mejora de calidad del extractor
 
 #### Mejoras (todas con tests; sin tocar ground truth ni umbrales)
