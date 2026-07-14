@@ -38,7 +38,7 @@ la evolución del conocimiento de cada personaje a lo largo de la campaña.
 ### Bloqueado (ingesta real en Neo4j)
 
 La ingesta real de candidatos aprobados en Neo4j **está bloqueada** hasta que se
-sustituya el extractor heurístico actual por uno basado en LLM + stopwords. El
+sustituya el extractor heurístico actual por uno basado en LLM + stopwords. **Actualización 2026-07-14:** el extractor LLM/hybrid ya se evaluó (benchmark real, run `20260714-094125` — ver docs/34): F1 entidades hybrid 0.728 / llm 0.718, relaciones F1≈0, autoaprobación 0.85. Dictamen Prioridad 2: PARCIAL — REQUIERE CORRECCIONES; la ingesta sigue bloqueada. El
 extractor heurístico produce falsos positivos (`Llevás`/`Todo`/`Como` como
 Character). `ingest_approved.py` requiere `--dry-run`; la escritura real aborta con
 mensaje de autorización. No ingerir sin revisar.

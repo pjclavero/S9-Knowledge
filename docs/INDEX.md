@@ -27,7 +27,7 @@
 - [31 · Remediación de tests y CI](31-test-remediation-and-ci-report.md) — **220/220 passed, 0 errores de colección; CI añadido 2026-07-13**
 - [32 · Backup y restore de producción — Validación P1](32-production-backup-restore-validation.md) — Backup real 132 KB, restore verificado, copia externa completada
 - [33 · Plan de evaluación del extractor — Prioridad 2](33-extractor-quality-benchmark-plan.md) — Plan de benchmark: corpus, métricas, umbrales, criterios de ingesta
-- [34 · Resultados del benchmark del extractor — Prioridad 2](34-extractor-quality-benchmark-results.md) — 35/35 runs sin fallos; métricas F1 pendientes (fix formato corpus requerido)
+- [34 · Resultados del benchmark del extractor — Prioridad 2](34-extractor-quality-benchmark-results.md) — 35/35 runs OK; F1 ent hybrid 0.728 / llm 0.718; relaciones F1≈0; autoaprobación 0.85. Dictamen PARCIAL — REQUIERE CORRECCIONES; ingesta BLOQUEADA.
 
 ## Documentos de diseño generados en el servidor (`docs/current/`)
 

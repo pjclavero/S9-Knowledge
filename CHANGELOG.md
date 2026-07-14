@@ -4,6 +4,19 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-07-14 — Prioridad 2: Benchmark real ejecutado en VM105 (métricas válidas)
+
+#### Fallos demostrados por el benchmark y corregidos
+- **`data_review.py` (`cmd_extract`)**: el subcomando aislado `extract` ignoraba `--extractor` y ejecutaba siempre el heurístico (el LLM nunca se invocaba). Ahora delega en `pipeline._run_extract_step` para llm/hybrid. Regresión: `test_extract_dispatch.py`.
+- **`benchmark_comparator.py`**: leía `approved_payload.json` (nunca producido por el benchmark aislado) → métricas 0.0 en los tres modos. Ahora lee `candidates.json` vía `_load_candidates`. Regresión en `test_benchmark_runner.py`.
+
+#### Resultados (run `20260714-094125`, 35 OK / 0 INVALID / 0 FAIL)
+- F1 entidades agregado: heuristic 0.689 · llm 0.718 · hybrid 0.728. Precisión llm 0.810; recall hybrid 0.856.
+- Relaciones F1 ≈ 0 (limitación de prompt/modelo). Autoaprobación P=0.85 (< 0.95).
+- Reproducibilidad: varianza F1 entidades = 0.0 (temp=0, seed=42). Neo4j intacto (199 nodos / 140 rels).
+- Suite: **249 tests** verdes. Detalle completo en `docs/34`.
+- **Dictamen: Prioridad 2 PARCIAL — REQUIERE CORRECCIONES. Primera ingesta controlada: BLOQUEADA.**
+
 ### 2026-07-14 — Prioridad 2 FASE 2: Correcciones de benchmark + ground truth pase 2
 
 #### Correcciones críticas del benchmark
