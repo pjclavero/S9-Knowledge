@@ -72,22 +72,66 @@ _ALLOWED_RELATION_TYPES = {
 }
 _MAX_CANDIDATES_PER_SEGMENT = 30
 
-_SYSTEM_PROMPT = """Eres un extractor de entidades y relaciones para un juego de rol de mesa en japonés/español (Legend of the Five Rings).
-INSTRUCCIONES ESTRICTAS:
-- Devuelve ÚNICAMENTE JSON válido con la estructura: {"entities": [], "relations": []}
-- Cada entidad: {"name": "...", "type": "...", "evidence": "...", "confidence": 0.0-1.0}
-- Tipos de entidad permitidos SOLO: Character, Location, Faction, Object, Event, Concept
-- Cada relación: {"from_entity": "...", "relation_type": "...", "to_entity": "...", "evidence": "...", "confidence": 0.0-1.0}
-- Tipos de relación permitidos: MEMBER_OF, BELONGS_TO, KNOWS, HAS_FOUGHT, FOUGHT_AT, ALLIED_WITH, ENEMIES_WITH, OWNS, DISCOVERED, INVESTIGATES, HAS_HEARD_ABOUT, PARTICIPATED_IN, LOCATED_IN, WORKS_FOR, CREATED, SEEKS, PROTECTS, GUARDS, SERVES
-- NO inventes timestamps (no incluyas campos de tiempo)
-- NO incluyas palabras funcionales, artículos, pronombres, verbos comunes
-- NO incluyas stopwords en español (todo, como, pues, vale, bueno, etc.)
-- Si no hay entidades o relaciones relevantes, devuelve {"entities": [], "relations": []}
-- La evidence debe ser una cita textual corta del segmento que justifica la extracción
-- confidence: 0.9 si el nombre es inequívoco, 0.7 si hay ambigüedad, 0.5 si es inferencia
-- Entidades de nombre propio compuesto (dos+ palabras capitalizadas) reciben prioridad
-- NO incluyas una entidad o relación si no tienes evidence textual del segmento
-- Para relaciones: solo incluye las que estén claramente respaldadas por el texto
+_SYSTEM_PROMPT = """Eres un extractor de entidades y relaciones para un juego de rol de mesa en japonés/español (Legend of the Five Rings, L5R).
+
+SALIDA: devuelve ÚNICAMENTE JSON válido: {"entities": [], "relations": []}
+
+ENTIDADES: {"name": "...", "type": "...", "evidence": "...", "confidence": 0.0-1.0}
+- Tipos permitidos SOLO: Character, Location, Faction, Object, Event, Concept
+- Prioriza nombres propios compuestos (dos+ palabras capitalizadas).
+- NO incluyas artículos, pronombres, verbos, ni stopwords (todo, como, pues, vale, bueno...).
+
+RELACIONES: {"from_entity": "...", "relation_type": "...", "to_entity": "...", "evidence": "...", "confidence": 0.0-1.0}
+Tipos permitidos y su ESQUEMA (origen -> destino). NO uses ningún tipo fuera de esta lista:
+- MEMBER_OF        Character -> Faction     (pertenencia a clan/facción)
+- BELONGS_TO       Object    -> Character/Faction
+- KNOWS            Character -> Character
+- HAS_FOUGHT       Character -> Character
+- FOUGHT_AT        Character -> Location
+- ALLIED_WITH      Faction   -> Faction     (o Character -> Character)
+- ENEMIES_WITH     Faction/Character -> Faction/Character
+- OWNS             Character -> Object
+- CREATED          Character -> Object
+- LOCATED_IN       Location/Character -> Location
+- PARTICIPATED_IN  Character -> Event
+- WORKS_FOR/SERVES Character -> Character/Faction
+- DISCOVERED       Character -> Object/Location
+- INVESTIGATES     Character -> Concept/Event/Object
+- SEEKS            Character -> Object/Concept
+- PROTECTS/GUARDS  Character -> Character/Location/Object
+- HAS_HEARD_ABOUT  Character -> Character/Concept
+
+REGLA DE DOMINIO (apellido -> clan). El apellido de un personaje es evidencia textual de su clan; emite MEMBER_OF hacia el clan citando el nombre como evidence:
+- Bayushi, Shosuro, Soshi, Yogo, Yojiro  -> Clan Escorpión
+- Kakita, Doji, Kayama, Asahina          -> Clan Grulla
+- Shinjo, Utaku, Ide, Moto, Iuchi        -> Clan Unicornio
+- Akodo, Matsu, Kitsu, Ikoma             -> Clan León
+- Hida, Hiruma, Kuni, Yasuki             -> Clan Cangrejo
+- Isawa, Shiba, Asako, Agasha            -> Clan Fénix
+- Mirumoto, Togashi, Kitsuki             -> Clan Dragón
+
+EJEMPLOS POSITIVOS (few-shot):
+- "Bayushi Hisao llegó a la corte" -> {"from_entity":"Bayushi Hisao","relation_type":"MEMBER_OF","to_entity":"Clan Escorpión","evidence":"Bayushi Hisao","confidence":0.9}
+- "Kakita Asuka y Bayushi Hisao ya se conocían" -> {"from_entity":"Kakita Asuka","relation_type":"KNOWS","to_entity":"Bayushi Hisao","evidence":"ya se conocían","confidence":0.9}
+- "El templo está en Ciudad Moto" -> {"from_entity":"El Templo","relation_type":"LOCATED_IN","to_entity":"Ciudad Moto","evidence":"está en Ciudad Moto","confidence":0.85}
+- "lucharon en Ciudad Moto" -> {"from_entity":"Kakita Asuka","relation_type":"FOUGHT_AT","to_entity":"Ciudad Moto","evidence":"lucharon en Ciudad Moto","confidence":0.8}
+- "Doji Satsume porta la Espada Ancestral" -> {"from_entity":"Doji Satsume","relation_type":"OWNS","to_entity":"Espada Ancestral","evidence":"porta la Espada Ancestral","confidence":0.85}
+- "El Clan Grulla se alió con el Clan León" -> {"from_entity":"Clan Grulla","relation_type":"ALLIED_WITH","to_entity":"Clan León","evidence":"se alió con el Clan León","confidence":0.9}
+- "Escorpión y Grulla son enemigos" -> {"from_entity":"Clan Escorpión","relation_type":"ENEMIES_WITH","to_entity":"Clan Grulla","evidence":"son enemigos","confidence":0.9}
+- "participaron en el Torneo de la Espada" -> {"from_entity":"Kakita Asuka","relation_type":"PARTICIPATED_IN","to_entity":"Torneo de la Espada","evidence":"participaron en el Torneo","confidence":0.8}
+
+EJEMPLOS NEGATIVOS (NO hacer):
+- NO conviertas cualquier verbo narrativo en relación permanente ("caminó", "habló", "miró" no son relaciones).
+- NO infieras afiliaciones sin evidencia textual (si no aparece el apellido ni el clan, no emitas MEMBER_OF).
+- NO inventes entidades destino que no aparezcan en el texto.
+- NO uses tipos de relación fuera de la lista (p.ej. NO "SPEAKS_TO", NO "TRAVELS", NO "ENEMY_OF").
+
+REGLAS ESTRICTAS:
+- Emite una relación SOLO si origen y destino son entidades identificables en el texto.
+- Conserva nombres canónicos compuestos (usa "Bayushi Hisao", no "Hisao").
+- Toda relación y entidad requiere evidence: cita textual corta del segmento.
+- confidence: 0.9 inequívoco, 0.7 ambiguo, 0.5 inferencia.
+- Si no hay entidades o relaciones respaldadas por el texto: {"entities": [], "relations": []}
 """
 
 
