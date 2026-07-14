@@ -86,34 +86,19 @@ def _run_extract_step(
                 log.info("[pipeline] LLM: %d candidatos", len(llm_cands))
 
                 if mode == "hybrid":
-                    # Dedupe: entidades por name+type; relaciones por from+type+to
-                    def _dedup_key(c: Candidate) -> str:
-                        if c.name is not None:
-                            return f"{c.name.lower().strip()}|{c.entity_type or ''}"
-                        return (
-                            f"{(c.from_entity or '').lower().strip()}"
-                            f"|{c.relation_type or ''}"
-                            f"|{(c.to_entity or '').lower().strip()}"
-                        )
-
-                    existing: dict[str, Candidate] = {}
-                    for c in all_candidates:
-                        existing[_dedup_key(c)] = c
-
-                    merged_new = 0
-                    for c in llm_cands:
-                        key = _dedup_key(c)
-                        if key not in existing:
-                            existing[key] = c
-                            merged_new += 1
-                        else:
-                            prev = existing[key]
-                            if c.confidence > prev.confidence:
-                                existing[key] = c
-                            elif c.confidence == prev.confidence and len(c.evidence) > len(prev.evidence):
-                                existing[key] = c
-                    log.info("[pipeline] Hybrid merge: %d nuevos de LLM, total=%d", merged_new, len(existing))
-                    all_candidates = list(existing.values())
+                    # Prioridad 2.1: filtro de union hibrido (reglas A/B/C) que
+                    # elimina falsos positivos solo-heuristicos no corroborados y
+                    # registra las estadisticas del filtro.
+                    from review.hybrid_filter import merge_hybrid
+                    all_candidates, _hybrid_stats = merge_hybrid(heuristic_cands, llm_cands)
+                    log.info("[pipeline] Hybrid filter: A=%d B=%d C=%d filtradas=%d",
+                             _hybrid_stats["rule_a_agreement"], _hybrid_stats["rule_b_llm_only"],
+                             _hybrid_stats["rule_c_heuristic_kept"], _hybrid_stats["filtered_out"])
+                    try:
+                        (out_dir / "hybrid_filter_stats.json").write_text(
+                            json.dumps(_hybrid_stats, ensure_ascii=False, indent=2), encoding="utf-8")
+                    except Exception:
+                        pass
                 else:
                     # Modo llm puro: solo candidatos LLM
                     all_candidates = llm_cands
@@ -134,10 +119,25 @@ def _run_extract_step(
 
     log.info("[pipeline] Extracción (%s): %d candidatos únicos totales", mode, len(unique))
 
-    with out_path.open("w", encoding="utf-8") as f:
-        json.dump([c.to_dict() for c in unique], f, ensure_ascii=False, indent=2)
+    result_dicts = [c.to_dict() for c in unique]
 
-    return [c.to_dict() for c in unique]
+    # Prioridad 2.1: normaliza extremos de relación (alias del source + glosario
+    # de workspace + corrección de dirección). No consulta Neo4j.
+    try:
+        from review.relation_normalizer import normalize_relations
+        from review.workspace_aliases import load_workspace_aliases
+        ents = [d for d in result_dicts if d.get("kind") == "entity"]
+        rels = [d for d in result_dicts if d.get("kind") == "relation"]
+        if rels:
+            normalize_relations(ents, rels, load_workspace_aliases(repo_root, workspace))
+            log.info("[pipeline] relaciones normalizadas: %d", len(rels))
+    except Exception as e:
+        log.warning("[pipeline] normalización de relaciones omitida: %s", e)
+
+    with out_path.open("w", encoding="utf-8") as f:
+        json.dump(result_dicts, f, ensure_ascii=False, indent=2)
+
+    return result_dicts
 
 
 def run_pipeline(

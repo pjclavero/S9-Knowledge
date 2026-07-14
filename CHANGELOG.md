@@ -4,6 +4,36 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-07-14 — Prioridad 2.1: revisión humana total + benchmark confirmatorio (7 fuentes)
+
+#### Seguridad de ingesta (impuesta por código)
+- **auto_decider**: `S9K_REVIEW_POLICY={normal,full_human_review}`. Bajo `full_human_review` TODO candidato → needs_review (`full_human_review_policy`); 0 autoaprobados; payload automático vacío. Política desconocida → error.
+- **ingest_approved**: bajo `full_human_review`, rechaza (sin escribir) payloads sin procedencia de revisión humana (`review_status=approved`, `reviewed_by`, `reviewed_at`, `review_action`, `evidence`, `source_id`).
+- **review_manual.py**: CLI mínima approve/reject/edit/use-existing con log append-only y `approved_payload.reviewed.json`; nunca toca Neo4j.
+- 15 tests (`test_full_human_review.py`) + E2E: 17 candidatos → 0 autoaprobados; payload con auto_approved rechazado.
+
+#### Benchmark confirmatorio (run `20260714-151119`, 7 fuentes, 49 OK / 0 INVALID / 0 FAIL)
+- Hybrid entidades: **P 0.878 · R 0.823 · F1 0.846** (pasa los 3 umbrales); llm también los pasa. Relaciones F1 0.163 (<0.60).
+- Fuentes nuevas: narrativo F1e 1.000, manual F1e 0.889. Reproducibilidad varianza 0.0. Neo4j intacto 199/140. 304 tests.
+- **Dictamen: Prioridad 2.1 COMPLETADA — PREPARADA PARA INGESTA CONTROLADA CON REVISIÓN TOTAL. Primera ingesta: PREPARADA, NO EJECUTADA.** Detalle: docs/37.
+
+### 2026-07-14 — Prioridad 2.1: Mejora de calidad del extractor
+
+#### Mejoras (todas con tests; sin tocar ground truth ni umbrales)
+- **auto_decider**: quality gate — relaciones **nunca autoaprobadas** (motivo `relation_autoapproval_disabled_quality_gate`) hasta abrir `S9K_ALLOW_RELATION_AUTOAPPROVAL`.
+- **llm_extractor**: prompt de relaciones con taxonomía origen→destino, few-shot y regla apellido→clan.
+- **relation_normalizer**: resuelve extremos por alias del source + glosario y corrige dirección.
+- **workspace_aliases** + `config/aliases/leyenda.json`: glosario de alias por workspace (aislado, reviewed).
+- **hybrid_filter**: filtro de unión (reglas A/B/C) que elimina FP solo-heurísticos y registra motivos.
+- **corpus**: +2 fuentes (narrativo, manual), GT pase 3; `corpus-manifest-v2.json` (7 fuentes).
+
+#### Resultados (run `20260714-121026`, mismas 5 fuentes que el baseline)
+- Hybrid F1 entidades 0.728 → **0.806**; P 0.634 → **0.851**; R 0.856 → 0.775 → **pasa los 3 umbrales de entidad**.
+- LLM F1 entidades 0.718 → 0.741; F1 relaciones 0.040 → 0.089.
+- Relaciones aún < umbral (F1 0.089). Autoaprobación: **0 relaciones autoaprobadas** (gate E2E), entidades P 0.80.
+- Reproducibilidad varianza F1 = 0.0. Neo4j intacto 199/140. Suite: 289 tests.
+- **Dictamen: Prioridad 2.1 PARCIAL — MEJORA DEMOSTRADA. Primera ingesta: DESBLOQUEADA PARA ENTIDADES CON REVISIÓN HUMANA TOTAL.** Detalle: docs/36.
+
 ### 2026-07-14 — Prioridad 2: Benchmark real ejecutado en VM105 (métricas válidas)
 
 #### Fallos demostrados por el benchmark y corregidos

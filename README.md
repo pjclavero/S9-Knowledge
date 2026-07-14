@@ -49,6 +49,14 @@ Prioridad 2: PARCIAL — REQUIERE CORRECCIONES). `ingest_approved.py` exige `--d
 escritura real aborta sin `S9K_ALLOW_REAL_INGEST=true` y autorización explícita. No ingerir
 sin revisión humana.
 
+> **Actualización Prioridad 2.1 (2026-07-14, docs/36 y docs/37):** el modo **hybrid** supera los
+> umbrales de calidad de **entidades** (confirmatorio de 7 fuentes: F1 0.846, P 0.878, R 0.823).
+> Las **relaciones** siguen por debajo del umbral (F1 0.163) y quedan **excluidas de autoaprobación**.
+> Existe un modo de **revisión humana total impuesto por código** (`S9K_REVIEW_POLICY=full_human_review`):
+> todo candidato va a `needs_review`, 0 autoaprobados, y `ingest-approved` exige procedencia de
+> revisión humana (`reviewed_by`/`reviewed_at`) o rechaza el payload sin escribir. La primera ingesta
+> de **entidades** está **PREPARADA (no ejecutada)** bajo revisión total; la ingesta automática sigue bloqueada.
+
 > Nota histórica: el extractor **heurístico** produce falsos positivos conocidos
 > (`Llevás`/`Todo`/`Como` como Character); por eso el modo recomendado es LLM/híbrido con
 > revisión humana total, no heurístico puro.

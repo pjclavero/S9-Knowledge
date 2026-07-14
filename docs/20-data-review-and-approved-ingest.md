@@ -4,6 +4,8 @@
 
 El humano revisa **solo lo dudoso**, no todo. La autoaprobación segura es la norma; `needs_review` es la excepción.
 
+> **Prioridad 2.1 — revisión humana total:** con `S9K_REVIEW_POLICY=full_human_review` (docs/37) TODO candidato va a `needs_review` (0 autoaprobados) y `ingest-approved` rechaza sin escribir cualquier payload sin procedencia de revisión humana (`reviewed_by`/`reviewed_at`). CLI mínima `review_manual.py` (approve/reject/edit/use-existing) con log append-only. Modo previsto para la primera ingesta controlada.
+
 El pipeline clasifica automáticamente la transcripción, extrae entidades/relaciones, las valida contra el schema RPG y las resuelve contra Neo4j. Solo los candidatos con ambigüedad real (varios matches, confianza media, tipo contradictorio) llegan a la cola de revisión humana.
 
 ## Cadena de evidencia
