@@ -1,0 +1,36 @@
+[
+  {
+    "segment_id": "source_manual_01_seg_0001",
+    "source_id": "source_manual_01",
+    "source_kind": "markdown",
+    "workspace": "leyenda",
+    "timestamp_start": "00:00:00",
+    "timestamp_end": "00:01:00",
+    "text": "El Clan Cangrejo defiende el Muro Kaiu contra las hordas de las Tierras Sombrías. El daimyo Hida Kisada comanda sus ejércitos desde la fortaleza de Kyuden Hida.",
+    "lines": [
+      "El Clan Cangrejo defiende el Muro Kaiu contra las hordas de las Tierras Sombrías. El daimyo Hida Kisada comanda sus ejércitos desde la fortaleza de Kyuden Hida."
+    ],
+    "category": "narrative",
+    "should_extract": true,
+    "category_scores": {
+      "narrative": 0.9
+    }
+  },
+  {
+    "segment_id": "source_manual_01_seg_0002",
+    "source_id": "source_manual_01",
+    "source_kind": "markdown",
+    "workspace": "leyenda",
+    "timestamp_start": "00:01:00",
+    "timestamp_end": "00:02:00",
+    "text": "El Oni no Kanabo es un demonio de las Tierras Sombrías; solo el jade puro hiere su piel. El bushi Hiruma Yoshi cazó una de estas bestias en las montañas del sur.",
+    "lines": [
+      "El Oni no Kanabo es un demonio de las Tierras Sombrías; solo el jade puro hiere su piel. El bushi Hiruma Yoshi cazó una de estas bestias en las montañas del sur."
+    ],
+    "category": "narrative",
+    "should_extract": true,
+    "category_scores": {
+      "narrative": 0.9
+    }
+  }
+]

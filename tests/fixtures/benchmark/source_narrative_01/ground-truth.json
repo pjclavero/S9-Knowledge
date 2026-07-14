@@ -1,0 +1,153 @@
+{
+  "source_id": "source_narrative_01",
+  "annotator": "priority-2-1-agent",
+  "annotation_pass": 3,
+  "entities": [
+    {
+      "name": "Akodo Toturi",
+      "canonical_name": "Akodo Toturi",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [
+        "Toturi"
+      ],
+      "expected": true,
+      "confidence_note": "Nombre compuesto; también 'Toturi'"
+    },
+    {
+      "name": "Clan León",
+      "canonical_name": "Clan León",
+      "entity_type": "Faction",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": ""
+    },
+    {
+      "name": "Otosan Uchi",
+      "canonical_name": "Otosan Uchi",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "La capital"
+    },
+    {
+      "name": "Matsu Tsuko",
+      "canonical_name": "Matsu Tsuko",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Lugarteniente"
+    },
+    {
+      "name": "Clan Escorpión",
+      "canonical_name": "Clan Escorpión",
+      "entity_type": "Faction",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "También 'dama Escorpión'"
+    },
+    {
+      "name": "Río Kanji",
+      "canonical_name": "Río Kanji",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": ""
+    },
+    {
+      "name": "Bayushi Kachiko",
+      "canonical_name": "Bayushi Kachiko",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [
+        "Kachiko"
+      ],
+      "expected": true,
+      "confidence_note": "Compuesto; también 'Kachiko'"
+    },
+    {
+      "name": "Clan Grulla",
+      "canonical_name": "Clan Grulla",
+      "entity_type": "Faction",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": ""
+    }
+  ],
+  "relations": [
+    {
+      "from_entity": "Akodo Toturi",
+      "relation_type": "MEMBER_OF",
+      "to_entity": "Clan León",
+      "expected": true,
+      "evidence": "Akodo Toturi, general del Clan León"
+    },
+    {
+      "from_entity": "Matsu Tsuko",
+      "relation_type": "MEMBER_OF",
+      "to_entity": "Clan León",
+      "expected": true,
+      "evidence": "Matsu Tsuko, su lugarteniente"
+    },
+    {
+      "from_entity": "Matsu Tsuko",
+      "relation_type": "PROTECTS",
+      "to_entity": "Otosan Uchi",
+      "expected": true,
+      "evidence": "juró proteger la capital"
+    },
+    {
+      "from_entity": "Bayushi Kachiko",
+      "relation_type": "MEMBER_OF",
+      "to_entity": "Clan Escorpión",
+      "expected": true,
+      "evidence": "Bayushi Kachiko / La dama Escorpión"
+    },
+    {
+      "from_entity": "Bayushi Kachiko",
+      "relation_type": "KNOWS",
+      "to_entity": "Matsu Tsuko",
+      "expected": true,
+      "evidence": "envió un mensaje secreto a Matsu Tsuko"
+    }
+  ],
+  "negative_entities": [
+    {
+      "name": "murallas",
+      "reason": "sustantivo común, no entidad"
+    },
+    {
+      "name": "capital",
+      "reason": "sustantivo común (referencia a Otosan Uchi)"
+    },
+    {
+      "name": "dama",
+      "reason": "título común"
+    },
+    {
+      "name": "noche",
+      "reason": "sustantivo común"
+    },
+    {
+      "name": "exploradores",
+      "reason": "rol genérico, no nombrado"
+    }
+  ],
+  "negative_relations": [],
+  "ambiguous": [
+    {
+      "name": "Kachiko",
+      "reason": "forma corta de Bayushi Kachiko"
+    }
+  ],
+  "annotator_notes": "Prosa narrativa. Alias cortos (Toturi, Kachiko). MEMBER_OF por apellido.",
+  "annotation_date": "2026-07-14",
+  "reviewed": true,
+  "reviewer": "priority-2-1"
+}

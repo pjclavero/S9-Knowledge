@@ -1,0 +1,160 @@
+{
+  "source_id": "source_manual_01",
+  "annotator": "priority-2-1-agent",
+  "annotation_pass": 3,
+  "entities": [
+    {
+      "name": "Clan Cangrejo",
+      "canonical_name": "Clan Cangrejo",
+      "entity_type": "Faction",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": ""
+    },
+    {
+      "name": "Muro Kaiu",
+      "canonical_name": "Muro Kaiu",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "El Gran Muro Kaiu"
+    },
+    {
+      "name": "Tierras Sombrías",
+      "canonical_name": "Tierras Sombrías",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": ""
+    },
+    {
+      "name": "Hida Kisada",
+      "canonical_name": "Hida Kisada",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Daimyo del Cangrejo"
+    },
+    {
+      "name": "Kyuden Hida",
+      "canonical_name": "Kyuden Hida",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Fortaleza"
+    },
+    {
+      "name": "Oni no Kanabo",
+      "canonical_name": "Oni no Kanabo",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Demonio/oni (tratado como Character)"
+    },
+    {
+      "name": "Jade",
+      "canonical_name": "Jade",
+      "entity_type": "Object",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Jade puro"
+    },
+    {
+      "name": "Hiruma Yoshi",
+      "canonical_name": "Hiruma Yoshi",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Bushi cazador"
+    }
+  ],
+  "relations": [
+    {
+      "from_entity": "Clan Cangrejo",
+      "relation_type": "GUARDS",
+      "to_entity": "Muro Kaiu",
+      "expected": true,
+      "evidence": "El Clan Cangrejo defiende el Muro Kaiu"
+    },
+    {
+      "from_entity": "Hida Kisada",
+      "relation_type": "MEMBER_OF",
+      "to_entity": "Clan Cangrejo",
+      "expected": true,
+      "evidence": "El daimyo Hida Kisada"
+    },
+    {
+      "from_entity": "Hida Kisada",
+      "relation_type": "LOCATED_IN",
+      "to_entity": "Kyuden Hida",
+      "expected": true,
+      "evidence": "comanda sus ejércitos desde la fortaleza de Kyuden Hida"
+    },
+    {
+      "from_entity": "Hiruma Yoshi",
+      "relation_type": "MEMBER_OF",
+      "to_entity": "Clan Cangrejo",
+      "expected": true,
+      "evidence": "Hiruma Yoshi (apellido Cangrejo)"
+    },
+    {
+      "from_entity": "Hiruma Yoshi",
+      "relation_type": "HAS_FOUGHT",
+      "to_entity": "Oni no Kanabo",
+      "expected": true,
+      "evidence": "cazó una de estas bestias"
+    },
+    {
+      "from_entity": "Oni no Kanabo",
+      "relation_type": "LOCATED_IN",
+      "to_entity": "Tierras Sombrías",
+      "expected": true,
+      "evidence": "un demonio de las Tierras Sombrías"
+    }
+  ],
+  "negative_entities": [
+    {
+      "name": "demonio",
+      "reason": "sustantivo común (describe a Oni no Kanabo)"
+    },
+    {
+      "name": "hordas",
+      "reason": "sustantivo común"
+    },
+    {
+      "name": "bestias",
+      "reason": "sustantivo común"
+    },
+    {
+      "name": "piel",
+      "reason": "sustantivo común"
+    },
+    {
+      "name": "daimyo",
+      "reason": "título común"
+    },
+    {
+      "name": "bushi",
+      "reason": "título común (guerrero)"
+    }
+  ],
+  "negative_relations": [],
+  "ambiguous": [
+    {
+      "name": "montañas del sur",
+      "reason": "topónimo no capitalizado, ambiguo"
+    }
+  ],
+  "annotator_notes": "Texto de manual/referencia. Oni tratado como Character. GUARDS/MEMBER_OF/HAS_FOUGHT.",
+  "annotation_date": "2026-07-14",
+  "reviewed": true,
+  "reviewer": "priority-2-1"
+}

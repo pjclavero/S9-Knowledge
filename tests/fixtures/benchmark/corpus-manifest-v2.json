@@ -1,0 +1,82 @@
+{
+  "version": "2.0",
+  "created": "2026-07-14",
+  "sources": [
+    {
+      "id": "source_transcript_clean_01",
+      "type": "transcript_session",
+      "file": "data-engine/tests/data/leyenda-transcripcion-prueba.md",
+      "language": "es",
+      "approximate_tokens": 185,
+      "quality": "clean",
+      "workspace": "leyenda",
+      "authorized": true,
+      "notes": "Fixture existente del repositorio — no contiene datos privados. Transcripción sintética representativa de una sesión L5A con personajes, lugares, facciones y objetos bien delimitados."
+    },
+    {
+      "id": "source_transcript_session_02",
+      "type": "transcript_session",
+      "file": "data-engine/tests/data/test_creatures_locations_timeline.md",
+      "language": "es",
+      "approximate_tokens": 155,
+      "quality": "clean",
+      "workspace": "leyenda",
+      "authorized": true,
+      "notes": "Fixture existente del repositorio — no contiene datos privados. Incluye criaturas (Oni, Espíritu) además de los tipos habituales; útil para validar extracción de tipos menos frecuentes."
+    },
+    {
+      "id": "source_transcript_asr_01",
+      "type": "transcript_session",
+      "file": "data-engine/tests/data/benchmark/source_asr_errors_01.md",
+      "language": "es",
+      "approximate_tokens": 165,
+      "quality": "asr_noisy",
+      "workspace": "leyenda",
+      "authorized": true,
+      "notes": "Fixture sintético creado para el benchmark (2026-07-14). Simula errores típicos de ASR: sustitución fonética en nombres propios (Asuca, Bayusi, Isaba, Sinjo, Reica, Vacio). Incluye palabras comunes que el heurístico podría confundir con entidades: Llevás, Todo, Como."
+    },
+    {
+      "id": "source_notes_01",
+      "type": "session_notes",
+      "file": "data-engine/tests/data/benchmark/source_notes_session_01.md",
+      "language": "es",
+      "approximate_tokens": 105,
+      "quality": "clean",
+      "workspace": "leyenda",
+      "authorized": true,
+      "notes": "Fixture sintético creado para el benchmark (2026-07-14). Notas abreviadas de sesión con alias implícitos ('La Cazadora' = Kakita Asuka, 'El Espía' = Bayushi Hisao). Las relaciones no son explícitas: requieren inferencia contextual. Mide capacidad de resolución de alias del extractor LLM."
+    },
+    {
+      "id": "source_resolution_01",
+      "type": "transcript_session",
+      "file": "data-engine/tests/data/benchmark/source_resolution_duplicates_01.md",
+      "language": "es",
+      "approximate_tokens": 145,
+      "quality": "clean",
+      "workspace": "leyenda",
+      "authorized": true,
+      "notes": "Fixture sintético creado para el benchmark (2026-07-14). Diseñado para evaluar resolución de entidades: contiene un alias explícito (La Cazadora → Kakita Asuka), un posible near-duplicate (Kakita Asuko), y una relación compartida entre sesiones (Oni de la Montaña Negra reconocido por ambas)."
+    },
+    {
+      "id": "source_narrative_01",
+      "type": "narrative",
+      "file": "data-engine/tests/data/benchmark/source_narrative_01.md",
+      "language": "es",
+      "quality": "clean",
+      "workspace": "leyenda",
+      "authorized": true,
+      "notes": "Prosa narrativa sintética. Alias cortos, MEMBER_OF por apellido."
+    },
+    {
+      "id": "source_manual_01",
+      "type": "manual",
+      "file": "data-engine/tests/data/benchmark/source_manual_01.md",
+      "language": "es",
+      "quality": "clean",
+      "workspace": "leyenda",
+      "authorized": true,
+      "notes": "Texto de manual/referencia sintético. Oni como Character."
+    }
+  ],
+  "note": "Corpus ampliado (Prioridad 2.1): +narrativa +manual. GT pase 3 para las nuevas."
+}
