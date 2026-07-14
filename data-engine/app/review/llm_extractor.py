@@ -1,15 +1,22 @@
 """Extractor LLM vía Ollama (qwen2.5:7b) para el pipeline S9 Knowledge.
 
 Contrato:
-    extract_with_llm(segments, glossary_snapshot, workspace) -> list[Candidate]
+    extract_with_llm(segments, glossary_snapshot, workspace, seed=None) -> list[Candidate]
 
 Degrada a lista vacía (con warning) si Ollama no responde o JSON inválido.
 Nunca crashea: los errores se loguean y se retorna [].
+
+Configuración (prioridad):
+    1. Parámetros directos a extract_with_llm()
+    2. Variable de entorno S9K_OLLAMA_URL / S9K_OLLAMA_MODEL
+    3. data-engine/config/settings.yaml (sección ollama)
+    4. Valores por defecto hardcodeados
 """
 from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 import sys
 import urllib.request
@@ -26,27 +33,61 @@ from review.classifier import ClassifiedSegment
 
 log = logging.getLogger(__name__)
 
-# ── Constantes ────────────────────────────────────────────────────────────────
-OLLAMA_URL = "http://192.168.1.157:11434/api/generate"
-OLLAMA_MODEL = "qwen2.5:7b"
-OLLAMA_TIMEOUT = 120  # segundos por segmento
+
+# ── Carga de configuración ────────────────────────────────────────────────────
+
+def _load_ollama_settings() -> dict:
+    """Lee la sección 'ollama' de settings.yaml; devuelve {} si no disponible."""
+    settings_file = _APP_DIR.parent / "config" / "settings.yaml"
+    try:
+        import yaml  # type: ignore
+        with settings_file.open(encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        return data.get("ollama", {})
+    except Exception:
+        return {}
+
+
+_CFG = _load_ollama_settings()
+
+_OLLAMA_BASE_URL: str = (
+    os.environ.get("S9K_OLLAMA_URL")
+    or _CFG.get("base_url", "http://192.168.1.157:11434")
+).rstrip("/")
+
+OLLAMA_URL: str = _OLLAMA_BASE_URL + "/api/generate"
+OLLAMA_MODEL: str = (
+    os.environ.get("S9K_OLLAMA_MODEL")
+    or _CFG.get("model", "qwen2.5:7b")
+)
+OLLAMA_TIMEOUT: int = int(_CFG.get("request_timeout", 120))
+_OLLAMA_TEMPERATURE: float = float(_CFG.get("temperature", 0.0))
 
 _ALLOWED_TYPES = {"Character", "Location", "Faction", "Object", "Event", "Concept"}
+_ALLOWED_RELATION_TYPES = {
+    "MEMBER_OF", "BELONGS_TO", "KNOWS", "HAS_FOUGHT", "FOUGHT_AT",
+    "ALLIED_WITH", "ENEMIES_WITH", "OWNS", "DISCOVERED", "INVESTIGATES",
+    "HAS_HEARD_ABOUT", "PARTICIPATED_IN", "LOCATED_IN", "WORKS_FOR",
+    "CREATED", "SEEKS", "PROTECTS", "GUARDS", "SERVES",
+}
 _MAX_CANDIDATES_PER_SEGMENT = 30
 
-_SYSTEM_PROMPT = """Eres un extractor de entidades para un juego de rol de mesa en japonés/español (Legend of the Five Rings).
+_SYSTEM_PROMPT = """Eres un extractor de entidades y relaciones para un juego de rol de mesa en japonés/español (Legend of the Five Rings).
 INSTRUCCIONES ESTRICTAS:
 - Devuelve ÚNICAMENTE JSON válido con la estructura: {"entities": [], "relations": []}
 - Cada entidad: {"name": "...", "type": "...", "evidence": "...", "confidence": 0.0-1.0}
-- Tipos permitidos SOLO: Character, Location, Faction, Object, Event, Concept
+- Tipos de entidad permitidos SOLO: Character, Location, Faction, Object, Event, Concept
+- Cada relación: {"from_entity": "...", "relation_type": "...", "to_entity": "...", "evidence": "...", "confidence": 0.0-1.0}
+- Tipos de relación permitidos: MEMBER_OF, BELONGS_TO, KNOWS, HAS_FOUGHT, FOUGHT_AT, ALLIED_WITH, ENEMIES_WITH, OWNS, DISCOVERED, INVESTIGATES, HAS_HEARD_ABOUT, PARTICIPATED_IN, LOCATED_IN, WORKS_FOR, CREATED, SEEKS, PROTECTS, GUARDS, SERVES
 - NO inventes timestamps (no incluyas campos de tiempo)
 - NO incluyas palabras funcionales, artículos, pronombres, verbos comunes
 - NO incluyas stopwords en español (todo, como, pues, vale, bueno, etc.)
-- Si no hay entidades relevantes, devuelve {"entities": [], "relations": []}
-- La evidence debe ser una cita textual corta del segmento que justifica la entidad
+- Si no hay entidades o relaciones relevantes, devuelve {"entities": [], "relations": []}
+- La evidence debe ser una cita textual corta del segmento que justifica la extracción
 - confidence: 0.9 si el nombre es inequívoco, 0.7 si hay ambigüedad, 0.5 si es inferencia
 - Entidades de nombre propio compuesto (dos+ palabras capitalizadas) reciben prioridad
-- NO incluyas una entidad si no tienes evidence textual del segmento
+- NO incluyas una entidad o relación si no tienes evidence textual del segmento
+- Para relaciones: solo incluye las que estén claramente respaldadas por el texto
 """
 
 
@@ -55,13 +96,21 @@ def _make_candidate_id(source_id: str, segment_id: str, kind: str, name: str) ->
     return hashlib.md5(key.encode()).hexdigest()[:12]
 
 
-def _call_ollama(prompt: str, timeout: int = OLLAMA_TIMEOUT) -> Optional[str]:
+def _call_ollama(
+    prompt: str,
+    timeout: int = OLLAMA_TIMEOUT,
+    seed: Optional[int] = None,
+) -> Optional[str]:
     """Llama a Ollama y retorna el texto generado, o None si hay error."""
+    options: dict = {"temperature": _OLLAMA_TEMPERATURE, "num_predict": 2048}
+    if seed is not None:
+        options["seed"] = seed
+
     payload = json.dumps({
         "model": OLLAMA_MODEL,
         "prompt": prompt,
         "stream": False,
-        "options": {"temperature": 0.1, "num_predict": 2048},
+        "options": options,
     }).encode()
 
     req = urllib.request.Request(
@@ -87,19 +136,16 @@ def _extract_json_from_response(text: str) -> Optional[dict]:
     """Extrae el primer bloque JSON válido de la respuesta."""
     if not text:
         return None
-    # Intentar parsear directamente
     try:
         return json.loads(text.strip())
     except json.JSONDecodeError:
         pass
-    # Buscar bloque JSON delimitado por ```
     m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
     if m:
         try:
             return json.loads(m.group(1))
         except json.JSONDecodeError:
             pass
-    # Buscar el primer { ... } en el texto
     m2 = re.search(r"(\{.*\})", text, re.DOTALL)
     if m2:
         try:
@@ -129,14 +175,46 @@ def _validate_entity(ent: Any) -> Optional[dict]:
     if not isinstance(confidence, (int, float)):
         confidence = 0.5
     confidence = float(max(0.0, min(1.0, confidence)))
-
     return {"name": name, "type": etype, "evidence": evidence, "confidence": confidence}
+
+
+def _validate_relation(rel: Any) -> Optional[dict]:
+    """Valida un dict de relación de la respuesta LLM. Retorna None si inválido."""
+    if not isinstance(rel, dict):
+        return None
+    from_entity = rel.get("from_entity", "").strip()
+    relation_type = rel.get("relation_type", "").strip().upper()
+    to_entity = rel.get("to_entity", "").strip()
+    evidence = rel.get("evidence", "").strip()
+    confidence = rel.get("confidence", 0.5)
+
+    if not from_entity or len(from_entity) < 2:
+        return None
+    if not to_entity or len(to_entity) < 2:
+        return None
+    if relation_type not in _ALLOWED_RELATION_TYPES:
+        log.debug("LLM: tipo de relación no permitido '%s' — descartado", relation_type)
+        return None
+    if not evidence:
+        log.debug("LLM: relación sin evidence '%s→%s' — descartada", from_entity, to_entity)
+        return None
+    if not isinstance(confidence, (int, float)):
+        confidence = 0.5
+    confidence = float(max(0.0, min(1.0, confidence)))
+    return {
+        "from_entity": from_entity,
+        "relation_type": relation_type,
+        "to_entity": to_entity,
+        "evidence": evidence,
+        "confidence": confidence,
+    }
 
 
 def extract_with_llm(
     segments: list[ClassifiedSegment],
     glossary_snapshot: list[str],
     workspace: str,
+    seed: Optional[int] = None,
 ) -> list[Candidate]:
     """Extrae candidatos vía LLM para los segmentos con should_extract=True.
 
@@ -144,6 +222,7 @@ def extract_with_llm(
         segments: lista de segmentos clasificados
         glossary_snapshot: lista de términos canónicos del glosario (top-N) para contexto
         workspace: nombre del workspace
+        seed: semilla para Ollama (None = no seed; 42 recomendado en benchmark)
 
     Returns:
         Lista de Candidate; puede estar vacía si Ollama falla o no hay resultados.
@@ -152,11 +231,10 @@ def extract_with_llm(
     if not extractable:
         return []
 
-    log.info("LLM extractor: %d segmentos a procesar", len(extractable))
+    log.info("LLM extractor: %d segmentos a procesar (seed=%s)", len(extractable), seed)
     all_candidates: list[Candidate] = []
     seen_ids: set[str] = set()
 
-    # Contexto de glosario (primeros 50 términos)
     gloss_ctx = ""
     if glossary_snapshot:
         top = glossary_snapshot[:50]
@@ -171,10 +249,10 @@ def extract_with_llm(
             f"{_SYSTEM_PROMPT}"
             f"{gloss_ctx}\n\n"
             f"Segmento de transcripción (workspace={workspace}):\n{text}\n\n"
-            f"Extrae entidades relevantes del segmento anterior. Solo JSON:"
+            f"Extrae entidades y relaciones relevantes del segmento anterior. Solo JSON:"
         )
 
-        raw_response = _call_ollama(prompt)
+        raw_response = _call_ollama(prompt, seed=seed)
         if raw_response is None:
             log.warning("LLM: Ollama no respondió para segmento %s — omitido", seg.get("segment_id"))
             continue
@@ -187,25 +265,25 @@ def extract_with_llm(
             )
             continue
 
+        seg_candidates: list[Candidate] = []
+
+        # ── Entidades ──────────────────────────────────────────────────────────
         entities_raw = parsed.get("entities", [])
         if not isinstance(entities_raw, list):
             log.warning("LLM: 'entities' no es lista en segmento %s", seg.get("segment_id"))
-            continue
+            entities_raw = []
 
-        seg_candidates: list[Candidate] = []
         for ent in entities_raw:
             validated = _validate_entity(ent)
             if validated is None:
                 continue
-
             cid = _make_candidate_id(
                 seg["source_id"], seg["segment_id"], "entity", validated["name"]
             )
             if cid in seen_ids:
                 continue
             seen_ids.add(cid)
-
-            candidate = Candidate(
+            seg_candidates.append(Candidate(
                 candidate_id=cid,
                 source_id=seg["source_id"],
                 segment_id=seg["segment_id"],
@@ -218,22 +296,58 @@ def extract_with_llm(
                 timestamp_start=seg.get("timestamp_start", ""),
                 timestamp_end=seg.get("timestamp_end", ""),
                 source_kind=seg.get("source_kind", "audio"),
-            )
-            seg_candidates.append(candidate)
+            ))
 
-        # Si hay demasiados candidatos en un segmento, marcarlos todos needs_review
+        # ── Relaciones ─────────────────────────────────────────────────────────
+        relations_raw = parsed.get("relations", [])
+        if not isinstance(relations_raw, list):
+            log.warning("LLM: 'relations' no es lista en segmento %s", seg.get("segment_id"))
+            relations_raw = []
+
+        for rel in relations_raw:
+            validated_r = _validate_relation(rel)
+            if validated_r is None:
+                continue
+            rel_key = (
+                f"{validated_r['from_entity']}|"
+                f"{validated_r['relation_type']}|"
+                f"{validated_r['to_entity']}"
+            )
+            cid = _make_candidate_id(
+                seg["source_id"], seg["segment_id"], "relation", rel_key
+            )
+            if cid in seen_ids:
+                continue
+            seen_ids.add(cid)
+            seg_candidates.append(Candidate(
+                candidate_id=cid,
+                source_id=seg["source_id"],
+                segment_id=seg["segment_id"],
+                workspace=seg["workspace"],
+                kind="relation",
+                from_entity=validated_r["from_entity"],
+                to_entity=validated_r["to_entity"],
+                relation_type=validated_r["relation_type"],
+                confidence=validated_r["confidence"],
+                evidence=validated_r["evidence"][:300],
+                timestamp_start=seg.get("timestamp_start", ""),
+                timestamp_end=seg.get("timestamp_end", ""),
+                source_kind=seg.get("source_kind", "audio"),
+            ))
+
         if len(seg_candidates) > _MAX_CANDIDATES_PER_SEGMENT:
             log.warning(
                 "LLM: %d candidatos en segmento %s (> %d) — marcando todos needs_review",
                 len(seg_candidates), seg.get("segment_id"), _MAX_CANDIDATES_PER_SEGMENT,
             )
             for c in seg_candidates:
-                # Bajamos confidence a zona needs_review (0.60-0.84)
                 c.confidence = min(c.confidence, 0.75)
 
         all_candidates.extend(seg_candidates)
 
-    log.info("LLM extractor: %d candidatos totales extraídos", len(all_candidates))
+    n_ent = sum(1 for c in all_candidates if c.kind == "entity")
+    n_rel = sum(1 for c in all_candidates if c.kind == "relation")
+    log.info("LLM extractor: %d candidatos totales (%d entidades, %d relaciones)", len(all_candidates), n_ent, n_rel)
     return all_candidates
 
 
@@ -241,7 +355,7 @@ def is_ollama_available(timeout: int = 10) -> bool:
     """Comprueba si Ollama responde en el endpoint configurado."""
     try:
         req = urllib.request.Request(
-            "http://192.168.1.157:11434/api/tags",
+            _OLLAMA_BASE_URL + "/api/tags",
             method="GET",
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:

@@ -1,0 +1,35 @@
+[
+  {
+    "segment_id": "source_transcript_asr_01_seg_0001",
+    "source_id": "source_transcript_asr_01",
+    "source_kind": "transcript_session",
+    "workspace": "leyenda",
+    "timestamp_start": "00:00:00",
+    "timestamp_end": "00:02:00",
+    "text": "Kakita Asuca y Bayusi llegaron al templo antes del amanecer. Llevás la antorcha, dijo Asuca, mientras Isaba preparaba el ritual.\n\nEn el interior, el grupo encontró huellas del Clan Escorpion. Todo apuntaba a que alguien había usado los fragmentos del ritual del Portador del Lamento antes que ellos.",
+    "lines": [
+      "[00:00:00] Kakita Asuca y Bayusi llegaron al templo antes del amanecer. Llevás la antorcha, dijo Asuca, mientras Isaba preparaba el ritual.",
+      "[00:01:00] En el interior, el grupo encontró huellas del Clan Escorpion. Todo apuntaba a que alguien había usado los fragmentos del ritual del Portador del Lamento antes que ellos."
+    ],
+    "category": "session_play",
+    "should_extract": true,
+    "category_scores": {"session_play": 4}
+  },
+  {
+    "segment_id": "source_transcript_asr_01_seg_0002",
+    "source_id": "source_transcript_asr_01",
+    "source_kind": "transcript_session",
+    "workspace": "leyenda",
+    "timestamp_start": "00:02:00",
+    "timestamp_end": "00:04:30",
+    "text": "Como era de esperar, Bayusi no confió en las palabras del guardia Unicornio. Asuca decidió interrogarlo. El guardia, llamado Sinjo Haru, negó saber nada del Árbol Blanco del Vacio.\n\nIsaba tuvo una visión: vio una mascara rota junto al Santuario Abandonado. Bayushi Reica apareció en la visión sosteniendo un fragmento brillante.\n\nEl grupo acordó volver al Bosque Viejo al anochecer. Todo dependía de encontrar a Bayushi Reica antes de que escapara hacia la Montaña Negra.",
+    "lines": [
+      "[00:02:00] Como era de esperar, Bayusi no confió en las palabras del guardia Unicornio. Asuca decidió interrogarlo. El guardia, llamado Sinjo Haru, negó saber nada del Árbol Blanco del Vacio.",
+      "[00:03:00] Isaba tuvo una visión: vio una mascara rota junto al Santuario Abandonado. Bayushi Reica apareció en la visión sosteniendo un fragmento brillante.",
+      "[00:03:45] El grupo acordó volver al Bosque Viejo al anochecer. Todo dependía de encontrar a Bayushi Reica antes de que escapara hacia la Montaña Negra."
+    ],
+    "category": "session_play",
+    "should_extract": true,
+    "category_scores": {"session_play": 5}
+  }
+]

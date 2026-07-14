@@ -1,0 +1,194 @@
+{
+  "source_id": "source_notes_01",
+  "annotator": "auto-agent-A-2026-07-14",
+  "annotation_pass": 2,
+  "entities": [
+    {
+      "name": "Kakita Asuka",
+      "canonical_name": "Kakita Asuka",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [
+        "La Cazadora"
+      ],
+      "expected": true,
+      "confidence_note": "Solo aparece como 'La Cazadora' — alias implícito, no declarado en el texto. El heurístico NO puede resolverlo (regex de nombres propios no captura artículo + sustantivo). El LLM tampoco puede sin glosario de aliases. Test de límite del sistema."
+    },
+    {
+      "name": "Bayushi Hisao",
+      "canonical_name": "Bayushi Hisao",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [
+        "El Espía"
+      ],
+      "expected": true,
+      "confidence_note": "Solo aparece como 'El Espía' — mismo caso que La Cazadora. Alias implícito no resolvible sin contexto externo."
+    },
+    {
+      "name": "Bayushi Reika",
+      "canonical_name": "Bayushi Reika",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [
+        "Reika"
+      ],
+      "expected": true,
+      "confidence_note": "Aparece como 'Reika' (token único). Sin glosario, el heurístico la extrae con confianza <= 0.70."
+    },
+    {
+      "name": "Kimi",
+      "canonical_name": "Kimi",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Token único mencionado una vez con incertidumbre ('¿se quedó en Ciudad Moto?')"
+    },
+    {
+      "name": "Shinjo Haru",
+      "canonical_name": "Shinjo Haru",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [
+        "el guardia del puente"
+      ],
+      "expected": true,
+      "confidence_note": "Mencionado como 'Shinjo Haru' explícitamente al final. Nombre compuesto extractable."
+    },
+    {
+      "name": "Ciudad Moto",
+      "canonical_name": "Ciudad Moto",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Keyword 'Ciudad'; mencionada en pregunta sobre Kimi"
+    },
+    {
+      "name": "Bosque Viejo",
+      "canonical_name": "Bosque Viejo",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Keyword 'Bosque'; mencionado en la última nota como destino alternativo"
+    },
+    {
+      "name": "Montaña Negra",
+      "canonical_name": "Montaña Negra",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Keyword 'Montaña'; mencionada como destino alternativo"
+    },
+    {
+      "name": "Clan Escorpión",
+      "canonical_name": "Clan Escorpión",
+      "entity_type": "Faction",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Mencionado explícitamente; detectado por bloque de clanes del heurístico"
+    },
+    {
+      "name": "máscara rota",
+      "canonical_name": "máscara rota",
+      "entity_type": "Object",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Objeto recurrente en el corpus; aparece en minúsculas — solo detectable por LLM"
+    },
+    {
+      "name": "segundo fragmento",
+      "canonical_name": "Portador del Lamento",
+      "entity_type": "Object",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Referencia implícita al fragmento del ritual; resolución cruzada con source_transcript_clean_01 necesaria"
+    }
+  ],
+  "relations": [
+    {
+      "from_entity": "Kakita Asuka",
+      "relation_type": "KNOWS",
+      "to_entity": "Bayushi Hisao",
+      "expected": true,
+      "evidence": "La Cazadora llega tarde. Se excusa con el Espía. — interacción directa implícita"
+    },
+    {
+      "from_entity": "Kakita Asuka",
+      "relation_type": "KNOWS",
+      "to_entity": "Bayushi Reika",
+      "expected": true,
+      "evidence": "La Cazadora sospecha de Reika — conocimiento previo implícito"
+    },
+    {
+      "from_entity": "Bayushi Hisao",
+      "relation_type": "MEMBER_OF",
+      "to_entity": "Clan Escorpión",
+      "expected": true,
+      "evidence": "El Espía reconoce el símbolo: Clan Escorpión — el alias 'El Espía' es característico de Bayushi"
+    }
+  ],
+  "negative_entities": [
+    {
+      "name": "La Cazadora",
+      "reason": "alias de Kakita Asuka — no debe crearse como entidad separada; debe resolverse"
+    },
+    {
+      "name": "El Espía",
+      "reason": "alias de Bayushi Hisao — no debe crearse como entidad separada; debe resolverse"
+    },
+    {
+      "name": "Pendiente",
+      "reason": "sustantivo genérico, no entidad nombrada"
+    },
+    {
+      "name": "Próxima sesión",
+      "reason": "referencia temporal, no entidad"
+    },
+    {
+      "name": "Templo sur",
+      "reason": "localización parcial sin nombre propio completo; puede extraerse como Location candidate pero su status es ambiguo — no tiene nombre canónico en el corpus"
+    }
+  ],
+  "negative_relations": [
+    {
+      "from_entity": "La Cazadora",
+      "relation_type": "ALLIED_WITH",
+      "to_entity": "El Espía",
+      "reason": "Las relaciones deben mapearse a entidades canónicas (Kakita Asuka, Bayushi Hisao), no a sus aliases"
+    }
+  ],
+  "ambiguous": [
+    {
+      "name": "Templo sur",
+      "note": "Podría ser el mismo 'templo abandonado' de source_transcript_clean_01 o un lugar diferente. Sin más contexto no es posible determinarlo. Se omite de las entidades esperadas pero se registra como ambiguo."
+    }
+  ],
+  "resolution_cases": [
+    {
+      "mention": "La Cazadora",
+      "resolves_to": "Kakita Asuka",
+      "type": "alias"
+    },
+    {
+      "mention": "El Espía",
+      "resolves_to": "Bayushi Hisao",
+      "type": "alias"
+    },
+    {
+      "mention": "el guardia del puente",
+      "resolves_to": "Shinjo Haru",
+      "type": "alias"
+    }
+  ],
+  "annotator_notes": "Este fixture evalúa la capacidad de resolución de alias implícitos. El heurístico fallará en todos los casos de alias ('La Cazadora', 'El Espía') porque el regex busca nombres propios capitalizados, no sintagmas nominales con artículo. El LLM puede inferirlos si tiene contexto del glosario. Punto clave del benchmark: sin glosario de aliases, ambos extractores tienen precision ~ 0 en este fixture. [Pase 2: Entidades 'La Cazadora' y 'El Espía' como alias confirmados. 'Templo sur' se mantiene como entidad ambigua (no en expected). 3 relaciones positivas verificadas. Congelado.]",
+  "annotation_date": "2026-07-14",
+  "reviewed": true,
+  "reviewer": "coordinator-p2-benchmark"
+}

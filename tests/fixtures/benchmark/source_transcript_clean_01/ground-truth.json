@@ -1,0 +1,206 @@
+{
+  "source_id": "source_transcript_clean_01",
+  "annotator": "auto-agent-A-2026-07-14",
+  "annotation_pass": 2,
+  "entities": [
+    {
+      "name": "Kakita Asuka",
+      "canonical_name": "Kakita Asuka",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [
+        "Asuka"
+      ],
+      "expected": true,
+      "confidence_note": "Nombre propio compuesto explícito, aparece múltiples veces; referenciada también como 'Asuka' sola"
+    },
+    {
+      "name": "Bayushi Hisao",
+      "canonical_name": "Bayushi Hisao",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [
+        "Hisao"
+      ],
+      "expected": true,
+      "confidence_note": "Nombre propio compuesto explícito; aparece como 'Hisao' en la segunda mitad del texto"
+    },
+    {
+      "name": "Kimi",
+      "canonical_name": "Kimi",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Token único pero recurrente; el heurístico debe marcarlo needs_review (confianza <= 0.70 por regla single-token sin glosario)"
+    },
+    {
+      "name": "Shinjo Haru",
+      "canonical_name": "Shinjo Haru",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Nombre propio compuesto; introducido con 'llamado Shinjo Haru'"
+    },
+    {
+      "name": "Isawa Seiji",
+      "canonical_name": "Isawa Seiji",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Nombre propio compuesto; aparece en la visión de Kimi"
+    },
+    {
+      "name": "Bayushi Reika",
+      "canonical_name": "Bayushi Reika",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [
+        "Reika"
+      ],
+      "expected": true,
+      "confidence_note": "Nombre propio compuesto; referenciada también como 'Reika' sola al final"
+    },
+    {
+      "name": "Ciudad Moto",
+      "canonical_name": "Ciudad Moto",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Contiene keyword 'ciudad'; el heurístico debería clasificarlo como Location con base_conf 0.70"
+    },
+    {
+      "name": "Árbol Blanco del Vacío",
+      "canonical_name": "Árbol Blanco del Vacío",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Lugar mencionado dos veces; no contiene keyword de ubicación habitual — el heurístico puede clasificarlo como Character o perderlo; el LLM debería reconocerlo como Location"
+    },
+    {
+      "name": "Clan Escorpión",
+      "canonical_name": "Clan Escorpión",
+      "entity_type": "Faction",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Detectado por el bloque de clanes del heurístico (keyword 'escorpión'); confianza base 0.85"
+    },
+    {
+      "name": "Clan Unicornio",
+      "canonical_name": "Clan Unicornio",
+      "entity_type": "Faction",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Detectado por el bloque de clanes del heurístico (keyword 'unicornio')"
+    },
+    {
+      "name": "fragmentos del ritual del Portador del Lamento",
+      "canonical_name": "Portador del Lamento",
+      "entity_type": "Object",
+      "workspace": "leyenda",
+      "aliases": [
+        "segundo fragmento"
+      ],
+      "expected": true,
+      "confidence_note": "Objeto clave del arco; el heurístico probablemente lo pierda (sin keyword de objeto); el LLM debería reconocerlo"
+    },
+    {
+      "name": "máscara rota",
+      "canonical_name": "máscara rota",
+      "entity_type": "Object",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Objeto explícito; no comienza en mayúsculas — el heurístico basado en regex de mayúsculas no lo capturará; el LLM sí debería"
+    }
+  ],
+  "relations": [
+    {
+      "from_entity": "Shinjo Haru",
+      "relation_type": "MEMBER_OF",
+      "to_entity": "Clan Unicornio",
+      "expected": true,
+      "evidence": "un guardia Unicornio llamado Shinjo Haru"
+    },
+    {
+      "from_entity": "Bayushi Hisao",
+      "relation_type": "MEMBER_OF",
+      "to_entity": "Clan Escorpión",
+      "expected": true,
+      "evidence": "Hisao sospecha que Bayushi Reika oculta información — prefijo Bayushi indica Clan Escorpión"
+    },
+    {
+      "from_entity": "Bayushi Reika",
+      "relation_type": "MEMBER_OF",
+      "to_entity": "Clan Escorpión",
+      "expected": true,
+      "evidence": "prefijo Bayushi indica Clan Escorpión"
+    },
+    {
+      "from_entity": "Bayushi Hisao",
+      "relation_type": "KNOWS",
+      "to_entity": "Bayushi Reika",
+      "expected": true,
+      "evidence": "Hisao sospecha que Bayushi Reika oculta información sobre el segundo fragmento"
+    },
+    {
+      "from_entity": "Kakita Asuka",
+      "relation_type": "PARTICIPATED_IN",
+      "to_entity": "Ciudad Moto",
+      "expected": false,
+      "evidence": "N/A — relación semánticamente inválida: PARTICIPATED_IN con destino Location no debe aceptarse"
+    }
+  ],
+  "negative_entities": [
+    {
+      "name": "Llevás",
+      "reason": "verbo conjugado (voseo), no entidad"
+    },
+    {
+      "name": "Todo",
+      "reason": "término genérico / adverbio, stopword"
+    },
+    {
+      "name": "Como",
+      "reason": "conjunción/adverbio, stopword"
+    },
+    {
+      "name": "Asuka",
+      "reason": "alias parcial — solo válido como referencia a Kakita Asuka, no como entidad independiente"
+    },
+    {
+      "name": "Hisao",
+      "reason": "alias parcial — solo válido como referencia a Bayushi Hisao, no como entidad independiente"
+    }
+  ],
+  "negative_relations": [
+    {
+      "from_entity": "cualquiera",
+      "relation_type": "HAS_FOUGHT",
+      "to_entity": "Ciudad Moto",
+      "reason": "HAS_FOUGHT con destino Location no debe aceptarse — debería ser FOUGHT_AT"
+    },
+    {
+      "from_entity": "Isawa Seiji",
+      "relation_type": "OWNS",
+      "to_entity": "fragmentos del ritual del Portador del Lamento",
+      "reason": "Isawa Seiji aparece en una visión sosteniendo el fragmento — no hay evidencia de propiedad real"
+    }
+  ],
+  "ambiguous": [
+    {
+      "name": "Árbol Blanco del Vacío",
+      "note": "Podría ser Location o un artefacto/Concept. El texto lo usa como lugar de referencia geográfica, pero 'Vacío' es también un concepto espiritual L5A. Clasificación preferida: Location."
+    }
+  ],
+  "annotator_notes": "La fuente es limpia y representativa. El heurístico debería capturar bien los nombres compuestos (6 Characters, 2 Factions). Los objetos (máscara rota, fragmentos) no tienen mayúsculas iniciales y probablemente el heurístico los pierda — es un caso de test válido para el LLM. Kimi como single-token es caso de test para la regla de confianza <= 0.70. [Pase 2: Ground truth verificado. Relación MEMBER_OF para Bayushi Hisao→Clan Escorpión y Bayushi Reika→Clan Escorpión son inferencia de prefijo Bayushi (lore L5A); marcadas expected=true porque el sistema debería inferirlas en modo LLM/hybrid. Congelado.]",
+  "annotation_date": "2026-07-14",
+  "reviewed": true,
+  "reviewer": "coordinator-p2-benchmark"
+}

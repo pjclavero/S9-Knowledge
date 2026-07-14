@@ -1,0 +1,202 @@
+{
+  "source_id": "source_resolution_01",
+  "annotator": "auto-agent-A-2026-07-14",
+  "annotation_pass": 2,
+  "entities": [
+    {
+      "name": "Kakita Asuka",
+      "canonical_name": "Kakita Asuka",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [
+        "La Cazadora"
+      ],
+      "expected": true,
+      "confidence_note": "Personaje existente; explicitado en el texto ('La Cazadora —que es Kakita Asuka—'). El sistema debe deduplicar la mención de 'La Cazadora' y la de 'Kakita Asuka' como una sola entidad."
+    },
+    {
+      "name": "Kakita Asuko",
+      "canonical_name": "Kakita Asuko",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Posible near-duplicate de Kakita Asuka. El texto no resuelve si es la misma persona disfrazada o alguien diferente. El sistema debe extraerla como entidad independiente con flag de posible duplicado, no fusionarla automáticamente."
+    },
+    {
+      "name": "Kimi",
+      "canonical_name": "Kimi",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Token único; acompaña a Kakita Asuka en esta sesión"
+    },
+    {
+      "name": "Bayushi Hisao",
+      "canonical_name": "Bayushi Hisao",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [
+        "Hisao"
+      ],
+      "expected": true,
+      "confidence_note": "Nombre compuesto explícito; aparece también como 'Hisao' a solas"
+    },
+    {
+      "name": "Bayushi Reika",
+      "canonical_name": "Bayushi Reika",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Nombre compuesto; Hisao sospecha que Kakita Asuko podría ser un disfraz de Reika — relación de identidad posible pero no confirmada"
+    },
+    {
+      "name": "Oni de la Montaña Negra",
+      "canonical_name": "Oni de la Montaña Negra",
+      "entity_type": "Character",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Criatura compartida con source_transcript_session_02; aparece en la memoria declarada de dos personajes distintos (Kakita Asuka y Kakita Asuko) — test de cross-session linking"
+    },
+    {
+      "name": "Montaña Negra",
+      "canonical_name": "Montaña Negra",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Keyword 'Montaña'; las dos protagonistas la conocen — confirma relación cross-session con source_transcript_session_02"
+    },
+    {
+      "name": "Santuario abandonado",
+      "canonical_name": "Santuario abandonado",
+      "entity_type": "Location",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Misma Location que en source_transcript_session_02; la escritura varía (aquí 'Santuario abandonado')"
+    },
+    {
+      "name": "Clan Grulla",
+      "canonical_name": "Clan Grulla",
+      "entity_type": "Faction",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Mencionado explícitamente ('del Clan Grulla'); detectado por bloque de clanes (keyword 'grulla')"
+    },
+    {
+      "name": "Escuela Kakita",
+      "canonical_name": "Escuela Kakita",
+      "entity_type": "Faction",
+      "workspace": "leyenda",
+      "aliases": [],
+      "expected": true,
+      "confidence_note": "Facción/escuela mencionada explícitamente. El keyword 'escuela' está en _FACTION_KW del heurístico — debería detectarla como Faction."
+    }
+  ],
+  "relations": [
+    {
+      "from_entity": "Kakita Asuka",
+      "relation_type": "MEMBER_OF",
+      "to_entity": "Escuela Kakita",
+      "expected": true,
+      "evidence": "símbolo de la Escuela Kakita bordado en el kimono — compartido por ambas"
+    },
+    {
+      "from_entity": "Kakita Asuko",
+      "relation_type": "MEMBER_OF",
+      "to_entity": "Escuela Kakita",
+      "expected": true,
+      "evidence": "símbolo de la Escuela Kakita bordado en el kimono — compartido por ambas"
+    },
+    {
+      "from_entity": "Kakita Asuka",
+      "relation_type": "KNOWS",
+      "to_entity": "Oni de la Montaña Negra",
+      "expected": true,
+      "evidence": "Kakita Asuka reconoció haberlo visto en sesiones anteriores"
+    },
+    {
+      "from_entity": "Kakita Asuko",
+      "relation_type": "KNOWS",
+      "to_entity": "Oni de la Montaña Negra",
+      "expected": true,
+      "evidence": "Kakita Asuko reconoció haberlo visto en sesiones anteriores"
+    },
+    {
+      "from_entity": "Bayushi Hisao",
+      "relation_type": "KNOWS",
+      "to_entity": "Kakita Asuko",
+      "expected": true,
+      "evidence": "Hisao sospecha que Kakita Asuko podría ser un disfraz de Bayushi Reika"
+    },
+    {
+      "from_entity": "Kakita Asuka",
+      "relation_type": "ENEMY_OF",
+      "to_entity": "Kakita Asuko",
+      "expected": false,
+      "evidence": "Kakita Asuka desconfió de Kakita Asuko — desconfianza, no enemistad declarada"
+    }
+  ],
+  "negative_entities": [
+    {
+      "name": "La Cazadora",
+      "reason": "alias de Kakita Asuka — el texto lo resuelve explícitamente; no debe crearse como entidad separada"
+    },
+    {
+      "name": "disfraz",
+      "reason": "sustantivo común, no entidad"
+    },
+    {
+      "name": "kimono",
+      "reason": "objeto genérico sin nombre propio"
+    }
+  ],
+  "negative_relations": [
+    {
+      "from_entity": "Kakita Asuko",
+      "relation_type": "ALLIED_WITH",
+      "to_entity": "Bayushi Reika",
+      "reason": "La hipótesis de que Asuko sea Reika disfrazada es una sospecha de Hisao, no un hecho establecido — ALLIED_WITH no se puede inferir"
+    },
+    {
+      "from_entity": "Kakita Asuka",
+      "relation_type": "ENEMY_OF",
+      "to_entity": "Kakita Asuko",
+      "reason": "El texto describe desconfianza, no enemistad declarada. ENEMY_OF requiere evidencia más fuerte."
+    }
+  ],
+  "ambiguous": [
+    {
+      "name": "Kakita Asuko",
+      "note": "Podría ser: (a) personaje nuevo del Clan Grulla, (b) alias de Bayushi Reika disfrazada, (c) error de transcripción de Kakita Asuka. El benchmark debe evaluar si el sistema la extrae como entidad independiente (correcto) o la fusiona con Kakita Asuka (incorrecto). Se marca como near-duplicate en resolution_cases."
+    }
+  ],
+  "resolution_cases": [
+    {
+      "mention": "La Cazadora",
+      "resolves_to": "Kakita Asuka",
+      "type": "alias"
+    },
+    {
+      "mention": "Kakita Asuko",
+      "resolves_to": "ambiguous",
+      "type": "near_duplicate",
+      "near_duplicate_of": "Kakita Asuka",
+      "resolution_note": "Diferencia de un carácter (a/o final). El sistema debe proponer revisión humana, no resolver automáticamente."
+    },
+    {
+      "mention": "Hisao",
+      "resolves_to": "Bayushi Hisao",
+      "type": "alias"
+    }
+  ],
+  "annotator_notes": "Este fixture es el test principal de resolución de entidades. Evalúa tres casos: (1) alias explícito ya resuelto en el texto (La Cazadora → Kakita Asuka), (2) near-duplicate que NO debe auto-resolverse (Kakita Asuko), (3) relación compartida cross-session (Oni de la Montaña Negra conocido por ambas protagonistas). El sistema ideal extrae 10 entidades, propone 1 near-duplicate para revisión humana, y no fusiona Asuko con Asuka. [Pase 2: 5 relaciones positivas (1 esperada=false → test negativo). Kakita Asuko mantenido como near-duplicate no auto-resolvible. ENEMY_OF mantenido como negativo (desconfianza ≠ enemistad). Congelado.]",
+  "annotation_date": "2026-07-14",
+  "reviewed": true,
+  "reviewer": "coordinator-p2-benchmark"
+}

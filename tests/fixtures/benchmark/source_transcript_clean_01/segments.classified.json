@@ -1,0 +1,34 @@
+[
+  {
+    "segment_id": "source_transcript_clean_01_seg_0001",
+    "source_id": "source_transcript_clean_01",
+    "source_kind": "transcript_session",
+    "workspace": "leyenda",
+    "timestamp_start": "00:00:00",
+    "timestamp_end": "00:02:00",
+    "text": "Kakita Asuka, Bayushi Hisao y Kimi llegaron a Ciudad Moto al anochecer. En la entrada fueron recibidos por un guardia Unicornio llamado Shinjo Haru, que les advirtió de que varios campesinos habían desaparecido cerca del Árbol Blanco del Vacío.\n\nKimi tuvo una visión: vio a Isawa Seiji sosteniendo uno de los fragmentos del ritual del Portador del Lamento. La visión mostraba también una máscara rota con el símbolo del Clan Escorpión.",
+    "lines": [
+      "[00:00:00] Kakita Asuka, Bayushi Hisao y Kimi llegaron a Ciudad Moto al anochecer. En la entrada fueron recibidos por un guardia Unicornio llamado Shinjo Haru, que les advirtió de que varios campesinos habían desaparecido cerca del Árbol Blanco del Vacío.",
+      "[00:01:00] Kimi tuvo una visión: vio a Isawa Seiji sosteniendo uno de los fragmentos del ritual del Portador del Lamento. La visión mostraba también una máscara rota con el símbolo del Clan Escorpión."
+    ],
+    "category": "session_play",
+    "should_extract": true,
+    "category_scores": {"session_play": 5}
+  },
+  {
+    "segment_id": "source_transcript_clean_01_seg_0002",
+    "source_id": "source_transcript_clean_01",
+    "source_kind": "transcript_session",
+    "workspace": "leyenda",
+    "timestamp_start": "00:02:00",
+    "timestamp_end": "00:04:00",
+    "text": "Asuka decidió investigar el templo abandonado antes del amanecer. Hisao sospecha que Bayushi Reika oculta información sobre el segundo fragmento.\n\nEl grupo acordó tres tareas: interrogar a Shinjo Haru, buscar rastros junto al Árbol Blanco del Vacío y comprobar si Reika estuvo en la ciudad la noche anterior.",
+    "lines": [
+      "[00:02:00] Asuka decidió investigar el templo abandonado antes del amanecer. Hisao sospecha que Bayushi Reika oculta información sobre el segundo fragmento.",
+      "[00:03:00] El grupo acordó tres tareas: interrogar a Shinjo Haru, buscar rastros junto al Árbol Blanco del Vacío y comprobar si Reika estuvo en la ciudad la noche anterior."
+    ],
+    "category": "session_play",
+    "should_extract": true,
+    "category_scores": {"session_play": 4}
+  }
+]

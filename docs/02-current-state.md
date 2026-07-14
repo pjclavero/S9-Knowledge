@@ -1,7 +1,8 @@
 # 02 · Estado actual
 
 > Última verificación en VM105: **2026-07-13–14** — commit `cef9233` desplegado (fix: make test suite reproducible and add CI).
-> Tests: 220 recopilados, **220 aprobados**, 0 fallidos, 0 errores de colección (corrida combinada).
+> Tests: **249 recopilados, 249 aprobados**, 0 fallidos, 0 errores de colección (rama `feat/priority-2-extractor-benchmark`, commit `13fcab9`).
+> Benchmark del extractor (Prioridad 2) ejecutado en VM105 — ver [docs/34](34-extractor-quality-benchmark-results.md). Dictamen: PARCIAL — REQUIERE CORRECCIONES; ingesta BLOQUEADA.
 > CI: GitHub Actions activa, 4 jobs verdes (data-engine, viewer, combined, check-imports).
 > Informe de auditoría histórica (v0.2.5b): [docs/24-vm105-baseline-and-verification.md](24-vm105-baseline-and-verification.md) — estado anterior a cef9233.
 > Informe de remediación de tests y CI: [docs/31-test-remediation-and-ci-report.md](31-test-remediation-and-ci-report.md).
@@ -77,7 +78,7 @@ El bloque de tratamiento de datos está completo y protegido:
 
 ## NO HECHO / pendiente
 
-- **Calidad del extractor (Prioridad 2).** El pipeline implementa tres modalidades: heurístico, LLM (qwen2.5:7b vía Ollama) e híbrido. El modo heurístico produce falsos positivos conocidos (`Llevás`/`Todo`/`Como` como Character). Los modos LLM/híbrido existen pero no han sido evaluados con un corpus representativo. **La ingesta real a Neo4j está bloqueada** hasta validar la calidad con métricas (precisión, recall, falsos positivos, falsos negativos) sobre un corpus suficiente. Ver docs/33 para el plan de evaluación.
+- **Calidad del extractor (Prioridad 2).** El pipeline implementa tres modalidades: heurístico, LLM (qwen2.5:7b vía Ollama) e híbrido. El modo heurístico produce falsos positivos conocidos (`Llevás`/`Todo`/`Como` como Character). Los modos LLM/híbrido se evaluaron con el benchmark real (run `20260714-094125`, ver docs/34): F1 entidades agregado hybrid 0.728 / llm 0.718 (precisión llm 0.810, recall hybrid 0.856); relaciones F1≈0; precisión de autoaprobación 0.85. Ningún modo alcanza los umbrales de autoaprobación. **La ingesta real a Neo4j sigue bloqueada** (dictamen Prioridad 2: PARCIAL — REQUIERE CORRECCIONES). Ver docs/34 para las métricas y docs/33 para el plan.
 - Gestión de usuarios y aplicación real de filtros de visibilidad en API/UI.
 - Login propio del visor (hoy solo Basic Auth en el proxy).
 - Importación web real (trafilatura/readability) e integración de YouTube en la cola.

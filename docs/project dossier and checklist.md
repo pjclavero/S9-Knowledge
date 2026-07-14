@@ -99,7 +99,7 @@ Sin embargo, tampoco puede considerarse terminado. Los bloqueos resueltos y pend
 
 **PENDIENTES:**
 
-3. La calidad del extractor no está aceptada para ingesta real general (Prioridad 2 — ver docs/33).
+3. La calidad del extractor no está aceptada para ingesta real general. Benchmark real ejecutado (docs/34, run 20260714-094125): dictamen Prioridad 2 PARCIAL — REQUIERE CORRECCIONES; ingesta BLOQUEADA (docs/33 para el plan).
 4. No se ha ejecutado una primera ingesta real controlada (Prioridad 3).
 5. La auditoría del grafo detecta problemas, pero la limpieza histórica no está aplicada (Prioridad 4).
 7. El visor no tiene autenticación propia ni permisos aplicados (Prioridad 5).
@@ -108,7 +108,7 @@ Sin embargo, tampoco puede considerarse terminado. Los bloqueos resueltos y pend
 10. La automatización de despliegue y la replicabilidad siguen incompletas.
 12. El ciclo Nextcloud → worker → revisión → ingesta necesita una definición operativa única.
 
-La siguiente etapa (Prioridad 2) debe evaluar la calidad del extractor con métricas cuantitativas antes de autorizar la primera ingesta real.
+La Prioridad 2 evaluó la calidad del extractor con métricas cuantitativas (docs/34): ningún modo alcanza los umbrales de autoaprobación (F1 ent < 0.75, relaciones F1≈0, autoaprobación 0.85 < 0.95); se requiere una fase de mejora (relaciones, precisión de entidades, glosario de alias) antes de autorizar la primera ingesta real.
 
 ---
 

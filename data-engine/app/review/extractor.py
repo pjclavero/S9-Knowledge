@@ -239,6 +239,14 @@ def _extract_entities(
             log.debug("Extractor: '%s' es stopword — descartado", name)
             continue
 
+        # Filtro: primer token de nombre compuesto es stopword ("Soy X", "Era Y")
+        # → recortar el prefijo verbal y continuar con el nombre real
+        if len(words) > 1 and is_stopword(words[0]):
+            name = " ".join(words[1:])
+            words = words[1:]
+            if len(name) < 4:
+                continue
+
         if name in seen_names:
             continue
         seen_names.add(name)

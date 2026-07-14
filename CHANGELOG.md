@@ -4,6 +4,51 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-07-14 — Prioridad 2: Benchmark real ejecutado en VM105 (métricas válidas)
+
+#### Fallos demostrados por el benchmark y corregidos
+- **`data_review.py` (`cmd_extract`)**: el subcomando aislado `extract` ignoraba `--extractor` y ejecutaba siempre el heurístico (el LLM nunca se invocaba). Ahora delega en `pipeline._run_extract_step` para llm/hybrid. Regresión: `test_extract_dispatch.py`.
+- **`benchmark_comparator.py`**: leía `approved_payload.json` (nunca producido por el benchmark aislado) → métricas 0.0 en los tres modos. Ahora lee `candidates.json` vía `_load_candidates`. Regresión en `test_benchmark_runner.py`.
+
+#### Resultados (run `20260714-094125`, 35 OK / 0 INVALID / 0 FAIL)
+- Configuración final del benchmark: **temperature=0, seed=42, modelo=qwen2.5:7b**.
+- F1 entidades agregado: heuristic 0.689 · llm 0.718 · hybrid 0.728. Precisión llm 0.810; recall hybrid 0.856.
+- Relaciones F1 ≈ 0 (limitación de prompt/modelo). Autoaprobación P=0.85 (< 0.95).
+- Reproducibilidad: varianza F1 entidades = 0.0 (temp=0, seed=42). Neo4j intacto (199 nodos / 140 rels).
+- Suite: **249 tests** verdes. Detalle completo en `docs/34`.
+- **Dictamen: Prioridad 2 PARCIAL — REQUIERE CORRECCIONES. Primera ingesta controlada: BLOQUEADA.**
+
+### 2026-07-14 — Prioridad 2 FASE 2: Correcciones de benchmark + ground truth pase 2
+
+#### Correcciones críticas del benchmark
+- **`extractor_benchmark.py`**: modo aislado — usa `segments.classified.json` pre-clasificados, llama `extract` (no `run`), valida con `candidates.json` real, registra `source["file"]`, INVALID_RUN para runs vacíos, seed=42 para LLM
+- **`llm_extractor.py`**: lee temperatura/URL/modelo de `settings.yaml`; temperatura=0 (antes 0.1 hardcoded); seed=42 vía `S9K_LLM_SEED`; **parsing de relaciones LLM implementado** (types permitidos + validación)
+- **`pipeline.py`**: deduplicación hybrid corregida para relaciones — key `from|type|to` en lugar de `"|type"` incorrecto
+- **Creados**: `tests/fixtures/benchmark/<source_id>/segments.classified.json` para las 5 fuentes (2+2+2+1+2 segmentos, todos `should_extract=true`)
+- **Ground truth pase 2**: las 5 fuentes revisadas y congeladas (`annotation_pass=2`, `reviewed=true`)
+- **docs/34**: actualizado con correcciones aplicadas, tabla de resultados pendiente de ejecución en VM105
+
+### 2026-07-14 — Prioridad 2 PARCIAL: Benchmark del extractor (infraestructura + análisis)
+
+#### Tests y calidad
+- 15 tests de regresión del extractor añadidos en `test_extractor_regression.py`
+- 8 tests del benchmark runner en `test_benchmark_runner.py`
+- CI: 243 tests totales, 4 jobs verdes
+- **Fix extractor:** `soy/eres/somos/sois` añadidos a STOPWORDS_ES; strip de prefijo verbal en nombres compuestos ("Soy X" → "X")
+
+#### Benchmark
+- Corpus de 5 fuentes anotado: 56 entidades esperadas, 23 negativas (ground truth pase 1)
+- `extractor_benchmark.py`: runner reproducible, heuristic×1 + llm×3 + hybrid×3 por fuente
+- `benchmark_comparator.py`: comparador Precisión/Recall/F1 contra ground truth
+- 35/35 runs ejecutados en VM105 (clon temporal, producción intacta)
+- **Hallazgo:** fixtures markdown no generan segmentos → métricas F1 pendientes (ver docs/34 §7.1)
+- Bug corregido en comparador: `negative_entities` como lista de dicts soportada
+
+#### Documentación
+- docs/33: plan de evaluación del extractor (ya en main desde PR #10)
+- docs/34: resultados del benchmark (dictamen: PARCIAL — REQUIERE CORRECCIONES)
+- Ollama 0.31.1 verificado: qwen2.5:7b, seed soportado. **Hallazgo histórico:** el extractor usaba temperatura 0.1 hardcoded (discrepancia con settings.yaml=0); **corregido antes de la ejecución final** del benchmark (config final: temperature=0, seed=42, modelo=qwen2.5:7b)
+
 ### 2026-07-13 — Prioridad 1: Backup real, restore aislado, rollback laboratorio
 
 #### Operaciones
