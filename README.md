@@ -37,11 +37,21 @@ la evolución del conocimiento de cada personaje a lo largo de la campaña.
 
 ### Bloqueado (ingesta real en Neo4j)
 
-La ingesta real de candidatos aprobados en Neo4j **está bloqueada** hasta que se
-sustituya el extractor heurístico actual por uno basado en LLM + stopwords. **Actualización 2026-07-14:** el extractor LLM/hybrid ya se evaluó (benchmark real, run `20260714-094125` — ver docs/34): F1 entidades hybrid 0.728 / llm 0.718, relaciones F1≈0, autoaprobación 0.85. Dictamen Prioridad 2: PARCIAL — REQUIERE CORRECCIONES; la ingesta sigue bloqueada. El
-extractor heurístico produce falsos positivos (`Llevás`/`Todo`/`Como` como
-Character). `ingest_approved.py` requiere `--dry-run`; la escritura real aborta con
-mensaje de autorización. No ingerir sin revisar.
+Los extractores **LLM e híbrido ya existen y han sido evaluados** con el benchmark real
+(run `20260714-094125`, 2026-07-14 — ver
+[docs/34](docs/34-extractor-quality-benchmark-results.md)): F1 entidades hybrid 0.728 /
+llm 0.718 (precisión llm 0.810, recall hybrid 0.856), relaciones F1 ≈ 0 y precisión de
+autoaprobación 0.85. **Todavía no alcanzan los umbrales necesarios** (F1 entidades ≥ 0.75,
+P ≥ 0.85, autoaprobación ≥ 0.95).
+
+Por tanto, **la ingesta real de candidatos aprobados en Neo4j continúa bloqueada** (dictamen
+Prioridad 2: PARCIAL — REQUIERE CORRECCIONES). `ingest_approved.py` exige `--dry-run`; la
+escritura real aborta sin `S9K_ALLOW_REAL_INGEST=true` y autorización explícita. No ingerir
+sin revisión humana.
+
+> Nota histórica: el extractor **heurístico** produce falsos positivos conocidos
+> (`Llevás`/`Todo`/`Como` como Character); por eso el modo recomendado es LLM/híbrido con
+> revisión humana total, no heurístico puro.
 
 ### Preparado pero no completado
 

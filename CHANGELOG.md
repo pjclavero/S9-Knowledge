@@ -11,6 +11,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 - **`benchmark_comparator.py`**: leía `approved_payload.json` (nunca producido por el benchmark aislado) → métricas 0.0 en los tres modos. Ahora lee `candidates.json` vía `_load_candidates`. Regresión en `test_benchmark_runner.py`.
 
 #### Resultados (run `20260714-094125`, 35 OK / 0 INVALID / 0 FAIL)
+- Configuración final del benchmark: **temperature=0, seed=42, modelo=qwen2.5:7b**.
 - F1 entidades agregado: heuristic 0.689 · llm 0.718 · hybrid 0.728. Precisión llm 0.810; recall hybrid 0.856.
 - Relaciones F1 ≈ 0 (limitación de prompt/modelo). Autoaprobación P=0.85 (< 0.95).
 - Reproducibilidad: varianza F1 entidades = 0.0 (temp=0, seed=42). Neo4j intacto (199 nodos / 140 rels).
@@ -46,7 +47,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 #### Documentación
 - docs/33: plan de evaluación del extractor (ya en main desde PR #10)
 - docs/34: resultados del benchmark (dictamen: PARCIAL — REQUIERE CORRECCIONES)
-- Ollama 0.31.1 verificado: qwen2.5:7b, seed soportado, temperatura real 0.1 (discrepancia con settings.yaml)
+- Ollama 0.31.1 verificado: qwen2.5:7b, seed soportado. **Hallazgo histórico:** el extractor usaba temperatura 0.1 hardcoded (discrepancia con settings.yaml=0); **corregido antes de la ejecución final** del benchmark (config final: temperature=0, seed=42, modelo=qwen2.5:7b)
 
 ### 2026-07-13 — Prioridad 1: Backup real, restore aislado, rollback laboratorio
 
