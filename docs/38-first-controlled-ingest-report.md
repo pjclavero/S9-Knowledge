@@ -1,5 +1,6 @@
-# 38 · Informe de la primera ingesta controlada — Prioridad 3A
+# 38 · Ensayo E2E previo a la primera ingesta real — Prioridad 3A
 
+**Clasificación: ENSAYO E2E PREVIO A LA PRIMERA INGESTA REAL** (fuente **sintética**, ; NO es la primera ingesta real).
 **Estado: PREPARACIÓN — SIN ESCRITURA**
 **Fecha:** 2026-07-15
 **Commit:** `91de633` (main desplegado)
@@ -167,5 +168,6 @@ exceptions=<none o lista>
 
 ## Dictamen
 ```
-Primera ingesta controlada: PREPARADA PARA AUTORIZACIÓN DE REVISIÓN
+Ensayo E2E (fuente sintética): PREPARADO PARA AUTORIZACIÓN DE REVISIÓN
+Primera ingesta real: NO INICIADA (source_narrative_01 es texto sintético)
 ```
