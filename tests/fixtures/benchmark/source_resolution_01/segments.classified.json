@@ -1,0 +1,34 @@
+[
+  {
+    "segment_id": "source_resolution_01_seg_0001",
+    "source_id": "source_resolution_01",
+    "source_kind": "transcript_session",
+    "workspace": "leyenda",
+    "timestamp_start": "00:00:00",
+    "timestamp_end": "00:02:00",
+    "text": "La Cazadora —que es Kakita Asuka— volvió al Santuario abandonado acompañada de Kimi. Esta vez también estaba presente una persona que se presentó como Kakita Asuko, aunque el grupo no estaba seguro de si era un alias o una persona distinta del Clan Grulla.\n\nKakita Asuka desconfió de Kakita Asuko desde el principio. Kimi observó que ambas compartían el mismo símbolo de la Escuela Kakita bordado en el kimono.",
+    "lines": [
+      "[00:00:00] La Cazadora —que es Kakita Asuka— volvió al Santuario abandonado acompañada de Kimi. Esta vez también estaba presente una persona que se presentó como Kakita Asuko, aunque el grupo no estaba seguro de si era un alias o una persona distinta del Clan Grulla.",
+      "[00:01:00] Kakita Asuka desconfió de Kakita Asuko desde el principio. Kimi observó que ambas compartían el mismo símbolo de la Escuela Kakita bordado en el kimono."
+    ],
+    "category": "session_play",
+    "should_extract": true,
+    "category_scores": {"session_play": 5}
+  },
+  {
+    "segment_id": "source_resolution_01_seg_0002",
+    "source_id": "source_resolution_01",
+    "source_kind": "transcript_session",
+    "workspace": "leyenda",
+    "timestamp_start": "00:02:00",
+    "timestamp_end": "00:04:00",
+    "text": "El Oni de la Montaña Negra fue mencionado de nuevo: tanto Kakita Asuka como Kakita Asuko reconocieron haberlo visto en sesiones anteriores, lo que confirmó que las dos conocen la Montaña Negra.\n\nBayushi Hisao llegó al final de la reunión. Hisao sospecha que Kakita Asuko podría ser un disfraz de Bayushi Reika, aunque no hay evidencia directa todavía.",
+    "lines": [
+      "[00:02:00] El Oni de la Montaña Negra fue mencionado de nuevo: tanto Kakita Asuka como Kakita Asuko reconocieron haberlo visto en sesiones anteriores, lo que confirmó que las dos conocen la Montaña Negra.",
+      "[00:03:00] Bayushi Hisao llegó al final de la reunión. Hisao sospecha que Kakita Asuko podría ser un disfraz de Bayushi Reika, aunque no hay evidencia directa todavía."
+    ],
+    "category": "session_play",
+    "should_extract": true,
+    "category_scores": {"session_play": 4}
+  }
+]

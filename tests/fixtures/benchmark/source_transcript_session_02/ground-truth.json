@@ -1,7 +1,7 @@
 {
   "source_id": "source_transcript_session_02",
   "annotator": "auto-agent-A-2026-07-14",
-  "annotation_pass": 1,
+  "annotation_pass": 2,
   "entities": [
     {
       "name": "Kakita Asuka",
@@ -35,7 +35,9 @@
       "canonical_name": "Oni de la Montaña Negra",
       "entity_type": "Character",
       "workspace": "leyenda",
-      "aliases": ["el oni"],
+      "aliases": [
+        "el oni"
+      ],
       "expected": true,
       "confidence_note": "Criatura: subtipo no en el esquema de tipos del heurístico (que usa Character/Location/Faction). El LLM debería clasificarlo como Character (criatura). Presencia explícita y recurrente."
     },
@@ -143,9 +145,18 @@
     }
   ],
   "negative_entities": [
-    {"name": "Más tarde", "reason": "locución temporal, no entidad"},
-    {"name": "norte", "reason": "punto cardinal genérico, no nombre propio"},
-    {"name": "grupo", "reason": "sustantivo colectivo genérico, no entidad nombrada"}
+    {
+      "name": "Más tarde",
+      "reason": "locución temporal, no entidad"
+    },
+    {
+      "name": "norte",
+      "reason": "punto cardinal genérico, no nombre propio"
+    },
+    {
+      "name": "grupo",
+      "reason": "sustantivo colectivo genérico, no entidad nombrada"
+    }
   ],
   "negative_relations": [
     {
@@ -171,5 +182,8 @@
       "note": "Escrito con 'abandonado' en minúscula — el heurístico regex puede extraerlo como 'Santuario' (solo primera palabra). La forma canónica debería normalizarse a 'Santuario abandonado'."
     }
   ],
-  "annotator_notes": "Esta fuente introduce criaturas (Oni, Espíritu) que los tipos base del heurístico no contemplan; el LLM debería mapearlos a Character. El Culto del Pozo Viejo es un caso de Faction sin keyword de clan — test para detectar facciones por contexto. La máscara rota también aparece en source_transcript_clean_01, lo que sirve para cross-session object linking."
+  "annotator_notes": "Esta fuente introduce criaturas (Oni, Espíritu) que los tipos base del heurístico no contemplan; el LLM debería mapearlos a Character. El Culto del Pozo Viejo es un caso de Faction sin keyword de clan — test para detectar facciones por contexto. La máscara rota también aparece en source_transcript_clean_01, lo que sirve para cross-session object linking. [Pase 2: 4 relaciones positivas verificadas. Espíritu del Río clasificado como Character (tiene agencia e interacción). Congelado.]",
+  "annotation_date": "2026-07-14",
+  "reviewed": true,
+  "reviewer": "coordinator-p2-benchmark"
 }

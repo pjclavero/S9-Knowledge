@@ -1,14 +1,17 @@
 {
   "source_id": "source_transcript_asr_01",
   "annotator": "auto-agent-A-2026-07-14",
-  "annotation_pass": 1,
+  "annotation_pass": 2,
   "entities": [
     {
       "name": "Kakita Asuka",
       "canonical_name": "Kakita Asuka",
       "entity_type": "Character",
       "workspace": "leyenda",
-      "aliases": ["Kakita Asuca", "Asuca"],
+      "aliases": [
+        "Kakita Asuca",
+        "Asuca"
+      ],
       "expected": true,
       "confidence_note": "El texto contiene 'Kakita Asuca' (error ASR). El extractor heurístico lo extraerá como 'Kakita Asuca' (distinto de 'Kakita Asuka'). Para superar el benchmark, el sistema debe resolver 'Kakita Asuca' → 'Kakita Asuka' vía glosario o LLM."
     },
@@ -17,7 +20,9 @@
       "canonical_name": "Bayushi Hisao",
       "entity_type": "Character",
       "workspace": "leyenda",
-      "aliases": ["Bayusi"],
+      "aliases": [
+        "Bayusi"
+      ],
       "expected": true,
       "confidence_note": "El texto contiene solo 'Bayusi' (error ASR de 'Bayushi'). Token único, no compuesto → heurístico lo marcará needs_review. El LLM con glosario debería resolverlo."
     },
@@ -26,7 +31,9 @@
       "canonical_name": "Isawa Seiji",
       "entity_type": "Character",
       "workspace": "leyenda",
-      "aliases": ["Isaba"],
+      "aliases": [
+        "Isaba"
+      ],
       "expected": true,
       "confidence_note": "El texto contiene 'Isaba' (error ASR de 'Isawa'). Token único; sin glosario el sistema no puede saber si es 'Isawa Seiji' u otro personaje. Caso de máxima ambigüedad ASR."
     },
@@ -35,7 +42,9 @@
       "canonical_name": "Shinjo Haru",
       "entity_type": "Character",
       "workspace": "leyenda",
-      "aliases": ["Sinjo Haru"],
+      "aliases": [
+        "Sinjo Haru"
+      ],
       "expected": true,
       "confidence_note": "El texto contiene 'Sinjo Haru' (error ASR: Shinjo → Sinjo). Nombre compuesto, se extrae aunque mal transcrito. Resolución necesaria vía glosario."
     },
@@ -44,7 +53,9 @@
       "canonical_name": "Bayushi Reika",
       "entity_type": "Character",
       "workspace": "leyenda",
-      "aliases": ["Bayushi Reica"],
+      "aliases": [
+        "Bayushi Reica"
+      ],
       "expected": true,
       "confidence_note": "El texto contiene 'Bayushi Reica' (error ASR: Reika → Reica). Nombre compuesto, extraíble; resolución vía glosario."
     },
@@ -53,7 +64,9 @@
       "canonical_name": "Clan Escorpión",
       "entity_type": "Faction",
       "workspace": "leyenda",
-      "aliases": ["Clan Escorpion"],
+      "aliases": [
+        "Clan Escorpion"
+      ],
       "expected": true,
       "confidence_note": "El texto contiene 'Clan Escorpion' (sin tilde). El heurístico normaliza para comparar (elimina diacríticos) — debería detectarlo. La forma canónica es con tilde."
     },
@@ -62,7 +75,9 @@
       "canonical_name": "Portador del Lamento",
       "entity_type": "Object",
       "workspace": "leyenda",
-      "aliases": ["fragmentos del ritual del Portador del Lamento"],
+      "aliases": [
+        "fragmentos del ritual del Portador del Lamento"
+      ],
       "expected": true,
       "confidence_note": "Misma entidad que en source_transcript_clean_01; aparece aquí también — test de consistencia cross-source"
     },
@@ -71,7 +86,9 @@
       "canonical_name": "Árbol Blanco del Vacío",
       "entity_type": "Location",
       "workspace": "leyenda",
-      "aliases": ["Árbol Blanco del Vacio"],
+      "aliases": [
+        "Árbol Blanco del Vacio"
+      ],
       "expected": true,
       "confidence_note": "El texto contiene 'Vacio' sin tilde (error ASR). La normalización del heurístico debería permitir la resolución."
     },
@@ -120,13 +137,34 @@
     }
   ],
   "negative_entities": [
-    {"name": "Llevás", "reason": "verbo conjugado (voseo), no entidad — falso positivo esperado del heurístico por inicial mayúscula en inicio de oración"},
-    {"name": "Todo", "reason": "pronombre/adverbio indefinido, stopword — posible falso positivo del heurístico"},
-    {"name": "Como", "reason": "conjunción comparativa, stopword — posible falso positivo del heurístico"},
-    {"name": "Bayusi", "reason": "forma mal transcrita: no es entidad canónica independiente, debe resolverse a Bayushi Hisao"},
-    {"name": "Isaba", "reason": "forma mal transcrita: no es entidad canónica independiente, debe resolverse (probablemente Isawa Seiji)"},
-    {"name": "Sinjo Haru", "reason": "forma mal transcrita: no es entidad canónica independiente, debe resolverse a Shinjo Haru"},
-    {"name": "Bayushi Reica", "reason": "forma mal transcrita: no es entidad canónica independiente, debe resolverse a Bayushi Reika"}
+    {
+      "name": "Llevás",
+      "reason": "verbo conjugado (voseo), no entidad — falso positivo esperado del heurístico por inicial mayúscula en inicio de oración"
+    },
+    {
+      "name": "Todo",
+      "reason": "pronombre/adverbio indefinido, stopword — posible falso positivo del heurístico"
+    },
+    {
+      "name": "Como",
+      "reason": "conjunción comparativa, stopword — posible falso positivo del heurístico"
+    },
+    {
+      "name": "Bayusi",
+      "reason": "forma mal transcrita: no es entidad canónica independiente, debe resolverse a Bayushi Hisao"
+    },
+    {
+      "name": "Isaba",
+      "reason": "forma mal transcrita: no es entidad canónica independiente, debe resolverse (probablemente Isawa Seiji)"
+    },
+    {
+      "name": "Sinjo Haru",
+      "reason": "forma mal transcrita: no es entidad canónica independiente, debe resolverse a Shinjo Haru"
+    },
+    {
+      "name": "Bayushi Reica",
+      "reason": "forma mal transcrita: no es entidad canónica independiente, debe resolverse a Bayushi Reika"
+    }
   ],
   "negative_relations": [
     {
@@ -146,5 +184,8 @@
       "note": "Aparece en el texto solo como 'guardia Unicornio' (sin 'Clan'). El heurístico puede o no detectarlo según el bloque de clanes. Incluido como entidad esperada por inferencia contextual."
     }
   ],
-  "annotator_notes": "Este fixture es el principal test de robustez ASR. Los errores fonéticos son sistemáticos (c/k, sh/s/j, i/aw, ca/ka). El benchmark debe medir: (1) tasa de extracción de formas erróneas, (2) tasa de resolución a canónico con glosario, (3) falsos positivos de palabras comunes (Llevás, Todo, Como). Ninguno de los tres (Llevás, Todo, Como) debe aparecer en la salida del extractor con confianza >= 0.5."
+  "annotator_notes": "Este fixture es el principal test de robustez ASR. Los errores fonéticos son sistemáticos (c/k, sh/s/j, i/aw, ca/ka). El benchmark debe medir: (1) tasa de extracción de formas erróneas, (2) tasa de resolución a canónico con glosario, (3) falsos positivos de palabras comunes (Llevás, Todo, Como). Ninguno de los tres (Llevás, Todo, Como) debe aparecer en la salida del extractor con confianza >= 0.5. [Pase 2: No se esperan relaciones positivas en esta fuente (ambas con expected=false). El test ASR mide exclusivamente calidad de extracción de entidades bajo ruido fonético. Clan Unicornio mantenido como ambiguo (no en entities). Congelado.]",
+  "annotation_date": "2026-07-14",
+  "reviewed": true,
+  "reviewer": "coordinator-p2-benchmark"
 }

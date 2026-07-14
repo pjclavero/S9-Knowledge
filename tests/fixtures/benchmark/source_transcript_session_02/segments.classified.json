@@ -1,0 +1,35 @@
+[
+  {
+    "segment_id": "source_transcript_session_02_seg_0001",
+    "source_id": "source_transcript_session_02",
+    "source_kind": "transcript_session",
+    "workspace": "leyenda",
+    "timestamp_start": "00:00:00",
+    "timestamp_end": "00:02:00",
+    "text": "Kakita Asuka, Kimi y Bayushi Hisao llegaron al Bosque Viejo al anochecer.\n\nCerca del Santuario abandonado, el grupo vio al Oni de la Montaña Negra. El oni atacó a Kakita Asuka y el grupo luchó contra él dentro del santuario.\n\nEl Oni de la Montaña Negra escapó hacia las montañas del norte. Kimi cree que el oni sirve al Culto del Pozo Viejo.",
+    "lines": [
+      "[00:00:00] Kakita Asuka, Kimi y Bayushi Hisao llegaron al Bosque Viejo al anochecer.",
+      "[00:00:30] Cerca del Santuario abandonado, el grupo vio al Oni de la Montaña Negra. El oni atacó a Kakita Asuka y el grupo luchó contra él dentro del santuario.",
+      "[00:01:30] El Oni de la Montaña Negra escapó hacia las montañas del norte. Kimi cree que el oni sirve al Culto del Pozo Viejo."
+    ],
+    "category": "session_play",
+    "should_extract": true,
+    "category_scores": {"session_play": 6}
+  },
+  {
+    "segment_id": "source_transcript_session_02_seg_0002",
+    "source_id": "source_transcript_session_02",
+    "source_kind": "transcript_session",
+    "workspace": "leyenda",
+    "timestamp_start": "00:02:00",
+    "timestamp_end": "00:04:00",
+    "text": "Más tarde, el Espíritu del Río habló con Kimi en el Puente Viejo y ayudó al grupo a encontrar una máscara rota con el símbolo del Clan Escorpión.\n\nEl grupo acordó investigar el Culto del Pozo Viejo y volver al Santuario abandonado en la próxima sesión.",
+    "lines": [
+      "[00:02:00] Más tarde, el Espíritu del Río habló con Kimi en el Puente Viejo y ayudó al grupo a encontrar una máscara rota con el símbolo del Clan Escorpión.",
+      "[00:03:00] El grupo acordó investigar el Culto del Pozo Viejo y volver al Santuario abandonado en la próxima sesión."
+    ],
+    "category": "lore",
+    "should_extract": true,
+    "category_scores": {"lore": 3, "session_play": 2}
+  }
+]

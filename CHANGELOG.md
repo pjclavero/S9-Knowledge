@@ -4,6 +4,16 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-07-14 — Prioridad 2 FASE 2: Correcciones de benchmark + ground truth pase 2
+
+#### Correcciones críticas del benchmark
+- **`extractor_benchmark.py`**: modo aislado — usa `segments.classified.json` pre-clasificados, llama `extract` (no `run`), valida con `candidates.json` real, registra `source["file"]`, INVALID_RUN para runs vacíos, seed=42 para LLM
+- **`llm_extractor.py`**: lee temperatura/URL/modelo de `settings.yaml`; temperatura=0 (antes 0.1 hardcoded); seed=42 vía `S9K_LLM_SEED`; **parsing de relaciones LLM implementado** (types permitidos + validación)
+- **`pipeline.py`**: deduplicación hybrid corregida para relaciones — key `from|type|to` en lugar de `"|type"` incorrecto
+- **Creados**: `tests/fixtures/benchmark/<source_id>/segments.classified.json` para las 5 fuentes (2+2+2+1+2 segmentos, todos `should_extract=true`)
+- **Ground truth pase 2**: las 5 fuentes revisadas y congeladas (`annotation_pass=2`, `reviewed=true`)
+- **docs/34**: actualizado con correcciones aplicadas, tabla de resultados pendiente de ejecución en VM105
+
 ### 2026-07-14 — Prioridad 2 PARCIAL: Benchmark del extractor (infraestructura + análisis)
 
 #### Tests y calidad

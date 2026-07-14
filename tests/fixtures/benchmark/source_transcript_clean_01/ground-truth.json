@@ -1,14 +1,16 @@
 {
   "source_id": "source_transcript_clean_01",
   "annotator": "auto-agent-A-2026-07-14",
-  "annotation_pass": 1,
+  "annotation_pass": 2,
   "entities": [
     {
       "name": "Kakita Asuka",
       "canonical_name": "Kakita Asuka",
       "entity_type": "Character",
       "workspace": "leyenda",
-      "aliases": ["Asuka"],
+      "aliases": [
+        "Asuka"
+      ],
       "expected": true,
       "confidence_note": "Nombre propio compuesto explícito, aparece múltiples veces; referenciada también como 'Asuka' sola"
     },
@@ -17,7 +19,9 @@
       "canonical_name": "Bayushi Hisao",
       "entity_type": "Character",
       "workspace": "leyenda",
-      "aliases": ["Hisao"],
+      "aliases": [
+        "Hisao"
+      ],
       "expected": true,
       "confidence_note": "Nombre propio compuesto explícito; aparece como 'Hisao' en la segunda mitad del texto"
     },
@@ -53,7 +57,9 @@
       "canonical_name": "Bayushi Reika",
       "entity_type": "Character",
       "workspace": "leyenda",
-      "aliases": ["Reika"],
+      "aliases": [
+        "Reika"
+      ],
       "expected": true,
       "confidence_note": "Nombre propio compuesto; referenciada también como 'Reika' sola al final"
     },
@@ -98,7 +104,9 @@
       "canonical_name": "Portador del Lamento",
       "entity_type": "Object",
       "workspace": "leyenda",
-      "aliases": ["segundo fragmento"],
+      "aliases": [
+        "segundo fragmento"
+      ],
       "expected": true,
       "confidence_note": "Objeto clave del arco; el heurístico probablemente lo pierda (sin keyword de objeto); el LLM debería reconocerlo"
     },
@@ -150,11 +158,26 @@
     }
   ],
   "negative_entities": [
-    {"name": "Llevás", "reason": "verbo conjugado (voseo), no entidad"},
-    {"name": "Todo", "reason": "término genérico / adverbio, stopword"},
-    {"name": "Como", "reason": "conjunción/adverbio, stopword"},
-    {"name": "Asuka", "reason": "alias parcial — solo válido como referencia a Kakita Asuka, no como entidad independiente"},
-    {"name": "Hisao", "reason": "alias parcial — solo válido como referencia a Bayushi Hisao, no como entidad independiente"}
+    {
+      "name": "Llevás",
+      "reason": "verbo conjugado (voseo), no entidad"
+    },
+    {
+      "name": "Todo",
+      "reason": "término genérico / adverbio, stopword"
+    },
+    {
+      "name": "Como",
+      "reason": "conjunción/adverbio, stopword"
+    },
+    {
+      "name": "Asuka",
+      "reason": "alias parcial — solo válido como referencia a Kakita Asuka, no como entidad independiente"
+    },
+    {
+      "name": "Hisao",
+      "reason": "alias parcial — solo válido como referencia a Bayushi Hisao, no como entidad independiente"
+    }
   ],
   "negative_relations": [
     {
@@ -176,5 +199,8 @@
       "note": "Podría ser Location o un artefacto/Concept. El texto lo usa como lugar de referencia geográfica, pero 'Vacío' es también un concepto espiritual L5A. Clasificación preferida: Location."
     }
   ],
-  "annotator_notes": "La fuente es limpia y representativa. El heurístico debería capturar bien los nombres compuestos (6 Characters, 2 Factions). Los objetos (máscara rota, fragmentos) no tienen mayúsculas iniciales y probablemente el heurístico los pierda — es un caso de test válido para el LLM. Kimi como single-token es caso de test para la regla de confianza <= 0.70."
+  "annotator_notes": "La fuente es limpia y representativa. El heurístico debería capturar bien los nombres compuestos (6 Characters, 2 Factions). Los objetos (máscara rota, fragmentos) no tienen mayúsculas iniciales y probablemente el heurístico los pierda — es un caso de test válido para el LLM. Kimi como single-token es caso de test para la regla de confianza <= 0.70. [Pase 2: Ground truth verificado. Relación MEMBER_OF para Bayushi Hisao→Clan Escorpión y Bayushi Reika→Clan Escorpión son inferencia de prefijo Bayushi (lore L5A); marcadas expected=true porque el sistema debería inferirlas en modo LLM/hybrid. Congelado.]",
+  "annotation_date": "2026-07-14",
+  "reviewed": true,
+  "reviewer": "coordinator-p2-benchmark"
 }

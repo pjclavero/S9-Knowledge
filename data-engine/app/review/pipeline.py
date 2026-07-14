@@ -80,24 +80,33 @@ def _run_extract_step(
                 log.warning("[pipeline] Ollama no disponible en modo %s — omitiendo LLM", mode)
             else:
                 gloss_snap = _glossary_snapshot(repo_root, workspace)
-                llm_cands = extract_with_llm(classified, gloss_snap, workspace)
+                _seed_env = os.environ.get("S9K_LLM_SEED", "")
+                _seed = int(_seed_env) if _seed_env.strip().isdigit() else None
+                llm_cands = extract_with_llm(classified, gloss_snap, workspace, seed=_seed)
                 log.info("[pipeline] LLM: %d candidatos", len(llm_cands))
 
                 if mode == "hybrid":
-                    # Dedupe: same name+type → conservar el de mayor confidence/mejor evidence
+                    # Dedupe: entidades por name+type; relaciones por from+type+to
+                    def _dedup_key(c: Candidate) -> str:
+                        if c.name is not None:
+                            return f"{c.name.lower().strip()}|{c.entity_type or ''}"
+                        return (
+                            f"{(c.from_entity or '').lower().strip()}"
+                            f"|{c.relation_type or ''}"
+                            f"|{(c.to_entity or '').lower().strip()}"
+                        )
+
                     existing: dict[str, Candidate] = {}
                     for c in all_candidates:
-                        key = f"{(c.name or '').lower().strip()}|{c.entity_type or c.relation_type or ''}"
-                        existing[key] = c
+                        existing[_dedup_key(c)] = c
 
                     merged_new = 0
                     for c in llm_cands:
-                        key = f"{(c.name or '').lower().strip()}|{c.entity_type or c.relation_type or ''}"
+                        key = _dedup_key(c)
                         if key not in existing:
                             existing[key] = c
                             merged_new += 1
                         else:
-                            # Mantener el de mayor confidence; si igual, el que tiene mejor evidence
                             prev = existing[key]
                             if c.confidence > prev.confidence:
                                 existing[key] = c

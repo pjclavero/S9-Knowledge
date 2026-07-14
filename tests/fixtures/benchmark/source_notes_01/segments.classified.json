@@ -1,0 +1,25 @@
+[
+  {
+    "segment_id": "source_notes_01_seg_0001",
+    "source_id": "source_notes_01",
+    "source_kind": "session_notes",
+    "workspace": "leyenda",
+    "timestamp_start": "00:00:00",
+    "timestamp_end": "00:03:00",
+    "text": "La Cazadora llega tarde. Se excusa con el Espía.\nTemplo sur revisado: rastros frescos, máscara rota presente.\nEl Espía reconoce el símbolo: Clan Escorpión.\nLa Cazadora sospecha de Reika. ¿Sabía algo del segundo fragmento?\nKimi no aparece — ¿se quedó en Ciudad Moto?\nSantuario: puerta sellada desde dentro. Nadie entró por la noche.\nPendiente: interrogar al guardia del puente (Shinjo Haru).\nLa Cazadora pide discreción al Espía. Él acepta pero parece dudar.\nPróxima sesión: seguir rastro hacia Bosque Viejo o Montaña Negra.",
+    "lines": [
+      "[00:00:00] La Cazadora llega tarde. Se excusa con el Espía.",
+      "[00:00:20] Templo sur revisado: rastros frescos, máscara rota presente.",
+      "[00:00:40] El Espía reconoce el símbolo: Clan Escorpión.",
+      "[00:01:00] La Cazadora sospecha de Reika. ¿Sabía algo del segundo fragmento?",
+      "[00:01:20] Kimi no aparece — ¿se quedó en Ciudad Moto?",
+      "[00:01:40] Santuario: puerta sellada desde dentro. Nadie entró por la noche.",
+      "[00:02:00] Pendiente: interrogar al guardia del puente (Shinjo Haru).",
+      "[00:02:20] La Cazadora pide discreción al Espía. Él acepta pero parece dudar.",
+      "[00:02:40] Próxima sesión: seguir rastro hacia Bosque Viejo o Montaña Negra."
+    ],
+    "category": "session_play",
+    "should_extract": true,
+    "category_scores": {"session_play": 6, "lore": 1}
+  }
+]
