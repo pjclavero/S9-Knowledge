@@ -18,6 +18,7 @@ logs/
 state/
 output/
 staging/
+benchmark-results/
 tmp/
 temp/
 
