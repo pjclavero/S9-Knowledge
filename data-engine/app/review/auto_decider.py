@@ -76,6 +76,26 @@ def _is_single_token(name: str) -> bool:
     return len(name.strip().split()) == 1
 
 
+_VALID_REVIEW_POLICIES = {"normal", "full_human_review"}
+
+
+def _review_policy() -> str:
+    """Politica de revision activa. Lee S9K_REVIEW_POLICY (default 'normal').
+
+    - normal:            comportamiento habitual (entidades por politica; relaciones
+                         bloqueadas por su quality gate).
+    - full_human_review: TODO candidato va a needs_review; nada se autoaprueba.
+
+    Una politica desconocida es un error de configuracion (ValueError).
+    """
+    p = (os.environ.get("S9K_REVIEW_POLICY", "normal").strip().lower() or "normal")
+    if p not in _VALID_REVIEW_POLICIES:
+        raise ValueError(
+            f"S9K_REVIEW_POLICY invalida: '{p}'. Validas: {sorted(_VALID_REVIEW_POLICIES)}"
+        )
+    return p
+
+
 def _relation_autoapproval_enabled() -> bool:
     """Quality gate de relaciones.
 
@@ -99,6 +119,20 @@ def decide_one(
     """
     reasons: list[str] = []
     origin = getattr(c, "origin", "local") or "local"
+
+    # ── POLITICA DE REVISION ────────────────────────────────────────────────
+    # full_human_review: TODO candidato (entidad y relacion) -> needs_review.
+    # Nada se autoaprueba; el approved_payload automatico queda vacio.
+    if _review_policy() == "full_human_review":
+        reasons.append("full_human_review_policy")
+        return Decision(
+            candidate_id=c.candidate_id,
+            decision="needs_review",
+            reason="politica full_human_review: revision humana total obligatoria",
+            decision_reason=reasons,
+            origin=origin,
+            candidate=c.to_dict(), validation=vr.to_dict(), resolution=rr.to_dict(),
+        )
 
     # ── AUTO_REJECT ────────────────────────────────────────────────────────────
 
