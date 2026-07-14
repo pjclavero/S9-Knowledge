@@ -234,3 +234,36 @@ def test_comparator_relation_tp_fp_fn():
     assert metrics["fn"] == 1, f"Esperaba FN=1, obtuve FN={metrics['fn']}"
     assert metrics["precision"] == 0.5
     assert metrics["recall"] == 0.5
+
+
+# ---------------------------------------------------------------------------
+# Regresión: _load_candidates (fix benchmark aislado — lee candidates.json)
+# El comparador leía approved_payload.json (que el benchmark aislado nunca
+# produce) → todas las métricas salían 0.0. Debe leer candidates.json plano.
+# ---------------------------------------------------------------------------
+
+def test_load_candidates_reads_plain_list(tmp_path):
+    from cli.benchmark_comparator import _load_candidates
+    cand = tmp_path / "candidates.json"
+    cand.write_text(json.dumps([
+        {"kind": "entity", "name": "Kakita Asuka", "entity_type": "Character"},
+        {"kind": "relation", "from_entity": "A", "relation_type": "KNOWS", "to_entity": "B"},
+    ]), encoding="utf-8")
+    out = _load_candidates(cand)
+    assert len(out["entities"]) == 1
+    assert len(out["relations"]) == 1
+    assert out["entities"][0]["name"] == "Kakita Asuka"
+
+
+def test_load_candidates_missing_file(tmp_path):
+    from cli.benchmark_comparator import _load_candidates
+    out = _load_candidates(tmp_path / "nope.json")
+    assert out == {"entities": [], "relations": []}
+
+
+def test_load_candidates_accepts_approved_payload_format(tmp_path):
+    from cli.benchmark_comparator import _load_candidates
+    p = tmp_path / "candidates.json"
+    p.write_text(json.dumps({"approved": [{"kind": "entity", "name": "X"}]}), encoding="utf-8")
+    out = _load_candidates(p)
+    assert len(out["entities"]) == 1

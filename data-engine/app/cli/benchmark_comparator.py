@@ -194,6 +194,23 @@ def _load_approved_payload(path: Path) -> dict:
         return {"entities": [], "relations": [], "_error": str(e)}
 
 
+def _load_candidates(path: Path) -> dict:
+    """Carga candidates.json (lista plana producida por el paso `extract` aislado)
+    y separa entidades y relaciones por el campo 'kind'. Acepta tambien el
+    formato antiguo approved_payload ({"approved": [...]}) por compatibilidad."""
+    if not path.exists():
+        return {"entities": [], "relations": []}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            data = data.get("approved", [])
+        entities = [c for c in data if c.get("kind") == "entity"]
+        relations = [c for c in data if c.get("kind") == "relation"]
+        return {"entities": entities, "relations": relations}
+    except Exception as e:
+        return {"entities": [], "relations": [], "_error": str(e)}
+
+
 def _load_duration_ms(path: Path) -> int:
     """Lee duration_ms.txt de un run_dir/source_id/."""
     dur_file = path / "duration_ms.txt"
@@ -308,7 +325,7 @@ def compare(run_dir: Path, ground_truth_dir: Path) -> dict:
         # --- heuristic (1 run) ---
         heuristic_dir = run_dir / "heuristic" / source_id
         if heuristic_dir.exists():
-            payload = _load_approved_payload(heuristic_dir / "approved_payload.json")
+            payload = _load_candidates(heuristic_dir / "candidates.json")
             entity_m = _compute_entity_metrics(payload["entities"], ground_truth)
             relation_m = _compute_relation_metrics(payload["relations"], ground_truth)
             duration = _load_duration_ms(heuristic_dir)
@@ -324,7 +341,7 @@ def compare(run_dir: Path, ground_truth_dir: Path) -> dict:
             llm_dir = run_dir / f"llm-run-{run_n}" / source_id
             if not llm_dir.exists():
                 break
-            payload = _load_approved_payload(llm_dir / "approved_payload.json")
+            payload = _load_candidates(llm_dir / "candidates.json")
             entity_m = _compute_entity_metrics(payload["entities"], ground_truth)
             relation_m = _compute_relation_metrics(payload["relations"], ground_truth)
             duration = _load_duration_ms(llm_dir)
@@ -355,7 +372,7 @@ def compare(run_dir: Path, ground_truth_dir: Path) -> dict:
             hybrid_dir = run_dir / f"hybrid-run-{run_n}" / source_id
             if not hybrid_dir.exists():
                 break
-            payload = _load_approved_payload(hybrid_dir / "approved_payload.json")
+            payload = _load_candidates(hybrid_dir / "candidates.json")
             entity_m = _compute_entity_metrics(payload["entities"], ground_truth)
             relation_m = _compute_relation_metrics(payload["relations"], ground_truth)
             duration = _load_duration_ms(hybrid_dir)
