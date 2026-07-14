@@ -25,6 +25,9 @@
 - [24 · Baseline VM105 y Verificación Fase 0A](24-vm105-baseline-and-verification.md) — **Informe de auditoría verificable 2026-07-13**
 - [30 · Informe coordinador — Cierre Fase 0 y Prioridad 1](30-coordinator-final-report.md) — Consolidado: PR #3, VM105 sync, tests (2 causas raíz), backup/restore lab, rollback diseño
 - [31 · Remediación de tests y CI](31-test-remediation-and-ci-report.md) — **220/220 passed, 0 errores de colección; CI añadido 2026-07-13**
+- [32 · Backup y restore de producción — Validación P1](32-production-backup-restore-validation.md) — Backup real 132 KB, restore verificado, copia externa completada
+- [33 · Plan de evaluación del extractor — Prioridad 2](33-extractor-quality-benchmark-plan.md) — Plan de benchmark: corpus, métricas, umbrales, criterios de ingesta
+- [34 · Resultados del benchmark del extractor — Prioridad 2](34-extractor-quality-benchmark-results.md) — 35/35 runs sin fallos; métricas F1 pendientes (fix formato corpus requerido)
 
 ## Documentos de diseño generados en el servidor (`docs/current/`)
 

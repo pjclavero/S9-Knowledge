@@ -4,6 +4,27 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-07-14 — Prioridad 2 PARCIAL: Benchmark del extractor (infraestructura + análisis)
+
+#### Tests y calidad
+- 15 tests de regresión del extractor añadidos en `test_extractor_regression.py`
+- 8 tests del benchmark runner en `test_benchmark_runner.py`
+- CI: 243 tests totales, 4 jobs verdes
+- **Fix extractor:** `soy/eres/somos/sois` añadidos a STOPWORDS_ES; strip de prefijo verbal en nombres compuestos ("Soy X" → "X")
+
+#### Benchmark
+- Corpus de 5 fuentes anotado: 56 entidades esperadas, 23 negativas (ground truth pase 1)
+- `extractor_benchmark.py`: runner reproducible, heuristic×1 + llm×3 + hybrid×3 por fuente
+- `benchmark_comparator.py`: comparador Precisión/Recall/F1 contra ground truth
+- 35/35 runs ejecutados en VM105 (clon temporal, producción intacta)
+- **Hallazgo:** fixtures markdown no generan segmentos → métricas F1 pendientes (ver docs/34 §7.1)
+- Bug corregido en comparador: `negative_entities` como lista de dicts soportada
+
+#### Documentación
+- docs/33: plan de evaluación del extractor (ya en main desde PR #10)
+- docs/34: resultados del benchmark (dictamen: PARCIAL — REQUIERE CORRECCIONES)
+- Ollama 0.31.1 verificado: qwen2.5:7b, seed soportado, temperatura real 0.1 (discrepancia con settings.yaml)
+
 ### 2026-07-13 — Prioridad 1: Backup real, restore aislado, rollback laboratorio
 
 #### Operaciones

@@ -61,7 +61,9 @@ def _compute_entity_metrics(approved_entities: list[dict], ground_truth: dict) -
     expected_entities = [
         e for e in ground_truth.get("entities", []) if e.get("expected", True)
     ]
-    negative_names = {normalize(n) for n in ground_truth.get("negative_entities", [])}
+    # Supports both list[str] and list[{"name": ..., "reason": ...}]
+    raw_neg = ground_truth.get("negative_entities", [])
+    negative_names = {normalize(n["name"] if isinstance(n, dict) else n) for n in raw_neg}
 
     # Construir lookup: nombre_normalizado → entry de ground truth
     gt_lookup: dict[str, dict] = {}

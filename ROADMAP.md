@@ -9,7 +9,7 @@ Ver [project dossier and checklist.md](docs/project%20dossier%20and%20checklist.
 ```
 Prioridad 0: COMPLETADA — Motor de datos, pipeline de revisión, tests, CI
 Prioridad 1: COMPLETADA (ver dictamen) — Backup, restore, rollback
-Prioridad 2: EN DEFINICIÓN — Calidad del extractor y del pipeline
+Prioridad 2: PARCIAL — Benchmark ejecutado; métricas F1 pendientes (formato corpus)
 Prioridad 3: PENDIENTE — Primera ingesta real controlada
 Prioridad 4: PENDIENTE — Limpieza del grafo histórico
 Prioridad 5: PENDIENTE — Autenticación y seguridad del visor
