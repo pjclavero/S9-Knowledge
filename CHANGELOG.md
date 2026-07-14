@@ -4,6 +4,12 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-07-15 — Benchmark de transcripción YouTube vs faster-whisper (docs/40)
+- Comparación real por muestra (vídeo L5A QS2Rnw-dYlk, ventana 10 min): faster-whisper medium (RTF 0.56) vs YouTube auto-ASR.
+- Acuerdo token-level 0.887; normalizador de glosario 0 sustituciones (whisper medium acierta nombres L5A). Sin subtítulos manuales ni referencia humana → WER verdadero no medible (comparación indirecta).
+- Detector de segmentos conflictivos: 91% AUTO_ACCEPT / 7% REVIEW / 2% REJECT (cumple objetivo >90%/<10%). Los conflictos concentran errores de nombre propio (p. ej. Kakita Riko → "caquita rico").
+- **Dictamen: Transcripción de vídeo APTA CON REVISIÓN DE SEGMENTOS CONFLICTIVOS.** Para la primera ingesta se recomienda NO usar una transcripción de vídeo nueva, sino una fuente pequeña ya validada. Sin ingesta. Detalle: docs/40.
+
 ### 2026-07-14 — Prioridad 2.1: revisión humana total + benchmark confirmatorio (7 fuentes)
 
 #### Seguridad de ingesta (impuesta por código)

@@ -53,6 +53,8 @@ Prioridad 5: PENDIENTE — Autenticación y seguridad del visor
 
 ---
 
+Transcripción de vídeo (docs/40): faster-whisper medium APTA CON REVISIÓN DE SEGMENTOS CONFLICTIVOS (91% auto-aceptable; conflictos = nombres propios). Referencia humana pendiente para WER definitivo.
+
 ## Prioridad 2 — Calidad del extractor y del pipeline (EN DEFINICIÓN)
 
 El bloqueo real no es ausencia de LLM — los tres modos (heurístico, LLM, híbrido) están implementados. El bloqueo es la falta de validación de calidad sobre un corpus representativo.

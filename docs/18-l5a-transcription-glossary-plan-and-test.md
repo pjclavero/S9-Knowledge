@@ -1,5 +1,8 @@
 # 18 — Mejora de transcripción L5A con glosario, normalización y corrección
 
+> **Actualización (2026-07-15):** benchmark YouTube vs faster-whisper en [docs/40](40-youtube-whisper-transcription-benchmark.md) — medium 0% correcciones de glosario en la muestra (nombres L5A OK), pero el glosario de error_forms es incompleto (caso 'caquita rico' → Kakita Riko). Detector de conflictos: 91% auto-aceptable.
+
+
 Fecha: 2026-07-12
 Rama: `feat/l5a-transcription-glossary`
 VM105: 6 núcleos, 7.7 GB RAM

@@ -1,4 +1,6 @@
 # DOSIER DE ESTADO, CORRECCIÓN Y EJECUCIÓN  
+
+> Benchmark de transcripción de vídeo (docs/40, 2026-07-15): faster-whisper medium APTA CON REVISIÓN DE SEGMENTOS CONFLICTIVOS (91% auto-aceptable). Para la primera ingesta se recomienda una fuente pequeña ya validada, no una transcripción de vídeo nueva.
 ## S9 Knowledge
 
 **Repositorio:** `pjclavero/S9-Knowledge`  
