@@ -12,6 +12,8 @@
 Instantánea verificada a 2026-07-13 (basada en auditoría de VM105 del mismo día).
 > Transcripción de vídeo (docs/40, 2026-07-15): faster-whisper medium APTA CON REVISIÓN DE SEGMENTOS CONFLICTIVOS (91% auto-aceptable; conflictos = nombres propios). Referencia humana pendiente. Sin ingesta.
 
+> Primera ingesta controlada (Prioridad 3A, docs/38): en PREPARACIÓN — fuente source_narrative_01, pipeline hybrid + full_human_review sin escritura, 0 autoaprobados, Neo4j 199/140 intacto. Detenida en el gate de autorización humana. Modo sombra de autoaprobación en docs/39 (NO activo).
+
 ## HECHO
 
 ### Motor de datos y grafo
