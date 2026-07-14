@@ -147,6 +147,40 @@ def _build_merge_relation_query(item):
     }
 
 
+_INVALID_REVIEWERS = {"", "system", "auto", "none", "null", "s9k"}
+
+
+def _review_policy_name() -> str:
+    return (os.environ.get("S9K_REVIEW_POLICY", "normal").strip().lower() or "normal")
+
+
+def _validate_review_provenance(payload) -> list:
+    """Bajo full_human_review, cada candidato aprobado debe acreditar revision
+    humana explicita. Devuelve lista de errores (vacia si OK). No escribe nada."""
+    errors = []
+    for item in payload.get("approved", []):
+        label = _item_label(item)
+        rs = str(item.get("review_status", "")).strip().lower()
+        if rs != "approved":
+            errors.append(
+                "%s: review_status='%s' (se exige 'approved' revisado por humano)"
+                % (label, item.get("review_status"))
+            )
+            continue
+        rb = str(item.get("reviewed_by", "")).strip().lower()
+        if rb in _INVALID_REVIEWERS:
+            errors.append("%s: reviewed_by invalido ('%s')" % (label, item.get("reviewed_by")))
+        if not str(item.get("reviewed_at", "")).strip():
+            errors.append("%s: reviewed_at ausente" % label)
+        if not str(item.get("review_action", "")).strip():
+            errors.append("%s: review_action ausente" % label)
+        if not str(item.get("evidence", "")).strip():
+            errors.append("%s: evidence ausente" % label)
+        if not str(item.get("source_id", "")).strip():
+            errors.append("%s: source_id ausente" % label)
+    return errors
+
+
 def ingest(
     approved_payload_path,
     dry_run,
@@ -180,6 +214,16 @@ def ingest(
     if pkg_errors:
         msg = "PAQUETE RECHAZADO. Errores:\n" + "\n".join("  - %s" % e for e in pkg_errors)
         raise ValueError(msg)
+
+    # Politica full_human_review: exige procedencia de revision humana explicita.
+    # Rechaza autoaprobados y payloads sin reviewed_by/reviewed_at (sin escribir).
+    if _review_policy_name() == "full_human_review":
+        prov_errors = _validate_review_provenance(payload)
+        if prov_errors:
+            raise ValueError(
+                "PROVENANCE RECHAZADA bajo full_human_review (SIN escritura en Neo4j):\n"
+                + "\n".join("  - %s" % e for e in prov_errors[:15])
+            )
 
     approved = payload.get("approved", [])
     if not approved:
