@@ -4,7 +4,11 @@ from __future__ import annotations
 import hashlib
 import os
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 from typing import Optional, Tuple
 
 from app.auth import db as auth_db
@@ -48,7 +52,7 @@ def create_session(
     token = secrets.token_urlsafe(32)
     session_hash = _sha256(token)
     expires_at = (
-        datetime.utcnow() + timedelta(hours=cfg.S9K_SESSION_TTL_HOURS)
+        _utcnow() + timedelta(hours=cfg.S9K_SESSION_TTL_HOURS)
     ).isoformat()
 
     session = auth_db.create_session(
@@ -84,7 +88,7 @@ def get_valid_session(
     if session is None:
         return None
 
-    now = datetime.utcnow()
+    now = _utcnow()
 
     # Revocada
     if session.revoked_at is not None:

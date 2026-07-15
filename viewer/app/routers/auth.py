@@ -161,9 +161,10 @@ async def login_submit(
             new_count = user.failed_login_count + 1
             locked_until = None
             if new_count >= cfg.S9K_AUTH_MAX_FAILED_ATTEMPTS:
-                from datetime import datetime, timedelta
+                from datetime import datetime, timedelta, timezone
                 locked_until = (
-                    datetime.utcnow() + timedelta(minutes=cfg.S9K_AUTH_LOCK_MINUTES)
+                    datetime.now(timezone.utc).replace(tzinfo=None)
+                    + timedelta(minutes=cfg.S9K_AUTH_LOCK_MINUTES)
                 ).isoformat()
                 audit.log(conn, audit.ACCOUNT_LOCKED, "failure",
                           user_id=user.id, username_snapshot=user.username,
@@ -188,11 +189,11 @@ async def login_submit(
             auth_db.update_user(conn, user.id, password_hash=new_hash)
 
         # Resetear intentos fallidos
-        from datetime import datetime
+        from datetime import datetime, timezone
         auth_db.update_user(conn, user.id,
                             failed_login_count=0,
                             locked_until="",
-                            last_login_at=datetime.utcnow().isoformat())
+                            last_login_at=datetime.now(timezone.utc).replace(tzinfo=None).isoformat())
 
         # Revocar sesiones anteriores (rotación)
         auth_db.revoke_sessions_for_user(conn, user.id)
