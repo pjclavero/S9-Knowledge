@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}403 Acceso denegado — S9 Knowledge{% endblock %}
+
+{% block body %}
+<main style="max-width:600px;margin:4rem auto;padding:1rem;text-align:center;">
+  <h2>403 — Acceso denegado</h2>
+  <p>No tienes permiso para acceder a esta sección.</p>
+  {% if detail %}
+    <p><em>{{ detail | e }}</em></p>
+  {% endif %}
+  <a href="/" class="btn" style="margin-top:1rem;">Ir al inicio</a>
+</main>
+{% endblock %}

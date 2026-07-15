@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Mi cuenta — S9 Knowledge{% endblock %}
+
+{% block body %}
+<main style="max-width:600px;margin:2rem auto;padding:1rem;">
+  <h2>Mi cuenta</h2>
+
+  <table class="info-table">
+    <tr><th>Usuario</th><td>{{ user.username | e }}</td></tr>
+    <tr><th>Nombre</th><td>{{ user.display_name | e }}</td></tr>
+    <tr><th>Rol</th><td>{{ user.role | e }}</td></tr>
+    <tr><th>Último acceso</th><td>{{ user.last_login_at or "—" }}</td></tr>
+  </table>
+
+  <div style="margin-top:1.5rem;">
+    <a href="/account/change-password" class="btn">Cambiar contraseña</a>
+  </div>
+
+  <form method="post" action="/logout" style="margin-top:1rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+    <button type="submit" class="btn btn-danger">Cerrar sesión</button>
+  </form>
+</main>
+{% endblock %}
