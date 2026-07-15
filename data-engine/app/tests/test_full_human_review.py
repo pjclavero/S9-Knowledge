@@ -126,7 +126,9 @@ def test_9_manual_approve_enters_payload(tmp_path):
 # 10-11: ingest rechaza sin reviewed_by / reviewed_at
 def _payload(tmp_path, **overrides):
     item = {"kind": "entity", "name": "Kakita Asuka", "entity_type": "Character",
-            "evidence": "ev", "source_id": "src", "review_status": "approved",
+            "evidence": "ev", "source_id": "src", "source_kind": "markdown",
+            "source_document": "src", "workspace": "leyenda", "knowledge_layer": "narrative",
+            "visibility": "player", "confidence": 0.9, "review_status": "approved",
             "reviewed_by": "manual-cli:ana", "reviewed_at": "2026-07-14T00:00:00+00:00",
             "review_action": "approve"}
     item.update(overrides)
