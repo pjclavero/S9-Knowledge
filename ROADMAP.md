@@ -55,6 +55,8 @@ Prioridad 5: PENDIENTE — Autenticación y seguridad del visor
 
 Transcripción de vídeo (docs/40): faster-whisper medium APTA CON REVISIÓN DE SEGMENTOS CONFLICTIVOS (91% auto-aceptable; conflictos = nombres propios). Referencia humana pendiente para WER definitivo.
 
+IA externa NVIDIA (docs/42): revisión multi-modelo + consenso + calibración en **modo sombra** (implementado, sin escritura). Fase B (lotes externos) diseñada, pendiente. Validación real pendiente de API key.
+
 ## Prioridad 2 — Calidad del extractor y del pipeline (EN DEFINICIÓN)
 
 El bloqueo real no es ausencia de LLM — los tres modos (heurístico, LLM, híbrido) están implementados. El bloqueo es la falta de validación de calidad sobre un corpus representativo.

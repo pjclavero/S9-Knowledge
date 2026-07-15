@@ -1,5 +1,7 @@
 # 23 · Knowledge Packages: export/import y procesamiento externo
 
+> Relacionado: IA externa NVIDIA en modo sombra (revisión/consenso/calibración) — ver [docs/42](42-external-ai-calibration-and-burst-processing.md). Nada externo escribe en Neo4j.
+
 Actualizado 2026-07-12. Módulo: `data-engine/app/review/export_import.py`.
 
 ## Regla de oro

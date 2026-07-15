@@ -1,5 +1,7 @@
 # DOSIER DE ESTADO, CORRECCIÓN Y EJECUCIÓN  
 
+> Relacionado: IA externa NVIDIA en modo sombra (revisión/consenso/calibración) — ver [docs/42](42-external-ai-calibration-and-burst-processing.md). Nada externo escribe en Neo4j.
+
 > Benchmark de transcripción de vídeo (docs/40, 2026-07-15): faster-whisper medium APTA CON REVISIÓN DE SEGMENTOS CONFLICTIVOS (91% auto-aceptable). Para la primera ingesta se recomienda una fuente pequeña ya validada, no una transcripción de vídeo nueva.
 ## S9 Knowledge
 

@@ -1,5 +1,7 @@
 # 14 · Worker de ingesta multimedia (v0.2.4)
 
+> Relacionado: IA externa NVIDIA en modo sombra (revisión/consenso/calibración) — ver [docs/42](42-external-ai-calibration-and-burst-processing.md). Nada externo escribe en Neo4j.
+
 ## Objetivo
 
 Automatizar el primer tramo del procesado de fuentes multimedia (vídeo/audio):

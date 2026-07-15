@@ -1,5 +1,7 @@
 # 03 · Fases
 
+> Relacionado: IA externa NVIDIA en modo sombra (revisión/consenso/calibración) — ver [docs/42](42-external-ai-calibration-and-burst-processing.md). Nada externo escribe en Neo4j.
+
 Resumen de fases del proyecto. Detalle vivo en `../ROADMAP.md`.
 
 | Fase | Descripción | Estado |

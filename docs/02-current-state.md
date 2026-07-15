@@ -12,6 +12,8 @@
 Instantánea verificada a 2026-07-13 (basada en auditoría de VM105 del mismo día).
 > Transcripción de vídeo (docs/40, 2026-07-15): faster-whisper medium APTA CON REVISIÓN DE SEGMENTOS CONFLICTIVOS (91% auto-aceptable; conflictos = nombres propios). Referencia humana pendiente. Sin ingesta.
 
+> IA externa NVIDIA (docs/42, 2026-07-15): paquete `external_ai` + CLI en **modo sombra** (revisión multi-modelo, consenso, calibración). shadow_mode obligatorio, sin escritura en Neo4j. 22 tests. Validación real pendiente de API key.
+
 ## HECHO
 
 ### Motor de datos y grafo

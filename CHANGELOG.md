@@ -4,6 +4,14 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-07-15 — IA externa NVIDIA: revisión multi-modelo y calibración en modo sombra (docs/42)
+- Nuevo paquete `data-engine/app/external_ai/` (base, models, errors, registry, openai_compatible, nvidia_nim, prompts, response_parser, consensus, calibration, cache, security) + CLI `cli/external_ai.py` (health/review/adjudicate/calibrate/report).
+- Dos revisores independientes NVIDIA NIM + adjudicador → consenso (STRONG/PARTIAL/CONFLICT/INVALID/HUMAN). **shadow_mode=true** siempre; sin AUTO_APPROVED; nada escribe en Neo4j.
+- Seguridad: API key solo por entorno/EnvironmentFile 0600, detector de secretos (incl. nvapi-) que bloquea el envío, sanitización reutilizada, caché idempotente (fuera de Git).
+- **22 tests** (mock, sin llamadas reales) incl. test que falla si toca ingesta/Neo4j. E2E mockeado: 7 STRONG / 1 CONFLICT / 1 INVALID; Neo4j intacto 199/140.
+- **Validación real ejecutada (§17, 2026-07-15):** 2 modelos de familias distintas (nvidia/nemotron-mini-4b + upstage/solar-10.7b) sobre 3 candidatos → consenso 2 STRONG/1 PARTIAL/0 conflictos, JSON válido (0 errores), caché confirmada, Neo4j intacto 199/140, sin secretos. Fase B (procesamiento externo por lotes) diseñada, no implementada.
+- **Dictamen: Calibración multi-IA IMPLEMENTADA EN MODO SOMBRA; procesamiento externo de gran volumen DISEÑADO, NO IMPLEMENTADO.**
+
 ### 2026-07-15 — Benchmark de transcripción YouTube vs faster-whisper (docs/40)
 - Comparación real por muestra (vídeo L5A QS2Rnw-dYlk, ventana 10 min): faster-whisper medium (RTF 0.56) vs YouTube auto-ASR.
 - Acuerdo token-level 0.887; normalizador de glosario 0 sustituciones (whisper medium acierta nombres L5A). Sin subtítulos manuales ni referencia humana → WER verdadero no medible (comparación indirecta).

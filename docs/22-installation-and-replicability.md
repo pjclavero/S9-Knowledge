@@ -1,5 +1,7 @@
 # 22 · Instalación y replicabilidad (preparada, no completada)
 
+> Relacionado: IA externa NVIDIA en modo sombra (revisión/consenso/calibración) — ver [docs/42](42-external-ai-calibration-and-burst-processing.md). Nada externo escribe en Neo4j.
+
 Actualizado 2026-07-12. Estado: **diseño documentado; la instalación replicable completa NO está implementada**.
 
 ## Filosofía
