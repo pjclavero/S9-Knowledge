@@ -120,7 +120,7 @@ resultado externo → validate → normalize → resolve → review policy → a
 
 ## Validación real controlada (§17) — EJECUTADA (2026-07-15)
 
-API key en EnvironmentFile  (0600).  → ok (muchos modelos NIM disponibles).
+API key en EnvironmentFile `/etc/s9-knowledge/nvidia.env` (0600). `health` → ok (muchos modelos NIM disponibles).
 Revisión real sobre **3 candidatos conocidos** (source_narrative_01), 2 modelos de **familias distintas** + adjudicador:
 
 | Rol | Modelo | Familia | Válido | Decisiones | Errores | Latencia | Tokens |
