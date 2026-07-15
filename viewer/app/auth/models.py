@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 ROLES = ("admin", "reviewer", "viewer")
@@ -28,7 +32,7 @@ class User:
     def is_locked(self, now: Optional[datetime] = None) -> bool:
         if self.locked_until is None:
             return False
-        ts = now or datetime.utcnow()
+        ts = now or _utcnow()
         return ts < self.locked_until
 
     def is_admin(self) -> bool:
@@ -57,7 +61,7 @@ class Session:
     user_agent_hash: Optional[str]
 
     def is_valid(self, now: Optional[datetime] = None) -> bool:
-        ts = now or datetime.utcnow()
+        ts = now or _utcnow()
         return self.revoked_at is None and ts < self.expires_at
 
 

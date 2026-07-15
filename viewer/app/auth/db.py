@@ -8,7 +8,7 @@ import shutil
 import sqlite3
 import threading
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Generator, Optional
 
@@ -176,11 +176,11 @@ def ensure_migrated(db_path: Optional[Path] = None) -> None:
 # ---------------------------------------------------------------------------
 
 def _utcnow() -> str:
-    return datetime.utcnow().isoformat()
+    return datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
 
 
 def _parse_dt(s: Optional[str]) -> Optional[datetime]:
-    if s is None:
+    if not s:  # None o string vacío (p.ej. locked_until="" al desbloquear)
         return None
     return datetime.fromisoformat(s)
 
