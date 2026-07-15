@@ -108,7 +108,19 @@ CREATE TABLE IF NOT EXISTS jobs (
     attempts                      INTEGER NOT NULL DEFAULT 0,
     max_attempts                  INTEGER NOT NULL DEFAULT 3,
     locked_by                     TEXT,
-    locked_at                     TEXT
+    locked_at                     TEXT,
+    -- Fase B1 (external-burst-orchestrator): procesamiento externo elastico
+    batch_id                      TEXT,
+    processing_mode               TEXT,
+    provider                      TEXT,
+    model                         TEXT,
+    task_type                     TEXT,
+    chunk_json                    TEXT,
+    progress                      REAL NOT NULL DEFAULT 0.0,
+    attempt_burst                 INTEGER NOT NULL DEFAULT 0,
+    next_retry_at                 TEXT,
+    latency_ms                    REAL,
+    error_code                    TEXT
 );
 """
 
@@ -123,6 +135,18 @@ _MIGRATION_COLUMNS = [
     ("max_attempts", "INTEGER NOT NULL DEFAULT 3"),
     ("locked_by", "TEXT"),
     ("locked_at", "TEXT"),
+    # Columnas añadidas por Fase B1 (external-burst-orchestrator):
+    ("batch_id", "TEXT"),
+    ("processing_mode", "TEXT"),
+    ("provider", "TEXT"),
+    ("model", "TEXT"),
+    ("task_type", "TEXT"),
+    ("chunk_json", "TEXT"),
+    ("progress", "REAL NOT NULL DEFAULT 0.0"),
+    ("attempt_burst", "INTEGER NOT NULL DEFAULT 0"),
+    ("next_retry_at", "TEXT"),
+    ("latency_ms", "REAL"),
+    ("error_code", "TEXT"),
 ]
 
 
