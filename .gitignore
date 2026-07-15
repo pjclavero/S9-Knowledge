@@ -64,3 +64,4 @@ Thumbs.db
 *.dump
 *.backup
 *.bak
+state/external_ai_cache/
