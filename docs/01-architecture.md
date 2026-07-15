@@ -37,6 +37,7 @@
 | Cola trabajos | `state/jobs.db` (SQLite) | implementada |
 | Acceso/permisos | `state/access.db` (SQLite) | implementado |
 | Visor / Panel | — | pendiente |
+| IA externa (NVIDIA, revisión sombra) | `external_ai/` | implementado (Fase A, shadow); docs/42 |
 
 ## Flujo de datos
 

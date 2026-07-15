@@ -1,5 +1,7 @@
 # 15 · Worker y panel de jobs (v0.2.4)
 
+> Relacionado: IA externa NVIDIA en modo sombra (revisión/consenso/calibración) — ver [docs/42](42-external-ai-calibration-and-burst-processing.md). Nada externo escribe en Neo4j.
+
 ## Qué problema resuelve
 
 Antes de automatizar del todo vídeo/audio/transcripciones/ingesta, el proyecto
