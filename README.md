@@ -12,10 +12,10 @@ la evolución del conocimiento de cada personaje a lo largo de la campaña.
 
 > **Fase B1 (external-burst-orchestrator):** paquete `external_processing/` con planner local/hybrid/burst,
 > chunking, dispatcher (concurrencia+retry+circuit breaker), validacion, merger, mock determinista y adaptador
-> NVIDIA. CLI `burst.py`. 88 tests en 11 archivos, cubriendo mas de 30 escenarios y requisitos de aceptacion.
-> Migracion SQLite idempotente. B2/B3 pendientes. Ver [docs/43](docs/43-external-burst-orchestrator.md).
+> NVIDIA. CLI `burst.py`. 88 tests en 10 archivos, cubriendo mas de 30 escenarios y requisitos de aceptacion.
+> Migracion SQLite idempotente. B2/B3 pendientes. Ver [docs/45](docs/45-external-burst-orchestrator.md).
 >
-> Estado: implementada en PR #16 (feat/external-burst-orchestrator), pendiente de merge a main.
+> Estado: implementada en PR limpio (feat/external-burst-orchestrator-clean), pendiente de merge a main.
 > Fase A (NVIDIA calibracion multi-IA): implementada, validada y fusionada en main. Ver [docs/42](docs/42-external-ai-nvidia.md).
 > Fases B2 (ASR real, OCR real, imagen real) y B3 (activacion productiva): pendientes.
 

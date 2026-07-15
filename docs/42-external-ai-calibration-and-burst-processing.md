@@ -148,7 +148,7 @@ Para ejecutarla de forma segura (el operador, en VM105):
 ## Dictamen
 ```
 Calibración multi-IA con NVIDIA: IMPLEMENTADA Y VALIDADA EN MODO SOMBRA (2 modelos reales, consenso correcto, Neo4j intacto)
-Procesamiento externo de gran volumen: FASE B1 IMPLEMENTADA (orquestador + mock, 87 tests); B2/B3 pendientes
+Procesamiento externo de gran volumen: FASE B1 IMPLEMENTADA (orquestador + mock, 88 tests); B2/B3 pendientes
 ```
 
 ---
@@ -166,9 +166,9 @@ Paquete `external_processing/` con infraestructura completa:
 - `MockExternalProcessingProvider`: todos los escenarios, sin APIs reales
 - `NvidiaProcessingProvider`: capacidades verificadas declaradas (B2 pendiente)
 - CLI: `data-engine/app/cli/burst.py`
-- 87 tests (planner, chunking, cache, dispatcher, state machine, validacion, merger, seguridad, E2E mock)
+- 88 tests (planner, chunking, cache, dispatcher, state machine, validacion, merger, seguridad, E2E mock)
 
-Ver: [docs/43](43-external-burst-orchestrator.md)
+Ver: [docs/45](45-external-burst-orchestrator.md)
 
 ### B2 — Proveedores ASR/OCR/Imagen reales (PENDIENTE)
 

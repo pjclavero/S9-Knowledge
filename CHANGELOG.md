@@ -4,7 +4,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
-### 2026-07-15 — Fase B1: orquestador de procesamiento externo por rafaga (docs/43)
+### 2026-07-15 — Fase B1: orquestador de procesamiento externo por rafaga (docs/45)
 - Nuevo paquete `data-engine/app/external_processing/` (capabilities, errors, models, manifests, planner, chunking, provider, registry, cache, dispatcher, result_validator, result_merger) + providers/mock + providers/nvidia.
 - `BurstPlanner`: seleccion automatica local/hybrid/burst por umbrales configurables con `reason_codes`.
 - `BurstDispatcher`: concurrencia limitada (semaforo), reintentos con backoff exponencial, circuit breaker, cancelacion limpia, rate limiting.
@@ -15,7 +15,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 - Cache idempotente SHA256 (`state/external_processing_cache/`).
 - CLI `data-engine/app/cli/burst.py`: plan/dispatch/status/retry/cancel/validate/merge/report.
 - Migracion SQLite idempotente: 11 columnas nuevas para jobs de procesamiento externo (batch_id, processing_mode, provider, model, task_type, chunk_json, progress, attempt_burst, next_retry_at, latency_ms, error_code).
-- **88 tests** en `tests/test_external_processing/` en 11 archivos, cubriendo mas de 30 escenarios y requisitos de aceptacion (planner, chunking, cache, dispatcher, state machine, validacion, merger, seguridad, migracion, E2E mock, regresion de aislamiento).
+- **88 tests** en `tests/test_external_processing/` en 10 archivos, cubriendo mas de 30 escenarios y requisitos de aceptacion (planner, chunking, cache, dispatcher, state machine, validacion, merger, seguridad, migracion, E2E mock, regresion de aislamiento).
 - E2E mock (test_e2e_mock.py): 2 audios + 3 imagenes + 10 paginas PDF → plan→dispatch→validate→merge → READY_FOR_LOCAL_PIPELINE. Neo4j: 0 llamadas. writer: no invocado. ingest_approved: no importado por el pipeline. approved_payload: no generado.
 - fix: test_e2e_flujo_completo usa snapshot de sys.modules anterior al pipeline para detectar solo contaminacion de Fase B1 (no contaminacion de orden de tests de la suite). Test de regresion test_e2e_ingest_approved_no_importado_por_pipeline anadido.
 - **Dictamen Fase B1: LISTO. B2 (proveedores ASR/OCR/imagen reales) y B3 (produccion) pendientes.**

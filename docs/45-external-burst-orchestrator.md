@@ -305,7 +305,7 @@ Garantias:
 
 ## Tests
 
-88 tests en `data-engine/app/tests/test_external_processing/` distribuidos en 11 archivos, cubriendo mas de 30 escenarios y requisitos de aceptacion:
+88 tests en `data-engine/app/tests/test_external_processing/` distribuidos en 10 archivos, cubriendo mas de 30 escenarios y requisitos de aceptacion:
 
 | Archivo | Tests | Cubre |
 |---|---|---|
