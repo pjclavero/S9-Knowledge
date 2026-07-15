@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Auditoría — Admin S9 Knowledge{% endblock %}
+
+{% block body %}
+<main style="max-width:1100px;margin:2rem auto;padding:1rem;">
+  <h2>Auditoría de eventos</h2>
+
+  <form method="get" action="/admin/audit" style="margin-bottom:1.5rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:flex-end;">
+    <div class="field" style="margin:0;">
+      <label for="f_user">Usuario</label>
+      <input id="f_user" type="text" name="user_param" value="{{ filters.user or '' | e }}" style="width:140px;">
+    </div>
+    <div class="field" style="margin:0;">
+      <label for="f_event">Tipo de evento</label>
+      <select id="f_event" name="event_type">
+        <option value="">— Todos —</option>
+        {% for et in event_types %}
+          <option value="{{ et | e }}" {% if filters.event_type == et %}selected{% endif %}>{{ et | e }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="margin:0;">
+      <label for="f_result">Resultado</label>
+      <select id="f_result" name="result">
+        <option value="">— Todos —</option>
+        <option value="success" {% if filters.result == "success" %}selected{% endif %}>success</option>
+        <option value="failure" {% if filters.result == "failure" %}selected{% endif %}>failure</option>
+        <option value="info" {% if filters.result == "info" %}selected{% endif %}>info</option>
+      </select>
+    </div>
+    <div class="field" style="margin:0;">
+      <label for="f_from">Desde</label>
+      <input id="f_from" type="date" name="date_from" value="{{ filters.date_from or '' | e }}" style="width:130px;">
+    </div>
+    <div class="field" style="margin:0;">
+      <label for="f_to">Hasta</label>
+      <input id="f_to" type="date" name="date_to" value="{{ filters.date_to or '' | e }}" style="width:130px;">
+    </div>
+    <button type="submit" class="btn">Filtrar</button>
+    <a href="/admin/audit" class="btn">Limpiar</a>
+  </form>
+
+  <p>Total: {{ total }} eventos | Página {{ page }}/{{ total_pages }}</p>
+
+  <table class="data-table" style="font-size:.85em;">
+    <thead>
+      <tr>
+        <th>Fecha (UTC)</th>
+        <th>Usuario</th>
+        <th>Evento</th>
+        <th>Resultado</th>
+        <th>Ruta</th>
+        <th>IP (hash)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ev in events %}
+      <tr>
+        <td>{{ ev.created_at | e }}</td>
+        <td>{{ ev.username_snapshot | e if ev.username_snapshot else "—" }}</td>
+        <td>{{ ev.event_type | e }}</td>
+        <td class="result-{{ ev.result | e }}">{{ ev.result | e }}</td>
+        <td>{{ ev.route | e if ev.route else "—" }}</td>
+        <td>{{ ev.ip_hash | e if ev.ip_hash else "—" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6">No hay eventos con los filtros aplicados.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div style="margin-top:1rem;display:flex;gap:.5rem;">
+    {% if page > 1 %}
+      <a href="?page={{ page - 1 }}&user_param={{ filters.user or '' | e }}&event_type={{ filters.event_type or '' | e }}&result={{ filters.result or '' | e }}&date_from={{ filters.date_from or '' | e }}&date_to={{ filters.date_to or '' | e }}" class="btn">Anterior</a>
+    {% endif %}
+    {% if page < total_pages %}
+      <a href="?page={{ page + 1 }}&user_param={{ filters.user or '' | e }}&event_type={{ filters.event_type or '' | e }}&result={{ filters.result or '' | e }}&date_from={{ filters.date_from or '' | e }}&date_to={{ filters.date_to or '' | e }}" class="btn">Siguiente</a>
+    {% endif %}
+  </div>
+</main>
+{% endblock %}

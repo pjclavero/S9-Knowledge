@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — S9 Knowledge</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">S9 Knowledge · Visor</div>
+  </header>
+
+  <main style="max-width:400px;margin:4rem auto;padding:1rem;">
+    <h2>Iniciar sesión</h2>
+
+    {% if error == "invalid_credentials" %}
+      <div class="alert alert-error" role="alert">
+        Usuario o contraseña incorrectos.
+      </div>
+    {% elif error == "csrf_invalid" %}
+      <div class="alert alert-error" role="alert">
+        Error de seguridad. Recarga la página e inténtalo de nuevo.
+      </div>
+    {% elif error %}
+      <div class="alert alert-error" role="alert">
+        Error: {{ error | e }}
+      </div>
+    {% endif %}
+
+    <form method="post" action="/login" novalidate>
+      <input type="hidden" name="next" value="{{ next | e }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+
+      <div class="field">
+        <label for="username">Usuario</label>
+        <input
+          id="username"
+          type="text"
+          name="username"
+          autocomplete="username"
+          autofocus
+          required
+        >
+      </div>
+
+      <div class="field">
+        <label for="password">Contraseña</label>
+        <input
+          id="password"
+          type="password"
+          name="password"
+          autocomplete="current-password"
+          required
+        >
+      </div>
+
+      <button type="submit" class="btn btn-primary">Entrar</button>
+    </form>
+  </main>
+</body>
+</html>

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == "new" %}Nuevo usuario{% else %}{{ edit_user.username | e }}{% endif %} — Admin S9 Knowledge{% endblock %}
+
+{% block body %}
+<main style="max-width:600px;margin:2rem auto;padding:1rem;">
+  {% if mode == "new" %}
+    <h2>Nuevo usuario</h2>
+  {% else %}
+    <h2>Editar usuario: {{ edit_user.username | e }}</h2>
+  {% endif %}
+
+  {% if errors %}
+    <div class="alert alert-error" role="alert">
+      <ul style="margin:0;padding-left:1.2rem;">
+        {% for err in errors %}
+          <li>{{ err | e }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <form method="post" action="{% if mode == 'new' %}/admin/users/new{% else %}/admin/users/{{ edit_user.id }}{% endif %}" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+
+    {% if mode == "new" %}
+    <div class="field">
+      <label for="username">Usuario</label>
+      <input id="username" type="text" name="username" required autofocus>
+    </div>
+    {% else %}
+    <div class="field">
+      <label>Usuario</label>
+      <span>{{ edit_user.username | e }}</span>
+    </div>
+    {% endif %}
+
+    <div class="field">
+      <label for="display_name">Nombre visible</label>
+      <input id="display_name" type="text" name="display_name"
+             value="{{ edit_user.display_name | e if edit_user else '' }}" required>
+    </div>
+
+    <div class="field">
+      <label for="role">Rol</label>
+      <select id="role" name="role">
+        {% for r in roles %}
+          <option value="{{ r | e }}" {% if edit_user and edit_user.role == r %}selected{% endif %}>
+            {{ r | e }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    {% if mode == "new" %}
+    <div class="field">
+      <label for="password">Contraseña inicial</label>
+      <input id="password" type="password" name="password" required minlength="12">
+      <small>Mínimo 12 caracteres.</small>
+    </div>
+    {% endif %}
+
+    <div class="field">
+      <label>
+        <input type="checkbox" name="must_change_password" value="true"
+               {% if mode == "new" or (edit_user and edit_user.must_change_password) %}checked{% endif %}>
+        Debe cambiar contraseña al primer acceso
+      </label>
+    </div>
+
+    {% if mode == "edit" %}
+    <div class="field">
+      <label>
+        <input type="checkbox" name="is_active" value="true"
+               {% if edit_user and edit_user.is_active %}checked{% endif %}>
+        Cuenta activa
+      </label>
+    </div>
+    {% endif %}
+
+    <button type="submit" class="btn btn-primary">
+      {% if mode == "new" %}Crear usuario{% else %}Guardar cambios{% endif %}
+    </button>
+    <a href="/admin/users" class="btn" style="margin-left:.5rem;">Cancelar</a>
+  </form>
+
+  {% if mode == "edit" %}
+  <hr style="margin:2rem 0;">
+  <h3>Acciones adicionales</h3>
+
+  <form method="post" action="/admin/users/{{ edit_user.id }}/revoke-sessions" style="display:inline;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+    <button type="submit" class="btn btn-danger">Revocar sesiones activas</button>
+  </form>
+
+  {% if edit_user.is_locked() %}
+  <form method="post" action="/admin/users/{{ edit_user.id }}/unlock" style="display:inline;margin-left:.5rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+    <button type="submit" class="btn">Desbloquear cuenta</button>
+  </form>
+  {% endif %}
+
+  <div style="margin-top:1rem;color:#666;font-size:.9em;">
+    <p>Creado: {{ edit_user.created_at }}</p>
+    <p>Actualizado: {{ edit_user.updated_at }}</p>
+    <p>Intentos fallidos: {{ edit_user.failed_login_count }}</p>
+  </div>
+  {% endif %}
+</main>
+{% endblock %}
