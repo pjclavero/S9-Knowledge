@@ -15,7 +15,26 @@
       <a href="/graph">Grafo</a>
       <a href="/jobs">Jobs</a>
       <a href="/status">Estado</a>
+      {% if auth_user is defined and auth_user %}
+        {% if auth_user.can_see_reviews() %}
+          <a href="/reviews">Reviews</a>
+        {% endif %}
+        {% if auth_user.can_access_admin() %}
+          <a href="/admin/users">Admin</a>
+        {% endif %}
+      {% endif %}
     </nav>
+    {% if auth_user is defined and auth_user %}
+    <div class="topbar-user">
+      <span>{{ auth_user.display_name | e }}</span>
+      <span class="role-badge role-{{ auth_user.role | e }}">{{ auth_user.role | e }}</span>
+      <a href="/account">Cuenta</a>
+      <form method="post" action="/logout" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token | default('') | e }}">
+        <button type="submit" class="btn-link">Salir</button>
+      </form>
+    </div>
+    {% endif %}
   </header>
   {% block body %}{% endblock %}
   {% block scripts %}{% endblock %}
