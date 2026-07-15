@@ -118,10 +118,23 @@ resultado externo → validate → normalize → resolve → review policy → a
 
 ---
 
-## Validación real controlada (§17) — pendiente de API key
+## Validación real controlada (§17) — EJECUTADA (2026-07-15)
 
-No hay API key NVIDIA configurada en VM105, por lo que la validación real (2 modelos de
-familias distintas, ≤5 candidatos) **no se ha ejecutado**. Los tests mock cubren toda la lógica.
+API key en EnvironmentFile  (0600).  → ok (muchos modelos NIM disponibles).
+Revisión real sobre **3 candidatos conocidos** (source_narrative_01), 2 modelos de **familias distintas** + adjudicador:
+
+| Rol | Modelo | Familia | Válido | Decisiones | Errores | Latencia | Tokens |
+|---|---|---|---|---:|---:|---:|---:|
+| reviewer_a | nvidia/nemotron-mini-4b-instruct | NVIDIA | sí | 3 | 0 | 5.5 s | 1563 |
+| reviewer_b | upstage/solar-10.7b-instruct | Upstage | sí | 3 | 0 | 13.0 s | 1794 |
+| adjudicador | nvidia/nvidia-nemotron-nano-9b-v2 | NVIDIA | (sin conflictos) | — | — | ~3 s | — |
+
+Consenso: **2 STRONG_CONSENSUS, 1 PARTIAL_CONSENSUS, 0 conflictos** (coverage 0.67). Ambos modelos
+devolvieron JSON estructurado que pasó la validación estricta (evidencia literal en el segmento,
+tipos válidos): 0 errores de validación. **Caché confirmada** (2ª llamada 0.00 s, cache hit).
+**Neo4j intacto 199/140**; sin secretos en artefactos; la API key nunca se imprimió.
+Modelos descartados por no disponibles/no-JSON: zyphra/zamba2-7b (404), sarvamai/sarvam-m (prosa),
+openai/gpt-oss-20b (JSON válido pero 53 s, demasiado lento) — sustituibles por configuración.
 
 Para ejecutarla de forma segura (el operador, en VM105):
 1. Crear un EnvironmentFile privado `0600` con `S9K_NVIDIA_API_KEY=...` (no mostrarla, no subirla).
@@ -134,6 +147,6 @@ Para ejecutarla de forma segura (el operador, en VM105):
 
 ## Dictamen
 ```
-Calibración multi-IA con NVIDIA: IMPLEMENTADA EN MODO SOMBRA (validación real pendiente de API key)
+Calibración multi-IA con NVIDIA: IMPLEMENTADA Y VALIDADA EN MODO SOMBRA (2 modelos reales, consenso correcto, Neo4j intacto)
 Procesamiento externo de gran volumen: DISEÑADO, NO IMPLEMENTADO (Fase B)
 ```
