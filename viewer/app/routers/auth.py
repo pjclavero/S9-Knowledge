@@ -12,7 +12,14 @@ from fastapi.templating import Jinja2Templates
 
 from app.auth import audit, db as auth_db
 from app.auth.config import get_auth_settings
-from app.auth.csrf import generate_csrf_token, get_csrf_token_for_session, validate_csrf
+from app.auth.csrf import (
+    LOGIN_CSRF_COOKIE,
+    LOGIN_CSRF_MAX_AGE,
+    get_csrf_token_for_session,
+    issue_login_csrf,
+    validate_csrf,
+    validate_login_csrf,
+)
 from app.auth.dependencies import get_current_user, require_authenticated_user
 from app.auth.models import User
 from app.auth.passwords import hash_password, needs_rehash, validate_password, verify_password
@@ -73,27 +80,39 @@ def _get_ip(request: Request) -> Optional[str]:
 # GET /login
 # ---------------------------------------------------------------------------
 
+def _login_cookie_kwargs(cfg) -> dict:
+    """Atributos de la cookie CSRF de login (mismos flags de seguridad)."""
+    return {
+        "key": LOGIN_CSRF_COOKIE,
+        "max_age": LOGIN_CSRF_MAX_AGE,
+        "httponly": cfg.S9K_SESSION_HTTPONLY,
+        "secure": cfg.S9K_SESSION_SECURE,
+        "samesite": cfg.S9K_SESSION_SAMESITE,
+        "path": "/",
+    }
+
+
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(
     request: Request,
     next: Optional[str] = None,
     error: Optional[str] = None,
+    message: Optional[str] = None,
 ):
-    return templates.TemplateResponse(
+    cfg = get_auth_settings()
+    token = issue_login_csrf(cfg.S9K_CSRF_SECRET)
+    response = templates.TemplateResponse(
         request,
         "auth/login.html",
         {
             "next": _safe_next(next),
             "error": error,
-            "csrf_token": _csrf_for_anonymous(),
+            "message": message,
+            "csrf_token": token,
         },
     )
-
-
-def _csrf_for_anonymous() -> str:
-    """Token CSRF simple para formularios de login (sin sesión aún)."""
-    # Para login usamos un token stateless firmado con el secret de la app
-    return generate_csrf_token()
+    response.set_cookie(value=token, **_login_cookie_kwargs(cfg))
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -117,26 +136,21 @@ async def login_submit(
     ip_hash = _hash_ip(ip)
     ua_hash = _hash_ua(ua)
 
-    # Nota: para el login no podemos validar CSRF contra sesión (no hay sesión aún).
-    # Validamos que el campo no venga vacío; la protección principal contra CSRF
-    # en el login es la cookie SameSite=Lax + POST requerido.
-    if not csrf_token:
-        return templates.TemplateResponse(
+    def _login_error(error: str, status_code: int):
+        """Reemite un token CSRF fresco y su cookie en cada respuesta de error."""
+        fresh = issue_login_csrf(cfg.S9K_CSRF_SECRET)
+        resp = templates.TemplateResponse(
             request, "auth/login.html",
-            {"error": "csrf_invalid", "next": _safe_next(next), "csrf_token": _csrf_for_anonymous()},
-            status_code=403,
+            {"error": error, "next": _safe_next(next), "csrf_token": fresh},
+            status_code=status_code,
         )
+        resp.set_cookie(value=fresh, **_login_cookie_kwargs(cfg))
+        return resp
 
-    error_response = templates.TemplateResponse(
-        request,
-        "auth/login.html",
-        {
-            "error": "invalid_credentials",
-            "next": _safe_next(next),
-            "csrf_token": _csrf_for_anonymous(),
-        },
-        status_code=401,
-    )
+    # CSRF de login real: token firmado + temporal + double-submit contra cookie.
+    cookie_token = request.cookies.get(LOGIN_CSRF_COOKIE)
+    if not validate_login_csrf(csrf_token, cookie_token, secret=cfg.S9K_CSRF_SECRET):
+        return _login_error("csrf_invalid", 403)
 
     with auth_db.get_conn(db_path) as conn:
         user = auth_db.get_user_by_username(conn, username)
@@ -145,16 +159,16 @@ async def login_submit(
             # Ejecutar hash igualmente para evitar timing attack
             hash_password("dummy-timing-defense")
             audit.log(conn, audit.LOGIN_FAILURE, "failure",
-                      username_snapshot=username, ip_hash=ip_hash, ua_hash=ua_hash if False else None,
+                      username_snapshot=username, ip_hash=ip_hash,
                       user_agent_hash=ua_hash)
-            return error_response
+            return _login_error("invalid_credentials", 401)
 
         # Comprobar bloqueo
         if user.is_locked():
             audit.log(conn, audit.ACCOUNT_LOCKED, "failure",
                       user_id=user.id, username_snapshot=user.username,
                       ip_hash=ip_hash, user_agent_hash=ua_hash)
-            return error_response
+            return _login_error("invalid_credentials", 401)
 
         # Verificar contraseña
         if not verify_password(password, user.password_hash):
@@ -175,13 +189,13 @@ async def login_submit(
             audit.log(conn, audit.LOGIN_FAILURE, "failure",
                       user_id=user.id, username_snapshot=user.username,
                       ip_hash=ip_hash, user_agent_hash=ua_hash)
-            return error_response
+            return _login_error("invalid_credentials", 401)
 
         if not user.is_active:
             audit.log(conn, audit.LOGIN_FAILURE, "failure",
                       user_id=user.id, username_snapshot=user.username,
                       ip_hash=ip_hash, user_agent_hash=ua_hash)
-            return error_response
+            return _login_error("invalid_credentials", 401)
 
         # Rehash si es necesario
         if needs_rehash(user.password_hash):
@@ -212,6 +226,8 @@ async def login_submit(
     response = RedirectResponse(url=redirect_to, status_code=302)
     ck = cookie_kwargs()
     response.set_cookie(value=token, **ck)
+    # El token CSRF de login ya se consumió: eliminar su cookie.
+    response.delete_cookie(LOGIN_CSRF_COOKIE, path="/")
     return response
 
 

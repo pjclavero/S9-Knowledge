@@ -4,6 +4,19 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-07-15 — Autenticación del visor + endurecimiento de seguridad (docs/44)
+- Autenticación opt-in por sesiones server-side con usuarios locales SQLite: login/logout/cuenta/cambio de contraseña, roles `admin`/`reviewer`/`viewer`, administración de usuarios, auditoría append-only, CLI y migraciones. Con `S9K_AUTH_ENABLED=false` el visor se comporta igual que antes.
+- Hashing Argon2id (o bcrypt); cookies `HttpOnly`/`Secure`/`SameSite=Lax`; sesiones almacenadas solo como SHA-256; bloqueo por intentos fallidos.
+- **Endurecimiento (Fase A4):**
+  - Todas las APIs (`/api/status|workspaces|entity-types|search|entity|graph|jobs`) exigen sesión viewer+ → **401/403 JSON**; HTML anónimo → 302 /login. Dependencias centrales `get_current_api_user`/`require_api_authenticated_user`/`require_api_role`.
+  - CSRF de login real: token firmado HMAC-SHA256, temporal y *double-submit* ligado al navegador.
+  - Validación de arranque *fail-closed*: aborta si el secreto CSRF es vacío/por defecto/corto/baja entropía o si el backend de contraseñas no es Argon2id/bcrypt (PBKDF2-dev prohibido en producción).
+  - Middleware fail-closed (sin `except: pass`): fallo de auth → usuario anónimo, acceso denegado, log sanitizado.
+  - `/docs`, `/redoc`, `/openapi.json` no registrados por defecto; con `S9K_AUTH_EXPOSE_DOCS=true` solo admin.
+  - Corregido el 500 en login con usuario inexistente (parámetro de auditoría inválido).
+- **78 tests de auth** en 3 archivos (`test_auth_core` 18, `test_auth_routes` 22, `test_auth_hardening` 38). Suite viewer: 114 passed. Suite combinada: 438 passed. Sin escritura en Neo4j ni en el writer de ingesta.
+- **Dictamen: Autenticación del visor PREPARADA (PR limpio, pendiente de merge).**
+
 ### 2026-07-15 — IA externa NVIDIA: revisión multi-modelo y calibración en modo sombra (docs/42)
 - Nuevo paquete `data-engine/app/external_ai/` (base, models, errors, registry, openai_compatible, nvidia_nim, prompts, response_parser, consensus, calibration, cache, security) + CLI `cli/external_ai.py` (health/review/adjudicate/calibrate/report).
 - Dos revisores independientes NVIDIA NIM + adjudicador → consenso (STRONG/PARTIAL/CONFLICT/INVALID/HUMAN). **shadow_mode=true** siempre; sin AUTO_APPROVED; nada escribe en Neo4j.

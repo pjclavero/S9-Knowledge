@@ -16,8 +16,16 @@ from app.api import jobs as api_jobs
 from app.api import status as api_status
 from app.auth.config import get_auth_settings
 from app.auth.middleware import AuthMiddleware
-from app.auth.dependencies import get_current_user, require_authenticated_user, require_role
+from app.auth.dependencies import (
+    get_current_user,
+    require_admin,
+    require_api_authenticated_user,
+    require_api_role,
+    require_authenticated_user,
+    require_role,
+)
 from app.auth.models import User
+from app.auth.security import enforce_auth_security
 from app.auth import db as auth_db
 from app.config import get_settings
 from app.deps import get_default_workspace, get_provider
@@ -32,13 +40,16 @@ BASE_DIR = Path(__file__).resolve().parent
 # Directorio raíz del repositorio (dos niveles por encima de viewer/app/)
 REPO_ROOT = BASE_DIR.parent.parent
 
-_auth_cfg = get_auth_settings()
-
+# Las rutas automáticas /docs, /redoc y /openapi.json se desactivan y se
+# sustituyen por rutas propias con control de acceso evaluado en tiempo de
+# petición (ver más abajo). Así el gating no depende del valor de configuración
+# capturado en el momento del import.
 app = FastAPI(
     title="S9 Knowledge Viewer",
     version="0.3.0",
-    docs_url="/docs" if _auth_cfg.S9K_AUTH_EXPOSE_DOCS or not _auth_cfg.S9K_AUTH_ENABLED else None,
-    redoc_url="/redoc" if _auth_cfg.S9K_AUTH_EXPOSE_DOCS or not _auth_cfg.S9K_AUTH_ENABLED else None,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
 # Middleware de autenticación (no-op cuando S9K_AUTH_ENABLED=false)
@@ -47,21 +58,71 @@ app.add_middleware(AuthMiddleware)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
-app.include_router(api_status.router)
-app.include_router(api_entities.router)
-app.include_router(api_graph.router)
-app.include_router(api_jobs.router)
+# APIs protegidas: viewer+ cuando auth está activa; públicas cuando está off
+# (la dependencia es no-op si S9K_AUTH_ENABLED=false).
+app.include_router(api_status.router, dependencies=[Depends(require_api_authenticated_user)])
+app.include_router(api_entities.router, dependencies=[Depends(require_api_authenticated_user)])
+app.include_router(api_graph.router, dependencies=[Depends(require_api_authenticated_user)])
+app.include_router(api_jobs.router, dependencies=[Depends(require_api_authenticated_user)])
 app.include_router(auth_router.router)
 app.include_router(admin_router.router)
 
 
 # ---------------------------------------------------------------------------
-# Helper: instalar DB de auth al arrancar si está activada
+# /docs, /redoc, /openapi.json — control de acceso en tiempo de petición
+# ---------------------------------------------------------------------------
+
+def _docs_access(request: Request):
+    """Devuelve None si se permite servir la documentación; si no, la respuesta
+    de denegación adecuada.
+
+    - auth desactivada → público.
+    - auth activada y S9K_AUTH_EXPOSE_DOCS=false → 404 (no existe).
+    - auth activada y expose=true → solo admin (401 anónimo / 403 no-admin).
+    """
+    cfg = get_auth_settings()
+    if not cfg.S9K_AUTH_ENABLED:
+        return None
+    if not cfg.S9K_AUTH_EXPOSE_DOCS:
+        raise HTTPException(status_code=404, detail="Not Found")
+    user = getattr(request.state, "user", None)
+    if user is None:
+        raise HTTPException(status_code=401, detail="No autenticado")
+    if not user.is_admin():
+        raise HTTPException(status_code=403, detail="Solo admin")
+    return None
+
+
+@app.get("/openapi.json", include_in_schema=False)
+def _openapi(request: Request):
+    _docs_access(request)
+    return JSONResponse(app.openapi())
+
+
+@app.get("/docs", include_in_schema=False)
+def _swagger(request: Request):
+    from fastapi.openapi.docs import get_swagger_ui_html
+    _docs_access(request)
+    return get_swagger_ui_html(openapi_url="/openapi.json", title="S9 Knowledge Viewer — API")
+
+
+@app.get("/redoc", include_in_schema=False)
+def _redoc(request: Request):
+    from fastapi.openapi.docs import get_redoc_html
+    _docs_access(request)
+    return get_redoc_html(openapi_url="/openapi.json", title="S9 Knowledge Viewer — API")
+
+
+# ---------------------------------------------------------------------------
+# Helper: validar seguridad e instalar DB de auth al arrancar si está activada
 # ---------------------------------------------------------------------------
 
 @app.on_event("startup")
 async def _startup_auth() -> None:
     cfg = get_auth_settings()
+    # Fail-closed: aborta el arranque si la configuración de auth es insegura
+    # (secreto CSRF por defecto/débil, backend de contraseñas no apto).
+    enforce_auth_security(cfg)
     if cfg.S9K_AUTH_ENABLED:
         p = Path(cfg.S9K_AUTH_DB_PATH)
         p.parent.mkdir(parents=True, exist_ok=True)

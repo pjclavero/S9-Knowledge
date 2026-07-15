@@ -31,6 +31,16 @@ os.environ.setdefault("S9K_DEFAULT_WORKSPACE", "leyenda")
 os.environ.setdefault(
     "S9K_SAMPLE_GRAPH_PATH", str(VIEWER_ROOT / "examples" / "sample_graph.json")
 )
+# Secreto CSRF fuerte por defecto para los tests: sin él, cualquier test que
+# active auth y arranque la app (enforce_auth_security) abortaría por "secreto
+# por defecto". Los tests del validador de secreto crean su propia config.
+import secrets as _secrets  # noqa: E402
+os.environ.setdefault("S9K_CSRF_SECRET", _secrets.token_urlsafe(48))
+# El TestClient habla HTTP (http://testserver); una cookie Secure no se
+# reenviaría, rompiendo el round-trip de la cookie CSRF de login. En el entorno
+# de test desactivamos Secure por defecto; el test dedicado de "cookie Secure"
+# lo activa explícitamente e inspecciona la cabecera Set-Cookie.
+os.environ.setdefault("S9K_SESSION_SECURE", "false")
 
 
 @pytest.fixture(autouse=True)

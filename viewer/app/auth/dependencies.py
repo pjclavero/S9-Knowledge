@@ -73,3 +73,54 @@ async def require_admin(
     if not user.is_admin():
         raise HTTPException(status_code=403, detail="Acceso denegado: se requiere rol admin")
     return user
+
+
+# ---------------------------------------------------------------------------
+# Dependencias de API (JSON): SIEMPRE 401/403 JSON, nunca redirección HTML.
+# No-op cuando S9K_AUTH_ENABLED=false (comportamiento público sin cambios).
+# ---------------------------------------------------------------------------
+
+_ROLE_HIERARCHY = {"admin": 3, "reviewer": 2, "viewer": 1}
+
+
+async def get_current_api_user(request: Request) -> Optional[User]:
+    """Usuario autenticado para rutas de API, o None (auth off o sin sesión)."""
+    return getattr(request.state, "user", None)
+
+
+async def require_api_authenticated_user(
+    request: Request,
+    user: Optional[User] = Depends(get_current_api_user),
+) -> Optional[User]:
+    """Exige sesión válida en rutas de API.
+
+    - auth desactivada  → permite (devuelve None).
+    - auth activada, sin sesión → 401 JSON.
+    """
+    if not get_auth_settings().S9K_AUTH_ENABLED:
+        return None
+    if user is None:
+        raise HTTPException(status_code=401, detail="No autenticado")
+    return user
+
+
+def require_api_role(role: str) -> Callable:
+    """Dependencia de API que exige un rol mínimo (jerarquía admin>reviewer>viewer).
+
+    - auth desactivada  → permite.
+    - auth activada, sin sesión → 401 JSON.
+    - auth activada, rol insuficiente → 403 JSON.
+    """
+    async def _check(
+        request: Request,
+        user: Optional[User] = Depends(get_current_api_user),
+    ) -> Optional[User]:
+        if not get_auth_settings().S9K_AUTH_ENABLED:
+            return None
+        if user is None:
+            raise HTTPException(status_code=401, detail="No autenticado")
+        if _ROLE_HIERARCHY.get(user.role, 0) < _ROLE_HIERARCHY.get(role, 0):
+            raise HTTPException(status_code=403, detail="Acceso denegado")
+        return user
+
+    return _check

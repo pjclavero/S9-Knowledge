@@ -80,13 +80,19 @@ def test_login_unknown_user_generic_message(conn, tmp_db, monkeypatch):
         pass
 
     from app.main import app
+    from app.auth.csrf import LOGIN_CSRF_COOKIE
     from fastapi.testclient import TestClient
     client = TestClient(app, raise_server_exceptions=False)
+
+    # Obtener un token CSRF de login válido (cookie double-submit) vía GET /login.
+    client.get("/login")
+    csrf = client.cookies.get(LOGIN_CSRF_COOKIE)
+    assert csrf, "GET /login debe emitir la cookie CSRF de login"
 
     resp = client.post("/login", data={
         "username": "usuario_inexistente",
         "password": "alguna_clave_larga_123",
-        "csrf_token": "token_dummy",
+        "csrf_token": csrf,
         "next": "/",
     })
     # Debe responder con error genérico, no revelar si el usuario existe
@@ -163,10 +169,15 @@ def test_cookie_httponly(conn, tmp_db, monkeypatch):
 # ---------------------------------------------------------------------------
 
 def test_cookie_secure(conn, tmp_db, monkeypatch):
+    # El entorno de test desactiva Secure para el round-trip HTTP; aquí lo
+    # activamos explícitamente para verificar que la config se respeta.
+    monkeypatch.setenv("S9K_SESSION_SECURE", "true")
+    from app.auth.config import get_auth_settings
+    get_auth_settings.cache_clear()
     from app.auth.sessions import cookie_kwargs
     kwargs = cookie_kwargs()
-    # Por defecto S9K_SESSION_SECURE=True
     assert kwargs.get("secure") is True
+    get_auth_settings.cache_clear()
 
 
 # ---------------------------------------------------------------------------

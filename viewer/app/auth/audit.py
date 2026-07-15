@@ -23,11 +23,14 @@ USER_ENABLED = "USER_ENABLED"
 ROLE_CHANGED = "ROLE_CHANGED"
 SESSIONS_REVOKED = "SESSIONS_REVOKED"
 ACCESS_DENIED = "ACCESS_DENIED"
+# Fallo del backend de auth (DB/sesión). Cuando la propia DB está caída no puede
+# persistirse; en ese caso el middleware lo registra por logging estructurado.
+AUTH_BACKEND_ERROR = "AUTH_BACKEND_ERROR"
 
 ALL_EVENT_TYPES = [
     LOGIN_SUCCESS, LOGIN_FAILURE, ACCOUNT_LOCKED, LOGOUT, SESSION_EXPIRED,
     PASSWORD_CHANGED, USER_CREATED, USER_UPDATED, USER_DISABLED, USER_ENABLED,
-    ROLE_CHANGED, SESSIONS_REVOKED, ACCESS_DENIED,
+    ROLE_CHANGED, SESSIONS_REVOKED, ACCESS_DENIED, AUTH_BACKEND_ERROR,
 ]
 
 # ---------------------------------------------------------------------------

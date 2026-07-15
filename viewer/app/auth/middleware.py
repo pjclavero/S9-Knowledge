@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import secrets
 from pathlib import Path
 from typing import Optional
@@ -14,6 +15,8 @@ from starlette.responses import Response
 from app.auth import db as auth_db
 from app.auth.config import get_auth_settings
 from app.auth.sessions import get_valid_session
+
+log = logging.getLogger("s9k.auth.middleware")
 
 _CSRF_COOKIE = "_s9k_csrf"
 
@@ -55,15 +58,25 @@ class AuthMiddleware(BaseHTTPMiddleware):
                             request.state.user = user
                             request.state.session = session
                             # Token CSRF: derivado del session_hash para no requerir DB
-                            import hmac as _hmac
-                            csrf_raw = _hmac.new(
+                            csrf_raw = hmac.new(
                                 cfg.S9K_CSRF_SECRET.encode(),
                                 f"csrf:{session.id}:{session.session_hash[:8]}".encode(),
                                 hashlib.sha256,
                             ).hexdigest()
                             request.state.csrf_raw = csrf_raw
-                except Exception:
-                    pass  # No romper la app si auth falla
+                except Exception as exc:
+                    # Fail-closed: ante cualquier fallo de auth (DB, sesión,
+                    # migración, cookie) el usuario queda NO autenticado y las
+                    # rutas protegidas denegarán el acceso. Log sanitizado: sin
+                    # token, cookie, hash ni secreto; solo tipo de excepción.
+                    request.state.user = None
+                    request.state.session = None
+                    request.state.csrf_raw = ""
+                    log.error(
+                        "Fallo en el backend de autenticación (%s): acceso tratado "
+                        "como anónimo (fail-closed).",
+                        type(exc).__name__,
+                    )
 
         response = await call_next(request)
         return response

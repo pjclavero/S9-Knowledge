@@ -1,6 +1,6 @@
 # 44 · Autenticación del visor S9 Knowledge
 
-Implementado en la rama `feat/viewer-auth-foundation` (julio 2026).
+Implementado en la rama `feat/viewer-auth-foundation-clean` (julio 2026).
 
 ---
 
@@ -26,6 +26,26 @@ Browser → Cookie s9k_session → AuthMiddleware → request.state.user/session
 - **Sesiones**: Token CSPRNG (`secrets.token_urlsafe(32)`), solo SHA-256 en DB
 - **CSRF**: Token por sesión derivado con HMAC-SHA256, comparación con `hmac.compare_digest`
 - **Cookies**: `HttpOnly=true`, `Secure=true`, `SameSite=Lax`
+
+---
+
+## Endurecimiento de seguridad (Fase A4)
+
+Sobre la base anterior se aplicó un endurecimiento *fail-closed*:
+
+- **Protección de todas las APIs.** `/api/status`, `/api/workspaces`, `/api/entity-types`, `/api/search`, `/api/entity/{id}`, `/api/graph`, `/api/jobs*` exigen sesión (viewer+) mediante las dependencias centrales `get_current_api_user`, `require_api_authenticated_user` y `require_api_role`. Comportamiento: API anónima → **401 JSON**; rol insuficiente → **403 JSON**; HTML anónimo → **302 /login**. Con `S9K_AUTH_ENABLED=false` las dependencias son no-op (APIs públicas, sin cambios).
+- **CSRF de login real.** Token firmado (`HMAC-SHA256`), temporal (caduca a la hora) y ligado al navegador por *double-submit cookie* (`_s9k_login_csrf`). Un token vacío, inventado, caducado o que no coincide con la cookie es rechazado con 403. Se aplica también a logout, cambio de contraseña y acciones de administración (CSRF por sesión).
+- **Validación de arranque.** Con `S9K_AUTH_ENABLED=true`, `enforce_auth_security()` aborta el arranque si el secreto CSRF está vacío, es el valor por defecto, es corto (<32) o de baja entropía; y si el backend de contraseñas no es Argon2id ni bcrypt (PBKDF2-dev prohibido en producción). No se genera un secreto silenciosamente.
+- **Backend de contraseñas.** Argon2id (preferido) o bcrypt (compatibilidad). PBKDF2-SHA256 queda solo para dev/CI y **bloquea el arranque** cuando auth está activa.
+- **Middleware fail-closed.** Ante cualquier fallo del backend de auth (DB, sesión, migración, cookie) el usuario queda **no autenticado** y las rutas protegidas deniegan el acceso; se registra por *logging* estructurado y sanitizado (sin token, cookie, hash ni secreto).
+- **/docs, /redoc y OpenAPI.** No se registran por defecto. Con `S9K_AUTH_EXPOSE_DOCS=true` y auth activa, solo el rol **admin** puede verlos (anónimo → 401, no-admin → 403); las APIs anónimas siguen devolviendo 401.
+- **Cookies y proxy.** En producción `HttpOnly`/`Secure`/`SameSite=Lax`; el acceso productivo se hace por HTTPS a través del reverse proxy. `X-Forwarded-*` solo se atiende con `S9K_AUTH_TRUST_PROXY_HEADERS=true`.
+
+**Generación del secreto CSRF** (no commitear el valor):
+
+```bash
+python -c 'import secrets; print(secrets.token_urlsafe(48))'
+```
 
 ---
 
@@ -171,11 +191,12 @@ viewer/
 │   │   ├── db.py           — SQLite + migraciones versionadas
 │   │   ├── passwords.py    — Argon2id / bcrypt / PBKDF2
 │   │   ├── sessions.py     — Crear, validar, revocar sesiones
-│   │   ├── csrf.py         — Tokens CSRF por sesión
+│   │   ├── csrf.py         — CSRF por sesión + CSRF de login firmado/temporal
 │   │   ├── audit.py        — Tipos de evento + helper log()
+│   │   ├── security.py     — enforce_auth_security(): validación de arranque
 │   │   ├── identity.py     — OperatorIdentity para fase futura
-│   │   ├── middleware.py   — AuthMiddleware (inyecta user/session)
-│   │   └── dependencies.py — Dependencias FastAPI (get_current_user, etc.)
+│   │   ├── middleware.py   — AuthMiddleware (inyecta user/session, fail-closed)
+│   │   └── dependencies.py — Dependencias FastAPI (HTML + API: 401/403 JSON)
 │   ├── routers/
 │   │   ├── auth.py         — /login, /logout, /account, /account/change-password
 │   │   └── admin.py        — /admin/users, /admin/audit
@@ -192,8 +213,9 @@ viewer/
 │               ├── user_detail.html
 │               └── audit.html
 ├── tests/
-│   ├── test_auth_core.py   — 18 tests: passwords, sesiones, CSRF, DB
-│   └── test_auth_routes.py — 22 tests: rutas, roles, auditoría, seguridad
+│   ├── test_auth_core.py      — 18 tests: passwords, sesiones, CSRF, DB
+│   ├── test_auth_routes.py    — 22 tests: rutas, roles, auditoría, seguridad
+│   └── test_auth_hardening.py — 38 tests: APIs 401/403, CSRF login, arranque, fail-closed, /docs, aislamiento
 └── state/
     └── auth.db             — Creado automáticamente (no en git)
 ```
