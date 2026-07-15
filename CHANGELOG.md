@@ -4,6 +4,21 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-07-15 — Fase B1: orquestador de procesamiento externo por rafaga (docs/43)
+- Nuevo paquete `data-engine/app/external_processing/` (capabilities, errors, models, manifests, planner, chunking, provider, registry, cache, dispatcher, result_validator, result_merger) + providers/mock + providers/nvidia.
+- `BurstPlanner`: seleccion automatica local/hybrid/burst por umbrales configurables con `reason_codes`.
+- `BurstDispatcher`: concurrencia limitada (semaforo), reintentos con backoff exponencial, circuit breaker, cancelacion limpia, rate limiting.
+- `MockExternalProcessingProvider`: 10 escenarios deterministicos (success, timeout, rate_limit, retry_once, auth_error, etc.) para todos los tipos de tarea.
+- `NvidiaProcessingProvider`: capacidades verificadas declaradas (EXTRACT_TEXT_ENTITIES, GENERATE_EMBEDDINGS, RERANK, REVIEW_CANDIDATES); B2 pendiente para endpoints ASR/OCR/imagen.
+- Validacion de respuestas externas: schema, hash, rangos, idioma, secretos, rutas privadas.
+- Merger de resultados: audio por timestamps (elimina overlap, detecta gaps), OCR por paginas, texto por offsets.
+- Cache idempotente SHA256 (`state/external_processing_cache/`).
+- CLI `data-engine/app/cli/burst.py`: plan/dispatch/status/retry/cancel/validate/merge/report.
+- Migracion SQLite idempotente: 11 columnas nuevas para jobs de procesamiento externo (batch_id, processing_mode, provider, model, task_type, chunk_json, progress, attempt_burst, next_retry_at, latency_ms, error_code).
+- **87 tests** en `tests/test_external_processing/` (planner, chunking, cache, dispatcher, state machine, validacion, merger, seguridad, migracion, E2E mock).
+- E2E mock (test_e2e_mock.py): 2 audios + 3 imagenes + 10 paginas PDF → plan→dispatch→validate→merge → READY_FOR_LOCAL_PIPELINE. Neo4j: 0 llamadas. writer: no invocado. ingest_approved: no importado. approved_payload: no generado.
+- **Dictamen Fase B1: LISTO. B2 (proveedores ASR/OCR/imagen reales) y B3 (produccion) pendientes.**
+
 ### 2026-07-15 — IA externa NVIDIA: revisión multi-modelo y calibración en modo sombra (docs/42)
 - Nuevo paquete `data-engine/app/external_ai/` (base, models, errors, registry, openai_compatible, nvidia_nim, prompts, response_parser, consensus, calibration, cache, security) + CLI `cli/external_ai.py` (health/review/adjudicate/calibrate/report).
 - Dos revisores independientes NVIDIA NIM + adjudicador → consenso (STRONG/PARTIAL/CONFLICT/INVALID/HUMAN). **shadow_mode=true** siempre; sin AUTO_APPROVED; nada escribe en Neo4j.
