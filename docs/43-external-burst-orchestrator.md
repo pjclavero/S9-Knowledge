@@ -305,7 +305,7 @@ Garantias:
 
 ## Tests
 
-87 tests en `data-engine/app/tests/test_external_processing/`:
+88 tests en `data-engine/app/tests/test_external_processing/` distribuidos en 11 archivos, cubriendo mas de 30 escenarios y requisitos de aceptacion:
 
 | Archivo | Tests | Cubre |
 |---|---|---|
@@ -318,7 +318,7 @@ Garantias:
 | `test_merger.py` | 8 | Audio, OCR, gaps, seguridad |
 | `test_security.py` | 8 | Secretos, rutas privadas, Neo4j, ingest |
 | `test_migration.py` | 3 | Migracion idempotente, compatibilidad |
-| `test_e2e_mock.py` | 3 | E2E completo: plan->dispatch->validate->merge |
+| `test_e2e_mock.py` | 4 | E2E completo: plan->dispatch->validate->merge; regresion de aislamiento de ingest_approved |
 
 ---
 
