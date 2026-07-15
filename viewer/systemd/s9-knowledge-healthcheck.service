@@ -1,0 +1,13 @@
+[Unit]
+Description=S9 Knowledge operational healthcheck (read-only)
+After=network.target
+# Solo lectura: no reinicia servicios, no escribe en Neo4j, no requiere API externa.
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/knowledge-services/s9-knowledge-repo/viewer
+EnvironmentFile=/opt/knowledge-services/s9-knowledge-repo/viewer/.env
+ExecStart=/opt/knowledge-services/s9-knowledge-repo/viewer/.venv/bin/python -m app.cli.health check
+# El código de salida refleja el estado (0 healthy · 1 degraded · 2 unhealthy · 3 config).
+SuccessExitStatus=0 1
+Nice=10

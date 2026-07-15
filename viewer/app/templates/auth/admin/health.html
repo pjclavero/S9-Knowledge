@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Estado operacional — Admin S9 Knowledge{% endblock %}
+
+{% block body %}
+<main style="max-width:1000px;margin:2rem auto;padding:1rem;">
+  <h2>Estado operacional</h2>
+  <p>
+    Estado global:
+    <strong class="health-{{ overall|lower }}">{{ overall }}</strong>
+    <span style="color:#888;">· generado {{ report.generated_at }}</span>
+  </p>
+  <p style="color:#888;font-size:.9rem;">Solo lectura. No reinicia servicios ni modifica datos.</p>
+
+  <table style="width:100%;border-collapse:collapse;margin-top:1rem;">
+    <thead>
+      <tr style="text-align:left;border-bottom:2px solid #ccc;">
+        <th style="padding:.4rem;">Componente</th>
+        <th style="padding:.4rem;">Estado</th>
+        <th style="padding:.4rem;">Mensaje</th>
+        <th style="padding:.4rem;">Latencia</th>
+        <th style="padding:.4rem;">Detalles</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in report.components %}
+      <tr style="border-bottom:1px solid #eee;">
+        <td style="padding:.4rem;font-family:monospace;">{{ c.component }}</td>
+        <td style="padding:.4rem;"><strong class="health-{{ c.status|lower }}">{{ c.status }}</strong></td>
+        <td style="padding:.4rem;">{{ c.message }}</td>
+        <td style="padding:.4rem;">{% if c.latency_ms is not none %}{{ c.latency_ms }} ms{% else %}—{% endif %}</td>
+        <td style="padding:.4rem;font-family:monospace;font-size:.85rem;color:#555;">{{ c.details }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</main>
+{% endblock %}
+
+{% block head %}
+<style>
+  .health-healthy { color:#1a7f37; }
+  .health-degraded { color:#9a6700; }
+  .health-unhealthy { color:#b91c1c; }
+  .health-unknown { color:#666; }
+</style>
+{% endblock %}

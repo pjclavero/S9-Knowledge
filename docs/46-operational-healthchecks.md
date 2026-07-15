@@ -18,13 +18,26 @@
 
 ## Declaración de ámbito
 
-**Archivos que se crearán/modificarán (solo esta tarea):**
-- `data-engine/app/health/` — paquete de checks (viewer, neo4j, ollama, nextcloud/rclone, job_store, auth_db, external_ai, burst, filesystem, backups, systemd) + agregador + modelos de estado.
-- `viewer/app/routers/admin.py` (o nuevo router) — `GET /api/admin/health` y `GET /admin/health` (solo `admin`, reutilizando `require_admin`/`require_api_role("admin")`).
-- CLI `s9k-health` (`data-engine/app/cli/health.py`): `check`, `check --component`, `report`, `json`; exit codes 0/1/2/3.
-- `viewer/systemd/s9-knowledge-healthcheck.{service,timer}` (cada 5 min).
-- `docs/46-operational-healthchecks.md` (este documento).
-- Tests: `data-engine/app/tests/test_health/` y tests de la API admin en `viewer/tests/`.
+**Decisión de ubicación:** el paquete vive en **`viewer/app/health/`** (no en `data-engine/`) porque el visor es el servicio siempre activo, con el venv que tiene las dependencias, y así la API/panel y la CLI comparten el mismo módulo sin trucos de `sys.path` en producción.
+
+**Archivos creados (commit funcional inicial):**
+- `viewer/app/health/` — `models.py` (contratos), `checks.py` (11 componentes), `runner.py` (agregador + config desde entorno), `storage.py` (último informe JSON 0600).
+- `viewer/app/routers/health_admin.py` — `GET /api/admin/health` (`require_api_role("admin")`, JSON) y `GET /admin/health` (`require_admin`, panel); registrado en `viewer/app/main.py`.
+- `viewer/app/templates/auth/admin/health.html` — panel específico (extiende `base.html`, sin modificarlo).
+- CLI `viewer/app/cli/health.py` (`python -m app.cli.health`): `check [--component]`, `report`, `json`; exit codes 0/1/2/3.
+- `viewer/systemd/s9-knowledge-healthcheck.{service,timer}` (oneshot + timer 5 min; **no instalado en producción todavía**).
+- `docs/46-operational-healthchecks.md`.
+- Tests: `viewer/tests/test_health.py` (34 tests).
+
+**Contrato público fijado (JSON):**
+```json
+{"overall":"HEALTHY|DEGRADED|UNHEALTHY|UNKNOWN","generated_at":"<iso>",
+ "components":[{"component":"<str>","status":"<HealthStatus>","checked_at":"<iso>",
+               "latency_ms":<float|null>,"message":"<str>","details":{...sanitizado...}}]}
+```
+Nombres de componentes: `viewer, neo4j, ollama, nextcloud_rclone, job_store, auth_db, external_ai, burst, filesystem, backups, systemd`.
+Rutas API: `GET /api/admin/health` (admin, JSON), `GET /admin/health` (admin, HTML).
+Autorización: `require_api_role("admin")` / `require_admin` (reutilizadas de auth).
 
 **Módulos que NO se tocan:** writer de ingesta (`review/ingest_approved.py`), runtime de `external_processing`, escrituras en Neo4j, internals de auth (solo lectura de `auth.db`), templates de datos.
 

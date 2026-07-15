@@ -33,6 +33,7 @@ from app.jobs_client import get_counts_by_status, get_job, jobs_db_status, list_
 from app.providers.base import GraphProvider
 from app.routers import auth as auth_router
 from app.routers import admin as admin_router
+from app.routers import health_admin as health_router
 from app.serializers import serialize_edge, serialize_node
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -66,6 +67,7 @@ app.include_router(api_graph.router, dependencies=[Depends(require_api_authentic
 app.include_router(api_jobs.router, dependencies=[Depends(require_api_authenticated_user)])
 app.include_router(auth_router.router)
 app.include_router(admin_router.router)
+app.include_router(health_router.router)
 
 
 # ---------------------------------------------------------------------------
