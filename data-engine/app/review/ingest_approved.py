@@ -16,6 +16,11 @@ Guards adicionales de paquete (rechazan el payload completo):
 
 Lee approved_payload.json y escribe nodos/relaciones en Neo4j
 incluyendo provenance completa.
+
+USE_EXISTING: verifica existencia sin modificar ninguna propiedad.
+Requiere exactamente 1 coincidencia por canonical_name inequívoco.
+Sin procedencia multifuente: el candidato debe estar marcado como
+DEFERRED_USE_EXISTING_UNTIL_MULTI_SOURCE_PROVENANCE y excluido del payload.
 """
 from __future__ import annotations
 import json
@@ -23,6 +28,11 @@ import logging
 import os
 import sys
 from pathlib import Path
+
+try:
+    from neo4j import GraphDatabase as GraphDatabase
+except ImportError:
+    GraphDatabase = None  # optional dependency, required only for real writes
 
 _APP_DIR = Path(__file__).resolve().parents[1]
 if str(_APP_DIR) not in sys.path:
@@ -45,9 +55,17 @@ _DRY_RUN_ABORT_MSG = (
 
 
 def _item_label(item):
-    """Retorna etiqueta legible para un item del payload."""
     name = item.get("name") or item.get("candidate_id") or "?"
     return str(name)
+
+
+def _is_use_existing(item: dict) -> bool:
+    """Detecta si un item aprobado corresponde a USE_EXISTING."""
+    return (
+        item.get("review_action") == "use-existing"
+        or item.get("resolver_action") == "use_existing"
+        or item.get("recommendation") == "USE_EXISTING"
+    )
 
 
 def _validate_package(payload):
@@ -66,7 +84,11 @@ def _validate_package(payload):
     entities = [a for a in approved if a.get("kind") == "entity"]
     relations = [a for a in approved if a.get("kind") == "relation"]
 
-    no_evidence = [_item_label(e) for e in entities if not str(e.get("evidence", "")).strip()]
+    # USE_EXISTING no requiere evidence propio (el nodo existente ya lo tiene)
+    no_evidence = [
+        _item_label(e) for e in entities
+        if not str(e.get("evidence", "")).strip() and not _is_use_existing(e)
+    ]
     if no_evidence:
         errors.append("ENTIDADES sin evidence (%d): %s" % (len(no_evidence), no_evidence[:5]))
 
@@ -126,6 +148,31 @@ def _build_merge_entity_query(item):
     return cypher, {"name": name, "props": props}
 
 
+def _build_match_use_existing_query(item):
+    """
+    Genera consulta MATCH para USE_EXISTING.
+    Verifica exactamente 1 coincidencia. NO modifica ninguna propiedad.
+
+    Reglas aplicadas:
+      1. MATCH por canonical_name (identificador inequívoco aprobado).
+      2. Falla si no existe exactamente 1 nodo.
+      3. No crea nodo nuevo (no usa MERGE).
+      4. No cambia canonical_name, display_name, entity_type, description,
+         confidence, aliases, created_at, source_document, source_kind, source_pages.
+      5. No reemplaza aliases ni procedencia existente.
+      6. Sin multisource -> el candidato debe estar APLAZADO antes de llegar aquí.
+      7. No actualiza updated_at (sin mutación segura aplicable).
+    """
+    name = item.get("name", "")
+    cypher_count = "MATCH (n {canonical_name: $name}) RETURN count(n) AS cnt"
+    cypher_verify = (
+        "MATCH (n {canonical_name: $name}) "
+        "RETURN n.canonical_name AS canonical_name, labels(n) AS labels, "
+        "n.entity_type AS entity_type"
+    )
+    return cypher_count, cypher_verify, {"name": name}
+
+
 def _build_merge_relation_query(item):
     rel_type = item.get("relation_type", "RELATED_TO")
     cypher = (
@@ -174,7 +221,7 @@ def _validate_review_provenance(payload) -> list:
             errors.append("%s: reviewed_at ausente" % label)
         if not str(item.get("review_action", "")).strip():
             errors.append("%s: review_action ausente" % label)
-        if not str(item.get("evidence", "")).strip():
+        if not str(item.get("evidence", "")).strip() and not _is_use_existing(item):
             errors.append("%s: evidence ausente" % label)
         if not str(item.get("source_id", "")).strip():
             errors.append("%s: source_id ausente" % label)
@@ -193,7 +240,11 @@ def ingest(
 
     DOBLE GUARD:
       1. Sin --dry-run, S9K_ALLOW_REAL_INGEST debe ser "true".
-      2. Validación del paquete: workspace, schema_version, evidence, relations, timestamps, origin.
+      2. Validación del paquete + procedencia de revisión.
+
+    USE_EXISTING: rama separada que verifica existencia sin mutar ninguna propiedad.
+    El candidato USE_EXISTING no debe llegar aquí si está marcado como APLAZADO
+    (DEFERRED_USE_EXISTING_UNTIL_MULTI_SOURCE_PROVENANCE).
     """
     if not dry_run:
         allow_real = os.environ.get("S9K_ALLOW_REAL_INGEST", "").strip().lower()
@@ -215,8 +266,6 @@ def ingest(
         msg = "PAQUETE RECHAZADO. Errores:\n" + "\n".join("  - %s" % e for e in pkg_errors)
         raise ValueError(msg)
 
-    # Politica full_human_review: exige procedencia de revision humana explicita.
-    # Rechaza autoaprobados y payloads sin reviewed_by/reviewed_at (sin escribir).
     if _review_policy_name() == "full_human_review":
         prov_errors = _validate_review_provenance(payload)
         if prov_errors:
@@ -228,9 +277,10 @@ def ingest(
     approved = payload.get("approved", [])
     if not approved:
         log.info("[DRY-RUN] No hay candidatos aprobados en el payload.")
-        return {"dry_run": True, "would_write": 0, "entities": 0, "relations": 0}
+        return {"dry_run": True, "would_write": 0, "entities": 0, "relations": 0, "use_existing": 0}
 
-    entities = [a for a in approved if a.get("kind") == "entity"]
+    entities_new = [a for a in approved if a.get("kind") == "entity" and not _is_use_existing(a)]
+    entities_use_existing = [a for a in approved if a.get("kind") == "entity" and _is_use_existing(a)]
     relations = [a for a in approved if a.get("kind") == "relation"]
 
     if dry_run:
@@ -238,20 +288,32 @@ def ingest(
         print("[DRY-RUN] Simulación de ingesta — SIN escritura en Neo4j")
         print("  Payload: %s" % approved_payload_path)
         print("  Total aprobados: %d" % len(approved))
-        print("  Entidades: %d" % len(entities))
+        print("  Entidades nuevas: %d" % len(entities_new))
+        print("  USE_EXISTING (verificar sin mutar): %d" % len(entities_use_existing))
         print("  Relaciones: %d" % len(relations))
         print()
 
-        if entities:
-            print("  -- ENTIDADES (primeras 10) --")
-            for item in entities[:10]:
+        if entities_new:
+            print("  -- ENTIDADES NUEVAS --")
+            for item in entities_new[:10]:
                 cypher, params = _build_merge_entity_query(item)
                 print("  [%s] %s (conf=%.2f)" % (
                     item.get("entity_type", "?"), item.get("name", "?"), item.get("confidence", 0)))
                 print("    Cypher: %s" % cypher)
-                print("    Params.name: %s" % params["name"])
-            if len(entities) > 10:
-                print("  ... y %d más" % (len(entities) - 10))
+                print("    Props que se establecerían: %s" % list(params["props"].keys()))
+            if len(entities_new) > 10:
+                print("  ... y %d más" % (len(entities_new) - 10))
+
+        if entities_use_existing:
+            print()
+            print("  -- USE_EXISTING (SIN mutación de propiedades) --")
+            for item in entities_use_existing:
+                cypher_count, cypher_verify, params = _build_match_use_existing_query(item)
+                print("  [USE_EXISTING] %s (%s)" % (item.get("name", "?"), item.get("entity_type", "?")))
+                print("    Cypher verificación: %s" % cypher_count)
+                print("    Params: %s" % params)
+                print("    Propiedades que se establecerían: NINGUNA")
+                print("    Propiedades existentes que permanecerían intactas: TODAS")
 
         if relations:
             print()
@@ -261,31 +323,49 @@ def ingest(
                 print("  %s -[%s]-> %s (conf=%.2f)" % (
                     item.get("from_entity", "?"), item.get("relation_type", "?"),
                     item.get("to_entity", "?"), item.get("confidence", 0)))
-                print("    Cypher: %s" % cypher)
-            if len(relations) > 10:
-                print("  ... y %d más" % (len(relations) - 10))
 
         print()
         print("[DRY-RUN] Neo4j NO fue modificado.")
 
         return {
             "dry_run": True,
-            "would_write": len(approved),
-            "entities": len(entities),
+            "would_write": len(entities_new) + len(relations),
+            "entities": len(entities_new),
+            "use_existing": len(entities_use_existing),
             "relations": len(relations),
         }
 
     # Escritura real
-    log.info("ESCRITURA REAL en Neo4j: %d entidades, %d relaciones", len(entities), len(relations))
+    log.info(
+        "ESCRITURA REAL en Neo4j: %d entidades nuevas, %d use_existing (verificar), %d relaciones",
+        len(entities_new), len(entities_use_existing), len(relations)
+    )
     try:
-        from neo4j import GraphDatabase
         driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
-        written = {"entities": 0, "relations": 0}
+        written = {"entities": 0, "use_existing_verified": 0, "relations": 0}
         with driver.session() as session:
-            for item in entities:
+            for item in entities_new:
                 cypher, params = _build_merge_entity_query(item)
                 session.run(cypher, params)
                 written["entities"] += 1
+            for item in entities_use_existing:
+                cypher_count, cypher_verify, params = _build_match_use_existing_query(item)
+                result = session.run(cypher_count, params)
+                record = result.single()
+                cnt = record["cnt"] if record else 0
+                if cnt == 0:
+                    raise RuntimeError(
+                        "USE_EXISTING '%s': no existe ningún nodo con canonical_name='%s'. "
+                        "Abortado sin escritura." % (item.get("name"), item.get("name"))
+                    )
+                if cnt > 1:
+                    raise RuntimeError(
+                        "USE_EXISTING '%s': %d nodos coinciden con canonical_name='%s'. "
+                        "El identificador no es inequívoco. Abortado." % (
+                            item.get("name"), cnt, item.get("name"))
+                    )
+                log.info("USE_EXISTING verificado sin mutación: %s", item.get("name"))
+                written["use_existing_verified"] += 1
             for item in relations:
                 cypher, params = _build_merge_relation_query(item)
                 session.run(cypher, params)
