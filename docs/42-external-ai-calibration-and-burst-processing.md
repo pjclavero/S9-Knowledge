@@ -148,5 +148,41 @@ Para ejecutarla de forma segura (el operador, en VM105):
 ## Dictamen
 ```
 Calibración multi-IA con NVIDIA: IMPLEMENTADA Y VALIDADA EN MODO SOMBRA (2 modelos reales, consenso correcto, Neo4j intacto)
-Procesamiento externo de gran volumen: DISEÑADO, NO IMPLEMENTADO (Fase B)
+Procesamiento externo de gran volumen: FASE B1 IMPLEMENTADA (orquestador + mock, 87 tests); B2/B3 pendientes
 ```
+
+---
+
+## Fases de procesamiento externo por rafaga
+
+### B1 — Orquestador y mock (IMPLEMENTADA, 2026-07-15)
+
+Paquete `external_processing/` con infraestructura completa:
+- Planner (local/hybrid/burst) con umbrales configurables
+- Chunking de audio, PDF, imagenes y texto
+- Dispatcher con concurrencia, retry, backoff, circuit breaker
+- Validacion y fusion de resultados
+- Cache idempotente SHA256
+- `MockExternalProcessingProvider`: todos los escenarios, sin APIs reales
+- `NvidiaProcessingProvider`: capacidades verificadas declaradas (B2 pendiente)
+- CLI: `data-engine/app/cli/burst.py`
+- 87 tests (planner, chunking, cache, dispatcher, state machine, validacion, merger, seguridad, E2E mock)
+
+Ver: [docs/43](43-external-burst-orchestrator.md)
+
+### B2 — Proveedores ASR/OCR/Imagen reales (PENDIENTE)
+
+Implementar `NvidiaProcessingProvider.execute()` para:
+- Transcripcion de audio (ASR)
+- OCR de documentos
+- Analisis de imagenes
+
+Candidatos: NVIDIA NIM (ASR/Vision), OpenAI Whisper API, Google Vision, Azure Cognitive Services.
+
+### B3 — Procesamiento automatico en produccion (PENDIENTE)
+
+- Activar `S9K_EXTERNAL_PROCESSING_ENABLED=true` en produccion
+- Desactivar `S9K_EXTERNAL_DRY_RUN_REQUIRED`
+- Integrar con worker de jobs existente
+- Metricas historicas para mejora de estimaciones
+- Alertas de tasa de fallos

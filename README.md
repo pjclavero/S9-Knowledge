@@ -8,9 +8,13 @@ Pensada para campañas de rol (L5A "Leyenda", Mundo de Tinieblas, Trudvang…): 
 personajes, criaturas, lugares, facciones, objetos, eventos, combates y sesiones, y
 la evolución del conocimiento de cada personaje a lo largo de la campaña.
 
-## Estado actual (v0.2.5b — verificado 2026-07-13)
+## Estado actual (v0.2.6-B1 — 2026-07-15)
 
-> Commit de `main` (tras PR #13): `91de633`. Extractor hybrid (heurístico + LLM Ollama) + revisión externa NVIDIA en modo sombra (docs/42).
+> **Fase B1 (external-burst-orchestrator):** paquete `external_processing/` con planner local/hybrid/burst,
+> chunking, dispatcher (concurrencia+retry+circuit breaker), validacion, merger, mock determinista y adaptador
+> NVIDIA. CLI `burst.py`. 87 tests. Migracion SQLite idempotente. B2/B3 pendientes. Ver [docs/43](docs/43-external-burst-orchestrator.md).
+
+> Commit base de `main` (tras PR #13): `91de633`. Extractor hybrid (heurístico + LLM Ollama) + revisión externa NVIDIA en modo sombra (docs/42).
 > Tests verificados: 196 recopilados, 155 aprobados, 41 fallidos (deuda técnica funcional — semántica del grafo, jobs, multimedia, visor; guard de ingesta 16/16 confirmado).
 > Neo4j: 199 nodos, 140 relaciones. Visor: HTTP 200 en `/graph`, `/jobs`, `/reviews`.
 > Informe de auditoría completo: [docs/24-vm105-baseline-and-verification.md](docs/24-vm105-baseline-and-verification.md).
