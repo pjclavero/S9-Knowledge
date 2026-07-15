@@ -1,0 +1,13 @@
+---
+# Playbook principal. Ejecutar manualmente:
+#   ansible-playbook -i inventory.ini site.yml   (NO se ejecuta automáticamente)
+- name: Desplegar S9 Knowledge (reproducible, sin secretos)
+  hosts: s9knowledge
+  become: true
+  roles:
+    - common
+    - data_engine
+    - viewer
+    - auth
+    - systemd
+    - healthchecks

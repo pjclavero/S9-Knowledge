@@ -1,0 +1,11 @@
+---
+# Paquetes de sistema y directorios base (idempotente).
+- name: Paquetes de sistema requeridos
+  ansible.builtin.package:
+    name: [git, python3, python3-venv, curl]
+    state: present
+- name: Directorio raíz del despliegue
+  ansible.builtin.file:
+    path: "{{ s9k_root }}"
+    state: directory
+    mode: "0755"

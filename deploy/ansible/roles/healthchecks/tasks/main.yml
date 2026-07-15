@@ -1,0 +1,13 @@
+---
+# Instala (sin habilitar en producción todavía) el service+timer de healthcheck.
+- name: Copiar units de healthcheck si existen
+  ansible.builtin.copy:
+    src: "{{ s9k_root }}/viewer/systemd/{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+    remote_src: true
+  loop:
+    - s9-knowledge-healthcheck.service
+    - s9-knowledge-healthcheck.timer
+  failed_when: false
+  # El timer NO se habilita aquí; se activará en un paso controlado.

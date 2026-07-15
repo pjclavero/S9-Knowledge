@@ -38,3 +38,15 @@ Modos: `preflight`, `install`, `upgrade`, `verify`, `rollback`.
 - `upgrade`: backup config → código → deps → migraciones → reinicio necesario → healthcheck → confirmar.
 - `rollback`: parar servicio → restaurar release anterior → (config si procede) → reiniciar → healthcheck. **Neo4j no se restaura automáticamente.**
 - Idempotencia: segunda ejecución sin cambios.
+
+## Estado de la implementación (commit inicial)
+
+Entregado el esqueleto operativo (validado con `bash -n`):
+- `deploy/scripts/`: `lib.sh`, `preflight.sh` (solo lectura; exit 0/1/2), `deploy.sh` (**dry-run por defecto**, aplica con `--confirm`), `verify-deployment.sh` (usa `s9k-health` si existe; si no, `/api/status`), `rollback-release.sh` (**no restaura Neo4j**).
+- `deploy/ansible/`: `inventory.example` (sin secretos), `site.yml`, roles `common/data_engine/viewer/auth/systemd/healthchecks` (tareas idempotentes; `pip`/`git`/`file` con `creates`/`force:false`).
+- `deploy/tests/validate.sh`: `bash -n` + `shellcheck` + `ansible-lint` (los dos últimos se **exigen en CI en la Tarea E**).
+- `deploy/README.md`.
+
+**Compatibilidad con A (PR #21):** `verify-deployment.sh` prefiere `app.cli.health` y cae a `/api/status` mientras A no esté fusionada → sin dependencia rígida del código aún abierto.
+
+**No ejecutado sobre VM105 desde esta rama.**

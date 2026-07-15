@@ -1,0 +1,9 @@
+---
+# Código y venv del data-engine (sin ejecutar ingesta).
+- name: Clonar/actualizar el repositorio
+  ansible.builtin.git:
+    repo: "{{ s9k_repo }}"
+    dest: "{{ s9k_root }}"
+    version: "{{ s9k_branch }}"
+    update: true
+  # No borra estados existentes; no toca Neo4j.

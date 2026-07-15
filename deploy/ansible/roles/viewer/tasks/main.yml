@@ -1,0 +1,17 @@
+---
+# Venv del visor y dependencias bloqueadas (idempotente).
+- name: Crear venv del visor
+  ansible.builtin.command:
+    cmd: python3 -m venv "{{ s9k_root }}/viewer/.venv"
+    creates: "{{ s9k_root }}/viewer/.venv/bin/python"
+- name: Instalar dependencias bloqueadas
+  ansible.builtin.pip:
+    requirements: "{{ s9k_root }}/viewer/requirements.txt"
+    virtualenv: "{{ s9k_root }}/viewer/.venv"
+- name: EnvironmentFile de ejemplo (nunca el real con secretos)
+  ansible.builtin.copy:
+    src: "{{ s9k_root }}/viewer/.env.example"
+    dest: "{{ s9k_root }}/viewer/.env"
+    force: false
+    mode: "0600"
+    remote_src: true
