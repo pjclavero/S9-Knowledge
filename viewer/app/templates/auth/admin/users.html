@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Usuarios — Admin S9 Knowledge{% endblock %}
+
+{% block body %}
+<main style="max-width:900px;margin:2rem auto;padding:1rem;">
+  <h2>Administración de usuarios</h2>
+
+  <div style="margin-bottom:1rem;">
+    <a href="/admin/users/new" class="btn btn-primary">Nuevo usuario</a>
+    <a href="/admin/audit" class="btn" style="margin-left:.5rem;">Ver auditoría</a>
+  </div>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Usuario</th>
+        <th>Nombre</th>
+        <th>Rol</th>
+        <th>Activo</th>
+        <th>Bloqueado</th>
+        <th>Último acceso</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.username | e }}</td>
+        <td>{{ u.display_name | e }}</td>
+        <td>{{ u.role | e }}</td>
+        <td>{{ "Sí" if u.is_active else "No" }}</td>
+        <td>{{ "Sí" if u.is_locked() else "No" }}</td>
+        <td>{{ u.last_login_at or "—" }}</td>
+        <td>
+          <a href="/admin/users/{{ u.id }}">Editar</a>
+          {% if u.is_locked() %}
+          &nbsp;|&nbsp;
+          <form method="post" action="/admin/users/{{ u.id }}/unlock" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+            <button type="submit" class="btn-link">Desbloquear</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8">No hay usuarios.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</main>
+{% endblock %}

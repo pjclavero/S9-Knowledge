@@ -28,6 +28,7 @@
 - [32 · Backup y restore de producción — Validación P1](32-production-backup-restore-validation.md) — Backup real 132 KB, restore verificado, copia externa completada
 - [33 · Plan de evaluación del extractor — Prioridad 2](33-extractor-quality-benchmark-plan.md) — Plan de benchmark: corpus, métricas, umbrales, criterios de ingesta
 - [34 · Resultados del benchmark del extractor — Prioridad 2](34-extractor-quality-benchmark-results.md) — 35/35 runs OK; F1 ent hybrid 0.728 / llm 0.718; relaciones F1≈0; autoaprobación 0.85. Dictamen PARCIAL — REQUIERE CORRECCIONES; ingesta BLOQUEADA.
+- [44 · Autenticación del visor — foundation](44-viewer-authentication-and-users.md) — Login, sesiones server-side, roles (admin/reviewer/viewer), auditoría append-only, panel admin, CLI administrativa
 - [43 · Writer de ingesta controlada — create-only y seguro](43-safe-controlled-ingest-writer.md) — CREATE-only, dry-run conectado, transacción atómica, procedencia explícita
 - [42 · Calibración multi-IA (NVIDIA) y procesamiento externo por lotes](42-external-ai-calibration-and-burst-processing.md) — revisión multi-modelo + consenso + calibración en modo sombra; Fase B diseñada
 - [45 · Orquestador de procesamiento externo por ráfaga — Fase B1](45-external-burst-orchestrator.md) — planner local/hybrid/burst, dispatcher con retry/circuit breaker, validación y merger, mock determinista, adaptador NVIDIA de capacidades verificadas; sin escritura en Neo4j.
