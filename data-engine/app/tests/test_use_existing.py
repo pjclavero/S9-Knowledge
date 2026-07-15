@@ -32,9 +32,45 @@ if str(_APP_DIR) not in sys.path:
 from review.ingest_approved import (
     _is_use_existing,
     _build_match_use_existing_query,
-    _build_merge_entity_query,
+    _build_create_entity,
     ingest,
 )
+
+
+# ---- Fake Neo4j (driver/session/tx) con conteos controlables ----
+class _FakeResult:
+    def __init__(self, value): self._v = value
+    def single(self): return {"c": self._v}
+
+class _FakeTx:
+    def __init__(self, counts, created): self.counts = counts; self.created = created
+    def run(self, cypher, params=None):
+        if "count(n)" in cypher:
+            return _FakeResult(self.counts.get((params or {}).get("name"), 0))
+        if cypher.strip().upper().startswith("CREATE"):
+            self.created.append((cypher, params)); return _FakeResult(1)
+        return _FakeResult(0)
+
+class _FakeSession:
+    def __init__(self, counts, created): self.counts = counts; self.created = created
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def run(self, cypher, params=None):
+        if "count(n)" in cypher:
+            return _FakeResult(self.counts.get((params or {}).get("name"), 0))
+        return _FakeResult(0)
+    def execute_write(self, fn, *args): return fn(_FakeTx(self.counts, self.created), *args)
+
+class _FakeDriver:
+    def __init__(self, counts): self.counts = counts; self.created = []
+    def session(self): return _FakeSession(self.counts, self.created)
+    def close(self): pass
+
+def _patch_neo4j(counts):
+    """Devuelve (patch_ctx, driver) para inyectar el fake."""
+    drv = _FakeDriver(counts)
+    gdb = MagicMock(); gdb.driver.return_value = drv
+    return patch("review.ingest_approved.GraphDatabase", gdb), drv
 
 
 # ---- Fixtures ----
@@ -86,6 +122,8 @@ def _new_entity_item(name="Otosan Uchi", etype="Location", confidence=0.85):
         "source_kind": "narrative",
         "source_document": "source_narrative_01",
         "workspace": "leyenda",
+        "knowledge_layer": "narrative",
+        "visibility": "player",
         "review_status": "approved",
         "reviewed_by": "manual-cli:operator",
         "reviewed_at": "2026-07-15T12:00:00+00:00",
@@ -116,21 +154,10 @@ def test_use_existing_fails_zero_matches(tmp_path):
 
     os.environ["S9K_ALLOW_REAL_INGEST"] = "true"
     try:
-        mock_record = MagicMock()
-        mock_record.__getitem__ = MagicMock(return_value=0)
-        mock_result = MagicMock()
-        mock_result.single.return_value = mock_record
-        mock_session = MagicMock()
-        mock_session.run.return_value = mock_result
-        mock_session.__enter__ = lambda s: mock_session
-        mock_session.__exit__ = MagicMock(return_value=False)
-        mock_driver = MagicMock()
-        mock_driver.session.return_value = mock_session
-
-        with patch("review.ingest_approved.GraphDatabase") as mock_gdb:
-            mock_gdb.driver.return_value = mock_driver
-            with pytest.raises(RuntimeError, match="no existe ningún nodo"):
-                ingest(p, dry_run=False)
+        ctx, _ = _patch_neo4j({})  # Akodo Toturi -> 0 coincidencias
+        with ctx:
+            with pytest.raises(RuntimeError, match="USE_EXISTING sin nodo|preflight no seguro"):
+                ingest(p, dry_run=False, neo4j_password="x")
     finally:
         del os.environ["S9K_ALLOW_REAL_INGEST"]
 
@@ -146,21 +173,10 @@ def test_use_existing_fails_multiple_matches(tmp_path):
 
     os.environ["S9K_ALLOW_REAL_INGEST"] = "true"
     try:
-        mock_record = MagicMock()
-        mock_record.__getitem__ = MagicMock(return_value=2)
-        mock_result = MagicMock()
-        mock_result.single.return_value = mock_record
-        mock_session = MagicMock()
-        mock_session.run.return_value = mock_result
-        mock_session.__enter__ = lambda s: mock_session
-        mock_session.__exit__ = MagicMock(return_value=False)
-        mock_driver = MagicMock()
-        mock_driver.session.return_value = mock_session
-
-        with patch("review.ingest_approved.GraphDatabase") as mock_gdb:
-            mock_gdb.driver.return_value = mock_driver
-            with pytest.raises(RuntimeError, match="no es inequívoco"):
-                ingest(p, dry_run=False)
+        ctx, _ = _patch_neo4j({"Akodo Toturi": 2})  # 2 coincidencias -> ambiguo
+        with ctx:
+            with pytest.raises(RuntimeError, match="ambiguo|preflight no seguro"):
+                ingest(p, dry_run=False, neo4j_password="x")
     finally:
         del os.environ["S9K_ALLOW_REAL_INGEST"]
 
@@ -229,14 +245,15 @@ def test_dry_run_use_existing_zero_mutations(tmp_path, capsys):
     p = tmp_path / "approved_payload.reviewed.json"
     p.write_text(json.dumps(payload), encoding="utf-8")
 
-    result = ingest(p, dry_run=True)
-    captured = capsys.readouterr()
+    ctx, _ = _patch_neo4j({"Akodo Toturi": 1})  # existe exactamente 1
+    with ctx:
+        result = ingest(p, dry_run=True, neo4j_password="x")
 
     assert result["dry_run"] is True
-    assert result["would_write"] == 0
-    assert result["use_existing"] == 1
-    assert result["entities"] == 0
-    assert "NINGUNA" in captured.out
+    assert result["would_verify_existing"] == 1
+    assert result["would_create"] == 0
+    assert result["would_update"] == 0
+    assert result["would_overwrite"] == 0
 
 
 # ---- Test 11: Candidatos rechazados no entran en el payload ----
@@ -282,9 +299,11 @@ def test_dry_run_without_relations_has_zero_entity_writes(tmp_path, capsys):
     p = tmp_path / "approved_payload.reviewed.json"
     p.write_text(json.dumps(payload), encoding="utf-8")
 
-    result = ingest(p, dry_run=True)
+    ctx, _ = _patch_neo4j({})  # Otosan Uchi -> 0 (nueva)
+    with ctx:
+        result = ingest(p, dry_run=True, neo4j_password="x")
     assert result["relations"] == 0
-    assert result["entities"] == 1
+    assert result["would_create"] == 1
 
 
 # ---- Test 13: Sin autorización no escribe ----

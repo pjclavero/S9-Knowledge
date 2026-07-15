@@ -128,24 +128,128 @@ def _validate_package(payload):
     return errors
 
 
-def _build_merge_entity_query(item):
-    etype = item.get("entity_type", "Concept")
-    name = item.get("name", "")
-    cypher = "MERGE (n:%s {canonical_name: $name}) SET n += $props" % etype
+# Allowlist de labels/tipos de entidad (no se interpola ningún tipo arbitrario en Cypher).
+_ALLOWED_LABELS = ("Character", "Location", "Faction", "Object", "Event", "Concept")
+
+# Propiedades de procedencia OBLIGATORIAS y explícitas para una entidad nueva
+# (sin defaults silenciosos: audio/transcript/auto_approved/player quedan prohibidos).
+_REQUIRED_NEW_ENTITY_FIELDS = (
+    "source_id", "source_kind", "source_document", "workspace",
+    "knowledge_layer", "visibility", "review_status",
+    "reviewed_by", "reviewed_at", "review_action", "evidence", "confidence",
+)
+
+
+def _is_deferred(item: dict) -> bool:
+    """Candidato aplazado (p. ej. DEFERRED_USE_EXISTING_UNTIL_MULTI_SOURCE_PROVENANCE)."""
+    return item.get("deferred") is True or "DEFERRED" in str(item.get("review_action", "")).upper()
+
+
+def _validate_write_provenance(payload) -> list:
+    """Exige procedencia EXPLÍCITA por entidad nueva. Sin defaults silenciosos.
+    USE_EXISTING y aplazados quedan exentos (no se escriben propiedades nuevas)."""
+    errors = []
+    for e in payload.get("approved", []):
+        if e.get("kind") != "entity" or _is_use_existing(e) or _is_deferred(e):
+            continue
+        label = _item_label(e)
+        for f in _REQUIRED_NEW_ENTITY_FIELDS:
+            v = e.get(f)
+            if f == "confidence":
+                if not isinstance(v, (int, float)) or isinstance(v, bool):
+                    errors.append("%s: falta 'confidence' explícita" % label)
+            elif not str(v if v is not None else "").strip():
+                errors.append("%s: falta propiedad obligatoria '%s'" % (label, f))
+        et = e.get("entity_type")
+        if et not in _ALLOWED_LABELS:
+            errors.append("%s: entity_type '%s' no permitido (allowlist)" % (label, et))
+        rs = str(e.get("review_status", "")).strip().lower()
+        if rs == "auto_approved":
+            errors.append("%s: review_status=auto_approved prohibido para revisión humana" % label)
+    return errors
+
+
+def _build_create_entity(item):
+    """Devuelve (label, props) para CREATE-only. Valida el label contra la allowlist.
+    Usa EXCLUSIVAMENTE valores explícitos del item (ningún default inventado)."""
+    etype = item.get("entity_type")
+    if etype not in _ALLOWED_LABELS:
+        raise ValueError("entity_type no permitido para escritura: %r" % etype)
     props = {
-        "source_id": item.get("source_id", ""),
-        "source_kind": item.get("source_kind", "audio"),
-        "source_document": item.get("source_document", ""),
+        "canonical_name": item.get("name", ""),
+        "source_id": item["source_id"],
+        "source_kind": item["source_kind"],
+        "source_document": item["source_document"],
         "source_timestamp_start": item.get("source_timestamp_start", ""),
         "source_timestamp_end": item.get("source_timestamp_end", ""),
-        "workspace": item.get("workspace", ""),
-        "review_status": "auto_approved",
-        "knowledge_layer": "transcript",
-        "visibility": "player",
-        "confidence": item.get("confidence", 0.0),
-        "evidence": item.get("evidence", ""),
+        "workspace": item["workspace"],
+        "entity_type": etype,
+        "knowledge_layer": item["knowledge_layer"],
+        "visibility": item["visibility"],
+        "review_status": item["review_status"],
+        "reviewed_by": item["reviewed_by"],
+        "reviewed_at": item["reviewed_at"],
+        "review_action": item["review_action"],
+        "review_reason": item.get("review_reason", ""),
+        "review_report_sha256": item.get("review_report_sha256", ""),
+        "approval_mode": item.get("approval_mode", "human_approved"),
+        "confidence": item["confidence"],
+        "evidence": item["evidence"],
     }
-    return cypher, {"name": name, "props": props}
+    return etype, props
+
+
+def _count_by_name(session, name: str) -> int:
+    rec = session.run("MATCH (n {canonical_name: $name}) RETURN count(n) AS c", {"name": name}).single()
+    return rec["c"] if rec else 0
+
+
+def _neo4j_preflight(session, entities_new, entities_use_existing) -> dict:
+    """Consulta Neo4j (lectura) y clasifica cada candidato. CREATE-only nunca
+    actualiza ni sobrescribe: would_update / would_overwrite son siempre 0."""
+    rep = {"would_create": 0, "would_verify_existing": 0, "conflict_existing": 0,
+           "ambiguous_existing": 0, "would_update": 0, "would_overwrite": 0, "errors": []}
+    for e in entities_new:
+        c = _count_by_name(session, e.get("name", ""))
+        if c == 0:
+            rep["would_create"] += 1
+        elif c == 1:
+            rep["conflict_existing"] += 1
+            rep["errors"].append("CONFLICT_EXISTING_NODE: '%s' ya existe pero se clasificó como nuevo" % e.get("name"))
+        else:
+            rep["ambiguous_existing"] += 1
+            rep["errors"].append("AMBIGUOUS_EXISTING_NODES: '%s' (%d coincidencias)" % (e.get("name"), c))
+    for e in entities_use_existing:
+        c = _count_by_name(session, e.get("name", ""))
+        if c == 1:
+            rep["would_verify_existing"] += 1
+        elif c == 0:
+            rep["errors"].append("USE_EXISTING sin nodo: '%s'" % e.get("name"))
+        else:
+            rep["errors"].append("USE_EXISTING ambiguo: '%s' (%d)" % (e.get("name"), c))
+    return rep
+
+
+def _tx_create_all(tx, entities_new, entities_use_existing) -> int:
+    """Transacción atómica (§9): reverifica dentro de la transacción y aborta
+    (rollback total) ante cualquier conflicto; crea las entidades nuevas con
+    CREATE (nunca MERGE ni SET +=). USE_EXISTING solo se verifica, sin mutar."""
+    for e in entities_new:
+        c = tx.run("MATCH (n {canonical_name: $name}) RETURN count(n) AS c",
+                   {"name": e.get("name", "")}).single()["c"]
+        if c != 0:
+            raise RuntimeError("CONFLICT_EXISTING_NODE '%s': transacción completa abortada (rollback)" % e.get("name"))
+    for e in entities_use_existing:
+        c = tx.run("MATCH (n {canonical_name: $name}) RETURN count(n) AS c",
+                   {"name": e.get("name", "")}).single()["c"]
+        if c != 1:
+            raise RuntimeError("USE_EXISTING '%s' cnt=%d: abortado" % (e.get("name"), c))
+    created = 0
+    for e in entities_new:
+        label, props = _build_create_entity(e)  # label validado contra allowlist
+        tx.run("CREATE (n:Entity:`%s`) SET n = $props" % label, {"props": props})
+        created += 1
+    return created
 
 
 def _build_match_use_existing_query(item):
@@ -275,107 +379,87 @@ def ingest(
             )
 
     approved = payload.get("approved", [])
+    deferred = [a for a in approved if _is_deferred(a)]
+    approved = [a for a in approved if not _is_deferred(a)]
     if not approved:
-        log.info("[DRY-RUN] No hay candidatos aprobados en el payload.")
-        return {"dry_run": True, "would_write": 0, "entities": 0, "relations": 0, "use_existing": 0}
+        log.info("[DRY-RUN] No hay candidatos aprobados (tras excluir aplazados: %d).", len(deferred))
+        return {"dry_run": True, "would_create": 0, "entities": 0, "relations": 0,
+                "use_existing": 0, "deferred": len(deferred)}
 
     entities_new = [a for a in approved if a.get("kind") == "entity" and not _is_use_existing(a)]
     entities_use_existing = [a for a in approved if a.get("kind") == "entity" and _is_use_existing(a)]
     relations = [a for a in approved if a.get("kind") == "relation"]
 
-    if dry_run:
-        print("")
-        print("[DRY-RUN] Simulación de ingesta — SIN escritura en Neo4j")
-        print("  Payload: %s" % approved_payload_path)
-        print("  Total aprobados: %d" % len(approved))
-        print("  Entidades nuevas: %d" % len(entities_new))
-        print("  USE_EXISTING (verificar sin mutar): %d" % len(entities_use_existing))
-        print("  Relaciones: %d" % len(relations))
-        print()
+    # Primera ingesta controlada: SOLO entidades. Cero relaciones (§3/§8).
+    if relations:
+        raise ValueError(
+            "PAQUETE RECHAZADO: la primera ingesta controlada no admite relaciones (%d presentes)."
+            % len(relations))
 
-        if entities_new:
-            print("  -- ENTIDADES NUEVAS --")
-            for item in entities_new[:10]:
-                cypher, params = _build_merge_entity_query(item)
-                print("  [%s] %s (conf=%.2f)" % (
-                    item.get("entity_type", "?"), item.get("name", "?"), item.get("confidence", 0)))
-                print("    Cypher: %s" % cypher)
-                print("    Props que se establecerían: %s" % list(params["props"].keys()))
-            if len(entities_new) > 10:
-                print("  ... y %d más" % (len(entities_new) - 10))
+    # Procedencia EXPLÍCITA obligatoria para entidades nuevas (§6, sin defaults),
+    # solo bajo la política de ingesta controlada full_human_review.
+    if _review_policy_name() == "full_human_review":
+        wp_errors = _validate_write_provenance(payload)
+        if wp_errors:
+            raise ValueError("PAQUETE RECHAZADO (procedencia incompleta):\n"
+                             + "\n".join("  - %s" % e for e in wp_errors[:15]))
 
-        if entities_use_existing:
-            print()
-            print("  -- USE_EXISTING (SIN mutación de propiedades) --")
-            for item in entities_use_existing:
-                cypher_count, cypher_verify, params = _build_match_use_existing_query(item)
-                print("  [USE_EXISTING] %s (%s)" % (item.get("name", "?"), item.get("entity_type", "?")))
-                print("    Cypher verificación: %s" % cypher_count)
-                print("    Params: %s" % params)
-                print("    Propiedades que se establecerían: NINGUNA")
-                print("    Propiedades existentes que permanecerían intactas: TODAS")
+    # El dry-run debe conectarse a Neo4j en LECTURA (§3). Si Neo4j no está
+    # disponible: el dry-run degrada a "no verificado" (safe_to_write=False, sin
+    # crash); la ESCRITURA real mantiene el requisito duro + reverificación atómica.
+    neo4j_ok = GraphDatabase is not None and bool(neo4j_password)
+    if not neo4j_ok:
+        if dry_run:
+            print("[DRY-RUN] Neo4j NO disponible: verificación no realizada. safe_to_write=NO.")
+            return {"dry_run": True, "neo4j_unavailable": True, "safe_to_write": False,
+                    "would_create": len(entities_new), "would_verify_existing": 0,
+                    "conflict_existing": 0, "ambiguous_existing": 0, "would_update": 0,
+                    "would_overwrite": 0, "relations": len(relations), "deferred": len(deferred),
+                    "entities": len(entities_new), "use_existing": len(entities_use_existing),
+                    "would_write": len(entities_new),
+                    "errors": ["neo4j_unavailable: dry-run no pudo verificar el grafo"]}
+        raise RuntimeError("Neo4j no disponible para escritura real. Abortado sin escritura.")
 
-        if relations:
-            print()
-            print("  -- RELACIONES (primeras 10) --")
-            for item in relations[:10]:
-                cypher, params = _build_merge_relation_query(item)
-                print("  %s -[%s]-> %s (conf=%.2f)" % (
-                    item.get("from_entity", "?"), item.get("relation_type", "?"),
-                    item.get("to_entity", "?"), item.get("confidence", 0)))
-
-        print()
-        print("[DRY-RUN] Neo4j NO fue modificado.")
-
-        return {
-            "dry_run": True,
-            "would_write": len(entities_new) + len(relations),
-            "entities": len(entities_new),
-            "use_existing": len(entities_use_existing),
-            "relations": len(relations),
-        }
-
-    # Escritura real
-    log.info(
-        "ESCRITURA REAL en Neo4j: %d entidades nuevas, %d use_existing (verificar), %d relaciones",
-        len(entities_new), len(entities_use_existing), len(relations)
-    )
+    driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
     try:
-        driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
-        written = {"entities": 0, "use_existing_verified": 0, "relations": 0}
         with driver.session() as session:
-            for item in entities_new:
-                cypher, params = _build_merge_entity_query(item)
-                session.run(cypher, params)
-                written["entities"] += 1
-            for item in entities_use_existing:
-                cypher_count, cypher_verify, params = _build_match_use_existing_query(item)
-                result = session.run(cypher_count, params)
-                record = result.single()
-                cnt = record["cnt"] if record else 0
-                if cnt == 0:
-                    raise RuntimeError(
-                        "USE_EXISTING '%s': no existe ningún nodo con canonical_name='%s'. "
-                        "Abortado sin escritura." % (item.get("name"), item.get("name"))
-                    )
-                if cnt > 1:
-                    raise RuntimeError(
-                        "USE_EXISTING '%s': %d nodos coinciden con canonical_name='%s'. "
-                        "El identificador no es inequívoco. Abortado." % (
-                            item.get("name"), cnt, item.get("name"))
-                    )
-                log.info("USE_EXISTING verificado sin mutación: %s", item.get("name"))
-                written["use_existing_verified"] += 1
-            for item in relations:
-                cypher, params = _build_merge_relation_query(item)
-                session.run(cypher, params)
-                written["relations"] += 1
-        driver.close()
-        log.info("Ingesta completada: %s", written)
-        return {"dry_run": False, "written": written}
+            rep = _neo4j_preflight(session, entities_new, entities_use_existing)
+        rep.update({"relations": len(relations), "deferred": len(deferred),
+                    "entities_new": len(entities_new), "use_existing": len(entities_use_existing),
+                    "entities": len(entities_new), "would_write": len(entities_new)})
+        safe = (rep["conflict_existing"] == 0 and rep["ambiguous_existing"] == 0
+                and rep["would_update"] == 0 and rep["would_overwrite"] == 0
+                and rep["relations"] == 0 and not rep["errors"])
+
+        if dry_run:
+            print("\n[DRY-RUN] Verificación conectada a Neo4j en LECTURA — SIN escritura")
+            print("  would_create=%d  would_verify_existing=%d  conflict_existing=%d  "
+                  "ambiguous_existing=%d  would_update=%d  would_overwrite=%d  relations=%d  deferred=%d"
+                  % (rep["would_create"], rep["would_verify_existing"], rep["conflict_existing"],
+                     rep["ambiguous_existing"], rep["would_update"], rep["would_overwrite"],
+                     rep["relations"], rep["deferred"]))
+            for err in rep["errors"]:
+                print("  ! %s" % err)
+            print("  SEGURO PARA ESCRITURA: %s" % ("SÍ" if safe else "NO"))
+            print("[DRY-RUN] Neo4j NO fue modificado.")
+            rep["dry_run"] = True
+            rep["safe_to_write"] = safe
+            return rep
+
+        # --- ESCRITURA REAL: transacción atómica, create-only (§4/§9) ---
+        if not safe:
+            raise RuntimeError("ABORTADO: preflight no seguro: %s" % rep["errors"][:5])
+        with driver.session() as session:
+            created = session.execute_write(_tx_create_all, entities_new, entities_use_existing)
+        log.info("Ingesta atómica completada: creados=%d verificados=%d",
+                 created, len(entities_use_existing))
+        return {"dry_run": False, "written": {"entities": created,
+                "use_existing_verified": len(entities_use_existing), "relations": 0}}
     except Exception as e:
-        log.error("Error en escritura Neo4j: %s", e)
+        log.error("Error/abortado en Neo4j (transacción revertida): %s", e)
         raise
+    finally:
+        driver.close()
 
 
 def _load_neo4j_creds(repo_root):
