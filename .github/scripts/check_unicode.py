@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-check_unicode.py -- Trojan Source / invisible Unicode detector.
+check_unicode.py — Trojan Source / invisible Unicode detector.
 
 Falla con exit code 1 si encuentra caracteres bidi o invisibles peligrosos
-fuera de la allowlist. Disenado para correr en CI antes de merge.
+fuera de la allowlist. Diseñado para correr en CI antes de merge.
 
 Uso:
     python3 .github/scripts/check_unicode.py [--root PATH]
@@ -49,7 +49,7 @@ DANGEROUS: dict[str, bytes] = {
 
 # ---------------------------------------------------------------------------
 # Allowlist: rutas relativas (desde la raiz del repo) permitidas.
-# Anadir aqui archivos donde el caracter sea deliberado (docs de prueba, etc.)
+# Añadir aqui archivos donde el caracter sea deliberado (docs de prueba, etc.)
 # Ejemplo: ALLOWLIST = {"docs/trojan-source-test.md"}
 # ---------------------------------------------------------------------------
 ALLOWLIST: set[str] = set()
@@ -124,7 +124,7 @@ def main() -> int:
     )
     print(
         "\nSi el caracter es legitimo (documento de prueba, fixture), "
-        "aniade la ruta a ALLOWLIST en .github/scripts/check_unicode.py"
+        "añade la ruta a ALLOWLIST en .github/scripts/check_unicode.py"
     )
     return 1
 
