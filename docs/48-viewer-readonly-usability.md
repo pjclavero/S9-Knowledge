@@ -38,3 +38,18 @@ reviewer : consulta + información de revisión
 admin    : todo lo anterior
 ```
 Sin secretos, sin `elementId` como dato principal, sin rutas privadas. Paginación + límites configurables + índices recomendados documentados (no creados).
+
+## Estado de la implementación (commit inicial)
+
+Entregado (solo lectura, 0 escrituras, sin acciones POST sobre datos):
+- **vis-network vendorizado**: `viewer/app/static/js/vendor/vis-network.min.js` (v9.1.9) + `integrity` SRI en `graph.html`; **eliminada la dependencia de CDN (unpkg)** → el visor funciona sin Internet.
+- Nuevo router `viewer/app/routers/readonly.py` (registrado en `main.py`):
+  - `GET /api/entities` — **paginado y filtrado** (`workspace`, `q`, `entity_type`, `limit≤100`, `offset`), envelope `{workspace,query,entity_type,total,limit,offset,has_more,items}`. Protegido con `require_api_authenticated_user` (viewer+; público con auth off).
+  - `GET /entities` — página HTML con búsqueda, filtro por tipo y paginación (viewer+, `html_guard`).
+  - `GET /sources` — listado de fuentes de revisión (reviewer+, `html_role_guard`).
+- Plantillas propias `entities.html`, `sources.html` (extienden `base.html`); enlaces mínimos de navegación en `base.html` (Entidades / Fuentes).
+- Tests `viewer/tests/test_readonly.py` (13): envelope, paginación, filtro por tipo, límites, sin CDN, fichero vendorizado presente, **router sin métodos de escritura**, roles 401/403/redirect, viewer/reviewer OK. Suite viewer: **127 passed**.
+
+**Pendiente (siguientes commits):** ficha de entidad enriquecida (procedencia/evidencia/relaciones entrantes-salientes), `/sources/{id}`, `/quality`, paginación empujada al proveedor Neo4j (evitar traer la ventana en memoria), índices recomendados documentados.
+
+**Integración:** se rebasa sobre `main` tras el merge de A y B (conflicto trivial esperado en `main.py`/`base.html` por los include/nav que también añade A).
