@@ -1,0 +1,10 @@
+# Inventario de ejemplo (SIN secretos). Copiar a inventory.ini y ajustar.
+[s9knowledge]
+vm105 ansible_host=192.168.1.205 ansible_user=root
+
+[s9knowledge:vars]
+s9k_root=/opt/knowledge-services/s9-knowledge-repo
+s9k_repo=https://github.com/pjclavero/S9-Knowledge.git
+s9k_branch=main
+# Los secretos (S9K_CSRF_SECRET, etc.) NO van aquí: se gestionan en el
+# EnvironmentFile del host (viewer/.env, 0600) fuera de control de versiones.

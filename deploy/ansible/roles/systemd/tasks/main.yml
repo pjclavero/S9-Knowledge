@@ -1,0 +1,9 @@
+---
+# Instala units systemd y recarga (no fuerza reinicios destructivos).
+- name: Instalar unit del visor
+  ansible.builtin.copy:
+    src: "{{ s9k_root }}/viewer/systemd/s9-knowledge-viewer.service"
+    dest: /etc/systemd/system/s9-knowledge-viewer.service
+    mode: "0644"
+    remote_src: true
+  notify: reload systemd

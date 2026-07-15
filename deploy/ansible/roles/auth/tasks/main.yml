@@ -1,0 +1,10 @@
+---
+# Migraciones de auth.db (idempotentes) solo si auth está activa. Sin crear secretos.
+- name: Migrar auth.db (idempotente)
+  ansible.builtin.command:
+    cmd: >-
+      {{ s9k_root }}/viewer/.venv/bin/python -m app.cli.auth status
+    chdir: "{{ s9k_root }}/viewer"
+  register: _auth_status
+  changed_when: false
+  failed_when: false
