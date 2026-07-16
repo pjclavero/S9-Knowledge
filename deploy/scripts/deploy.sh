@@ -139,11 +139,11 @@ RESOLVED_COMMIT="${RELEASE_REF}"
 if [ -d "${S9K_ROOT}/current/.git" ] || [ -d "${S9K_ROOT}/.git" ]; then
     _git_dir="${S9K_ROOT}/current"
     [ -d "${_git_dir}/.git" ] || _git_dir="${S9K_ROOT}"
-    RESOLVED_COMMIT="$(git -C "${_git_dir}" rev-parse "${RELEASE_REF}" 2>/dev/null || printf "${RELEASE_REF}")"
-    SHORT_COMMIT="$(git -C "${_git_dir}" rev-parse --short "${RELEASE_REF}" 2>/dev/null || printf "${RELEASE_REF:0:7}")"
+    RESOLVED_COMMIT="$(git -C "${_git_dir}" rev-parse "${RELEASE_REF}" 2>/dev/null || printf '%s' "${RELEASE_REF}")"
+    SHORT_COMMIT="$(git -C "${_git_dir}" rev-parse --short "${RELEASE_REF}" 2>/dev/null || printf '%s' "${RELEASE_REF:0:7}")"
 elif command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
-    RESOLVED_COMMIT="$(git rev-parse "${RELEASE_REF}" 2>/dev/null || printf "${RELEASE_REF}")"
-    SHORT_COMMIT="$(git rev-parse --short "${RELEASE_REF}" 2>/dev/null || printf "${RELEASE_REF:0:7}")"
+    RESOLVED_COMMIT="$(git rev-parse "${RELEASE_REF}" 2>/dev/null || printf '%s' "${RELEASE_REF}")"
+    SHORT_COMMIT="$(git rev-parse --short "${RELEASE_REF}" 2>/dev/null || printf '%s' "${RELEASE_REF:0:7}")"
 else
     SHORT_COMMIT="${RELEASE_REF:0:7}"
 fi
@@ -229,8 +229,7 @@ mkdir -p "${S9K_ROOT}/releases"
 mkdir -p "${RELEASE_DIR}"
 _CLEANUP_TMPDIR="${RELEASE_DIR}"  # Se limpiará en caso de error
 
-# Determinar origen del repo
-REPO_ORIGIN=""
+# Determinar origen del repo (cargar deploy.env si existe)
 if [ -f "${S9K_CONFIG_ROOT}/deploy.env" ]; then
     # shellcheck source=/dev/null
     set +u

@@ -22,7 +22,6 @@ source "${HERE}/lib.sh"
 # ---------------------------------------------------------------------------
 ENVIRONMENT=""
 TARGET_RELEASE=""
-CONFIRM=0
 DRY_RUN=1
 
 usage() {
@@ -43,9 +42,9 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --environment)        ENVIRONMENT="$2"; shift 2 ;;
         --to-release)         TARGET_RELEASE="$2"; shift 2 ;;
-        --confirm)            CONFIRM=1; DRY_RUN=0; shift ;;
-        --confirm-production) CONFIRM=1; DRY_RUN=0; shift ;;
-        --dry-run)            DRY_RUN=1; CONFIRM=0; shift ;;
+        --confirm)            DRY_RUN=0; shift ;;
+        --confirm-production) DRY_RUN=0; shift ;;
+        --dry-run)            DRY_RUN=1; shift ;;
         -h|--help)            usage; exit 0 ;;
         *) die "argumento desconocido: $1" ;;
     esac
