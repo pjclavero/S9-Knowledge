@@ -16,6 +16,24 @@ set -Eeuo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=deploy/scripts/lib.sh
 source "${HERE}/lib.sh"
+# shellcheck source=deploy/scripts/validate_deploy.sh
+source "${HERE}/validate_deploy.sh"
+
+# Estado externalizado = el state root nuevo contiene auth.db (la migración
+# controlada ya ocurrió). A partir de ese punto, una release que NO entienda el
+# state root externo (unit basada en layout legacy) dejaría la app leyendo DBs
+# obsoletas: NO se permite rollback directo a ella; hay que usar una bridge release.
+state_externalized() {
+    [ -f "${S9K_STATE_ROOT}/auth/auth.db" ]
+}
+
+# Una release ENTIENDE el estado externo si su unit systemd está basada en
+# `current` + EnvironmentFile (la validación de la corrección RC1).
+target_understands_external_state() {
+    local target_dir="${1}"
+    local unit="${target_dir}/viewer/systemd/s9-knowledge-viewer.service"
+    validate_viewer_unit "${unit}" "${S9K_ROOT}/current" >/dev/null 2>&1
+}
 
 # ---------------------------------------------------------------------------
 # Argumentos
@@ -23,6 +41,7 @@ source "${HERE}/lib.sh"
 ENVIRONMENT=""
 TARGET_RELEASE=""
 DRY_RUN=1
+ALLOW_BRIDGE=0
 
 usage() {
     cat <<USAGE
@@ -42,6 +61,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --environment)        ENVIRONMENT="$2"; shift 2 ;;
         --to-release)         TARGET_RELEASE="$2"; shift 2 ;;
+        --bridge-release)     ALLOW_BRIDGE=1; shift ;;
         --confirm)            DRY_RUN=0; shift ;;
         --confirm-production) DRY_RUN=0; shift ;;
         --dry-run)            DRY_RUN=1; shift ;;
@@ -166,10 +186,37 @@ if [ -f "${MANIFEST_PATH}" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Paso 5b: PUNTO DE NO RETORNO — continuidad de estado externo
+# ---------------------------------------------------------------------------
+log "--- Paso 5b: continuidad de estado (punto de no retorno)"
+ROLLBACK_KIND="pre-externalizacion"
+if state_externalized; then
+    ROLLBACK_KIND="post-externalizacion"
+    warn "El estado YA está externalizado en ${S9K_STATE_ROOT} (punto de no retorno cruzado)."
+    if target_understands_external_state "${TARGET_DIR}"; then
+        log "La release destino ENTIENDE el state root externo: rollback compatible."
+    else
+        err "La release destino '${TARGET_RELEASE}' NO entiende el state root externo"
+        err "(su unit está basada en el layout legacy). Un rollback directo dejaría la"
+        err "app leyendo DBs obsoletas del layout antiguo."
+        if [ "${ALLOW_BRIDGE}" -eq 1 ]; then
+            warn "Se solicitó --bridge-release: trata esta release destino como BRIDGE."
+            warn "Requisito: la bridge debe apuntar su unit/config al state root externo"
+            warn "(reinstala una unit basada en current + viewer.env antes de reiniciar)."
+        else
+            die "ROLLBACK BLOQUEADO: destino incompatible con estado externo. Crea una bridge release (unit basada en current) y reintenta con --bridge-release."
+        fi
+    fi
+else
+    log "Estado aún NO externalizado: rollback simple compatible."
+fi
+
+# ---------------------------------------------------------------------------
 # En modo dry-run, salir aquí
 # ---------------------------------------------------------------------------
 if [ "${DRY_RUN}" -eq 1 ]; then
     info "PLAN (dry-run):"
+    info "  tipo de rollback: ${ROLLBACK_KIND}"
     info "  1. flock (lock de concurrencia)"
     info "  2. Symlink atómico: ${CURRENT_LINK} -> ${TARGET_DIR}"
     info "  3. Reiniciar s9-knowledge-viewer.service"
