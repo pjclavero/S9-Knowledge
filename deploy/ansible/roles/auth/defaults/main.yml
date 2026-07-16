@@ -1,0 +1,6 @@
+---
+# Defaults del rol auth.
+
+s9k_root: /opt/s9-knowledge
+s9k_state_root: /var/lib/s9-knowledge
+s9k_auth_enabled: false

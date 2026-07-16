@@ -1,9 +1,43 @@
 ---
-# Instala units systemd y recarga (no fuerza reinicios destructivos).
-- name: Instalar unit del visor
+# Rol systemd — instala units desde la release activa y gestiona el servicio.
+# No fuerza reinicios destructivos. Idempotente. Sin secretos.
+
+- name: Verificar que la unit del visor existe en la release activa
+  ansible.builtin.stat:
+    path: "{{ s9k_root }}/current/viewer/systemd/{{ s9k_viewer_service }}"
+  register: _unit_stat
+  changed_when: false
+  tags:
+    - systemd
+
+- name: Instalar unit del visor en systemd
   ansible.builtin.copy:
-    src: "{{ s9k_root }}/viewer/systemd/s9-knowledge-viewer.service"
-    dest: /etc/systemd/system/s9-knowledge-viewer.service
+    src: "{{ s9k_root }}/current/viewer/systemd/{{ s9k_viewer_service }}"
+    dest: "/etc/systemd/system/{{ s9k_viewer_service }}"
+    owner: root
+    group: root
     mode: "0644"
     remote_src: true
-  notify: reload systemd
+  when: _unit_stat.stat.exists
+  notify: Recargar systemd
+  tags:
+    - systemd
+
+- name: Advertir si la unit no existe en la release
+  ansible.builtin.debug:
+    msg: >-
+      AVISO: unit {{ s9k_viewer_service }} no encontrada en
+      {{ s9k_root }}/current/viewer/systemd/. El servicio no se podra gestionar.
+  when: not _unit_stat.stat.exists
+  tags:
+    - systemd
+
+- name: Habilitar y arrancar servicio visor
+  ansible.builtin.systemd:
+    name: "{{ s9k_viewer_service }}"
+    enabled: true
+    state: started
+    daemon_reload: false
+  when: _unit_stat.stat.exists
+  tags:
+    - systemd

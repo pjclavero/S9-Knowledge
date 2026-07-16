@@ -1,9 +1,24 @@
 ---
-# Código y venv del data-engine (sin ejecutar ingesta).
-- name: Clonar/actualizar el repositorio
+# Rol data_engine — clonar/actualizar el repo en releases/ (modelo atómico).
+# No ejecuta ingesta. No toca Neo4j. No borra estados.
+# En el modelo de releases, el repo se clona en releases/<id>/ via deploy.sh;
+# este rol prepara el repo base de referencia para clones locales (opcional).
+
+- name: Clonar repositorio base (referencia para clones de release rapidos)
   ansible.builtin.git:
     repo: "{{ s9k_repo }}"
-    dest: "{{ s9k_root }}"
+    dest: "{{ s9k_root }}/.repo-cache"
     version: "{{ s9k_branch }}"
     update: true
-  # No borra estados existentes; no toca Neo4j.
+  register: _repo_clone
+  changed_when: _repo_clone.changed
+  tags:
+    - data_engine
+    - git
+
+- name: Informar commit clonado
+  ansible.builtin.debug:
+    msg: "Repo actualizado: commit {{ _repo_clone.after | default('desconocido') }}"
+  when: _repo_clone.changed
+  tags:
+    - data_engine

@@ -110,3 +110,75 @@ jobs:
             exit 1
           fi
           echo "OK: no sys.path manipulation with hardcoded /opt paths found"
+
+  deployment-validation:
+    name: Deployment scripts validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install validation tools
+        run: |
+          # shellcheck via apt (mas fiable que shellcheck-py)
+          sudo apt-get update -qq && sudo apt-get install -y shellcheck 2>/dev/null || true
+          # yamllint y ansible via pip
+          pip install yamllint ansible ansible-lint --quiet 2>/dev/null || true
+
+      - name: bash syntax check
+        run: |
+          echo "=== bash -n ==="
+          bash -n deploy/scripts/*.sh deploy/tests/*.sh
+          echo "OK: todos los scripts pasan bash -n"
+
+      - name: shellcheck
+        run: |
+          echo "=== shellcheck ==="
+          if command -v shellcheck >/dev/null 2>&1; then
+            shellcheck -x -e SC1091 deploy/scripts/*.sh
+            echo "OK: shellcheck"
+          else
+            echo "(shellcheck no disponible)"
+          fi
+
+      - name: yamllint
+        run: |
+          echo "=== yamllint ==="
+          if command -v yamllint >/dev/null 2>&1; then
+            yamllint -d relaxed deploy/ansible/
+            echo "OK: yamllint"
+          else
+            echo "(yamllint no disponible)"
+          fi
+
+      - name: ansible syntax-check
+        run: |
+          echo "=== ansible syntax-check ==="
+          if command -v ansible-playbook >/dev/null 2>&1; then
+            cd deploy/ansible
+            ansible-playbook site.yml --syntax-check -i inventory.example
+            echo "OK: ansible syntax-check"
+          else
+            echo "(ansible-playbook no disponible)"
+          fi
+
+      - name: validate.sh
+        run: bash deploy/tests/validate.sh
+
+      - name: Unicode check
+        run: python3 .github/scripts/check_unicode.py
+
+      - name: No secrets in deploy scripts
+        run: |
+          echo "=== no secretos hardcodeados ==="
+          if grep -rEn "(password|passwd|token|secret|api_key)\s*=\s*['\"][^'\"]{6,}['\"]" \
+               deploy/ --include="*.sh" --include="*.yml" --include="*.yaml" \
+               | grep -v '^\s*#' | grep -v 'example\|plantilla\|AVISO\|WARN'; then
+            echo "ERROR: POSIBLES SECRETOS HARDCODEADOS DETECTADOS"
+            exit 1
+          fi
+          echo "OK: sin secretos detectados"

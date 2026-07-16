@@ -1,0 +1,46 @@
+---
+# Variables globales para todos los hosts del grupo s9knowledge.
+# SIN secretos. Los secretos van en EnvironmentFiles del host (no versionados).
+# Copiar inventory.example -> inventory.ini y ajustar valores.
+
+# ---------------------------------------------------------------------------
+# Rutas principales (deben coincidir con deploy/scripts/lib.sh)
+# ---------------------------------------------------------------------------
+s9k_root: /opt/s9-knowledge
+s9k_state_root: /var/lib/s9-knowledge
+s9k_config_root: /etc/s9-knowledge
+s9k_log_root: /var/log/s9-knowledge
+
+# URL del repositorio (sin credenciales; usar deploy keys o HTTPS público)
+s9k_repo: https://github.com/pjclavero/S9-Knowledge.git
+s9k_branch: main
+
+# Release a activar (se sobreescribe en la línea de comandos con -e)
+s9k_release_id: ""
+
+# ---------------------------------------------------------------------------
+# Servicio systemd
+# ---------------------------------------------------------------------------
+s9k_viewer_service: s9-knowledge-viewer.service
+s9k_viewer_port: 8088
+
+# ---------------------------------------------------------------------------
+# Paquetes de sistema requeridos
+# ---------------------------------------------------------------------------
+s9k_system_packages:
+  - git
+  - python3
+  - python3-venv
+  - python3-pip
+  - curl
+  - jq
+
+# ---------------------------------------------------------------------------
+# Auth (deshabilitada por defecto; habilitar en inventory.ini si se necesita)
+# ---------------------------------------------------------------------------
+s9k_auth_enabled: false
+
+# ---------------------------------------------------------------------------
+# Healthchecks (timer deshabilitado por defecto hasta validación en lab)
+# ---------------------------------------------------------------------------
+s9k_healthcheck_timer_enabled: false

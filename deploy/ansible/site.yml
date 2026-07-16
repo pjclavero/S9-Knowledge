@@ -1,13 +1,37 @@
 ---
-# Playbook principal. Ejecutar manualmente:
-#   ansible-playbook -i inventory.ini site.yml   (NO se ejecuta automáticamente)
-- name: Desplegar S9 Knowledge (reproducible, sin secretos)
+# Playbook principal de S9 Knowledge.
+#
+# IMPORTANTE: Este playbook NO se ejecuta automaticamente.
+# Ejecutar manualmente por el operador tras revisar el plan:
+#
+#   # Syntax check (sin conectar al host):
+#   ansible-playbook -i inventory.example site.yml --syntax-check
+#
+#   # Modo check (dry-run, conecta al host pero no aplica cambios):
+#   ansible-playbook -i inventory.ini site.yml --check --diff
+#
+#   # Aplicar:
+#   ansible-playbook -i inventory.ini site.yml
+#
+# Los secretos (passwords, tokens, CSRF secret) NUNCA van en este fichero
+# ni en group_vars/. Van en EnvironmentFiles del host (/etc/s9-knowledge/).
+#
+# Ver deploy/README.md para instrucciones completas.
+
+- name: Preparar S9 Knowledge (reproducible, sin secretos)
   hosts: s9knowledge
   become: true
+  gather_facts: true
   roles:
-    - common
-    - data_engine
-    - viewer
-    - auth
-    - systemd
-    - healthchecks
+    - role: common
+      tags: [common]
+    - role: data_engine
+      tags: [data_engine]
+    - role: viewer
+      tags: [viewer]
+    - role: auth
+      tags: [auth]
+    - role: systemd
+      tags: [systemd]
+    - role: healthchecks
+      tags: [healthchecks]

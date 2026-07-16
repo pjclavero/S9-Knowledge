@@ -1,0 +1,20 @@
+---
+# Defaults del rol common.
+# Sobreescribir en group_vars/all.yml o inventory.
+
+s9k_root: /opt/s9-knowledge
+s9k_state_root: /var/lib/s9-knowledge
+s9k_config_root: /etc/s9-knowledge
+s9k_log_root: /var/log/s9-knowledge
+
+s9k_system_packages:
+  - git
+  - python3
+  - python3-venv
+  - python3-pip
+  - curl
+  - jq
+
+# Usuario y grupo del servicio (deben crearse fuera de Ansible o con user: módulo)
+s9k_service_user: www-data
+s9k_service_group: www-data
