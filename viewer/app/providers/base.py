@@ -53,3 +53,37 @@ class GraphProvider(ABC):
         self, entity_id: str
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """Devuelve (relaciones_salientes, relaciones_entrantes) de un nodo."""
+
+    @abstractmethod
+    def list_entities(
+        self,
+        workspace: str,
+        *,
+        q: str = "",
+        entity_type: str | None = None,
+        source_kind: str | None = None,
+        review_status: str | None = None,
+        visibility: str | None = None,
+        quality_status: str | None = None,
+        min_confidence: float | None = None,
+        sort: str = "canonical_name",
+        order: str = "asc",
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """Devuelve (items, total) con paginación real en la fuente de datos.
+
+        *No* carga todos los nodos en memoria: empuja SKIP/LIMIT al proveedor.
+        """
+
+    @abstractmethod
+    def list_sources(self, workspace: str) -> list[dict[str, Any]]:
+        """Lista de fuentes/documentos del workspace con metadatos básicos."""
+
+    @abstractmethod
+    def source_detail(self, workspace: str, source_id: str) -> dict[str, Any] | None:
+        """Metadatos de una fuente concreta, o None si no existe."""
+
+    @abstractmethod
+    def quality_metrics(self, workspace: str | None = None) -> dict[str, Any]:
+        """Métricas de calidad de solo lectura (counts, distribuciones, gaps)."""

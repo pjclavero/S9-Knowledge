@@ -12,11 +12,13 @@
     <div class="brand">S9 Knowledge · Visor mínimo</div>
     <nav>
       <a href="/">Inicio</a>
+      <a href="/entities">Entidades</a>
       <a href="/graph">Grafo</a>
       <a href="/jobs">Jobs</a>
       <a href="/status">Estado</a>
       {% if auth_user is defined and auth_user %}
         {% if auth_user.can_see_reviews() %}
+          <a href="/sources">Fuentes</a>
           <a href="/reviews">Reviews</a>
         {% endif %}
         {% if auth_user.can_access_admin() %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Fuente {{ source.source_id | e }} — S9 Knowledge{% endblock %}
+{% block body %}
+<main style="max-width:900px;margin:1.5rem auto;padding:1rem;">
+  <p style="margin-bottom:.5rem;"><a href="/sources">← Fuentes</a></p>
+  <h2>Fuente: <code>{{ source.source_id | e }}</code></h2>
+  <p style="color:#888;font-size:.9rem;">Workspace: {{ workspace | e }} · Solo lectura.</p>
+
+  <div style="margin:1rem 0;">
+    <strong>Entidades:</strong> {{ source.entity_count }}
+  </div>
+
+  {% if source.by_entity_type %}
+  <h3>Por tipo de entidad</h3>
+  <table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid #ccc;">
+      <th style="padding:.4rem;text-align:left;">Tipo</th>
+      <th style="padding:.4rem;text-align:right;">Entidades</th>
+    </tr></thead>
+    <tbody>
+    {% for row in source.by_entity_type %}
+    <tr style="border-bottom:1px solid #eee;">
+      <td style="padding:.4rem;" class="type-cell-{{ loop.index }}"></td>
+      <td style="padding:.4rem;text-align:right;">{{ row.count }}</td>
+    </tr>
+    <script>
+      (function(){
+        var c = document.querySelector('.type-cell-{{ loop.index }}');
+        if (c) c.textContent = {{ (row.entity_type or '—') | tojson }};
+      })();
+    </script>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if source.by_review_status %}
+  <h3 style="margin-top:1.5rem;">Por estado de revisión</h3>
+  <table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid #ccc;">
+      <th style="padding:.4rem;text-align:left;">Estado</th>
+      <th style="padding:.4rem;text-align:right;">Entidades</th>
+    </tr></thead>
+    <tbody>
+    {% for row in source.by_review_status %}
+    <tr style="border-bottom:1px solid #eee;">
+      <td style="padding:.4rem;" class="rev-cell-{{ loop.index }}"></td>
+      <td style="padding:.4rem;text-align:right;">{{ row.count }}</td>
+    </tr>
+    <script>
+      (function(){
+        var c = document.querySelector('.rev-cell-{{ loop.index }}');
+        if (c) c.textContent = {{ (row.review_status or '—') | tojson }};
+      })();
+    </script>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</main>
+{% endblock %}

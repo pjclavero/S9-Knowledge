@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     # o la ruta que indique job_store.DEFAULT_DB_PATH si tampoco se ha fijado.
     S9K_JOBS_DB: str = ""
 
+    # Visor de solo lectura — parámetros de paginación y seguridad (Tarea C).
+    S9K_VIEWER_DEFAULT_PAGE_SIZE: int = 50
+    S9K_VIEWER_MAX_PAGE_SIZE: int = 200
+    S9K_VIEWER_QUERY_TIMEOUT_SECONDS: int = 10
+    S9K_VIEWER_MAX_SEARCH_LENGTH: int = 200
+
     @property
     def neo4j_password(self) -> str:
         """Resuelve la contraseña de Neo4j: archivo primero, luego variable directa."""

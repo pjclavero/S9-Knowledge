@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}{{ entity.label | e }} — S9 Knowledge{% endblock %}
+{% block body %}
+<main style="max-width:900px;margin:1.5rem auto;padding:1rem;">
+  <p style="margin-bottom:.5rem;"><a href="/entities">← Entidades</a></p>
+  <h2 id="entity-name"><!-- filled via JS --></h2>
+  <script>
+    /* Evitar XSS: usar textContent, nunca innerHTML con datos del grafo. */
+    document.getElementById('entity-name').textContent = {{ entity.label | tojson }};
+  </script>
+  <div style="margin:.5rem 0;display:flex;gap:.5rem;flex-wrap:wrap;">
+    <span class="pill" id="entity-type"></span>
+    <script>document.getElementById('entity-type').textContent = {{ (entity.type_label or entity.type) | tojson }};</script>
+    {% if entity.confidence_label %}
+    <span class="pill">Confianza: {{ entity.confidence_label | e }}</span>
+    {% endif %}
+    {% if entity.visibility_label %}
+    <span class="pill">{{ entity.visibility_label | e }}</span>
+    {% endif %}
+    {% if entity.review_status_label %}
+    <span class="pill">{{ entity.review_status_label | e }}</span>
+    {% endif %}
+  </div>
+
+  {% if entity.description %}
+  <p id="entity-desc"></p>
+  <script>document.getElementById('entity-desc').textContent = {{ entity.description | tojson }};</script>
+  {% endif %}
+
+  <div style="margin:1rem 0;">
+    <strong>Workspace:</strong> {{ entity.workspace | e }}<br>
+    <strong>Alias:</strong> <span id="entity-aliases"></span>
+    <script>
+      document.getElementById('entity-aliases').textContent =
+        {{ entity.aliases | tojson }}.join(', ') || '—';
+    </script><br>
+    <strong>Fuente:</strong> {{ entity.source_document | e or '—' }}<br>
+    <strong>Páginas:</strong>
+    {% if entity.source_pages %}{{ entity.source_pages | join(', ') | e }}{% else %}—{% endif %}<br>
+    <strong>Tipo de fuente:</strong> {{ entity.source_kind | e or '—' }}<br>
+    <strong>Capa:</strong> {{ entity.knowledge_layer_label | e or '—' }}
+  </div>
+
+  <details>
+    <summary style="cursor:pointer;color:#888;">Datos técnicos</summary>
+    <pre id="entity-tech"></pre>
+    <script>
+      document.getElementById('entity-tech').textContent =
+        JSON.stringify({{ entity.technical | tojson }}, null, 2);
+    </script>
+  </details>
+
+  <hr style="margin:1.5rem 0;">
+
+  <h3>Relaciones salientes ({{ outgoing | length }})</h3>
+  {% if outgoing %}
+  <table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid #ccc;">
+      <th style="padding:.4rem;text-align:left;">Relación</th>
+      <th style="padding:.4rem;text-align:left;">Destino</th>
+      <th style="padding:.4rem;text-align:left;">Confianza</th>
+    </tr></thead>
+    <tbody>
+    {% for rel in outgoing %}
+    <tr style="border-bottom:1px solid #eee;">
+      <td style="padding:.4rem;" class="rel-label-{{ loop.index }}"></td>
+      <td style="padding:.4rem;">
+        {% if rel.other_entity %}
+        <a href="/entities/{{ rel.other_entity.id | e }}" class="rel-other-{{ loop.index }}"></a>
+        {% else %}?{% endif %}
+      </td>
+      <td style="padding:.4rem;">{{ rel.confidence_label | e }}</td>
+    </tr>
+    <script>
+      (function(){
+        var lbl = document.querySelector('.rel-label-{{ loop.index }}');
+        if (lbl) lbl.textContent = {{ rel.label | tojson }};
+        {% if rel.other_entity %}
+        var oth = document.querySelector('.rel-other-{{ loop.index }}');
+        if (oth) oth.textContent = {{ rel.other_entity.label | tojson }};
+        {% endif %}
+      })();
+    </script>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:#888;">Sin relaciones salientes.</p>
+  {% endif %}
+
+  <h3 style="margin-top:1.5rem;">Relaciones entrantes ({{ incoming | length }})</h3>
+  {% if incoming %}
+  <table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid #ccc;">
+      <th style="padding:.4rem;text-align:left;">Origen</th>
+      <th style="padding:.4rem;text-align:left;">Relación</th>
+      <th style="padding:.4rem;text-align:left;">Confianza</th>
+    </tr></thead>
+    <tbody>
+    {% for rel in incoming %}
+    <tr style="border-bottom:1px solid #eee;">
+      <td style="padding:.4rem;">
+        {% if rel.other_entity %}
+        <a href="/entities/{{ rel.other_entity.id | e }}" class="in-other-{{ loop.index }}"></a>
+        {% else %}?{% endif %}
+      </td>
+      <td style="padding:.4rem;" class="in-label-{{ loop.index }}"></td>
+      <td style="padding:.4rem;">{{ rel.confidence_label | e }}</td>
+    </tr>
+    <script>
+      (function(){
+        var lbl = document.querySelector('.in-label-{{ loop.index }}');
+        if (lbl) lbl.textContent = {{ rel.label | tojson }};
+        {% if rel.other_entity %}
+        var oth = document.querySelector('.in-other-{{ loop.index }}');
+        if (oth) oth.textContent = {{ rel.other_entity.label | tojson }};
+        {% endif %}
+      })();
+    </script>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:#888;">Sin relaciones entrantes.</p>
+  {% endif %}
+</main>
+{% endblock %}

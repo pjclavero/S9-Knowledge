@@ -34,6 +34,7 @@ from app.providers.base import GraphProvider
 from app.routers import auth as auth_router
 from app.routers import admin as admin_router
 from app.routers import health_admin as health_router
+from app.routers import readonly as readonly_router
 from app.serializers import serialize_edge, serialize_node
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -68,6 +69,7 @@ app.include_router(api_jobs.router, dependencies=[Depends(require_api_authentica
 app.include_router(auth_router.router)
 app.include_router(admin_router.router)
 app.include_router(health_router.router)
+app.include_router(readonly_router.router)
 
 
 # ---------------------------------------------------------------------------
