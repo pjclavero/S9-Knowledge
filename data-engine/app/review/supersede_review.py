@@ -52,11 +52,10 @@ DEFERRED = "DEFERRED_USE_EXISTING_UNTIL_MULTI_SOURCE_PROVENANCE"
 # Campos obligatorios en cada ficha para validación de esquema
 _REQUIRED_FICHA_FIELDS = {"candidate_id", "name"}
 
-# Caracteres de control que son indicadores de ataque Unicode
-_DANGEROUS_BIDI = {"​", "‌", "‍", "‪", "‫", "‬",
-                   "‭", "‮", "⁦", "⁧", "⁨", "⁩",
-                   "⁪", "⁫", "⁬", "⁭", "⁮", "⁯",
-                   "﻿", "\u0000"}
+# Caracteres de control indicadores de ataque Unicode (Trojan Source, zero-width,
+# BIDI, BOM, NUL). Declarados como secuencias de escape para que el propio codigo
+# fuente permanezca limpio ante el escaner Unicode del repo.
+_DANGEROUS_BIDI = {"\u200b", "\u200c", "\u200d", "\u202a", "\u202b", "\u202c", "\u202d", "\u202e", "\u2066", "\u2067", "\u2068", "\u2069", "\u206a", "\u206b", "\u206c", "\u206d", "\u206e", "\u206f", "\ufeff", "\u0000"}
 
 
 # ---------------------------------------------------------------------------

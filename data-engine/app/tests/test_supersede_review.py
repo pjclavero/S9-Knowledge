@@ -378,13 +378,29 @@ def test_15_permisos(tmp_path):
 def test_16_unicode_peligroso(tmp_path):
     out = tmp_path / "v2.json"
     # U+202E RIGHT-TO-LEFT OVERRIDE (Trojan Source)
-    malicious_reviewed_by = "admin‮"
+    malicious_reviewed_by = "admin\u202e"
     with pytest.raises((SystemExit, ValueError), match="Unicode peligroso|reviewed_by"):
         run(
             inp_path=str(_FIXTURE),
             supersedes_sha256=_FIXTURE_SHA,
             out_path=str(out),
             reviewed_by=malicious_reviewed_by,
+            correction_reason=_CORRECTION_REASON,
+        )
+
+
+def test_16b_null_byte_detectado(tmp_path):
+    """U+0000 (NUL) se detecta mediante representación segura (chr(0)),
+    tanto por pertenencia a _DANGEROUS_BIDI como por categoría de control."""
+    nul = chr(0)  # nunca un byte NUL literal en el código fuente
+    assert sr._contains_dangerous_unicode("admin" + nul)
+    out = tmp_path / "v2.json"
+    with pytest.raises((SystemExit, ValueError), match="Unicode peligroso|reviewed_by"):
+        run(
+            inp_path=str(_FIXTURE),
+            supersedes_sha256=_FIXTURE_SHA,
+            out_path=str(out),
+            reviewed_by="admin" + nul,
             correction_reason=_CORRECTION_REASON,
         )
 
