@@ -10,11 +10,11 @@
 # 0 daemon-reload, 0 reinicios.
 #
 # Orden de activación (obligatorio, corrección RC1):
-#   1 lock · 2 verificar release · 3 detectar layout · 4 migrar/validar estado ·
-#   5 validar continuidad · 6 validar viewer.env · 7 validar unidad ·
-#   8 respaldar unidad instalada · 9 instalar unidad nueva · 10 systemd-analyze ·
-#   11 daemon-reload solo si cambió · 12 current atómico · 13 reiniciar afectados ·
-#   14 comprobar commit ejecutado · 15 comprobar admin y jobs · 16 healthcheck ·
+#   1 lock - 2 verificar release - 3 detectar layout - 4 migrar/validar estado -
+#   5 validar continuidad - 6 validar viewer.env - 7 validar unidad -
+#   8 respaldar unidad instalada - 9 instalar unidad nueva - 10 systemd-analyze -
+#   11 daemon-reload solo si cambió - 12 current atómico - 13 reiniciar afectados -
+#   14 comprobar commit ejecutado - 15 comprobar admin y jobs - 16 healthcheck -
 #   17 liberar lock.
 #
 # NO despliega automáticamente. NO contiene secretos (van en /etc/s9-knowledge/*.env).
@@ -83,7 +83,7 @@ trap '_trap_cleanup' EXIT
 
 # En dry-run, `run` solo describe; en apply, ejecuta.
 run() {
-    if [ "${DRY_RUN}" -eq 0 ]; then log "· $*"; "$@"; else info "(dry-run) $*"; fi
+    if [ "${DRY_RUN}" -eq 0 ]; then log "- $*"; "$@"; else info "(dry-run) $*"; fi
 }
 
 log "=== DEPLOY S9 Knowledge (continuidad de estado) ==="
@@ -185,7 +185,7 @@ case "${GLOBAL_STATE}" in
     *) die "estado desconocido: ${GLOBAL_STATE}" ;;
 esac
 
-# Paso 5: validar continuidad (re-detección; debe permitir proceder y ≥1 admin)
+# Paso 5: validar continuidad (re-detección; debe permitir proceder y >=1 admin)
 log "--- 5. validar continuidad"
 set +e
 detect_layout_report >/dev/null
@@ -193,9 +193,11 @@ cont_rc=$?
 set -e
 [ "${cont_rc}" -eq 0 ] || die "validación de continuidad BLOQUEA (rc=${cont_rc})"
 
-# Paso 6: validar viewer.env (bloquea si faltan variables críticas)
+# Paso 6: validar viewer.env (bloquea si faltan variables críticas o el secreto
+# CSRF / fichero de contraseña son inseguros; nunca se imprime el valor)
 log "--- 6. validar viewer.env"
 validate_viewer_env "${VIEWER_ENV}" || die "viewer.env inválido/incompleto"
+validate_viewer_secrets "${VIEWER_ENV}" || die "viewer.env: secretos inválidos (CSRF/fichero)"
 
 # Paso 7: validar unidad nueva (antes de instalarla)
 log "--- 7. validar unidad systemd nueva"

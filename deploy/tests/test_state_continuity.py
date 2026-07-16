@@ -6,13 +6,13 @@ Usa fixtures SQLite equivalentes al esquema real (auth: schema_version/users con
 role+is_active; jobs: tabla jobs). NUNCA toca producción. Ejecutable en CI.
 
 Cobertura (TAREA 3):
-  1 LEGACY_STATE · 2 migración auth · 3 migración jobs · 4 integridad ·
-  5 conserva usuario · 6 conserva admin · 7 conserva job · 8 legacy usa estado
-  externo/bridge · 9 unidad basada en current · 10 activación de release ·
-  11 commit ejecutado · 12 idempotencia · 13 mixed equivalente · 14 mixed
-  divergente · 15 DB ausente · 16 DB corrupta · 17 0 admins · 18 fallo backup ·
-  19 fallo antes de rename · 20 fallo de unidad · 21 fallo de arranque ·
-  22 auto-revert · 23 rollback compatible · 24 rollback incompatible ·
+  1 LEGACY_STATE - 2 migración auth - 3 migración jobs - 4 integridad -
+  5 conserva usuario - 6 conserva admin - 7 conserva job - 8 legacy usa estado
+  externo/bridge - 9 unidad basada en current - 10 activación de release -
+  11 commit ejecutado - 12 idempotencia - 13 mixed equivalente - 14 mixed
+  divergente - 15 DB ausente - 16 DB corrupta - 17 0 admins - 18 fallo backup -
+  19 fallo antes de rename - 20 fallo de unidad - 21 fallo de arranque -
+  22 auto-revert - 23 rollback compatible - 24 rollback incompatible -
   25 dry-run sin cambios.
 """
 from __future__ import annotations
@@ -320,3 +320,90 @@ def test_25_dry_run_sin_cambios(tmp_path):
     res = ms.plan_or_apply("auth", la, dst, apply=False, confirm=False)
     assert res["status"] == "PLAN" and res["changed"] is False
     assert not dst.exists()  # el plan NO crea el destino
+
+
+# ===========================================================================
+# Gate de secretos (CSRF / fichero de contraseña)
+# ===========================================================================
+_VALIDATE = _SCRIPTS / "validate_deploy.sh"
+
+
+def _write_env(tmp_path, csrf=None, neo4j_user="neo4j", pwfile=None):
+    lines = [f"S9K_NEO4J_USER={neo4j_user}"]
+    if pwfile is not None:
+        lines.append(f"S9K_NEO4J_PASSWORD_FILE={pwfile}")
+    if csrf is not None:
+        lines.append(f"S9K_CSRF_SECRET={csrf}")
+    p = tmp_path / "viewer.env"
+    p.write_text("\n".join(lines) + "\n")
+    return p
+
+
+def _run_validate(sub, arg):
+    return subprocess.run(["bash", str(_VALIDATE), sub, str(arg)], capture_output=True, text=True)
+
+
+def test_csrf_placeholder_rechazado(tmp_path):
+    for ph in ("change-me-in-host", "CHANGE-ME", "secret", "default", "changeme"):
+        env = _write_env(tmp_path, csrf=ph)
+        assert _run_validate("csrf", env).returncode != 0, ph
+
+
+def test_csrf_vacio_rechazado(tmp_path):
+    env = _write_env(tmp_path, csrf="")
+    assert _run_validate("csrf", env).returncode != 0
+
+
+def test_csrf_corto_rechazado(tmp_path):
+    env = _write_env(tmp_path, csrf="abc123")  # < 32
+    assert _run_validate("csrf", env).returncode != 0
+
+
+def test_csrf_baja_entropia_rechazado(tmp_path):
+    env = _write_env(tmp_path, csrf="a" * 40)  # >=32 pero 1 solo carácter
+    assert _run_validate("csrf", env).returncode != 0
+
+
+def test_csrf_valido_aceptado(tmp_path):
+    good = "9f3a2b7c8d1e4f5a6b0c9d8e7f60a1b2c3d4e5f6"  # 40 hex, alta entropía
+    env = _write_env(tmp_path, csrf=good)
+    assert _run_validate("csrf", env).returncode == 0
+
+
+def test_csrf_igual_a_usuario_rechazado(tmp_path):
+    val = "ZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZm"
+    env = _write_env(tmp_path, csrf=val, neo4j_user=val)
+    assert _run_validate("csrf", env).returncode != 0
+
+
+def test_csrf_valor_no_aparece_en_logs(tmp_path):
+    env = _write_env(tmp_path, csrf="abc123")  # se rechaza por corto
+    r = _run_validate("csrf", env)
+    assert "abc123" not in (r.stdout + r.stderr)
+
+
+def test_secret_file_inexistente_rechazado(tmp_path):
+    r = _run_validate("secret-file", tmp_path / "no_existe")
+    assert r.returncode != 0
+
+
+def test_secret_file_permisos_inseguros_rechazado(tmp_path):
+    f = tmp_path / "pw"; f.write_text("x"); f.chmod(0o644)
+    assert _run_validate("secret-file", f).returncode != 0
+
+
+def test_secret_file_seguro_aceptado(tmp_path):
+    f = tmp_path / "pw"; f.write_text("x"); f.chmod(0o600)
+    assert _run_validate("secret-file", f).returncode == 0
+
+
+def test_template_proxy_headers_false():
+    txt = (_REPO / "deploy" / "config" / "viewer.env.example").read_text()
+    assert "S9K_AUTH_TRUST_PROXY_HEADERS=false" in txt
+    assert "S9K_AUTH_TRUST_PROXY_HEADERS=true" not in txt
+
+
+def test_template_csrf_no_placeholder():
+    txt = (_REPO / "deploy" / "config" / "viewer.env.example").read_text()
+    # el valor no debe estar activo con un placeholder; debe ir comentado/vacío
+    assert "S9K_CSRF_SECRET=change-me-in-host" not in txt

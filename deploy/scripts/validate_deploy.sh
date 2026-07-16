@@ -8,7 +8,118 @@ set -Eeuo pipefail
 LEGACY_LAYOUT="/opt/knowledge-services/s9-knowledge-repo"
 
 # Variables cuya ausencia BLOQUEA el despliegue (nombres verbatim del código).
-CRITICAL_ENV_VARS="S9K_VIEWER_HOST S9K_VIEWER_PORT S9K_GRAPH_PROVIDER S9K_NEO4J_URI S9K_NEO4J_USER S9K_AUTH_DB_PATH S9K_JOBS_DB S9K_AUTH_ENABLED S9K_CSRF_SECRET"
+# S9K_CSRF_SECRET NO va aquí: tiene su propia validación profunda (validate_csrf_secret),
+# que además exige que esté presente y sea fuerte.
+CRITICAL_ENV_VARS="S9K_VIEWER_HOST S9K_VIEWER_PORT S9K_GRAPH_PROVIDER S9K_NEO4J_URI S9K_NEO4J_USER S9K_AUTH_DB_PATH S9K_JOBS_DB S9K_AUTH_ENABLED"
+
+# Placeholders prohibidos para un secreto (case-insensitive, coincidencia exacta).
+CSRF_PLACEHOLDERS="change-me change-me-in-host changeme replace-me example default password secret s9k-csrf-change-me s9k-csrf-default"
+
+# Longitud/entropía mínimas (alineadas con viewer/app/auth/security.py).
+CSRF_MIN_LEN=32
+CSRF_MIN_UNIQUE=8
+
+# Rutas que NO deben contener secretos (la release es efímera/versionada).
+RELEASE_PREFIXES="/opt/s9-knowledge/releases /opt/s9-knowledge/current"
+
+# ---------------------------------------------------------------------------
+# _env_value <env_file> <VAR>  -> imprime el valor (sin comillas envolventes).
+#   No expone el valor por logs; solo lo devuelve por stdout para uso interno.
+# ---------------------------------------------------------------------------
+_env_value() {
+    local env_file="${1}" var="${2}" line val
+    line="$(grep -E "^[[:space:]]*${var}[[:space:]]*=" "${env_file}" 2>/dev/null | grep -vE '^[[:space:]]*#' | tail -1 || true)"
+    val="${line#*=}"
+    # recorta espacios de borde y comillas envolventes simples/dobles
+    val="${val#"${val%%[![:space:]]*}"}"; val="${val%"${val##*[![:space:]]}"}"
+    val="${val%\"}"; val="${val#\"}"; val="${val%\'}"; val="${val#\'}"
+    printf '%s' "${val}"
+}
+
+# ---------------------------------------------------------------------------
+# validate_csrf_secret <env_file>
+#   Rechaza: ausente/vacío; placeholder conocido; < CSRF_MIN_LEN; entropía baja
+#   (< CSRF_MIN_UNIQUE caracteres distintos); igual al usuario Neo4j; secreto
+#   guardado dentro de una release. NUNCA imprime el valor.
+# ---------------------------------------------------------------------------
+validate_csrf_secret() {
+    local env_file="${1}"
+    [ -f "${env_file}" ] || { printf 'BLOCK(csrf): viewer.env no existe\n' >&2; return 1; }
+    local val lower ph user
+    val="$(_env_value "${env_file}" S9K_CSRF_SECRET)"
+    if [ -z "${val}" ]; then
+        printf 'BLOCK(csrf): S9K_CSRF_SECRET ausente o vacío\n' >&2; return 1
+    fi
+    lower="$(printf '%s' "${val}" | tr '[:upper:]' '[:lower:]')"
+    for ph in ${CSRF_PLACEHOLDERS}; do
+        if [ "${lower}" = "${ph}" ]; then
+            printf 'BLOCK(csrf): S9K_CSRF_SECRET es un placeholder prohibido\n' >&2; return 1
+        fi
+    done
+    case "${lower}" in *change-me*|*changeme*|*replace-me*|*placeholder*)
+        printf 'BLOCK(csrf): S9K_CSRF_SECRET contiene un placeholder\n' >&2; return 1 ;;
+    esac
+    if [ "${#val}" -lt "${CSRF_MIN_LEN}" ]; then
+        printf 'BLOCK(csrf): S9K_CSRF_SECRET demasiado corto (< %d)\n' "${CSRF_MIN_LEN}" >&2; return 1
+    fi
+    local uniq
+    uniq="$(printf '%s' "${val}" | fold -w1 | sort -u | wc -l)"
+    if [ "${uniq}" -lt "${CSRF_MIN_UNIQUE}" ]; then
+        printf 'BLOCK(csrf): S9K_CSRF_SECRET con entropía insuficiente (< %d distintos)\n' "${CSRF_MIN_UNIQUE}" >&2; return 1
+    fi
+    user="$(_env_value "${env_file}" S9K_NEO4J_USER)"
+    if [ -n "${user}" ] && [ "${val}" = "${user}" ]; then
+        printf 'BLOCK(csrf): S9K_CSRF_SECRET igual al usuario Neo4j\n' >&2; return 1
+    fi
+    local pfx
+    for pfx in ${RELEASE_PREFIXES}; do
+        case "${val}" in "${pfx}"*)
+            printf 'BLOCK(csrf): el secreto apunta dentro de una release\n' >&2; return 1 ;;
+        esac
+    done
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# validate_secret_file <path>
+#   Para ficheros de secreto referenciados (p. ej. S9K_NEO4J_PASSWORD_FILE):
+#   debe existir, no ser symlink, tener permisos 0600 (sin lectura grupo/otros),
+#   y no estar dentro de una release. NUNCA imprime el contenido.
+# ---------------------------------------------------------------------------
+validate_secret_file() {
+    local path="${1}" pfx perms
+    if [ -z "${path}" ]; then return 0; fi
+    for pfx in ${RELEASE_PREFIXES}; do
+        case "${path}" in "${pfx}"*)
+            printf 'BLOCK(secret-file): fichero de secreto dentro de una release: %s\n' "${path}" >&2; return 1 ;;
+        esac
+    done
+    if [ -L "${path}" ]; then
+        printf 'BLOCK(secret-file): es un symlink (rechazado): %s\n' "${path}" >&2; return 1
+    fi
+    if [ ! -f "${path}" ]; then
+        printf 'BLOCK(secret-file): no existe: %s\n' "${path}" >&2; return 1
+    fi
+    perms="$(stat -c '%a' "${path}" 2>/dev/null || printf '')"
+    # rechaza cualquier bit de grupo/otros (perms de 3 dígitos con 2º/3er != 0)
+    case "${perms}" in
+        [0-7]00) ;;  # solo dueño
+        *) printf 'BLOCK(secret-file): permisos inseguros (%s) en %s\n' "${perms}" "${path}" >&2; return 1 ;;
+    esac
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# validate_viewer_secrets <env_file>
+#   Combina CSRF + fichero de contraseña Neo4j (si se usa *_FILE).
+# ---------------------------------------------------------------------------
+validate_viewer_secrets() {
+    local env_file="${1}" rc=0 pwfile
+    validate_csrf_secret "${env_file}" || rc=1
+    pwfile="$(_env_value "${env_file}" S9K_NEO4J_PASSWORD_FILE)"
+    validate_secret_file "${pwfile}" || rc=1
+    return "${rc}"
+}
 
 # ---------------------------------------------------------------------------
 # validate_viewer_env <viewer.env>
@@ -82,8 +193,11 @@ validate_viewer_unit() {
 # Permite ejecutar como CLI: validate_deploy.sh env <file> | unit <file> [current]
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     case "${1:-}" in
-        env)  validate_viewer_env "${2:?falta ruta viewer.env}" ;;
-        unit) validate_viewer_unit "${2:?falta ruta unit}" "${3:-/opt/s9-knowledge/current}" ;;
-        *) printf 'uso: validate_deploy.sh env <viewer.env> | unit <unit> [current]\n' >&2; exit 2 ;;
+        env)     validate_viewer_env "${2:?falta ruta viewer.env}" ;;
+        unit)    validate_viewer_unit "${2:?falta ruta unit}" "${3:-/opt/s9-knowledge/current}" ;;
+        csrf)    validate_csrf_secret "${2:?falta ruta viewer.env}" ;;
+        secrets) validate_viewer_secrets "${2:?falta ruta viewer.env}" ;;
+        secret-file) validate_secret_file "${2:?falta ruta fichero}" ;;
+        *) printf 'uso: validate_deploy.sh env|csrf|secrets <viewer.env> | unit <unit> [current] | secret-file <path>\n' >&2; exit 2 ;;
     esac
 fi

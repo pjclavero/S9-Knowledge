@@ -59,7 +59,31 @@ ExecStart=/opt/s9-knowledge/current/viewer/.venv/bin/uvicorn app.main:app ...
 `WorkingDirectory`/`ExecStart`/venv no cuelgan de `current`, o si falta
 `EnvironmentFile`. El despliegue bloquea si faltan variables críticas en
 `viewer.env` (`S9K_VIEWER_HOST/PORT`, `S9K_GRAPH_PROVIDER`, `S9K_NEO4J_URI/USER`,
-`S9K_AUTH_DB_PATH`, `S9K_JOBS_DB`, `S9K_AUTH_ENABLED`, `S9K_CSRF_SECRET`).
+`S9K_AUTH_DB_PATH`, `S9K_JOBS_DB`, `S9K_AUTH_ENABLED`).
+
+### Secretos (`validate_viewer_secrets`)
+`S9K_CSRF_SECRET` no se valida por mera presencia sino con una comprobación
+profunda (alineada con `viewer/app/auth/security.py`) que **bloquea** si el
+secreto:
+- está ausente o vacío;
+- es un placeholder conocido (`change-me`, `change-me-in-host`, `changeme`,
+  `replace-me`, `example`, `default`, `password`, `secret`, `s9k-csrf-*`), sin
+  distinguir mayúsculas;
+- tiene menos de 32 caracteres o menos de 8 caracteres distintos (entropía);
+- coincide con el usuario Neo4j u otro valor de ejemplo;
+- apunta dentro de una release (`/opt/s9-knowledge/releases|current`).
+
+El valor **nunca** se imprime durante la validación. El código no soporta
+`S9K_CSRF_SECRET_FILE`, por lo que la plantilla deja el valor **comentado/vacío**
+(`openssl rand -hex 32` en el host). Para el fichero de contraseña de Neo4j
+(`S9K_NEO4J_PASSWORD_FILE`, sí soportado), `validate_secret_file` exige que exista,
+no sea symlink, tenga permisos `0600` y no esté dentro de una release.
+
+### Proxy headers
+`S9K_AUTH_TRUST_PROXY_HEADERS=false` por defecto en la plantilla. Solo debe
+ponerse `true` si: hay un reverse proxy conocido, se filtran las cabeceras
+entrantes, existe una lista de proxies confiables y **no** hay acceso directo no
+confiable al visor.
 
 ## Identidad de release (verify_release_identity.py)
 No basta con que el symlink `current` haya cambiado. Se comprueba:
@@ -72,12 +96,12 @@ No basta con que el symlink `current` haya cambiado. Se comprueba:
 Si el proceso no ejecuta la release autorizada → `deploy.sh` hace **auto-revert**.
 
 ## Orden de deploy.sh (17 pasos)
-1 lock · 2 verificar/construir release · 3 detectar layout · 4 migrar/validar
-estado · 5 validar continuidad · 6 validar `viewer.env` · 7 validar unidad ·
-8 respaldar unidad instalada · 9 instalar unidad nueva · 10 `systemd-analyze
-verify` · 11 `daemon-reload` solo si cambió · 12 `current` atómico · 13 reiniciar
-servicios afectados · 14 comprobar commit ejecutado · 15 comprobar admin y jobs ·
-16 healthcheck · 17 liberar lock.
+1 lock - 2 verificar/construir release - 3 detectar layout - 4 migrar/validar
+estado - 5 validar continuidad - 6 validar `viewer.env` - 7 validar unidad -
+8 respaldar unidad instalada - 9 instalar unidad nueva - 10 `systemd-analyze
+verify` - 11 `daemon-reload` solo si cambió - 12 `current` atómico - 13 reiniciar
+servicios afectados - 14 comprobar commit ejecutado - 15 comprobar admin y jobs -
+16 healthcheck - 17 liberar lock.
 
 **Dry-run** (por defecto): 0 archivos, 0 migraciones, 0 cambios de symlink,
 0 `daemon-reload`, 0 reinicios.
