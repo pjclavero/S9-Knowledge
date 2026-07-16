@@ -1,0 +1,72 @@
+---
+# Rol viewer — venv del visor y dependencias bloqueadas en la release activa.
+# Idempotente. Sin secretos. La release activa se accede via symlink current.
+
+- name: Verificar que la release activa existe
+  ansible.builtin.stat:
+    path: "{{ s9k_root }}/current"
+  register: _current_stat
+  changed_when: false
+  tags:
+    - viewer
+
+- name: Crear venv del visor en la release activa
+  ansible.builtin.command:
+    cmd: python3 -m venv "{{ s9k_root }}/current/viewer/.venv"
+    creates: "{{ s9k_root }}/current/viewer/.venv/bin/python"
+  changed_when: true
+  when: _current_stat.stat.exists
+  tags:
+    - viewer
+    - venv
+
+- name: Instalar dependencias bloqueadas en el venv
+  ansible.builtin.pip:
+    requirements: "{{ s9k_root }}/current/viewer/requirements.txt"
+    virtualenv: "{{ s9k_root }}/current/viewer/.venv"
+    extra_args: "--quiet"
+  when: _current_stat.stat.exists
+  notify: Reiniciar visor
+  tags:
+    - viewer
+    - pip
+
+- name: Verificar que .env NO esta dentro de la release (no deben estar los secretos ahi)
+  ansible.builtin.stat:
+    path: "{{ s9k_root }}/current/viewer/.env"
+  register: _env_in_release
+  changed_when: false
+  tags:
+    - viewer
+    - security
+
+- name: Alertar si .env esta dentro de la release (nunca debe estarlo)
+  ansible.builtin.fail:
+    msg: >-
+      SEGURIDAD: se encontro viewer/.env dentro de la release activa.
+      Los secretos deben estar en {{ s9k_config_root }}/viewer.env
+      y NO dentro del directorio de la release.
+  when: _env_in_release.stat.exists
+  tags:
+    - viewer
+    - security
+
+- name: Verificar que el EnvironmentFile de config existe
+  ansible.builtin.stat:
+    path: "{{ s9k_config_root }}/viewer.env"
+  register: _viewer_env_stat
+  changed_when: false
+  tags:
+    - viewer
+    - config
+
+- name: Advertir si viewer.env no existe en config
+  ansible.builtin.debug:
+    msg: >-
+      AVISO: {{ s9k_config_root }}/viewer.env no encontrado.
+      El servicio no arrancara sin este fichero. Crea el fichero con las
+      variables de entorno requeridas (sin secretos en el repo).
+  when: not _viewer_env_stat.stat.exists
+  tags:
+    - viewer
+    - config

@@ -1,0 +1,35 @@
+# Inventario de ejemplo (SIN secretos). Copiar a inventory.ini y ajustar.
+# NO versionar inventory.ini si contiene datos del host real.
+#
+# Uso:
+#   cp inventory.example inventory.ini
+#   # Editar inventory.ini con los valores reales del host
+#   ansible-playbook -i inventory.ini site.yml --check --diff
+
+[s9knowledge]
+vm105 ansible_host=192.168.1.205 ansible_user=root
+
+[s9knowledge:vars]
+# Rutas del modelo de releases (deben coincidir con deploy/scripts/lib.sh)
+s9k_root=/opt/s9-knowledge
+s9k_state_root=/var/lib/s9-knowledge
+s9k_config_root=/etc/s9-knowledge
+s9k_log_root=/var/log/s9-knowledge
+
+# Repositorio (sin credenciales; usar deploy key o HTTPS publico)
+s9k_repo=https://github.com/pjclavero/S9-Knowledge.git
+s9k_branch=main
+
+# Usuario y grupo del servicio
+s9k_service_user=www-data
+s9k_service_group=www-data
+
+# Auth (habilitar si el visor usa autenticacion)
+s9k_auth_enabled=false
+
+# Healthcheck timer (deshabilitado hasta validacion)
+s9k_healthcheck_timer_enabled=false
+
+# Los secretos (S9K_CSRF_SECRET, S9K_NEO4J_PASSWORD, etc.) NO van aqui.
+# Se gestionan en EnvironmentFiles del host (/etc/s9-knowledge/*.env, modo 0600)
+# fuera del control de versiones.

@@ -1,0 +1,30 @@
+---
+# Rol auth — migraciones de auth.db (idempotentes, solo si auth esta activa).
+# Sin crear secretos. Sin acceso a datos de usuario. Solo estructura de BD.
+
+- name: Verificar estado de auth en la release activa
+  ansible.builtin.command:
+    cmd: >-
+      {{ s9k_root }}/current/viewer/.venv/bin/python -m app.cli.auth status
+    chdir: "{{ s9k_root }}/current/viewer"
+  register: _auth_status
+  changed_when: false
+  failed_when: false
+  when: s9k_auth_enabled | bool
+  tags:
+    - auth
+
+- name: Informar estado de auth
+  ansible.builtin.debug:
+    msg: >-
+      auth.db status: {{ _auth_status.stdout | default('(auth deshabilitada)') }}
+  when: s9k_auth_enabled | bool
+  tags:
+    - auth
+
+- name: Informar que auth esta deshabilitada
+  ansible.builtin.debug:
+    msg: "Auth deshabilitada (s9k_auth_enabled=false) — sin migraciones"
+  when: not (s9k_auth_enabled | bool)
+  tags:
+    - auth

@@ -1,0 +1,5 @@
+---
+- name: Recargar systemd para healthchecks
+  ansible.builtin.systemd:
+    daemon_reload: true
+  listen: Recargar systemd para healthchecks

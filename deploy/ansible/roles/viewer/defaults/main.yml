@@ -1,0 +1,9 @@
+---
+# Defaults del rol viewer.
+
+s9k_root: /opt/s9-knowledge
+s9k_state_root: /var/lib/s9-knowledge
+s9k_config_root: /etc/s9-knowledge
+s9k_release_id: ""
+s9k_service_user: www-data
+s9k_service_group: www-data

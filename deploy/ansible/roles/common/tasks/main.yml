@@ -1,0 +1,104 @@
+---
+# Rol common — paquetes de sistema y estructura de directorios base.
+# Idempotente. Sin secretos.
+
+- name: Instalar paquetes de sistema requeridos
+  ansible.builtin.package:
+    name: "{{ s9k_system_packages }}"
+    state: present
+  tags:
+    - common
+    - packages
+
+- name: Crear directorio raíz del despliegue
+  ansible.builtin.file:
+    path: "{{ s9k_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - common
+    - directories
+
+- name: Crear directorio de releases
+  ansible.builtin.file:
+    path: "{{ s9k_root }}/releases"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - common
+    - directories
+
+- name: Crear directorio de estado mutable
+  ansible.builtin.file:
+    path: "{{ s9k_state_root }}"
+    state: directory
+    owner: "{{ s9k_service_user }}"
+    group: "{{ s9k_service_group }}"
+    mode: "0750"
+  tags:
+    - common
+    - directories
+
+- name: Crear subdirectorios de estado mutable
+  ansible.builtin.file:
+    path: "{{ s9k_state_root }}/{{ item }}"
+    state: directory
+    owner: "{{ s9k_service_user }}"
+    group: "{{ s9k_service_group }}"
+    mode: "0750"
+  loop:
+    - auth
+    - jobs
+    - state
+    - output
+    - staging
+    - backups
+  tags:
+    - common
+    - directories
+
+- name: Crear directorio de configuracion y secretos
+  ansible.builtin.file:
+    path: "{{ s9k_config_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  tags:
+    - common
+    - directories
+
+- name: Crear directorio de logs
+  ansible.builtin.file:
+    path: "{{ s9k_log_root }}"
+    state: directory
+    owner: "{{ s9k_service_user }}"
+    group: "{{ s9k_service_group }}"
+    mode: "0750"
+  tags:
+    - common
+    - directories
+
+- name: Verificar si deploy.env existe (solo comprobacion, no lo crea)
+  ansible.builtin.stat:
+    path: "{{ s9k_config_root }}/deploy.env"
+  register: _deploy_env_stat
+  changed_when: false
+  tags:
+    - common
+    - config
+
+- name: Advertir si deploy.env no existe
+  ansible.builtin.debug:
+    msg: >-
+      AVISO: {{ s9k_config_root }}/deploy.env no encontrado.
+      Crea este fichero en el host con las variables de entorno del servicio.
+      Ver deploy/README.md para la plantilla. Sin secretos en el repo.
+  when: not _deploy_env_stat.stat.exists
+  tags:
+    - common
+    - config

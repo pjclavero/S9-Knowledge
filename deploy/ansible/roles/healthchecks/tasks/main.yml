@@ -1,0 +1,49 @@
+---
+# Rol healthchecks — instala units de healthcheck (sin habilitarlas en produccion).
+# El timer permanece deshabilitado hasta validacion explcita del operador.
+# Idempotente. Sin secretos.
+
+- name: Verificar si existen units de healthcheck en la release activa
+  ansible.builtin.stat:
+    path: "{{ s9k_root }}/current/viewer/systemd/{{ item }}"
+  register: _hc_units
+  changed_when: false
+  loop:
+    - s9-knowledge-healthcheck.service
+    - s9-knowledge-healthcheck.timer
+  tags:
+    - healthchecks
+
+- name: Instalar units de healthcheck (solo si existen en la release)
+  ansible.builtin.copy:
+    src: "{{ s9k_root }}/current/viewer/systemd/{{ item.item }}"
+    dest: "/etc/systemd/system/{{ item.item }}"
+    owner: root
+    group: root
+    mode: "0644"
+    remote_src: true
+  loop: "{{ _hc_units.results }}"
+  when: item.stat.exists
+  notify: Recargar systemd para healthchecks
+  tags:
+    - healthchecks
+
+- name: Habilitar timer de healthcheck (solo si s9k_healthcheck_timer_enabled)
+  ansible.builtin.systemd:
+    name: s9-knowledge-healthcheck.timer
+    enabled: "{{ s9k_healthcheck_timer_enabled }}"
+    state: "{{ 'started' if s9k_healthcheck_timer_enabled else 'stopped' }}"
+    daemon_reload: false
+  when: >-
+    _hc_units.results | selectattr('item', 'equalto', 's9-knowledge-healthcheck.timer')
+    | selectattr('stat.exists') | list | length > 0
+  tags:
+    - healthchecks
+
+- name: Informar estado del timer de healthcheck
+  ansible.builtin.debug:
+    msg: >-
+      Timer s9-knowledge-healthcheck.timer:
+      {{ 'HABILITADO' if s9k_healthcheck_timer_enabled else 'DESHABILITADO (activar con -e s9k_healthcheck_timer_enabled=true)' }}
+  tags:
+    - healthchecks

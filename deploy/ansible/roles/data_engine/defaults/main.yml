@@ -1,0 +1,6 @@
+---
+# Defaults del rol data_engine.
+
+s9k_root: /opt/s9-knowledge
+s9k_repo: https://github.com/pjclavero/S9-Knowledge.git
+s9k_branch: main

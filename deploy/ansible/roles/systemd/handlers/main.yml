@@ -1,0 +1,5 @@
+---
+- name: Recargar systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  listen: Recargar systemd

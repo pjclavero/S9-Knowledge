@@ -1,0 +1,9 @@
+---
+# Handlers del rol viewer.
+
+- name: Reiniciar visor
+  ansible.builtin.systemd:
+    name: s9-knowledge-viewer.service
+    state: restarted
+    daemon_reload: false
+  listen: Reiniciar visor
