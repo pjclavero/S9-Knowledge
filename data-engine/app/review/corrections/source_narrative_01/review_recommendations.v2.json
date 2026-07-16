@@ -1,0 +1,173 @@
+{
+  "autoapproved": 0,
+  "entities_total": 9,
+  "fichas": [
+    {
+      "candidate_id": "030526ae6a78",
+      "confidence": 0.85,
+      "evidence": "cabalgó hasta las murallas de Otosan Uchi",
+      "match_type": "none",
+      "name": "Otosan Uchi",
+      "provenance": "?",
+      "recommendation": "APPROVE_UNCHANGED",
+      "resolver": "create_new",
+      "shadow": "SHADOW_REVIEW",
+      "type": "Location",
+      "why": "conf=0.85, create_new",
+      "reviewed": "manual",
+      "review_note": "revisado sin cambio automático de la recomendación"
+    },
+    {
+      "candidate_id": "2a51010cc288",
+      "confidence": 0.9,
+      "evidence": "los exploradores habían avistado tropas del Clan Escorpión a",
+      "match_type": "none",
+      "name": "Río Kanji",
+      "provenance": "?",
+      "recommendation": "APPROVE_UNCHANGED",
+      "resolver": "create_new",
+      "shadow": "SHADOW_REVIEW",
+      "type": "Location",
+      "why": "conf=0.90, create_new",
+      "reviewed": "manual",
+      "review_note": "revisado sin cambio automático de la recomendación"
+    },
+    {
+      "candidate_id": "016981d6e956",
+      "confidence": 0.9,
+      "evidence": "Toturi, sin embargo, desconfiaba de las intenciones de Kachi",
+      "match_type": "exact",
+      "name": "Akodo Toturi",
+      "provenance": "?",
+      "recommendation": "USE_EXISTING",
+      "resolver": "use_existing",
+      "shadow": "SHADOW_AUTOAPPROVE",
+      "type": "Character",
+      "why": "match exact con nodo existente",
+      "reviewed": "manual",
+      "review_note": "revisado sin cambio automático de la recomendación"
+    },
+    {
+      "candidate_id": "4e71578685c2",
+      "confidence": 0.92,
+      "evidence": "Akodo Toturi, general del Clan León, cabalgó hasta las mural",
+      "match_type": "exact",
+      "name": "clan León",
+      "provenance": "?",
+      "recommendation": "EDIT",
+      "resolver": "use_existing",
+      "shadow": "SHADOW_REVIEW",
+      "type": "Faction",
+      "why": "casing no canonico (minuscula inicial) -> normalizar",
+      "reviewed": "manual",
+      "review_note": "revisado sin cambio automático de la recomendación"
+    },
+    {
+      "candidate_id": "cdba7c2e688b",
+      "confidence": 0.9,
+      "evidence": "envió un mensaje secreto a Matsu Tsuko.",
+      "match_type": "none",
+      "name": "Matsu Tsuko",
+      "provenance": "?",
+      "recommendation": "APPROVE_UNCHANGED",
+      "resolver": "create_new",
+      "shadow": "SHADOW_REVIEW",
+      "type": "Character",
+      "why": "conf=0.90, create_new",
+      "reviewed": "manual",
+      "review_note": "revisado sin cambio automático de la recomendación"
+    },
+    {
+      "candidate_id": "482f601e5b7a",
+      "confidence": 0.92,
+      "evidence": "Akodo Toturi, general del Clan León, cabalgó hasta las mural",
+      "match_type": "exact",
+      "name": "Clan Escorpión",
+      "provenance": "?",
+      "recommendation": "DEFERRED_USE_EXISTING_UNTIL_MULTI_SOURCE_PROVENANCE",
+      "resolver": "use_existing",
+      "shadow": "SHADOW_AUTOAPPROVE",
+      "type": "Faction",
+      "why": "Ya existe en el grafo (match exacto). Consolidado de 2 decisiones en conflicto. No CREATE_NEW; no SET sobre nodo existente; procedencia intacta; aplazado hasta procedencia multifuente.",
+      "deferred": true,
+      "review_action": "DEFERRED_USE_EXISTING_UNTIL_MULTI_SOURCE_PROVENANCE",
+      "reviewed": "manual",
+      "consolidated_from": [
+        {
+          "candidate_id": "6a36f2884a46",
+          "type": "Clan",
+          "recommendation": "REJECT",
+          "resolver": "use_existing",
+          "why": "duplicado con tipo invalido 'Clan' (existe version con tipo valido)"
+        },
+        {
+          "candidate_id": "482f601e5b7a",
+          "type": "Faction",
+          "recommendation": "APPROVE_UNCHANGED",
+          "resolver": "needs_review",
+          "why": "conf=0.92"
+        }
+      ]
+    },
+    {
+      "candidate_id": "b651028cc5e9",
+      "confidence": 0.92,
+      "evidence": "Aquella noche, Bayushi Kachiko envió un mensaje secreto a Ma",
+      "match_type": "exact",
+      "name": "clan Grulla",
+      "provenance": "?",
+      "recommendation": "EDIT",
+      "resolver": "use_existing",
+      "shadow": "SHADOW_REVIEW",
+      "type": "Faction",
+      "why": "casing no canonico (minuscula inicial) -> normalizar",
+      "reviewed": "manual",
+      "review_note": "revisado sin cambio automático de la recomendación"
+    },
+    {
+      "candidate_id": "55d55eda183a",
+      "confidence": 0.9,
+      "evidence": "Bayushi Kachiko envió un mensaje secreto a Matsu Tsuko.",
+      "match_type": "none",
+      "name": "Bayushi Kachiko",
+      "provenance": "?",
+      "recommendation": "APPROVE_UNCHANGED",
+      "resolver": "create_new",
+      "shadow": "SHADOW_REVIEW",
+      "type": "Character",
+      "why": "conf=0.90, create_new",
+      "reviewed": "manual",
+      "review_note": "revisado sin cambio automático de la recomendación"
+    }
+  ],
+  "recommendations": {
+    "APPROVE_UNCHANGED": 4,
+    "USE_EXISTING": 1,
+    "EDIT": 2,
+    "DEFERRED_USE_EXISTING_UNTIL_MULTI_SOURCE_PROVENANCE": 1
+  },
+  "relations_total": 5,
+  "shadow": {
+    "SHADOW_AUTOAPPROVE": 2,
+    "SHADOW_REVIEW": 7
+  },
+  "shadow_coverage_pct": 22.2,
+  "source_id": "source_narrative_01",
+  "workspace": "leyenda",
+  "entities_total_original": 9,
+  "entities_total_active": 8,
+  "relations_authorized": 0,
+  "supersedes_sha256": "5ac551136281236d405d0df2c9777a01d42d9aeaa4e7d9bbe44d010c23005540",
+  "correction": {
+    "generated_by": "supersede_review.py",
+    "generated_at": "2026-07-16T06:53:05.779479+00:00",
+    "consolidations": [
+      {
+        "name": "Clan Escorpión",
+        "collapsed": 2,
+        "decision": "DEFERRED_USE_EXISTING_UNTIL_MULTI_SOURCE_PROVENANCE"
+      }
+    ],
+    "note": "Corrección de datos del review. El informe original permanece intacto."
+  }
+}
