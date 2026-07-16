@@ -1,0 +1,84 @@
+{
+  "source_id": "source_test_anon",
+  "workspace": "test_workspace",
+  "entities_total": 6,
+  "fichas": [
+    {
+      "candidate_id": "aaa001",
+      "name": "Location Alpha",
+      "type": "Location",
+      "confidence": 0.85,
+      "match_type": "none",
+      "resolver": "create_new",
+      "recommendation": "APPROVE_UNCHANGED",
+      "evidence": "evidence text alpha",
+      "why": "conf=0.85, create_new"
+    },
+    {
+      "candidate_id": "aaa002",
+      "name": "Location Beta",
+      "type": "Location",
+      "confidence": 0.90,
+      "match_type": "none",
+      "resolver": "create_new",
+      "recommendation": "APPROVE_UNCHANGED",
+      "evidence": "evidence text beta",
+      "why": "conf=0.90, create_new"
+    },
+    {
+      "candidate_id": "aaa003",
+      "name": "Character Gamma",
+      "type": "Character",
+      "confidence": 0.92,
+      "match_type": "exact",
+      "resolver": "use_existing",
+      "recommendation": "USE_EXISTING",
+      "evidence": "evidence text gamma",
+      "why": "match exact"
+    },
+    {
+      "candidate_id": "aaa004a",
+      "name": "Faction Delta",
+      "type": "Clan",
+      "confidence": 0.80,
+      "match_type": "exact",
+      "resolver": "use_existing",
+      "recommendation": "REJECT",
+      "evidence": "evidence text delta first",
+      "why": "duplicado tipo invalido"
+    },
+    {
+      "candidate_id": "aaa004b",
+      "name": "Faction Delta",
+      "type": "Faction",
+      "confidence": 0.92,
+      "match_type": "exact",
+      "resolver": "needs_review",
+      "recommendation": "APPROVE_UNCHANGED",
+      "evidence": "evidence text delta second",
+      "why": "conf=0.92"
+    },
+    {
+      "candidate_id": "aaa005",
+      "name": "Character Epsilon",
+      "type": "Character",
+      "confidence": 0.88,
+      "match_type": "none",
+      "resolver": "create_new",
+      "recommendation": "APPROVE_UNCHANGED",
+      "evidence": "evidence text epsilon",
+      "why": "conf=0.88, create_new"
+    }
+  ],
+  "recommendations": {
+    "APPROVE_UNCHANGED": 4,
+    "USE_EXISTING": 1,
+    "REJECT": 1
+  },
+  "relations_total": 3,
+  "shadow": {
+    "SHADOW_REVIEW": 5,
+    "SHADOW_AUTOAPPROVE": 1
+  },
+  "shadow_coverage_pct": 16.7
+}
