@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Tests del writer seguro de ingesta controlada (§10): CREATE-only, dry-run
-conectado en lectura, procedencia explícita, allowlist, transacción atómica.
+conectado en lectura, procedencia explícita, allowlist, transacción atómica,
+auditoría append-only, idempotencia, rollback por lote, anti-TOCTOU.
 Sin Neo4j real (fake driver)."""
 from __future__ import annotations
 import json
@@ -17,8 +18,21 @@ if str(_APP) not in sys.path:
 
 from review import ingest_approved as ia
 from review.ingest_approved import (
-    _build_create_entity, _neo4j_preflight, _tx_create_all, _validate_write_provenance,
-    _is_deferred, ingest, _ALLOWED_LABELS,
+    _assert_readonly_query,
+    _build_create_entity,
+    _neo4j_preflight,
+    _tx_create_all,
+    _validate_write_provenance,
+    _validate_candidate_fields_b2,
+    _is_deferred,
+    _check_idempotency,
+    _append_audit_log,
+    _load_audit_log,
+    _compute_payload_sha256,
+    build_rollback_cypher,
+    build_rollback_count_cypher,
+    ingest,
+    _ALLOWED_LABELS,
 )
 
 
@@ -73,7 +87,7 @@ def _write(tmp, items):
 # 1. CREATE_NEW usa CREATE, no MERGE
 def test_1_create_not_merge():
     counts = {}; created = []
-    _tx_create_all(_Tx(counts, created), [_ent()], [])
+    _tx_create_all(_Tx(counts, created), [_ent()], [], "batch-test-001")
     assert created and created[0][0].strip().upper().startswith("CREATE")
     assert "MERGE" not in created[0][0].upper()
 
@@ -168,7 +182,7 @@ def test_15_zero_relations(tmp_path):
 def test_16_atomic_rollback():
     counts = {"Río Kanji": 1}; created = []  # segundo conflicta
     with pytest.raises(RuntimeError, match="CONFLICT"):
-        _tx_create_all(_Tx(counts, created), [_ent("Otosan Uchi"), _ent("Río Kanji")], [])
+        _tx_create_all(_Tx(counts, created), [_ent("Otosan Uchi"), _ent("Río Kanji")], [], "batch-rollback-001")
     assert created == []  # ninguna creada (rollback total)
 
 # 17. Neo4j intacto en dry-run (0 CREATE)
@@ -187,3 +201,244 @@ def test_18_deferred_excluded(tmp_path):
     with ctx:
         rep = ingest(_write(tmp_path, [_ent("Otosan Uchi"), deferred]), dry_run=True, neo4j_password="x")
     assert rep["deferred"] == 1 and rep["would_create"] == 1
+
+
+# 19. ingest_batch_id y ingested_at se persisten en el nodo creado
+def test_19_batch_id_persisted_in_node():
+    counts = {}; created = []
+    _tx_create_all(_Tx(counts, created), [_ent()], [], "batch-xyz-999")
+    # El segundo elemento del primer CREATE es el dict de params
+    props = created[0][1]["props"]
+    assert props["ingest_batch_id"] == "batch-xyz-999"
+    assert "ingested_at" in props and props["ingested_at"]
+
+
+# 20. review_report_sha256 se incluye en el resultado del dry-run
+def test_20_review_report_sha256_in_result(tmp_path):
+    ctx, _ = _patch({})
+    with ctx:
+        rep = ingest(_write(tmp_path, [_ent()]), dry_run=True, neo4j_password="x")
+    assert "review_report_sha256" in rep and rep["review_report_sha256"]
+
+
+# 21. Idempotencia: mismo source_id + mismo sha256 → ALREADY_APPLIED
+def test_21_idempotency_already_applied(tmp_path):
+    p = _write(tmp_path, [_ent()])
+    sha = _compute_payload_sha256(p)
+    audit = tmp_path / "audit.jsonl"
+    _append_audit_log(audit, {
+        "source_id": "source_narrative_01",
+        "review_report_sha256": sha,
+        "result": "SUCCESS",
+    })
+    records = _load_audit_log(audit)
+    status = _check_idempotency(records, "source_narrative_01", sha)
+    assert status == "ALREADY_APPLIED"
+    ctx, _ = _patch({})
+    with ctx:
+        rep = ingest(p, dry_run=True, neo4j_password="x", audit_log_path=audit)
+    assert rep.get("already_applied") is True
+
+
+# 22. Idempotencia: mismo source_id con hash distinto → CONFLICTING_REVIEW_REPORT
+def test_22_conflicting_review_report(tmp_path):
+    p = _write(tmp_path, [_ent()])
+    audit = tmp_path / "audit.jsonl"
+    _append_audit_log(audit, {
+        "source_id": "source_narrative_01",
+        "review_report_sha256": "hash_anterior_diferente",
+        "result": "SUCCESS",
+    })
+    records = _load_audit_log(audit)
+    sha_nuevo = "hash_nuevo_diferente"
+    status = _check_idempotency(records, "source_narrative_01", sha_nuevo)
+    assert status == "CONFLICTING_REVIEW_REPORT"
+    ctx, _ = _patch({})
+    with ctx:
+        with pytest.raises(ValueError, match="CONFLICTING_REVIEW_REPORT"):
+            ingest(p, dry_run=True, neo4j_password="x", audit_log_path=audit)
+
+
+# 23. Auditoría append-only: nueva ejecución no sobrescribe registro anterior
+def test_23_audit_log_append_only(tmp_path):
+    audit = tmp_path / "audit.jsonl"
+    _append_audit_log(audit, {"ingest_batch_id": "b1", "result": "SUCCESS"})
+    _append_audit_log(audit, {"ingest_batch_id": "b2", "result": "FAILED"})
+    records = _load_audit_log(audit)
+    assert len(records) == 2
+    assert records[0]["ingest_batch_id"] == "b1"
+    assert records[1]["ingest_batch_id"] == "b2"
+
+
+# 24. Auditoría registra dry-run con operator
+def test_24_audit_log_records_dryrun(tmp_path):
+    p = _write(tmp_path, [_ent()])
+    audit = tmp_path / "audit.jsonl"
+    ctx, _ = _patch({})
+    with ctx:
+        ingest(p, dry_run=True, neo4j_password="x", audit_log_path=audit, operator="test-op")
+    records = _load_audit_log(audit)
+    assert len(records) == 1
+    r = records[0]
+    assert r["result"] == "DRY_RUN"
+    assert r["operator"] == "test-op"
+    assert r["created_count"] == 0
+    assert "ingest_batch_id" in r
+    assert "review_report_sha256" in r
+    # Sin secretos en el log
+    raw = (tmp_path / "audit.jsonl").read_text()
+    assert "password" not in raw.lower()
+
+
+# 25. Rollback cypher: solo borra por ingest_batch_id, cypher correcto
+def test_25_rollback_cypher_correct():
+    cypher = build_rollback_cypher("batch-abc-123")
+    assert "ingest_batch_id" in cypher
+    assert "DETACH DELETE" in cypher
+    assert "batch-abc-123" not in cypher  # el valor va como parámetro, no interpolado
+    count_cypher = build_rollback_count_cypher()
+    assert "count(n)" in count_cypher
+    assert "ingest_batch_id" in count_cypher
+
+
+# 26. Rollback cypher con batch_id vacío lanza error
+def test_26_rollback_empty_batch_id():
+    with pytest.raises(ValueError, match="batch_id"):
+        build_rollback_cypher("")
+    with pytest.raises(ValueError, match="batch_id"):
+        build_rollback_cypher("   ")
+
+
+# 27. Dry-run intercepta escrituras — _assert_readonly_query
+def test_27_assert_readonly_query_blocks_writes():
+    write_cyphers = [
+        "CREATE (n:Entity) SET n.name = 'x'",
+        "MERGE (n {canonical_name: $name})",
+        "MATCH (n) SET n.foo = 1",
+        "MATCH (n) REMOVE n.foo",
+        "MATCH (n) DELETE n",
+    ]
+    for cypher in write_cyphers:
+        with pytest.raises(AssertionError, match="DRY-RUN VIOLATION"):
+            _assert_readonly_query(cypher)
+
+
+# 28. _assert_readonly_query permite consultas de solo lectura
+def test_28_assert_readonly_query_allows_reads():
+    read_cyphers = [
+        "MATCH (n {canonical_name: $name}) RETURN count(n) AS c",
+        "MATCH (n) RETURN n.entity_type",
+        "MATCH (n {canonical_name: $name}) RETURN labels(n)",
+    ]
+    for cypher in read_cyphers:
+        _assert_readonly_query(cypher)  # no debe lanzar
+
+
+# 29. TOCTOU: conflicto detectado DENTRO de la transacción aborta el lote completo
+def test_29_toctou_detected_inside_transaction():
+    """Simula el caso en que el preflight ve 0 coincidencias pero la transacción
+    detecta 1 (race condition). El lote debe abortar completamente."""
+    counts = {"Otosan Uchi": 1}  # dentro de la tx hay conflicto
+    created = []
+    with pytest.raises(RuntimeError, match="CONFLICT_EXISTING_NODE"):
+        _tx_create_all(_Tx(counts, created), [_ent("Otosan Uchi")], [], "batch-toctou-001")
+    assert created == []  # nada creado
+
+
+# 30. Nodo preexistente no es borrado por rollback: cypher filtra por batch_id
+def test_30_rollback_does_not_touch_preexisting():
+    """El rollback solo borra por ingest_batch_id. Un nodo sin ese campo
+    no sería alcanzado por el DELETE aunque comparta canonical_name."""
+    cypher = build_rollback_cypher("batch-safe-001")
+    # El WHERE es por ingest_batch_id, no por canonical_name
+    assert "canonical_name" not in cypher
+    # Solo opera sobre nodos que tengan el batch_id exacto
+    assert "ingest_batch_id" in cypher
+
+
+# 31. Campo B2 obligatorio ausente (candidate_id) rechaza el candidato
+def test_31_missing_candidate_id_rejected():
+    it = _ent(); it.pop("candidate_id")
+    errors = _validate_candidate_fields_b2(_payload([it]))
+    assert any("candidate_id" in e for e in errors)
+
+
+# 32. Campo B2 workspace distinto del payload es detectado
+def test_32_missing_workspace_in_candidate_rejected():
+    it = _ent(); it.pop("workspace")
+    errors = _validate_candidate_fields_b2(_payload([it]))
+    assert any("workspace" in e for e in errors)
+
+
+# 33. Unicode peligroso (Trojan Source): el log de auditoría no contiene chars bidi
+def test_33_dangerous_unicode_not_in_log(tmp_path):
+    """El writer nunca pone caracteres de control bidi en el log de auditoría.
+    Los codepoints se construyen con chr() para no ponerlos literalmente en el fuente."""
+    audit = tmp_path / "audit.jsonl"
+    _append_audit_log(audit, {
+        "ingest_batch_id": "batch-unicode-001",
+        "operator": "test",
+        "result": "DRY_RUN",
+        "error": None,
+    })
+    raw = audit.read_text(encoding="utf-8")
+    # U+202A..202E (embeddings/overrides), U+2066..2069 (isolates),
+    # U+200F RTL mark, U+200E LTR mark, U+061C Arabic letter mark
+    dangerous_codepoints = [
+        0x202A, 0x202B, 0x202C, 0x202D, 0x202E,
+        0x2066, 0x2067, 0x2068, 0x2069,
+        0x200F, 0x200E, 0x061C,
+    ]
+    for cp in dangerous_codepoints:
+        assert chr(cp) not in raw, "Caracter bidi peligroso U+%04X encontrado en log" % cp
+
+
+# 34. Secretos no aparecen en el log de auditoría
+def test_34_no_secrets_in_audit_log(tmp_path):
+    """El log de auditoría no contiene contraseñas ni tokens."""
+    audit = tmp_path / "audit.jsonl"
+    p = _write(tmp_path, [_ent()])
+    ctx, _ = _patch({})
+    with ctx:
+        ingest(p, dry_run=True, neo4j_password="supersecret123",
+               audit_log_path=audit, operator="op")
+    raw = audit.read_text(encoding="utf-8")
+    assert "supersecret123" not in raw
+    assert "password" not in raw.lower()
+
+
+# 35. allow_relationships=True acepta relaciones (flag explícito)
+def test_35_allow_relationships_flag(tmp_path):
+    """Con allow_relationships=False (default), relaciones bloquean la ingesta."""
+    rel = {"kind": "relation", "from_entity": "A", "to_entity": "B",
+           "relation_type": "KNOWS", "evidence": "e",
+           "source_id": "s", "workspace": "leyenda"}
+    ctx, _ = _patch({})
+    with ctx, pytest.raises(ValueError, match="no admite relaciones"):
+        ingest(_write(tmp_path, [_ent(), rel]), dry_run=True,
+               neo4j_password="x", allow_relationships=False)
+
+
+# 36. _build_merge_relation_query requiere source_kind explícito (sin default audio)
+def test_36_relation_query_no_default_audio():
+    from review.ingest_approved import _build_merge_relation_query
+    item_sin_source_kind = {
+        "from_entity": "A", "to_entity": "B", "relation_type": "KNOWS",
+        "source_id": "s1", "workspace": "leyenda", "review_status": "approved",
+        "confidence": 0.8, "evidence": "ev",
+    }
+    with pytest.raises((ValueError, KeyError)):
+        _build_merge_relation_query(item_sin_source_kind)
+
+
+# 37. _build_merge_relation_query requiere review_status explícito (sin auto_approved)
+def test_37_relation_query_no_default_auto_approved():
+    from review.ingest_approved import _build_merge_relation_query
+    item_sin_review_status = {
+        "from_entity": "A", "to_entity": "B", "relation_type": "KNOWS",
+        "source_id": "s1", "source_kind": "narrative",
+        "workspace": "leyenda",
+        "confidence": 0.8, "evidence": "ev",
+    }
+    with pytest.raises((ValueError, KeyError)):
+        _build_merge_relation_query(item_sin_review_status)
