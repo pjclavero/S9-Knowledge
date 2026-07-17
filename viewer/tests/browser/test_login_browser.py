@@ -137,10 +137,10 @@ def test_escritura_caracter_a_caracter_no_genera_post(page):
 
 
 def test_pegar_password_no_genera_post(page):
+    """insertText equivale al pegado: entra como una única inserción."""
     page.fill("#username", "s9admin")
     page.click("#password")
-    page.evaluate("""(pw) => navigator.clipboard.writeText(pw)""", TEMP_PASSWORD)
-    page.keyboard.press("Control+V")
+    page.keyboard.insert_text(TEMP_PASSWORD)
     page.wait_for_timeout(200)
     assert _posts(page) == []
 
