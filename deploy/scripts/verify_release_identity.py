@@ -28,8 +28,13 @@ Veredictos:
   VALID_WITH_SYSTEM_INTERPRETER_SYMLINK
       todos los indicadores críticos pasan, pero /proc/exe resuelve al intérprete
       del sistema PORQUE es la base declarada en el pyvenv.cfg del venv esperado.
-      No se acepta un /usr/bin/python cualquiera: debe ser esa base exacta, y
+      No se acepta un /usr/bin/python cualquiera: debe ser esa base exacta, esa
+      base debe colgar de un prefijo del sistema y quedar fuera de la release, y
       cmdline, cwd y módulos deben demostrar el uso del venv y de la release.
+
+      OJO: el pyvenv.cfg NO está cubierto por el checksum de la release, porque
+      `.venv` figura en S9K_CHECKSUM_EXCLUDE_DIRS. Por eso su contenido no basta
+      como prueba y se exige además el prefijo de confianza.
   INVALID
       cwd legacy, módulos legacy, commit distinto, manifest distinto, current
       incorrecto, intérprete ajeno al venv esperado o mezcla de releases.
@@ -57,6 +62,15 @@ from pathlib import Path
 from typing import Any, Optional
 
 DEFAULT_LEGACY_ROOT = "/opt/knowledge-services/s9-knowledge-repo"
+
+# Prefijos donde puede vivir un intérprete del sistema legítimo.
+#
+# Hace falta porque el `pyvenv.cfg` NO está cubierto por el checksum de la
+# release: `.venv` figura en S9K_CHECKSUM_EXCLUDE_DIRS. Quien pueda escribir en
+# la release puede falsificar `base-executable` y apuntar a un binario propio sin
+# alterar el hash. Exigir que la base sea absoluta, quede FUERA de la release y
+# cuelgue de un prefijo del sistema corta ese camino.
+TRUSTED_INTERPRETER_PREFIXES = ("/usr/bin", "/usr/local/bin", "/usr/lib", "/bin", "/opt/python")
 
 VERDICT_VALID = "VALID"
 VERDICT_VALID_SYMLINK = "VALID_WITH_SYSTEM_INTERPRETER_SYMLINK"
@@ -337,21 +351,33 @@ def classify(
 
     # intérprete
     interp_in_venv = _under(proc.exe, release.venv_dir)
-    is_venv_base = (
-        release.venv_base_interpreter is not None
-        and proc.exe == release.venv_base_interpreter
+    base = release.venv_base_interpreter
+    # El pyvenv.cfg no está cubierto por el checksum, así que su contenido no es
+    # de fiar por sí solo: la base declarada debe además ser plausible.
+    base_trusted = bool(
+        base
+        and base.startswith(TRUSTED_INTERPRETER_PREFIXES)
+        and not _under(base, release.active_dir)
     )
+    is_venv_base = base is not None and proc.exe == base
+
     if interp_in_venv:
         add("interpreter_identity", True, f"exe={proc.exe} (dentro del venv, modo --copies)")
-    elif is_venv_base:
-        # Correcto y esperado con venv por symlinks. No es "cualquier python":
-        # es exactamente la base que declara el pyvenv.cfg de ESTE venv.
+    elif is_venv_base and base_trusted:
+        # Correcto y esperado con venv por symlinks. No es "cualquier python": es
+        # exactamente la base que declara el pyvenv.cfg de ESTE venv, y además
+        # esa base cuelga de un prefijo del sistema y no de la propia release.
         add("interpreter_identity", True,
-            f"exe={proc.exe} (base declarada por el pyvenv.cfg del venv esperado)")
+            f"exe={proc.exe} (base del pyvenv.cfg, en prefijo de confianza)")
+    elif is_venv_base and not base_trusted:
+        add("interpreter_identity", False,
+            f"exe={proc.exe}: el pyvenv.cfg declara una base fuera de los prefijos "
+            f"de confianza {TRUSTED_INTERPRETER_PREFIXES} o dentro de la release "
+            f"(base={base}); el pyvenv.cfg no está cubierto por el checksum, "
+            f"así que una base así no se acepta")
     else:
         add("interpreter_identity", False,
-            f"exe={proc.exe} ajeno al venv {release.venv_dir} "
-            f"(base esperada: {release.venv_base_interpreter})")
+            f"exe={proc.exe} ajeno al venv {release.venv_dir} (base esperada: {base})")
 
     # EnvironmentFile (informativo: no todo despliegue lo expone)
     if proc.environ_file is not None:

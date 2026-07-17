@@ -424,3 +424,29 @@ def test_manifiesto_nuevo_declara_el_algoritmo(release: Path):
     import json
     data = json.loads((release / "manifest.json").read_text())
     assert data["checksum_algo"] == "v2"
+
+
+def test_v1_es_ciego_a_nombres_con_espacios_y_v2_no(release: Path):
+    """Punto ciego REAL de v1, documentado para que nadie lo tome por control.
+
+    `xargs` sin -0 parte los nombres por los espacios y sha256sum nunca ve el
+    fichero. La release de RC2 tiene uno asi de verdad:
+        docs/project dossier and checklist.md
+    v1 lo conserva a proposito (debe reproducir lo ya declarado); v2 lo cubre.
+    """
+    v1_antes, v2_antes = checksum_v1(release), checksum(release)
+
+    colado = release / "docs"
+    colado.mkdir(parents=True, exist_ok=True)
+    (colado / "project dossier and checklist.md").write_text("contenido\n")
+
+    assert checksum_v1(release) == v1_antes, (
+        "v1 sigue siendo ciego a los espacios: es su comportamiento historico"
+    )
+    assert checksum(release) != v2_antes, "v2 DEBE detectarlo"
+
+    # Y v2 tambien detecta que ese fichero cambie de contenido.
+    v2_con = checksum(release)
+    (colado / "project dossier and checklist.md").write_text("alterado\n")
+    assert checksum(release) != v2_con
+    assert checksum_v1(release) == v1_antes, "v1 tampoco ve la alteracion"

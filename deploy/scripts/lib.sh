@@ -198,8 +198,23 @@ S9K_CHECKSUM_ALGO="v2"
 # Comprobado contra la release real de RC2: con 172 cachés presentes reproduce
 # exactamente el files_checksum del manifiesto.
 #
-# NO usar para releases nuevas: el `sort` del locale no es reproducible entre
-# entornos. Para eso está v2.
+# LIMITACIÓN CONOCIDA — v1 NO es un control antimanipulación:
+#
+#   `xargs` sin -0 parte los nombres por los espacios, así que sha256sum nunca
+#   ve los ficheros cuyo nombre los contiene: quedan FUERA del hash. En la
+#   release de RC2 eso afecta a un fichero real y versionado:
+#       docs/project dossier and checklist.md
+#   (la fórmula original hashea 431 ficheros; la correcta, 432).
+#
+#   Es decir: ese fichero puede alterarse sin que v1 lo detecte. El defecto es
+#   del manifiesto emitido, no de este verificador; corregirlo aquí solo haría
+#   que v1 dejara de reproducir lo declarado y abortara despliegues sanos.
+#
+#   v2 sí lo cubre (-print0/-0). Cada release nueva nace con manifiesto v2, con
+#   lo que el punto ciego desaparece en cuanto RC2 deje de ser la release activa.
+#
+# NO usar para releases nuevas: además, el `sort` del locale no es reproducible
+# entre entornos. Para eso está v2.
 release_files_checksum_v1() {
     local dir="${1}"
     if [ ! -d "${dir}" ]; then
@@ -208,12 +223,29 @@ release_files_checksum_v1() {
     fi
     need_cmd find; need_cmd sha256sum
     local hash
-    # shellcheck disable=SC2038  # fidelidad con la fórmula original (xargs sin -0)
-    hash="$(find "${dir}" \
-        \( -name .venv -o -name __pycache__ -o -name .pytest_cache \
-           -o -name .mypy_cache -o -name .ruff_cache \) -prune -o \
-        -type f ! -name 'manifest.json' ! -name '*.pyc' ! -name '*.pyo' -print \
-        | sort | xargs sha256sum 2>/dev/null | sha256sum | awk '{print $1}')"
+    # `xargs` SIN -0 y `sort` SIN LC_ALL=C: ambos defectos se conservan a
+    # propósito. v1 no es un algoritmo que se elija, es el que ya se usó: su
+    # único trabajo es reproducir lo que declara un manifiesto ya emitido.
+    # "Arreglarlo" haría que dejara de coincidir y la compuerta abortaría
+    # despliegues de releases sanas.
+    #
+    # `set +o pipefail` en la subshell: ante un nombre con espacios, xargs parte
+    # la ruta, sha256sum falla sobre los trozos y xargs sale 123. El hash que
+    # imprime awk es correcto igualmente (es justo el que declara el manifiesto),
+    # pero con pipefail la pipeline se da por fallida. Sin esto la función solo
+    # "funcionaba" cuando se la llamaba dentro de un `||`, porque ahí bash
+    # suprime errexit: dependía del contexto de llamada.
+    # shellcheck disable=SC2038  # fidelidad deliberada con la fórmula original
+    hash="$(set +o pipefail
+        find "${dir}" \
+            \( -name .venv -o -name __pycache__ -o -name .pytest_cache \
+               -o -name .mypy_cache -o -name .ruff_cache \) -prune -o \
+            -type f ! -name 'manifest.json' ! -name '*.pyc' ! -name '*.pyo' -print \
+            | sort | xargs sha256sum 2>/dev/null | sha256sum | awk '{print $1}')"
+    if [ -z "${hash}" ]; then
+        err "release_files_checksum_v1: no se pudo calcular el hash en ${dir}"
+        return 1
+    fi
     printf 'sha256:%s' "${hash}"
 }
 

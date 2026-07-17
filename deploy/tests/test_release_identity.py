@@ -298,3 +298,40 @@ def test_environment_file_incorrecto_no_invalida(tmp_path):
 ])
 def test_codigos_de_salida(verdict, code):
     assert verdict_exit_code(verdict) == code
+
+
+# ---------------------------------------------------------------------------
+# Hallazgos de la auditoria independiente del PR #28
+# ---------------------------------------------------------------------------
+
+def test_pyvenv_cfg_falsificado_no_da_valid(tmp_path):
+    """El pyvenv.cfg NO esta cubierto por el checksum (.venv esta excluido).
+
+    Quien pueda escribir en la release puede declarar `base-executable` a un
+    binario propio SIN alterar el hash. Aceptar esa base a ciegas convertia el
+    verificador en un sello de goma.
+    """
+    release = _make_release(tmp_path, base_exe="/tmp/evil/python")
+    r = _classify(tmp_path, _proc(release, exe="/tmp/evil/python"))
+    assert r["verdict"] == VERDICT_INVALID
+    assert "interpreter_identity" in r["failed_indicators"]
+    assert "confianza" in _ind(r, "interpreter_identity")["detail"]
+
+
+def test_base_dentro_de_la_release_no_da_valid(tmp_path):
+    """Un 'interprete del sistema' que vive dentro de la release no es tal."""
+    release = _make_release(tmp_path)
+    colado = str(release / "viewer" / "python-colado")
+    release_facts = gather_release_facts(tmp_path)
+    release_facts.venv_base_interpreter = colado
+    r = classify(release_facts, _proc(release, exe=colado),
+                 expected_release=RELEASE_ID, expected_commit=COMMIT)
+    assert r["verdict"] == VERDICT_INVALID
+    assert "interpreter_identity" in r["failed_indicators"]
+
+
+def test_base_en_prefijo_del_sistema_sigue_siendo_valida(tmp_path):
+    """El endurecimiento no puede romper el caso legitimo de RC2."""
+    release = _make_release(tmp_path, base_exe="/usr/bin/python3.13")
+    r = _classify(tmp_path, _proc(release, exe="/usr/bin/python3.13"))
+    assert r["verdict"] == VERDICT_VALID_SYMLINK, r["failed_indicators"]
