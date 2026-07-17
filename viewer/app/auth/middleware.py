@@ -87,7 +87,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
             token = request.cookies.get(cfg.S9K_SESSION_COOKIE_NAME)
             if token:
                 db_path = Path(cfg.S9K_AUTH_DB_PATH)
-                db_path.parent.mkdir(parents=True, exist_ok=True)
                 try:
                     auth_db.ensure_migrated(db_path)
                     with auth_db.get_conn(db_path) as conn:
@@ -124,4 +123,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 return blocked
 
         response = await call_next(request)
+
+        # Contenido de autenticación: nunca cacheable (ni por el navegador ni
+        # por un proxy). `no-cache` no basta para credenciales: `no-store`.
+        path = request.url.path
+        if (path in ("/login", "/logout", "/account")
+                or path.startswith("/account/")
+                or response.status_code in (401, 403)):
+            response.headers["Cache-Control"] = "no-store"
         return response

@@ -84,6 +84,26 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         )
         response.set_cookie(value=token, **_login_cookie_kwargs(cfg))
         return response
+    if request.url.path == "/account/change-password":
+        # Mismo principio que /login: un formulario incompleto repinta HTML.
+        user = getattr(request.state, "user", None)
+        if user is None:
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url="/login", status_code=302)
+        from app.auth.csrf import get_csrf_token_for_session
+
+        cfg = get_auth_settings()
+        session = getattr(request.state, "session", None)
+        csrf_raw = getattr(request.state, "csrf_raw", "")
+        csrf_tok = get_csrf_token_for_session(
+            session.id if session else 0, csrf_raw, secret=cfg.S9K_CSRF_SECRET
+        )
+        return templates.TemplateResponse(
+            request, "auth/change_password.html",
+            {"user": user, "csrf_token": csrf_tok,
+             "errors": ["Faltan campos: rellena los tres campos del formulario."]},
+            status_code=400,
+        )
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 # APIs protegidas: viewer+ cuando auth está activa; públicas cuando está off
@@ -151,12 +171,20 @@ def _redoc(request: Request):
 async def _startup_auth() -> None:
     cfg = get_auth_settings()
     # Fail-closed: aborta el arranque si la configuración de auth es insegura
-    # (secreto CSRF por defecto/débil, backend de contraseñas no apto).
+    # (secreto CSRF por defecto/débil, backend no apto, ruta de DB relativa o
+    # base inexistente — el visor NO crea la auth DB: eso es de la CLI).
     enforce_auth_security(cfg)
     if cfg.S9K_AUTH_ENABLED:
         p = Path(cfg.S9K_AUTH_DB_PATH)
-        p.parent.mkdir(parents=True, exist_ok=True)
         auth_db.ensure_migrated(p)
+        # Identidad sanitizada de la base realmente abierta: comparable con
+        # `cli.auth db-identity` para demostrar que es el mismo fichero.
+        import logging
+        ident = auth_db.db_identity(p)
+        logging.getLogger("s9k.auth").info(
+            "auth DB: path=%s device=%s inode=%s schema=%s",
+            ident["path"], ident["device"], ident["inode"], ident["schema_version"],
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -35,10 +35,11 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 
 def _get_db_path() -> Path:
+    # Sin mkdir: el visor no crea rutas ni bases en silencio. La existencia de
+    # la DB se garantiza en el arranque (enforce_auth_security) y la creación
+    # legítima es la CLI de provisión.
     cfg = get_auth_settings()
-    p = Path(cfg.S9K_AUTH_DB_PATH)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    return p
+    return Path(cfg.S9K_AUTH_DB_PATH)
 
 
 def _safe_next(next_url: Optional[str]) -> str:
@@ -130,6 +131,11 @@ async def login_submit(
     cfg = get_auth_settings()
     db_path = _get_db_path()
     auth_db.ensure_migrated(db_path)
+
+    # El username admite normalización exterior (los teclados móviles añaden un
+    # espacio final tras el autocompletado: 's9admin ' fallaba). El password NO
+    # se toca jamás: es la secuencia exacta introducida por el usuario.
+    username = username.strip()
 
     ip = _get_ip(request)
     ua = request.headers.get("user-agent")
@@ -391,6 +397,22 @@ async def change_password_submit(
         audit.log(conn, audit.PASSWORD_CHANGED, "success",
                   user_id=user.id, username_snapshot=user.username,
                   metadata={"changed_by": "self", "session_rotated": True})
+
+    # Verificación post-commit desde una conexión NUEVA: si el hash persistido
+    # no verifica la contraseña aún en memoria, el cambio NO se declara exitoso
+    # y la sesión recién emitida se revoca. (El plaintext nunca se registra.)
+    if not auth_db.verify_persisted_password(db_path, user.id, new_password):
+        with auth_db.get_conn(db_path) as conn:
+            auth_db.revoke_sessions_for_user(conn, user.id)
+            audit.log(conn, audit.PASSWORD_CHANGED, "failure",
+                      user_id=user.id, username_snapshot=user.username,
+                      metadata={"reason": "post-commit-verification-failed"})
+        return templates.TemplateResponse(
+            request, "auth/change_password.html",
+            {"user": user, "csrf_token": csrf_token,
+             "errors": ["El cambio no pudo verificarse en disco. Inténtalo de nuevo."]},
+            status_code=500,
+        )
 
     response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(value=token, **cookie_kwargs())

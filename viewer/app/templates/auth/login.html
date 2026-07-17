@@ -33,13 +33,13 @@
     {% endif %}
 
     {#
-      SIN `novalidate`: ese atributo anulaba los `required` de abajo, asi que el
-      envio implicito del navegador (la tecla "Ir"/Enter del teclado movil dentro
-      de un campo de texto) mandaba el formulario VACIO y la respuesta era un 422
-      con JSON crudo. Con la validacion nativa activa, el navegador bloquea ese
-      envio y enfoca el campo que falta. No hace falta JavaScript.
+      CONTRATO DE ENVIO EXPLICITO: el POST solo puede producirse pulsando el
+      boton visible (click, o Enter/Espacio CON el boton enfocado). Enter dentro
+      de los campos, la tecla "Ir" del teclado movil, el autofill y el gestor de
+      contrasenas NO envian. El boton es type="button": sin la compuerta JS no
+      existe ningun camino de envio implicito que el navegador pueda disparar.
     #}
-    <form method="post" action="/login">
+    <form method="post" action="/login" id="login-form">
       <input type="hidden" name="next" value="{{ next | e }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
 
@@ -71,8 +71,73 @@
         >
       </div>
 
-      <button type="submit" class="btn btn-primary">Entrar</button>
+      <button type="button" id="login-submit" class="btn btn-primary">Iniciar sesión</button>
     </form>
+
+    <noscript>
+      <div class="alert alert-error" role="alert">
+        Este formulario necesita JavaScript para enviarse.
+      </div>
+    </noscript>
+
+    <script>
+    (function () {
+      "use strict";
+      var form = document.getElementById("login-form");
+      var button = document.getElementById("login-submit");
+
+      // Estado en un closure: ningun otro script de la pagina puede armar la
+      // compuerta falsificando una variable global.
+      var armed = false;
+      var submitting = false;
+
+      button.addEventListener("click", function () {
+        if (submitting) { return; }
+        if (!form.checkValidity()) {
+          form.reportValidity();
+          return;
+        }
+        armed = true;
+        form.requestSubmit();
+      });
+
+      // Enter dentro de los campos NO envia. Enter/Espacio con el boton
+      // enfocado ejecuta el click accesible nativo del boton (no se toca).
+      form.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" && event.target !== button) {
+          event.preventDefault();
+        }
+      });
+
+      // Compuerta unica de envio, en fase de captura: cualquier submit no
+      // autorizado (implicito, requestSubmit externo, gestor de contrasenas)
+      // se cancela. La autorizacion se consume inmediatamente.
+      form.addEventListener("submit", function (event) {
+        var wasArmed = armed;
+        armed = false;
+        if (!wasArmed || submitting) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return;
+        }
+        if (!form.checkValidity()) {
+          event.preventDefault();
+          form.reportValidity();
+          return;
+        }
+        submitting = true;
+        button.disabled = true;
+      }, true);
+
+      // bfcache / volver atras: la pagina restaurada no puede quedarse con el
+      // boton muerto ni con un envio a medias.
+      window.addEventListener("pageshow", function () {
+        submitting = false;
+        armed = false;
+        button.disabled = false;
+      });
+    })();
+    </script>
   </main>
 </body>
 </html>

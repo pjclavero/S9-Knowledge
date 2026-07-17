@@ -158,6 +158,10 @@ def cmd_set_password(args: argparse.Namespace) -> int:
             print(f"Error: {e}", file=sys.stderr)
         return 1
 
+    # --must-change: la credencial fijada es de reparto (reset de operador) y
+    # obliga a cambiarla en el primer login. Sin el flag, es definitiva.
+    must_change = bool(getattr(args, "must_change", False))
+
     db_path = _ensure_db()
     with auth_db.get_conn(db_path) as conn:
         user = auth_db.get_user_by_username(conn, username)
@@ -165,12 +169,26 @@ def cmd_set_password(args: argparse.Namespace) -> int:
             print(f"Error: usuario '{username}' no encontrado.", file=sys.stderr)
             return 1
         pw_hash = hash_password(password)
-        auth_db.update_user(conn, user.id, password_hash=pw_hash, must_change_password=False)
-        auth_db.revoke_sessions_for_user(conn, user.id)
+        auth_db.update_user(conn, user.id, password_hash=pw_hash,
+                            must_change_password=must_change,
+                            failed_login_count=0, locked_until="")
+        revoked = auth_db.revoke_sessions_for_user(conn, user.id)
         audit.log(conn, audit.PASSWORD_CHANGED, "success",
                   user_id=user.id, username_snapshot=user.username,
-                  metadata={"changed_by": "cli"})
-    print(f"Contraseña de '{username}' actualizada. Sesiones revocadas.")
+                  metadata={"changed_by": "cli", "must_change_password": must_change})
+
+    # Verificación post-commit con conexión NUEVA: el hash que quedó en disco
+    # debe verificar la contraseña que sigue en memoria. Nunca se imprime.
+    if not auth_db.verify_persisted_password(db_path, user.id, password):
+        print("Error: la verificación post-commit falló; el cambio NO es fiable.",
+              file=sys.stderr)
+        return 1
+
+    ident = auth_db.db_identity(db_path)
+    print(f"Contraseña de '{username}' actualizada. Sesiones revocadas: {revoked}.")
+    print(f"must_change_password={must_change}, desbloqueado, intentos a 0.")
+    print(f"DB: {ident['path']} (dev={ident['device']} ino={ident['inode']})")
+    print("Verificación post-commit (conexión nueva): OK")
     return 0
 
 
@@ -276,6 +294,24 @@ def cmd_cleanup_sessions(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_db_identity(args: argparse.Namespace) -> int:
+    """Identidad física de la base: ruta canónica, device, inode, schema.
+
+    Permite demostrar que la CLI y el visor operan sobre el MISMO fichero
+    (comparar con el device/inode que registra el visor al arrancar). No
+    muestra usuarios, hashes ni tokens.
+    """
+    db_path = _get_db_path()
+    ident = auth_db.db_identity(db_path)
+    print(f"path:           {ident['path']}")
+    print(f"exists:         {ident['exists']}")
+    print(f"device:         {ident['device']}")
+    print(f"inode:          {ident['inode']}")
+    print(f"size:           {ident['size']}")
+    print(f"schema_version: {ident['schema_version']}")
+    return 0 if ident["exists"] else 1
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     db_path = _get_db_path()
     cfg = get_auth_settings()
@@ -313,6 +349,7 @@ COMMANDS = {
     "unlock-user": cmd_unlock_user,
     "revoke-sessions": cmd_revoke_sessions,
     "cleanup-sessions": cmd_cleanup_sessions,
+    "db-identity": cmd_db_identity,
     "status": cmd_status,
 }
 
@@ -324,6 +361,8 @@ def main() -> int:
     parser.add_argument("command", choices=list(COMMANDS.keys()), help="Comando a ejecutar")
     parser.add_argument("--username", help="Nombre de usuario (para comandos que lo requieren)")
     parser.add_argument("--role", help="Rol (para set-role)")
+    parser.add_argument("--must-change", action="store_true", dest="must_change",
+                        help="set-password: obliga a cambiar la contraseña en el primer login")
 
     args = parser.parse_args()
     fn = COMMANDS[args.command]
