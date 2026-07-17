@@ -210,10 +210,14 @@ def test_short_csrf_secret_blocks_startup():
         enforce_auth_security(_auth_settings(S9K_CSRF_SECRET="corto123"))
 
 
-def test_strong_csrf_secret_allows_startup():
+def test_strong_csrf_secret_allows_startup(tmp_path):
+    from app.auth import db as auth_db
     from app.auth.security import enforce_auth_security
+    # El contrato nuevo exige además ruta de DB absoluta y existente.
+    db_path = tmp_path / "auth.db"
+    auth_db.ensure_migrated(db_path)
     # No debe lanzar
-    enforce_auth_security(_auth_settings())
+    enforce_auth_security(_auth_settings(S9K_AUTH_DB_PATH=str(db_path)))
 
 
 def test_auth_disabled_skips_enforcement():

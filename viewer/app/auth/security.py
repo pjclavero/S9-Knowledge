@@ -68,6 +68,35 @@ def validate_password_backend() -> List[str]:
     return []
 
 
+def validate_auth_db_path(raw_path: str) -> List[str]:
+    """Devuelve problemas de la ruta de la auth DB (vacía si es válida).
+
+    Con auth activa NO se admite una ruta relativa (dependería del cwd del
+    proceso y podría resolver a otra base según quién arranque) ni una base
+    inexistente (el visor no debe crearla en silencio: la creación legítima es
+    la CLI de provisión).
+    """
+    from pathlib import Path
+
+    problems: List[str] = []
+    if not raw_path:
+        problems.append("S9K_AUTH_DB_PATH vacío")
+        return problems
+    p = Path(raw_path)
+    if not p.is_absolute():
+        problems.append(
+            "S9K_AUTH_DB_PATH debe ser una ruta absoluta con auth activa "
+            "(valor relativo detectado)"
+        )
+        return problems
+    if not p.exists():
+        problems.append(
+            "la auth DB no existe en S9K_AUTH_DB_PATH; el visor no la crea "
+            "automáticamente (provisiónela con la CLI: create-admin)"
+        )
+    return problems
+
+
 def enforce_auth_security(cfg: AuthSettings) -> None:
     """Aborta el arranque si la configuración de auth activa es insegura.
 
@@ -79,6 +108,7 @@ def enforce_auth_security(cfg: AuthSettings) -> None:
     problems: List[str] = []
     problems += validate_csrf_secret(cfg.S9K_CSRF_SECRET)
     problems += validate_password_backend()
+    problems += validate_auth_db_path(cfg.S9K_AUTH_DB_PATH)
 
     # Cookies: no debe desactivarse Secure en producción (solo aviso, no aborta,
     # porque un entorno de desarrollo legítimo puede requerir HTTP directo).

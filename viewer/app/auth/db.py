@@ -218,6 +218,61 @@ def _row_to_session(row: sqlite3.Row) -> Session:
 
 
 # ---------------------------------------------------------------------------
+# Identidad de la base (device/inode) — sanitizada, sin secretos
+# ---------------------------------------------------------------------------
+
+def db_identity(db_path: Optional[Path] = None) -> dict:
+    """Identidad sanitizada de la base: ruta canónica, device, inode, schema.
+
+    Sirve para demostrar que login, cambio de contraseña y CLI operan sobre el
+    MISMO fichero físico. No expone usuarios, hashes ni tokens.
+    """
+    path = (db_path or _db_path()).resolve()
+    info: dict = {
+        "path": str(path),
+        "exists": path.exists(),
+        "device": None,
+        "inode": None,
+        "size": None,
+        "schema_version": None,
+    }
+    if path.exists():
+        st = path.stat()
+        info["device"] = st.st_dev
+        info["inode"] = st.st_ino
+        info["size"] = st.st_size
+        try:
+            conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+            row = conn.execute("SELECT MAX(version) FROM schema_version").fetchone()
+            info["schema_version"] = row[0] if row else None
+            conn.close()
+        except Exception:
+            info["schema_version"] = "error"
+    return info
+
+
+def verify_persisted_password(db_path: Path, user_id: int, password: str) -> bool:
+    """Verifica un password contra el hash YA PERSISTIDO, con una conexión NUEVA.
+
+    Se usa justo después de un cambio de contraseña (web o CLI): si el hash que
+    quedó en disco no verifica el password todavía en memoria, el cambio NO debe
+    declararse exitoso. Nunca registra el password.
+    """
+    from app.auth.passwords import verify_password
+
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT password_hash FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+        if row is None:
+            return False
+        return verify_password(password, row["password_hash"])
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
 # CRUD de usuarios
 # ---------------------------------------------------------------------------
 
@@ -296,8 +351,10 @@ def update_user(
         fields.append("failed_login_count = ?")
         values.append(failed_login_count)
     if locked_until is not None:
+        # "" significa "sin bloqueo": se persiste como NULL real, no como
+        # cadena vacía, para que la columna tenga un único valor de desbloqueo.
         fields.append("locked_until = ?")
-        values.append(locked_until)
+        values.append(locked_until or None)
     values.append(user_id)
     conn.execute(f"UPDATE users SET {', '.join(fields)} WHERE id = ?", values)
     conn.commit()
