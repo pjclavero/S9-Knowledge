@@ -6,6 +6,8 @@ lanzar excepciones.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import shutil
 import sqlite3
@@ -21,6 +23,14 @@ DISK_CRITICAL_PCT = 90
 # Un job 'running' mas antiguo que esto se considera atascado (segundos).
 JOB_STUCK_SECONDS = 3600
 JOB_MAX_ATTEMPTS = 5
+
+# Backups. El aviso a 26h cubre un backup diario con margen para que un retraso
+# normal no pinte DEGRADED; a 48h ya es un fallo operativo real.
+BACKUP_WARN_AGE_HOURS = 26
+BACKUP_MAX_AGE_HOURS = 48
+# Los conjuntos cuelgan directamente de la raiz: 2 niveles bastan y acotan el
+# escaneo para que el check no recorra un arbol grande.
+BACKUP_MAX_SCAN_DEPTH = 2
 
 
 class _Timer:
@@ -276,23 +286,266 @@ def check_filesystem(path: str = "/", warning_pct: int = DISK_WARNING_PCT,
 # Backups: ultimo backup, antiguedad
 # ---------------------------------------------------------------------------
 
-def check_backups(backup_dir: Optional[str], max_age_hours: int = 48,
-                  pattern: str = "*") -> ComponentResult:
-    if not backup_dir:
+def _is_backup_set(d: Path) -> bool:
+    """Un conjunto de backup es un directorio con al menos una base .db dentro."""
+    try:
+        return any(p.is_file() and p.suffix == ".db" for p in d.iterdir())
+    except OSError:
+        return False
+
+
+def _find_backup_sets(root: Path, max_depth: int) -> List[Path]:
+    """Busca conjuntos de backup hasta `max_depth` niveles.
+
+    El layout real los guarda como DIRECTORIOS (pre-deploy-<ts>/auth.db, ...),
+    no como ficheros sueltos en la raiz: mirar solo el primer nivel con
+    `is_file()` daba siempre 'sin backups' y un UNHEALTHY falso.
+    """
+    found: List[Path] = []
+    if _is_backup_set(root):
+        found.append(root)
+
+    def walk(d: Path, depth: int) -> None:
+        if depth > max_depth:
+            return
+        try:
+            entries = sorted(d.iterdir())
+        except OSError:
+            return
+        for p in entries:
+            if p.is_symlink() or not p.is_dir():
+                continue
+            if _is_backup_set(p):
+                found.append(p)
+            else:
+                walk(p, depth + 1)
+
+    walk(root, 1)
+    return found
+
+
+def _set_mtime(d: Path) -> float:
+    """Edad del conjunto medida por sus FICHEROS, no por el directorio.
+
+    El mtime del directorio cambia en cuanto alguien crea un fichero dentro
+    (p.ej. un -shm de SQLite), y eso rejuvenece un backup rancio: justo el error
+    que debe detectar. Los ficheros conservan la fecha real de la copia.
+    """
+    try:
+        mtimes = [p.stat().st_mtime for p in d.iterdir() if p.is_file()]
+    except OSError:
+        mtimes = []
+    if not mtimes:
+        try:
+            return d.stat().st_mtime
+        except OSError:
+            return 0.0
+    return max(mtimes)
+
+
+def _pending_wal(d: Path) -> List[str]:
+    """Un -wal con datos significa que la copia no se cerro limpiamente."""
+    problems = []
+    for p in d.iterdir():
+        if p.is_file() and p.name.endswith("-wal"):
+            try:
+                if p.stat().st_size > 0:
+                    problems.append(f"{p.name} con datos sin consolidar")
+            except OSError:
+                continue
+    return problems
+
+
+def _sqlite_integrity_ro(path: Path) -> Optional[str]:
+    """integrity_check sin escribir NADA. None = ok; str = motivo del fallo.
+
+    `mode=ro` NO basta: ante una base en modo WAL, SQLite crea los ficheros
+    -shm/-wal aunque solo vaya a leer, y eso ensucia el conjunto y altera el
+    mtime del directorio. `immutable=1` promete que el fichero no cambia, con lo
+    que SQLite se salta el WAL y no crea nada.
+
+    A cambio, immutable ignora un -wal pendiente. Es correcto aqui porque un
+    backup es estatico y se genera con la API .backup (que no deja WAL); si
+    apareciera un -wal con datos, se reporta aparte en _pending_wal().
+    """
+    try:
+        conn = sqlite3.connect(f"file:{path}?mode=ro&immutable=1", uri=True, timeout=5)
+    except sqlite3.Error as e:
+        return f"no se pudo abrir: {e}"
+    try:
+        row = conn.execute("PRAGMA integrity_check").fetchone()
+        return None if row and row[0] == "ok" else f"integrity_check: {row[0] if row else 'sin salida'}"
+    except sqlite3.Error as e:
+        return f"integrity_check fallo: {e}"
+    finally:
+        conn.close()
+
+
+def _verify_checksums(d: Path) -> tuple[Optional[bool], str]:
+    """Verifica el fichero de sumas del conjunto, si lo hay.
+
+    Devuelve (None, motivo) si no hay ninguno; (True/False, detalle) si lo hay.
+    Los nombres varian segun quien creo el backup (SHA256SUMS, checksums.sha256).
+    """
+    sums = None
+    for name in ("SHA256SUMS", "checksums.sha256", "sha256sums.txt"):
+        if (d / name).is_file():
+            sums = d / name
+            break
+    if sums is None:
+        return None, "sin fichero de sumas"
+    try:
+        lines = sums.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError as e:
+        return False, f"sumas ilegibles: {e}"
+
+    checked = 0
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split(None, 1)
+        if len(parts) != 2:
+            continue
+        expected, name = parts[0], parts[1].lstrip("*").strip()
+        target = d / name
+        if not target.is_file():
+            continue  # el fichero pudo no formar parte de este conjunto
+        h = hashlib.sha256()
+        try:
+            with target.open("rb") as fh:
+                for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+                    h.update(chunk)
+        except OSError as e:
+            return False, f"no se pudo leer {name}: {e}"
+        if h.hexdigest() != expected:
+            return False, f"checksum incorrecto en {name}"
+        checked += 1
+    if checked == 0:
+        return None, "fichero de sumas sin entradas aplicables"
+    return True, f"{checked} checksums verificados"
+
+
+def _is_sensitive(name: str) -> bool:
+    """Miembros que portan datos o secretos y exigen 0600."""
+    low = name.lower()
+    return low.endswith(".db") or ".env" in low or "secret" in low or "password" in low
+
+
+def _insecure_members(d: Path) -> List[str]:
+    """Permisos y symlinks del conjunto.
+
+    El control que de verdad protege es el del DIRECTORIO: si es 0700, nadie
+    salvo root entra. Dentro solo se exige 0600 a lo sensible (bases, .env):
+    exigirselo a todo marcaba como inseguras copias de unidades systemd y
+    manifiestos .md, que no son secretos -> otro falso UNHEALTHY.
+    """
+    problems: List[str] = []
+    try:
+        st = d.stat()
+    except OSError as e:
+        return [f"{d.name}: {e}"]
+    if st.st_mode & 0o077:
+        problems.append(f"el directorio {d.name}/ es accesible a terceros "
+                        f"({oct(st.st_mode & 0o777)})")
+    try:
+        entries = list(d.iterdir())
+    except OSError as e:
+        return problems + [f"{d.name}: {e}"]
+    for p in entries:
+        if p.is_symlink():
+            problems.append(f"symlink inesperado: {p.name}")
+            continue
+        try:
+            pst = p.stat()
+        except OSError:
+            continue
+        if p.is_file() and _is_sensitive(p.name) and pst.st_mode & 0o077:
+            problems.append(f"{p.name} con permisos {oct(pst.st_mode & 0o777)}")
+    return problems
+
+
+def check_backups(backup_root: Optional[str] = None,
+                  warn_age_hours: int = BACKUP_WARN_AGE_HOURS,
+                  max_age_hours: int = BACKUP_MAX_AGE_HOURS,
+                  max_scan_depth: int = BACKUP_MAX_SCAN_DEPTH,
+                  backup_dir: Optional[str] = None) -> ComponentResult:
+    """Valida el backup mas reciente. SOLO LECTURA: no crea, borra ni modifica nada.
+
+    Encontrar un directorio no basta para declarar HEALTHY: se valida contenido,
+    integridad SQLite, sumas, edad y permisos.
+    """
+    root_str = backup_root or backup_dir  # backup_dir: nombre antiguo, se acepta
+    if not root_str:
         return _result("backups", HealthStatus.UNKNOWN, "no configurado")
-    d = Path(backup_dir)
-    if not d.exists():
-        return _result("backups", HealthStatus.UNHEALTHY, "directorio de backup no existe")
-    files = [p for p in d.glob(pattern) if p.is_file()]
-    if not files:
-        return _result("backups", HealthStatus.UNHEALTHY, "sin backups")
-    latest = max(files, key=lambda p: p.stat().st_mtime)
-    age_h = round((time.time() - latest.stat().st_mtime) / 3600, 1)
-    checksum_present = (latest.with_suffix(latest.suffix + ".sha256").exists()
-                        or (d / (latest.name + ".sha256")).exists())
-    status = HealthStatus.HEALTHY if age_h <= max_age_hours else HealthStatus.DEGRADED
-    return _result("backups", status, "ultimo backup hace %.1fh" % age_h,
-                   {"age_hours": age_h, "checksum": checksum_present}, latency_ms=None)
+    root = Path(root_str)
+    if not root.exists():
+        return _result("backups", HealthStatus.UNHEALTHY, "la raiz de backups no existe",
+                       {"root": str(root)})
+    if not os.access(root, os.R_OK | os.X_OK):
+        return _result("backups", HealthStatus.UNKNOWN, "raiz de backups inaccesible",
+                       {"root": str(root)})
+
+    with _Timer() as t:
+        sets = _find_backup_sets(root, max_scan_depth)
+    if not sets:
+        return _result("backups", HealthStatus.UNHEALTHY, "sin conjuntos de backup",
+                       {"root": str(root), "scan_depth": max_scan_depth}, latency_ms=t.ms)
+
+    latest = max(sets, key=_set_mtime)
+    age_h = round((time.time() - _set_mtime(latest)) / 3600, 1)
+    meta: Dict[str, Any] = {"root": str(root), "sets": len(sets), "latest": latest.name,
+                            "age_hours": age_h}
+
+    problems: List[str] = []
+
+    # Manifiesto, si el conjunto lo trae.
+    manifest = latest / "manifest.json"
+    if manifest.is_file():
+        try:
+            meta["manifest"] = bool(json.loads(manifest.read_text(encoding="utf-8")))
+        except (ValueError, OSError) as e:
+            problems.append(f"manifiesto invalido: {e}")
+
+    # Bases SQLite: deben existir, no estar vacias y pasar integrity_check.
+    dbs = sorted(p for p in latest.iterdir() if p.is_file() and p.suffix == ".db")
+    meta["dbs"] = [p.name for p in dbs]
+    if not dbs:
+        problems.append("el conjunto no contiene ninguna base")
+    for db in dbs:
+        if db.stat().st_size == 0:
+            problems.append(f"{db.name} vacia (0 bytes)")
+            continue
+        err = _sqlite_integrity_ro(db)
+        if err:
+            problems.append(f"{db.name}: {err}")
+
+    ok_sums, sums_detail = _verify_checksums(latest)
+    meta["checksums"] = sums_detail
+    if ok_sums is False:
+        problems.append(sums_detail)
+
+    problems.extend(_pending_wal(latest))
+
+    insecure = _insecure_members(latest)
+    if insecure:
+        problems.extend(insecure)
+
+    if problems:
+        return _result("backups", HealthStatus.UNHEALTHY,
+                       "backup mas reciente no valido: " + "; ".join(problems[:3]),
+                       {**meta, "problems": problems}, latency_ms=t.ms)
+
+    if age_h > max_age_hours:
+        return _result("backups", HealthStatus.UNHEALTHY,
+                       "backup valido pero rancio: hace %.1fh (max %dh)" % (age_h, max_age_hours),
+                       meta, latency_ms=t.ms)
+    if age_h > warn_age_hours:
+        return _result("backups", HealthStatus.DEGRADED,
+                       "backup valido pero antiguo: hace %.1fh (aviso %dh)" % (age_h, warn_age_hours),
+                       meta, latency_ms=t.ms)
+    return _result("backups", HealthStatus.HEALTHY,
+                   "backup validado hace %.1fh" % age_h, meta, latency_ms=t.ms)
 
 
 # ---------------------------------------------------------------------------

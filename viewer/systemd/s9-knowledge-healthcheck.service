@@ -1,13 +1,52 @@
 [Unit]
 Description=S9 Knowledge operational healthcheck (read-only)
 After=network.target
-# Solo lectura: no reinicia servicios, no escribe en Neo4j, no requiere API externa.
+# Solo lectura: no reinicia servicios, no escribe en Neo4j, no migra bases, no
+# limpia sesiones y no modifica jobs. Los checks abren SQLite con mode=ro.
+AssertPathExists=/opt/s9-knowledge/current/viewer
+AssertPathExists=/etc/s9-knowledge/viewer.env
 
 [Service]
 Type=oneshot
-WorkingDirectory=/opt/knowledge-services/s9-knowledge-repo/viewer
-EnvironmentFile=/opt/knowledge-services/s9-knowledge-repo/viewer/.env
-ExecStart=/opt/knowledge-services/s9-knowledge-repo/viewer/.venv/bin/python -m app.cli.health check
-# El código de salida refleja el estado (0 healthy · 1 degraded · 2 unhealthy · 3 config).
+# Layout de releases, siempre a traves de `current`. La instalacion legacy se
+# conserva en disco pero ya no se ejecuta: ninguna ruta de esta unidad la toca.
+WorkingDirectory=/opt/s9-knowledge/current/viewer
+EnvironmentFile=/etc/s9-knowledge/viewer.env
+ExecStart=/opt/s9-knowledge/current/viewer/.venv/bin/python -m app.cli.health check
+
+# El codigo de salida refleja el estado (0 healthy · 1 degraded · 2 unhealthy · 3 config).
+# Solo 0 y 1 cuentan como ejecucion correcta de la unidad.
 SuccessExitStatus=0 1
+
+# El informe queda 0600 aunque el proceso no lo pidiera.
+UMask=0077
+
+# Sin solape: systemd no arranca una segunda instancia de la misma unidad
+# mientras la anterior sigue viva, y este timeout impide que una quede colgada
+# bloqueando los disparos siguientes.
+TimeoutStartSec=120
 Nice=10
+IOSchedulingClass=idle
+
+# Contencion. ReadWritePaths abarca el estado completo, no solo health/, porque
+# auth.db y jobs.db estan en modo WAL: SQLite necesita crear el -shm aunque la
+# conexion sea de solo lectura, y con la ruta en solo lectura el check fallaria.
+# La garantia de no escribir datos la da el codigo (mode=ro), no el sandbox.
+ProtectSystem=strict
+ReadWritePaths=/var/lib/s9-knowledge
+ReadOnlyPaths=/opt/s9-knowledge /etc/s9-knowledge
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictNamespaces=true
+# El check consulta Neo4j y Ollama por TCP: hacen falta INET e INET6.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+CapabilityBoundingSet=

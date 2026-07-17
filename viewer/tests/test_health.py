@@ -70,17 +70,16 @@ def test_backup_ausente(tmp_path):
     assert checks.check_backups(str(tmp_path)).status == HealthStatus.UNHEALTHY
 
 
-def test_backup_reciente(tmp_path):
+def test_backup_tarball_suelto_ya_no_es_healthy(tmp_path):
+    """CAMBIO DE CONTRATO deliberado (hotfix postdespliegue RC2).
+
+    Antes, un fichero suelto bastaba para declarar HEALTHY sin mirar dentro. Un
+    tar.gz no se puede validar (ni integrity_check, ni sumas, ni contenido), asi
+    que ya no se acepta: el criterio es 'backup validable', no 'hay algo ahi'.
+    La cobertura completa vive en test_health_backups.py.
+    """
     (tmp_path / "backup.tar.gz").write_text("x")
-    assert checks.check_backups(str(tmp_path)).status == HealthStatus.HEALTHY
-
-
-def test_backup_antiguo(tmp_path):
-    f = tmp_path / "backup.tar.gz"
-    f.write_text("x")
-    old = time.time() - 72 * 3600
-    os.utime(f, (old, old))
-    assert checks.check_backups(str(tmp_path), max_age_hours=48).status == HealthStatus.DEGRADED
+    assert checks.check_backups(str(tmp_path)).status == HealthStatus.UNHEALTHY
 
 
 def test_backup_no_configurado():

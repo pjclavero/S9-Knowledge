@@ -167,20 +167,29 @@ def _make_release(root: Path, release_id: str, commit: str) -> Path:
     return rel
 
 
-def test_10_activacion_release(tmp_path):
+def _identity(root, expected_release, expected_commit=None, pid=None):
+    """Adaptador al API multi-indicador de verify_release_identity."""
     import verify_release_identity as vri
+    proc = vri.gather_process_facts(pid, None) if pid else vri.ProcessFacts()
+    return vri.classify(vri.gather_release_facts(root), proc,
+                        expected_release, expected_commit)
+
+
+def _ok(result, indicator):
+    return any(i["indicator"] == indicator and i["ok"] for i in result["indicators"])
+
+
+def test_10_activacion_release(tmp_path):
     _make_release(tmp_path, "abc1234-20260101-000000", "abc1234deadbeef")
-    r = vri.verify(tmp_path, "abc1234-20260101-000000", None, pid=None, unit="nope.service")
-    assert r["active_release"] == "abc1234-20260101-000000"
+    r = _identity(tmp_path, "abc1234-20260101-000000")
     # release_id coincide aunque el proceso no esté vivo en el lab
-    assert any(c["check"] == "active_is_expected_release" and c["ok"] for c in r["checks"])
+    assert _ok(r, "active_is_expected_release")
 
 
 def test_11_commit_ejecutado_match(tmp_path):
-    import verify_release_identity as vri
     _make_release(tmp_path, "r1", "abc1234deadbeef")
-    r = vri.verify(tmp_path, "r1", "abc1234", pid=None, unit="nope.service")
-    assert any(c["check"] == "git_commit_matches" and c["ok"] for c in r["checks"])
+    r = _identity(tmp_path, "r1", "abc1234")
+    assert _ok(r, "manifest_git_commit")
 
 
 # ===========================================================================
@@ -279,19 +288,18 @@ def test_20_fallo_de_unidad(tmp_path):
 
 
 def test_21_fallo_arranque_mismatch(tmp_path):
-    import verify_release_identity as vri
     _make_release(tmp_path, "r1", "abc1234")
-    # PID de este proceso de test: su cwd NO cuelga de la release -> MISMATCH
-    r = vri.verify(tmp_path, "r1", "abc1234", pid=os.getpid(), unit="x")
-    assert r["verdict"] == "MISMATCH"
+    # PID de este proceso de test: su cwd NO cuelga de la release -> INVALID
+    r = _identity(tmp_path, "r1", "abc1234", pid=os.getpid())
+    assert r["verdict"] == "INVALID"
+    assert "proc_cwd_under_release" in r["failed_indicators"]
 
 
 def test_22_auto_revert_decision(tmp_path):
-    import verify_release_identity as vri
     _make_release(tmp_path, "r1", "abc1234")
-    r = vri.verify(tmp_path, "r_esperada_distinta", "abc1234", pid=None, unit="x")
-    # release activa != esperada -> MISMATCH -> deploy.sh dispararía auto-revert
-    assert r["verdict"] == "MISMATCH"
+    r = _identity(tmp_path, "r_esperada_distinta", "abc1234")
+    # release activa != esperada -> INVALID -> deploy.sh dispararía auto-revert
+    assert r["verdict"] == "INVALID"
 
 
 # ===========================================================================

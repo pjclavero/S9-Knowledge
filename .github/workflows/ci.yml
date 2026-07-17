@@ -124,10 +124,12 @@ jobs:
 
       - name: Install validation tools
         run: |
-          # shellcheck via apt (mas fiable que shellcheck-py)
-          sudo apt-get update -qq && sudo apt-get install -y shellcheck 2>/dev/null || true
-          # yamllint y ansible via pip
-          pip install yamllint ansible ansible-lint --quiet 2>/dev/null || true
+          # Sin `|| true`: si la instalacion falla hay que enterarse aqui, no
+          # descubrir mas tarde que el gate paso en verde sin comprobar nada.
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y shellcheck
+          pip install yamllint ansible ansible-lint --quiet
 
       - name: bash syntax check
         run: |
@@ -135,36 +137,39 @@ jobs:
           bash -n deploy/scripts/*.sh deploy/tests/*.sh
           echo "OK: todos los scripts pasan bash -n"
 
+      # En CI la herramienta DEBE estar: si falta, el gate no se omite, falla.
+      # Saltarselo en silencio convertia este job en un verde que no comprobaba
+      # nada. En local, validate.sh sigue reportando SKIP (nunca PASS).
       - name: shellcheck
         run: |
-          echo "=== shellcheck ==="
-          if command -v shellcheck >/dev/null 2>&1; then
-            shellcheck -x -e SC1091 deploy/scripts/*.sh
-            echo "OK: shellcheck"
-          else
-            echo "(shellcheck no disponible)"
-          fi
+          set -euo pipefail
+          command -v shellcheck >/dev/null || {
+            echo "ERROR: shellcheck no instalado; el gate obligatorio no puede omitirse en CI"
+            exit 1
+          }
+          shellcheck -x -e SC1091 deploy/scripts/*.sh
+          echo "OK: shellcheck"
 
       - name: yamllint
         run: |
-          echo "=== yamllint ==="
-          if command -v yamllint >/dev/null 2>&1; then
-            yamllint -d relaxed deploy/ansible/
-            echo "OK: yamllint"
-          else
-            echo "(yamllint no disponible)"
-          fi
+          set -euo pipefail
+          command -v yamllint >/dev/null || {
+            echo "ERROR: yamllint no instalado; el gate obligatorio no puede omitirse en CI"
+            exit 1
+          }
+          yamllint -d relaxed deploy/ansible/
+          echo "OK: yamllint"
 
       - name: ansible syntax-check
         run: |
-          echo "=== ansible syntax-check ==="
-          if command -v ansible-playbook >/dev/null 2>&1; then
-            cd deploy/ansible
-            ansible-playbook site.yml --syntax-check -i inventory.example
-            echo "OK: ansible syntax-check"
-          else
-            echo "(ansible-playbook no disponible)"
-          fi
+          set -euo pipefail
+          command -v ansible-playbook >/dev/null || {
+            echo "ERROR: ansible-playbook no instalado; el gate obligatorio no puede omitirse en CI"
+            exit 1
+          }
+          cd deploy/ansible
+          ansible-playbook site.yml --syntax-check -i inventory.example
+          echo "OK: ansible syntax-check"
 
       - name: validate.sh
         run: bash deploy/tests/validate.sh

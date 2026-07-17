@@ -141,6 +141,179 @@ except Exception:
 }
 
 # ---------------------------------------------------------------------------
+# Checksum de contenido de una release.
+#
+# Lista de exclusión ÚNICA y COMPARTIDA entre generación (create_manifest) y
+# verificación (verify_release_checksum). Si divergen, el checksum es inútil.
+#
+# Solo se excluye contenido DERIVADO o MUTABLE (bytecode, cachés de test,
+# cobertura, logs, temporales). Nunca código, templates, static, units, scripts
+# ni el resto del contenido versionado.
+#
+# manifest.json se excluye porque contiene el propio checksum (autorreferencia).
+#
+# `-type f` deja fuera por construcción sockets, FIFOs, dispositivos y symlinks.
+# ---------------------------------------------------------------------------
+S9K_CHECKSUM_EXCLUDE_DIRS="${S9K_CHECKSUM_EXCLUDE_DIRS:-.venv __pycache__ .pytest_cache .mypy_cache .ruff_cache .tox htmlcov node_modules}"
+# OJO: no excluir *.bak — data-engine/backups/*.bak es contenido VERSIONADO real,
+# no un artefacto derivado. Excluirlo dejaría código fuera del checksum.
+S9K_CHECKSUM_EXCLUDE_GLOBS="${S9K_CHECKSUM_EXCLUDE_GLOBS:-manifest.json *.pyc *.pyo *.pyd *.log *.tmp *.temp *.swp *.swo .coverage .coverage.* coverage.xml}"
+
+# Lista los ficheros que ENTRAN en el checksum (NUL-separados).
+_checksum_file_list() {
+    local dir="${1}"
+    local -a args=( "${dir}" )
+    local d g first=1
+
+    args+=( '(' )
+    for d in ${S9K_CHECKSUM_EXCLUDE_DIRS}; do
+        [ "${first}" -eq 1 ] || args+=( -o )
+        args+=( -name "${d}" )
+        first=0
+    done
+    args+=( ')' -prune -o -type f )
+
+    for g in ${S9K_CHECKSUM_EXCLUDE_GLOBS}; do
+        args+=( ! -name "${g}" )
+    done
+    args+=( -print0 )
+
+    find "${args[@]}"
+}
+
+# Algoritmo declarado en los manifiestos NUEVOS. Los emitidos antes del hotfix
+# no llevan campo `checksum_algo` y se verifican con la fórmula v1.
+S9K_CHECKSUM_ALGO="v2"
+
+# release_files_checksum_v1 <release_dir> -> imprime "sha256:<hex>"
+#
+# Verificador de compatibilidad para manifiestos emitidos ANTES del hotfix.
+#
+# Conserva el flujo original (rutas absolutas, `sort` del locale, `xargs
+# sha256sum`) para reproducir el valor declarado, pero PODA los artefactos
+# derivados. Esa poda no altera el resultado: los artefactos no existían cuando
+# se emitió el manifiesto. Sin ella, v1 es inverificable en produccion, porque el
+# propio servicio en marcha regenera __pycache__ y se invalida solo.
+#
+# Comprobado contra la release real de RC2: con 172 cachés presentes reproduce
+# exactamente el files_checksum del manifiesto.
+#
+# LIMITACIÓN CONOCIDA — v1 NO es un control antimanipulación:
+#
+#   `xargs` sin -0 parte los nombres por los espacios, así que sha256sum nunca
+#   ve los ficheros cuyo nombre los contiene: quedan FUERA del hash. En la
+#   release de RC2 eso afecta a un fichero real y versionado:
+#       docs/project dossier and checklist.md
+#   (la fórmula original hashea 431 ficheros; la correcta, 432).
+#
+#   Es decir: ese fichero puede alterarse sin que v1 lo detecte. El defecto es
+#   del manifiesto emitido, no de este verificador; corregirlo aquí solo haría
+#   que v1 dejara de reproducir lo declarado y abortara despliegues sanos.
+#
+#   v2 sí lo cubre (-print0/-0). Cada release nueva nace con manifiesto v2, con
+#   lo que el punto ciego desaparece en cuanto RC2 deje de ser la release activa.
+#
+# NO usar para releases nuevas: además, el `sort` del locale no es reproducible
+# entre entornos. Para eso está v2.
+release_files_checksum_v1() {
+    local dir="${1}"
+    if [ ! -d "${dir}" ]; then
+        err "release_files_checksum_v1: no es un directorio: ${dir}"
+        return 1
+    fi
+    need_cmd find; need_cmd sha256sum
+    local hash
+    # `xargs` SIN -0 y `sort` SIN LC_ALL=C: ambos defectos se conservan a
+    # propósito. v1 no es un algoritmo que se elija, es el que ya se usó: su
+    # único trabajo es reproducir lo que declara un manifiesto ya emitido.
+    # "Arreglarlo" haría que dejara de coincidir y la compuerta abortaría
+    # despliegues de releases sanas.
+    #
+    # `set +o pipefail` en la subshell: ante un nombre con espacios, xargs parte
+    # la ruta, sha256sum falla sobre los trozos y xargs sale 123. El hash que
+    # imprime awk es correcto igualmente (es justo el que declara el manifiesto),
+    # pero con pipefail la pipeline se da por fallida. Sin esto la función solo
+    # "funcionaba" cuando se la llamaba dentro de un `||`, porque ahí bash
+    # suprime errexit: dependía del contexto de llamada.
+    # shellcheck disable=SC2038  # fidelidad deliberada con la fórmula original
+    hash="$(set +o pipefail
+        find "${dir}" \
+            \( -name .venv -o -name __pycache__ -o -name .pytest_cache \
+               -o -name .mypy_cache -o -name .ruff_cache \) -prune -o \
+            -type f ! -name 'manifest.json' ! -name '*.pyc' ! -name '*.pyo' -print \
+            | sort | xargs sha256sum 2>/dev/null | sha256sum | awk '{print $1}')"
+    if [ -z "${hash}" ]; then
+        err "release_files_checksum_v1: no se pudo calcular el hash en ${dir}"
+        return 1
+    fi
+    printf 'sha256:%s' "${hash}"
+}
+
+# release_files_checksum <release_dir> -> imprime "sha256:<hex>"  (algoritmo v2)
+#
+# Se fija LC_ALL=C porque el `sort` de v1 dependía del locale y por tanto no era
+# reproducible entre entornos. Eso, junto con las exclusiones ampliadas, hace que
+# v2 NO reproduzca los checksums de v1: por eso el algoritmo va versionado en el
+# manifiesto en vez de romper los ya emitidos.
+release_files_checksum() {
+    local dir="${1}"
+    if [ ! -d "${dir}" ]; then
+        err "release_files_checksum: no es un directorio: ${dir}"
+        return 1
+    fi
+    need_cmd find; need_cmd sha256sum
+    local hash
+    hash="$(_checksum_file_list "${dir}" \
+        | LC_ALL=C sort -z \
+        | xargs -0 -r sha256sum 2>/dev/null \
+        | sha256sum | awk '{print $1}')"
+    printf 'sha256:%s' "${hash}"
+}
+
+# verify_release_checksum <release_dir> [manifest_path]
+#   0 = coincide · 1 = NO coincide o no se puede comprobar.
+#   Nunca reescribe el manifiesto: solo compara e informa.
+verify_release_checksum() {
+    local dir="${1}"
+    local manifest="${2:-${dir}/manifest.json}"
+    if [ ! -f "${manifest}" ]; then
+        err "verify_release_checksum: manifiesto no encontrado: ${manifest}"
+        return 1
+    fi
+    local expected actual algo
+    expected="$(manifest_field "${manifest}" files_checksum)"
+    if [ -z "${expected}" ] || [ "${expected}" = "unknown" ]; then
+        err "verify_release_checksum: el manifiesto no declara files_checksum utilizable"
+        return 1
+    fi
+
+    # Sin campo `checksum_algo` el manifiesto es anterior al hotfix: se verifica
+    # con v1, que es la fórmula con la que se emitió. Verificarlo con v2 daría un
+    # falso "release alterada" en releases perfectamente sanas (RC2 incluida).
+    algo="$(manifest_field "${manifest}" checksum_algo)"
+    [ -n "${algo}" ] || algo="v1"
+
+    case "${algo}" in
+        v1) actual="$(release_files_checksum_v1 "${dir}")" || return 1 ;;
+        v2) actual="$(release_files_checksum "${dir}")" || return 1 ;;
+        *)  err "verify_release_checksum: algoritmo desconocido '${algo}'"; return 1 ;;
+    esac
+
+    if [ "${expected}" = "${actual}" ]; then
+        log "checksum de release OK (${dir}, algoritmo ${algo})"
+        return 0
+    fi
+    err "checksum de release NO coincide en ${dir} (algoritmo ${algo})"
+    err "  declarado:   ${expected}"
+    err "  recalculado: ${actual}"
+    if [ "${algo}" = "v1" ]; then
+        err "  v1 es sensible a __pycache__ y al locale: si se ejecutaron tests"
+        err "  dentro de la release, borrar los artefactos derivados y reintentar."
+    fi
+    return 1
+}
+
+# ---------------------------------------------------------------------------
 # Genera un manifiesto JSON en <release_dir>/manifest.json.
 # NO incluye secretos, variables de entorno ni tokens.
 # ---------------------------------------------------------------------------
@@ -158,10 +331,10 @@ create_manifest() {
         dep_hash="sha256:$(sha256sum "${release_dir}/viewer/requirements.txt" | awk '{print $1}')"
     fi
 
+    # Usa la MISMA lista de exclusión que verify_release_checksum.
     local files_hash="unknown"
     if command -v find >/dev/null 2>&1 && command -v sha256sum >/dev/null 2>&1; then
-        files_hash="sha256:$(find "${release_dir}" -type f -not -path '*/.venv/*' -not -name 'manifest.json' \
-            | sort | xargs sha256sum 2>/dev/null | sha256sum | awk '{print $1}')"
+        files_hash="$(release_files_checksum "${release_dir}")"
     fi
 
     local created_at
@@ -179,7 +352,8 @@ manifest = {
     "dependency_fingerprint": "${dep_hash}",
     "schema_versions": {"auth_db": 1, "job_store": 1},
     "compatible_rollback_to": [],
-    "files_checksum": "${files_hash}"
+    "files_checksum": "${files_hash}",
+    "checksum_algo": "${S9K_CHECKSUM_ALGO}"
 }
 with open("${release_dir}/manifest.json", "w") as f:
     json.dump(manifest, f, indent=2)
