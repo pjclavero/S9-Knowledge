@@ -232,6 +232,13 @@ else
     log "--- 11. sin daemon-reload (unidad no cambió)"
 fi
 
+# Paso 11b: el contenido de la release debe seguir siendo el validado.
+# Va ANTES de activar `current`: detecta cualquier deriva entre la construcción
+# y el cutover. Las cachés de bytecode y demás derivados quedan fuera del
+# checksum, así que importar módulos o pasar tests no lo invalida.
+log "--- 11b. verificar checksum de la release"
+verify_release_checksum "${RELEASE_DIR}" || die "checksum de release no coincide: release alterada tras su validación"
+
 # Paso 12: cambiar current atómicamente
 log "--- 12. activar release (symlink atómico)"
 PREV_RELEASE_DIR=""; [ -L "${S9K_ROOT}/current" ] && PREV_RELEASE_DIR="$(readlink -f "${S9K_ROOT}/current" 2>/dev/null || true)"

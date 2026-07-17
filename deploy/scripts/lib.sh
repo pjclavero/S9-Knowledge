@@ -141,6 +141,95 @@ except Exception:
 }
 
 # ---------------------------------------------------------------------------
+# Checksum de contenido de una release.
+#
+# Lista de exclusión ÚNICA y COMPARTIDA entre generación (create_manifest) y
+# verificación (verify_release_checksum). Si divergen, el checksum es inútil.
+#
+# Solo se excluye contenido DERIVADO o MUTABLE (bytecode, cachés de test,
+# cobertura, logs, temporales). Nunca código, templates, static, units, scripts
+# ni el resto del contenido versionado.
+#
+# manifest.json se excluye porque contiene el propio checksum (autorreferencia).
+#
+# `-type f` deja fuera por construcción sockets, FIFOs, dispositivos y symlinks.
+# ---------------------------------------------------------------------------
+S9K_CHECKSUM_EXCLUDE_DIRS="${S9K_CHECKSUM_EXCLUDE_DIRS:-.venv __pycache__ .pytest_cache .mypy_cache .ruff_cache .tox htmlcov node_modules}"
+# OJO: no excluir *.bak — data-engine/backups/*.bak es contenido VERSIONADO real,
+# no un artefacto derivado. Excluirlo dejaría código fuera del checksum.
+S9K_CHECKSUM_EXCLUDE_GLOBS="${S9K_CHECKSUM_EXCLUDE_GLOBS:-manifest.json *.pyc *.pyo *.pyd *.log *.tmp *.temp *.swp *.swo .coverage .coverage.* coverage.xml}"
+
+# Lista los ficheros que ENTRAN en el checksum (NUL-separados).
+_checksum_file_list() {
+    local dir="${1}"
+    local -a args=( "${dir}" )
+    local d g first=1
+
+    args+=( '(' )
+    for d in ${S9K_CHECKSUM_EXCLUDE_DIRS}; do
+        [ "${first}" -eq 1 ] || args+=( -o )
+        args+=( -name "${d}" )
+        first=0
+    done
+    args+=( ')' -prune -o -type f )
+
+    for g in ${S9K_CHECKSUM_EXCLUDE_GLOBS}; do
+        args+=( ! -name "${g}" )
+    done
+    args+=( -print0 )
+
+    find "${args[@]}"
+}
+
+# release_files_checksum <release_dir> -> imprime "sha256:<hex>"
+#
+# Nota de compatibilidad: el flujo (rutas absolutas + `sha256sum` por fichero +
+# hash del conjunto) se mantiene igual que la versión original para que los
+# manifiestos ya emitidos sigan verificando. Se fija LC_ALL=C porque el `sort`
+# original dependía del locale y por tanto no era reproducible entre entornos.
+release_files_checksum() {
+    local dir="${1}"
+    if [ ! -d "${dir}" ]; then
+        err "release_files_checksum: no es un directorio: ${dir}"
+        return 1
+    fi
+    need_cmd find; need_cmd sha256sum
+    local hash
+    hash="$(_checksum_file_list "${dir}" \
+        | LC_ALL=C sort -z \
+        | xargs -0 -r sha256sum 2>/dev/null \
+        | sha256sum | awk '{print $1}')"
+    printf 'sha256:%s' "${hash}"
+}
+
+# verify_release_checksum <release_dir> [manifest_path]
+#   0 = coincide · 1 = NO coincide o no se puede comprobar.
+#   Nunca reescribe el manifiesto: solo compara e informa.
+verify_release_checksum() {
+    local dir="${1}"
+    local manifest="${2:-${dir}/manifest.json}"
+    if [ ! -f "${manifest}" ]; then
+        err "verify_release_checksum: manifiesto no encontrado: ${manifest}"
+        return 1
+    fi
+    local expected actual
+    expected="$(manifest_field "${manifest}" files_checksum)"
+    if [ -z "${expected}" ] || [ "${expected}" = "unknown" ]; then
+        err "verify_release_checksum: el manifiesto no declara files_checksum utilizable"
+        return 1
+    fi
+    actual="$(release_files_checksum "${dir}")" || return 1
+    if [ "${expected}" = "${actual}" ]; then
+        log "checksum de release OK (${dir})"
+        return 0
+    fi
+    err "checksum de release NO coincide en ${dir}"
+    err "  declarado:   ${expected}"
+    err "  recalculado: ${actual}"
+    return 1
+}
+
+# ---------------------------------------------------------------------------
 # Genera un manifiesto JSON en <release_dir>/manifest.json.
 # NO incluye secretos, variables de entorno ni tokens.
 # ---------------------------------------------------------------------------
@@ -158,10 +247,10 @@ create_manifest() {
         dep_hash="sha256:$(sha256sum "${release_dir}/viewer/requirements.txt" | awk '{print $1}')"
     fi
 
+    # Usa la MISMA lista de exclusión que verify_release_checksum.
     local files_hash="unknown"
     if command -v find >/dev/null 2>&1 && command -v sha256sum >/dev/null 2>&1; then
-        files_hash="sha256:$(find "${release_dir}" -type f -not -path '*/.venv/*' -not -name 'manifest.json' \
-            | sort | xargs sha256sum 2>/dev/null | sha256sum | awk '{print $1}')"
+        files_hash="$(release_files_checksum "${release_dir}")"
     fi
 
     local created_at
