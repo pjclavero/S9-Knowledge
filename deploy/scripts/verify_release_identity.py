@@ -289,13 +289,18 @@ def classify(
             json.dumps(release.manifest.get("schema_versions")), critical=False)
 
     # --- proceso ---
+    # No observar el proceso NO es un fallo del despliegue: es no poder afirmar
+    # nada. Por eso estos dos indicadores no son criticos -- generan UNKNOWN, no
+    # INVALID. Lo que ya haya fallado antes (release, manifest) sigue mandando.
     if not proc.alive:
-        add("process_alive", False, f"pid={proc.pid}: no existe o no se pudo determinar")
+        add("process_alive", False, f"pid={proc.pid}: no existe o no se pudo determinar",
+            critical=False)
         return _verdict(indicators, unknown=True, reason="proceso no observable")
     add("process_alive", True, f"pid={proc.pid}")
 
     if not proc.proc_readable:
-        add("proc_readable", False, f"pid={proc.pid}: /proc ilegible (permisos insuficientes)")
+        add("proc_readable", False, f"pid={proc.pid}: /proc ilegible (permisos insuficientes)",
+            critical=False)
         return _verdict(indicators, unknown=True, reason="/proc ilegible")
     add("proc_readable", True, "ok", critical=False)
 
@@ -359,10 +364,12 @@ def classify(
 def _verdict(indicators: list[dict[str, Any]], symlink_interpreter: bool = False,
              unknown: bool = False, reason: str = "") -> dict[str, Any]:
     failed = [i["indicator"] for i in indicators if i["critical"] and i["ok"] is False]
-    if unknown:
-        verdict = VERDICT_UNKNOWN
-    elif failed:
+    # Un fallo ya constatado manda sobre la indeterminacion: si `current` apunta
+    # a la release equivocada, da igual que ademas no se vea el proceso.
+    if failed:
         verdict = VERDICT_INVALID
+    elif unknown:
+        verdict = VERDICT_UNKNOWN
     elif symlink_interpreter:
         verdict = VERDICT_VALID_SYMLINK
     else:

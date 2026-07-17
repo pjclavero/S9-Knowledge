@@ -245,6 +245,18 @@ def test_proc_sin_permisos_es_unknown(tmp_path):
     assert verdict_exit_code(r["verdict"]) == 2
 
 
+def test_fallo_constatado_gana_a_la_indeterminacion(tmp_path):
+    """current apunta a otra release Y el proceso no se ve: eso es INVALID.
+
+    Devolver UNKNOWN aqui seria mentir por omision: el fallo ya esta probado.
+    """
+    _make_release(tmp_path)
+    r = _classify(tmp_path, ProcessFacts(pid=None, alive=False),
+                  expected_release="otra-release-distinta")
+    assert r["verdict"] == VERDICT_INVALID
+    assert "active_is_expected_release" in r["failed_indicators"]
+
+
 def test_current_ausente_es_invalid(tmp_path):
     (tmp_path / "releases").mkdir(parents=True)
     r = _classify(tmp_path, ProcessFacts(pid=1, alive=True))

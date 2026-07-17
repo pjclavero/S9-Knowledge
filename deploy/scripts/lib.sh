@@ -181,12 +181,48 @@ _checksum_file_list() {
     find "${args[@]}"
 }
 
-# release_files_checksum <release_dir> -> imprime "sha256:<hex>"
+# Algoritmo declarado en los manifiestos NUEVOS. Los emitidos antes del hotfix
+# no llevan campo `checksum_algo` y se verifican con la fórmula v1.
+S9K_CHECKSUM_ALGO="v2"
+
+# release_files_checksum_v1 <release_dir> -> imprime "sha256:<hex>"
 #
-# Nota de compatibilidad: el flujo (rutas absolutas + `sha256sum` por fichero +
-# hash del conjunto) se mantiene igual que la versión original para que los
-# manifiestos ya emitidos sigan verificando. Se fija LC_ALL=C porque el `sort`
-# original dependía del locale y por tanto no era reproducible entre entornos.
+# Verificador de compatibilidad para manifiestos emitidos ANTES del hotfix.
+#
+# Conserva el flujo original (rutas absolutas, `sort` del locale, `xargs
+# sha256sum`) para reproducir el valor declarado, pero PODA los artefactos
+# derivados. Esa poda no altera el resultado: los artefactos no existían cuando
+# se emitió el manifiesto. Sin ella, v1 es inverificable en produccion, porque el
+# propio servicio en marcha regenera __pycache__ y se invalida solo.
+#
+# Comprobado contra la release real de RC2: con 172 cachés presentes reproduce
+# exactamente el files_checksum del manifiesto.
+#
+# NO usar para releases nuevas: el `sort` del locale no es reproducible entre
+# entornos. Para eso está v2.
+release_files_checksum_v1() {
+    local dir="${1}"
+    if [ ! -d "${dir}" ]; then
+        err "release_files_checksum_v1: no es un directorio: ${dir}"
+        return 1
+    fi
+    need_cmd find; need_cmd sha256sum
+    local hash
+    # shellcheck disable=SC2038  # fidelidad con la fórmula original (xargs sin -0)
+    hash="$(find "${dir}" \
+        \( -name .venv -o -name __pycache__ -o -name .pytest_cache \
+           -o -name .mypy_cache -o -name .ruff_cache \) -prune -o \
+        -type f ! -name 'manifest.json' ! -name '*.pyc' ! -name '*.pyo' -print \
+        | sort | xargs sha256sum 2>/dev/null | sha256sum | awk '{print $1}')"
+    printf 'sha256:%s' "${hash}"
+}
+
+# release_files_checksum <release_dir> -> imprime "sha256:<hex>"  (algoritmo v2)
+#
+# Se fija LC_ALL=C porque el `sort` de v1 dependía del locale y por tanto no era
+# reproducible entre entornos. Eso, junto con las exclusiones ampliadas, hace que
+# v2 NO reproduzca los checksums de v1: por eso el algoritmo va versionado en el
+# manifiesto en vez de romper los ya emitidos.
 release_files_checksum() {
     local dir="${1}"
     if [ ! -d "${dir}" ]; then
@@ -212,20 +248,36 @@ verify_release_checksum() {
         err "verify_release_checksum: manifiesto no encontrado: ${manifest}"
         return 1
     fi
-    local expected actual
+    local expected actual algo
     expected="$(manifest_field "${manifest}" files_checksum)"
     if [ -z "${expected}" ] || [ "${expected}" = "unknown" ]; then
         err "verify_release_checksum: el manifiesto no declara files_checksum utilizable"
         return 1
     fi
-    actual="$(release_files_checksum "${dir}")" || return 1
+
+    # Sin campo `checksum_algo` el manifiesto es anterior al hotfix: se verifica
+    # con v1, que es la fórmula con la que se emitió. Verificarlo con v2 daría un
+    # falso "release alterada" en releases perfectamente sanas (RC2 incluida).
+    algo="$(manifest_field "${manifest}" checksum_algo)"
+    [ -n "${algo}" ] || algo="v1"
+
+    case "${algo}" in
+        v1) actual="$(release_files_checksum_v1 "${dir}")" || return 1 ;;
+        v2) actual="$(release_files_checksum "${dir}")" || return 1 ;;
+        *)  err "verify_release_checksum: algoritmo desconocido '${algo}'"; return 1 ;;
+    esac
+
     if [ "${expected}" = "${actual}" ]; then
-        log "checksum de release OK (${dir})"
+        log "checksum de release OK (${dir}, algoritmo ${algo})"
         return 0
     fi
-    err "checksum de release NO coincide en ${dir}"
+    err "checksum de release NO coincide en ${dir} (algoritmo ${algo})"
     err "  declarado:   ${expected}"
     err "  recalculado: ${actual}"
+    if [ "${algo}" = "v1" ]; then
+        err "  v1 es sensible a __pycache__ y al locale: si se ejecutaron tests"
+        err "  dentro de la release, borrar los artefactos derivados y reintentar."
+    fi
     return 1
 }
 
@@ -268,7 +320,8 @@ manifest = {
     "dependency_fingerprint": "${dep_hash}",
     "schema_versions": {"auth_db": 1, "job_store": 1},
     "compatible_rollback_to": [],
-    "files_checksum": "${files_hash}"
+    "files_checksum": "${files_hash}",
+    "checksum_algo": "${S9K_CHECKSUM_ALGO}"
 }
 with open("${release_dir}/manifest.json", "w") as f:
     json.dump(manifest, f, indent=2)
