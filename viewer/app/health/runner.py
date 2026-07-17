@@ -9,6 +9,17 @@ from app.health import checks
 from app.health.models import ComponentResult, HealthReport, HealthStatus
 
 
+def _env_int(name: str, default: int) -> int:
+    """Entero de entorno tolerante: un valor mal escrito no tumba el healthcheck."""
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        return int(raw.strip())
+    except ValueError:
+        return default
+
+
 def _read_password_file(path: Optional[str]) -> Optional[str]:
     if not path:
         return None
@@ -38,7 +49,13 @@ def build_default_config() -> Dict[str, Any]:
         "external_ai": {"enabled": os.environ.get("S9K_EXTERNAL_AI_ENABLED", "false").lower() == "true"},
         "burst": {"enabled": os.environ.get("S9K_EXTERNAL_PROCESSING_ENABLED", "false").lower() == "true"},
         "filesystem": {"path": os.environ.get("S9K_HEALTH_DISK_PATH", "/")},
-        "backups": {"backup_dir": os.environ.get("S9K_BACKUP_DIR")},
+        "backups": {
+            # S9K_BACKUP_DIR es el nombre antiguo; se sigue aceptando.
+            "backup_root": os.environ.get("S9K_BACKUP_ROOT") or os.environ.get("S9K_BACKUP_DIR"),
+            "warn_age_hours": _env_int("S9K_BACKUP_WARN_AGE_HOURS", checks.BACKUP_WARN_AGE_HOURS),
+            "max_age_hours": _env_int("S9K_BACKUP_MAX_AGE_HOURS", checks.BACKUP_MAX_AGE_HOURS),
+            "max_scan_depth": _env_int("S9K_BACKUP_MAX_SCAN_DEPTH", checks.BACKUP_MAX_SCAN_DEPTH),
+        },
         "systemd": {"units": [u for u in os.environ.get(
             "S9K_HEALTH_UNITS", "s9-knowledge-viewer.service").split(",") if u]},
     }
