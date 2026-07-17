@@ -143,6 +143,15 @@ S9K_REPO_URL="${S9K_REPO_URL:-}"
 if [ -d "${S9K_ROOT}/current/.git" ]; then
     git clone --local --no-hardlinks "${S9K_ROOT}/current" "${RELEASE_DIR}" 2>/dev/null \
         || git clone --no-local "${S9K_ROOT}/current" "${RELEASE_DIR}"
+    # Un commit posterior a la release activa no está en su object store. Se
+    # trae DENTRO de la release nueva: hacer fetch en `current` modificaría la
+    # release desplegada e invalidaría su checksum (que cubre .git).
+    if ! git -C "${RELEASE_DIR}" cat-file -e "${RESOLVED_COMMIT}^{commit}" 2>/dev/null; then
+        [ -n "${S9K_REPO_URL}" ] || die "commit ${RESOLVED_COMMIT} no presente en current y sin S9K_REPO_URL para traerlo"
+        git -C "${RELEASE_DIR}" fetch --tags "${S9K_REPO_URL}" "${RESOLVED_COMMIT}" \
+            || git -C "${RELEASE_DIR}" fetch --tags "${S9K_REPO_URL}"
+        RESOLVED_COMMIT="$(git -C "${RELEASE_DIR}" rev-parse "${RESOLVED_COMMIT}")"
+    fi
     git -C "${RELEASE_DIR}" checkout --detach "${RESOLVED_COMMIT}"
 elif [ -n "${S9K_REPO_URL}" ]; then
     git clone --no-local "${S9K_REPO_URL}" "${RELEASE_DIR}"
