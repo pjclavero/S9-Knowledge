@@ -18,6 +18,10 @@
       <div class="alert alert-error" role="alert">
         Usuario o contraseña incorrectos.
       </div>
+    {% elif error == "campos_incompletos" %}
+      <div class="alert alert-error" role="alert">
+        Introduce el usuario y la contraseña.
+      </div>
     {% elif error == "csrf_invalid" %}
       <div class="alert alert-error" role="alert">
         Error de seguridad. Recarga la página e inténtalo de nuevo.
@@ -28,17 +32,29 @@
       </div>
     {% endif %}
 
-    <form method="post" action="/login" novalidate>
+    {#
+      SIN `novalidate`: ese atributo anulaba los `required` de abajo, asi que el
+      envio implicito del navegador (la tecla "Ir"/Enter del teclado movil dentro
+      de un campo de texto) mandaba el formulario VACIO y la respuesta era un 422
+      con JSON crudo. Con la validacion nativa activa, el navegador bloquea ese
+      envio y enfoca el campo que falta. No hace falta JavaScript.
+    #}
+    <form method="post" action="/login">
       <input type="hidden" name="next" value="{{ next | e }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
 
       <div class="field">
         <label for="username">Usuario</label>
+        {# autocapitalize/autocorrect/spellcheck: en movil el teclado convierte
+           "s9admin" en "S9admin", y la busqueda de usuario distingue mayusculas. #}
         <input
           id="username"
           type="text"
           name="username"
           autocomplete="username"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
           autofocus
           required
         >

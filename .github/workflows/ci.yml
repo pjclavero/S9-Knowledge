@@ -55,6 +55,46 @@ jobs:
         run: |
           python -m pytest viewer/tests/ -v --tb=short --no-header
 
+  test-login-browser:
+    name: Login browser contract (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r viewer/requirements.txt playwright uvicorn
+          # --with-deps instala las librerias del sistema que el navegador
+          # necesita; sin ellas chromium arranca y muere al instante.
+          python -m playwright install --with-deps chromium
+
+      - name: Run browser contract tests
+        run: |
+          set -euo pipefail
+          cd viewer
+          # El contrato (escribir = 0 POST, Enter completo = 1 POST) solo se
+          # puede comprobar en un navegador de verdad. Aqui el navegador ESTA,
+          # asi que saltarse los tests seria un verde que no prueba nada.
+          out="$(python -m pytest tests/browser -q --no-header 2>&1)" || {
+            echo "${out}"; exit 1;
+          }
+          echo "${out}"
+          if ! grep -qE '[0-9]+ passed' <<<"${out}"; then
+            echo "ERROR: los tests de navegador no llegaron a ejecutarse"
+            exit 1
+          fi
+          if grep -qE '[0-9]+ skipped' <<<"${out}"; then
+            echo "ERROR: se saltaron tests de navegador con el navegador disponible"
+            exit 1
+          fi
+
   test-combined:
     name: Combined Test Suite (no collection errors)
     runs-on: ubuntu-latest

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -59,6 +60,31 @@ app.add_middleware(AuthMiddleware)
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Un formulario incompleto debe repintar la pagina, no escupir JSON.
+
+    Sin esto, un POST a /login sin los campos devolvia el JSON crudo de FastAPI y
+    el formulario "desaparecia" para el usuario. La validacion nativa del
+    navegador ya lo evita, pero un cliente sin JS o una peticion manual siguen
+    llegando aqui.
+    """
+    if request.url.path == "/login":
+        from app.auth.csrf import issue_login_csrf
+        from app.routers.auth import LOGIN_CSRF_COOKIE, _login_cookie_kwargs
+
+        cfg = get_auth_settings()
+        token = issue_login_csrf(cfg.S9K_CSRF_SECRET)
+        response = templates.TemplateResponse(
+            request, "auth/login.html",
+            {"error": "campos_incompletos", "next": "/", "csrf_token": token},
+            status_code=400,
+        )
+        response.set_cookie(value=token, **_login_cookie_kwargs(cfg))
+        return response
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 # APIs protegidas: viewer+ cuando auth está activa; públicas cuando está off
 # (la dependencia es no-op si S9K_AUTH_ENABLED=false).
