@@ -10,7 +10,7 @@ from typing import Optional
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
+from starlette.responses import JSONResponse, RedirectResponse, Response
 
 from app.auth import db as auth_db
 from app.auth.config import get_auth_settings
@@ -20,6 +20,27 @@ log = logging.getLogger("s9k.auth.middleware")
 
 _CSRF_COOKIE = "_s9k_csrf"
 
+# Rutas permitidas mientras must_change_password=true. Todo lo demas queda
+# cerrado hasta que el usuario fije su contrasena definitiva.
+#
+# Vive en el middleware, no en cada guarda de ruta: una obligacion que hay que
+# recordar aplicar en cada endpoint nuevo acaba olvidandose. Antes la marca solo
+# dirigia la redireccion posterior al login, asi que bastaba teclear /entities
+# para saltarsela.
+CHANGE_PASSWORD_PATH = "/account/change-password"
+_MUST_CHANGE_ALLOWED_EXACT = frozenset({
+    CHANGE_PASSWORD_PATH,
+    "/logout",
+    "/login",          # permitido para no encerrar al usuario en un bucle
+    "/favicon.ico",
+})
+_MUST_CHANGE_ALLOWED_PREFIXES = ("/static/",)
+
+
+def _must_change_allows(path: str) -> bool:
+    return (path in _MUST_CHANGE_ALLOWED_EXACT
+            or path.startswith(_MUST_CHANGE_ALLOWED_PREFIXES))
+
 
 def _get_real_ip(request: Request) -> Optional[str]:
     cfg = get_auth_settings()
@@ -28,6 +49,24 @@ def _get_real_ip(request: Request) -> Optional[str]:
         if forwarded:
             return forwarded.split(",")[0].strip()
     return request.client.host if request.client else None
+
+
+def _must_change_password_response(request: Request) -> Optional[Response]:
+    """Corta la peticion si el usuario aun no ha fijado su contrasena.
+
+    Devuelve None si la ruta esta permitida. Las APIs reciben 403 JSON en vez de
+    una redireccion: un cliente que espera JSON no sabe seguir un 302 a HTML.
+    """
+    path = request.url.path
+    if _must_change_allows(path):
+        return None
+    if path.startswith("/api/") or "application/json" in request.headers.get("accept", ""):
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Debes cambiar tu contraseña antes de continuar.",
+                     "change_password_url": CHANGE_PASSWORD_PATH},
+        )
+    return RedirectResponse(url=CHANGE_PASSWORD_PATH, status_code=302)
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -77,6 +116,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
                         "como anónimo (fail-closed).",
                         type(exc).__name__,
                     )
+
+        user = request.state.user
+        if user is not None and user.must_change_password:
+            blocked = _must_change_password_response(request)
+            if blocked is not None:
+                return blocked
 
         response = await call_next(request)
         return response

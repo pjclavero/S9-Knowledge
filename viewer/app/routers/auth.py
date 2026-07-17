@@ -352,6 +352,11 @@ async def change_password_submit(
     if new_password != confirm_password:
         errors.append("Las contraseñas nuevas no coinciden.")
 
+    # Una temporal repetida no es un cambio: dejaria la cuenta con la credencial
+    # que se entrego por un canal de reparto, que es justo lo que hay que retirar.
+    if new_password == current_password:
+        errors.append("La contraseña nueva debe ser distinta de la actual.")
+
     errors += validate_password(new_password, user.username)
 
     if errors:
@@ -364,17 +369,29 @@ async def change_password_submit(
             status_code=400,
         )
 
-    # Guardar nueva contraseña y revocar sesiones
+    # Guardar la nueva contraseña, limpiar el bloqueo y rotar la sesión.
     new_hash = hash_password(new_password)
     db_path = _get_db_path()
     with auth_db.get_conn(db_path) as conn:
         auth_db.update_user(conn, user.id,
                             password_hash=new_hash,
-                            must_change_password=False)
+                            must_change_password=False,
+                            # Quien acaba de demostrar que conoce la contraseña
+                            # actual no arrastra el bloqueo de intentos previos.
+                            failed_login_count=0,
+                            locked_until="")
+        # Primero se invalidan TODAS las sesiones (incluida la actual, que se
+        # emitio con la credencial temporal) y despues se emite una nueva: asi el
+        # usuario sigue dentro, pero con una sesion que no existia antes.
         auth_db.revoke_sessions_for_user(conn, user.id)
+        token, _session = create_session(
+            conn, user, ip=_get_ip(request),
+            user_agent=request.headers.get("user-agent"),
+        )
         audit.log(conn, audit.PASSWORD_CHANGED, "success",
-                  user_id=user.id, username_snapshot=user.username)
+                  user_id=user.id, username_snapshot=user.username,
+                  metadata={"changed_by": "self", "session_rotated": True})
 
-    response = RedirectResponse(url="/login?message=password_changed", status_code=302)
-    response.delete_cookie(cfg.S9K_SESSION_COOKIE_NAME, path="/")
+    response = RedirectResponse(url="/", status_code=302)
+    response.set_cookie(value=token, **cookie_kwargs())
     return response
