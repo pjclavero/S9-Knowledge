@@ -304,3 +304,21 @@ def test_cli_db_identity(auth_env, capsys):
     out = capsys.readouterr().out
     assert str(auth_env.resolve()) in out
     assert "inode:" in out and "device:" in out
+
+
+# ---------------------------------------------------------------------------
+# Borrado en caliente: fail-closed sin recrear la base (hallazgo auditor V)
+# ---------------------------------------------------------------------------
+
+def test_db_borrada_en_caliente_no_se_recrea(auth_env):
+    _make_user(auth_env, username="s9admin")
+    client = _client()
+    page = client.get("/login")
+    import re
+    token = re.search(r'name="csrf_token" value="([^"]+)"', page.text).group(1)
+    auth_env.unlink()
+    resp = client.post("/login", data={
+        "username": "s9admin", "password": PASSWORD, "csrf_token": token,
+    })
+    assert resp.status_code == 303
+    assert not auth_env.exists(), "el login recreó una auth.db vacía"

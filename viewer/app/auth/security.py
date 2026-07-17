@@ -79,10 +79,10 @@ def validate_auth_db_path(raw_path: str) -> List[str]:
     from pathlib import Path
 
     problems: List[str] = []
-    p = Path(raw_path or "")
-    if not str(p):
+    if not raw_path:
         problems.append("S9K_AUTH_DB_PATH vacío")
         return problems
+    p = Path(raw_path)
     if not p.is_absolute():
         problems.append(
             "S9K_AUTH_DB_PATH debe ser una ruta absoluta con auth activa "

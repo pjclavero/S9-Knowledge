@@ -88,6 +88,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if token:
                 db_path = Path(cfg.S9K_AUTH_DB_PATH)
                 try:
+                    # Fail-closed sin recrear: sqlite3.connect crearía una base
+                    # vacía si la DB desapareció con el proceso vivo.
+                    if not db_path.exists():
+                        raise FileNotFoundError("auth DB ausente en tiempo de petición")
                     auth_db.ensure_migrated(db_path)
                     with auth_db.get_conn(db_path) as conn:
                         result = get_valid_session(conn, token)

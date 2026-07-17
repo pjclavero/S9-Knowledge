@@ -130,6 +130,14 @@ async def login_submit(
 ):
     cfg = get_auth_settings()
     db_path = _get_db_path()
+    # Fail-closed sin recrear: si la DB desapareció en caliente, el login
+    # falla; ensure_migrated (via sqlite3.connect) crearía una base vacía.
+    if not db_path.exists():
+        import logging
+        logging.getLogger("s9k.auth").error(
+            "auth DB ausente en tiempo de petición: login denegado (fail-closed)."
+        )
+        return RedirectResponse(url="/login?error=auth_unavailable", status_code=303)
     auth_db.ensure_migrated(db_path)
 
     # El username admite normalización exterior (los teclados móviles añaden un
