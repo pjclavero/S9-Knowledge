@@ -1,15 +1,19 @@
 [Unit]
-Description=Run S9 Knowledge operational healthcheck every 5 minutes
-# El servicio es Type=oneshot y OnUnitActiveSec cuenta desde la ultima
-# activacion: mientras una ejecucion siga viva no se dispara otra, asi que los
-# checks no se solapan.
+Description=Run S9 Knowledge operational healthcheck hourly
+# El servicio asociado es Type=oneshot; systemd no arranca una segunda instancia
+# de la misma unidad mientras la anterior sigue viva, asi que los checks nunca se
+# solapan aunque uno tarde. La frecuencia es prudente (horaria): el healthcheck es
+# solo lectura y no debe convertirse en carga periodica agresiva.
 
 [Timer]
 Unit=s9-knowledge-healthcheck.service
-OnBootSec=2min
-OnUnitActiveSec=5min
-AccuracySec=30s
-# Persistent solo tiene efecto con OnCalendar; aqui no aporta nada.
+# Disparo horario en punto. Con OnCalendar, Persistent recupera el disparo perdido
+# si la maquina estuvo apagada o suspendida a la hora prevista.
+OnCalendar=hourly
+Persistent=true
+# Reparte los arranques hasta 5 min para no coincidir con otros trabajos en punto.
+RandomizedDelaySec=5m
+AccuracySec=1min
 
 [Install]
 WantedBy=timers.target
