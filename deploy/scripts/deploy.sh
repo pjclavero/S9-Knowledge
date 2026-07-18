@@ -95,8 +95,16 @@ RESOLVED_COMMIT="${RELEASE_REF}"
 SHORT_COMMIT="${RELEASE_REF:0:7}"
 if [ -d "${S9K_ROOT}/current/.git" ] || [ -d "${S9K_ROOT}/.git" ]; then
     _git_dir="${S9K_ROOT}/current"; [ -d "${_git_dir}/.git" ] || _git_dir="${S9K_ROOT}"
-    RESOLVED_COMMIT="$(git -C "${_git_dir}" rev-parse "${RELEASE_REF}" 2>/dev/null || printf '%s' "${RELEASE_REF}")"
-    SHORT_COMMIT="$(git -C "${_git_dir}" rev-parse --short "${RELEASE_REF}" 2>/dev/null || printf '%s' "${RELEASE_REF:0:7}")"
+    # `git rev-parse <ref>` imprime el propio argumento en stdout aunque falle,
+    # de modo que `$(rev-parse ... || printf ...)` DUPLICA el ref cuando el
+    # commit todavía no está en `current` (caso normal de deploy hacia delante:
+    # el objetivo se trae por fetch en el paso 2). Se usa `--verify -q`, que es
+    # silencioso y no emite nada al fallar; si no resuelve, se conserva el ref
+    # literal (una sola vez) para que el fetch posterior lo materialice.
+    if _resolved="$(git -C "${_git_dir}" rev-parse --verify -q "${RELEASE_REF}^{commit}" 2>/dev/null)"; then
+        RESOLVED_COMMIT="${_resolved}"
+        SHORT_COMMIT="$(git -C "${_git_dir}" rev-parse --short "${_resolved}" 2>/dev/null || printf '%s' "${_resolved:0:7}")"
+    fi
 fi
 TS="$(date -u '+%Y%m%d-%H%M%S')"
 RELEASE_ID="${SHORT_COMMIT}-${TS}"
@@ -148,9 +156,14 @@ if [ -d "${S9K_ROOT}/current/.git" ]; then
     # release desplegada e invalidaría su checksum (que cubre .git).
     if ! git -C "${RELEASE_DIR}" cat-file -e "${RESOLVED_COMMIT}^{commit}" 2>/dev/null; then
         [ -n "${S9K_REPO_URL}" ] || die "commit ${RESOLVED_COMMIT} no presente en current y sin S9K_REPO_URL para traerlo"
-        git -C "${RELEASE_DIR}" fetch --tags "${S9K_REPO_URL}" "${RESOLVED_COMMIT}" \
+        # Fetch por SHA crudo suele fallar (los servidores no sirven objetos
+        # arbitrarios por defecto); el fallback trae todas las tags/HEAD, con lo
+        # que un commit alcanzable por una tag (p.ej. deploy-v0.3.0-rcN) queda
+        # disponible. Tras traerlo, se re-resuelve con --verify (sin duplicar).
+        git -C "${RELEASE_DIR}" fetch --tags "${S9K_REPO_URL}" "${RESOLVED_COMMIT}" 2>/dev/null \
             || git -C "${RELEASE_DIR}" fetch --tags "${S9K_REPO_URL}"
-        RESOLVED_COMMIT="$(git -C "${RELEASE_DIR}" rev-parse "${RESOLVED_COMMIT}")"
+        RESOLVED_COMMIT="$(git -C "${RELEASE_DIR}" rev-parse --verify -q "${RESOLVED_COMMIT}^{commit}" 2>/dev/null)" \
+            || die "commit ${RELEASE_REF} no resoluble tras fetch desde ${S9K_REPO_URL}"
     fi
     git -C "${RELEASE_DIR}" checkout --detach "${RESOLVED_COMMIT}"
 elif [ -n "${S9K_REPO_URL}" ]; then
