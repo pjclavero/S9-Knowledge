@@ -1,112 +1,108 @@
 # 02 · Estado actual
 
-> Última verificación en VM105: **2026-07-13–14** — commit `cef9233` desplegado (fix: make test suite reproducible and add CI).
-> Tests: **249 recopilados, 249 aprobados**, 0 fallidos, 0 errores de colección (rama `feat/priority-2-extractor-benchmark`, commit `13fcab9`).
-> Benchmark del extractor (Prioridad 2) — ver [docs/34](34-extractor-quality-benchmark-results.md). Mejora Prioridad 2.1 (ver [docs/36](36-extractor-quality-improvement-results.md)): hybrid pasa los umbrales de entidad (F1 0.806, P 0.851, R 0.775); relaciones aún <0.60 y excluidas de autoaprobación. Confirmatorio de 7 fuentes (docs/37, run 20260714-151119, 49 OK): hybrid P 0.878 / R 0.823 / F1 0.846 (pasa umbrales de entidad); relaciones F1 0.163 (<0.60). Revisión humana total (`S9K_REVIEW_POLICY=full_human_review`) impuesta por código (0 autoaprobados, procedencia exigida en ingest). Dictamen 2.1: **COMPLETADA — PREPARADA PARA INGESTA CONTROLADA CON REVISIÓN TOTAL; primera ingesta PREPARADA, NO EJECUTADA.**
-> CI: GitHub Actions activa, 4 jobs verdes (data-engine, viewer, combined, check-imports).
-> Informe de auditoría histórica (v0.2.5b): [docs/24-vm105-baseline-and-verification.md](24-vm105-baseline-and-verification.md) — estado anterior a cef9233.
-> Informe de remediación de tests y CI: [docs/31-test-remediation-and-ci-report.md](31-test-remediation-and-ci-report.md).
-> Backup y validación de Prioridad 1: [docs/32-production-backup-restore-validation.md](32-production-backup-restore-validation.md).
-> Revisar también [project dossier and checklist.md](project%20dossier%20and%20checklist.md).
+> **Documento canónico de estado.** Se deriva de la fuente de verdad (ver la
+> sección final). El estado estructurado y verificable está en
+> [`docs/project-status.yaml`](project-status.yaml); este documento lo narra.
 
-Instantánea verificada a 2026-07-13 (basada en auditoría de VM105 del mismo día).
-> Transcripción de vídeo (docs/40, 2026-07-15): faster-whisper medium APTA CON REVISIÓN DE SEGMENTOS CONFLICTIVOS (91% auto-aceptable; conflictos = nombres propios). Referencia humana pendiente. Sin ingesta.
+- **Fecha de actualización:** 2026-07-18
+- **Versión productiva:** `0.3.0-rc5.1`
+- **Tag:** `deploy-v0.3.0-rc5.1`
+- **Commit:** `47bc3147fdab6b642ab72ffe0cf84133e3a57b2e` (= `main`)
+- **release_id activo:** `deploy--20260718-133409`
 
-> IA externa NVIDIA (docs/42, 2026-07-15): paquete `external_ai` + CLI en **modo sombra** (revisión multi-modelo, consenso, calibración). shadow_mode obligatorio, sin escritura en Neo4j. 22 tests. Validación real pendiente de API key.
+## Producción (VM105, verificado por SSH 2026-07-18)
 
-## HECHO
+| Área | Estado |
+|------|--------|
+| **Visor** | `s9-knowledge-viewer.service` **active/running**, PID 1479559, NRestarts=0. FastAPI/uvicorn en `127.0.0.1:8088`. |
+| **Autenticación** | **Login propio del visor** (formulario con submit explícito, sesiones, CSRF, roles). Basic Auth **retirada** del proxy. 1 administrador activo (`s9admin`), `must_change_password=false`. |
+| **Acceso externo** | `https://knowledge.seccionnueve.duckdns.org` -> nginx VM104 -> `:8088`. HTTPS. Sin Basic Auth (autenticación en la app). |
+| **Neo4j** | Contenedor `neo4j-knowledge`, **199 nodos / 140 relaciones**. Puertos 7474/7687 solo `127.0.0.1`. |
+| **Jobs** | Cola SQLite externa (`/var/lib/s9-knowledge/jobs/jobs.db`): **1 job**. |
+| **Workers** | Worker de cola disponible (echo/noop) y worker multimedia implementados; sin ejecución de ingesta real. |
+| **Healthcheck** | `s9-knowledge-healthcheck.service` (solo lectura) instalado; 2 ejecuciones manuales con `Result=success`. |
+| **Timer** | `s9-knowledge-healthcheck.timer` **enabled + active**: `OnCalendar=hourly`, `Persistent=true`, `RandomizedDelaySec=5m`. Sin timer de 5 min ni duplicados. |
+| **Backups** | `/var/lib/s9-knowledge/backups/` (0700). Backup Neo4j validado (restore 199/140). Los backups de auth/jobs quedan 0700/0600. |
+| **Ingestas aplicadas** | **0**. `S9K_ALLOW_REAL_INGEST` sin definir (off). Ingesta real bloqueada por doble guard. |
 
-### Motor de datos y grafo
-- `data-engine/app/schemas/rpg_schema.py` — **schema v1.5.0** (27 tipos de nodo,
-  113 relaciones, 113 etiquetas ES, vocabularios controlados, normalizadores).
-- `data-engine/app/prompts/rpg_extraction_prompt.py` — prompt v1.4.0.
-- `data-engine/app/ingest_rpg.py` — writer Neo4j (trazabilidad, metadatos, Session).
-- `data-engine/app/jobs/job_store.py` + `jobs/worker.py` — cola SQLite **con worker** (echo/noop).
-- `data-engine/app/access/access_store.py` — usuario-personaje + permisos + audit (no aplicado en UI).
+## Despliegue
 
-### Visor
-- **Visor web desplegado** (FastAPI/uvicorn, `s9-knowledge-viewer.service`, puerto 8088).
-- `/graph` (vis.js), `/jobs` (panel de cola), `/reviews` (panel de revisión enriquecido).
-- `/reviews`: lista de fuentes con badge de origen (local/external/manual/imported),
-  contadores por estado. Detalle de fuente: metadatos del paquete (origin, producer,
-  model, confidence externa/local), cola de revisión con confianza y motivo de decisión
-  por ítem, informe de calidad (`quality_report.json/.md`) cuando existe, estado de
-  todos los ficheros del pipeline.
-- Fix móvil: la ficha lateral ya no tapa el grafo (se cierra/abre al tocar).
+- **Modelo de releases inmutables** bajo `/opt/s9-knowledge/releases/<id>/`, activadas por symlink atómico `current`.
+- **deploy-tools** versionados e independientes de la release:
+  `/opt/s9-knowledge/deploy-tools/47bc314/` con `deploy-tools/current -> 47bc314`.
+- **Estado externo a la release**: `auth.db` y `jobs.db` viven en
+  `/var/lib/s9-knowledge/`; la contraseña **no** la gestiona el despliegue.
+- **Rollback**: la release anterior (`91bdc51-...`, RC4) se conserva como destino
+  de rollback. Retención fail-closed (protege current/previous/tags/proceso vivo).
+- **Resolución de refs** endurecida (RC5.1): `resolve_release_commit` resuelve
+  tags/commits remotos aún no materializados sin duplicar la referencia
+  (regresión forward-ref corregida — ver [docs/51](51-deploy-forward-ref-regression.md)).
 
-### Multimedia y transcripción
-- Worker de ingesta multimedia (`data-engine/app/media/`) — escanea Nextcloud, extrae audio, transcribe.
-- faster-whisper operativo con audios reales de Nextcloud. **`medium` recomendado** (0% error en nombres L5A vs 67% en `small`); no paralelizar (RAM).
-- Glosario L5A + normalizador determinista (`data-engine/app/glossary/`) — ver [18](18-l5a-transcription-glossary-plan-and-test.md).
+### Historial de candidatas
 
-### Pipeline de revisión de datos (rama feat/data-processing-final-v0.2.5)
-- `data-engine/app/review/` — segment → classify → extract → validate → resolve → decide → approved_payload.
-- CLI `data_review.py`, `audit-graph`, ingesta **solo dry-run**:
-  - `ingest_approved.py` aborta con mensaje de autorización si se invoca sin `--dry-run`.
-  - Sin `--dry-run`, no hay escritura en Neo4j bajo ninguna circunstancia.
-  - Doble guard: (1) el propio CLI requiere `--dry-run`; (2) el writer aborta si
-    no lo recibe. Ver [20](20-data-review-and-approved-ingest.md).
-- Revisión humana mínima: solo los candidatos dudosos llegan a `review.md`.
+- **RC4** (`deploy-v0.3.0-rc4`, `91bdc51`) — desplegada 2026-07-17; hoy **previous**/rollback.
+- **RC5** (`deploy-v0.3.0-rc5`, `bcc3a59`) — **candidata NO desplegada**: el cutover se abortó antes de activarse; se conserva para auditoría.
+- **RC5.1** (`deploy-v0.3.0-rc5.1`, `47bc314`) — **ACTIVA en producción**.
 
-## Bloque de tratamiento de datos — cerrado (v0.2.5b)
+## Motor de datos y grafo
 
-El bloque de tratamiento de datos está completo y protegido:
+- `data-engine/app/schemas/rpg_schema.py` — schema RPG (tipos de nodo, relaciones, vocabularios controlados, normalizadores).
+- `data-engine/app/ingest_rpg.py` — writer Neo4j (trazabilidad, procedencia).
+- Pipeline de revisión (`data-engine/app/review/`): segment -> classify -> extract -> validate -> resolve -> decide -> approved_payload.
+- Ingesta controlada **solo dry-run** salvo doble guard (`--dry-run` + `S9K_ALLOW_REAL_INGEST=true`).
+- IA externa (`external_ai`, NVIDIA) en **modo sombra** (sin escritura en Neo4j).
+- Burst orchestrator (Fase B1): planner/dispatcher/mock/CLI; proveedores reales (B2/B3) pendientes.
 
-- **Transcripción/fuente** — faster-whisper medium, rclone mount Nextcloud, pipeline multimedia
-- **Segmentación** — por tiempo/silencio antes de extraer
-- **Extracción endurecida** — heurística con anti-falsos-positivos; LLM/hybrid disponibles
-- **Stopwords** — lista ES, filtra términos vacíos antes de aprobar
-- **Glosario por workspace** — SQLite, 1044 términos L5A, normalizador determinista
-- **Validación** — schema, evidence, origin, workspace, schema_version
-- **Resolución** — similitud con Neo4j, delta ambigüedad 0.10, variantes EN/ES
-- **decision_reason** — 21 razones vocabulario controlado por decisión
-- **approved_payload** — schema_version 1.0, origin, source_kind, generated_at
-- **review_queue** — candidatos que requieren revisión humana antes de ingestar
-- **ingest-approved protegido** — doble guard: `--dry-run` + `S9K_ALLOW_REAL_INGEST=true`
-- **`/reviews`** — panel web con origin, decision_reason, quality_report por fuente
-- **audit-graph** — solo lectura, detecta anomalías en Neo4j sin escribir
-- **export/import** — 4 tipos de paquete, sanitización de rutas/IPs/tokens
-- **Soporte procesamiento externo** — ExternalReviewRequest/Response, ImportedCandidatePackage
-- **Replicabilidad preparada** — variables documentadas, modos A/B/C, hardcode audit
-- **Neo4j protegido** — puertos cerrados a 127.0.0.1, sin escritura sin doble guard
-- **Sin escritura accidental** — external/imported → needs_review, nunca auto_approve
+## Visor
 
-### Infraestructura y seguridad (ver [21](21-external-access-and-security.md))
-- Acceso externo: `https://knowledge.seccionnueve.duckdns.org` (nginx VM104 + Basic Auth).
-- Neo4j cerrado a solo 127.0.0.1 (antes expuesto en LAN/Tailscale).
-- VM105 ampliada a 6 vCPUs.
+- FastAPI desplegado por releases (a través de `current`). Provider Neo4j, auth DB y jobs DB externas.
+- Rutas: `/login`, `/graph` (vis.js), `/jobs`, `/reviews` (panel de revisión enriquecido).
+- Login propio, roles, sesiones, CSRF. Diferencias local/producción documentadas en [viewer/README](../viewer/README.md).
 
-### Integración
-- **main** (cef9233): 220/220 tests, CI 4 jobs verdes, scripts de backup operativos, docs/26–32.
-- Ramas activas: `feat/l5a-transcription-glossary` (glosario), `feat/data-processing-final-v0.2.5` (pipeline de revisión) y otras — pendientes de integración en la secuencia correcta.
+## Seguridad
 
-## NO HECHO / pendiente
+- Basic Auth retirada; autenticación propia del visor con submit explícito (evita autoenvío del navegador/autofill).
+- Neo4j cerrado a `127.0.0.1`. HTTPS en el dominio público.
+- Healthcheck de solo lectura (no reinicia servicios, no escribe en Neo4j/auth/jobs).
 
-- **Calidad del extractor (Prioridad 2).** El pipeline implementa tres modalidades: heurístico, LLM (qwen2.5:7b vía Ollama) e híbrido. El modo heurístico produce falsos positivos conocidos (`Llevás`/`Todo`/`Como` como Character). Los modos LLM/híbrido se evaluaron con el benchmark real (run `20260714-094125`, ver docs/34): F1 entidades agregado hybrid 0.728 / llm 0.718 (precisión llm 0.810, recall hybrid 0.856); relaciones F1≈0; precisión de autoaprobación 0.85. Ningún modo alcanza los umbrales de autoaprobación. **La ingesta real a Neo4j sigue bloqueada** (dictamen Prioridad 2: PARCIAL — REQUIERE CORRECCIONES). Ver docs/34 para las métricas y docs/33 para el plan.
-- Gestión de usuarios y aplicación real de filtros de visibilidad en API/UI.
-- Login propio del visor (hoy solo Basic Auth en el proxy).
-- Importación web real (trafilatura/readability) e integración de YouTube en la cola.
-- Fusión de duplicados del grafo (audit-graph los detecta, no los corrige).
-- Export/import externo de paquetes de revisión: preparado, no completado (ver docs/22
-  cuando esté disponible).
+## Tests y CI
 
-## Backup y recuperación
+- **Suite verde.** A fecha de corte, `pytest --collect-only` recopila **912 tests**
+  (deploy 149, viewer 296, data-engine 467). CI de GitHub Actions en verde en `main`.
+- El número exacto de tests cambia con el desarrollo; la referencia estable es
+  `docs/project-status.yaml` y la ejecución real de CI.
 
-**Backup real de Neo4j**: ✅ Ejecutado y verificado 2026-07-13
-- Método: neo4j-admin database dump (Community Edition, único método consistente)
-- Parada real del contenedor: ~25 segundos
-- Archivo: neo4j-20260713-174909/neo4j.dump — 132 KB — SHA256: c3179c01...
-- Checksum SHA256 generado y verificado en origen
-- Restore en instancia aislada: VERIFICADO (199 nodos / 140 relaciones / 14 labels — idéntico a producción)
-- Rollback por source_id: VALIDADO en laboratorio con datos sintéticos
-- Copia externa a yggdrasil: VERIFICADA 2026-07-14 (SHA256 coincide, permisos 700 root:root)
-- Scripts: scripts/backup/neo4j-backup.sh, neo4j-restore.sh, neo4j-rollback-dryrun.sh
-- Documentación completa: [docs/32-production-backup-restore-validation.md](32-production-backup-restore-validation.md)
+## Deuda técnica y limitaciones conocidas
 
-## Limitaciones conocidas
+- Nombre de `release_id` con doble guion (`deploy--<ts>`) en deploy hacia delante por tag: cosmético; el commit y la verificación son correctos y la retención lo protege.
+- Healthcheck: `ollama` y `nextcloud_rclone` aparecen como `UNKNOWN` ("no configurado") — integraciones opcionales no usadas en este despliegue; el unit las acepta (`SuccessExitStatus=0 1`).
+- Calidad del extractor (Prioridad 2): entidades sobre umbral; **relaciones** aún por debajo -> ingesta real bloqueada.
+- Nodos históricos sin `source_id`/`source_kind` detectados por `audit-graph` (no corregidos).
+- Fusión de duplicados del grafo: detectada por `audit-graph`, no corregida.
 
-- Extractor heurístico con falsos positivos (ver arriba) — no ingestar sin revisar.
-- Recall de **relaciones** limitado con qwen2.5:7b; entidades estables.
-- Nodos históricos sin `source_id`/`source_kind` (~87/~51) detectados por audit-graph.
-- Corrección LLM de transcripción (qwen2.5:7b, bloque completo) no preserva timestamps → queda deshabilitada; se usa el normalizador determinista.
-- `HAS_FOUGHT` con destino Lugar debería degradarse a `FOUGHT_AT`.
+## Bloqueos
+
+- **Primera ingesta real: NO autorizada** (doble guard activo).
+- Proveedores reales de external burst (B2/B3): pendientes.
+
+## Siguiente prioridad
+
+- P0: contratos de review/ingest.
+- P1: panel de revisión operativo + permisos RPG en backend + visibilidad por personaje.
+- P2: primera ingesta controlada (con autorización) + worker real / external burst.
+- P3: limpieza histórica + restore periódico.
+
+## FUENTE DE VERDAD
+
+El estado de este documento **no** se copia de informes anteriores: se deriva de
+
+1. **`main`** del repositorio (`47bc3147...`).
+2. **Tags** de release (`deploy-v0.3.0-rc4/rc5/rc5.1`).
+3. **Manifiestos** de la release activa (`manifest.json`, `deployment-state.json`).
+4. **CI** de GitHub Actions (estado de los jobs).
+5. **Producción** en VM105, verificada por SSH en solo lectura (systemctl, CLI de
+   auth, consultas Neo4j de solo lectura, healthcheck).
+
+El estado estructurado y verificable está en
+[`docs/project-status.yaml`](project-status.yaml), validado por
+[`scripts/check_docs_consistency.py`](../scripts/check_docs_consistency.py).

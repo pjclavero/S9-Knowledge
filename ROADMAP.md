@@ -6,16 +6,43 @@ Ver [project dossier and checklist.md](docs/project%20dossier%20and%20checklist.
 
 ## Secuencia de prioridades
 
+Estados: **COMPLETADO · PARCIAL · PENDIENTE · BLOQUEADO · DEPRECADO**.
+
 ```
-Prioridad 0: COMPLETADA — Motor de datos, pipeline de revisión, tests, CI
-Prioridad 1: COMPLETADA (ver dictamen) — Backup, restore, rollback
-Prioridad 2: PARCIAL — REQUIERE CORRECCIONES. Benchmark real ejecutado (run 20260714-094125): F1 ent hybrid 0.728 / llm 0.718 (P llm 0.810, recall hybrid 0.856); relaciones F1≈0; autoaprobación 0.85<0.95. Ver docs/34.
-Prioridad 2.1: MEJORA (run 20260714-121026, 5 fuentes): hybrid F1 ent 0.806. Ver docs/36.
-Prioridad 2.1: COMPLETADA — PREPARADA PARA INGESTA CONTROLADA CON REVISIÓN TOTAL. Benchmark confirmatorio (run 20260714-151119, 7 fuentes, 49 OK): hybrid P 0.878 / R 0.823 / F1 0.846 (pasa umbrales de entidad); relaciones F1 0.163 (<0.60, excluidas). Revisión humana total impuesta por código (política + procedencia, 15 tests). Primera ingesta PREPARADA, NO EJECUTADA. Ver docs/37.
-Prioridad 3: PENDIENTE — Primera ingesta real controlada
-Prioridad 4: PENDIENTE — Limpieza del grafo histórico
-Prioridad 5: PENDIENTE — Autenticación y seguridad del visor
+Auditoría inicial (v0.2.5b):       COMPLETADO
+Schema RPG:                        COMPLETADO
+Data engine / pipeline revisión:   COMPLETADO
+Benchmark del extractor:           COMPLETADO (dictamen: relaciones por debajo de umbral)
+Revisión externa (NVIDIA sombra):  COMPLETADO (validación real de proveedor: PENDIENTE)
+Writer de ingesta controlada:      COMPLETADO (doble guard)
+Visor web:                         COMPLETADO (desplegado por releases)
+Login propio del visor:            COMPLETADO (Basic Auth retirada)
+Roles y sesiones:                  PARCIAL (login+roles ok; visibilidad por personaje PENDIENTE)
+Acceso externo (HTTPS):            COMPLETADO
+Despliegue por releases:           COMPLETADO (RC5.1 activa; resolución forward-ref corregida)
+Healthcheck operativo:             COMPLETADO
+Timer horario del healthcheck:     COMPLETADO (OnCalendar=hourly, Persistent)
+Panel de revisión:                 PARCIAL (lectura ok; acciones desde UI PENDIENTE)
+Permisos RPG en backend:           PENDIENTE
+Visibilidad por personaje:         PENDIENTE
+Worker multimedia:                 PARCIAL (transcripción manual ok; handlers automáticos PENDIENTE)
+OCR:                               PENDIENTE
+ASR (integración en cola):         PENDIENTE
+External burst B2/B3:              PENDIENTE
+Primera ingesta real:             BLOQUEADO (doble guard; no autorizada)
+Limpieza histórica del grafo:      PENDIENTE
+Backup/restore periódico:          PARCIAL (backup+restore validados; automatización periódica PENDIENTE)
 ```
+
+### Prioridades siguientes
+
+- **P0** — contratos de review/ingest.
+- **P1** — panel de revisión operativo (acciones desde UI).
+- **P1** — permisos RPG en backend.
+- **P2** — primera ingesta controlada (requiere autorización explícita).
+- **P2** — worker real y external burst (B2/B3).
+- **P3** — limpieza histórica del grafo.
+- **P3** — restore periódico programado.
 
 ---
 
@@ -24,10 +51,9 @@ Prioridad 5: PENDIENTE — Autenticación y seguridad del visor
 - Schema RPG v1.5.0: 27 tipos de nodo, 113 relaciones, vocabularios controlados.
 - Pipeline de revisión: segment → classify → extract → validate → resolve → decide → approved_payload.
 - Extractor: modos heurístico, LLM (qwen2.5:7b) e híbrido implementados.
-- Tests: 220/220 en corrida combinada, 0 errores de colección.
-- CI: GitHub Actions con 4 jobs verdes (Python 3.13).
-- VM105: commit cef9233 desplegado, working tree limpio.
-- Commit: `cef9233`
+- Tests: suite verde (recuento actual en [docs/project-status.yaml](docs/project-status.yaml)).
+- CI: GitHub Actions en verde (Python 3.13).
+- Producción: RC5.1 (`47bc314`) desplegada por releases; ver [docs/02-current-state.md](docs/02-current-state.md).
 
 ---
 
@@ -96,12 +122,23 @@ Requiere: Prioridad 1 completa + Prioridad 2 con criterios aceptados.
 
 ---
 
-## Prioridad 5 — Autenticación y seguridad del visor (PENDIENTE)
+## Prioridad 5 — Autenticación y seguridad del visor (PARCIAL)
 
-- [ ] Login propio (hoy solo Basic Auth en proxy nginx)
-- [ ] Usuarios y roles en API/UI
-- [ ] Acciones de revisión desde visor
-- [ ] Permisos RPG aplicados en consultas
+- [x] **Login propio del visor** (formulario con submit explícito, sesiones, CSRF). Basic Auth retirada del proxy. — COMPLETADO
+- [x] Usuarios y roles en la app (1 administrador activo). — COMPLETADO
+- [ ] Acciones de revisión desde el visor. — PENDIENTE
+- [ ] Permisos RPG aplicados en consultas (visibilidad por personaje). — PENDIENTE
+
+---
+
+## Prioridad 6 — Despliegue y operación (COMPLETADA ✅)
+
+- [x] Despliegue por releases inmutables + symlink atómico `current`. — COMPLETADO
+- [x] deploy-tools versionados e independientes de la release. — COMPLETADO
+- [x] Retención fail-closed y verify-deployment fail-closed. — COMPLETADO
+- [x] Resolución de refs remotas (regresión forward-ref corregida, [docs/51](docs/51-deploy-forward-ref-regression.md)). — COMPLETADO
+- [x] Healthcheck operativo + timer horario (`OnCalendar=hourly`, Persistent). — COMPLETADO
+- [x] RC5.1 (`47bc314`) activa en producción; RC5 conservada como candidata no desplegada. — COMPLETADO
 
 ---
 
@@ -110,10 +147,10 @@ Requiere: Prioridad 1 completa + Prioridad 2 con criterios aceptados.
 - `/graph`: vis.js — operativo ✅
 - `/jobs`: panel de cola — implementado como base ✅
 - `/reviews`: panel de revisión en lectura ✅
-- Login propio: PENDIENTE (Prioridad 5)
+- Login propio: **COMPLETADO** (Basic Auth retirada)
 - Acciones de revisión desde UI: PENDIENTE
 - Permisos RPG en API/UI: PENDIENTE
-- Acceso externo: https://knowledge.seccionnueve.duckdns.org (nginx + Basic Auth) ✅
+- Acceso externo: https://knowledge.seccionnueve.duckdns.org (HTTPS, autenticación en la app) ✅
 
 ---
 

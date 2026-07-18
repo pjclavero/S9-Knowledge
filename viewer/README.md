@@ -1,18 +1,32 @@
-# S9 Knowledge — Visor mínimo (v0.2, desarrollo local)
+# S9 Knowledge — Visor web
 
-Visor web de **solo lectura** para consultar el grafo de conocimiento (Neo4j) de
-forma humana, como sustituto mínimo de Neo4j Browser. Esta fase se desarrolla y
-prueba **en local (Windows)**, con datos de ejemplo, sin tocar VM105 ni Neo4j real.
+Visor web (FastAPI/uvicorn) para consultar el grafo de conocimiento (Neo4j) con
+**login propio, roles y sesiones**. **Desplegado en producción** (VM105) mediante
+releases inmutables, servido a través del symlink `current`. En desarrollo se
+ejecuta en local con un provider mock; en producción usa Neo4j real.
+
+## Arquitectura (producción)
+
+- **Provider Neo4j** (`app/providers/neo4j_provider.py`): consultas Cypher de solo
+  lectura contra el contenedor `neo4j-knowledge` (199 nodos / 140 relaciones).
+  Probado y activo en VM105.
+- **Auth DB externa a la release**: `/var/lib/s9-knowledge/auth/auth.db` (usuarios,
+  roles, sesiones). No vive dentro de la release; la contraseña no la gestiona el
+  despliegue.
+- **Jobs DB externa a la release**: `/var/lib/s9-knowledge/jobs/jobs.db`.
+- **Login propio**: formulario con **submit explícito** (evita autoenvío del
+  navegador y autofill del gestor), **sesiones** server-side (cookies HttpOnly/
+  Secure/SameSite), **CSRF** (token HMAC double-submit) y **roles**
+  `admin`/`reviewer`/`viewer`. Basic Auth del proxy **retirada**.
+- **systemd**: `s9-knowledge-viewer.service` (a través de `current`) +
+  `s9-knowledge-healthcheck.service`/`.timer` (healthcheck horario de solo lectura).
 
 ## Proveedores de datos
 
-El visor puede leer de dos fuentes, seleccionables por `.env`:
+Seleccionables por entorno (`S9K_GRAPH_PROVIDER`):
 
-- `S9K_GRAPH_PROVIDER=mock` (por defecto): lee `examples/sample_graph.json`.
-  No requiere Neo4j ni red. Es lo que se usa para desarrollar y probar en local.
-- `S9K_GRAPH_PROVIDER=neo4j`: se conecta a Neo4j real (`app/providers/neo4j_provider.py`).
-  Queda implementado pero **no se ha probado** contra un Neo4j real todavía; se
-  activará en una fase posterior, al desplegar en VM105.
+- `mock` (por defecto en local): lee `examples/sample_graph.json`. Sin Neo4j ni red.
+- `neo4j` (producción): se conecta a Neo4j real. Activo y probado en VM105.
 
 ## Puesta en marcha en Windows (PowerShell)
 
@@ -64,13 +78,13 @@ viewer/
 │   ├── providers/
 │   │   ├── base.py         · interfaz GraphProvider (solo lectura)
 │   │   ├── mock_provider.py· lee examples/sample_graph.json
-│   │   └── neo4j_provider.py· consultas Cypher de solo lectura (sin probar aún)
+│   │   └── neo4j_provider.py· consultas Cypher de solo lectura (activo en producción)
 │   ├── api/                · endpoints JSON /api/*
 │   ├── templates/          · Jinja2 (base/index/graph/entity/status)
 │   └── static/             · CSS oscuro + graph.js (vis-network)
 ├── examples/sample_graph.json  · datos mock (11 nodos, 12 relaciones)
 ├── tests/                  · pytest
-└── systemd/s9-knowledge-viewer.service · unidad systemd, PREPARADA, no instalada
+└── systemd/                · unidades (viewer + healthcheck.service/.timer), instaladas en VM105
 ```
 
 ## Frontend del grafo: vis-network
@@ -88,33 +102,27 @@ Páginas HTML: `GET /`, `GET /graph`, `GET /entity/{entity_id}`, `GET /status`.
 JSON: `GET /api/status`, `GET /api/workspaces`, `GET /api/entity-types`,
 `GET /api/graph`, `GET /api/entity/{entity_id}`, `GET /api/search`.
 
-## Qué NO hace esta fase
+## Diferencias local vs producción
 
-- No escribe en Neo4j (todas las consultas del `Neo4jGraphProvider` son de
-  lectura: `MATCH ... RETURN`, nunca `CREATE`/`SET`/`DELETE`/`MERGE`).
-- No modifica `data-engine` (solo `labels.py` importa, en modo lectura,
-  `RELATION_LABELS_ES` desde `data-engine/app/schemas/rpg_schema.py`, con
-  fallback local si el import falla).
-- No implementa login, permisos, Cloudflare, YouTube/web/audio, ni edición.
-- No toca VM105 ni Nextcloud.
+| | Local (desarrollo) | Producción (VM105) |
+|---|---|---|
+| Provider | `mock` (JSON de ejemplo) | `neo4j` (real, 199/140) |
+| Auth | opcional (`S9K_AUTH_ENABLED`) | **login propio activo**, roles, sesiones, CSRF |
+| Estado | efímero | auth/jobs DB externas en `/var/lib/s9-knowledge` |
+| Arranque | `uvicorn --reload` | `s9-knowledge-viewer.service` vía `current` |
+| Acceso | `127.0.0.1:8088` | HTTPS público (nginx VM104), sin Basic Auth |
 
-## Despliegue futuro en VM105 (referencia, no ejecutado en esta fase)
+## Qué queda incompleto
 
-Cuando se decida desplegar (fase posterior):
+- **Acciones de revisión desde el visor** (aprobar/rechazar en UI): pendiente
+  (hoy `/reviews` es de lectura).
+- **Permisos RPG / visibilidad por personaje** aplicados en API/UI: el modelo
+  existe en `data-engine/app/access/`, aún no se aplica en las consultas del visor.
+- El visor **no escribe en Neo4j** (todas las consultas son `MATCH ... RETURN`).
 
-```bash
-cd /opt/knowledge-services/s9-knowledge-repo/viewer
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env   # ajustar S9K_GRAPH_PROVIDER=neo4j y credenciales reales
-uvicorn app.main:app --host 0.0.0.0 --port 8088
+## Despliegue en producción
 
-sudo cp systemd/s9-knowledge-viewer.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now s9-knowledge-viewer
-sudo systemctl status s9-knowledge-viewer --no-pager
-```
-
-`systemd/s9-knowledge-viewer.service` ya está en el repo con las rutas de
-servidor correctas, pero **no se ha copiado ni activado en VM105** en esta fase.
+El visor se despliega mediante el utillaje de `deploy/` (releases inmutables +
+`current` + deploy-tools versionados). No se instala a mano en VM105; ver
+[docs/47](../docs/47-reproducible-deployment.md), [docs/50](../docs/50-deploy-state-continuity.md)
+y [docs/02-current-state.md](../docs/02-current-state.md).

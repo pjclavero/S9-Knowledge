@@ -217,6 +217,12 @@ jobs:
       - name: Unicode check
         run: python3 .github/scripts/check_unicode.py
 
+      - name: docs consistency
+        run: |
+          set -euo pipefail
+          pip install pyyaml --quiet
+          python3 scripts/check_docs_consistency.py
+
       - name: No secrets in deploy scripts
         run: |
           echo "=== no secretos hardcodeados ==="

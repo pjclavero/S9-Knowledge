@@ -4,6 +4,34 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-07-18 — Despliegue por candidatas RC1–RC5.1 y corrección de la regresión forward-ref
+- **RC5.1** (`deploy-v0.3.0-rc5.1`, `47bc314`) — **DESPLEGADA y activa en producción.**
+  Corrige la regresión de despliegue "forward-ref": desplegar hacia un tag/commit
+  aún no materializado en el object store local fallaba porque
+  `git rev-parse <ref>` imprime su argumento aunque falle y el fallback lo
+  duplicaba (`invalid refspec`). Nueva función central `resolve_release_commit`
+  (un único SHA a stdout, diagnósticos a stderr, rechazo de refs ambiguas /
+  multilínea / con `-` inicial, fetch específico y seguro). Prueba E2E con
+  repositorios git reales. Ver [docs/51](docs/51-deploy-forward-ref-regression.md).
+- **RC5** (`deploy-v0.3.0-rc5`, `bcc3a59`) — candidata **NO desplegada**: el cutover
+  se abortó antes de activarse; se conserva para auditoría.
+- **RC4** (`deploy-v0.3.0-rc4`, `91bdc51`) — login con **submit explícito** (evita el
+  autoenvío del navegador y el autofill del gestor) y garantía de **persistencia de
+  la contraseña**. Fue producción hasta RC5.1; hoy es la release *previous*/rollback.
+- **RC3** (`deploy-v0.3.0-rc3`, `3aae397`) — prevención de auto-submit del login y
+  forzado de cambio de contraseña.
+- **RC2** (`deploy-v0.3.0-rc2`, `f8b6153`) — continuidad de estado: preserva bases
+  legacy y activa releases correctamente.
+- **RC1** (`deploy-v0.3.0-rc1`, `d9af2d3`) — instalación/despliegue reproducible;
+  candidata **rechazada** (la retención la eliminó; reconstruible desde su tag).
+- **Retención fail-closed** y **verify-deployment fail-closed** (pass/fail/warn/skip;
+  protege current/previous/tags/proceso vivo; sin falsos verdes).
+- **Healthcheck** operativo (solo lectura) con **timer horario** (`OnCalendar=hourly`,
+  `Persistent=true`, `RandomizedDelaySec=5m`); retirada del timer de 5 minutos.
+- **Login único del visor**; **Basic Auth retirada** del proxy nginx (VM104).
+- El estado real está en [docs/02-current-state.md](docs/02-current-state.md) y
+  [docs/project-status.yaml](docs/project-status.yaml).
+
 ### 2026-07-15 — Autenticación del visor + endurecimiento de seguridad (docs/44)
 - Autenticación opt-in por sesiones server-side con usuarios locales SQLite: login/logout/cuenta/cambio de contraseña, roles `admin`/`reviewer`/`viewer`, administración de usuarios, auditoría append-only, CLI y migraciones. Con `S9K_AUTH_ENABLED=false` el visor se comporta igual que antes.
 - Hashing Argon2id (o bcrypt); cookies `HttpOnly`/`Secure`/`SameSite=Lax`; sesiones almacenadas solo como SHA-256; bloqueo por intentos fallidos.
@@ -88,7 +116,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 - F1 entidades agregado: heuristic 0.689 · llm 0.718 · hybrid 0.728. Precisión llm 0.810; recall hybrid 0.856.
 - Relaciones F1 ≈ 0 (limitación de prompt/modelo). Autoaprobación P=0.85 (< 0.95).
 - Reproducibilidad: varianza F1 entidades = 0.0 (temp=0, seed=42). Neo4j intacto (199 nodos / 140 rels).
-- Suite: **249 tests** verdes. Detalle completo en `docs/34`.
+- Suite verde en esa fecha. Detalle completo en `docs/34`. (El recuento vigente de la suite está en [docs/project-status.yaml](docs/project-status.yaml).)
 - **Dictamen: Prioridad 2 PARCIAL — REQUIERE CORRECCIONES. Primera ingesta controlada: BLOQUEADA.**
 
 ### 2026-07-14 — Prioridad 2 FASE 2: Correcciones de benchmark + ground truth pase 2

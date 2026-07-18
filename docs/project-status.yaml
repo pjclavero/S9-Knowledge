@@ -1,0 +1,49 @@
+# project-status.yaml — estado estructurado de S9 Knowledge (fuente de coherencia)
+#
+# Fuente de verdad: main + tags + manifest de la release activa + CI + estado
+# productivo verificado por SSH en VM105. NO contiene secretos, IP privadas
+# innecesarias, tokens ni hashes. Es la referencia para
+# scripts/check_docs_consistency.py.
+#
+# Actualizado tras el despliegue de RC5.1 (2026-07-18).
+
+project_version: "0.3.0-rc5.1"
+main_commit: "47bc3147fdab6b642ab72ffe0cf84133e3a57b2e"
+
+production_tag: "deploy-v0.3.0-rc5.1"
+production_commit: "47bc3147fdab6b642ab72ffe0cf84133e3a57b2e"
+production_release_id: "deploy--20260718-133409"
+
+# Recuento real de la suite (pytest --collect-only, main 47bc314).
+# Preferir "suite verde" en prosa; este número es orientativo y cambia.
+tests_collected: 912
+ci_status: "green"
+
+neo4j_nodes: 199
+neo4j_relationships: 140
+
+active_admins: 1
+jobs: 1
+ingestions_applied: 0
+
+health_timer: "active_hourly"          # OnCalendar=hourly, Persistent, RandomizedDelaySec=5m
+viewer_status: "active_running"        # s9-knowledge-viewer.service
+
+last_verified_at: "2026-07-18T13:45:00Z"
+
+# --- contexto de despliegue (no versionar secretos) ---
+deployment:
+  active_release: "deploy--20260718-133409"
+  previous_release: "91bdc51-20260717-211720"    # RC4, conservada para rollback
+  deploy_tools: "/opt/s9-knowledge/deploy-tools/47bc314 (current -> 47bc314)"
+  auth: "login propio del visor; Basic Auth retirada del proxy"
+  auth_db: "externa a la release (/var/lib/s9-knowledge/auth/auth.db)"
+  jobs_db: "externa a la release (/var/lib/s9-knowledge/jobs/jobs.db)"
+  password_managed_by_deploy: false
+  real_ingest_flag: "S9K_ALLOW_REAL_INGEST unset (off)"
+
+# Releases candidatas conservadas para auditoria (no activas):
+release_candidates:
+  rc4: {tag: "deploy-v0.3.0-rc4", commit: "91bdc5148308d20c4cb76b44280dd7e1aafeb9e3", state: "previous, rollback target"}
+  rc5: {tag: "deploy-v0.3.0-rc5", commit: "bcc3a59c3b0097a5ea24f9b76507760f412268d6", state: "candidata NO desplegada (cutover abortado)"}
+  rc5_1: {tag: "deploy-v0.3.0-rc5.1", commit: "47bc3147fdab6b642ab72ffe0cf84133e3a57b2e", state: "ACTIVA en produccion"}
