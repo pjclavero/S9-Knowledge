@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0.0",
+  "document_type": "review-source-summary",
+  "document_id": "review-source-summary_sum_01",
+  "created_at": "2026-07-18T12:00:00Z",
+  "workspace": "lab_demo",
+  "source_id": "src_demo_01",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "review_generation": 1,
+  "producer": {
+    "kind": "ENGINE",
+    "name": "s9k-data-engine",
+    "version": "0.3.0",
+    "model": null
+  },
+  "provenance": {
+    "source_id": "src_demo_01",
+    "source_hash": {
+      "algorithm": "sha256",
+      "value": "1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    "review_generation": 1,
+    "pipeline_version": "0.3.0",
+    "producer": {
+      "kind": "ENGINE",
+      "name": "s9k-data-engine",
+      "version": "0.3.0",
+      "model": null
+    }
+  },
+  "source_kind": "TEXT",
+  "source_document": "src_demo_01.md",
+  "status": "IN_REVIEW",
+  "segments_total": 3,
+  "segments_reviewed": 1,
+  "candidates_total": 3,
+  "pending": 1,
+  "auto_approvable": 0,
+  "approved": 0,
+  "edited": 0,
+  "use_existing": 1,
+  "deferred": 0,
+  "conflicts": 1,
+  "rejected": 0,
+  "ready_to_plan": false,
+  "updated_at": "2026-07-18T12:30:00Z",
+  "blocking_reasons": [
+    "OPEN_CONFLICT",
+    "PENDING_ITEMS"
+  ]
+}
