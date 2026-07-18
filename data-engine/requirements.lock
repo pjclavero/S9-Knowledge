@@ -29,6 +29,8 @@ idna==3.18
 iniconfig==2.3.0
 Jinja2==3.1.6
 joblib==1.5.3
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
 llama-index-core==0.14.23
 llama-index-embeddings-ollama==0.9.0
 llama-index-graph-stores-neo4j==0.7.0
@@ -60,8 +62,10 @@ pytest-asyncio==1.4.0
 python-dotenv==1.2.2
 pytz==2026.2
 PyYAML==6.0.3
+referencing==0.37.0
 regex==2026.6.28
 requests==2.34.2
+rpds-py==2026.6.3
 setuptools==83.0.0
 six==1.17.0
 soupsieve==2.8.4
