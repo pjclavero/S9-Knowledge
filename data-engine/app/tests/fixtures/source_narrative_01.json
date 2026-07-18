@@ -1,0 +1,93 @@
+{
+  "_comment": "Fixture SINTETICA y ANONIMIZADA para la politica de ingesta controlada v1. No procede de ninguna review productiva. 8 candidatos: 4 entidades a aprobar (4 WOULD_CREATE), 4 diferidos. 0 relaciones. Usada por test_controlled_ingest_policy.py.",
+  "workspace": "lab_workspace",
+  "source_id": "src_narrative_01",
+  "source_hash_value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "review_generation": 1,
+  "source_kind": "TEXT",
+  "source_document": "narrativa_anonimizada_01.txt",
+  "segments_total": 4,
+  "segments_reviewed": 4,
+  "candidates": [
+    {
+      "candidate_id": "cand_a1",
+      "segment_id": "seg_0001",
+      "kind": "entity",
+      "name": "Alpha Uno",
+      "entity_type": "Character",
+      "confidence": 0.81,
+      "evidence": "Alpha Uno cruzo el puente al amanecer.",
+      "decision_action": "APPROVE"
+    },
+    {
+      "candidate_id": "cand_b2",
+      "segment_id": "seg_0001",
+      "kind": "entity",
+      "name": "Beta Dos",
+      "entity_type": "Character",
+      "confidence": 0.79,
+      "evidence": "Beta Dos guardaba la puerta norte.",
+      "decision_action": "APPROVE"
+    },
+    {
+      "candidate_id": "cand_c3",
+      "segment_id": "seg_0002",
+      "kind": "location",
+      "name": "Fortaleza Gamma",
+      "entity_type": "Location",
+      "confidence": 0.76,
+      "evidence": "La Fortaleza Gamma dominaba el valle.",
+      "decision_action": "APPROVE"
+    },
+    {
+      "candidate_id": "cand_d4",
+      "segment_id": "seg_0002",
+      "kind": "entity",
+      "name": "Delta Cuatro",
+      "entity_type": "Faction",
+      "confidence": 0.74,
+      "evidence": "Los Delta Cuatro negociaron una tregua.",
+      "decision_action": "APPROVE"
+    },
+    {
+      "candidate_id": "cand_e5",
+      "segment_id": "seg_0003",
+      "kind": "entity",
+      "name": "Epsilon Cinco",
+      "entity_type": "Character",
+      "confidence": 0.51,
+      "evidence": "Alguien llamado Epsilon Cinco, quiza.",
+      "decision_action": "DEFER"
+    },
+    {
+      "candidate_id": "cand_f6",
+      "segment_id": "seg_0003",
+      "kind": "object",
+      "name": "Reliquia Zeta",
+      "entity_type": "Object",
+      "confidence": 0.48,
+      "evidence": "Se menciono una reliquia sin nombre claro.",
+      "decision_action": "DEFER"
+    },
+    {
+      "candidate_id": "cand_g7",
+      "segment_id": "seg_0004",
+      "kind": "entity",
+      "name": "Eta Siete",
+      "entity_type": "Character",
+      "confidence": 0.44,
+      "evidence": "Nombre dudoso, requiere segunda pasada.",
+      "decision_action": "DEFER"
+    },
+    {
+      "candidate_id": "cand_h8",
+      "segment_id": "seg_0004",
+      "kind": "relation",
+      "name": "ALLIED_WITH",
+      "entity_type": "Relation",
+      "confidence": 0.60,
+      "evidence": "Alpha Uno y Beta Dos parecian aliados.",
+      "decision_action": "DEFER"
+    }
+  ]
+}
