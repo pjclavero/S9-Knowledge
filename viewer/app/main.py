@@ -28,6 +28,7 @@ from app.auth.dependencies import (
 from app.auth.models import User
 from app.auth.security import enforce_auth_security
 from app.auth import db as auth_db
+from app.authz.dependencies import get_filtered_provider
 from app.config import get_settings
 from app.deps import get_default_workspace, get_provider
 from app.jobs_client import get_counts_by_status, get_job, jobs_db_status, list_jobs, serialize_job
@@ -405,7 +406,7 @@ def graph_view(request: Request):
 
 
 @app.get("/status", response_class=HTMLResponse)
-def status_view(request: Request, provider: GraphProvider = Depends(get_provider)):
+def status_view(request: Request, provider: GraphProvider = Depends(get_filtered_provider)):
     guard = _require_user_or_redirect(request)
     if guard is not None and not isinstance(guard, User):
         return guard
@@ -417,7 +418,7 @@ def status_view(request: Request, provider: GraphProvider = Depends(get_provider
 def entity_view(
     request: Request,
     entity_id: str,
-    provider: GraphProvider = Depends(get_provider),
+    provider: GraphProvider = Depends(get_filtered_provider),
 ):
     guard = _require_user_or_redirect(request)
     if guard is not None and not isinstance(guard, User):

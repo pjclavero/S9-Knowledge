@@ -29,12 +29,17 @@ _ALL = 10_000_000
 
 
 class PolicyFilteredProvider(GraphProvider):
-    name = "policy-filtered"
-
     def __init__(self, base: GraphProvider, ctx: ViewerContext, policy: VisibilityPolicy | None = None):
         self._base = base
         self._ctx = ctx
         self._policy = policy or VisibilityPolicy()
+
+    @property
+    def name(self) -> str:
+        # Proxy transparente: reporta la identidad del provider base para que
+        # /api/status (nombre + conectividad reales) no se rompa al envolverlo.
+        # El filtrado ocurre en los métodos de datos, no en la identidad.
+        return self._base.name
 
     # -- passthrough de conectividad -----------------------------------------
     def is_connected(self) -> bool:
