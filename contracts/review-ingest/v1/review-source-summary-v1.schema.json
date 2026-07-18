@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/review-ingest/v1/review-source-summary-v1.schema.json",
+  "title": "review-source-summary v1",
+  "description": "Resumen de una fuente para el panel: permite listar sin cargar todos los candidatos. La coherencia de conteos se valida ademas semanticamente (validator.py).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "document_type", "document_id", "created_at", "workspace",
+    "source_id", "source_hash", "review_generation", "producer", "provenance",
+    "source_kind", "source_document", "status",
+    "segments_total", "segments_reviewed", "candidates_total",
+    "approved", "edited", "use_existing", "deferred", "conflicts", "rejected",
+    "pending", "auto_approvable", "ready_to_plan", "updated_at"
+  ],
+  "properties": {
+    "schema_version": { "$ref": "_common-v1.schema.json#/$defs/schema_version" },
+    "document_type": { "const": "review-source-summary" },
+    "document_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "created_at": { "$ref": "_common-v1.schema.json#/$defs/iso8601_utc" },
+    "workspace": { "$ref": "_common-v1.schema.json#/$defs/workspace" },
+    "source_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "source_hash": { "$ref": "_common-v1.schema.json#/$defs/hash" },
+    "review_generation": { "$ref": "_common-v1.schema.json#/$defs/review_generation" },
+    "producer": { "$ref": "_common-v1.schema.json#/$defs/producer" },
+    "provenance": { "$ref": "_common-v1.schema.json#/$defs/provenance" },
+
+    "source_kind": { "type": "string", "enum": ["PDF", "TEXT", "AUDIO", "VIDEO", "WEB", "NOTE", "IMPORTED"] },
+    "source_document": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "status": { "type": "string", "enum": ["IN_REVIEW", "READY", "BLOCKED", "PLANNED", "SUPERSEDED"] },
+    "segments_total": { "type": "integer", "minimum": 0 },
+    "segments_reviewed": { "type": "integer", "minimum": 0 },
+    "candidates_total": { "type": "integer", "minimum": 0 },
+    "pending": { "type": "integer", "minimum": 0 },
+    "auto_approvable": { "type": "integer", "minimum": 0 },
+    "approved": { "type": "integer", "minimum": 0 },
+    "edited": { "type": "integer", "minimum": 0 },
+    "use_existing": { "type": "integer", "minimum": 0 },
+    "deferred": { "type": "integer", "minimum": 0 },
+    "conflicts": { "type": "integer", "minimum": 0 },
+    "rejected": { "type": "integer", "minimum": 0 },
+    "ready_to_plan": { "type": "boolean" },
+    "blocking_reasons": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 256 }
+    },
+    "updated_at": { "$ref": "_common-v1.schema.json#/$defs/iso8601_utc" },
+    "metadata": { "$ref": "_common-v1.schema.json#/$defs/metadata" }
+  }
+}

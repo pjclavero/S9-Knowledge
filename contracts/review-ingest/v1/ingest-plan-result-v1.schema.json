@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/review-ingest/v1/ingest-plan-result-v1.schema.json",
+  "title": "ingest-plan-result v1",
+  "description": "Resultado de un DRY_RUN o APPLY. En v1, PARTIAL esta prohibido para APPLY salvo que se declare rollback transaccional demostrado.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "document_type", "document_id", "created_at", "workspace",
+    "source_id", "source_hash", "review_generation", "producer", "provenance",
+    "execution_id", "plan_id", "mode", "started_at", "finished_at", "status",
+    "operations", "summary"
+  ],
+  "properties": {
+    "schema_version": { "$ref": "_common-v1.schema.json#/$defs/schema_version" },
+    "document_type": { "const": "ingest-plan-result" },
+    "document_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "created_at": { "$ref": "_common-v1.schema.json#/$defs/iso8601_utc" },
+    "workspace": { "$ref": "_common-v1.schema.json#/$defs/workspace" },
+    "source_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "source_hash": { "$ref": "_common-v1.schema.json#/$defs/hash" },
+    "review_generation": { "$ref": "_common-v1.schema.json#/$defs/review_generation" },
+    "producer": { "$ref": "_common-v1.schema.json#/$defs/producer" },
+    "provenance": { "$ref": "_common-v1.schema.json#/$defs/provenance" },
+
+    "execution_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "plan_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "mode": { "type": "string", "enum": ["DRY_RUN", "APPLY"] },
+    "started_at": { "$ref": "_common-v1.schema.json#/$defs/iso8601_utc" },
+    "finished_at": { "$ref": "_common-v1.schema.json#/$defs/iso8601_utc" },
+    "status": { "type": "string", "enum": ["SUCCEEDED", "BLOCKED", "FAILED", "PARTIAL"] },
+    "transactional_rollback_demonstrated": {
+      "type": "boolean",
+      "description": "Solo con esto en true se admite PARTIAL en APPLY."
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["operation_id", "result"],
+        "properties": {
+          "operation_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+          "result": { "$ref": "_common-v1.schema.json#/$defs/execution_op_status" },
+          "target_entity_id": { "anyOf": [ { "$ref": "_common-v1.schema.json#/$defs/stable_id" }, { "type": "null" } ] },
+          "detail": { "type": "string", "maxLength": 512 }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["would_create", "created", "skipped", "conflict", "failed", "rolled_back"],
+      "properties": {
+        "would_create": { "type": "integer", "minimum": 0 },
+        "created": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "conflict": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "rolled_back": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "neo4j_before": { "$ref": "#/$defs/graph_counts" },
+    "neo4j_after": { "$ref": "#/$defs/graph_counts" },
+    "errors": { "type": "array", "items": { "type": "string", "maxLength": 512 } },
+    "warnings": { "type": "array", "items": { "type": "string", "maxLength": 512 } },
+    "metadata": { "$ref": "_common-v1.schema.json#/$defs/metadata" }
+  },
+  "allOf": [
+    {
+      "$comment": "DRY_RUN nunca crea: created/rolled_back deben ser 0.",
+      "if": { "properties": { "mode": { "const": "DRY_RUN" } } },
+      "then": { "properties": { "summary": { "properties": {
+        "created": { "const": 0 },
+        "rolled_back": { "const": 0 }
+      } } } }
+    },
+    {
+      "$comment": "PARTIAL en APPLY exige rollback transaccional demostrado.",
+      "if": {
+        "properties": { "mode": { "const": "APPLY" }, "status": { "const": "PARTIAL" } },
+        "required": ["mode", "status"]
+      },
+      "then": {
+        "required": ["transactional_rollback_demonstrated"],
+        "properties": { "transactional_rollback_demonstrated": { "const": true } }
+      }
+    }
+  ],
+  "$defs": {
+    "graph_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodes", "relationships"],
+      "properties": {
+        "nodes": { "type": "integer", "minimum": 0 },
+        "relationships": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

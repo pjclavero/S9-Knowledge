@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/review-ingest/v1/_common-v1.schema.json",
+  "title": "S9 Knowledge review/ingest contracts v1 — definiciones comunes",
+  "description": "Fuente ÚNICA de enums, envelope, hashes y procedencia para los seis documentos v1. Motor y visor referencian estas definiciones; no se duplican en data-engine ni viewer.",
+  "$defs": {
+    "iso8601_utc": {
+      "type": "string",
+      "description": "Fecha-hora en UTC ISO-8601, terminada en Z.",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+    },
+    "stable_id": {
+      "type": "string",
+      "description": "Identificador estable, sin espacios, no dependiente del orden de arrays, sin información sensible.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "workspace": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Bóveda/campaña. Espacio de nombres que evita colisiones de IDs entre workspaces."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Version semantica del contrato. Los consumidores DEBEN rechazar una version mayor desconocida.",
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
+    },
+    "review_generation": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Generacion inmutable de revision. Se incrementa; nunca se sobrescribe una generacion anterior."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confianza en [0,1]. NUNCA es razon suficiente por si sola para AUTO_APPROVABLE."
+    },
+    "hash": {
+      "type": "object",
+      "description": "Hash con algoritmo explicito. No se aceptan hashes sin algoritmo.",
+      "additionalProperties": false,
+      "required": ["algorithm", "value"],
+      "properties": {
+        "algorithm": { "type": "string", "enum": ["sha256"] },
+        "value": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "producer": {
+      "type": "object",
+      "description": "Quien produjo el documento (herramienta/modelo), sin secretos.",
+      "additionalProperties": false,
+      "required": ["kind", "name", "version"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["ENGINE", "POLICY_ENGINE", "EXTERNAL_AI_SHADOW", "HUMAN_TOOL"] },
+        "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "model": { "type": ["string", "null"], "maxLength": 128 }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Procedencia obligatoria: liga el documento a su fuente y generacion.",
+      "additionalProperties": false,
+      "required": ["source_id", "source_hash", "review_generation", "pipeline_version"],
+      "properties": {
+        "source_id": { "$ref": "#/$defs/stable_id" },
+        "source_hash": { "$ref": "#/$defs/hash" },
+        "review_generation": { "$ref": "#/$defs/review_generation" },
+        "pipeline_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "producer": { "$ref": "#/$defs/producer" },
+        "notes": { "type": "string", "maxLength": 2000 }
+      }
+    },
+    "candidate_status": {
+      "type": "string",
+      "enum": [
+        "PENDING", "AUTO_APPROVABLE", "REQUIRES_REVIEW", "APPROVED",
+        "EDITED", "USE_EXISTING", "DEFERRED", "CONFLICT", "REJECTED"
+      ]
+    },
+    "plan_status": {
+      "type": "string",
+      "enum": ["DRAFT", "READY_TO_APPLY", "BLOCKED", "APPLIED", "FAILED", "SUPERSEDED"]
+    },
+    "review_action": {
+      "type": "string",
+      "enum": ["APPROVE", "EDIT", "USE_EXISTING", "DEFER", "REJECT", "RESOLVE_CONFLICT"]
+    },
+    "reviewer_type": {
+      "type": "string",
+      "enum": ["HUMAN", "POLICY_ENGINE", "EXTERNAL_AI_SHADOW"]
+    },
+    "dry_run_result": {
+      "type": "string",
+      "enum": [
+        "WOULD_CREATE", "WOULD_UPDATE", "WOULD_LINK_EXISTING", "DEFERRED",
+        "CONFLICT_EXISTING", "AMBIGUOUS", "BLOCKED", "NO_OP"
+      ]
+    },
+    "operation_type": {
+      "type": "string",
+      "enum": ["CREATE_ENTITY", "UPDATE_ENTITY", "LINK_EXISTING", "CREATE_RELATION", "UPDATE_RELATION"]
+    },
+    "execution_op_status": {
+      "type": "string",
+      "enum": ["WOULD_CREATE", "CREATED", "SKIPPED", "CONFLICT", "FAILED", "ROLLED_BACK"]
+    },
+    "attributes": {
+      "type": "object",
+      "description": "Bloque de atributos RPG expresamente extensible (unico lugar, junto con metadata, donde se permite additionalProperties).",
+      "additionalProperties": true
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Metadatos extensibles no sensibles.",
+      "additionalProperties": true
+    }
+  }
+}

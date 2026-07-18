@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0.0",
+  "document_type": "ingest-plan",
+  "document_id": "ingest-plan_002",
+  "created_at": "2026-07-18T14:00:00Z",
+  "workspace": "leyenda",
+  "source_id": "src_narrative_01",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "review_generation": 1,
+  "producer": {
+    "kind": "ENGINE",
+    "name": "s9k-data-engine",
+    "version": "0.3.0",
+    "model": null
+  },
+  "provenance": {
+    "source_id": "src_narrative_01",
+    "source_hash": {
+      "algorithm": "sha256",
+      "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "review_generation": 1,
+    "pipeline_version": "0.3.0",
+    "producer": {
+      "kind": "ENGINE",
+      "name": "s9k-data-engine",
+      "version": "0.3.0",
+      "model": null
+    }
+  },
+  "plan_id": "plan_002",
+  "plan_version": "1.0.0",
+  "review_document_id": "rev_001",
+  "review_hash": {
+    "algorithm": "sha256",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "created_by": {
+    "kind": "ENGINE",
+    "name": "s9k-data-engine",
+    "version": "0.3.0",
+    "model": null
+  },
+  "status": "BLOCKED",
+  "relations_enabled": false,
+  "preconditions": [
+    {
+      "precondition_id": "pre_001",
+      "kind": "REVIEW_HASH_MATCHES",
+      "expected": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "operations": [
+    {
+      "operation_id": "op_001",
+      "operation_type": "CREATE_ENTITY",
+      "candidate_id": "cand_001",
+      "target_entity_id": null,
+      "payload": {
+        "canonical_name": "Tamori Shinjo"
+      },
+      "provenance": {
+        "source_id": "src_narrative_01",
+        "source_hash": {
+          "algorithm": "sha256",
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "review_generation": 1,
+        "pipeline_version": "0.3.0",
+        "producer": {
+          "kind": "ENGINE",
+          "name": "s9k-data-engine",
+          "version": "0.3.0",
+          "model": null
+        }
+      },
+      "expected_state": "WOULD_CREATE",
+      "idempotency_key": "idem_001"
+    }
+  ],
+  "deferred_items": [
+    "cand_003",
+    "cand_004"
+  ],
+  "conflicts": [
+    {
+      "candidate_id": "cand_005",
+      "reason": "duplicado ambiguo"
+    }
+  ],
+  "warnings": [],
+  "summary": {
+    "would_create": 0,
+    "would_update": 0,
+    "would_link_existing": 0,
+    "deferred": 4,
+    "conflicts": 1,
+    "relations": 0
+  },
+  "authorization": {
+    "required": true,
+    "granted": false
+  }
+}

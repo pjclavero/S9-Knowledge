@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0.0",
+  "document_type": "review-candidate",
+  "document_id": "review-candidate_001",
+  "created_at": "2026-07-18T14:00:00Z",
+  "workspace": "leyenda",
+  "source_id": "src_narrative_01",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "review_generation": 1,
+  "producer": {
+    "kind": "ENGINE",
+    "name": "s9k-data-engine",
+    "version": "0.3.0",
+    "model": null
+  },
+  "provenance": {
+    "source_id": "src_narrative_01",
+    "source_hash": {
+      "algorithm": "sha256",
+      "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "review_generation": 1,
+    "pipeline_version": "0.3.0",
+    "producer": {
+      "kind": "ENGINE",
+      "name": "s9k-data-engine",
+      "version": "0.3.0",
+      "model": null
+    }
+  },
+  "candidate_id": "cand_001",
+  "segment_id": "seg_001",
+  "candidate_kind": "ENTITY",
+  "entity_type": "Character",
+  "canonical_name": "Tamori Shinjo",
+  "display_name": "Tamori Shinjo",
+  "aliases": [
+    "Shinjo"
+  ],
+  "description": "Shugenja de la familia Tamori.",
+  "attributes": {
+    "clan": "Dragon"
+  },
+  "confidence": 1.5,
+  "evidence": [
+    {
+      "evidence_id": "ev_001",
+      "quote": "Tamori Shinjo invoco el kami.",
+      "location": {
+        "kind": "PAGE_RANGE",
+        "page_start": 3,
+        "page_end": 4
+      }
+    }
+  ],
+  "source_location": {
+    "kind": "PAGE_RANGE",
+    "page_start": 3,
+    "page_end": 4
+  },
+  "existing_matches": [],
+  "proposed_status": "REQUIRES_REVIEW",
+  "policy_reasons": [
+    "NEW_ENTITY",
+    "RELATION_UNSUPPORTED"
+  ],
+  "requires_review": true,
+  "created_by": {
+    "kind": "ENGINE",
+    "name": "s9k-data-engine",
+    "version": "0.3.0",
+    "model": null
+  }
+}

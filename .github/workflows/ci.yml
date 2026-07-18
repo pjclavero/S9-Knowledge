@@ -119,6 +119,30 @@ jobs:
         run: |
           python -m pytest --tb=short --no-header -q
 
+  review-ingest-contracts:
+    name: Contratos review/ingest v1 (JSON Schema)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install JSON Schema tooling
+        run: |
+          # Sin `|| true`: si falta jsonschema el gate falla, no pasa en verde.
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install "jsonschema>=4.18,<5.0" "pytest>=8.2,<9.0"
+          python -c "import jsonschema, referencing; print('jsonschema', jsonschema.__version__)"
+
+      - name: Validate contracts (schemas + examples + semantics)
+        run: |
+          set -euo pipefail
+          python -m pytest contracts/review-ingest/v1/tests/ -q
+
   check-unicode:
     name: No dangerous Unicode (Trojan Source)
     runs-on: ubuntu-latest
