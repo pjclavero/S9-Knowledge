@@ -90,20 +90,21 @@ log "=== DEPLOY S9 Knowledge (continuidad de estado) ==="
 log "    entorno=${ENVIRONMENT} ref=${RELEASE_REF} modo=${MODE} $([ "${DRY_RUN}" -eq 1 ] && echo DRY-RUN || echo APLICAR)"
 [ "${DRY_RUN}" -eq 1 ] && warn "DRY-RUN: no se modificará nada."
 
-# Resolver commit + release id (sin efectos secundarios)
+# En lab se admiten branches como ref; en producción solo tags deploy-* o SHA.
+ALLOW_BRANCH_ARGS=()
+[ "${ENVIRONMENT}" = "lab" ] && ALLOW_BRANCH_ARGS=(--allow-branch)
+
+# Resolver commit + release id (sin efectos secundarios). La resolución
+# definitiva (con fetch) ocurre en el paso 2 sobre la copia nueva; aquí solo se
+# intenta resolver en LOCAL para nombrar la release. resolve_release_commit
+# emite EXCLUSIVAMENTE un SHA en stdout (o nada + rc!=0): nunca duplica el ref.
 RESOLVED_COMMIT="${RELEASE_REF}"
 SHORT_COMMIT="${RELEASE_REF:0:7}"
 if [ -d "${S9K_ROOT}/current/.git" ] || [ -d "${S9K_ROOT}/.git" ]; then
     _git_dir="${S9K_ROOT}/current"; [ -d "${_git_dir}/.git" ] || _git_dir="${S9K_ROOT}"
-    # `git rev-parse <ref>` imprime el propio argumento en stdout aunque falle,
-    # de modo que `$(rev-parse ... || printf ...)` DUPLICA el ref cuando el
-    # commit todavía no está en `current` (caso normal de deploy hacia delante:
-    # el objetivo se trae por fetch en el paso 2). Se usa `--verify -q`, que es
-    # silencioso y no emite nada al fallar; si no resuelve, se conserva el ref
-    # literal (una sola vez) para que el fetch posterior lo materialice.
-    if _resolved="$(git -C "${_git_dir}" rev-parse --verify -q "${RELEASE_REF}^{commit}" 2>/dev/null)"; then
+    if _resolved="$(resolve_release_commit "${RELEASE_REF}" --work-dir "${_git_dir}" "${ALLOW_BRANCH_ARGS[@]}" 2>/dev/null)"; then
         RESOLVED_COMMIT="${_resolved}"
-        SHORT_COMMIT="$(git -C "${_git_dir}" rev-parse --short "${_resolved}" 2>/dev/null || printf '%s' "${_resolved:0:7}")"
+        SHORT_COMMIT="${_resolved:0:7}"
     fi
 fi
 TS="$(date -u '+%Y%m%d-%H%M%S')"
@@ -148,26 +149,27 @@ mkdir -p "${S9K_ROOT}/releases" "${RELEASE_DIR}"
 _CLEANUP_TMPDIR="${RELEASE_DIR}"
 if [ -f "${S9K_CONFIG_ROOT}/deploy.env" ]; then set +u; . "${S9K_CONFIG_ROOT}/deploy.env" 2>/dev/null || true; set -u; fi
 S9K_REPO_URL="${S9K_REPO_URL:-}"
+REPO_URL_ARGS=()
+[ -n "${S9K_REPO_URL}" ] && REPO_URL_ARGS=(--repo-url "${S9K_REPO_URL}")
 if [ -d "${S9K_ROOT}/current/.git" ]; then
     git clone --local --no-hardlinks "${S9K_ROOT}/current" "${RELEASE_DIR}" 2>/dev/null \
         || git clone --no-local "${S9K_ROOT}/current" "${RELEASE_DIR}"
-    # Un commit posterior a la release activa no está en su object store. Se
-    # trae DENTRO de la release nueva: hacer fetch en `current` modificaría la
-    # release desplegada e invalidaría su checksum (que cubre .git).
-    if ! git -C "${RELEASE_DIR}" cat-file -e "${RESOLVED_COMMIT}^{commit}" 2>/dev/null; then
-        [ -n "${S9K_REPO_URL}" ] || die "commit ${RESOLVED_COMMIT} no presente en current y sin S9K_REPO_URL para traerlo"
-        # Fetch por SHA crudo suele fallar (los servidores no sirven objetos
-        # arbitrarios por defecto); el fallback trae todas las tags/HEAD, con lo
-        # que un commit alcanzable por una tag (p.ej. deploy-v0.3.0-rcN) queda
-        # disponible. Tras traerlo, se re-resuelve con --verify (sin duplicar).
-        git -C "${RELEASE_DIR}" fetch --tags "${S9K_REPO_URL}" "${RESOLVED_COMMIT}" 2>/dev/null \
-            || git -C "${RELEASE_DIR}" fetch --tags "${S9K_REPO_URL}"
-        RESOLVED_COMMIT="$(git -C "${RELEASE_DIR}" rev-parse --verify -q "${RESOLVED_COMMIT}^{commit}" 2>/dev/null)" \
-            || die "commit ${RELEASE_REF} no resoluble tras fetch desde ${S9K_REPO_URL}"
+    # Resolución definitiva del commit objetivo DENTRO de la copia nueva (nunca
+    # en `current`: un fetch ahí invalidaría su checksum, que cubre .git). Un
+    # commit posterior a la release activa no está en su object store; en ese
+    # caso resolve_release_commit hace un fetch seguro desde S9K_REPO_URL. La
+    # función emite SOLO un SHA (nunca duplica el ref) y falla con rc!=0.
+    if ! RESOLVED_COMMIT="$(resolve_release_commit "${RELEASE_REF}" \
+            --work-dir "${RELEASE_DIR}" "${REPO_URL_ARGS[@]}" "${ALLOW_BRANCH_ARGS[@]}")"; then
+        die "commit ${RELEASE_REF} no resoluble a un commit (¿deploy hacia delante sin S9K_REPO_URL?)"
     fi
     git -C "${RELEASE_DIR}" checkout --detach "${RESOLVED_COMMIT}"
 elif [ -n "${S9K_REPO_URL}" ]; then
     git clone --no-local "${S9K_REPO_URL}" "${RELEASE_DIR}"
+    if ! RESOLVED_COMMIT="$(resolve_release_commit "${RELEASE_REF}" \
+            --work-dir "${RELEASE_DIR}" "${REPO_URL_ARGS[@]}" "${ALLOW_BRANCH_ARGS[@]}")"; then
+        die "commit ${RELEASE_REF} no resoluble a un commit desde ${S9K_REPO_URL}"
+    fi
     git -C "${RELEASE_DIR}" checkout --detach "${RESOLVED_COMMIT}"
 else
     die "sin origen de repo (S9K_REPO_URL o ${S9K_ROOT}/current/.git)"
