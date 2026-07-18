@@ -1,0 +1,20 @@
+{
+  "_comment": "Fixture ANONIMIZADA del EQUIPO D para los E2E de permisos RPG. Datos sintéticos, sin PII ni referencias productivas. Workspace por defecto 'leyenda'; 'otra_boveda' es un workspace ajeno para probar el aislamiento.",
+  "workspace": "leyenda",
+  "nodes": [
+    {"id": "n_posada", "label": "Posada del Dragon Verde", "canonical_name": "Posada del Dragon Verde", "type": "Location", "workspace": "leyenda", "visibility": "player", "session_index": 1, "confidence": 0.9, "review_status": "reviewed", "source_document": "doc_intro", "description": "Punto de encuentro publico del grupo."},
+    {"id": "n_kenji", "label": "Kenji el Herrero", "canonical_name": "Kenji el Herrero", "type": "Character", "workspace": "leyenda", "visibility": "player", "session_index": 1, "confidence": 0.85, "review_status": "reviewed", "source_document": "doc_intro", "description": "PNJ artesano conocido por el grupo."},
+    {"id": "n_regla", "label": "Regla de Iniciativa", "canonical_name": "Regla de Iniciativa", "type": "Reference", "workspace": "leyenda", "visibility": "reference", "session_index": 0, "confidence": 1.0, "review_status": "reviewed", "source_document": "doc_reglas", "description": "Material de manual (reference)."},
+    {"id": "n_futuro", "label": "Batalla Final de Otono", "canonical_name": "Batalla Final de Otono", "type": "Event", "workspace": "leyenda", "visibility": "player", "session_index": 9, "confidence": 0.6, "review_status": "pending", "source_document": "doc_futuro", "description": "Evento de una sesion aun no jugada."},
+    {"id": "n_culto", "label": "Culto del Pozo Viejo", "canonical_name": "Culto del Pozo Viejo", "type": "Faction", "workspace": "leyenda", "visibility": "secret", "session_index": 2, "confidence": 0.7, "review_status": "pending", "source_document": "doc_intro", "description": "Faccion oculta; secreto de trama."},
+    {"id": "n_gm_nota", "label": "Nota del Narrador", "canonical_name": "Nota del Narrador", "type": "Note", "workspace": "leyenda", "visibility": "narrator", "session_index": 2, "confidence": 0.5, "review_status": "pending", "source_document": "doc_gm", "description": "Capa del narrador."},
+    {"id": "n_party_beta", "label": "Plan del Grupo Beta", "canonical_name": "Plan del Grupo Beta", "type": "Plan", "workspace": "leyenda", "visibility": "player", "session_index": 1, "party": "grupo_beta", "confidence": 0.8, "review_status": "reviewed", "source_document": "doc_beta", "description": "Contenido acotado a otra party."},
+    {"id": "n_conocido", "label": "Recuerdo de Bryn", "canonical_name": "Recuerdo de Bryn", "type": "Memory", "workspace": "leyenda", "visibility": "secret", "session_index": 2, "known_by": ["pc_bryn"], "confidence": 0.75, "review_status": "reviewed", "source_document": "doc_bryn", "description": "Secreto que el personaje pc_bryn si conoce."},
+    {"id": "n_foraneo", "label": "Reliquia de Otra Boveda", "canonical_name": "Reliquia de Otra Boveda", "type": "Artifact", "workspace": "otra_boveda", "visibility": "player", "session_index": 1, "confidence": 0.9, "review_status": "reviewed", "source_document": "doc_otra", "description": "Nodo de un workspace ajeno."}
+  ],
+  "edges": [
+    {"from": "n_posada", "to": "n_kenji", "type": "ALLY", "workspace": "leyenda", "visibility": "player"},
+    {"from": "n_kenji", "to": "n_culto", "type": "MEMBER_OF", "workspace": "leyenda", "visibility": "player"},
+    {"from": "n_posada", "to": "n_culto", "type": "SUSPECTS", "workspace": "leyenda", "visibility": "secret"}
+  ]
+}

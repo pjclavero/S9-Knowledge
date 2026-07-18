@@ -31,7 +31,7 @@ prod_block.install()
 
 def pytest_configure(config: pytest.Config) -> None:
     for marker in (
-        "e2e: prueba end-to-end (depende de A/B/C; puede estar skip/xfail en fase 1)",
+        "e2e: prueba end-to-end contra el producto integrado (A/B/C en main)",
         "integration: prueba de integración/contrato con dobles y fixtures locales",
         "contract: valida documentos contra el contrato compartido review/ingest v1",
         "prod_block: verifica el cortafuegos de red hacia producción",
