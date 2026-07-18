@@ -1,5 +1,13 @@
 # DOSIER DE ESTADO, CORRECCIÓN Y EJECUCIÓN  
 
+> **AVISO — estado vigente en [02 · Estado actual](02-current-state.md) y
+> [project-status.yaml](project-status.yaml).** Este dosier es un documento
+> histórico de trabajo: contiene fotografías antiguas (p. ej. commit `cef9233`,
+> 220/220 tests, Basic Auth en el proxy) que **ya no reflejan producción**. A
+> 2026-07-18 la producción es **RC5.1** (`47bc314`) con **login propio del visor**
+> (Basic Auth retirada), healthcheck con **timer horario** y Neo4j 199/140. Ante
+> cualquier discrepancia, prevalece el documento canónico.
+
 > Relacionado: IA externa NVIDIA en modo sombra (revisión/consenso/calibración) — ver [docs/42](42-external-ai-calibration-and-burst-processing.md). Nada externo escribe en Neo4j.
 
 > Benchmark de transcripción de vídeo (docs/40, 2026-07-15): faster-whisper medium APTA CON REVISIÓN DE SEGMENTOS CONFLICTIVOS (91% auto-aceptable). Para la primera ingesta se recomienda una fuente pequeña ya validada, no una transcripción de vídeo nueva.

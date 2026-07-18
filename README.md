@@ -8,20 +8,17 @@ Pensada para campañas de rol (L5A "Leyenda", Mundo de Tinieblas, Trudvang…): 
 personajes, criaturas, lugares, facciones, objetos, eventos, combates y sesiones, y
 la evolución del conocimiento de cada personaje a lo largo de la campaña.
 
-## Estado actual (v0.2.6-B1 — 2026-07-15)
+## Estado actual (RC5.1 — 2026-07-18)
 
-> **Fase B1 (external-burst-orchestrator):** paquete `external_processing/` con planner local/hybrid/burst,
-> chunking, dispatcher (concurrencia+retry+circuit breaker), validacion, merger, mock determinista y adaptador
-> NVIDIA. CLI `burst.py`. 88 tests en 10 archivos, cubriendo mas de 30 escenarios y requisitos de aceptacion.
-> Migracion SQLite idempotente. B2/B3 pendientes. Ver [docs/45](docs/45-external-burst-orchestrator.md).
+> **Producción (VM105):** release `deploy-v0.3.0-rc5.1` (`47bc314`, = `main`), visor
+> `s9-knowledge-viewer.service` active/running. **Login propio del visor** (Basic Auth
+> retirada del proxy). Neo4j **199 nodos / 140 relaciones**. 1 administrador, 1 job,
+> **0 ingestas** (ingesta real bloqueada por doble guard). Healthcheck con **timer horario**
+> activo. Despliegue por releases inmutables + deploy-tools versionados.
 >
-> Estado: implementada en PR limpio (feat/external-burst-orchestrator-clean), pendiente de merge a main.
-> Fase A (NVIDIA calibracion multi-IA): implementada, validada y fusionada en main. Ver [docs/42](docs/42-external-ai-nvidia.md).
-> Fases B2 (ASR real, OCR real, imagen real) y B3 (activacion productiva): pendientes.
-
-> Commit base de `main` (tras PR #14, docs/42): `91de633`. Extractor hybrid (heuristico + LLM Ollama) +
-> revision externa NVIDIA en modo sombra. Neo4j: 199 nodos, 140 relaciones.
-> Informe de auditoria completo: [docs/24-vm105-baseline-and-verification.md](docs/24-vm105-baseline-and-verification.md).
+> El estado autoritativo y verificable está en [`docs/project-status.yaml`](docs/project-status.yaml)
+> y se narra en [`docs/02-current-state.md`](docs/02-current-state.md). External AI (NVIDIA) en
+> modo sombra; burst orchestrator B1 implementado (B2/B3 pendientes).
 
 ### Listo y operativo
 
@@ -79,7 +76,8 @@ sin revisión humana.
   `docs/08-deployment-vm105.md`; no existe script de setup automatizado aún.
 - Gestión de usuarios y filtros de visibilidad en la UI: implementados en
   `access_store.py` pero no aplicados en el visor.
-- Login propio del visor: actualmente solo Basic Auth en el proxy nginx (VM104).
+- Aplicación de filtros de visibilidad por personaje en API/UI: modelo en
+  `access_store.py`, aún no aplicado en el visor (login y roles sí operativos).
 
 Detalle completo en [project dossier and checklist.md](docs/project%20dossier%20and%20checklist.md)
 
@@ -138,7 +136,8 @@ datos SQLite de runtime, `.env` con secretos ni archivos fuente pesados (PDF/aud
 - No se versionan secretos (`.env`, tokens, claves, certificados) ni datos de
   campaña sensibles (audios, PDFs originales, transcripciones privadas).
 - Neo4j y Ollama no se exponen a Internet.
-- Acceso externo via `https://knowledge.seccionnueve.duckdns.org` (nginx VM104 + Basic Auth).
+- Acceso externo via `https://knowledge.seccionnueve.duckdns.org` (HTTPS, nginx VM104).
+  La autenticación es del propio visor (login con sesiones/CSRF); Basic Auth retirada del proxy.
 - Ver `docs/07-users-permissions.md` para el modelo de permisos.
 - Ver `docs/21-external-access-and-security.md` para acceso externo y hardening.
 

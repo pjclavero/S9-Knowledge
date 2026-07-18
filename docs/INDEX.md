@@ -1,10 +1,28 @@
 # Índice de documentación — S9 Knowledge
 
+**Clasificación:** `vigente` · `operativo` · `diseño` · `auditoría` · `histórico` · `deprecado`.
+Los documentos **históricos** (diseño inicial) están agrupados aparte y no deben
+leerse como estado vigente. El estado autoritativo está en
+[02 · Estado actual](02-current-state.md) (canónico) y
+[project-status.yaml](project-status.yaml) (estructurado, verificado por
+`scripts/check_docs_consistency.py`).
+
+## Despliegue y operación (vigente / operativo)
+
+- [project-status.yaml](project-status.yaml) — **vigente** · estado estructurado (fuente de coherencia).
+- [02 · Estado actual](02-current-state.md) — **vigente** · 2026-07-18 · estado canónico narrado (RC5.1 activa).
+- [46 · Healthchecks operativos](46-operational-healthchecks.md) — **operativo** · healthcheck de solo lectura + timer horario.
+- [47 · Despliegue reproducible](47-reproducible-deployment.md) — **operativo** · instalación limpia y releases.
+- [50 · Continuidad de estado en el despliegue](50-deploy-state-continuity.md) — **operativo** · estado externo a la release, migración/validación.
+- [51 · Regresión forward-ref y contrato de resolución de refs](51-deploy-forward-ref-regression.md) — **vigente** · 2026-07-18 · causa raíz + `resolve_release_commit` + E2E (RC5.1).
+- [48 · Usabilidad del visor de solo lectura](48-viewer-readonly-usability.md) — **operativo** · mejoras de usabilidad del visor.
+- [49 · Supersesión inmutable de revisiones](49-immutable-review-supersession.md) — **diseño/operativo** · flujo de supersesión de revisiones.
+
 ## Documentación del repositorio (`docs/`)
 
 - [00 · Visión](00-vision.md)
 - [01 · Arquitectura](01-architecture.md)
-- [02 · Estado actual](02-current-state.md) y [project dossier and checklist.md](docs/project%20dossier%20and%20checklist.md)— qué está HECHO y qué NO
+- [02 · Estado actual](02-current-state.md) y [project dossier and checklist.md](project%20dossier%20and%20checklist.md) — qué está HECHO y qué NO
 - [03 · Fases](03-phases.md)
 - [04 · Estructura del repositorio](04-repository-structure.md)
 - [05 · Motor de datos (data-engine)](05-data-engine.md)
@@ -37,7 +55,11 @@
 - [36 · Resultados de la mejora del extractor — Prioridad 2.1](36-extractor-quality-improvement-results.md) — hybrid pasa umbrales de entidad (F1 0.806); relaciones excluidas de autoaprobación; ingesta de entidades desbloqueada con revisión humana total
 - [35 · Informe de sesión — ejecución del benchmark (Prioridad 2)](35-priority2-benchmark-session-report.md) — cómo se ejecutó el benchmark en VM105, 2 fixes, dictamen PARCIAL, ingesta BLOQUEADA
 
-## Documentos de diseño generados en el servidor (`docs/current/`)
+## HISTÓRICO — Documentos de diseño inicial (`docs/current/`)
+
+> **Histórico:** diseño inicial del proyecto. No reflejan el estado vigente; se
+> conservan como referencia de las decisiones originales. Para el estado real ver
+> [02 · Estado actual](02-current-state.md).
 
 - **INFORME_ENTREGA.md** — informe de entrega de la actualización del grafo.
 - **RPG_GRAPH_MODEL_UPDATE.md** — actualización del modelo RPG (auditoría previa).
@@ -45,6 +67,21 @@
 - **EXTERNAL_SOURCES_DESIGN.md** — fuentes externas (YouTube/web/audio) + cola.
 - **KNOWLEDGE_VISIBILITY_DESIGN.md** — visibilidad por conocimiento de personaje.
 - **USERS_CHARACTERS_DESIGN.md** — usuarios/personajes multi-campaña + permisos.
+
+## HISTÓRICO — DOCX de diseño inicial (raíz del repo)
+
+> **Histórico — diseño inicial de 2026-07-11.** No reflejan el estado vigente. Se
+> conservan sin modificar como referencia. La versión actual ("v3") de su
+> contenido vive en Markdown, que es la **fuente editable principal**:
+>
+> - `S9_Knowledge_diseno_estado_fases_v2.docx` -> vigente en
+>   [02 · Estado actual](02-current-state.md) + [03 · Fases](03-phases.md) +
+>   [project-status.yaml](project-status.yaml).
+> - `S9_Knowledge_especificacion_visor_panel_permisos.docx` -> vigente en
+>   [viewer/README](../viewer/README.md) + [07 · Usuarios y permisos](07-users-permissions.md).
+>
+> Generación de DOCX v3 con `python-docx`: **NOT_AVAILABLE** en el entorno actual
+> (sin `python3-venv`/`ensurepip`); el contenido v3 se mantiene en Markdown.
 
 ## Estado y pendientes
 
