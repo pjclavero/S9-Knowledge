@@ -93,11 +93,22 @@ def test_timer_apunta_al_servicio_correcto():
     assert cp["Timer"]["Unit"] == "s9-knowledge-healthcheck.service"
 
 
-def test_timer_no_se_solapa():
-    """OnUnitActiveSec cuenta desde la ultima activacion: sin solape."""
+def test_timer_frecuencia_horaria_con_persistencia():
+    """Disparo horario (nunca < 1 h), recupera disparos perdidos y reparte arranques."""
     cp = _parse(TIMER)
-    assert "OnUnitActiveSec" in cp["Timer"]
-    assert "OnCalendar" not in cp["Timer"]
+    assert cp["Timer"]["OnCalendar"] == "hourly"
+    assert cp["Timer"]["Persistent"] == "true"
+    assert cp["Timer"]["RandomizedDelaySec"] == "5m"
+    # Sin disparos sub-horarios.
+    assert "OnUnitActiveSec" not in cp["Timer"]
+    assert "OnBootSec" not in cp["Timer"]
+
+
+def test_timer_no_se_solapa():
+    """El service es Type=oneshot: systemd no arranca una segunda instancia
+    de la misma unidad mientras la anterior sigue viva, asi que no hay solape."""
+    cp = _parse(SERVICE)
+    assert cp["Service"]["Type"] == "oneshot"
 
 
 def test_exitos_aceptados_reflejan_los_estados():
