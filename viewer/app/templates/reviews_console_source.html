@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}{{ source_id }} · Consola de revisión{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/reviews.css">{% endblock %}
+{% block body %}
+<main class="rc-wrap">
+  <p><a href="/review-console">&larr; Bandeja</a></p>
+  <h1>{{ source_id | e }}
+    <span class="rc-status rc-status-{{ summary.status | lower | e }}">{{ summary.status | e }}</span>
+  </h1>
+
+  {% if stale_warning %}
+  <div class="rc-alert rc-alert-stale" role="alert">
+    <strong>Revisión obsoleta.</strong> El candidato cambió desde que se cargó la
+    página (<code>expected_candidate_hash</code> no coincide). No se registró la
+    decisión. Recarga y vuelve a revisar sobre la versión actual.
+  </div>
+  {% endif %}
+
+  <!-- Resumen de la fuente -->
+  <section class="rc-card">
+    <h2>Resumen</h2>
+    <div class="rc-grid">
+      <div><span class="rc-k">Documento</span><span class="rc-v">{{ summary.source_document | e }}</span></div>
+      <div><span class="rc-k">Generación</span><span class="rc-v">{{ summary.review_generation }}</span></div>
+      <div><span class="rc-k">Segmentos</span><span class="rc-v">{{ summary.segments_reviewed }}/{{ summary.segments_total }}</span></div>
+      <div><span class="rc-k">Candidatos</span><span class="rc-v">{{ summary.candidates_total }}</span></div>
+      <div><span class="rc-k">Pendientes</span><span class="rc-v">{{ summary.pending }}</span></div>
+      <div><span class="rc-k">Conflictos</span><span class="rc-v {% if summary.conflicts %}rc-warn{% endif %}">{{ summary.conflicts }}</span></div>
+    </div>
+    {% if summary.blocking_reasons %}
+    <p class="rc-block-reasons">Bloqueos: {% for r in summary.blocking_reasons %}<code>{{ r | e }}</code> {% endfor %}</p>
+    {% endif %}
+  </section>
+
+  <!-- Preview del ingest-plan (SOLO LECTURA) -->
+  {% if plan_preview %}
+  <section class="rc-card">
+    <h2>Preview del ingest-plan <span class="rc-badge">solo lectura</span></h2>
+    <p class="rc-sub">plan <code>{{ plan_preview.plan_id | e }}</code> ·
+      estado <span class="rc-status rc-status-{{ plan_preview.status | lower | e }}">{{ plan_preview.status | e }}</span></p>
+    <div class="rc-plan-summary">
+      <span class="rc-chip rc-chip-create">WOULD_CREATE: {{ plan_preview.would_create }}</span>
+      <span class="rc-chip rc-chip-link">LINK_EXISTING: {{ plan_preview.would_link_existing }}</span>
+      <span class="rc-chip rc-chip-defer">DEFER: {{ plan_preview.deferred }}</span>
+      <span class="rc-chip rc-chip-conflict">CONFLICT: {{ plan_preview.conflicts }}</span>
+    </div>
+    <p class="rc-sub">
+      Autorización {% if plan_preview.authorization_granted %}concedida{% else %}<strong>NO concedida</strong>{% endif %}
+      · relaciones {% if plan_preview.relations_enabled %}activas{% else %}deshabilitadas{% endif %}.
+      Este panel no aplica el plan ni autoriza ingesta.
+    </p>
+  </section>
+  {% endif %}
+
+  <!-- Candidatos por segmento -->
+  <h2>Candidatos</h2>
+  {% if not candidates %}
+    <p class="rc-empty">Sin candidatos para esta fuente.</p>
+  {% endif %}
+  {% for c in candidates %}
+  <section class="rc-card rc-candidate">
+    <header class="rc-cand-head">
+      <div>
+        <span class="rc-cand-name">{{ c.display_name | e }}</span>
+        <span class="rc-tag">{{ c.entity_type | e }}</span>
+        <span class="rc-status rc-status-{{ c.proposed_status | lower | e }}">{{ c.proposed_status | e }}</span>
+      </div>
+      <div class="rc-conf" title="confianza">
+        <span class="rc-conf-bar"><span style="width: {{ (c.confidence * 100) | round(0, 'floor') }}%"></span></span>
+        {{ '%.2f' | format(c.confidence) }}
+      </div>
+    </header>
+    <p class="rc-desc">{{ c.description | e }}</p>
+    <div class="rc-meta">
+      <span class="rc-k">segmento</span> <code>{{ c.segment_id | e }}</code>
+      <span class="rc-k">procedencia</span>
+      <code>{{ c.provenance.source_id | e }}</code> · gen {{ c.provenance.review_generation }}
+      · pipeline {{ c.provenance.pipeline_version | e }} · {{ c.provenance.producer | e }}
+    </div>
+    {% if c.policy_reasons %}
+    <div class="rc-reasons">{% for r in c.policy_reasons %}<code>{{ r | e }}</code>{% endfor %}</div>
+    {% endif %}
+
+    {% if c.has_matches %}
+    <div class="rc-matches">
+      <span class="rc-k">coincidencias existentes</span>
+      <ul>
+        {% for m in c.existing_matches %}
+        <li><code>{{ m.entity_id | e }}</code> · score {{ '%.2f' | format(m.match_score) }} · {{ m.match_reason | e }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- Acciones: producen review-decision v1 + audit-event v1 -->
+    <form class="rc-actions" method="post" action="/review-console/source/{{ source_id | e }}/decide">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token | default('') | e }}">
+      <input type="hidden" name="candidate_id" value="{{ c.candidate_id | e }}">
+      <!-- control optimista: hash del candidato en el momento de renderizar -->
+      <input type="hidden" name="expected_candidate_hash" value="{{ c.candidate_hash | e }}">
+      <div class="rc-action-row">
+        <label>Acción
+          <select name="action">
+            {% for a in c.actions %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Objetivo existente
+          <input type="text" name="target_existing_id"
+                 placeholder="ent_… (USE_EXISTING / RESOLVE_CONFLICT)"
+                 value="{% if c.existing_matches %}{{ c.existing_matches[0].entity_id | e }}{% endif %}">
+        </label>
+        <label>Nombre editado
+          <input type="text" name="after_canonical_name" placeholder="solo EDIT">
+        </label>
+      </div>
+      <div class="rc-action-row">
+        <label>Motivo <input type="text" name="reason_code" placeholder="opcional"></label>
+        <label class="rc-comment">Comentario <input type="text" name="comment" placeholder="opcional"></label>
+        <button type="submit" class="rc-btn">Registrar decisión</button>
+      </div>
+      <p class="rc-hash">hash de control: <code>{{ c.candidate_hash | e }}</code></p>
+    </form>
+  </section>
+  {% endfor %}
+</main>
+{% endblock %}

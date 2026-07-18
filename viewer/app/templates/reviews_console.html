@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Consola de revisión · S9 Knowledge{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/reviews.css">{% endblock %}
+{% block body %}
+<main class="rc-wrap">
+  <h1>Consola de revisión <span class="rc-badge rc-badge-v1">v1</span></h1>
+  <p class="rc-note">
+    Bandeja de fuentes en revisión. Las decisiones se registran como
+    <code>review-decision v1</code> + <code>review-audit-event v1</code> en un
+    almacén de laboratorio. <strong>No se escribe en Neo4j</strong> ni se aplica
+    ningún ingest-plan.
+  </p>
+
+  {% if not summaries %}
+    <p class="rc-empty">No hay fuentes en revisión.</p>
+  {% else %}
+  <div class="rc-table-scroll">
+    <table class="rc-table">
+      <thead>
+        <tr>
+          <th>Fuente</th><th>Estado</th><th>Segmentos</th><th>Candidatos</th>
+          <th>Pend.</th><th>Aprob.</th><th>Usar exist.</th><th>Conflictos</th>
+          <th>Plan</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in summaries %}
+        <tr>
+          <td>
+            <a href="/review-console/source/{{ s.source_id | e }}">{{ s.source_id | e }}</a>
+            <div class="rc-sub">{{ s.source_document | e }}</div>
+          </td>
+          <td><span class="rc-status rc-status-{{ s.status | lower | e }}">{{ s.status | e }}</span></td>
+          <td>{{ s.segments_reviewed }}/{{ s.segments_total }}</td>
+          <td>{{ s.candidates_total }}</td>
+          <td>{{ s.pending }}</td>
+          <td>{{ s.approved }}</td>
+          <td>{{ s.use_existing }}</td>
+          <td class="{% if s.conflicts %}rc-warn{% endif %}">{{ s.conflicts }}</td>
+          <td>
+            {% if s.ready_to_plan %}
+              <span class="rc-pill rc-pill-ok">listo</span>
+            {% else %}
+              <span class="rc-pill rc-pill-block">bloqueado</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</main>
+{% endblock %}
