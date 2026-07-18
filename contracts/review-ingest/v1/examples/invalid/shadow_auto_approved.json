@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "document_type": "review-decision",
+  "document_id": "review-decision_001",
+  "created_at": "2026-07-18T14:00:00Z",
+  "workspace": "leyenda",
+  "source_id": "src_narrative_01",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "review_generation": 1,
+  "producer": {
+    "kind": "ENGINE",
+    "name": "s9k-data-engine",
+    "version": "0.3.0",
+    "model": null
+  },
+  "provenance": {
+    "source_id": "src_narrative_01",
+    "source_hash": {
+      "algorithm": "sha256",
+      "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "review_generation": 1,
+    "pipeline_version": "0.3.0",
+    "producer": {
+      "kind": "ENGINE",
+      "name": "s9k-data-engine",
+      "version": "0.3.0",
+      "model": null
+    }
+  },
+  "decision_id": "dec_004",
+  "candidate_id": "cand_001",
+  "action": "APPROVE",
+  "reviewer_type": "EXTERNAL_AI_SHADOW",
+  "reviewer_id": "nvidia-shadow",
+  "decided_at": "2026-07-18T14:08:00Z",
+  "reason_code": "SHADOW_RECOMMENDATION",
+  "expected_candidate_hash": {
+    "algorithm": "sha256",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "decision_hash": {
+    "algorithm": "sha256",
+    "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  }
+}

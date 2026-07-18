@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/review-ingest/v1/ingest-plan-v1.schema.json",
+  "title": "ingest-plan v1",
+  "description": "Plan de ingesta determinista y auditable. La creacion del plan NO autoriza su aplicacion: authorization esta separada y granted=true exige operador.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "document_type", "document_id", "created_at", "workspace",
+    "source_id", "source_hash", "review_generation", "producer", "provenance",
+    "plan_id", "plan_version", "review_document_id", "review_hash",
+    "status", "preconditions", "operations", "deferred_items", "conflicts",
+    "warnings", "summary", "relations_enabled", "created_by", "authorization"
+  ],
+  "properties": {
+    "schema_version": { "$ref": "_common-v1.schema.json#/$defs/schema_version" },
+    "document_type": { "const": "ingest-plan" },
+    "document_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "created_at": { "$ref": "_common-v1.schema.json#/$defs/iso8601_utc" },
+    "workspace": { "$ref": "_common-v1.schema.json#/$defs/workspace" },
+    "source_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "source_hash": { "$ref": "_common-v1.schema.json#/$defs/hash" },
+    "review_generation": { "$ref": "_common-v1.schema.json#/$defs/review_generation" },
+    "producer": { "$ref": "_common-v1.schema.json#/$defs/producer" },
+    "provenance": { "$ref": "_common-v1.schema.json#/$defs/provenance" },
+
+    "plan_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "plan_version": { "$ref": "_common-v1.schema.json#/$defs/schema_version" },
+    "review_document_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "review_hash": { "$ref": "_common-v1.schema.json#/$defs/hash" },
+    "created_by": { "$ref": "_common-v1.schema.json#/$defs/producer" },
+    "status": { "$ref": "_common-v1.schema.json#/$defs/plan_status" },
+    "relations_enabled": {
+      "type": "boolean",
+      "description": "En v1 las relaciones pueden quedar deshabilitadas (false)."
+    },
+    "preconditions": {
+      "type": "array",
+      "description": "Condiciones que deben cumplirse antes de aplicar (hashes, generacion, admin count, etc.).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["precondition_id", "kind", "expected"],
+        "properties": {
+          "precondition_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+          "kind": { "type": "string", "enum": ["REVIEW_HASH_MATCHES", "SOURCE_HASH_MATCHES", "GENERATION_MATCHES", "NO_OPEN_CONFLICTS", "PROVENANCE_PRESENT"] },
+          "expected": { "type": "string", "maxLength": 256 }
+        }
+      }
+    },
+    "operations": {
+      "type": "array",
+      "description": "Operaciones deterministas y ordenadas por operation_id. idempotency_key unica por operacion.",
+      "items": { "$ref": "#/$defs/operation" }
+    },
+    "deferred_items": {
+      "type": "array",
+      "items": { "$ref": "_common-v1.schema.json#/$defs/stable_id" }
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["candidate_id", "reason"],
+        "properties": {
+          "candidate_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+          "reason": { "type": "string", "maxLength": 512 }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 512 }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["would_create", "would_update", "would_link_existing", "deferred", "conflicts", "relations"],
+      "properties": {
+        "would_create": { "type": "integer", "minimum": 0 },
+        "would_update": { "type": "integer", "minimum": 0 },
+        "would_link_existing": { "type": "integer", "minimum": 0 },
+        "deferred": { "type": "integer", "minimum": 0 },
+        "conflicts": { "type": "integer", "minimum": 0 },
+        "relations": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "authorization": { "$ref": "#/$defs/authorization" },
+    "metadata": { "$ref": "_common-v1.schema.json#/$defs/metadata" }
+  },
+  "allOf": [
+    {
+      "$comment": "Si las relaciones estan deshabilitadas, no puede haber operaciones de relacion ni resumen de relaciones > 0.",
+      "if": { "properties": { "relations_enabled": { "const": false } } },
+      "then": { "properties": { "summary": { "properties": { "relations": { "const": 0 } } } } }
+    }
+  ],
+  "$defs": {
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation_id", "operation_type", "candidate_id", "payload", "provenance", "expected_state", "idempotency_key"],
+      "properties": {
+        "operation_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+        "operation_type": { "$ref": "_common-v1.schema.json#/$defs/operation_type" },
+        "candidate_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+        "target_entity_id": { "anyOf": [ { "$ref": "_common-v1.schema.json#/$defs/stable_id" }, { "type": "null" } ] },
+        "payload": { "type": "object", "additionalProperties": true },
+        "provenance": { "$ref": "_common-v1.schema.json#/$defs/provenance" },
+        "expected_state": { "$ref": "_common-v1.schema.json#/$defs/dry_run_result" },
+        "idempotency_key": { "$ref": "_common-v1.schema.json#/$defs/stable_id" }
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "granted"],
+      "properties": {
+        "required": { "const": true },
+        "granted": { "type": "boolean" },
+        "operator_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+        "authorized_at": { "$ref": "_common-v1.schema.json#/$defs/iso8601_utc" },
+        "authorization_hash": { "$ref": "_common-v1.schema.json#/$defs/hash" }
+      },
+      "allOf": [
+        {
+          "$comment": "granted=true EXIGE operador, momento y hash. El schema no permite autorizar sin operador.",
+          "if": { "properties": { "granted": { "const": true } } },
+          "then": { "required": ["operator_id", "authorized_at", "authorization_hash"] }
+        }
+      ]
+    }
+  }
+}

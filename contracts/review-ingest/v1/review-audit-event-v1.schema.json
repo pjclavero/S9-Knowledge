@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/review-ingest/v1/review-audit-event-v1.schema.json",
+  "title": "review-audit-event v1",
+  "description": "Evento de auditoria append-only del flujo de revision/ingesta. No almacena contrasenas, cookies, tokens ni texto sensible innecesario.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "document_type", "document_id", "created_at", "workspace",
+    "source_id", "source_hash", "review_generation", "producer", "provenance",
+    "event_id", "event_type", "actor_type", "actor_id", "timestamp"
+  ],
+  "properties": {
+    "schema_version": { "$ref": "_common-v1.schema.json#/$defs/schema_version" },
+    "document_type": { "const": "review-audit-event" },
+    "document_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "created_at": { "$ref": "_common-v1.schema.json#/$defs/iso8601_utc" },
+    "workspace": { "$ref": "_common-v1.schema.json#/$defs/workspace" },
+    "source_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "source_hash": { "$ref": "_common-v1.schema.json#/$defs/hash" },
+    "review_generation": { "$ref": "_common-v1.schema.json#/$defs/review_generation" },
+    "producer": { "$ref": "_common-v1.schema.json#/$defs/producer" },
+    "provenance": { "$ref": "_common-v1.schema.json#/$defs/provenance" },
+
+    "event_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "CANDIDATE_GENERATED", "DECISION_RECORDED", "GENERATION_SUPERSEDED",
+        "PLAN_CREATED", "PLAN_BLOCKED", "DRY_RUN_EXECUTED", "APPLY_EXECUTED",
+        "AUTHORIZATION_GRANTED", "AUTHORIZATION_REVOKED", "CONFLICT_DETECTED",
+        "STALE_REVIEW_REJECTED", "VIEW_AS_CHARACTER"
+      ]
+    },
+    "actor_type": { "type": "string", "enum": ["HUMAN", "POLICY_ENGINE", "EXTERNAL_AI_SHADOW", "SYSTEM"] },
+    "actor_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "timestamp": { "$ref": "_common-v1.schema.json#/$defs/iso8601_utc" },
+    "candidate_id": { "anyOf": [ { "$ref": "_common-v1.schema.json#/$defs/stable_id" }, { "type": "null" } ] },
+    "plan_id": { "anyOf": [ { "$ref": "_common-v1.schema.json#/$defs/stable_id" }, { "type": "null" } ] },
+    "request_id": { "anyOf": [ { "$ref": "_common-v1.schema.json#/$defs/stable_id" }, { "type": "null" } ] },
+    "before_hash": { "anyOf": [ { "$ref": "_common-v1.schema.json#/$defs/hash" }, { "type": "null" } ] },
+    "after_hash": { "anyOf": [ { "$ref": "_common-v1.schema.json#/$defs/hash" }, { "type": "null" } ] },
+    "metadata": {
+      "$ref": "_common-v1.schema.json#/$defs/metadata",
+      "description": "Metadatos no sensibles. Prohibido almacenar password/cookie/token/secreto (validado por validator.py)."
+    }
+  }
+}

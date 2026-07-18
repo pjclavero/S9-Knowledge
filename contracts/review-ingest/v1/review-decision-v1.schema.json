@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/review-ingest/v1/review-decision-v1.schema.json",
+  "title": "review-decision v1",
+  "description": "Decision inmutable sobre un candidato. Incluye control optimista (expected_candidate_hash). EXTERNAL_AI_SHADOW solo puede recomendar.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "document_type", "document_id", "created_at", "workspace",
+    "source_id", "source_hash", "review_generation", "producer", "provenance",
+    "decision_id", "candidate_id", "action", "reviewer_type", "reviewer_id",
+    "decided_at", "reason_code", "expected_candidate_hash", "decision_hash"
+  ],
+  "properties": {
+    "schema_version": { "$ref": "_common-v1.schema.json#/$defs/schema_version" },
+    "document_type": { "const": "review-decision" },
+    "document_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "created_at": { "$ref": "_common-v1.schema.json#/$defs/iso8601_utc" },
+    "workspace": { "$ref": "_common-v1.schema.json#/$defs/workspace" },
+    "source_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "source_hash": { "$ref": "_common-v1.schema.json#/$defs/hash" },
+    "review_generation": { "$ref": "_common-v1.schema.json#/$defs/review_generation" },
+    "producer": { "$ref": "_common-v1.schema.json#/$defs/producer" },
+    "provenance": { "$ref": "_common-v1.schema.json#/$defs/provenance" },
+
+    "decision_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "candidate_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "action": { "$ref": "_common-v1.schema.json#/$defs/review_action" },
+    "reviewer_type": { "$ref": "_common-v1.schema.json#/$defs/reviewer_type" },
+    "reviewer_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "decided_at": { "$ref": "_common-v1.schema.json#/$defs/iso8601_utc" },
+    "reason_code": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "comment": { "type": "string", "maxLength": 4000 },
+    "before": { "type": ["object", "null"], "additionalProperties": true },
+    "after": { "type": ["object", "null"], "additionalProperties": true },
+    "target_existing_id": { "anyOf": [ { "$ref": "_common-v1.schema.json#/$defs/stable_id" }, { "type": "null" } ] },
+    "expected_candidate_hash": { "$ref": "_common-v1.schema.json#/$defs/hash" },
+    "decision_hash": { "$ref": "_common-v1.schema.json#/$defs/hash" },
+    "metadata": { "$ref": "_common-v1.schema.json#/$defs/metadata" }
+  },
+  "allOf": [
+    {
+      "$comment": "EXTERNAL_AI_SHADOW nunca produce acciones vinculantes; solo DEFER (recomendacion).",
+      "if": { "properties": { "reviewer_type": { "const": "EXTERNAL_AI_SHADOW" } } },
+      "then": { "properties": { "action": { "enum": ["DEFER"] } } }
+    },
+    {
+      "$comment": "USE_EXISTING y RESOLVE_CONFLICT exigen un objetivo existente.",
+      "if": { "properties": { "action": { "enum": ["USE_EXISTING"] } } },
+      "then": { "required": ["target_existing_id"], "properties": { "target_existing_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" } } }
+    },
+    {
+      "$comment": "EDIT exige el estado posterior propuesto.",
+      "if": { "properties": { "action": { "const": "EDIT" } } },
+      "then": { "required": ["after"], "properties": { "after": { "type": "object" } } }
+    }
+  ]
+}

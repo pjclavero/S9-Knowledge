@@ -9,3 +9,5 @@ pytest>=8.2,<9.0
 httpx>=0.27,<1.0
 # Autenticación: Argon2id (preferido) o bcrypt como alternativa
 argon2-cffi>=23.1,<25.0
+# Validacion de los contratos review/ingest v1 (contracts/review-ingest/v1)
+jsonschema>=4.18,<5.0

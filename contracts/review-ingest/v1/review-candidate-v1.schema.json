@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/review-ingest/v1/review-candidate-v1.schema.json",
+  "title": "review-candidate v1",
+  "description": "Candidato de revision producido por el motor a partir de un segmento de origen. NO decide por si mismo: propone un estado y sus razones.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "document_type", "document_id", "created_at", "workspace",
+    "source_id", "source_hash", "review_generation", "producer", "provenance",
+    "candidate_id", "segment_id", "candidate_kind", "entity_type",
+    "canonical_name", "display_name", "aliases", "description", "attributes",
+    "confidence", "evidence", "source_location", "existing_matches",
+    "proposed_status", "policy_reasons", "created_by"
+  ],
+  "properties": {
+    "schema_version": { "$ref": "_common-v1.schema.json#/$defs/schema_version" },
+    "document_type": { "const": "review-candidate" },
+    "document_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "created_at": { "$ref": "_common-v1.schema.json#/$defs/iso8601_utc" },
+    "workspace": { "$ref": "_common-v1.schema.json#/$defs/workspace" },
+    "source_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "source_hash": { "$ref": "_common-v1.schema.json#/$defs/hash" },
+    "review_generation": { "$ref": "_common-v1.schema.json#/$defs/review_generation" },
+    "producer": { "$ref": "_common-v1.schema.json#/$defs/producer" },
+    "provenance": { "$ref": "_common-v1.schema.json#/$defs/provenance" },
+
+    "candidate_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "segment_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+    "candidate_kind": { "type": "string", "enum": ["ENTITY", "RELATION"] },
+    "entity_type": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "canonical_name": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "display_name": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 256 },
+      "uniqueItems": true
+    },
+    "description": { "type": "string", "maxLength": 4000 },
+    "attributes": { "$ref": "_common-v1.schema.json#/$defs/attributes" },
+    "confidence": { "$ref": "_common-v1.schema.json#/$defs/confidence" },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Evidencias que respaldan el candidato. Sin evidencia no hay ingesta.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["evidence_id", "quote", "location"],
+        "properties": {
+          "evidence_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+          "quote": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "location": { "$ref": "#/$defs/source_location" }
+        }
+      }
+    },
+    "source_location": { "$ref": "#/$defs/source_location" },
+    "existing_matches": {
+      "type": "array",
+      "description": "Coincidencias existentes en el grafo (para USE_EXISTING / desambiguacion).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entity_id", "match_score", "match_reason"],
+        "properties": {
+          "entity_id": { "$ref": "_common-v1.schema.json#/$defs/stable_id" },
+          "match_score": { "$ref": "_common-v1.schema.json#/$defs/confidence" },
+          "match_reason": { "type": "string", "maxLength": 512 }
+        }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 512 }
+    },
+    "proposed_status": { "$ref": "_common-v1.schema.json#/$defs/candidate_status" },
+    "policy_reasons": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Razones (vocabulario controlado) que sustentan proposed_status. La confianza NO basta por si sola.",
+      "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+    },
+    "requires_review": { "type": "boolean" },
+    "created_by": { "$ref": "_common-v1.schema.json#/$defs/producer" },
+    "metadata": { "$ref": "_common-v1.schema.json#/$defs/metadata" }
+  },
+  "allOf": [
+    {
+      "$comment": "AUTO_APPROVABLE exige al menos una razon de politica ademas de la confianza.",
+      "if": { "properties": { "proposed_status": { "const": "AUTO_APPROVABLE" } } },
+      "then": { "properties": { "policy_reasons": { "minItems": 1 } } }
+    }
+  ],
+  "$defs": {
+    "source_location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["PAGE_RANGE", "TIME_RANGE", "OFFSET_RANGE"] },
+        "page_start": { "type": "integer", "minimum": 0 },
+        "page_end": { "type": "integer", "minimum": 0 },
+        "time_start_s": { "type": "number", "minimum": 0 },
+        "time_end_s": { "type": "number", "minimum": 0 },
+        "offset_start": { "type": "integer", "minimum": 0 },
+        "offset_end": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
