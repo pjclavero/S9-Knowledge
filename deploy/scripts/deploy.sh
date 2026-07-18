@@ -254,6 +254,18 @@ PREV_RELEASE_DIR=""; [ -L "${S9K_ROOT}/current" ] && PREV_RELEASE_DIR="$(readlin
 atomic_symlink "${RELEASE_DIR}" "${S9K_ROOT}/current"
 _CLEANUP_TMPDIR=""
 
+# Paso 12b: registrar el estado del despliegue (atómico, fail-open para no bloquear)
+log "--- 12b. registrar deployment-state.json"
+PREV_RELEASE_ID=""; [ -n "${PREV_RELEASE_DIR}" ] && PREV_RELEASE_ID="$(basename "${PREV_RELEASE_DIR}")"
+PREV_COMMIT=""; [ -n "${PREV_RELEASE_DIR}" ] && [ -f "${PREV_RELEASE_DIR}/manifest.json" ] && \
+    PREV_COMMIT="$(manifest_field "${PREV_RELEASE_DIR}/manifest.json" git_commit 2>/dev/null || true)"
+write_deployment_state \
+    "${RELEASE_ID}" \
+    "${RESOLVED_COMMIT}" \
+    "${PREV_RELEASE_ID:--}" \
+    "${PREV_COMMIT:--}" \
+    "${RELEASE_ID}"
+
 # Paso 13: reiniciar solo servicios afectados
 log "--- 13. reiniciar servicio visor"
 systemctl restart s9-knowledge-viewer.service || die "no se pudo reiniciar el visor"
@@ -283,16 +295,19 @@ set +e
 "${HERE}/verify-deployment.sh" --expected-release "${RELEASE_ID}"
 verify_rc=$?
 set -e
-if [ "${verify_rc}" -eq 1 ]; then
-    err "healthcheck UNHEALTHY — rollback"
+# Fail-closed: cualquier resultado != 0 (FAILED o BLOCKED) activa rollback.
+# Antes solo se comprobaba verify_rc==1, dejando pasar BLOCKED (rc=2) como verde.
+if [ "${verify_rc}" -ne 0 ]; then
+    err "healthcheck FALLIDO (rc=${verify_rc}) — rollback"
     [ -n "${PREV_RELEASE_DIR}" ] && [ -d "${PREV_RELEASE_DIR}" ] && {
         atomic_symlink "${PREV_RELEASE_DIR}" "${S9K_ROOT}/current"
         systemctl restart s9-knowledge-viewer.service || true
     }
-    die "despliegue FALLIDO tras healthcheck"
+    die "despliegue FALLIDO tras healthcheck (verify_rc=${verify_rc})"
 fi
 
-cleanup_old_releases
+# Retention fail-closed: activa borrado real solo tras deploy verificado
+S9K_RETENTION_APPLY=1 cleanup_old_releases
 
 # Paso 17: liberar lock (implícito al cerrar el FD/proceso)
 log "--- 17. liberar lock"
