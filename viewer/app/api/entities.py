@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.deps import get_default_workspace, get_provider
+from app.authz.dependencies import get_filtered_provider
+from app.deps import get_default_workspace
 from app.providers.base import GraphProvider
 from app.serializers import serialize_edge, serialize_node
 
@@ -11,14 +12,14 @@ router = APIRouter()
 
 
 @router.get("/api/workspaces")
-def api_workspaces(provider: GraphProvider = Depends(get_provider)):
+def api_workspaces(provider: GraphProvider = Depends(get_filtered_provider)):
     return {"workspaces": provider.workspaces()}
 
 
 @router.get("/api/entity-types")
 def api_entity_types(
     workspace: str = Query(default=None),
-    provider: GraphProvider = Depends(get_provider),
+    provider: GraphProvider = Depends(get_filtered_provider),
 ):
     workspace = workspace or get_default_workspace()
     return {"workspace": workspace, "entity_types": provider.entity_types(workspace)}
@@ -28,7 +29,7 @@ def api_entity_types(
 def api_search(
     q: str = Query(default=""),
     workspace: str = Query(default=None),
-    provider: GraphProvider = Depends(get_provider),
+    provider: GraphProvider = Depends(get_filtered_provider),
 ):
     workspace = workspace or get_default_workspace()
     if not q.strip():
@@ -42,7 +43,7 @@ def api_search(
 
 
 @router.get("/api/entity/{entity_id}")
-def api_entity(entity_id: str, provider: GraphProvider = Depends(get_provider)):
+def api_entity(entity_id: str, provider: GraphProvider = Depends(get_filtered_provider)):
     node = provider.entity(entity_id)
     if node is None:
         raise HTTPException(status_code=404, detail="Entidad no encontrada")

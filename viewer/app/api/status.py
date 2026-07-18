@@ -3,14 +3,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from app.deps import get_provider
+from app.authz.dependencies import get_filtered_provider
 from app.providers.base import GraphProvider
 
 router = APIRouter()
 
 
 @router.get("/api/status")
-def api_status(provider: GraphProvider = Depends(get_provider)):
+def api_status(provider: GraphProvider = Depends(get_filtered_provider)):
     try:
         connected = provider.is_connected()
         workspaces = provider.workspaces() if connected else []
