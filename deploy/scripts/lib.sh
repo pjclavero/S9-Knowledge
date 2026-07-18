@@ -34,6 +34,10 @@ warn() { printf '%b[s9k]%b %s\n'  "$_c_yel"  "$_c_reset" "$*" >&2; }
 err()  { printf '%b[s9k]%b %s\n'  "$_c_red"  "$_c_reset" "$*" >&2; }
 info() { printf '%b[s9k]%b %s\n'  "$_c_blu"  "$_c_reset" "$*"; }
 die()  { err "$*"; exit 1; }
+# ok: resultado satisfactorio de un check. Definida aquí para que todos los
+# scripts que sourcean lib.sh puedan usarla sin que el texto del argumento
+# se ejecute como comando (el bug histórico de verify-deployment.sh).
+ok()   { log "PASS $*"; }
 
 # ---------------------------------------------------------------------------
 # Comprueba que existe un comando.
@@ -404,27 +408,49 @@ current_release_id() {
 }
 
 # ---------------------------------------------------------------------------
-# Elimina releases antiguas conservando las S9K_RELEASES_TO_KEEP más recientes.
-# La release activa nunca se elimina aunque sea antigua.
+# Escribe /var/lib/s9-knowledge/deploy/deployment-state.json de forma atómica.
+# Uso: write_deployment_state <active_release> <active_commit>
+#                             <previous_release|-> <previous_commit|->
+#                             <deployment_id>
+# Los campos prev* aceptan '-' para indicar "no aplica".
+# ---------------------------------------------------------------------------
+write_deployment_state() {
+    local active_release="${1}"
+    local active_commit="${2}"
+    local previous_release="${3:-}"
+    local previous_commit="${4:-}"
+    local deployment_id="${5:-}"
+    local state_file="${S9K_DEPLOY_STATE_FILE:-${S9K_STATE_ROOT}/deploy/deployment-state.json}"
+    local here_scripts
+    here_scripts="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    python3 "${here_scripts}/retention.py" \
+        --state-file "${state_file}" \
+        --write-state \
+        "${active_release}" \
+        "${active_commit}" \
+        "${previous_release:--}" \
+        "${previous_commit:--}" \
+        "${deployment_id}" \
+    || warn "write_deployment_state: fallo al escribir ${state_file} (no bloquea el deploy)"
+}
+
+# ---------------------------------------------------------------------------
+# Elimina releases antiguas de forma FAIL-CLOSED usando retention.py.
+# POR DEFECTO: dry-run. Para borrar de verdad: S9K_RETENTION_APPLY=1.
 # ---------------------------------------------------------------------------
 cleanup_old_releases() {
-    local active_id
-    active_id="$(current_release_id)"
-    local releases_dir="${S9K_ROOT}/releases"
-    local count=0
-    local to_delete=()
+    local here_scripts
+    here_scripts="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local state_file="${S9K_DEPLOY_STATE_FILE:-${S9K_STATE_ROOT}/deploy/deployment-state.json}"
+    local mode="--dry-run"
+    [ "${S9K_RETENTION_APPLY:-0}" = "1" ] && mode="--apply"
 
-    while IFS= read -r release_dir; do
-        local rid
-        rid="$(basename "${release_dir}")"
-        count=$((count + 1))
-        if [ "${count}" -gt "${S9K_RELEASES_TO_KEEP}" ] && [ "${rid}" != "${active_id}" ]; then
-            to_delete+=("${release_dir}")
-        fi
-    done < <(list_releases)
-
-    for dir in "${to_delete[@]+"${to_delete[@]}"}"; do
-        warn "Eliminando release antigua: ${dir}"
-        rm -rf "${dir}"
-    done
+    log "Retención de releases (${mode}): invocando retention.py"
+    python3 "${here_scripts}/retention.py" \
+        --releases-root "${S9K_ROOT}/releases" \
+        --current-link  "${S9K_ROOT}/current" \
+        --state-file    "${state_file}" \
+        --keep          "${S9K_RELEASES_TO_KEEP}" \
+        "${mode}" \
+    || warn "retention.py salió con error — ninguna release borrada (fail-closed)"
 }
