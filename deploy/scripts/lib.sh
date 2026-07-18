@@ -69,6 +69,100 @@ repo_commit() {
 }
 
 # ---------------------------------------------------------------------------
+# resolve_release_commit <ref> [--repo-url URL] [--work-dir DIR] [--allow-branch]
+#
+# Resuelve UNA referencia de release a un ÚNICO SHA de commit canónico.
+# Es la función central de resolución de refs para todo el utillaje de deploy:
+# ninguna otra ruta debe reimplementar "rev-parse || echo <ref>".
+#
+# CONTRATO (regresión "forward-ref" corregida):
+#   entrada admitida  : tag deploy-*, SHA completo, SHA corto inequívoco;
+#                       branch SOLO con --allow-branch (entorno de desarrollo).
+#   stdout            : EXCLUSIVAMENTE el SHA del commit (40/64 hex) + \n.
+#                       Nunca el ref original, ni mensajes, ni "ok", ni espacios.
+#   stderr            : todos los diagnósticos.
+#   código de salida  : 0 si resuelve a un commit; != 0 en cualquier otro caso.
+#
+# Procedimiento: 1) validar sintaxis; 2) resolver local en silencio;
+#   3) si falta y hay --repo-url, fetch específico y seguro; 4) resolver a
+#   <ref>^{commit}; 5) validar que el objeto es un commit; 6) emitir un único
+#   SHA; 7) return 0. `git rev-parse --verify -q` es silencioso, falla sin
+#   emitir nada, y rechaza refs ambiguas (múltiples objetos) por diseño.
+# ---------------------------------------------------------------------------
+resolve_release_commit() {
+    local ref="" repo_url="" work_dir="${S9K_ROOT}/current" allow_branch=0
+    local positional_set=0
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --repo-url)     repo_url="${2:-}"; shift 2 ;;
+            --work-dir)     work_dir="${2:-}"; shift 2 ;;
+            --allow-branch) allow_branch=1; shift ;;
+            --)             shift; ref="${1:-}"; positional_set=1; shift || true ;;
+            -*)             err "resolve_release_commit: opción desconocida: $1"; return 2 ;;
+            *)              if [ "${positional_set}" -eq 0 ]; then ref="$1"; positional_set=1; shift
+                            else err "resolve_release_commit: exceso de argumentos"; return 2; fi ;;
+        esac
+    done
+
+    # (1) Validación sintáctica estricta -----------------------------------
+    [ -n "${ref}" ] || { err "resolve_release_commit: ref vacía"; return 2; }
+    # Rechazar inyección de opciones: una ref nunca empieza por '-'.
+    case "${ref}" in -*) err "resolve_release_commit: ref no puede empezar por '-': ${ref}"; return 2 ;; esac
+    # Charset seguro: hex, letras, dígitos, '.', '_', '/', '-'. Cualquier otra
+    # cosa (espacios, saltos de línea, '^', '~', ':', '@{', control) se rechaza.
+    case "${ref}" in *[!A-Za-z0-9._/-]*) err "resolve_release_commit: ref con caracteres no permitidos: ${ref}"; return 2 ;; esac
+    # En modo release (sin --allow-branch) solo se admite tag deploy-* o SHA hex.
+    if [ "${allow_branch}" -ne 1 ]; then
+        case "${ref}" in
+            deploy-*) : ;;
+            *) case "${ref}" in
+                   *[!0-9a-fA-F]*) err "resolve_release_commit: en modo release solo se admite tag deploy-* o SHA hex: ${ref}"; return 2 ;;
+                   *) [ "${#ref}" -ge 7 ] || { err "resolve_release_commit: SHA demasiado corto (ambiguo): ${ref}"; return 2; } ;;
+               esac ;;
+        esac
+    fi
+    [ -d "${work_dir}/.git" ] || [ -d "${work_dir}" ] || { err "resolve_release_commit: work-dir inexistente: ${work_dir}"; return 2; }
+
+    local sha=""
+    # (2) Resolución local silenciosa. --verify -q emite el SHA solo si resuelve
+    #     a un único objeto commit; nada (y rc!=0) en fallo o ambigüedad.
+    if sha="$(git -C "${work_dir}" rev-parse --verify -q "${ref}^{commit}" 2>/dev/null)"; then
+        printf '%s\n' "${sha}"; return 0
+    fi
+
+    # (3) No está localmente: hace falta fetch. Sin URL no se puede materializar.
+    if [ -z "${repo_url}" ]; then
+        err "resolve_release_commit: '${ref}' no está en ${work_dir} y no se dio --repo-url para traerlo"; return 1
+    fi
+    case "${repo_url}" in -*) err "resolve_release_commit: repo-url no puede empezar por '-'"; return 2 ;; esac
+
+    # Fetch específico y seguro. '--' separa opciones de refs para que ni ref ni
+    # url puedan interpretarse como opciones de git-fetch. FETCH_HEAD contiene
+    # exactamente lo que se pidió.
+    if git -C "${work_dir}" fetch --quiet --tags -- "${repo_url}" "${ref}" 2>/dev/null; then
+        if sha="$(git -C "${work_dir}" rev-parse --verify -q "FETCH_HEAD^{commit}" 2>/dev/null)"; then
+            printf '%s\n' "${sha}"; return 0
+        fi
+    fi
+    # Fallback: muchos servidores no sirven SHA arbitrarios por 'want'. Traer
+    # todas las tags (y, si se permite, las ramas a un namespace propio) y
+    # re-resolver por nombre. Nunca se hace fetch en 'current' (rompería su
+    # checksum): el work-dir es la copia nueva o un laboratorio.
+    git -C "${work_dir}" fetch --quiet --tags -- "${repo_url}" 2>/dev/null || true
+    if [ "${allow_branch}" -eq 1 ]; then
+        git -C "${work_dir}" fetch --quiet -- "${repo_url}" '+refs/heads/*:refs/remotes/s9k-resolve/*' 2>/dev/null || true
+    fi
+    if sha="$(git -C "${work_dir}" rev-parse --verify -q "${ref}^{commit}" 2>/dev/null)"; then
+        printf '%s\n' "${sha}"; return 0
+    fi
+    if [ "${allow_branch}" -eq 1 ] && sha="$(git -C "${work_dir}" rev-parse --verify -q "refs/remotes/s9k-resolve/${ref}^{commit}" 2>/dev/null)"; then
+        printf '%s\n' "${sha}"; return 0
+    fi
+    err "resolve_release_commit: no se pudo resolver '${ref}' a un commit tras fetch desde el remoto"
+    return 1
+}
+
+# ---------------------------------------------------------------------------
 # Genera un ID único de release: <git-short-sha>-<timestamp>
 # Requiere que el directorio de trabajo tenga un .git accesible.
 # ---------------------------------------------------------------------------
