@@ -25,7 +25,7 @@
 - `viewer/app/routers/health_admin.py` — `GET /api/admin/health` (`require_api_role("admin")`, JSON) y `GET /admin/health` (`require_admin`, panel); registrado en `viewer/app/main.py`.
 - `viewer/app/templates/auth/admin/health.html` — panel específico (extiende `base.html`, sin modificarlo).
 - CLI `viewer/app/cli/health.py` (`python -m app.cli.health`): `check [--component]`, `report`, `json`; exit codes 0/1/2/3.
-- `viewer/systemd/s9-knowledge-healthcheck.{service,timer}` (oneshot + timer 5 min; **no instalado en producción todavía**).
+- `viewer/systemd/s9-knowledge-healthcheck.{service,timer}` (oneshot + timer **horario** con `OnCalendar=hourly`, `Persistent=true`, `RandomizedDelaySec=5m`; frecuencia nunca inferior a una hora; **no instalado en producción todavía**).
 - `docs/46-operational-healthchecks.md`.
 - Tests: `viewer/tests/test_health.py` (34 tests).
 
