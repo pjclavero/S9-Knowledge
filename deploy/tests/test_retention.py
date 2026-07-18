@@ -755,3 +755,195 @@ def test_validate_manifest_valid(tmp_path):
     assert ok
     assert data is not None
     assert data["release_id"] == "abc1234-20260101"
+
+
+# ---------------------------------------------------------------------------
+# Defect #1 regression: CLI --apply actually deletes; default (no flag) does not
+# ---------------------------------------------------------------------------
+
+def _make_cli_lab(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """Create releases_root + current_link + state_file for CLI-level tests."""
+    releases_root = tmp_path / "releases"
+    releases_root.mkdir()
+    current_link = tmp_path / "current"
+    state_dir = tmp_path / "state" / "deploy"
+    state_dir.mkdir(parents=True)
+    state_file = state_dir / "deployment-state.json"
+    return releases_root, current_link, state_file
+
+
+def test_cli_apply_actually_deletes(tmp_path, monkeypatch):
+    """Regression: --apply flag must result in deletion (defect #1).
+
+    Before the fix, --dry-run had default=True which made args.dry_run always True
+    and the expression `args.apply and not args.dry_run` always False, so --apply
+    never deleted anything. With default=False and `apply = bool(args.apply)` this
+    should now work.
+    """
+    releases_root, current_link, state_file = _make_cli_lab(tmp_path)
+
+    # 5 releases: 1 current (newest) + 3 recent (keep=3) + 1 eligible (oldest)
+    r_current = _make_release(releases_root, "abc1111-20260105", commit="sha1111aaa")
+    r_old = _make_release(releases_root, "abc2222-20260101", commit="sha2222aaa")
+    _make_release(releases_root, "abc3333-20260102", commit="sha3333aaa")
+    _make_release(releases_root, "abc4444-20260103", commit="sha4444aaa")
+    _make_release(releases_root, "abc5555-20260104", commit="sha5555aaa")
+
+    # Set deterministic mtimes so r_old is oldest
+    _set_mtime(r_old, offset_seconds=-400)
+    _set_mtime(releases_root / "abc3333-20260102", offset_seconds=-300)
+    _set_mtime(releases_root / "abc4444-20260103", offset_seconds=-200)
+    _set_mtime(releases_root / "abc5555-20260104", offset_seconds=-100)
+    _set_mtime(r_current, offset_seconds=0)
+
+    current_link.symlink_to(r_current)
+
+    # Suppress git activity — no tags
+    monkeypatch.setattr(retention, "get_tagged_commits", lambda root: set())
+
+    rc = retention.main([
+        "--releases-root", str(releases_root),
+        "--current-link", str(current_link),
+        "--state-file", str(state_file),
+        "--keep", "3",
+        "--apply",
+    ])
+    assert rc == 0
+    assert not r_old.exists(), (
+        "CLI --apply did not delete eligible release; defect #1 regression"
+    )
+
+
+def test_cli_default_no_flag_does_not_delete(tmp_path, monkeypatch):
+    """Default CLI invocation (no --apply, no --dry-run) must be safe (no deletions)."""
+    releases_root, current_link, state_file = _make_cli_lab(tmp_path)
+
+    r_current = _make_release(releases_root, "abc1111-20260105", commit="sha1111aaa")
+    r_old = _make_release(releases_root, "abc2222-20260101", commit="sha2222aaa")
+    _make_release(releases_root, "abc3333-20260102", commit="sha3333aaa")
+    _make_release(releases_root, "abc4444-20260103", commit="sha4444aaa")
+    _make_release(releases_root, "abc5555-20260104", commit="sha5555aaa")
+
+    _set_mtime(r_old, offset_seconds=-400)
+    _set_mtime(releases_root / "abc3333-20260102", offset_seconds=-300)
+    _set_mtime(releases_root / "abc4444-20260103", offset_seconds=-200)
+    _set_mtime(releases_root / "abc5555-20260104", offset_seconds=-100)
+    _set_mtime(r_current, offset_seconds=0)
+
+    current_link.symlink_to(r_current)
+    monkeypatch.setattr(retention, "get_tagged_commits", lambda root: set())
+
+    rc = retention.main([
+        "--releases-root", str(releases_root),
+        "--current-link", str(current_link),
+        "--state-file", str(state_file),
+        "--keep", "3",
+        # No --apply, no --dry-run
+    ])
+    assert rc == 0
+    assert r_old.exists(), (
+        "CLI without --apply deleted a release; dry-run must be the default"
+    )
+
+
+def test_cli_explicit_dry_run_does_not_delete(tmp_path, monkeypatch):
+    """Explicit --dry-run flag must also be safe."""
+    releases_root, current_link, state_file = _make_cli_lab(tmp_path)
+
+    r_current = _make_release(releases_root, "abc1111-20260105", commit="sha1111aaa")
+    r_old = _make_release(releases_root, "abc2222-20260101", commit="sha2222aaa")
+    _make_release(releases_root, "abc3333-20260102", commit="sha3333aaa")
+    _make_release(releases_root, "abc4444-20260103", commit="sha4444aaa")
+    _make_release(releases_root, "abc5555-20260104", commit="sha5555aaa")
+
+    _set_mtime(r_old, offset_seconds=-400)
+    _set_mtime(r_current, offset_seconds=0)
+    current_link.symlink_to(r_current)
+    monkeypatch.setattr(retention, "get_tagged_commits", lambda root: set())
+
+    rc = retention.main([
+        "--releases-root", str(releases_root),
+        "--current-link", str(current_link),
+        "--state-file", str(state_file),
+        "--keep", "3",
+        "--dry-run",
+    ])
+    assert rc == 0
+    assert r_old.exists(), "CLI --dry-run deleted a release"
+
+
+# ---------------------------------------------------------------------------
+# Defect #2 regression: indeterminate tags (git unavailable) → PROTECTED_UNKNOWN
+# ---------------------------------------------------------------------------
+
+def test_indeterminate_tags_protect_all(tmp_path, monkeypatch):
+    """Regression: when get_tagged_commits returns None (git unavailable),
+    all releases must be marked PROTECTED_UNKNOWN — none deleted (defect #2).
+
+    Before the fix, get_tagged_commits returned set() on error (fail-open), which
+    gave zero tag protection. With the fix it returns None (indeterminate), and
+    run_retention marks all releases PROTECTED_UNKNOWN.
+    """
+    releases_root, current_link, state_file = _make_cli_lab(tmp_path)
+
+    # 5 releases, no current, no state — under normal conditions 2 would be eligible
+    for i in range(1, 6):
+        _make_release(releases_root, f"abc{i}000-2026010{i}", commit=f"sha{i}000aaa")
+
+    # Simulate git unavailable: return None (indeterminate)
+    monkeypatch.setattr(retention, "get_tagged_commits", lambda root: None)
+
+    rc = retention.main([
+        "--releases-root", str(releases_root),
+        "--current-link", str(current_link),
+        "--state-file", str(state_file),
+        "--keep", "3",
+        "--apply",
+    ])
+    assert rc == 0
+    # ALL releases must still exist (PROTECTED_UNKNOWN blocked all deletions)
+    for i in range(1, 6):
+        p = releases_root / f"abc{i}000-2026010{i}"
+        assert p.exists(), (
+            f"Release {p.name} was deleted despite indeterminate tag state "
+            "(defect #2 regression)"
+        )
+
+
+def test_indeterminate_tags_cli_protects_would_be_tagged(tmp_path, monkeypatch):
+    """When git is unavailable and a release WOULD be tag-protected, it must survive.
+
+    This tests the specific failure mode of defect #2: a release with a deploy-* tag
+    would be deleted if tags return empty set, but must be protected when indeterminate.
+    """
+    releases_root, current_link, state_file = _make_cli_lab(tmp_path)
+
+    # 1 current + 3 recent + 1 eligible which also happens to be "tagged" in prod
+    r_current = _make_release(releases_root, "abc1111-20260105", commit="sha1111aaa")
+    r_tagged = _make_release(releases_root, "abc2222-20260101", commit="sha2222aaa")
+    _make_release(releases_root, "abc3333-20260102", commit="sha3333aaa")
+    _make_release(releases_root, "abc4444-20260103", commit="sha4444aaa")
+    _make_release(releases_root, "abc5555-20260104", commit="sha5555aaa")
+
+    _set_mtime(r_tagged, offset_seconds=-400)
+    _set_mtime(releases_root / "abc3333-20260102", offset_seconds=-300)
+    _set_mtime(releases_root / "abc4444-20260103", offset_seconds=-200)
+    _set_mtime(releases_root / "abc5555-20260104", offset_seconds=-100)
+    _set_mtime(r_current, offset_seconds=0)
+
+    current_link.symlink_to(r_current)
+
+    # Indeterminate: git not available — we cannot know if sha2222aaa is tagged
+    monkeypatch.setattr(retention, "get_tagged_commits", lambda root: None)
+
+    rc = retention.main([
+        "--releases-root", str(releases_root),
+        "--current-link", str(current_link),
+        "--state-file", str(state_file),
+        "--keep", "3",
+        "--apply",
+    ])
+    assert rc == 0
+    assert r_tagged.exists(), (
+        "Release with unknown tag status was deleted; indeterminate tags must protect"
+    )

@@ -172,37 +172,123 @@ def validate_manifest(manifest_path: Path) -> tuple[bool, Optional[dict]]:
 # Protection: deployed tags
 # ---------------------------------------------------------------------------
 
-def get_tagged_commits(releases_root: Path) -> set[str]:
+def get_tagged_commits(releases_root: Path) -> Optional[set[str]]:
     """
     Return the set of git commit SHAs (full + 7-char short) referenced by
-    any tag matching 'deploy-*'. Uses the git repo found at releases_root/../.git
-    or any parent. Returns empty set on any error (fail-open: unknown = protect).
+    any tag matching 'deploy-*'.
+
+    Return value semantics (fail-closed):
+      None       = could not determine tags (git absent, no repo, error, timeout)
+                   → caller must treat affected releases as PROTECTED_UNKNOWN
+      set()      = git worked, no deploy-* tags found
+      {sha, ...} = git worked, these SHAs are tagged
+
+    NEVER silently return an empty set when the query itself failed.
+
+    Search strategy (most reliable first):
+      1. Walk up from releases_root looking for a .git directory.
+      2. Try git -C on each existing release dir (each is a clone with its own .git).
+      3. Try git -C releases_root.parent as a last resort.
     """
-    tagged: set[str] = set()
-    try:
-        repo_candidate = releases_root.parent
-        result = subprocess.run(
-            ["git", "-C", str(repo_candidate), "tag", "--list", "deploy-*"],
-            capture_output=True, text=True, timeout=10,
-        )
-        if result.returncode != 0:
-            return tagged
-        for tag in result.stdout.splitlines():
-            tag = tag.strip()
-            if not tag:
-                continue
-            r2 = subprocess.run(
-                ["git", "-C", str(repo_candidate), "rev-parse", "--verify", f"{tag}^{{commit}}"],
-                capture_output=True, text=True, timeout=5,
+    # Check git is available at all
+    if not subprocess.run(
+        ["git", "--version"],
+        capture_output=True, timeout=5,
+    ).returncode == 0:
+        log.warning("get_tagged_commits: git not available → tags INDETERMINATE")
+        return None
+
+    def _query_tags(repo_dir: str) -> Optional[set[str]]:
+        """Query deploy-* tags from a specific repo dir. Returns None on error."""
+        try:
+            result = subprocess.run(
+                ["git", "-C", repo_dir, "tag", "--list", "deploy-*"],
+                capture_output=True, text=True, timeout=10,
             )
-            if r2.returncode == 0:
-                full_sha = r2.stdout.strip()
-                tagged.add(full_sha)
-                if len(full_sha) >= 7:
-                    tagged.add(full_sha[:7])
-    except Exception as exc:  # noqa: BLE001
-        log.warning("get_tagged_commits: error querying git tags: %s", exc)
-    return tagged
+            if result.returncode != 0:
+                return None
+            found: set[str] = set()
+            for tag in result.stdout.splitlines():
+                tag = tag.strip()
+                if not tag:
+                    continue
+                r2 = subprocess.run(
+                    ["git", "-C", repo_dir, "rev-parse", "--verify", f"{tag}^{{commit}}"],
+                    capture_output=True, text=True, timeout=5,
+                )
+                if r2.returncode == 0:
+                    full_sha = r2.stdout.strip()
+                    found.add(full_sha)
+                    if len(full_sha) >= 7:
+                        found.add(full_sha[:7])
+            return found
+        except Exception:  # noqa: BLE001
+            return None
+
+    errors = 0
+    successes = 0
+    all_tagged: set[str] = set()
+
+    # Strategy 1: walk up from releases_root for a .git
+    candidate = releases_root.parent
+    for _ in range(6):  # max 6 levels up
+        git_dir = candidate / ".git"
+        if git_dir.is_dir() or git_dir.is_file():
+            result = _query_tags(str(candidate))
+            if result is not None:
+                all_tagged.update(result)
+                successes += 1
+            else:
+                errors += 1
+            break
+        parent = candidate.parent
+        if parent == candidate:
+            break
+        candidate = parent
+
+    # Strategy 2: try each existing release dir (they are git clones)
+    try:
+        for rel in releases_root.iterdir():
+            if not rel.is_dir():
+                continue
+            git_dir = rel / ".git"
+            if not (git_dir.is_dir() or git_dir.is_file()):
+                continue
+            result = _query_tags(str(rel))
+            if result is not None:
+                all_tagged.update(result)
+                successes += 1
+            else:
+                errors += 1
+    except OSError:
+        errors += 1
+
+    # Strategy 3: releases_root.parent as fallback
+    if successes == 0:
+        result = _query_tags(str(releases_root.parent))
+        if result is not None:
+            all_tagged.update(result)
+            successes += 1
+        else:
+            errors += 1
+
+    if successes == 0:
+        # All queries failed — cannot determine tag status
+        log.warning(
+            "get_tagged_commits: all %d git query attempts failed → tags INDETERMINATE; "
+            "releases with unknown tag status will be marked PROTECTED_UNKNOWN",
+            errors,
+        )
+        return None
+
+    if errors > 0:
+        log.warning(
+            "get_tagged_commits: %d git queries succeeded, %d failed; "
+            "using union of successful results",
+            successes, errors,
+        )
+
+    return all_tagged
 
 
 # ---------------------------------------------------------------------------
@@ -472,9 +558,15 @@ def run_retention(
         log.info("Protected (live processes): %s", ", ".join(sorted(live_paths)))
 
     # 5. KEEP files (scanned per-release, below)
-    # 6. Tagged commits
+    # 6. Tagged commits (fail-closed: None = unknown → all releases get PROTECTED_UNKNOWN)
     tagged_commits = get_tagged_commits(releases_root)
-    if tagged_commits:
+    tags_indeterminate = tagged_commits is None
+    if tags_indeterminate:
+        log.warning(
+            "get_tagged_commits returned INDETERMINATE; "
+            "all releases will be marked PROTECTED_UNKNOWN (fail-closed)"
+        )
+    elif tagged_commits:
         log.info("Tagged commits (deploy-*): %s", ", ".join(sorted(tagged_commits)))
 
     # 7. Explicit protection registry
@@ -579,7 +671,7 @@ def run_retention(
             reasons.append(Disposition.PROTECTED_KEEP_FILE)
 
         # 6. deploy-* tag
-        if tagged_commits and (
+        if not tags_indeterminate and tagged_commits and (
             commit_sha in tagged_commits or commit_short in tagged_commits
         ):
             reasons.append(Disposition.PROTECTED_TAG)
@@ -588,10 +680,10 @@ def run_retention(
         if rel_name in protection_registry:
             reasons.append(Disposition.PROTECTED_REGISTRY)
 
-        # 8. Corrupt state file: when state exists but is unreadable, we cannot
-        #    determine which release is "previous", so mark all as PROTECTED_UNKNOWN.
-        #    (Missing state file is different: it just means no state-based protection.)
-        if state_corrupt:
+        # 8. Protect with PROTECTED_UNKNOWN when any status query is indeterminate:
+        #    (a) deployment-state.json exists but is unreadable/corrupt, OR
+        #    (b) git tag query failed (cannot determine if this release is tagged)
+        if state_corrupt or tags_indeterminate:
             reasons.append(Disposition.PROTECTED_UNKNOWN)
 
         if reasons:
@@ -724,8 +816,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     mode.add_argument(
         "--dry-run",
         action="store_true",
-        default=True,
-        help="Report only; never delete (default)",
+        default=False,
+        help="Report only; never delete (default behavior when neither flag is given)",
     )
     mode.add_argument(
         "--apply",
@@ -763,7 +855,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
         return 0 if ok else 2
 
-    apply = args.apply and not args.dry_run
+    # --apply is the only flag that activates deletions.
+    # The mutually exclusive group guarantees --apply and --dry-run cannot both be set.
+    # Default (neither flag): dry-run mode (apply=False). No default=True needed.
+    apply = bool(args.apply)
 
     return run_retention(
         releases_root=Path(args.releases_root),

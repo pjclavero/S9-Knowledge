@@ -30,7 +30,7 @@ source "${HERE}/lib.sh"
 # ---------------------------------------------------------------------------
 _VERIFY_PHASE="init"
 _VERIFY_DONE=0
-# shellcheck disable=SC2329  # función invocada exclusivamente vía `trap ... EXIT`
+# shellcheck disable=SC2329,SC2317  # invocada exclusivamente vía `trap ... EXIT`
 _trap_verify_exit() {
     local exit_code="${?:-?}"
     local line="${BASH_LINENO[0]:-?}"
