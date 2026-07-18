@@ -21,6 +21,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.auth.config import get_auth_settings
 from app.auth.dependencies import require_api_role, require_api_authenticated_user
+from app.authz.dependencies import get_filtered_provider
 from app.config import get_settings
 from app.deps import get_default_workspace, get_provider
 from app.providers.base import GraphProvider
@@ -124,7 +125,7 @@ def api_entities(
     order: str = Query(default="asc"),
     limit: int = Query(default=None),
     offset: int = Query(default=0, ge=0),
-    provider: GraphProvider = Depends(get_provider),
+    provider: GraphProvider = Depends(get_filtered_provider),
     _=Depends(require_api_authenticated_user),
 ):
     settings = get_settings()
@@ -179,7 +180,7 @@ def api_entities(
 @router.get("/api/entities/{entity_id}")
 def api_entity_detail(
     entity_id: str,
-    provider: GraphProvider = Depends(get_provider),
+    provider: GraphProvider = Depends(get_filtered_provider),
     _=Depends(require_api_authenticated_user),
 ):
     try:
@@ -231,7 +232,7 @@ def entities_page(
     order: str = "asc",
     limit: Optional[int] = None,
     offset: int = 0,
-    provider: GraphProvider = Depends(get_provider),
+    provider: GraphProvider = Depends(get_filtered_provider),
     user=Depends(html_guard),
 ):
     if isinstance(user, RedirectResponse):
@@ -287,7 +288,7 @@ def entities_page(
 def entity_detail_page(
     request: Request,
     entity_id: str,
-    provider: GraphProvider = Depends(get_provider),
+    provider: GraphProvider = Depends(get_filtered_provider),
     user=Depends(html_guard),
 ):
     if isinstance(user, RedirectResponse):
@@ -342,7 +343,7 @@ def entity_detail_page(
 @router.get("/api/sources")
 def api_sources(
     workspace: Optional[str] = Query(default=None),
-    provider: GraphProvider = Depends(get_provider),
+    provider: GraphProvider = Depends(get_filtered_provider),
     _=Depends(require_api_role("reviewer")),
 ):
     settings = get_settings()
@@ -362,7 +363,7 @@ def api_sources(
 def api_source_detail(
     source_id: str,
     workspace: Optional[str] = Query(default=None),
-    provider: GraphProvider = Depends(get_provider),
+    provider: GraphProvider = Depends(get_filtered_provider),
     _=Depends(require_api_role("reviewer")),
 ):
     settings = get_settings()
@@ -388,13 +389,13 @@ def api_source_detail(
 def sources_page(
     request: Request,
     workspace: Optional[str] = None,
+    provider: GraphProvider = Depends(get_filtered_provider),
     user=Depends(html_role_guard("reviewer")),
 ):
     if isinstance(user, RedirectResponse):
         return user
     settings = get_settings()
     ws = workspace or settings.S9K_DEFAULT_WORKSPACE
-    provider = get_provider()
     try:
         sources = provider.list_sources(ws)
     except Exception:
@@ -414,13 +415,13 @@ def source_detail_page(
     request: Request,
     source_id: str,
     workspace: Optional[str] = None,
+    provider: GraphProvider = Depends(get_filtered_provider),
     user=Depends(html_role_guard("reviewer")),
 ):
     if isinstance(user, RedirectResponse):
         return user
     settings = get_settings()
     ws = workspace or settings.S9K_DEFAULT_WORKSPACE
-    provider = get_provider()
 
     try:
         detail = provider.source_detail(ws, source_id)
@@ -451,7 +452,7 @@ def source_detail_page(
 @router.get("/api/quality")
 def api_quality(
     workspace: Optional[str] = Query(default=None),
-    provider: GraphProvider = Depends(get_provider),
+    provider: GraphProvider = Depends(get_filtered_provider),
     _=Depends(require_api_role("reviewer")),
 ):
     settings = get_settings()
@@ -471,13 +472,13 @@ def api_quality(
 def quality_page(
     request: Request,
     workspace: Optional[str] = None,
+    provider: GraphProvider = Depends(get_filtered_provider),
     user=Depends(html_role_guard("reviewer")),
 ):
     if isinstance(user, RedirectResponse):
         return user
     settings = get_settings()
     ws = workspace or settings.S9K_DEFAULT_WORKSPACE
-    provider = get_provider()
     try:
         metrics = provider.quality_metrics(ws)
     except Exception:

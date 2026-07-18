@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from app.deps import get_default_workspace, get_graph_limit, get_provider
+from app.authz.dependencies import get_filtered_provider
+from app.deps import get_default_workspace, get_graph_limit
 from app.providers.base import GraphProvider
 from app.serializers import serialize_graph
 
@@ -16,7 +17,7 @@ def api_graph(
     limit: int = Query(default=None, ge=1, le=2000),
     entity_type: str | None = Query(default=None),
     q: str | None = Query(default=None),
-    provider: GraphProvider = Depends(get_provider),
+    provider: GraphProvider = Depends(get_filtered_provider),
 ):
     workspace = workspace or get_default_workspace()
     limit = limit or get_graph_limit()
