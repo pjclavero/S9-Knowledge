@@ -206,11 +206,23 @@ def test_negacion_incorrecta():
 
 
 def test_temporalidad_incorrecta():
-    # GT con marcador temporal (PAST) pero el pipeline no detecta nada.
+    # El matching temporal es ahora CLASS-AWARE (clasificacion, no mera deteccion):
+    # se deriva la CLASE del temporal_scope (temporality.temporal_status_of) y se
+    # exige IGUALDAD con la clase del ground truth.
+    # 1) Sin alcance (None) frente a GT PAST: None no casa con ninguna clase -> False.
     flags = structural_flags(_pred(temporal_scope=None), _gt(temporal_status="PAST"))
     assert flags["temporal_correct"] is False
-    flags_ok = structural_flags(_pred(temporal_scope="antes"), _gt(temporal_status="PAST"))
+    # 2) Scope que SI clasifica a PAST frente a GT PAST -> True (misma clase).
+    flags_ok = structural_flags(
+        _pred(temporal_scope="PAST | markers=fue"), _gt(temporal_status="PAST")
+    )
     assert flags_ok["temporal_correct"] is True
+    # 3) Discriminacion de clase: un scope que clasifica a FUTURE frente a GT PAST
+    #    NO casa (clase distinta), pese a tener senal temporal.
+    flags_future = structural_flags(
+        _pred(temporal_scope="será nombrado"), _gt(temporal_status="PAST")
+    )
+    assert flags_future["temporal_correct"] is False
 
 
 def test_workspace_incorrecto():

@@ -28,6 +28,7 @@ from typing import Any, Optional, Sequence
 # El unico catalogo canonico que reutilizamos es el de tipos de entidad. No se
 # modifica el contrato; solo se lee.
 from relations.contracts import ALLOWED_ENTITY_TYPES
+from relations import temporality
 
 # Version del contrato de senal. Cada `Signal` la expone en su campo `version`.
 SIGNALS_VERSION = "relation-signals-1.0.0"
@@ -449,9 +450,24 @@ def signal_temporality(ctx: SignalContext) -> Signal:
     years = _YEAR_RE.findall(window)
     present = bool(markers or years)
     evidence_parts = list(markers) + list(years)
+    # Enriquecimiento class-aware (retrocompatible): se delega la CLASIFICACION
+    # temporal en `temporality.classify_temporality` sobre la misma ventana, sin
+    # alterar las claves historicas markers/years que otros consumidores esperan.
+    clf = temporality.classify_temporality(window)
+    # `scope`: STRING canonico (to_scope_string) SOLO si hay alcance temporal no
+    # trivial; None en caso contrario (presente simple sin fechas). El pipeline lo
+    # usa tal cual para `temporal_scope` sin reclasificar.
+    scope = clf.to_scope_string() if clf.has_temporal_signal else None
     return Signal(
         name="temporality",
-        value={"markers": markers, "years": years},
+        value={
+            "markers": markers,
+            "years": years,
+            "class": clf.temporal_class,
+            "dates": list(clf.dates),
+            "interval": clf.interval,
+            "scope": scope,
+        },
         evidence="; ".join(evidence_parts),
         explanation=(
             "Alcance temporal detectado (marcadores/fechas): " + "; ".join(evidence_parts)

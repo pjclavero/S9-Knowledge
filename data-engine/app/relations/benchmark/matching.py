@@ -45,7 +45,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from relations import vocabulary
+from relations import temporality, vocabulary
 from relations.contracts import normalize_predicate
 
 # Umbral de solape de spans de evidencia para considerarla "correcta" (IoU).
@@ -96,12 +96,12 @@ def structural_flags(pred: dict, gt: dict) -> dict:
     )
     iou = (inter / union) if union > 0 else 0.0
 
-    # Temporalidad: comprobacion coarse de DETECCION (no de vocabulario). El
-    # pipeline emite `temporal_scope` como texto libre o None; el ground truth usa
-    # un vocabulario cerrado. Se comprueba que el pipeline detecte marcador temporal
-    # exactamente cuando el ground truth lo tiene.
-    gt_temporal_expected = gt["temporal_status"] in _TEMPORAL_EXPECTED
-    pred_temporal_detected = pred.get("temporal_scope") is not None
+    # Temporalidad: comprobacion CLASS-AWARE (no mera deteccion). Se deriva la CLASE
+    # temporal del `temporal_scope` del pipeline (`temporality.temporal_status_of`) y
+    # se exige IGUALDAD con la clase del ground truth. Un pred con temporal_scope=None
+    # -> temporal_status_of=None -> NUNCA casa con PAST/FUTURE/ONGOING/ENDED: el gate
+    # mide clasificacion correcta, no que el pipeline se limite a "detectar algo".
+    pred_temporal_class = temporality.temporal_status_of(pred.get("temporal_scope"))
 
     # Direccion: exacta contra el ground truth (UNDIRECTED / SUBJECT_TO_OBJECT /
     # OBJECT_TO_SUBJECT). Como el sujeto textual puede estar invertido respecto al
@@ -137,7 +137,7 @@ def structural_flags(pred: dict, gt: dict) -> dict:
         "direction_orientation_ok": dir_orientation_ok,
         "types_correct": types_correct,
         "negation_correct": bool(pred["negated"]) == bool(gt["negated"]),
-        "temporal_correct": pred_temporal_detected == gt_temporal_expected,
+        "temporal_correct": pred_temporal_class == gt["temporal_status"],
         "epistemic_correct": pred["epistemic_status"] == gt["epistemic_status"],
         "evidence_overlap_iou": round(iou, 4),
         "evidence_correct": iou >= EVIDENCE_IOU_THRESHOLD,
