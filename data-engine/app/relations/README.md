@@ -326,3 +326,133 @@ cualquier cue epistémico degrada el status, así que un rumor jamás satisface
 Conservador al degradar: una aserción llana del narrador **sin marcas** se clasifica
 `ASSERTED` (no se degrada de más, para no falsear la métrica). Solo degrada cuando
 hay atribución o cue epistémico real — ni se afirma de más, ni se degrada de más.
+
+## Ensemble calibrado (Bloque 6)
+
+Modulo: `relations/ensemble.py`. `ENSEMBLE_VERSION = "relation-ensemble-1.0.0"`,
+`ENSEMBLE_SCHEMA = "relation-ensemble/v1"`.
+
+Esta capa **NO es un segundo combinador de consenso**. `consensus_adapter.
+compute_relation_consensus` sigue siendo el combinador canónico de las 4 vías
+(heurísticas R2, sintaxis R3, LLM local R5, IA externa R6) y no se reescribe ni se
+depreca. El ensemble se construye **encima** y hace dos cosas:
+
+1. **DELEGA** en el consenso las **invalidaciones duras** (contrato inválido, mezcla
+   de workspaces, proveedor presente inválido, evidencia ausente). Si el consenso
+   devuelve `INVALID_RESPONSES`, el ensemble **respeta el veredicto tal cual** y no
+   calibra nada.
+2. **CALIBRA la zona gris** con pesos y umbrales versionados, e **incorpora por fin**
+   las fuentes deterministas de los Bloques 3/4/5 (`vocabulary`, `temporality`,
+   `epistemic`), que hasta ahora no consumía ninguna decisión del pipeline.
+
+Es DETERMINISTA y pura (sin red, disco, escritura, LLM, `time`/`random` ni iteración
+sobre sets), como `epistemic.py` (B5), `temporality.py` (B4) y `vocabulary.py` (B3).
+Recibe evaluaciones **ya calculadas** o `None`: **nunca** invoca Ollama ni NVIDIA.
+
+### Calibrar un candidato
+
+```python
+from relations.ensemble import combine, DEFAULT_PROFILE
+
+d = combine(candidate, signals=signals, syntax=syntax,
+            local=local_eval, external=external_eval, config=DEFAULT_PROFILE)
+# d.state           -> "PARTIAL_CONSENSUS"        (de CONSENSUS_STATES)
+# d.recommendation  -> "propose"                  (techo: nunca aprueba)
+# d.score           -> 0.62                       (media ponderada, 6 decimales)
+# d.contributions   -> 7 SourceContribution (SIEMPRE las 7)
+# d.conflicts       -> tupla de conflictos tipificados
+# d.config_hash     -> "…"                        (config reproducible)
+# d.consensus_state -> estado del combinador delegado (trazabilidad)
+```
+
+`combine(...)` acepta además `local_availability` / `external_availability` para
+declarar **por qué** falta un proveedor cuando su evaluación es `None`.
+
+### Las 7 fuentes y su `availability`
+
+Se emite **SIEMPRE una `SourceContribution` por cada una de las 7 fuentes**, aunque
+la fuente esté ausente: ninguna contribución se pierde en la trazabilidad.
+
+| Fuente | Origen | Peso | Qué aporta |
+|---|---|---|---|
+| `heuristics` | R2 · `signals.py` | 0.6 | Soporte estructural (`same_clause`, `same_sentence`, `svo_pattern`) |
+| `syntax` | R3 · `syntax.py` | 0.8 | Tripleta S-V-O completa en alguna oración |
+| `vocabulary` | **B3** | 1.0 | Canónico del predicado + compatibilidad ontológica de tipos |
+| `temporality` | **B4** | 0.7 | Clase del texto vs `temporal_status_of(temporal_scope)` |
+| `epistemic` | **B5** | 1.0 | Clase del texto vs `epistemic_status` (guardia `is_epistemically_safe`) |
+| `local_llm` | R5 | 1.2 | Recomendación del LLM local (`_LOCAL_POLARITY`) |
+| `external_ai` | R6 | 1.4 | Recomendación en sombra de la IA externa (`_EXTERNAL_POLARITY`) |
+
+`availability` ∈ `PRESENT · NOT_EXECUTED · FAILED_CLOSED · SKIPPED · INVALID`. Los
+tres estados de ausencia de proveedor se **reutilizan** de `relations.pipeline`.
+`polarity` ∈ `positive · negative · abstain · none`, con el invariante duro: **una
+fuente no presente solo admite `polarity = "none"`**. Cada contribución declara la
+**versión del módulo de origen** (`VOCAB_VERSION`, `TEMPORALITY_VERSION`,
+`EPISTEMIC_VERSION`, …).
+
+### Conflictos tipificados
+
+Objetos `{type, detail, sources}`, deduplicados y en orden canónico:
+
+```text
+provider_polarity · negation · epistemic · temporal · predicate_mismatch
+```
+
+Los `reason_codes` del consenso delegado se **traducen** a estos tipos en vez de
+perderse (`provider_polarity_conflict`, `negation_contradiction`,
+`epistemic_contradiction`). **Cualquier conflicto ⇒ `MODEL_CONFLICT` / `human`**: no
+se promedia por encima de una contradicción.
+
+### Reglas duras: no-autoaprobación y ausencia != rechazo
+
+**NO AUTOAPRUEBA.** `EnsembleDecision` valida **tres barreras** en su
+`__post_init__`, así que una decisión insegura es **inconstruible**:
+
+1. `shadow` debe ser `True` (sin efectos).
+2. `state` debe pertenecer a `external_ai.models.CONSENSUS_STATES` — la taxonomía de
+   estados se **reutiliza**, no se duplica.
+3. `recommendation` debe estar en `consensus_adapter.RELATION_RECOMMENDATIONS`
+   (`propose` · `reject` · `human`) y no ser una recomendación prohibida
+   (`approve`, `auto_approve`, `write`, `apply`…). **El techo es `propose`.**
+
+Además: **`reject` es siempre delegado** — el ensemble nunca inventa un rechazo,
+solo preserva la polaridad negativa que el consenso ya había recomendado; y el
+**techo de calibración** impide subir a `STRONG_CONSENSUS` desde `HUMAN_REQUIRED`,
+`MODEL_CONFLICT` o `INVALID_RESPONSES` (sí calibra `PARTIAL → STRONG` y
+`HUMAN → PARTIAL`). `STRONG` exige además **al menos un proveedor PRESENTE**: las
+fuentes deterministas corroboran, no sustituyen a un revisor.
+
+**AUSENCIA != RECHAZO.** Un proveedor ausente aporta `polarity = "none"` y
+`score = 0`, y **no entra** en el denominador de la media ponderada: no vota en
+contra ni resta. Un score dentro de `conflict_margin` es **zona muerta** y escala a
+`HUMAN_REQUIRED` en vez de resolverse por redondeo.
+
+### Versionar y reproducir la configuración
+
+`EnsembleConfig` (frozen) lleva pesos por fuente y umbrales (`strong_threshold`
+0.75, `partial_threshold` 0.45, `conflict_margin` 0.15, `min_decisive_sources` 2),
+con `weights_version` y `thresholds_version` **independientes** de
+`ENSEMBLE_VERSION`: recalibrar NO cambia el código ni el contrato, solo esta capa.
+
+```python
+from relations.ensemble import PROFILES, config_from_dict
+
+cfg = PROFILES["default-1.0.0"]          # mapa INMUTABLE de perfiles
+cfg.config_hash                          # sha256 truncado a 16 hex, determinista
+cfg2 = config_from_dict({"strong_threshold": 0.8,
+                         "weights": {"external_ai": 1.6},
+                         "weights_version": "…-1.1.0"})
+```
+
+`config_hash` se calcula sobre la vista canónica de `to_dict()` y **viaja en cada
+decisión**, de modo que cualquier resultado archivado es reproducible bit a bit.
+`config_from_dict` aplica **lista blanca** de claves y **rechaza** las claves de
+escritura de `pipeline._FORBIDDEN_CONFIG_KEYS` (`write`/`apply`/`persist`/`commit`/
+`auto_approve`…) con `EnsembleConfigError`: no existe ruta de configuración que
+haga escribir al ensemble.
+
+### Fuera de alcance en v1
+
+El ensemble **no está cableado** como paso obligatorio de `pipeline.run_pipeline`:
+su integración corresponde a un bloque posterior con su propio gate. Tampoco ejecuta
+proveedores reales ni escribe en Neo4j.
