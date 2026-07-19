@@ -40,3 +40,26 @@ READY_FOR_PR · READY_FOR_MERGE · REJECTED · DONE.
   del head exacto + diff aislado.
 - Cambios en áreas compartidas → PR de integración del Organizador (no del equipo).
 - El carril R **no espera** a A ni a B. RC6 no incorpora A ni B.
+
+## Actualización — OLA 2A INTEGRADA (2026-07-19)
+
+Base RC6 congelada en `release/rc6-candidate` = `15ae1d4` (inmutable, sin merges de OLA 2A).
+Main avanzó a `723c0c4` (POST_WAVE2A_MAIN). Ningún commit de OLA 2A está en la base RC6.
+
+| Pieza | PR | Merge commit | Estado |
+|-------|----|--------------|--------|
+| SC-01 (pytest PYSEC-2026-1845) | #49 | `b3307f3` | DONE |
+| Dependabot + supply-chain | #44 | `e78ce9c` | DONE |
+| Contrato relaciones | #45 | `178f078` | DONE |
+| Contrato export/import | #46 | `7b3f488` | DONE |
+| Contrato multimedia | #47 | `6b2a350` | DONE |
+| QA Wave 2 (contra producto real) | #48 | `d5a7a62` | DONE |
+| testpath tests/wave2 | #58 | `723c0c4` | DONE |
+
+Validación final main@723c0c4: ~1123 tests verdes (data-engine 594, viewer 364/1skip,
+contratos 38, e2e+integ+wave2 127); unicode/docs/diff-check OK; source_narrative_01
+dry-run 0 escrituras. QA Wave 2: 6/6 mutation checks contra las implementaciones reales.
+
+Pendiente OLA 2B (NO iniciada): generador de pares, sintaxis, prompts RPG, ensemble,
+OCR real, comprensión visual, export/import funcional, UI. RK-05 sigue AISLADO (P2).
+Producción intacta (RC5.1, 199/140, ingesta off). RC6: no creada, no desplegada.
