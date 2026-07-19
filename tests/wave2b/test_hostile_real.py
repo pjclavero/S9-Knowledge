@@ -231,7 +231,8 @@ def test_hostile_no_write_path(monkeypatch):
 # intento de acceso Neo4j: no hay driver en la ruta de import del pipeline
 # ---------------------------------------------------------------------------
 def test_hostile_no_neo4j_driver_in_path():
-    import sys as _sys
+    import os
+    import subprocess
 
     import relations.pipeline as pl
 
@@ -243,8 +244,27 @@ def test_hostile_no_neo4j_driver_in_path():
     # El modulo no expone ningun driver/repositorio de escritura como atributo.
     assert not any("driver" in name.lower() or name.lower() == "neo4j"
                    for name in dir(pl))
-    # Importar el pipeline no arrastra el paquete neo4j al interprete.
-    assert "neo4j" not in _sys.modules
+
+    # Importar el pipeline NO arrastra el paquete neo4j al interprete. Se comprueba
+    # en un SUBPROCESO LIMPIO: en la suite combinada, otros tests (viewer) ya
+    # importan `neo4j` en el proceso pytest, contaminando `sys.modules` globalmente,
+    # asi que medir `sys.modules` en-proceso seria fragil. El invariante verdadero
+    # es que importar SOLO el pipeline no importe neo4j.
+    app_dir = Path(__file__).resolve().parents[2] / "data-engine" / "app"
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(app_dir), env.get("PYTHONPATH", "")]
+    ).rstrip(os.pathsep)
+    code = (
+        "import sys; import relations.pipeline; "
+        "leaked = sorted(m for m in sys.modules if 'neo4j' in m); "
+        "assert not leaked, leaked"
+    )
+    r = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True, text=True, env=env, timeout=60,
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
     # La salida declara dry-run sin persistencia.
     out = run_pipeline(simple_payload())
     assert out["dry_run"] is True
