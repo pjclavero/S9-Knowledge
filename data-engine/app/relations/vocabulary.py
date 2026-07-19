@@ -49,7 +49,9 @@ _RAW_ALIASES: dict[str, str] = {
     "ENEMY_OF": "ENEMIES_WITH",
     "ENEMY_WITH": "ENEMIES_WITH",
     "SUCCEEDED": "SUCCESSOR_OF",
-    "SUCCEEDED_BY": "SUCCESSOR_OF",
+    # NOTA: "SUCCEEDED_BY" NO se aliasa: es la INVERSA de SUCCESSOR_OF (invierte
+    # sujeto/objeto), no un sinonimo sin perdida. Las inversas se tratan aparte
+    # (INVERSE_PREDICATES / inverse_of), no como alias.
     "LIVES_IN": "LOCATED_IN",
     "ALLY_OF": "ALLIED_WITH",
     "MEMBER": "MEMBER_OF",

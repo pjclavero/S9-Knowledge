@@ -40,7 +40,7 @@ ya existente, nunca matices semánticos nuevos:
 | Alias | Canónico |
 |---|---|
 | `ENEMY_OF` / `ENEMY_WITH` | `ENEMIES_WITH` |
-| `SUCCEEDED` / `SUCCEEDED_BY` | `SUCCESSOR_OF` |
+| `SUCCEEDED` | `SUCCESSOR_OF` |
 | `LIVES_IN` | `LOCATED_IN` |
 | `ALLY_OF` | `ALLIED_WITH` |
 | `MEMBER` | `MEMBER_OF` |
