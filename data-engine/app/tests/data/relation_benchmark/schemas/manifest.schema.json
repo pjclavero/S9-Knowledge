@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "relation-benchmark/manifest.schema.json",
+  "title": "Relation benchmark manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "corpus",
+    "version",
+    "synthetic",
+    "contains_private_corpus",
+    "encoding",
+    "source_count",
+    "relation_count",
+    "sources",
+    "ground_truth",
+    "workspaces"
+  ],
+  "properties": {
+    "corpus": {
+      "const": "relation-benchmark"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "synthetic": {
+      "const": true
+    },
+    "contains_private_corpus": {
+      "const": false
+    },
+    "workspaces": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "encoding": {
+      "const": "utf-8"
+    },
+    "source_count": {
+      "type": "integer",
+      "minimum": 12,
+      "maximum": 20
+    },
+    "relation_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "path",
+          "title",
+          "workspace",
+          "encoding",
+          "bytes",
+          "chars",
+          "sha256"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^src-\\d+$"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^sources/[A-Za-z0-9._-]+\\.txt$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "workspace": {
+            "type": "string",
+            "minLength": 1
+          },
+          "encoding": {
+            "const": "utf-8"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "chars": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "ground_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "const": "ground_truth/relations.json"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}
