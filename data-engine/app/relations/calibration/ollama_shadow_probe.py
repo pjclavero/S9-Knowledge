@@ -215,7 +215,7 @@ class ProbeReport:
 def redact_endpoint_host(endpoint: str) -> str:
     """Ofusca el host del endpoint conservando esquema y sufijo de ruta.
 
-    'http://192.168.1.157:11434/v1' -> 'http://<host>/v1'.
+    'http://192.0.2.1:11434/v1' -> 'http://<host>/v1'.
     Nunca revela IP/hostname en informes compartibles.
     """
     from urllib.parse import urlsplit, urlunsplit

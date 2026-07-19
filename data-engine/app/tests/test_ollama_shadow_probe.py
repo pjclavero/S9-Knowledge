@@ -99,6 +99,7 @@ def test_probe_reports_deterministic_when_output_identical():
 # ---------------------------------------------------------------------------
 # Deteccion de NO determinismo: contenido distinto entre repeticiones.
 # ---------------------------------------------------------------------------
+@pytest.mark.mutation
 def test_probe_detects_non_determinism():
     outputs = [
         json.dumps({"relations": [_valid_relation(_CASE.document, "juro lealtad al Clan Escorpion", confidence=0.9)]}),
@@ -122,6 +123,7 @@ def test_probe_detects_non_determinism():
 # ---------------------------------------------------------------------------
 # Invariante de sombra: ni siquiera un consenso fuerte produce aprobacion.
 # ---------------------------------------------------------------------------
+@pytest.mark.mutation
 def test_probe_never_approves_even_on_strong_consensus():
     content = json.dumps({"relations": [_valid_relation(_CASE.document, "juro lealtad al Clan Escorpion", confidence=0.99)]})
     report = run_probe(
@@ -152,7 +154,7 @@ def test_probe_records_invalid_when_model_returns_garbage():
 # Redaccion del endpoint: nunca revela host/IP en el informe.
 # ---------------------------------------------------------------------------
 def test_redact_endpoint_hides_host():
-    assert redact_endpoint_host("http://192.168.1.157:11434/v1") == "http://<host>/v1"
+    assert redact_endpoint_host("http://192.0.2.1:11434/v1") == "http://<host>/v1"
     assert redact_endpoint_host("https://ollama.internal:443/v1") == "https://<host>/v1"
     # Sin esquema no revela nada.
     assert redact_endpoint_host("no-es-url") == "<host>"
@@ -162,11 +164,11 @@ def test_report_endpoint_is_redacted_by_default():
     content = json.dumps({"relations": [_valid_relation(_CASE.document, "juro lealtad al Clan Escorpion")]})
     # endpoint explicito pero transport inyectado: no hay red; el informe ofusca host.
     report = run_probe(
-        endpoint="http://192.168.1.157:11434/v1", model="qwen2.5:7b",
+        endpoint="http://192.0.2.1:11434/v1", model="qwen2.5:7b",
         cases=[_CASE], repetitions=1, transport=_fixed_transport(content),
     )
     assert report.endpoint == "http://<host>/v1"
-    assert "192.168.1.157" not in report.to_json()
+    assert "192.0.2.1" not in report.to_json()
 
 
 # ---------------------------------------------------------------------------
