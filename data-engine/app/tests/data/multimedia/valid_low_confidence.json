@@ -1,0 +1,20 @@
+{
+  "contract": "multimedia-artifact/internal-v1",
+  "source_id": "media_0000000000000022",
+  "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000022",
+  "media_type": "OCR_TEXT",
+  "extraction_method": "ocr:stub",
+  "model": "stub-ocr-v0",
+  "page": 6,
+  "region_id": "p6-faint-scan",
+  "bounding_box": {"x": 0.10, "y": 0.10, "width": 0.40, "height": 0.10},
+  "confidence": 0.20,
+  "language": "es",
+  "orientation": 180,
+  "text": "Escaneo tenue con baja confianza: debe marcarse para revision humana.",
+  "description": "",
+  "structured_data": null,
+  "parent_region": null,
+  "provenance": {"source_id": "media_0000000000000022", "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000022", "note": "fixture sintetica: confianza baja, valida pero requiere revision"},
+  "warnings": []
+}

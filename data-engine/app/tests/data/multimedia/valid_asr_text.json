@@ -1,0 +1,26 @@
+{
+  "contract": "multimedia-artifact/internal-v1",
+  "source_id": "media_0000000000000005",
+  "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000005",
+  "media_type": "ASR_TEXT",
+  "extraction_method": "asr:stub",
+  "model": "stub",
+  "page": null,
+  "region_id": "audio",
+  "bounding_box": null,
+  "confidence": null,
+  "language": "es",
+  "orientation": 0,
+  "text": "Transcripcion sintetica de prueba producida por el stub de ASR.",
+  "description": "",
+  "structured_data": {
+    "segments": [
+      {"start": 0.0, "end": 5.0, "text": "Inicio simulado."},
+      {"start": 5.0, "end": 10.0, "text": "Segundo segmento."}
+    ],
+    "duration_seconds": 10.0
+  },
+  "parent_region": null,
+  "provenance": {"source_id": "media_0000000000000005", "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000005", "note": "fixture sintetica; compatible con media.transcriber"},
+  "warnings": []
+}

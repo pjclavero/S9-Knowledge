@@ -1,0 +1,20 @@
+{
+  "contract": "multimedia-artifact/internal-v1",
+  "source_id": "media_0000000000000006",
+  "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000006",
+  "media_type": "CHARACTER_SHEET",
+  "extraction_method": "vision:stub",
+  "model": "stub-vision-v0",
+  "page": 9,
+  "region_id": "p9-sheet-01",
+  "bounding_box": {"x": 0.05, "y": 0.05, "width": 0.90, "height": 0.90},
+  "confidence": 0.66,
+  "language": "es",
+  "orientation": 0,
+  "text": "",
+  "description": "Ficha de personaje sintetica que contiene una tabla anidada (parent de p9-table-01).",
+  "structured_data": {"name": "Personaje de prueba", "class": "explorador"},
+  "parent_region": null,
+  "provenance": {"source_id": "media_0000000000000006", "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000006", "note": "fixture sintetica; region padre de una tabla anidada"},
+  "warnings": []
+}

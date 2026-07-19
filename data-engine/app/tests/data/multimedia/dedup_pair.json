@@ -1,0 +1,42 @@
+[
+  {
+    "contract": "multimedia-artifact/internal-v1",
+    "source_id": "media_0000000000000021",
+    "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000021",
+    "media_type": "EMBEDDED_TEXT",
+    "extraction_method": "pdf_text",
+    "model": "n/a",
+    "page": 2,
+    "region_id": "p2-header-first",
+    "bounding_box": {"x": 0.10, "y": 0.02, "width": 0.80, "height": 0.04},
+    "confidence": 1.0,
+    "language": "es",
+    "orientation": 0,
+    "text": "Encabezado repetido identico en dos regiones.",
+    "description": "",
+    "structured_data": null,
+    "parent_region": null,
+    "provenance": {"source_id": "media_0000000000000021", "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000021", "note": "duplicado sintetico por contenido"},
+    "warnings": []
+  },
+  {
+    "contract": "multimedia-artifact/internal-v1",
+    "source_id": "media_0000000000000021",
+    "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000021",
+    "media_type": "EMBEDDED_TEXT",
+    "extraction_method": "pdf_text",
+    "model": "n/a",
+    "page": 2,
+    "region_id": "p2-header-second",
+    "bounding_box": {"x": 0.10, "y": 0.90, "width": 0.80, "height": 0.04},
+    "confidence": 1.0,
+    "language": "es",
+    "orientation": 0,
+    "text": "Encabezado repetido identico en dos regiones.",
+    "description": "",
+    "structured_data": null,
+    "parent_region": null,
+    "provenance": {"source_id": "media_0000000000000021", "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000021", "note": "duplicado sintetico por contenido"},
+    "warnings": []
+  }
+]

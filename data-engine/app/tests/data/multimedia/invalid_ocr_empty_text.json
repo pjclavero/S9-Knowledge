@@ -1,0 +1,20 @@
+{
+  "contract": "multimedia-artifact/internal-v1",
+  "source_id": "media_0000000000000011",
+  "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000011",
+  "media_type": "OCR_TEXT",
+  "extraction_method": "ocr:stub",
+  "model": "stub-ocr-v0",
+  "page": 2,
+  "region_id": "p2-empty-ocr",
+  "bounding_box": {"x": 0.10, "y": 0.10, "width": 0.30, "height": 0.10},
+  "confidence": 0.40,
+  "language": "es",
+  "orientation": 0,
+  "text": "   ",
+  "description": "",
+  "structured_data": null,
+  "parent_region": null,
+  "provenance": {"source_id": "media_0000000000000011", "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000011", "note": "fixture invalida: OCR_TEXT sin texto"},
+  "warnings": []
+}

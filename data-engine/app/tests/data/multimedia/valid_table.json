@@ -1,0 +1,27 @@
+{
+  "contract": "multimedia-artifact/internal-v1",
+  "source_id": "media_0000000000000004",
+  "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000004",
+  "media_type": "TABLE",
+  "extraction_method": "table_detect:stub",
+  "model": "stub-table-v0",
+  "page": 7,
+  "region_id": "p7-table-01",
+  "bounding_box": {"x": 0.08, "y": 0.30, "width": 0.84, "height": 0.40},
+  "confidence": 0.90,
+  "language": "es",
+  "orientation": 0,
+  "text": "",
+  "description": "",
+  "structured_data": {
+    "columns": ["atributo", "valor"],
+    "rows": [
+      ["fuerza", "12"],
+      ["destreza", "14"],
+      ["voluntad", "10"]
+    ]
+  },
+  "parent_region": null,
+  "provenance": {"source_id": "media_0000000000000004", "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000004", "note": "fixture sintetica sanitizada"},
+  "warnings": []
+}
