@@ -6,14 +6,24 @@ El Agente Q **no corrige producto**: reproduce, asigna severidad e identifica al
 equipo propietario, bloquea el gate y propone un PR correctivo separado. Esta ola
 cubre los tres contratos internos de OLA 2A y la supply chain.
 
-## Restricción clave: suite AUTOCONTENIDA
+## FASE 2 (integrada): tests contra el PRODUCTO REAL
 
-Los contratos de A1 (relaciones), B2 (export/import) y B3 (multimedia) viven en
-ramas paralelas **aún no fusionadas**. Q **no importa** su código. En su lugar, cada
-módulo de `tests/wave2/` define un **validador de referencia mínimo** que codifica
-las reglas esperadas de `docs/coordination/contract-proposals.md` (§1/§2/§3) y de
-`docs/coordination/dependabot-analysis.md`. Estos validadores fijan las invariantes
-que los contratos reales deberán cumplir en la integración.
+Tras fusionar A1 (relaciones), B2 (export/import), B3 (multimedia) y B-SEC-1
+(supply chain), esta suite se reescribió para **importar y ejercitar las
+implementaciones reales** ya en `main`, no validadores de referencia duplicados:
+
+- `relations.contracts` (RelationCandidate) — `data-engine/app/relations`.
+- `export_import.contract` (validate_safe_path/validate_sha256/validate_manifest/
+  validate_zip_metadata/dry_run_import/DryRunReport) — `data-engine/app/export_import`.
+- `media.multimedia_contract` (BoundingBox/MediaType) — `data-engine/app/media`.
+- `.github/dependabot.yml` real (política de supply chain).
+
+`tests/wave2/conftest.py` pone `data-engine/app` en `sys.path` (mismo patrón que
+`data-engine/app/tests/conftest.py`), exponiendo `relations`/`export_import`/`media`
+sin colisionar con el paquete `app` del viewer. Q **sigue sin modificar producto**:
+solo lo importa y comprueba sus invariantes. Los 6 MUTATION checks ejercitan el
+comportamiento REAL importado (una regla relajada dejaría pasar lo que el validador
+real rechaza). Resultado: 42 tests, 6/6 mutaciones.
 
 ## Cobertura por contrato
 

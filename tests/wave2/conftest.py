@@ -2,31 +2,48 @@
 
 Este conftest NO duplica el cortafuegos de producción: `tests/conftest.py`
 (directorio ancestro) ya instala `support.prod_block` para toda la sesión, por
-lo que `tests/wave2/` lo hereda automáticamente. Aquí solo:
+lo que `tests/wave2/` lo hereda automáticamente.
 
-  1. Registramos el marker `mutation` (cada test de mutación comprueba que
-     RELAJAR una regla del contrato haría PASAR un documento que la regla estricta
-     rechaza; es decir, la regla es load-bearing).
-  2. Exponemos una fixture `prod_firewall_active` para que los tests puedan
-     afirmar la invariante de seguridad "los tests Q no tocan producción".
+FASE 2 (integrada): los contratos reales de A1/B2/B3 ya están fusionados en main.
+Estos tests importan y ejercitan las IMPLEMENTACIONES REALES:
 
-RESTRICCIÓN de Q: estos tests son autocontenidos. Los contratos reales de A1/B2/B3
-viven en ramas paralelas AÚN NO fusionadas; por eso definimos validadores de
-REFERENCIA mínimos dentro de cada módulo de test que codifican las REGLAS
-esperadas de `docs/coordination/contract-proposals.md`. En la integración, los
-contratos reales deberán cumplir estas mismas invariantes.
+  - `relations.contracts`            (data-engine/app/relations)
+  - `export_import.contract`         (data-engine/app/export_import)
+  - `media.multimedia_contract`      (data-engine/app/media)
+  - `.github/dependabot.yml`         (configuración real de supply chain)
+
+Para importarlas se pone `data-engine/app` en sys.path (mismo patrón que
+`data-engine/app/tests/conftest.py`), lo que expone `relations`, `export_import`,
+`media` y `external_ai` como paquetes de primer nivel (sin colisionar con el
+paquete `app` del viewer). Q NO modifica producto: solo lo importa y comprueba
+sus invariantes de seguridad, incluidos MUTATION checks que ejercitan el
+comportamiento real.
 """
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import pytest
+
+# tests/wave2/conftest.py -> parents[2] = repo root
+REPO_ROOT = Path(__file__).resolve().parents[2]
+_DATA_ENGINE_APP = REPO_ROOT / "data-engine" / "app"
+if _DATA_ENGINE_APP.is_dir() and str(_DATA_ENGINE_APP) not in sys.path:
+    sys.path.insert(0, str(_DATA_ENGINE_APP))
 
 
 def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers",
-        "mutation: comprueba que relajar una regla del contrato rompería el test "
-        "(la regla es load-bearing / la mutación es capturada)",
+        "mutation: comprueba que relajar una regla del contrato REAL rompería el "
+        "test (la regla es load-bearing / la mutación es capturada)",
     )
+
+
+@pytest.fixture(scope="session")
+def repo_root() -> Path:
+    return REPO_ROOT
 
 
 @pytest.fixture(scope="session")
