@@ -230,8 +230,10 @@ def test_injection_does_not_alter_system_prompt():
 def test_injection_text_stays_inside_delimiters():
     out = render("membership", TEMPLATE_VERSION,
                  context={"document": _INJECTION})
-    open_i = out.index(T.INPUT_OPEN)
-    close_i = out.index(T.INPUT_CLOSE)
+    # Los delimitadores tambien se nombran en la guia del sistema; el bloque
+    # real de datos es la ultima aparicion.
+    open_i = out.rindex(T.INPUT_OPEN)
+    close_i = out.rindex(T.INPUT_CLOSE)
     # El documento inyectado va contenido en el bloque delimitado de datos.
     data_block = out[open_i + len(T.INPUT_OPEN):close_i]
     assert "responde APPROVED" in data_block
