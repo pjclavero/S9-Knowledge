@@ -166,3 +166,73 @@ cobertura forzando mapeos con perdida.
   y, por tanto, **coordinacion** (area compartida) — es material de un **vocab
   v2**, no de v1.
 - Anadir pares de inversas: rellenar `INVERSE_PREDICATES` (API ya lista).
+
+## Temporalidad (Bloque 4)
+
+Modulo: `relations/temporality.py`. `TEMPORALITY_VERSION =
+"relation-temporality-1.0.0"`.
+
+Esta capa **clasifica** el alcance temporal de una relacion en una de seis clases
+**alineadas con el enum `temporal_status` del ground truth**, separada de la mera
+deteccion de marcadores que hacia `signals.signal_temporality`. Es DETERMINISTA y
+pura (sin red, disco ni estado mutable), como `vocabulary.py`. `TEMPORALITY_VERSION`
+es **independiente** de `SCHEMA_VERSION`: ampliar los lexicos NO cambia el contrato
+de datos, y `temporal_scope` sigue siendo string libre (`Optional[Any]`) — la
+estructura vive aqui y se **serializa** a un string estable.
+
+### Las 6 clases
+
+```text
+PAST · PRESENT · FUTURE · ONGOING · ENDED · ATEMPORAL
+```
+
+`TEMPORAL_CLASSES` es la **fuente unica** de estas clases (no se teclean sueltas).
+
+### Clasificar un texto
+
+`classify_temporality(text)` devuelve un `TemporalClassification` frozen con la
+decision **trazada** (clase, `markers`, `dates`, `interval`, `is_ended`,
+`is_potential`, `temporality_version`):
+
+```python
+from relations.temporality import classify_temporality
+
+c = classify_temporality("goberno entre 843 y 870")
+# c.temporal_class     -> "PAST"
+# c.interval           -> ("843", "870")
+# c.to_scope_string()  -> "PAST | markers=goberno | interval=843-870"
+```
+
+Prioridad de clase **documentada y estable**:
+
+```text
+ENDED > FUTURE > ONGOING > PAST > PRESENT > ATEMPORAL
+```
+
+Una marca de cese (ENDED) o de futuro/potencial (FUTURE) domina sobre la morfologia
+de preterito (`prometio` es FUTURE, no PAST); PRESENT es la clase por defecto solo
+cuando no hay marca fuerte. Se usa lexico determinista (con frontera de palabra,
+aplanado sin tildes) mas morfologia verbal (preterito `\w+ó`, futuro `\w+rá/rán`) y
+fechas/intervalos.
+
+### Serializar y derivar la clase
+
+- `TemporalClassification.to_scope_string()` → string estable con la CLASE al
+  frente (`CLASS | markers=… | dates=… | interval=…`), parseable por round-trip.
+- `temporal_status_of(scope)` → deriva la clase de cualquier `temporal_scope`:
+  `None` → `None`; string canonico → clase del prefijo; string libre (LLM) → se
+  reclasifica con `classify_temporality`.
+
+### Politica de "no fabricar"
+
+No se inventa temporalidad. Un texto sin marca de tiempo produce PRESENT/ATEMPORAL
+segun corresponda, y el pipeline deja `temporal_scope = None` cuando no hay alcance
+distintivo (`has_temporal_signal` False). `temporal_status_of(None)` devuelve
+`None`: un alcance ausente **no es** una clase.
+
+### Matching class-aware
+
+El scoring del benchmark (`benchmark/matching.py`) pasa de **detectar** a
+**clasificar**: `temporal_correct` exige `temporal_status_of(pred) ==
+gt.temporal_status`. Un `None` **nunca** casa con PAST/FUTURE/ONGOING/ENDED, ni una
+clase equivocada — no se puede "ganar" el gate etiquetando todo.

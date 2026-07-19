@@ -233,13 +233,18 @@ def _choose_predicate(sigmap: dict, pair: CandidatePair) -> str:
 
 
 def _temporal_scope(sigmap: dict) -> Optional[str]:
+    """Alcance temporal como STRING canonico (class-aware) o None.
+
+    Reutiliza el `scope` ya serializado por `signal_temporality`
+    (`TemporalClassification.to_scope_string()`), producido SOLO cuando hay alcance
+    temporal no trivial. Sin senal -> None (no se inventa). Contrato intacto: sigue
+    devolviendo str|None.
+    """
     temporal = sigmap.get("temporality")
     if not isinstance(temporal, dict):
         return None
-    parts = list(temporal.get("markers") or []) + list(temporal.get("years") or [])
-    if not parts:
-        return None
-    return "; ".join(str(p) for p in parts)
+    scope = temporal.get("scope")
+    return scope if isinstance(scope, str) and scope else None
 
 
 def _epistemic_status(sigmap: dict) -> EpistemicStatus:
