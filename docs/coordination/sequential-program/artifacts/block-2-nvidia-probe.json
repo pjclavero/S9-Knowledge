@@ -1,0 +1,76 @@
+{
+  "api_key_present": true,
+  "cases": [
+    {
+      "all_shadow": true,
+      "any_approval": false,
+      "candidate_id": "ent_asuka|ALLIED_WITH|ent_hisao",
+      "case": "alliance_affirmative",
+      "deterministic": true,
+      "distinct_outputs": 1,
+      "latency_max_ms": 21470,
+      "latency_p50_ms": 13860.0,
+      "note": "Afirmativa clara: el modelo deberia confirmar o pedir humano, nunca aprobar.",
+      "recommendations": [
+        "human"
+      ],
+      "repetitions": 2,
+      "states": [
+        "INVALID_RESPONSES"
+      ],
+      "validation_errors": [
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    },
+    {
+      "all_shadow": true,
+      "any_approval": false,
+      "candidate_id": "ent_asuka|ALLIED_WITH|ent_hisao",
+      "case": "alliance_negated",
+      "deterministic": true,
+      "distinct_outputs": 1,
+      "latency_max_ms": 75874,
+      "latency_p50_ms": 43299.0,
+      "note": "Negacion: el modelo NO debe confirmar la relacion como hecho.",
+      "recommendations": [
+        "human"
+      ],
+      "repetitions": 2,
+      "states": [
+        "INVALID_RESPONSES"
+      ],
+      "validation_errors": [
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    },
+    {
+      "all_shadow": true,
+      "any_approval": false,
+      "candidate_id": "ent_hisao|MEMBER_OF|fac_escorpion",
+      "case": "membership_affirmative",
+      "deterministic": true,
+      "distinct_outputs": 1,
+      "latency_max_ms": 54330,
+      "latency_p50_ms": 34628.5,
+      "note": "Pertenencia asertada.",
+      "recommendations": [
+        "human"
+      ],
+      "repetitions": 2,
+      "states": [
+        "INVALID_RESPONSES"
+      ],
+      "validation_errors": [
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    }
+  ],
+  "endpoint": "https://<host>/v1",
+  "global_invariants": {
+    "all_shadow": true,
+    "no_approvals": true
+  },
+  "model": "meta/llama-3.1-70b-instruct",
+  "probe_version": "nvidia-shadow-probe-1.0.0",
+  "repetitions": 2
+}
