@@ -1,0 +1,87 @@
+{
+  "cases": [
+    {
+      "all_shadow": true,
+      "any_approval": false,
+      "case": "membership_affirmative",
+      "deterministic": true,
+      "distinct_outputs": 1,
+      "input_hash": "2a81dff65b83f799e80ffdcf3a4f68cddd9fab695c03505403279f0013cad0d0",
+      "latency_max_ms": 79538,
+      "latency_p50_ms": 64831.5,
+      "note": "Afirmativa clara: pertenencia asertada.",
+      "prompt_hash": "f307f0c5a04312ce5c25fa42cc0386404626d0a5204270d69f64cf0a0f644ee7",
+      "recommendations": [
+        "recommend_human_review"
+      ],
+      "repetitions": 2,
+      "states": [
+        "INVALID_RESPONSES"
+      ],
+      "validation_errors": [
+        "offsets_do_not_match_evidence"
+      ],
+      "validation_statuses": [
+        "INVALID"
+      ]
+    },
+    {
+      "all_shadow": true,
+      "any_approval": false,
+      "case": "alliance_negated",
+      "deterministic": true,
+      "distinct_outputs": 1,
+      "input_hash": "b25833489b0a9b70e680b55fd8278dc9e89b94f6d68e79df4da843e78c716408",
+      "latency_max_ms": 19651,
+      "latency_p50_ms": 10677.0,
+      "note": "Negacion explicita: la relacion NO debe proponerse como hecho.",
+      "prompt_hash": "097049751a47c60c6963764c09de3465b4af14bbf84fa827117ad1ec1401d107",
+      "recommendations": [
+        "recommend_human_review"
+      ],
+      "repetitions": 2,
+      "states": [
+        "HUMAN_REQUIRED"
+      ],
+      "validation_errors": [
+        "no_relation_extracted"
+      ],
+      "validation_statuses": [
+        "VALID"
+      ]
+    },
+    {
+      "all_shadow": true,
+      "any_approval": false,
+      "case": "alliance_rumored",
+      "deterministic": true,
+      "distinct_outputs": 1,
+      "input_hash": "3df0d6ef0d876601665814f8ec4c5510402a34d26acd62b49b6c50bdaf2c58b7",
+      "latency_max_ms": 68034,
+      "latency_p50_ms": 59469.5,
+      "note": "Estado epistemico: rumor/posibilidad, no aserto.",
+      "prompt_hash": "d85b9e3d461db45a6ae0bdf08949c8ad6909efcdd204772af4578ceac25fb3f3",
+      "recommendations": [
+        "recommend_human_review"
+      ],
+      "repetitions": 2,
+      "states": [
+        "INVALID_RESPONSES"
+      ],
+      "validation_errors": [
+        "offsets_do_not_match_evidence"
+      ],
+      "validation_statuses": [
+        "INVALID"
+      ]
+    }
+  ],
+  "endpoint": "http://<host>/v1",
+  "global_invariants": {
+    "all_shadow": true,
+    "no_approvals": true
+  },
+  "model": "qwen2.5:7b",
+  "probe_version": "ollama-shadow-probe-1.0.0",
+  "repetitions": 2
+}
