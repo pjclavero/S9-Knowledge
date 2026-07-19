@@ -33,7 +33,10 @@ negación, temporalidad, secretos, red o escritura.
 
 ## GATE E — CI de PR
 
-Todos los checks requeridos verdes. Checks requeridos actuales del workflow `CI`:
+Todos los checks requeridos verdes. El conjunto de checks *requeridos* lo define la protección
+de rama de GitHub; la lista de abajo enumera los jobs presentes hoy en el workflow `CI` (no
+asumir que todos son "required" ni que la lista es exhaustiva — verificar contra branch-protection
+en cada merge):
 
 ```text
 Data Engine Tests
@@ -41,10 +44,13 @@ Viewer Tests
 Login browser contract (Playwright)
 Combined Test Suite (no collection errors)
 No dangerous Unicode (Trojan Source)
+No hardcoded absolute paths in sys.path
+Contratos review/ingest v1 (JSON Schema)
+Deployment scripts validation
 ```
 
-Más el workflow `Supply Chain Security`. No fusionar con checks pendientes, cancelados,
-ignorados, tests rojos, auditorías rojas o allowlists improvisadas.
+Más el workflow `Supply Chain Security` (incluye `pip-audit`). No fusionar con checks pendientes,
+cancelados, ignorados, tests rojos, auditorías rojas o allowlists improvisadas.
 
 ## GATE F — Merge
 

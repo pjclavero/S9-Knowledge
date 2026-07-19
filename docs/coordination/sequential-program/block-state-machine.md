@@ -47,8 +47,11 @@ POST_MERGE_VALIDATING → MERGED_AND_MAIN_GREEN
 MERGED_AND_MAIN_GREEN → CLOSED
 ```
 
-`BLOCKED` es alcanzable desde cualquier estado ante una dependencia externa ausente
-(p. ej. endpoint o secreto) o un hallazgo de seguridad/producción.
+`BLOCKED` es alcanzable ante una dependencia externa ausente (p. ej. endpoint o secreto) o un
+hallazgo de seguridad/producción. El diagrama de abajo dibuja los puntos de entrada
+representativos a `BLOCKED` (`PENDING`, `AUDITING`, `IMPLEMENTING`, `POST_MERGE_FAILED`); la
+regla normativa permite entrar en `BLOCKED` desde cualquier estado si se materializa uno de esos
+disparadores.
 
 ## Transiciones prohibidas
 
