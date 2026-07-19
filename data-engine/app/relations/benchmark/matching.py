@@ -45,6 +45,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from relations import vocabulary
 from relations.contracts import normalize_predicate
 
 # Umbral de solape de spans de evidencia para considerarla "correcta" (IoU).
@@ -83,6 +84,9 @@ def structural_flags(pred: dict, gt: dict) -> dict:
     """
     pred_predicate = normalize_predicate(pred["predicate"])
     gt_predicate = normalize_predicate(gt["predicate"])
+    # El acierto de predicado usa el vocabulario CANONICO (alias/sinonimos), no
+    # igualdad tipografica pura: p.ej. "ENEMY_OF" == "ENEMIES_WITH".
+    predicate_correct = vocabulary.predicates_match(pred["predicate"], gt["predicate"])
 
     inter, union = _span_overlap(
         int(pred["evidence_start"]),
@@ -107,7 +111,11 @@ def structural_flags(pred: dict, gt: dict) -> dict:
     gt_dir = gt["direction"]
     swapped = str(pred["subject_id"]) != str(gt["subject_id"])
     dir_exact = pred_dir == gt_dir
-    if swapped and gt_dir in ("SUBJECT_TO_OBJECT", "OBJECT_TO_SUBJECT"):
+    # Para predicados SIMETRICOS (ALLIED_WITH/ENEMIES_WITH/KIN_OF) la orientacion
+    # no aplica: el par (A,B) frente a GT (B,A) NO debe penalizarse por direccion.
+    if vocabulary.is_symmetric(gt["predicate"]) or vocabulary.is_symmetric(pred["predicate"]):
+        dir_orientation_ok = True
+    elif swapped and gt_dir in ("SUBJECT_TO_OBJECT", "OBJECT_TO_SUBJECT"):
         inverted = "OBJECT_TO_SUBJECT" if gt_dir == "SUBJECT_TO_OBJECT" else "SUBJECT_TO_OBJECT"
         dir_orientation_ok = pred_dir == inverted or pred_dir == gt_dir
     else:
@@ -124,7 +132,7 @@ def structural_flags(pred: dict, gt: dict) -> dict:
     )
 
     return {
-        "predicate_correct": pred_predicate == gt_predicate,
+        "predicate_correct": predicate_correct,
         "direction_correct": dir_exact,
         "direction_orientation_ok": dir_orientation_ok,
         "types_correct": types_correct,

@@ -101,3 +101,68 @@ devuelve `True` solo si `negated=False` y `epistemic_status=ASSERTED`.
 20 campos) con `RelationContractError`. El contrato interno-v1 es **cerrado**: una
 clave extra indica otra version u otro contrato y no debe silenciarse. La
 promocion a una v2 requiere aprobacion del Supervisor.
+
+## Vocabulario de predicados (Bloque 3)
+
+Modulo: `relations/vocabulary.py`. `VOCAB_VERSION = "relation-vocab-1.0.0"`.
+
+Esta capa es **normalizacion semantica** de predicados (sinonimos, canonicos,
+simetria, compatibilidad de tipos), **separada** de la normalizacion meramente
+tipografica de `normalize_predicate` (espacios/guiones -> `_`, MAYUSCULAS), que
+se reutiliza como paso previo. `VOCAB_VERSION` es **independiente** de
+`SCHEMA_VERSION`: ampliar el vocabulario NO cambia el contrato de datos.
+
+Principios: DETERMINISTA y puro (sin red, disco ni estado mutable); alias **SIN
+perdida** de significado; **fuente unica** de canonicos y tipos reutilizada de
+`prompts.KNOWN_PREDICATES` y `prompts.TEMPLATES` (no se teclea la ontologia).
+
+### Canonizar un predicado
+
+`canonicalize_predicate(raw)` devuelve un `PredicateCanonicalization` frozen con
+la decision **trazada**:
+
+```python
+from relations.vocabulary import canonicalize_predicate
+
+r = canonicalize_predicate("lives in")
+# r.normalized  -> "LIVES_IN"
+# r.canonical   -> "LOCATED_IN"
+# r.status      -> "alias"        (canonical | alias | out_of_vocab | unknown)
+# r.rule        -> "alias-synonym"
+# r.requires_human -> False
+```
+
+Orden de decision: canonico exacto -> alias sin perdida -> `out_of_vocab_v1`
+(fallback humano) -> `unknown` (fallback humano).
+
+### Comparar predicados (alias-aware)
+
+`predicates_match(a, b)` es `True` si ambos resuelven al **mismo** canonico
+(incluye alias). Dos predicados sin canonico (`None`) **nunca** emparejan, ni
+siquiera consigo mismos: su significado no esta determinado. Es lo que usa el
+scoring del benchmark (`benchmark/matching.py`) en lugar de la igualdad de
+string.
+
+Auxiliares: `is_symmetric(pred)` (simetricos `ALLIED_WITH`, `ENEMIES_WITH`,
+`KIN_OF`, no orientados), `types_compatible(pred, subject_type, object_type)`
+(ontologia derivada de las plantillas; ambos ordenes para simetricos) e
+`inverse_of(pred)` (mecanismo listo, **vacio en v1** -> siempre `None`).
+
+### Politica `out_of_vocab_v1` -> humano
+
+Los predicados de dominio conocidos pero **sin canonico limpio en v1**
+(subtipos de parentesco `PARENT_OF`/`SIBLING_OF`/`MARRIED_TO`/`CHILD_OF`/
+`SPOUSE_OF` y 8 mas: `MENTOR_OF`, `GUARDS`, `FOUNDED`, `ALIAS_OF`, `TRUSTS`,
+`LEADS`, `KNOWS`, `CREATED`) **no** se colapsan contra ningun canonico:
+marcan `requires_human=True`. Es una decision **honesta** — no se fabrica
+cobertura forzando mapeos con perdida.
+
+### Como se extiende el vocabulario
+
+- **Anadir un alias** (sinonimo lexico sin perdida de un canonico existente):
+  seguro, solo esta capa; se agrega a `PREDICATE_ALIASES`.
+- **Promover un `out_of_vocab_v1` a canonico**: NO es un cambio local. Un
+  canonico nuevo necesita **plantilla de prompt** (fuente de canonicos y tipos)
+  y, por tanto, **coordinacion** (area compartida) — es material de un **vocab
+  v2**, no de v1.
+- Anadir pares de inversas: rellenar `INVERSE_PREDICATES` (API ya lista).
