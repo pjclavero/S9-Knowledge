@@ -1,0 +1,180 @@
+{
+  "corpus": "relation-benchmark",
+  "version": "1.0.0",
+  "synthetic": true,
+  "contains_private_corpus": false,
+  "workspaces": [
+    "eldoria",
+    "nova-frontier",
+    "umbral"
+  ],
+  "encoding": "utf-8",
+  "source_count": 16,
+  "relation_count": 54,
+  "sources": [
+    {
+      "id": "src-01",
+      "path": "sources/src-01-batalla-del-vado.txt",
+      "title": "Cronica: la Batalla del Vado",
+      "workspace": "eldoria",
+      "encoding": "utf-8",
+      "bytes": 260,
+      "chars": 256,
+      "sha256": "5235a7f3d70dba1fdea910fb54b8a63ef720b0f754ac65cc78546d88457655cb"
+    },
+    {
+      "id": "src-02",
+      "path": "sources/src-02-ficha-draven.txt",
+      "title": "Ficha de personaje: Draven",
+      "workspace": "eldoria",
+      "encoding": "utf-8",
+      "bytes": 195,
+      "chars": 194,
+      "sha256": "382e3bffd30ba8f180a059ee04904c6ae03dee8dc802a7cc4505296ed300346a"
+    },
+    {
+      "id": "src-03",
+      "path": "sources/src-03-cronologia-valmyr.txt",
+      "title": "Cronologia del Reino de Valmyr",
+      "workspace": "eldoria",
+      "encoding": "utf-8",
+      "bytes": 216,
+      "chars": 210,
+      "sha256": "76c5337a1856b4c30d370a090a538a9e77387e96811f926d11752e0d7265e2ed"
+    },
+    {
+      "id": "src-04",
+      "path": "sources/src-04-faccion-orden-alba.txt",
+      "title": "Faccion: la Orden del Alba",
+      "workspace": "eldoria",
+      "encoding": "utf-8",
+      "bytes": 210,
+      "chars": 208,
+      "sha256": "710bfcf30713b188b91310cd028fa029f10b54575b3941a5bc2aa57fcd875384"
+    },
+    {
+      "id": "src-05",
+      "path": "sources/src-05-kaelin-kaelan.txt",
+      "title": "Los hermanos Kaelin y Kaelan",
+      "workspace": "umbral",
+      "encoding": "utf-8",
+      "bytes": 168,
+      "chars": 165,
+      "sha256": "1654b47ae96cc56e740b54fd4ad3864886244b0bc89bb31fb463c04375e36f55"
+    },
+    {
+      "id": "src-06",
+      "path": "sources/src-06-reliquia-corona.txt",
+      "title": "La Corona de Espinas",
+      "workspace": "umbral",
+      "encoding": "utf-8",
+      "bytes": 158,
+      "chars": 158,
+      "sha256": "cd6e6fe5aa834dbb353b07044b78b1cde2cf31d79b0a9cb0713e6401e3df61ca"
+    },
+    {
+      "id": "src-07",
+      "path": "sources/src-07-maestro-y-aprendiz.txt",
+      "title": "Sela y su maestra Vayra",
+      "workspace": "umbral",
+      "encoding": "utf-8",
+      "bytes": 183,
+      "chars": 179,
+      "sha256": "91eb861452c6038299d0024fff886b312d492bb4aaf62303c89cb561798ba3f6"
+    },
+    {
+      "id": "src-08",
+      "path": "sources/src-08-lealtad-disputada.txt",
+      "title": "Lealtad disputada de Kaelan",
+      "workspace": "umbral",
+      "encoding": "utf-8",
+      "bytes": 193,
+      "chars": 191,
+      "sha256": "43175c9f0f1d89d85336e72a1748d7a626d49ecf23b0992c58b3fd9afe8b2b86"
+    },
+    {
+      "id": "src-09",
+      "path": "sources/src-09-manual-runas.txt",
+      "title": "Manual: Portadores de Runas",
+      "workspace": "nova-frontier",
+      "encoding": "utf-8",
+      "bytes": 172,
+      "chars": 166,
+      "sha256": "b090e532a17de2f1573e576edc48391608f0eccbf9e8c3712da398e50d078465"
+    },
+    {
+      "id": "src-10",
+      "path": "sources/src-10-consejo-conclave.txt",
+      "title": "El Conclave de las Estrellas",
+      "workspace": "nova-frontier",
+      "encoding": "utf-8",
+      "bytes": 201,
+      "chars": 195,
+      "sha256": "e8ac34bee0b93cd8b9959429ffb523f761449a06d2e7ea04454583bf67684667"
+    },
+    {
+      "id": "src-11",
+      "path": "sources/src-11-espada-tsuki.txt",
+      "title": "La espada Tsukikage",
+      "workspace": "nova-frontier",
+      "encoding": "utf-8",
+      "bytes": 159,
+      "chars": 150,
+      "sha256": "e0c310a2ce693865176eea6c51d624791b1917dd837cd69c774b28523f3aab36"
+    },
+    {
+      "id": "src-12",
+      "path": "sources/src-12-casa-veranmor.txt",
+      "title": "La Casa de Veranmor",
+      "workspace": "eldoria",
+      "encoding": "utf-8",
+      "bytes": 84,
+      "chars": 81,
+      "sha256": "5b28e6528fe018c0d953bc074ff69308bf0c3f5536f1a861137ea0078fdc4f76"
+    },
+    {
+      "id": "src-13",
+      "path": "sources/src-13-guerra-fria-meridiano.txt",
+      "title": "Rivalidad hacia el Conclave",
+      "workspace": "nova-frontier",
+      "encoding": "utf-8",
+      "bytes": 148,
+      "chars": 145,
+      "sha256": "d940054dc57e9f5d3346d487a2d4df1ab803461ed66954aea48b74d61b73a51a"
+    },
+    {
+      "id": "src-14",
+      "path": "sources/src-14-corona-perdida.txt",
+      "title": "El Caliz perdido de Ysolde",
+      "workspace": "eldoria",
+      "encoding": "utf-8",
+      "bytes": 134,
+      "chars": 130,
+      "sha256": "d158f02dc1adcb4f5ecd536e941ccfcc32ea76306de085ceb7541a34f36ef6b0"
+    },
+    {
+      "id": "src-15",
+      "path": "sources/src-15-torneo-sable.txt",
+      "title": "El Torneo de Sable",
+      "workspace": "eldoria",
+      "encoding": "utf-8",
+      "bytes": 145,
+      "chars": 143,
+      "sha256": "be65f2b2dc501c34c7151b1f1ffd719898a40c8063f37f073a8eb96e5be0fdce"
+    },
+    {
+      "id": "src-16",
+      "path": "sources/src-16-leyenda-abismo.txt",
+      "title": "Leyendas sobre Vayra",
+      "workspace": "umbral",
+      "encoding": "utf-8",
+      "bytes": 145,
+      "chars": 140,
+      "sha256": "8ba198c09c8d4023a4a878096f65643953e61add0068d2156e74bfe8cdd7b9d1"
+    }
+  ],
+  "ground_truth": {
+    "path": "ground_truth/relations.json",
+    "sha256": "15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c"
+  }
+}
