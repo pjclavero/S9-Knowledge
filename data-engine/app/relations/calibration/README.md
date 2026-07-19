@@ -44,3 +44,40 @@ usan transportes inyectados y corren siempre.
 ### Informe de validación real
 
 Ver [`docs/coordination/sequential-program/block-1-ollama-shadow-report.md`](../../../../docs/coordination/sequential-program/block-1-ollama-shadow-report.md).
+
+## `nvidia_shadow_probe` — Bloque 2
+
+Valida `relations.external_ai_shadow.evaluate_relation_external` contra el proveedor
+**NVIDIA NIM real** (API OpenAI-compatible alojada) sobre relaciones candidatas
+**sintéticas** que el modelo debe **juzgar** (no crear).
+
+### Garantías
+
+- **Modo sombra**: nunca aprueba (`AUTO_APPROVED` prohibido), nunca escribe.
+- **Secreto seguro**: la API key se obtiene por demanda de `external_ai.registry` (variable
+  de entorno); **nunca se almacena, imprime ni serializa**. El informe solo reporta
+  `api_key_present: true/false` y ofusca el host del endpoint.
+- **Fallo cerrado**: sin `S9K_NVIDIA_API_KEY` en el entorno y sin proveedor inyectado,
+  `ConfigError` sin tocar red.
+
+### Uso (CLI)
+
+```bash
+# La API key se lee del entorno (EnvironmentFile privado 0600), nunca por línea de comando.
+set -a; . ~/.config/s9k/nvidia.env; set +a
+export PYTHONPATH="$PWD/data-engine/app"
+python -m relations.calibration.nvidia_cli \
+    --model meta/llama-3.1-70b-instruct \
+    --repetitions 2 \
+    --out informe.json
+```
+
+### Test live gateado
+
+`tests/wave2b/test_external_nvidia_live.py` solo corre con `S9K_NVIDIA_LIVE=1` (+ enabled + key);
+**en CI se salta**. Los unitarios (`data-engine/app/tests/test_nvidia_shadow_probe.py`) usan un
+proveedor inyectado y corren siempre.
+
+### Informe de validación real
+
+Ver [`docs/coordination/sequential-program/block-2-nvidia-shadow-report.md`](../../../../docs/coordination/sequential-program/block-2-nvidia-shadow-report.md).
