@@ -168,3 +168,22 @@ altera qué pares se emparejan.
 
 Intacta. No se tocó VM105, Neo4j, `auth.db`, `jobs.db`, timers ni servicios.
 `S9K_ALLOW_REAL_INGEST = off`. `release/rc6-candidate = 15ae1d4` (inmutable).
+
+## Limitaciones conocidas (aceptadas, no bloqueantes)
+
+Detectadas por el Supervisor y el especialista de integridad; todas en **dirección segura**
+(degradan hacia no-asertivo, nunca convierten un rumor en hecho) y con **F1 global sin cambios**.
+No afectan al gate ni al corpus del benchmark, por lo que se documentan como deuda de léxico en
+lugar de reabrir el clasificador tras la revisión:
+
+- **`sí` vs `si`**: al normalizar acentos, la afirmación "sí" colapsa con el condicional "si", de
+  modo que "respondió que sí" se clasifica HYPOTHETICAL en vez de ASSERTED. Sesgo conservador; no
+  aparece en el ground_truth.
+- **Futuro simple `hará`**: "hará la guerra" se marca INTENDED (intención) aunque pueda ser un
+  futuro asertivo. Conservador; fuera del corpus.
+- **Conocimiento indirecto `según`/`de acuerdo con`**: se mapea a RUMORED(indirect) por diseño
+  (información de segunda mano), consistente con la especificación.
+- **Texto vacío / no-str**: por defecto ASSERTED (sin cue). El pipeline nunca alcanza esta rama
+  con un cue presente.
+
+Candidatas a un léxico epistémico v1.1 con desambiguación de acentos previa al `strip`.
