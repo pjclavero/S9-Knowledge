@@ -1,0 +1,44 @@
+version: 2
+
+updates:
+  # ---- pip: data-engine ----
+  - package-ecosystem: "pip"
+    directory: "/data-engine"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      # Agrupa solo patch + minor. Los majors quedan fuera del grupo y
+      # Dependabot los abre en PRs separados (comportamiento por defecto).
+      patch-minor:
+        update-types:
+          - "patch"
+          - "minor"
+
+  # ---- pip: viewer ----
+  - package-ecosystem: "pip"
+    directory: "/viewer"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      patch-minor:
+        update-types:
+          - "patch"
+          - "minor"
+
+  # ---- GitHub Actions ----
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "github-actions"
