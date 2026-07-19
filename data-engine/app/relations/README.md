@@ -236,3 +236,93 @@ El scoring del benchmark (`benchmark/matching.py`) pasa de **detectar** a
 **clasificar**: `temporal_correct` exige `temporal_status_of(pred) ==
 gt.temporal_status`. Un `None` **nunca** casa con PAST/FUTURE/ONGOING/ENDED, ni una
 clase equivocada — no se puede "ganar" el gate etiquetando todo.
+
+## Estado epistémico (Bloque 5)
+
+Modulo: `relations/epistemic.py`. `EPISTEMIC_VERSION =
+"relation-epistemic-1.0.0"`.
+
+Esta capa **clasifica** el estado epistémico de una relación (¿es un hecho, un
+rumor, una hipótesis o una intención?), separada de la mera detección binaria que
+hacían `signals.signal_rumor`/`signals.signal_modality`. Es DETERMINISTA y pura (sin
+red, disco ni estado mutable), como `temporality.py` (B4) y `vocabulary.py` (B3).
+`EPISTEMIC_VERSION` es **independiente** de `SCHEMA_VERSION`: ampliar los léxicos NO
+cambia el contrato de datos.
+
+### Los 4 valores del enum (contrato) y los 9 matices (nuance)
+
+`classify_epistemic` **reutiliza** el enum `EpistemicStatus` del contrato — **no
+añade valores** ni cambia `SCHEMA_VERSION`. Los cuatro valores canónicos son:
+
+```text
+ASSERTED · RUMORED · HYPOTHETICAL · INTENDED
+```
+
+Internamente distingue **9 matices finos** (`nuance`) y los **mapea** a esos 4
+valores. El `nuance` es **metadato de trazabilidad**: NO se persiste como campo del
+contrato.
+
+| nuance | status |
+|---|---|
+| `rumor` · `indirect` · `belief` | RUMORED |
+| `contradiction` · `doubt` · `possibility` · `hypothesis` | HYPOTHETICAL |
+| `intention` | INTENDED |
+| `assertion` (sin marca) | ASSERTED |
+
+### Clasificar un texto
+
+`classify_epistemic(text)` devuelve un `EpistemicClassification` frozen con la
+decisión **trazada** (`status`, `nuance`, `cues`, `epistemic_version`; propiedades
+`is_asserted`, `has_epistemic_cue`):
+
+```python
+from relations.epistemic import classify_epistemic
+
+c = classify_epistemic("se dice que fundo la orden")
+# c.status           -> EpistemicStatus.RUMORED
+# c.nuance           -> "rumor"
+# c.cues             -> ("se dice que",)
+# c.is_asserted      -> False
+```
+
+Precedencia **documentada y estable** (el primer grupo con match fija status +
+nuance):
+
+```text
+RUMOR / INDIRECTO / CREENCIA            -> RUMORED       (mayor prioridad)
+CONTRADICCION / DUDA / POSIBILIDAD / HIPOTESIS -> HYPOTHETICAL
+INTENCION / PLAN                        -> INTENDED
+(ninguna marca)                         -> ASSERTED       (menor prioridad)
+```
+
+El rumor pesa más que la hipótesis; la contradicción se degrada a HYPOTHETICAL
+(nunca se afirma algo en disputa). El matching es por **frontera de palabra** sobre
+texto aplanado (sin tildes, minúsculas).
+
+### Regla bloqueante: un rumor NUNCA se convierte en hecho
+
+**INVARIANTE DURO:** si hay CUALQUIER cue epistémico no-asertivo, el `status`
+resultante NUNCA es `ASSERTED` — se degrada según la precedencia. `ASSERTED` se
+reserva EXCLUSIVAMENTE para textos sin marca. El estado epistémico no se pierde.
+
+`is_epistemically_safe(status, has_epistemic_cue)` es la guardia **explícita y
+verificable** de ese invariante: devuelve `False` (inseguro) si hay un cue
+no-asertivo y aun así el status es `ASSERTED`. `classify_epistemic` nunca debe
+producir un estado inseguro; los consumidores pueden aseverarlo para blindar el
+pipeline. La señal explicable `signals.signal_epistemic` y
+`pipeline._epistemic_status` delegan en `classify_epistemic` y por tanto respetan el
+invariante.
+
+### La salvaguarda dura sigue siendo `is_affirmative`
+
+Por encima de esta capa, la salvaguarda **dura** del contrato permanece intacta:
+`is_affirmative() = (not negated) and epistemic_status == ASSERTED`. Una relación
+solo cuenta como afirmación de hecho si no está negada **y** su estado es `ASSERTED`;
+cualquier cue epistémico degrada el status, así que un rumor jamás satisface
+`is_affirmative()`.
+
+### Política de "no fabricar"
+
+Conservador al degradar: una aserción llana del narrador **sin marcas** se clasifica
+`ASSERTED` (no se degrada de más, para no falsear la métrica). Solo degrada cuando
+hay atribución o cue epistémico real — ni se afirma de más, ni se degrada de más.

@@ -277,7 +277,11 @@ def test_all_signals_are_explainable():
         subject_type="Character", object_type="Location",
     )
     sigs = compute_all_signals(ctx)
-    assert len(sigs) == 13
+    # 14 senales: se anadio signal_epistemic (clasificacion epistemica) a
+    # compute_all_signals, subiendo el conteo de 13 a 14. Es explicable igual que
+    # el resto (name/value/evidence/explanation/version), asi que _assert_explainable
+    # sigue pasando para todas.
+    assert len(sigs) == 14
     names = [s.name for s in sigs]
     assert len(names) == len(set(names))  # nombres unicos
     for sig in sigs:

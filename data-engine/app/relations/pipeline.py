@@ -248,6 +248,35 @@ def _temporal_scope(sigmap: dict) -> Optional[str]:
 
 
 def _epistemic_status(sigmap: dict) -> EpistemicStatus:
+    """Elige el `epistemic_status` (uno de los 4 valores del contrato) de forma
+    SEGURA y class-aware.
+
+    Delega en `signal_epistemic` (que ya invoco `epistemic.classify_epistemic`
+    sobre la ventana): si el clasificador propone RUMORED/HYPOTHETICAL/INTENDED se
+    usa tal cual. ASSERTED solo cuando NO hay ninguna marca epistemica.
+
+    INVARIANTE DURO: un rumor NUNCA se convierte en hecho. Se conserva ademas el
+    comportamiento historico como red de seguridad (rumor->RUMORED,
+    modality->HYPOTHETICAL) para el caso improbable de que la senal class-aware no
+    este presente. Un cue no-asertivo jamas produce ASSERTED.
+    """
+    epi = sigmap.get("epistemic")
+    if isinstance(epi, dict):
+        raw = epi.get("status")
+        try:
+            status = EpistemicStatus(raw)
+        except (ValueError, KeyError):
+            status = None
+        if status is not None:
+            # Guardia de seguridad: si por cualquier razon el clasificador marcase
+            # ASSERTED teniendo un cue no-asertivo, se degrada (nunca afirmar rumor).
+            if status == EpistemicStatus.ASSERTED and epi.get("has_cue"):
+                if sigmap.get("rumor"):
+                    return EpistemicStatus.RUMORED
+                return EpistemicStatus.HYPOTHETICAL
+            return status
+
+    # Red de seguridad historica (retrocompatible) si no hay senal class-aware.
     if sigmap.get("rumor"):
         return EpistemicStatus.RUMORED
     if sigmap.get("modality"):
