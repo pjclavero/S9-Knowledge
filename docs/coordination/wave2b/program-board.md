@@ -37,3 +37,25 @@ READY_FOR_MERGE · DONE.
 - Áreas compartidas (pytest.ini, requirements, .github, project-status) → PR de
   integración del Organizador.
 - Ningún merge en esta primera ejecución más allá de lo estrictamente listo.
+
+## Actualización — LOTE 2 INTEGRADO (2026-07-19)
+
+main = `b1302a2` (POST_LOTE2_MAIN). RC6 congelada en `15ae1d4` (0 commits de OLA 2B en la base RC6).
+
+| Componente | PR | Merge | Estado |
+|-----------|----|-------|--------|
+| R3 adaptador sintáctico (heurístico, sin deps) | #67 | `3a0ce60` | DONE |
+| R5 LLM local sombra (envuelve openai_compatible) | #68 | `dcb4351` | DONE |
+| R6 IA externa/NVIDIA sombra (envuelve nvidia_nim) | #69 | `f9a672f` | DONE |
+| P2 observabilidad (stdlib, redacción) | #66 | `4f95eed` | DONE |
+| P3 UX spec (doc) | #70 | — | DONE |
+| P4 export design (doc) | #71 | — | DONE |
+| P5 import design (doc, APPLY off) | #72 | — | DONE |
+| P6 multimedia plan (doc) | #73 | — | DONE |
+| R7 consenso adaptador (reutiliza CONSENSUS_STATES; ADAPTA justificado) | #74 | `b01b602` | DONE |
+| P8 QA Wave 2B (12/12 mutaciones vs producto real) | #75 | `67bd48f` | DONE |
+| testpath tests/wave2b (Organizador) | #76 | `b1302a2` | DONE |
+
+Validación final: data-engine 812, viewer 366/1skip, tests 148 (wave2b 12/12 mutaciones), prod-block 13/13, unicode/docs OK. `OLLAMA_REAL_VALIDATION=NOT_EXECUTED`, `NVIDIA_REAL_VALIDATION=NOT_EXECUTED`. external_ai reutilizado sin duplicar (R5/R6/R7). RK-05 corregido (fail-closed).
+
+Siguiente (NO iniciado): R8 pipeline E2E, B1 corpus, B2 benchmark (docs/41-42), QA final, cierre OLA 2B. Producción intacta; sin tag/Release/despliegue RC6.
