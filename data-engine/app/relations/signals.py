@@ -29,6 +29,7 @@ from typing import Any, Optional, Sequence
 # modifica el contrato; solo se lee.
 from relations.contracts import ALLOWED_ENTITY_TYPES
 from relations import temporality
+from relations import epistemic
 
 # Version del contrato de senal. Cada `Signal` la expone en su campo `version`.
 SIGNALS_VERSION = "relation-signals-1.0.0"
@@ -491,6 +492,44 @@ def signal_rumor(ctx: SignalContext) -> Signal:
     return _cue_signal(ctx, "rumor", _RUMOR_CUES, "Rumor")
 
 
+def signal_epistemic(ctx: SignalContext) -> Signal:
+    """Estado epistemico CLASS-AWARE de la afirmacion (`relation-epistemic`).
+
+    Amplia la deteccion binaria de `signal_rumor`/`signal_modality` (que se
+    MANTIENEN intactas) delegando la CLASIFICACION en
+    `epistemic.classify_epistemic` sobre la ventana de la frase del par. Cubre
+    rumor/indirecto/creencia (-> RUMORED), contradiccion/duda/posibilidad/hipotesis
+    (-> HYPOTHETICAL) e intencion (-> INTENDED).
+
+    REGLA DE SEGURIDAD: si hay cualquier cue no-asertivo, `status` NUNCA es ASSERTED
+    (el rumor no se convierte en hecho, el estado no se pierde).
+
+    value: dict {"status", "nuance", "cues", "has_cue"} (categorico). El pipeline lo
+    usa para elegir `epistemic_status` entre los cuatro valores del contrato.
+    """
+    s_ini, s_fin = _sentence_bounds(ctx.segment, ctx.subject_start, ctx.subject_end)
+    o_ini, o_fin = _sentence_bounds(ctx.segment, ctx.object_start, ctx.object_end)
+    lo, hi = min(s_ini, o_ini), max(s_fin, o_fin)
+    window = ctx.segment[lo:hi]
+    clf = epistemic.classify_epistemic(window)
+    return Signal(
+        name="epistemic",
+        value={
+            "status": clf.status.value,
+            "nuance": clf.nuance,
+            "cues": list(clf.cues),
+            "has_cue": clf.has_epistemic_cue,
+        },
+        evidence="; ".join(clf.cues),
+        explanation=(
+            f"Estado epistemico '{clf.status.value}' (matiz {clf.nuance}) por "
+            "marcador(es): " + "; ".join(clf.cues)
+            if clf.has_epistemic_cue else
+            "Sin marcador epistemico: afirmacion asertiva (ASSERTED)."
+        ),
+    )
+
+
 def signal_repetition(ctx: SignalContext) -> Signal:
     """Repeticion documental: la misma pareja aparece varias veces.
 
@@ -525,6 +564,7 @@ ALL_SIGNAL_FUNCS = (
     signal_temporality,
     signal_modality,
     signal_rumor,
+    signal_epistemic,
     signal_repetition,
 )
 
