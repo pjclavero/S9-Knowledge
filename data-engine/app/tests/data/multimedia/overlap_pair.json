@@ -1,0 +1,42 @@
+[
+  {
+    "contract": "multimedia-artifact/internal-v1",
+    "source_id": "media_0000000000000020",
+    "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000020",
+    "media_type": "OCR_TEXT",
+    "extraction_method": "ocr:stub",
+    "model": "stub-ocr-v0",
+    "page": 4,
+    "region_id": "p4-region-a",
+    "bounding_box": {"x": 0.10, "y": 0.10, "width": 0.40, "height": 0.40},
+    "confidence": 0.85,
+    "language": "es",
+    "orientation": 0,
+    "text": "Region A que se solapa con la region B.",
+    "description": "",
+    "structured_data": null,
+    "parent_region": null,
+    "provenance": {"source_id": "media_0000000000000020", "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000020", "note": "par de solape sintetico"},
+    "warnings": []
+  },
+  {
+    "contract": "multimedia-artifact/internal-v1",
+    "source_id": "media_0000000000000020",
+    "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000020",
+    "media_type": "OCR_TEXT",
+    "extraction_method": "ocr:stub",
+    "model": "stub-ocr-v0",
+    "page": 4,
+    "region_id": "p4-region-b",
+    "bounding_box": {"x": 0.30, "y": 0.30, "width": 0.40, "height": 0.40},
+    "confidence": 0.80,
+    "language": "es",
+    "orientation": 0,
+    "text": "Region B que se solapa con la region A.",
+    "description": "",
+    "structured_data": null,
+    "parent_region": null,
+    "provenance": {"source_id": "media_0000000000000020", "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000020", "note": "par de solape sintetico"},
+    "warnings": []
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "contract": "multimedia-artifact/internal-v1",
+  "source_id": "media_0000000000000010",
+  "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000010",
+  "media_type": "OCR_TEXT",
+  "extraction_method": "ocr:stub",
+  "model": "stub-ocr-v0",
+  "page": 1,
+  "region_id": "p1-bad-bbox",
+  "bounding_box": {"x": 0.80, "y": 0.10, "width": 0.50, "height": 0.10},
+  "confidence": 0.80,
+  "language": "es",
+  "orientation": 0,
+  "text": "La caja se sale por la derecha: x+width = 1.30 > 1.",
+  "description": "",
+  "structured_data": null,
+  "parent_region": null,
+  "provenance": {"source_id": "media_0000000000000010", "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000010", "note": "fixture invalida: bbox fuera de rango"},
+  "warnings": []
+}

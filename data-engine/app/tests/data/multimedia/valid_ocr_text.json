@@ -1,0 +1,20 @@
+{
+  "contract": "multimedia-artifact/internal-v1",
+  "source_id": "media_0000000000000002",
+  "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+  "media_type": "OCR_TEXT",
+  "extraction_method": "ocr:stub",
+  "model": "stub-ocr-v0",
+  "page": 3,
+  "region_id": "p3-scan-01",
+  "bounding_box": {"x": 0.05, "y": 0.20, "width": 0.60, "height": 0.10},
+  "confidence": 0.82,
+  "language": "es",
+  "orientation": 90,
+  "text": "TEXTO RECONOCIDO DE PRUEBA sobre una pagina escaneada y rotada.",
+  "description": "",
+  "structured_data": null,
+  "parent_region": null,
+  "provenance": {"source_id": "media_0000000000000002", "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000002", "note": "fixture sintetica sanitizada; OCR simulado, no real"},
+  "warnings": []
+}

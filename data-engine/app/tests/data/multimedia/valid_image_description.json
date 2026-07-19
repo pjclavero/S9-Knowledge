@@ -1,0 +1,20 @@
+{
+  "contract": "multimedia-artifact/internal-v1",
+  "source_id": "media_0000000000000003",
+  "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+  "media_type": "IMAGE_DESCRIPTION",
+  "extraction_method": "vision:stub",
+  "model": "stub-vision-v0",
+  "page": 5,
+  "region_id": "p5-photo-01",
+  "bounding_box": {"x": 0.30, "y": 0.40, "width": 0.40, "height": 0.35},
+  "confidence": 0.71,
+  "language": "es",
+  "orientation": 0,
+  "text": "",
+  "description": "Fotografia sintetica: una figura de pie ante una puerta de piedra. Descripcion generada por comprension visual, NO es texto reconocido (OCR).",
+  "structured_data": null,
+  "parent_region": null,
+  "provenance": {"source_id": "media_0000000000000003", "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000003", "note": "fixture sintetica; comprension visual != OCR"},
+  "warnings": []
+}

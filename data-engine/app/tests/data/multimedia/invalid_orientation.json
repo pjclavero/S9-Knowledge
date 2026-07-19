@@ -1,0 +1,20 @@
+{
+  "contract": "multimedia-artifact/internal-v1",
+  "source_id": "media_0000000000000012",
+  "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000012",
+  "media_type": "OCR_TEXT",
+  "extraction_method": "ocr:stub",
+  "model": "stub-ocr-v0",
+  "page": 1,
+  "region_id": "p1-bad-orient",
+  "bounding_box": {"x": 0.10, "y": 0.10, "width": 0.30, "height": 0.10},
+  "confidence": 0.75,
+  "language": "es",
+  "orientation": 45,
+  "text": "Orientacion invalida: 45 no esta en {0,90,180,270}.",
+  "description": "",
+  "structured_data": null,
+  "parent_region": null,
+  "provenance": {"source_id": "media_0000000000000012", "file_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000012", "note": "fixture invalida: orientacion no permitida"},
+  "warnings": []
+}

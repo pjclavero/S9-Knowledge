@@ -1,0 +1,20 @@
+{
+  "contract": "multimedia-artifact/internal-v1",
+  "source_id": "",
+  "file_hash": "",
+  "media_type": "EMBEDDED_TEXT",
+  "extraction_method": "pdf_text",
+  "model": "n/a",
+  "page": 1,
+  "region_id": "orphan-block",
+  "bounding_box": {"x": 0.10, "y": 0.10, "width": 0.50, "height": 0.10},
+  "confidence": 1.0,
+  "language": "es",
+  "orientation": 0,
+  "text": "Bloque sin procedencia: falta source_id y file_hash.",
+  "description": "",
+  "structured_data": null,
+  "parent_region": null,
+  "provenance": {},
+  "warnings": []
+}
