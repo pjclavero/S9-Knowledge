@@ -22,6 +22,18 @@ from relations.contracts import (
     normalize_predicate,
 )
 
+# Pipeline end-to-end (dry-run) que orquesta los componentes de relaciones.
+from relations.pipeline import (
+    PIPELINE_VERSION,
+    PIPELINE_SCHEMA,
+    PipelineConfig,
+    PipelineError,
+    config_from_dict,
+    run_pipeline,
+    to_json as pipeline_to_json,
+    to_jsonl as pipeline_to_jsonl,
+)
+
 __all__ = [
     "SCHEMA_VERSION",
     "DOCUMENT_TYPE",
@@ -33,4 +45,12 @@ __all__ = [
     "RelationCandidate",
     "RelationContractError",
     "normalize_predicate",
+    "PIPELINE_VERSION",
+    "PIPELINE_SCHEMA",
+    "PipelineConfig",
+    "PipelineError",
+    "config_from_dict",
+    "run_pipeline",
+    "pipeline_to_json",
+    "pipeline_to_jsonl",
 ]
