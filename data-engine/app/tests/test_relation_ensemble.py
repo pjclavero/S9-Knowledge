@@ -643,6 +643,101 @@ def test_mut_sin_evidencia_no_es_strong():
 
 
 @pytest.mark.mutation
+def test_mut_strong_exige_evidencia_en_ambas_ramas():
+    """REGRESION (defecto A): la rama NEGATIVA (score < 0) no comprobaba
+    `has_evidence` y podia alcanzar STRONG_CONSENSUS sin evidencia textual.
+
+    STRONG exige evidencia en AMBAS ramas (positiva y negativa).
+    """
+    cfg = EnsembleConfig(
+        weights={"local_llm": 1e6, "external_ai": 1e6},
+        strong_threshold=0.5,
+        partial_threshold=0.001,
+        conflict_margin=0.0,
+        min_decisive_sources=1,
+    )
+    kwargs = dict(local=FakeLocal("recommend_reject"),
+                  external=FakeExternal("reject"), config=cfg)
+
+    sin_evidencia = make_candidate(extraction_method=ExtractionMethod.ONTOLOGY,
+                                   evidence_text="", evidence_start=0,
+                                   evidence_end=0)
+    dec = combine(sin_evidencia, **kwargs)
+    assert dec.recommendation == RECO_REJECT      # la rama negativa se preserva
+    assert dec.state != STRONG_CONSENSUS
+    assert dec.state == PARTIAL_CONSENSUS
+    assert dec.score < 0
+
+    # CONTROL no trivial: el MISMO montaje CON evidencia valida SI llega a STRONG.
+    con_evidencia = valid_candidate(extraction_method=ExtractionMethod.ONTOLOGY)
+    ok = combine(con_evidencia, **kwargs)
+    assert ok.recommendation == RECO_REJECT
+    assert ok.state == STRONG_CONSENSUS
+    assert ok.score == dec.score                  # solo cambia la evidencia
+
+
+@pytest.mark.mutation
+def test_mut_availability_no_falsificable():
+    """REGRESION (defecto B): `local_availability`/`external_availability` son
+    parametros del LLAMANTE y no pueden contradecir el payload.
+
+    Forjar `PRESENT` con `local=None` no debe habilitar el requisito de "al
+    menos un proveedor presente" para STRONG.
+    """
+    cand = valid_candidate()
+    signals = [{"name": "same_clause", "value": True}]
+
+    control = combine(cand, signals=signals)
+    forjado = combine(cand, signals=signals,
+                      local=None, external=None,
+                      local_availability="PRESENT",
+                      external_availability="PRESENT")
+
+    assert (forjado.state, forjado.recommendation) == (
+        control.state, control.recommendation)
+    assert forjado.state == PARTIAL_CONSENSUS
+    assert forjado.recommendation == RECO_PROPOSE
+    assert forjado.state != STRONG_CONSENSUS
+    for src in ("local_llm", "external_ai"):
+        c = contribution(forjado, src)
+        assert c.availability == AVAIL_NOT_EXECUTED
+        assert c.polarity == POL_NONE
+        assert c.decisive is False
+
+    # CONTROL: los MATICES LEGITIMOS de una ausencia si se conservan.
+    matizado = combine(cand, signals=signals, local=None,
+                       local_availability="FAILED_CLOSED")
+    local_c = contribution(matizado, "local_llm")
+    assert local_c.availability == "FAILED_CLOSED"
+    assert local_c.polarity == POL_NONE
+    assert contribution(matizado, "external_ai").availability == AVAIL_NOT_EXECUTED
+
+
+def test_conflict_margin_no_admite_negativo():
+    """REGRESION (defecto C): un `conflict_margin` negativo invertiria la zona
+    muerta de indecision."""
+    with pytest.raises(EnsembleConfigError):
+        EnsembleConfig(conflict_margin=-1.0)
+    with pytest.raises(EnsembleConfigError):
+        config_from_dict({"conflict_margin": -1.0})
+    cfg = config_from_dict({"conflict_margin": 0.0})
+    assert cfg.conflict_margin == 0.0
+
+
+def test_decision_expone_versiones_de_config():
+    """MEJORA D: la decision expone las versiones de pesos/umbrales usadas."""
+    cfg = config_from_dict({"strong_threshold": 0.8})
+    dec = combine(valid_candidate(), signals=strong_signals(), config=cfg)
+    data = dec.to_dict()
+    for key in ("weights_version", "thresholds_version"):
+        assert isinstance(data[key], str) and data[key].strip()
+        assert data[key] == getattr(cfg, key)
+    assert data["config_hash"] == cfg.config_hash
+    assert data["profile"] == cfg.profile
+    assert json.loads(dec.to_json())["weights_version"] == cfg.weights_version
+
+
+@pytest.mark.mutation
 def test_mut_shadow_obligatorio():
     """MUTANTE: permitir decisiones fuera de modo sombra."""
     with pytest.raises(ValueError):

@@ -280,6 +280,11 @@ class EnsembleConfig:
             raise EnsembleConfigError(
                 "umbrales invalidos: 0 < partial_threshold <= strong_threshold <= 1"
             )
+        # La zona muerta no puede ser negativa: un `conflict_margin < 0` la
+        # ANULARIA (ningun |score| quedaria dentro del margen), desactivando de
+        # facto el envio a humano por indecision.
+        if self.conflict_margin < 0.0:
+            raise EnsembleConfigError("conflict_margin debe ser >= 0")
         if isinstance(self.min_decisive_sources, bool) or \
                 not isinstance(self.min_decisive_sources, int) or \
                 self.min_decisive_sources < 1:
@@ -369,6 +374,11 @@ class EnsembleDecision:
     consensus_recommendation: str = ""
     consensus_reason_codes: tuple = field(default_factory=tuple)
     profile: str = ""
+    # Versiones de la calibracion aplicada. Se propagan al payload para que un
+    # consumidor pueda auditar QUE pesos/umbrales produjeron la decision sin
+    # tener que resolver el perfil ni recalcular el `config_hash`.
+    weights_version: str = ""
+    thresholds_version: str = ""
     reason: str = ""
     schema: str = ENSEMBLE_SCHEMA
     shadow: bool = True
@@ -402,6 +412,8 @@ class EnsembleDecision:
             "consensus_recommendation": self.consensus_recommendation,
             "consensus_reason_codes": list(self.consensus_reason_codes),
             "profile": self.profile,
+            "weights_version": self.weights_version,
+            "thresholds_version": self.thresholds_version,
             "reason": self.reason,
             "schema": self.schema,
             "shadow": self.shadow,
@@ -663,9 +675,14 @@ def combine(
     explicito de un proveedor NUNCA puede terminar en `propose` recalibrando los
     umbrales: la garantia es estructural, no dependiente de la configuracion.
 
+    `local_availability`/`external_availability` solo MATIZAN una ausencia
+    (`FAILED_CLOSED`, `SKIPPED`...). No pueden declarar `PRESENT` un proveedor
+    que no aporta payload: esa etiqueta se degrada a `NOT_EXECUTED`.
+
     Garantias: ausencia != rechazo; el techo de la recomendacion es `propose`;
-    nunca `STRONG_CONSENSUS` si el consenso delegado invalido el candidato o si
-    falta evidencia.
+    nunca `STRONG_CONSENSUS` si el consenso delegado invalido el candidato, si
+    falta evidencia (en NINGUNA de las dos direcciones) o si no hay ningun
+    proveedor con payload real.
     """
     if not isinstance(config, EnsembleConfig):
         raise EnsembleConfigError("config debe ser una EnsembleConfig")
@@ -676,14 +693,13 @@ def combine(
     )
     consensus_codes = tuple(sorted(consensus.reason_codes or ()))
 
-    local_avail = (
-        AVAIL_PRESENT if local is not None
-        else (local_availability or AVAIL_NOT_EXECUTED)
-    )
-    external_avail = (
-        AVAIL_PRESENT if external is not None
-        else (external_availability or AVAIL_NOT_EXECUTED)
-    )
+    # La disponibilidad declarada por el llamante NO puede contradecir la
+    # realidad del payload: si no hay evaluacion, la fuente NUNCA es PRESENT.
+    # `local_availability`/`external_availability` solo sirven para MATIZAR una
+    # ausencia (NOT_EXECUTED por defecto, o FAILED_CLOSED/SKIPPED), jamas para
+    # fabricar un revisor inexistente.
+    local_avail = _effective_availability(local, local_availability)
+    external_avail = _effective_availability(external, external_availability)
 
     cand = _validated_copy(candidate)
 
@@ -702,6 +718,8 @@ def combine(
             consensus_recommendation=consensus.recommendation,
             consensus_reason_codes=consensus_codes,
             profile=config.profile,
+            weights_version=config.weights_version,
+            thresholds_version=config.thresholds_version,
             reason=(
                 "Invalidacion DELEGADA en consensus_adapter (no recalculada): "
                 + (consensus.reason or "candidato invalido")
@@ -841,10 +859,10 @@ def combine(
     )
     score = round(float(score), 6)
 
-    providers_present = sum(
-        1 for src in (SOURCE_LOCAL_LLM, SOURCE_EXTERNAL_AI)
-        if contributions[src].availability == AVAIL_PRESENT
-    )
+    # Se cuenta sobre el PAYLOAD real, no sobre la etiqueta: una availability
+    # declarada por el llamante jamas puede fabricar un revisor (ver
+    # `_effective_availability`).
+    providers_present = sum(1 for payload in (local, external) if payload is not None)
 
     # -- Proveedor PRESENTE contra la DIRECCION AGREGADA (barrera estructural) --
     # Un proveedor que vota en contra del resultado agregado es SIEMPRE un
@@ -880,8 +898,33 @@ def combine(
         consensus_recommendation=consensus.recommendation,
         consensus_reason_codes=consensus_codes,
         profile=config.profile,
+        weights_version=config.weights_version,
+        thresholds_version=config.thresholds_version,
         reason=reason,
     )
+
+
+def _effective_availability(payload: Any, declared: Optional[str]) -> str:
+    """Disponibilidad EFECTIVA de un proveedor. No es falsificable.
+
+    Regla: la etiqueta nunca puede contradecir el payload.
+
+      * `payload is not None` -> `PRESENT` (hay evaluacion real que ponderar).
+      * `payload is None`     -> la ausencia se puede MATIZAR con el valor
+        declarado (`FAILED_CLOSED`, `SKIPPED`, `NOT_EXECUTED`), pero un
+        `PRESENT` declarado se degrada a `NOT_EXECUTED`: no existe revisor.
+
+    Sin esta regla, un llamante podria pasar `local_availability="PRESENT"` con
+    `local=None` y satisfacer el requisito de "al menos un proveedor presente"
+    para STRONG sin que ningun revisor haya opinado.
+    """
+    if payload is not None:
+        return AVAIL_PRESENT
+    if not declared or declared == AVAIL_PRESENT:
+        return AVAIL_NOT_EXECUTED
+    if declared not in AVAILABILITIES:
+        raise ValueError(f"availability declarada invalida: {declared!r}")
+    return declared
 
 
 def _provider_vs_aggregate_conflicts(contributions: Mapping, score: float) -> list:
@@ -946,7 +989,10 @@ def _derive_state(*, score: float, n_decisive: int, conflicts: tuple,
          sustituyen a un revisor.
       4. score >= partial_threshold -> PARTIAL_CONSENSUS / propose.
       5. score negativo fuerte Y el consenso delegado recomienda `reject` ->
-         se PRESERVA la polaridad negativa (reject nunca es una aprobacion).
+         se PRESERVA la polaridad negativa (reject nunca es una aprobacion). La
+         rama negativa exige EXACTAMENTE las mismas condiciones que la positiva
+         para llegar a STRONG (evidencia, proveedor presente, minimo de fuentes
+         decisivas): sin evidencia NO hay STRONG en NINGUNA direccion.
       6. En cualquier otro caso -> HUMAN_REQUIRED / human.
     """
     if conflicts:
@@ -967,6 +1013,7 @@ def _derive_state(*, score: float, n_decisive: int, conflicts: tuple,
                 STRONG_CONSENSUS
                 if (-score >= config.strong_threshold
                     and n_decisive >= config.min_decisive_sources
+                    and has_evidence
                     and providers_present >= 1
                     and consensus.state in (STRONG_CONSENSUS, PARTIAL_CONSENSUS))
                 else PARTIAL_CONSENSUS
