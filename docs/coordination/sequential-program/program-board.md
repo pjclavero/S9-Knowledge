@@ -1,6 +1,6 @@
 # Tablero del Programa Secuencial
 
-`AUTHORIZED_BLOCK = BLOQUE_0`
+`AUTHORIZED_BLOCK = BLOQUE_3`
 
 El Organizador solo puede lanzar agentes del bloque cuyo identificador coincide con
 `AUTHORIZED_BLOCK`. El avance a `NEXT_BLOCK` requiere el checkpoint formal:
@@ -17,10 +17,10 @@ RC6_CANDIDATE      = 15ae1d4
 
 | Bloque | Objetivo | Rama | Estado | PR | Supervisor | CI PR | CI main | Checkpoint |
 |---|---|---|---|---|---|---|---|---|
-| 0 | Auditoría y coordinación (docs) | `docs/sequential-quality-gate-program` | IMPLEMENTING | — | — | — | — | — |
-| 1 | Calibración Ollama en sombra | `calibration/relations-ollama-shadow-v1` | PENDING | — | — | — | — | — |
-| 2 | Calibración NVIDIA en sombra | `calibration/relations-nvidia-shadow-v1` | PENDING | — | — | — | — | — |
-| 3 | Normalización de predicados | `feat/relation-predicate-normalization-v1` | PENDING | — | — | — | — | — |
+| 0 | Auditoría y coordinación (docs) | `docs/sequential-quality-gate-program` | MERGED_AND_MAIN_GREEN | #85 → e32d44e | CONFORME | ✅ | ✅ | `main e32d44e` |
+| 1 | Calibración Ollama en sombra | `calibration/relations-ollama-shadow-v1` | MERGED_AND_MAIN_GREEN | #86 → c661aec | CONFORME | ✅ | ✅ | `main c661aec` |
+| 2 | Calibración NVIDIA en sombra | `calibration/relations-nvidia-shadow-v1` | MERGED_AND_MAIN_GREEN | #87 → 0c407ba | CONFORME (+ Seguridad) | ✅ | ✅ | `main 0c407ba` |
+| 3 | Normalización de predicados | `feat/relation-predicate-normalization-v1` | IMPLEMENTING | — | — | — | — | — (sin merge aún) |
 | 4 | Mejora de temporalidad | `feat/relation-temporality-calibration-v1` | PENDING | — | — | — | — | — |
 | 5 | Rumores / estado epistémico | `feat/relation-epistemic-calibration-v1` | PENDING | — | — | — | — | — |
 | 6 | Ensemble calibrado | `feat/relation-calibrated-ensemble-v1` | PENDING | — | — | — | — | — |
