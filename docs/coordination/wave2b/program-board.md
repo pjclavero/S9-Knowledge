@@ -59,3 +59,32 @@ main = `b1302a2` (POST_LOTE2_MAIN). RC6 congelada en `15ae1d4` (0 commits de OLA
 Validación final: data-engine 812, viewer 366/1skip, tests 148 (wave2b 12/12 mutaciones), prod-block 13/13, unicode/docs OK. `OLLAMA_REAL_VALIDATION=NOT_EXECUTED`, `NVIDIA_REAL_VALIDATION=NOT_EXECUTED`. external_ai reutilizado sin duplicar (R5/R6/R7). RK-05 corregido (fail-closed).
 
 Siguiente (NO iniciado): R8 pipeline E2E, B1 corpus, B2 benchmark (docs/41-42), QA final, cierre OLA 2B. Producción intacta; sin tag/Release/despliegue RC6.
+
+## Actualización — LOTE 3 COMPLETADO · OLA 2B CERRADA (2026-07-19)
+
+main = `0909b8f` (incluye todo el Lote 3). RC6 congelada en `15ae1d4` (0 commits
+de OLA 2B en la base RC6). Cierre documental completo en
+[`lote3-closeout.md`](lote3-closeout.md).
+
+| Componente | PR | Merge | Tests | Mutaciones | Dictamen | Estado |
+|-----------|----|-------|-------|-----------|----------|--------|
+| B1 corpus (16 fuentes, 54 relaciones, 3 workspaces) | #79 | `c92ab6b` | 23 | — | CONFORME | DONE |
+| R8 pipeline E2E (dry-run) | #80 | `b362a9d` | 39 | 12/12 | CONFORME | DONE |
+| B2 benchmark (F1 existencia 81.1%) | #81 | `91f972f` | 21 | — | CONFORME | DONE |
+| D1 runtime docs (docs/51) | #82 | `4ad4289` | — | — | CONFORME | DONE |
+| QF QA final transversal | #83 | `74286ff` | 69 (wave2b) | 20/20 | CONFORME | DONE |
+| Mapa de integración Lote 3 (docs) | #78 | `0909b8f` | — | — | Integrado | DONE |
+
+Validación final: suite `tests/wave2b` **69 passed**, mutación final **20/20**
+contra producto real. Benchmark real (baseline1): dictamen **APTO CON REVISIÓN
+HUMANA TOTAL** (gates duros determinism/workspace PASS; temporality FAIL, rumors
+PARTIAL, predicate_structural FAIL). Único defecto real: test frágil de QF
+(aserción global `sys.modules` de neo4j → verificación en subproceso limpio),
+corregido; **ningún defecto de producto**. `OLLAMA_REAL=NOT_EXECUTED`,
+`NVIDIA_REAL=NOT_EXECUTED`. Producción RC5.1 intacta (Neo4j 199/140, 1 admin, 1
+job, 0 ingestas, timer horario activo, `S9K_ALLOW_REAL_INGEST` off); sin
+tag/Release/despliegue RC6.
+
+**OLA 2B: DONE.** Siguiente fase (separada, NO iniciada): calibración con modelos
+reales, mejora de precisión, panel funcional de relaciones, export funcional,
+import VALIDATE/PLAN/PREVIEW, OCR, comprensión visual, ingesta controlada.
