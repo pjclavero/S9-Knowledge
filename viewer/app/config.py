@@ -17,7 +17,11 @@ class Settings(BaseSettings):
     S9K_DEFAULT_WORKSPACE: str = "leyenda"
     S9K_GRAPH_LIMIT: int = 300
 
-    S9K_NEO4J_URI: str = "bolt://192.168.1.205:7687"
+    # Fail-closed (RK-05): el default apunta a loopback, igual que data-engine
+    # (bolt://127.0.0.1:7687). Nunca a una IP productiva. Producción configura
+    # S9K_NEO4J_URI explícitamente por entorno; en laboratorio/CI se usa el
+    # provider "mock", de modo que este default nunca abre una conexión a prod.
+    S9K_NEO4J_URI: str = "bolt://127.0.0.1:7687"
     S9K_NEO4J_USER: str = "neo4j"
     S9K_NEO4J_PASSWORD: str = ""
     S9K_NEO4J_PASSWORD_FILE: str = ""
