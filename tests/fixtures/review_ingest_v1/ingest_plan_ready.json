@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.0.0",
+  "document_type": "ingest-plan",
+  "document_id": "fixture-plan_001",
+  "created_at": "2026-01-01T00:00:00Z",
+  "workspace": "workspace_demo",
+  "source_id": "src_synthetic_01",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "review_generation": 1,
+  "producer": {
+    "kind": "ENGINE",
+    "name": "s9k-data-engine",
+    "version": "0.0.0-test",
+    "model": null
+  },
+  "provenance": {
+    "source_id": "src_synthetic_01",
+    "source_hash": {
+      "algorithm": "sha256",
+      "value": "1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    "review_generation": 1,
+    "pipeline_version": "0.0.0-test",
+    "producer": {
+      "kind": "ENGINE",
+      "name": "s9k-data-engine",
+      "version": "0.0.0-test",
+      "model": null
+    }
+  },
+  "plan_id": "plan_synth_001",
+  "plan_version": "1.0.0",
+  "review_document_id": "rev_synth_001",
+  "review_hash": {
+    "algorithm": "sha256",
+    "value": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "created_by": {
+    "kind": "ENGINE",
+    "name": "s9k-data-engine",
+    "version": "0.0.0-test",
+    "model": null
+  },
+  "status": "READY_TO_APPLY",
+  "relations_enabled": false,
+  "preconditions": [
+    {
+      "precondition_id": "pre_001",
+      "kind": "REVIEW_HASH_MATCHES",
+      "expected": "1111111111111111111111111111111111111111111111111111111111111111"
+    }
+  ],
+  "operations": [
+    {
+      "operation_id": "op_001",
+      "operation_type": "CREATE_ENTITY",
+      "candidate_id": "cand_synth_001",
+      "target_entity_id": null,
+      "payload": {
+        "canonical_name": "Persona Alfa"
+      },
+      "provenance": {
+        "source_id": "src_synthetic_01",
+        "source_hash": {
+          "algorithm": "sha256",
+          "value": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "review_generation": 1,
+        "pipeline_version": "0.0.0-test",
+        "producer": {
+          "kind": "ENGINE",
+          "name": "s9k-data-engine",
+          "version": "0.0.0-test",
+          "model": null
+        }
+      },
+      "expected_state": "WOULD_CREATE",
+      "idempotency_key": "idem_synth_001"
+    }
+  ],
+  "deferred_items": [],
+  "conflicts": [],
+  "warnings": [],
+  "summary": {
+    "would_create": 1,
+    "would_update": 0,
+    "would_link_existing": 0,
+    "deferred": 0,
+    "conflicts": 0,
+    "relations": 0
+  },
+  "authorization": {
+    "required": true,
+    "granted": false
+  }
+}
