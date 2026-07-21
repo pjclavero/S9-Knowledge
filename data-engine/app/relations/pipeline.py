@@ -66,7 +66,17 @@ from relations.pairs import (
     PairGenerationError,
     generate_pairs,
 )
-from relations.signals import SIGNALS_VERSION, SignalContext, compute_all_signals
+from relations.signals import (
+    SIGNALS_VERSION,
+    SignalContext,
+    compute_all_signals,
+    _sentence_bounds,
+    _clause_index,
+    _NEGATION_CUES,
+    _TEMPORAL_CUES,
+    _RUMOR_CUES,
+    _MODALITY_CUES,
+)
 from relations.syntax import SYNTAX_VERSION, get_analyzer, safe_analyze
 
 PIPELINE_VERSION = "relation-pipeline-1.0.0"
@@ -144,6 +154,12 @@ class PipelineConfig:
     pair_window: str = "char"
     max_distance: Optional[int] = None
 
+    # Modo de anclaje de la evidencia heuristica (PR#95 V1). Por DEFECTO "span":
+    # comportamiento historico (span mecanico min(starts)..max(ends)). "conservative"
+    # activa el anclaje conservador basado en clausula + marcadores (flag OFF por
+    # defecto: no altera la salida a menos que se pida explicitamente por config).
+    evidence_anchor_mode: str = "span"
+
     # Proveedores (DESHABILITADOS por defecto). Habilitar SOLO con inyeccion.
     local_llm_enabled: bool = False
     external_ai_enabled: bool = False
@@ -166,6 +182,7 @@ class PipelineConfig:
             "context_mode": self.context_mode,
             "pair_window": self.pair_window,
             "max_distance": self.max_distance,
+            "evidence_anchor_mode": self.evidence_anchor_mode,
             "local_llm_enabled": self.local_llm_enabled,
             "external_ai_enabled": self.external_ai_enabled,
             "local_model": self.local_model,
@@ -307,16 +324,172 @@ class _CandidateBuildError(Exception):
     message: str
 
 
-def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace: str) -> RelationCandidate:
+# ---------------------------------------------------------------------------
+# Anclaje conservador de evidencia (PR#95 V1) -- flag OFF por defecto
+# ---------------------------------------------------------------------------
+# Marcadores de ATRIBUCION/reportativos. Reutiliza el estilo de los lexicos
+# deterministas de `relations.signals` (variantes con y sin tilde, en minuscula).
+# Son senales de "quien afirma" que el ground-truth suele incluir en la evidencia
+# cuando encabezan la clausula (p.ej. "Segun los rumores, ...").
+_ATTRIBUTION_CUES = (
+    "segun ", "segun ", "de acuerdo con", "conforme a", "afirma", "afirman",
+    "declaro", "declararon", "sostiene", "asegura", "aseguran", "dijo", "dice",
+)
+# Marcadores EPISTEMICOS relevantes = rumor + modalidad (reutilizados de signals).
+_EPISTEMIC_CUES = tuple(_RUMOR_CUES) + tuple(_MODALITY_CUES)
+
+
+def _find_all_cues(window_lower: str, cues) -> list[int]:
+    """Offsets (relativos a la ventana) de TODAS las apariciones de cualquier cue.
+
+    Determinista y sin efectos: solo lee. Case-insensitive por `lower` (preserva
+    longitudes en espanol). Devuelve la lista de posiciones de inicio.
+    """
+    out: list[int] = []
+    for cue in cues:
+        start = 0
+        while True:
+            idx = window_lower.find(cue, start)
+            if idx == -1:
+                break
+            out.append(idx)
+            start = idx + 1
+    return out
+
+
+def _clause_bounds_for_range(
+    segment: str, sent_lo: int, sent_hi: int, c_min: int, c_max: int
+) -> tuple[int, int]:
+    """Limites de caracter de las clausulas [c_min..c_max] DENTRO de una frase ya
+    delimitada por `_sentence_bounds`. NO reimplementa deteccion de frase: deriva
+    las clausulas por separadores ,;: con la MISMA semantica que `_clause_index`
+    (una posicion pertenece a la clausula = numero de separadores estrictamente a
+    su izquierda dentro de la frase).
+    """
+    clause_sep = set(",;:")
+    seps = [i for i in range(sent_lo, sent_hi) if segment[i] in clause_sep]
+    clause_lo = sent_lo if c_min == 0 else seps[c_min - 1] + 1
+    clause_hi = sent_hi if c_max >= len(seps) else seps[c_max] + 1
+    return clause_lo, clause_hi
+
+
+def _conservative_anchor(
+    segment: str,
+    subject_start: int,
+    subject_end: int,
+    object_start: int,
+    object_end: int,
+) -> Optional[tuple[int, int]]:
+    """Calcula la envolvente CONSERVADORA de evidencia para un par de menciones.
+
+    Estrategia (pura y determinista):
+      1. Parte de los limites de FRASE (`_sentence_bounds`) de ambas menciones.
+      2. ESTRECHA a la clausula segura que contiene ambas (separadores ,;: via
+         `_clause_index` + `_clause_bounds_for_range`), sin expandir a la frase
+         entera salvo que la propia frase sea una unica clausula.
+      3. INCLUYE, si caen FUERA de esa clausula pero DENTRO de la frase: negacion
+         y atribucion/epistemico que preceden a la envolvente, y marcas temporales
+         que la siguen (para no perder senales que el GT si incluye).
+      4. Recorta espacios y separadores externos para offsets limpios.
+
+    Devuelve (lo, hi) coherentes con `segment[lo:hi]`, o None si el calculo diera
+    algo vacio/incoherente o que se saliese de la frase (FALLBACK SEGURO al span,
+    que gestiona el llamante). GARANTIA: la envolvente devuelta es SUBCONJUNTO de
+    la frase y CONTIENE ambas menciones.
+    """
+    m_lo = min(subject_start, object_start)
+    m_hi = max(subject_end, object_end)
+
+    s1i, s1f = _sentence_bounds(segment, subject_start, subject_end)
+    s2i, s2f = _sentence_bounds(segment, object_start, object_end)
+    sent_lo, sent_hi = min(s1i, s2i), max(s1f, s2f)
+
+    # Clausula segura que contiene ambas menciones (indices dentro de la frase).
+    c_sub = _clause_index(segment, subject_start, sent_lo, sent_hi)
+    c_obj = _clause_index(segment, object_start, sent_lo, sent_hi)
+    clause_lo, clause_hi = _clause_bounds_for_range(
+        segment, sent_lo, sent_hi, min(c_sub, c_obj), max(c_sub, c_obj)
+    )
+
+    # La envolvente base debe contener ambas menciones completas.
+    env_lo = min(clause_lo, m_lo)
+    env_hi = max(clause_hi, m_hi)
+
+    # Inclusion de marcadores relevantes que caen FUERA de la clausula (pero en la
+    # frase). Negacion/atribucion/epistemico ANTES -> bajan env_lo; temporal
+    # DESPUES -> sube env_hi. Siempre acotado a la frase (nunca la desborda).
+    window = segment[sent_lo:sent_hi]
+    window_lower = window.lower()
+
+    pre_cues = tuple(_NEGATION_CUES) + _ATTRIBUTION_CUES + _EPISTEMIC_CUES
+    for rel in _find_all_cues(window_lower, pre_cues):
+        abs_start = sent_lo + rel
+        if abs_start < env_lo:
+            env_lo = abs_start
+
+    for rel in _find_all_cues(window_lower, tuple(_TEMPORAL_CUES)):
+        cue_len = 0
+        # longitud del cue concreto que casa en esta posicion (para el offset final)
+        for cue in _TEMPORAL_CUES:
+            if window_lower.startswith(cue, rel):
+                cue_len = max(cue_len, len(cue))
+        abs_end = sent_lo + rel + cue_len
+        if abs_end > env_hi:
+            env_hi = abs_end
+
+    # Recorte de espacios y separadores de clausula externos (offsets limpios).
+    sep_ws = set(",;: \t\n")
+    while env_lo < env_hi and segment[env_lo] in sep_ws:
+        env_lo += 1
+    while env_hi > env_lo and segment[env_hi - 1] in sep_ws:
+        env_hi -= 1
+
+    # Coherencia / fallback seguro.
+    if env_hi <= env_lo:
+        return None
+    if env_lo > m_lo or env_hi < m_hi:      # debe contener ambas menciones
+        return None
+    if env_lo < sent_lo or env_hi > sent_hi:  # nunca desborda la frase
+        return None
+    if not segment[env_lo:env_hi].strip():
+        return None
+    return env_lo, env_hi
+
+
+def _build_candidate(
+    pair: CandidatePair,
+    sigmap: dict,
+    seg_text: str,
+    workspace: str,
+    anchor_mode: str = "span",
+) -> RelationCandidate:
     """Construye (y valida) un RelationCandidate a partir del par y sus senales.
 
     La evidencia es el span LITERAL que cubre ambas menciones. Un span vacio se
     rechaza EXPLICITAMENTE (evidencia inexistente): objetivo de mutacion.
+
+    `anchor_mode`:
+      * "span" (defecto): span mecanico min(starts)..max(ends) -- comportamiento
+        historico, sin cambios.
+      * "conservative": envolvente conservadora (clausula + marcadores) via
+        `_conservative_anchor`, con FALLBACK SEGURO al span si diese algo
+        incoherente/vacio. La coherencia `seg_text[lo:hi]==evidence_text` se
+        mantiene igual (se corta literalmente del segmento).
     """
     lo = min(pair.subject_start, pair.object_start)
     hi = max(pair.subject_end, pair.object_end)
     if hi <= lo:
         raise _CandidateBuildError("evidence_span_empty", "el par no ancla evidencia (span vacio)")
+    if anchor_mode == "conservative":
+        cons = _conservative_anchor(
+            seg_text,
+            pair.subject_start,
+            pair.subject_end,
+            pair.object_start,
+            pair.object_end,
+        )
+        if cons is not None:
+            lo, hi = cons  # si es None -> se conserva el span (fallback seguro)
     evidence_text = seg_text[lo:hi]
     if not evidence_text.strip():
         raise _CandidateBuildError("evidence_blank", "la evidencia es solo espacios")
@@ -634,7 +807,10 @@ def _process_pair(
 
     # --- candidato (contrato unico) ---
     try:
-        candidate = _build_candidate(pair, sigmap, seg_text, workspace)
+        candidate = _build_candidate(
+            pair, sigmap, seg_text, workspace,
+            anchor_mode=config.evidence_anchor_mode,
+        )
     except _CandidateBuildError as exc:
         errors.append({
             "code": exc.reason_code,
