@@ -220,7 +220,22 @@ def _extract_verdicts(raw_text: str) -> list[dict]:
     raise InvalidResponseError("formato de respuesta inesperado (ni dict ni list)")
 
 
-def _build_messages(cand: RelationCandidate, cid: str, suite: str) -> list[dict]:
+def _resolve_document(cand: RelationCandidate, document_text: Optional[str]) -> str:
+    """Texto del DOCUMENTO a mostrar/validar (P0).
+
+    Si el llamante aporta ``document_text`` (el pipeline lo hace con el TEXTO real
+    del segmento), se usa ese. En su ausencia se conserva el comportamiento
+    historico (``cand.source_segment``) por compatibilidad con llamadas que ya
+    ponian el texto en ese campo; el PIPELINE nunca cae en ese fallback porque
+    siempre pasa el texto real (ver `pipeline._run_external`).
+    """
+    if document_text is not None:
+        return document_text
+    return cand.source_segment or ""
+
+
+def _build_messages(cand: RelationCandidate, cid: str, suite: str,
+                    document_text: Optional[str] = None) -> list[dict]:
     """Construye los mensajes chat reutilizando el prompt de sistema de relaciones."""
     system = build_system_prompt(suite)
     proposed = {
@@ -251,7 +266,7 @@ def _build_messages(cand: RelationCandidate, cid: str, suite: str) -> list[dict]
         "Evalua la RELACION PROPUESTA contra el DOCUMENTO delimitado. No la "
         "extraigas de nuevo: juzga si el documento la sustenta.\n\n"
         "Relacion propuesta (JSON):\n" + json.dumps(proposed, ensure_ascii=False) + "\n\n"
-        f"DOCUMENTO {INPUT_OPEN}\n{sanitize_document(cand.source_segment)}\n{INPUT_CLOSE}\n\n"
+        f"DOCUMENTO {INPUT_OPEN}\n{sanitize_document(_resolve_document(cand, document_text))}\n{INPUT_CLOSE}\n\n"
         'Devuelve UNICAMENTE JSON con la forma {"verdicts": [<objeto>]} y UN objeto '
         f'para candidate_id="{cid}" con EXACTAMENTE estas claves:\n' + schema_txt
     )
@@ -264,7 +279,8 @@ def _build_messages(cand: RelationCandidate, cid: str, suite: str) -> list[dict]
 # ---------------------------------------------------------------------------
 # Validacion estricta del verdicto por candidato
 # ---------------------------------------------------------------------------
-def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str) -> tuple[Optional[dict], list[str]]:
+def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str,
+                      document_text: Optional[str] = None) -> tuple[Optional[dict], list[str]]:
     """Valida un verdicto crudo. Devuelve (verdicto_saneado, errores).
 
     Rechaza (errores hard, devuelven None):
@@ -315,8 +331,10 @@ def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str) -> tuple[Opt
         elif pred != normalize_predicate(pred):
             errors.append(f"predicate no normalizado: {pred!r}")
 
-    # evidencia + offsets ESTRICTOS contra el segmento del candidato
-    seg = cand.source_segment or ""
+    # evidencia + offsets ESTRICTOS contra el TEXTO REAL del documento (P0):
+    # si el llamante pasa document_text (el pipeline pasa el texto del segmento),
+    # se valida contra ese; sin el, fallback historico a source_segment.
+    seg = _resolve_document(cand, document_text)
     ev = raw.get("evidence_text")
     start = raw.get("evidence_start")
     end = raw.get("evidence_end")
@@ -427,6 +445,7 @@ def evaluate_relation_external(
     candidate_or_pair: Any,
     *,
     config: RelationExternalConfig,
+    document_text: Optional[str] = None,
 ) -> list[RelationExternalEvaluation]:
     """Evalua una o varias relaciones candidatas con IA externa, EN SOMBRA.
 
@@ -475,7 +494,7 @@ def evaluate_relation_external(
         # Fallo AISLADO por candidato: cualquier excepcion se convierte en un
         # resultado INVALID_RESPONSES, nunca propaga y aborta el lote.
         try:
-            messages = _build_messages(cand, cid, config.suite)
+            messages = _build_messages(cand, cid, config.suite, document_text=document_text)
 
             # Guarda de secretos ANTES de cualquier envio (redaccion de external_ai).
             assert_no_secrets(messages)
@@ -492,7 +511,7 @@ def evaluate_relation_external(
             verdict_list = _extract_verdicts(raw_text)
             verdict_raw = _pick_verdict(verdict_list, cid)
 
-            clean_verdict, errors = _validate_verdict(verdict_raw, cand, cid)
+            clean_verdict, errors = _validate_verdict(verdict_raw, cand, cid, document_text=document_text)
             request_hash = _sha256_text(json.dumps(messages, ensure_ascii=False, sort_keys=True))
             response_hash = _sha256_text(raw_text)
 

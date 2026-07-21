@@ -1,0 +1,46 @@
+{
+  "captured_at_utc": "2026-07-21",
+  "repo": "pjclavero/S9-Knowledge",
+  "origin_main_sha": "dcded310b79ef8980d27d4684e026a1967959be0",
+  "origin_main_tip_subject": "Add files via upload",
+  "previous_commit": "b7a796f20b4c0dd54998b8aadf8c3518294f742d",
+  "dcded31_changes": {
+    "files": ["INFORME_CONSOLIDADO_PR95_Y_PROMPT_MULTIEQUIPO.md"],
+    "touches_engine": false,
+    "note": "Solo anade el documento consolidado (1828 lineas). El motor de relaciones es identico a b7a796f."
+  },
+  "base_sha_approved": "dcded310b79ef8980d27d4684e026a1967959be0",
+  "pr95": {"number": 95, "state": "OPEN", "draft": true, "headRef": "worktree-docs-motor-extraccion-auditoria", "title": "docs: informe del motor de extraccion para auditoria externa (52)"},
+  "other_open_prs": [
+    {"number": 96, "draft": true, "title": "feat(review): limpieza del grafo controlada y reversible"},
+    {"number": 57, "title": "dependabot jsonschema data-engine"},
+    {"number": 56, "title": "dependabot pydantic viewer"},
+    {"number": 55, "title": "dependabot fastapi viewer"}
+  ],
+  "prior_pr95_variant_branches": [],
+  "p0_verification": {
+    "classification": "CONFIRMADO",
+    "chain": [
+      "pairs.py:442 source_segment = seg['id'] (ID, no texto)",
+      "pipeline.py _run_external no recibia seg_text",
+      "external_ai_shadow.py:254 muestra cand.source_segment como DOCUMENTO",
+      "external_ai_shadow.py:319-338 valida evidencia/offsets contra cand.source_segment"
+    ],
+    "demonstration": {
+      "method": "proveedor falso que captura los messages, pipeline REAL con external_ai_enabled",
+      "before_fix": {"document_contains_text": false, "document_contains_id": true},
+      "after_fix": {"document_contains_text": true, "document_contains_id": false}
+    }
+  },
+  "base_branch": "exp/pr95-compare-base-contract-v1",
+  "base_worktree": ".claude/worktrees/pr95-base",
+  "constraints": {
+    "main_unchanged": true,
+    "no_existing_branch_modified": true,
+    "no_network": true,
+    "no_neo4j_write": true,
+    "no_ingest": true,
+    "no_threshold_lowered": true,
+    "dry_run_shadow_failclosed": true
+  }
+}
