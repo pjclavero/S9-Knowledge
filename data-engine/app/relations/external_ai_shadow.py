@@ -117,6 +117,10 @@ class RelationExternalConfig:
     suite: str = DEFAULT_SUITE
     max_candidates: int = 25          # control de volumen
     shadow_mode: bool = True          # obligatorio True en Fase A
+    # PR#95 V2 (flag, default OFF): realineamiento determinista y acotado de la
+    # evidencia del modelo cuando NO casa literalmente. Sin activar, el
+    # comportamiento es EXACTAMENTE el de la base (validacion estricta).
+    realignment_enabled: bool = False
     repo_root: Optional[Path] = None
     # Proveedor ya construido (reutiliza external_ai). En tests se inyecta un
     # mock con `_post_chat`; en produccion se construye via registry.
@@ -280,7 +284,8 @@ def _build_messages(cand: RelationCandidate, cid: str, suite: str,
 # Validacion estricta del verdicto por candidato
 # ---------------------------------------------------------------------------
 def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str,
-                      document_text: Optional[str] = None) -> tuple[Optional[dict], list[str]]:
+                      document_text: Optional[str] = None,
+                      realignment_enabled: bool = False) -> tuple[Optional[dict], list[str]]:
     """Valida un verdicto crudo. Devuelve (verdicto_saneado, errores).
 
     Rechaza (errores hard, devuelven None):
@@ -339,6 +344,35 @@ def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str,
     start = raw.get("evidence_start")
     end = raw.get("evidence_end")
 
+    # --- PR#95 V2: realineamiento determinista (flag, default OFF) ----------
+    # Solo se intenta si el flag esta activo. Sin el flag, el comportamiento es
+    # EXACTAMENTE el de la base. El realineamiento NUNCA relaja la validacion:
+    # sustituye ev/offsets por una RODAJA LITERAL del documento real, de modo que
+    # la validacion estricta de abajo sigue siendo la unica fuente de verdad del
+    # invariante (seg[start:end] == ev). Si no logra realinear, no toca nada.
+    realigned = False
+    realign_tier = "off"
+    realign_score = 0.0
+    if realignment_enabled and isinstance(ev, str) and ev.strip():
+        _off_int = (isinstance(start, int) and not isinstance(start, bool)
+                    and isinstance(end, int) and not isinstance(end, bool))
+        # Se realinea si la evidencia no es literal, o si los offsets no casan.
+        needs_realign = (ev not in seg) or (_off_int and seg[start:end] != ev)
+        if needs_realign:
+            from relations.evidence_realignment import realign_evidence
+            hint_s = start if (isinstance(start, int) and not isinstance(start, bool)) else None
+            hint_e = end if (isinstance(end, int) and not isinstance(end, bool)) else None
+            rr = realign_evidence(seg, ev, hint_start=hint_s, hint_end=hint_e)
+            if rr.ok:
+                # Invariante duro: la rodaja realineada DEBE ser literal y coherente.
+                assert seg[rr.start:rr.end] == rr.evidence_text
+                ev, start, end = rr.evidence_text, rr.start, rr.end
+                realigned = True
+                realign_tier = rr.tier
+                realign_score = rr.score
+            else:
+                realign_tier = rr.tier  # motivo de fallo (ambiguous/below_threshold/...)
+
     if not isinstance(ev, str) or not ev.strip():
         errors.append("evidence_text vacia o ausente")
     elif ev not in seg:
@@ -372,6 +406,10 @@ def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str,
         "confidence": conf,
         "reason_codes": list(raw.get("reason_codes", [])) if isinstance(raw.get("reason_codes"), list) else [],
         "explanation": str(raw.get("explanation", "")),
+        # Trazabilidad PR#95 V2 (siempre presente; default = sin realineamiento).
+        "evidence_realigned": bool(realigned),
+        "realignment_tier": str(realign_tier),
+        "realignment_score": float(realign_score),
     }
     return clean, []
 
@@ -511,7 +549,10 @@ def evaluate_relation_external(
             verdict_list = _extract_verdicts(raw_text)
             verdict_raw = _pick_verdict(verdict_list, cid)
 
-            clean_verdict, errors = _validate_verdict(verdict_raw, cand, cid, document_text=document_text)
+            clean_verdict, errors = _validate_verdict(
+                verdict_raw, cand, cid, document_text=document_text,
+                realignment_enabled=config.realignment_enabled,
+            )
             request_hash = _sha256_text(json.dumps(messages, ensure_ascii=False, sort_keys=True))
             response_hash = _sha256_text(raw_text)
 

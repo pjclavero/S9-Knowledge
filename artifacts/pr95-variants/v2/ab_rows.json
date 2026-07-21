@@ -1,0 +1,223 @@
+[
+  {
+    "name": "literal_exacto",
+    "category": "literal",
+    "recovery_expected": true,
+    "off": {
+      "accepted": true,
+      "literal_ok": true,
+      "tier": "off",
+      "errors": []
+    },
+    "on": {
+      "accepted": true,
+      "literal_ok": true,
+      "tier": "off",
+      "errors": []
+    }
+  },
+  {
+    "name": "nfd_acentos",
+    "category": "nfc_nfd",
+    "recovery_expected": true,
+    "off": {
+      "accepted": false,
+      "literal_ok": true,
+      "tier": null,
+      "errors": [
+        "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    },
+    "on": {
+      "accepted": true,
+      "literal_ok": true,
+      "tier": "normalized",
+      "errors": []
+    }
+  },
+  {
+    "name": "comillas_tipograficas",
+    "category": "comillas",
+    "recovery_expected": true,
+    "off": {
+      "accepted": false,
+      "literal_ok": true,
+      "tier": null,
+      "errors": [
+        "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    },
+    "on": {
+      "accepted": true,
+      "literal_ok": true,
+      "tier": "normalized",
+      "errors": []
+    }
+  },
+  {
+    "name": "espacios_tab",
+    "category": "espacios",
+    "recovery_expected": true,
+    "off": {
+      "accepted": false,
+      "literal_ok": true,
+      "tier": null,
+      "errors": [
+        "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    },
+    "on": {
+      "accepted": true,
+      "literal_ok": true,
+      "tier": "normalized",
+      "errors": []
+    }
+  },
+  {
+    "name": "crlf_lf",
+    "category": "crlf",
+    "recovery_expected": true,
+    "off": {
+      "accepted": true,
+      "literal_ok": true,
+      "tier": "off",
+      "errors": []
+    },
+    "on": {
+      "accepted": true,
+      "literal_ok": true,
+      "tier": "off",
+      "errors": []
+    }
+  },
+  {
+    "name": "repeticion_con_hint",
+    "category": "repeticion",
+    "recovery_expected": true,
+    "off": {
+      "accepted": true,
+      "literal_ok": true,
+      "tier": "off",
+      "errors": []
+    },
+    "on": {
+      "accepted": true,
+      "literal_ok": true,
+      "tier": "off",
+      "errors": []
+    }
+  },
+  {
+    "name": "parafrasis_leve",
+    "category": "parafrasis_leve",
+    "recovery_expected": true,
+    "off": {
+      "accepted": false,
+      "literal_ok": true,
+      "tier": null,
+      "errors": [
+        "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    },
+    "on": {
+      "accepted": true,
+      "literal_ok": true,
+      "tier": "fuzzy",
+      "errors": []
+    }
+  },
+  {
+    "name": "parafrasis_fuerte",
+    "category": "parafrasis_fuerte",
+    "recovery_expected": false,
+    "off": {
+      "accepted": false,
+      "literal_ok": true,
+      "tier": null,
+      "errors": [
+        "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    },
+    "on": {
+      "accepted": false,
+      "literal_ok": true,
+      "tier": null,
+      "errors": [
+        "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    }
+  },
+  {
+    "name": "falso_alineamiento",
+    "category": "falso_alineamiento",
+    "recovery_expected": false,
+    "off": {
+      "accepted": false,
+      "literal_ok": true,
+      "tier": null,
+      "errors": [
+        "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    },
+    "on": {
+      "accepted": false,
+      "literal_ok": true,
+      "tier": null,
+      "errors": [
+        "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    }
+  },
+  {
+    "name": "ambiguo_equidistante",
+    "category": "ambiguo",
+    "recovery_expected": false,
+    "off": {
+      "accepted": false,
+      "literal_ok": true,
+      "tier": null,
+      "errors": [
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    },
+    "on": {
+      "accepted": false,
+      "literal_ok": true,
+      "tier": null,
+      "errors": [
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    }
+  },
+  {
+    "name": "inyeccion_prompt",
+    "category": "inyeccion",
+    "recovery_expected": false,
+    "off": {
+      "accepted": false,
+      "literal_ok": true,
+      "tier": null,
+      "errors": [
+        "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    },
+    "on": {
+      "accepted": false,
+      "literal_ok": true,
+      "tier": null,
+      "errors": [
+        "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+        "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+      ]
+    }
+  }
+]
