@@ -408,8 +408,14 @@ def _run_local(cand: RelationCandidate, pair: CandidatePair, seg_text: str, conf
         return None, PROVIDER_FAILED_CLOSED
 
 
-def _run_external(cand: RelationCandidate, config: PipelineConfig, ctx: "_RunContext") -> tuple[Optional[Any], str]:
-    """Ejecuta la IA externa en sombra si esta habilitada. Devuelve (evaluacion, estado)."""
+def _run_external(cand: RelationCandidate, config: PipelineConfig, ctx: "_RunContext",
+                  seg_text: str) -> tuple[Optional[Any], str]:
+    """Ejecuta la IA externa en sombra si esta habilitada. Devuelve (evaluacion, estado).
+
+    P0: se pasa el TEXTO REAL del segmento (`seg_text`) como `document_text`, para
+    que el proveedor evalue/valide contra el documento y NO contra el ID del
+    segmento (`cand.source_segment`, que se conserva solo como trazabilidad).
+    """
     if not config.external_ai_enabled:
         return None, PROVIDER_NOT_EXECUTED
     from relations.external_ai_shadow import (
@@ -425,7 +431,7 @@ def _run_external(cand: RelationCandidate, config: PipelineConfig, ctx: "_RunCon
         provider=ctx.external_provider,   # None => registry (sin key => fallo cerrado)
     )
     try:
-        evals = evaluate_relation_external(cand, config=ext_cfg)
+        evals = evaluate_relation_external(cand, config=ext_cfg, document_text=seg_text)
         return (evals[0] if evals else None), PROVIDER_EXECUTED
     except Exception:  # noqa: BLE001 - aislado; ausencia/fallo != rechazo
         return None, PROVIDER_FAILED_CLOSED
@@ -646,7 +652,7 @@ def _process_pair(
 
     # --- proveedores en sombra (opcionales) ---
     local_rec, local_status = _run_local(candidate, pair, seg_text, config, ctx)
-    external_eval, external_status = _run_external(candidate, config, ctx)
+    external_eval, external_status = _run_external(candidate, config, ctx, seg_text)
     if local_status == PROVIDER_EXECUTED:
         summary["local_calls_simulated"] += 1
     if external_status == PROVIDER_EXECUTED:
