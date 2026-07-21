@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields as dataclass_fields
 from typing import Any, Iterable, Optional
 
 # --- Componentes reutilizados (NO se reimplementa nada) --------------------
@@ -152,8 +152,23 @@ class PipelineConfig:
     external_provider_name: str = "nvidia"
     prompt_suite: str = relation_prompts.DEFAULT_SUITE
 
+    # --- Motor hibrido por etapas (PR#95 V4). DEFAULT = pipeline clasico. ---
+    # `hybrid_stages`:
+    #   * None  -> camino CLASICO, byte-identico a la base (default).
+    #   * dict  -> motor por etapas; claves = nombres de etapa, valores bool.
+    #              {} = todas las etapas en su default -> reproduce la base.
+    # `hybrid_top_k`: 0 = sin acotar (base); >0 = acota candidatos por segmento.
+    # `hybrid_cross_sentence`: False (base, solo intra-frase); True = pares en
+    #   todo el segmento (relaciones inter-frase).
+    # Estas claves se OMITEN de `to_dict()` en su valor por defecto, para que la
+    # config canonica y el hash de ejecucion de una run base sean IDENTICOS a los
+    # de antes de esta feature (compatibilidad byte a byte).
+    hybrid_stages: Optional[dict] = None
+    hybrid_top_k: int = 0
+    hybrid_cross_sentence: bool = False
+
     def to_dict(self) -> dict:
-        return {
+        base = {
             "max_segments_per_doc": self.max_segments_per_doc,
             "max_entities_per_segment": self.max_entities_per_segment,
             "max_pairs_per_segment": self.max_pairs_per_segment,
@@ -173,9 +188,20 @@ class PipelineConfig:
             "external_provider_name": self.external_provider_name,
             "prompt_suite": self.prompt_suite,
         }
+        # Claves hibridas: SOLO se emiten si difieren del default, para preservar
+        # la config canonica (y el hash) de las runs base byte a byte.
+        if self.hybrid_stages is not None:
+            base["hybrid_stages"] = self.hybrid_stages
+        if self.hybrid_top_k:
+            base["hybrid_top_k"] = self.hybrid_top_k
+        if self.hybrid_cross_sentence:
+            base["hybrid_cross_sentence"] = self.hybrid_cross_sentence
+        return base
 
 
-_CONFIG_KEYS = frozenset(PipelineConfig().to_dict().keys())
+# Claves de config PERMITIDAS = todos los campos del dataclass (incluidas las
+# hibridas, aunque `to_dict` las omita en su valor por defecto).
+_CONFIG_KEYS = frozenset(f.name for f in dataclass_fields(PipelineConfig))
 # Flags de escritura PROHIBIDOS: si aparecen en la config de entrada, el pipeline
 # aborta (defensa explicita del dry-run; objetivo de mutacion "escribir en dry-run").
 _FORBIDDEN_CONFIG_KEYS = frozenset(
@@ -440,6 +466,49 @@ def _run_external(cand: RelationCandidate, config: PipelineConfig, ctx: "_RunCon
 # ---------------------------------------------------------------------------
 # Contexto de ejecucion (inyeccion de transporte/proveedor; sin red por defecto)
 # ---------------------------------------------------------------------------
+def _signals_for_pair(pair: CandidatePair, seg_text: str) -> list:
+    """Calcula las senales de un par (reutiliza SignalContext + compute_all_signals).
+
+    Es EXACTAMENTE el mismo calculo que hace `_process_pair` en el camino clasico;
+    se extrae como funcion para poder inyectarlo en el motor hibrido sin duplicar
+    logica.
+    """
+    sig_ctx = SignalContext(
+        segment=seg_text,
+        subject_start=pair.subject_start,
+        subject_end=pair.subject_end,
+        object_start=pair.object_start,
+        object_end=pair.object_end,
+        subject_type=pair.subject_type,
+        object_type=pair.object_type,
+    )
+    return compute_all_signals(sig_ctx)
+
+
+def _build_stage_deps() -> Any:
+    """Construye las dependencias inyectadas al motor hibrido (reutilizacion pura)."""
+    from relations.hybrid.engine import StageDeps
+
+    return StageDeps(
+        signal_map=_signal_map,
+        confidence=_confidence,
+        choose_predicate=lambda sigmap: _choose_predicate(sigmap, None),
+        dir_by_pred=_DIR_BY_PRED,
+        temporal_scope=_temporal_scope,
+        epistemic_status=_epistemic_status,
+        build_signals=_signals_for_pair,
+        candidate_key=_candidate_key,
+        run_local=_run_local,
+        run_external=_run_external,
+        compute_consensus=compute_relation_consensus,
+        candidate_cls=RelationCandidate,
+        candidate_build_error=_CandidateBuildError,
+        provider_executed=PROVIDER_EXECUTED,
+        provider_failed_closed=PROVIDER_FAILED_CLOSED,
+        state_counter=_STATE_COUNTER,
+    )
+
+
 @dataclass
 class _RunContext:
     local_transport: Optional[Any] = None
@@ -540,8 +609,13 @@ def _process_segment(
         "source_id": seg.get("source_id", document_id),
         "source_page": seg.get("source_page"),
     }
+    # Modo hibrido con inter-frase: el emparejamiento pasa a nivel de SEGMENTO
+    # (relaciones a mas de una frase). Sin el flag, se conserva el modo base.
+    seg_context_mode = config.context_mode
+    if config.hybrid_stages is not None and config.hybrid_cross_sentence:
+        seg_context_mode = "segment"
     pair_cfg = PairConfig(
-        context_mode=config.context_mode,
+        context_mode=seg_context_mode,
         window=config.pair_window,
         max_distance=config.max_distance,
         max_pairs=config.max_pairs_per_segment,
@@ -560,12 +634,23 @@ def _process_segment(
 
     candidate_records: list[dict] = []
     seen_candidates: set[str] = set()
-    for pair in pairs:
-        rec = _process_pair(
-            pair, text, syntax_analysis, workspace, config, ctx, summary, errors, seen_candidates
+    if config.hybrid_stages is None:
+        # --- Camino CLASICO (byte-identico a la base): sin motor por etapas. ---
+        for pair in pairs:
+            rec = _process_pair(
+                pair, text, syntax_analysis, workspace, config, ctx, summary, errors, seen_candidates
+            )
+            if rec is not None:
+                candidate_records.append(rec)
+    else:
+        # --- Motor HIBRIDO por etapas (flags). Con top_k<=0 y etapas en default,
+        # produce candidatos byte-identicos al camino clasico. ---
+        from relations.hybrid.engine import build_candidate_records_staged
+
+        candidate_records = build_candidate_records_staged(
+            pairs, text, syntax_analysis, workspace, config, ctx,
+            summary, errors, seen_candidates, _build_stage_deps(),
         )
-        if rec is not None:
-            candidate_records.append(rec)
 
     status = "ok" if not any(e.get("fatal_for_segment") for e in errors) else "partial"
     # Evento de observabilidad del segmento (redactado; sin volcar texto en claro).
@@ -758,6 +843,18 @@ def run_pipeline(
         config = config_from_dict(payload.get("config"))
 
     workspace, document_id, segments = _validate_payload(payload)
+
+    # Validacion temprana (fail-closed) de la config hibrida: nombres de etapa
+    # desconocidos o valores no-bool abortan ANTES de procesar nada.
+    if config.hybrid_stages is not None:
+        from relations.hybrid.engine import HybridConfigError, resolve_stages
+
+        try:
+            resolve_stages(config.hybrid_stages)
+        except HybridConfigError as exc:
+            raise PipelineError(str(exc)) from exc
+        if not isinstance(config.hybrid_top_k, int) or isinstance(config.hybrid_top_k, bool):
+            raise PipelineError("hybrid_top_k debe ser int")
 
     if len(segments) > config.max_segments_per_doc:
         raise PipelineError(
