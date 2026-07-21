@@ -1,0 +1,25 @@
+{
+  "base_sha": "92583f4",
+  "n_fixtures": 11,
+  "off": {
+    "accepted": 3,
+    "accepted_rate": 0.2727,
+    "literal_evidence_rate": 1.0
+  },
+  "on": {
+    "accepted": 7,
+    "accepted_rate": 0.6364,
+    "literal_evidence_rate": 1.0
+  },
+  "realignment_success_rate": 0.5,
+  "recovered_count": 4,
+  "recoverable_count": 8,
+  "ambiguous_realignment_rate": 0.0909,
+  "ambiguous_count": 1,
+  "recovered_names": [
+    "nfd_acentos",
+    "comillas_tipograficas",
+    "espacios_tab",
+    "parafrasis_leve"
+  ]
+}
