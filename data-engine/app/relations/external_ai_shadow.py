@@ -73,6 +73,17 @@ from relations.prompts import (
 )
 from relations.contracts import SCHEMA_VERSION as RELATION_SCHEMA_VERSION
 
+# --- Capa EXPERIMENTAL: protocolo de seleccion por fragmentos (PR#95 V3) -----
+# Puro, determinista, sin red. Solo se usa cuando el flag esta ACTIVADO; con el
+# flag OFF (default) el comportamiento es identico a la base clasica.
+from relations.fragment_protocol import (
+    FRAGMENT_PROTOCOL_VERSION,
+    build_fragment_index,
+    fragment_document,
+    reconstruct_evidence,
+    render_fragments_for_prompt,
+)
+
 logger = logging.getLogger("relations.external_ai_shadow")
 
 # Verdictos que el modelo externo puede emitir sobre una relacion propuesta.
@@ -121,6 +132,13 @@ class RelationExternalConfig:
     # Proveedor ya construido (reutiliza external_ai). En tests se inyecta un
     # mock con `_post_chat`; en produccion se construye via registry.
     provider: Optional[Any] = None
+    # --- Capa EXPERIMENTAL V3: seleccion por fragmentos --------------------
+    # Flag por defecto OFF: con False el evaluador usa el protocolo clasico
+    # (evidence_text + offsets), identico a la base. Con True, el modelo elige
+    # fragmentos por ID y el sistema reconstruye los offsets (literalidad
+    # garantizada). NO altera el contrato persistente de RelationCandidate.
+    fragment_protocol_enabled: bool = False
+    max_fragments: int = 200          # cota determinista de fragmentos (tokens)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -376,6 +394,144 @@ def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str,
     return clean, []
 
 
+# ---------------------------------------------------------------------------
+# Capa EXPERIMENTAL V3 — protocolo de seleccion por fragmentos
+# ---------------------------------------------------------------------------
+def _build_fragment_messages(cand: RelationCandidate, cid: str, suite: str,
+                             *, document_text: Optional[str], max_fragments: int) -> list[dict]:
+    """Prompt ALTERNATIVO: el modelo elige fragmentos por ID (no da offsets).
+
+    Presenta los fragmentos estables del DOCUMENTO real con sus IDs. El sistema
+    reconstruira los offsets a partir de los ``fragment_ids`` elegidos, por lo
+    que el modelo NUNCA tiene que producir offsets ni copiar la cita literal.
+    """
+    system = build_system_prompt(suite)
+    doc = _resolve_document(cand, document_text)
+    fragments = fragment_document(doc, max_fragments=max_fragments)
+    fragments_txt = render_fragments_for_prompt(fragments, sanitizer=sanitize_document)
+
+    proposed = {
+        "candidate_id": cid,
+        "subject_id": cand.subject_id,
+        "subject_type": cand.subject_type,
+        "predicate": cand.predicate,
+        "object_id": cand.object_id,
+        "object_type": cand.object_type,
+        "direction": cand.direction.value if hasattr(cand.direction, "value") else cand.direction,
+        "negated": cand.negated,
+    }
+    verdicts_txt = " | ".join(VALID_VERDICTS)
+    schema_txt = (
+        '{"candidate_id": <string>, '
+        '"fragment_ids": <lista de IDs de fragmento que sustentan la relacion, '
+        'p.ej. ["f-002","f-003"]; usa SOLO IDs mostrados>, '
+        f'"verdict": <uno de: {verdicts_txt}>, '
+        '"confidence": <0.0..1.0>, '
+        '"reason_codes": <lista de strings, opcional>, '
+        '"explanation": <string breve, opcional>}'
+    )
+    user = (
+        "Evalua la RELACION PROPUESTA contra el DOCUMENTO, que se te presenta "
+        "FRAGMENTADO en frases con IDs estables. No copies texto ni des offsets: "
+        "ELIGE los IDs de los fragmentos que sustentan (o refutan) la relacion.\n\n"
+        f"Protocolo de fragmentos version {FRAGMENT_PROTOCOL_VERSION}.\n\n"
+        "Relacion propuesta (JSON):\n" + json.dumps(proposed, ensure_ascii=False) + "\n\n"
+        f"FRAGMENTOS DEL DOCUMENTO {INPUT_OPEN}\n{fragments_txt}\n{INPUT_CLOSE}\n\n"
+        'Devuelve UNICAMENTE JSON con la forma {"verdicts": [<objeto>]} y UN objeto '
+        f'para candidate_id="{cid}" con estas claves:\n' + schema_txt
+    )
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+
+
+def _validate_fragment_verdict(raw: dict, cand: RelationCandidate, cid: str,
+                               *, document_text: Optional[str],
+                               max_fragments: int) -> tuple[Optional[dict], list[str]]:
+    """Valida un verdicto del protocolo de fragmentos.
+
+    Reconstruye offsets desde ``fragment_ids`` contra el DOCUMENTO real y exige
+    literalidad (la evidencia reconstruida es subcadena literal). Devuelve un
+    verdicto SANEADO con la MISMA forma que el clasico (``evidence_text`` +
+    offsets reconstruidos), de modo que ``_classify`` no cambia. Los
+    ``fragment_ids`` y la version del protocolo se anotan como trazabilidad
+    EXPERIMENTAL (no migran el contrato persistente).
+    """
+    errors: list[str] = []
+
+    got_cid = raw.get("candidate_id")
+    if got_cid is None:
+        return None, ["candidate_id ausente en el verdicto"]
+    if str(got_cid) != str(cid):
+        return None, [f"candidate_id no coincide: esperado {cid!r}, recibido {str(got_cid)!r}"]
+
+    verdict = raw.get("verdict")
+    if verdict not in VALID_VERDICTS:
+        errors.append(f"verdict invalido {verdict!r}; debe ser uno de {VALID_VERDICTS}")
+
+    conf = raw.get("confidence", 0.0)
+    if isinstance(conf, bool) or not isinstance(conf, (int, float)):
+        errors.append(f"confidence no numerica: {conf!r}")
+        conf = 0.0
+    else:
+        conf = float(max(0.0, min(1.0, conf)))
+
+    # negated y predicate son OPCIONALES en este protocolo minimo. Si el modelo
+    # no los aporta, se asumen coherentes con la propuesta interna (sin flip,
+    # mismo predicado) para no fabricar conflictos artificiales.
+    negated = raw.get("negated", cand.negated)
+    if not isinstance(negated, bool):
+        errors.append("negated debe ser bool explicito")
+
+    pred = raw.get("predicate")
+    if pred is not None:
+        if not isinstance(pred, str) or not pred.strip():
+            errors.append("predicate vacio o no string")
+        elif pred != normalize_predicate(pred):
+            errors.append(f"predicate no normalizado: {pred!r}")
+
+    for label in ("subject_type", "object_type"):
+        val = raw.get(label)
+        if val is not None and val not in ALLOWED_ENTITY_TYPES:
+            errors.append(f"{label} tipo incompatible: {val!r} no en {ALLOWED_ENTITY_TYPES}")
+
+    # Reconstruccion de offsets desde fragment_ids contra el DOCUMENTO real.
+    doc = _resolve_document(cand, document_text)
+    fragments = fragment_document(doc, max_fragments=max_fragments)
+    index = build_fragment_index(fragments)
+    fragment_ids = raw.get("fragment_ids")
+    recon = reconstruct_evidence(doc, index, fragment_ids if fragment_ids is not None else [])
+    if not recon.ok:
+        errors.extend(recon.errors)
+
+    if errors:
+        return None, errors
+
+    # INVARIANTE: literalidad estricta de la evidencia reconstruida.
+    if recon.text not in doc or doc[recon.start:recon.end] != recon.text:
+        return None, ["evidencia_inexistente: reconstrucción por fragmentos no literal"]
+
+    clean = {
+        "candidate_id": str(cid),
+        "verdict": str(verdict),
+        "predicate": pred,
+        "subject_type": raw.get("subject_type"),
+        "object_type": raw.get("object_type"),
+        "negated": bool(negated),
+        "evidence_text": recon.text,
+        "evidence_start": int(recon.start),
+        "evidence_end": int(recon.end),
+        "confidence": conf,
+        "reason_codes": list(raw.get("reason_codes", [])) if isinstance(raw.get("reason_codes"), list) else [],
+        "explanation": str(raw.get("explanation", "")),
+        # Trazabilidad EXPERIMENTAL (no persiste en RelationCandidate):
+        "fragment_ids": list(recon.fragment_ids),
+        "fragment_protocol_version": FRAGMENT_PROTOCOL_VERSION,
+    }
+    return clean, []
+
+
 def _classify(cand: RelationCandidate, verdict: dict) -> tuple[str, str, str]:
     """Mapea un verdicto valido a (state, shadow_recommendation, reason).
 
@@ -494,7 +650,15 @@ def evaluate_relation_external(
         # Fallo AISLADO por candidato: cualquier excepcion se convierte en un
         # resultado INVALID_RESPONSES, nunca propaga y aborta el lote.
         try:
-            messages = _build_messages(cand, cid, config.suite, document_text=document_text)
+            if config.fragment_protocol_enabled:
+                # Capa EXPERIMENTAL V3: el modelo elige fragmentos por ID.
+                messages = _build_fragment_messages(
+                    cand, cid, config.suite,
+                    document_text=document_text, max_fragments=config.max_fragments,
+                )
+            else:
+                # Protocolo clasico (default OFF): identico a la base.
+                messages = _build_messages(cand, cid, config.suite, document_text=document_text)
 
             # Guarda de secretos ANTES de cualquier envio (redaccion de external_ai).
             assert_no_secrets(messages)
@@ -511,7 +675,13 @@ def evaluate_relation_external(
             verdict_list = _extract_verdicts(raw_text)
             verdict_raw = _pick_verdict(verdict_list, cid)
 
-            clean_verdict, errors = _validate_verdict(verdict_raw, cand, cid, document_text=document_text)
+            if config.fragment_protocol_enabled:
+                clean_verdict, errors = _validate_fragment_verdict(
+                    verdict_raw, cand, cid,
+                    document_text=document_text, max_fragments=config.max_fragments,
+                )
+            else:
+                clean_verdict, errors = _validate_verdict(verdict_raw, cand, cid, document_text=document_text)
             request_hash = _sha256_text(json.dumps(messages, ensure_ascii=False, sort_keys=True))
             response_hash = _sha256_text(raw_text)
 

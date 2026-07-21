@@ -1,0 +1,26 @@
+{
+  "base_sha": "92583f4",
+  "fragment_protocol_version": "v1",
+  "corpus_size": 10,
+  "note": "Banco sintetico determinista. Cifras MEDIDAS ejecutando el codigo real, sin red.",
+  "classic": {
+    "protocol": "classic",
+    "total": 10,
+    "accepted": 3,
+    "invalid": 7,
+    "acceptance_rate": 0.3,
+    "literal_evidence_rate": 1.0,
+    "invalid_rate": 0.7,
+    "ambiguity_rate": 0.0
+  },
+  "fragments": {
+    "protocol": "fragments",
+    "total": 10,
+    "accepted": 10,
+    "invalid": 0,
+    "acceptance_rate": 1.0,
+    "literal_evidence_rate": 1.0,
+    "invalid_rate": 0.0,
+    "ambiguity_rate": 0.0
+  }
+}
