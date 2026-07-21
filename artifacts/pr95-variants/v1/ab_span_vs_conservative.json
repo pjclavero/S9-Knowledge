@@ -1,0 +1,62 @@
+{
+  "mode": "baseline1",
+  "iou_threshold": 0.5,
+  "lanes": {
+    "span": {
+      "anchor_mode": "span",
+      "tp": 43,
+      "fp": 9,
+      "fn": 11,
+      "f1": 0.8113,
+      "precision": 0.8269,
+      "recall": 0.7963,
+      "mean_iou": 0.8164,
+      "evidence_correct": {
+        "ok": 39,
+        "total": 43,
+        "rate": 0.907
+      },
+      "offsets_correct": {
+        "ok": 40,
+        "total": 43,
+        "rate": 0.9302
+      },
+      "simple_relations": {
+        "count": 30,
+        "evidence_correct": {
+          "ok": 28,
+          "total": 30,
+          "rate": 0.9333
+        }
+      }
+    },
+    "conservative": {
+      "anchor_mode": "conservative",
+      "tp": 43,
+      "fp": 9,
+      "fn": 11,
+      "f1": 0.8113,
+      "precision": 0.8269,
+      "recall": 0.7963,
+      "mean_iou": 0.7918,
+      "evidence_correct": {
+        "ok": 36,
+        "total": 43,
+        "rate": 0.8372
+      },
+      "offsets_correct": {
+        "ok": 40,
+        "total": 43,
+        "rate": 0.9302
+      },
+      "simple_relations": {
+        "count": 30,
+        "evidence_correct": {
+          "ok": 26,
+          "total": 30,
+          "rate": 0.8667
+        }
+      }
+    }
+  }
+}
