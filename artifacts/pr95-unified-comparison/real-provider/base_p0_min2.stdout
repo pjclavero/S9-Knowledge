@@ -1,0 +1,7 @@
+mode=nvidia_shadow verdict='APTO CON REVISION HUMANA TOTAL'
+global P=1.0 R=1.0 F1=1.0 TP=4 FP=0 FN=0
+deterministic=None
+providers local=NOT_EXECUTED external=EXECUTED llamadas=4
+transport_errors=0 rate=0.0
+verdict_scope=PARCIAL (gates duros no evaluados: determinism)
+sources=src-09,src-13
