@@ -70,6 +70,7 @@ from relations.signals import SIGNALS_VERSION, SignalContext, compute_all_signal
 from relations.syntax import SYNTAX_VERSION, get_analyzer, safe_analyze
 from relations import ontology as _ontology
 from relations import predicate_selector as _predicate_selector
+from relations import direction as _direction
 
 PIPELINE_VERSION = "relation-pipeline-1.0.0"
 PIPELINE_SCHEMA = "relation-pipeline/v1"
@@ -341,7 +342,7 @@ def _direction_for(predicate: str) -> Direction:
 
 
 def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace: str,
-                     config: PipelineConfig) -> RelationCandidate:
+                     config: PipelineConfig, syntax_analysis: Any = None) -> RelationCandidate:
     """Construye (y valida) un RelationCandidate a partir del par y sus senales.
 
     La evidencia es el span LITERAL que cubre ambas menciones. Un span vacio se
@@ -365,7 +366,12 @@ def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace
     if config.predicate_selector == "v2":
         selection = _predicate_selector.choose_predicate_v2(sigmap, pair, seg_text)
         predicate = selection.predicate
-        direction = _direction_for(predicate)
+        # Direccion resuelta por el MODULO INDEPENDIENTE (Bloque 3): sujeto/objeto
+        # gramatical, pasiva+agente, expresion inversa/activa de la ontologia,
+        # simetria y orden textual (fallback). Sustituye a `_direction_for`, que
+        # solo daba la direccion POR DEFECTO del predicado (nunca OBJECT_TO_SUBJECT).
+        direction = _direction.direction_for_pair(
+            predicate, pair, seg_text, syntax=syntax_analysis).direction
         if selection.abstained:
             flags.append(_predicate_selector.REVIEW_PREDICATE_FLAG)
     else:
@@ -678,7 +684,8 @@ def _process_pair(
 
     # --- candidato (contrato unico) ---
     try:
-        candidate = _build_candidate(pair, sigmap, seg_text, workspace, config)
+        candidate = _build_candidate(pair, sigmap, seg_text, workspace, config,
+                                     syntax_analysis)
     except _CandidateBuildError as exc:
         errors.append({
             "code": exc.reason_code,
