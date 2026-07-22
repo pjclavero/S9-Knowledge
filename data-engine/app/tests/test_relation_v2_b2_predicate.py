@@ -250,7 +250,9 @@ def test_cue_signal_supports_family():
 _FAMILY_CASES = [
     ("kinship", "Character", "Character", "Torin es hermano de Aldric", "SIBLING_OF"),
     ("alliance", "Faction", "Faction", "sello una alianza con el Clan", "ALLIED_WITH"),
-    ("enmity", "Faction", "Faction", "es enemigo declarado del Conclave", "ENEMY_OF"),
+    # B2-purga: "enemigo declarado" era calcada del corpus (src-13); se usa el
+    # marcador general "enemigo de". El predicado esperado NO cambia.
+    ("enmity", "Faction", "Faction", "es enemigo de la Horda del Norte", "ENEMY_OF"),
     ("membership", "Character", "Faction", "es miembro de la Orden", "MEMBER_OF"),
     ("leadership", "Character", "Concept", "Ella lideraba la vanguardia", "LEADS"),
     ("location", "Faction", "Location", "la Orden se encuentra en Puerto", "LOCATED_IN"),
@@ -260,7 +262,9 @@ _FAMILY_CASES = [
     ("foundation", "Character", "Faction", "Aldric funda el Reino de Valmyr", "FOUNDED"),
     ("participation", "Character", "Event", "participo en el Torneo", "PARTICIPATED_IN"),
     ("mentorship", "Character", "Character", "es maestro de Sela", "MENTOR_OF"),
-    ("cognition", "Concept", "Concept", "domina la Escritura Astral", "KNOWS"),
+    # B2-purga: "domina" era calcada del corpus (src-09) y semanticamente dudosa;
+    # se usa el marcador general "sabe de". El predicado esperado NO cambia.
+    ("cognition", "Concept", "Concept", "sabe de la Escritura Astral", "KNOWS"),
     ("trust", "Character", "Faction", "nunca confio en la Horda", "TRUSTS"),
     ("succession", "Character", "Character", "Ysolde sucede a Aldric", "SUCCEEDED"),
     ("causality", "Event", "Event", "la sequia provoco la Hambruna", "CAUSED"),
