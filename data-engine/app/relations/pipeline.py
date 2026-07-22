@@ -68,6 +68,8 @@ from relations.pairs import (
 )
 from relations.signals import SIGNALS_VERSION, SignalContext, compute_all_signals
 from relations.syntax import SYNTAX_VERSION, get_analyzer, safe_analyze
+from relations import ontology as _ontology
+from relations import predicate_selector as _predicate_selector
 
 PIPELINE_VERSION = "relation-pipeline-1.0.0"
 PIPELINE_SCHEMA = "relation-pipeline/v1"
@@ -152,6 +154,11 @@ class PipelineConfig:
     external_provider_name: str = "nvidia"
     prompt_suite: str = relation_prompts.DEFAULT_SUITE
 
+    # Selector de predicados (B2). "v1" = `_choose_predicate` historico (default:
+    # comportamiento base INTACTO -> metric-neutral por defecto). "v2" = selector
+    # estructurado por reglas+ontologia (`relations.predicate_selector`).
+    predicate_selector: str = "v1"
+
     def to_dict(self) -> dict:
         return {
             "max_segments_per_doc": self.max_segments_per_doc,
@@ -172,6 +179,7 @@ class PipelineConfig:
             "external_model": self.external_model,
             "external_provider_name": self.external_provider_name,
             "prompt_suite": self.prompt_suite,
+            "predicate_selector": self.predicate_selector,
         }
 
 
@@ -181,6 +189,8 @@ _CONFIG_KEYS = frozenset(PipelineConfig().to_dict().keys())
 _FORBIDDEN_CONFIG_KEYS = frozenset(
     {"write", "apply", "persist", "commit", "auto_approve", "autoapprove", "dry_run"}
 )
+# Selectores de predicado validos (B2). Default "v1" = comportamiento base.
+_VALID_PREDICATE_SELECTORS = frozenset({"v1", "v2"})
 
 
 def config_from_dict(data: Optional[dict]) -> PipelineConfig:
@@ -194,6 +204,12 @@ def config_from_dict(data: Optional[dict]) -> PipelineConfig:
     unknown = set(data) - _CONFIG_KEYS
     if unknown:
         raise PipelineError(f"claves de config desconocidas: {sorted(unknown)}")
+    selector = data.get("predicate_selector", "v1")
+    if selector not in _VALID_PREDICATE_SELECTORS:
+        raise PipelineError(
+            f"predicate_selector invalido: {selector!r}; validos: "
+            f"{sorted(_VALID_PREDICATE_SELECTORS)}"
+        )
     return PipelineConfig(**data)
 
 
@@ -307,11 +323,35 @@ class _CandidateBuildError(Exception):
     message: str
 
 
-def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace: str) -> RelationCandidate:
+def _direction_for(predicate: str) -> Direction:
+    """Direccion por defecto del predicado.
+
+    Prioriza el catalogo de plantillas (compatibilidad con v1) y, para predicados
+    sin plantilla (los que anade el selector v2: GUARDS, MENTOR_OF, ...), la deriva
+    de la SIMETRIA de la ontologia (simetrico -> UNDIRECTED; dirigido ->
+    SUBJECT_TO_OBJECT). Nunca inventa: RELATED_TO cae en UNDIRECTED.
+    """
+    if predicate in _DIR_BY_PRED:
+        return _DIR_BY_PRED[predicate]
+    if predicate == GENERIC_PREDICATE:
+        return Direction.UNDIRECTED
+    if _ontology.get(predicate) is not None:
+        return Direction.UNDIRECTED if _ontology.is_symmetric(predicate) else Direction.SUBJECT_TO_OBJECT
+    return Direction.UNDIRECTED
+
+
+def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace: str,
+                     config: PipelineConfig) -> RelationCandidate:
     """Construye (y valida) un RelationCandidate a partir del par y sus senales.
 
     La evidencia es el span LITERAL que cubre ambas menciones. Un span vacio se
     rechaza EXPLICITAMENTE (evidencia inexistente): objetivo de mutacion.
+
+    El predicado lo elige el selector segun `config.predicate_selector`: "v1"
+    (default, `_choose_predicate` historico -> comportamiento base INTACTO) o "v2"
+    (`relations.predicate_selector`, estructurado por reglas+ontologia). En "v2" una
+    ABSTENCION del selector (margen insuficiente / sin evidencia lexica) NO fuerza:
+    marca el candidato con `review_predicate` en `validation_flags` para revision.
     """
     lo = min(pair.subject_start, pair.object_start)
     hi = max(pair.subject_end, pair.object_end)
@@ -321,14 +361,24 @@ def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace
     if not evidence_text.strip():
         raise _CandidateBuildError("evidence_blank", "la evidencia es solo espacios")
 
-    predicate = _choose_predicate(sigmap, pair)
+    flags = ["dry_run", "heuristic"]
+    if config.predicate_selector == "v2":
+        selection = _predicate_selector.choose_predicate_v2(sigmap, pair, seg_text)
+        predicate = selection.predicate
+        direction = _direction_for(predicate)
+        if selection.abstained:
+            flags.append(_predicate_selector.REVIEW_PREDICATE_FLAG)
+    else:
+        predicate = _choose_predicate(sigmap, pair)
+        direction = _DIR_BY_PRED.get(predicate, Direction.UNDIRECTED)
+
     candidate = RelationCandidate(
         subject_id=pair.subject_id,
         subject_type=pair.subject_type,
         predicate=predicate,
         object_id=pair.object_id,
         object_type=pair.object_type,
-        direction=_DIR_BY_PRED.get(predicate, Direction.UNDIRECTED),
+        direction=direction,
         confidence=_confidence(sigmap),
         evidence_text=evidence_text,
         evidence_start=lo,
@@ -342,7 +392,7 @@ def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace
         temporal_scope=_temporal_scope(sigmap),
         epistemic_status=_epistemic_status(sigmap),
         workspace=workspace,
-        validation_flags=["dry_run", "heuristic"],
+        validation_flags=flags,
     )
     try:
         candidate.validate()
@@ -628,7 +678,7 @@ def _process_pair(
 
     # --- candidato (contrato unico) ---
     try:
-        candidate = _build_candidate(pair, sigmap, seg_text, workspace)
+        candidate = _build_candidate(pair, sigmap, seg_text, workspace, config)
     except _CandidateBuildError as exc:
         errors.append({
             "code": exc.reason_code,

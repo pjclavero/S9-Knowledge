@@ -342,6 +342,9 @@ def extract_predictions(output: dict) -> list[dict]:
             "evidence_end": c["evidence_end"],
             "consensus_state": cons.get("state"),
             "recommendation": cons.get("recommendation"),
+            # B2 (aditivo): las validation_flags del candidato viajan a la prediccion
+            # para que el informe pueda contar abstenciones (`review_predicate`).
+            "validation_flags": list(c.get("validation_flags") or []),
         })
     return preds
 
@@ -418,6 +421,7 @@ def extract_predictions_ensemble(output: dict, ensemble_config: Any = None) -> l
             "recommendation": decision.recommendation,
             "base_consensus_state": base.get("state"),
             "ensemble_score": round(float(decision.score), 6),
+            "validation_flags": list(c.get("validation_flags") or []),
         })
     return preds
 
@@ -835,7 +839,8 @@ def check_provider_transport_health(
     return stats
 
 
-def _config_for_mode(mode: str, external_model: Optional[str] = None) -> PipelineConfig:
+def _config_for_mode(mode: str, external_model: Optional[str] = None,
+                     predicate_selector: Optional[str] = None) -> PipelineConfig:
     preset = mode_preset(mode)
     base = {"local_llm_enabled": False, "external_ai_enabled": False}
     base.update(preset)
@@ -846,6 +851,12 @@ def _config_for_mode(mode: str, external_model: Optional[str] = None) -> Pipelin
     # guarda `require_external_model` habra rechazado ya para los modos externos.
     if external_model is not None and str(external_model).strip():
         base["external_model"] = str(external_model).strip()
+    # B2 -- selector de predicados. `None` conserva el default de PipelineConfig
+    # ("v1" = comportamiento base intacto -> metric-neutral por defecto). Es un
+    # override ADITIVO: NO altera `MODES` (asi ni --all-modes ni los tests que
+    # iteran MODES cambian su conjunto) y solo aplica cuando el llamante lo pide.
+    if predicate_selector is not None and str(predicate_selector).strip():
+        base["predicate_selector"] = str(predicate_selector).strip()
     return PipelineConfig(**base)
 
 
@@ -853,7 +864,8 @@ def run_source(corpus: Corpus, source_id: str, *, mode: str = DEFAULT_MODE,
                local_transport: Any = None, external_provider: Any = None,
                ensemble_config: Any = None,
                enable_providers: bool = False,
-               external_model: Optional[str] = None) -> SourceRun:
+               external_model: Optional[str] = None,
+               predicate_selector: Optional[str] = None) -> SourceRun:
     """Ejecuta el pipeline REAL sobre una fuente.
 
     Proveedores SIEMPRE off salvo que el llamante inyecte explicitamente
@@ -870,7 +882,8 @@ def run_source(corpus: Corpus, source_id: str, *, mode: str = DEFAULT_MODE,
     workspace = corpus.workspace_by_source[source_id]
     entities, notes = derive_entities(source_id, text, corpus.relations)
     payload = build_payload(source_id, text, workspace, entities)
-    config = _config_for_mode(mode, external_model=external_model)
+    config = _config_for_mode(mode, external_model=external_model,
+                              predicate_selector=predicate_selector)
 
     t0 = time.perf_counter()
     # Sin inyeccion (caso por defecto) => jamas red, jamas Ollama/NVIDIA.
@@ -998,7 +1011,8 @@ def run_benchmark(corpus: Corpus, *, mode: str = DEFAULT_MODE,
                   enable_providers: bool = False,
                   provider_endpoints: Optional[dict] = None,
                   max_run_seconds: Optional[float] = None,
-                  external_model: Optional[str] = None) -> BenchmarkRun:
+                  external_model: Optional[str] = None,
+                  predicate_selector: Optional[str] = None) -> BenchmarkRun:
     """Ejecuta el pipeline REAL sobre el corpus (o una submuestra), determinista.
 
     La llave de proveedores se comprueba AQUI, en el nucleo, antes de construir
@@ -1038,7 +1052,8 @@ def run_benchmark(corpus: Corpus, *, mode: str = DEFAULT_MODE,
                         external_provider=external_provider,
                         ensemble_config=ensemble_config,
                         enable_providers=enable_providers,
-                        external_model=external_model)
+                        external_model=external_model,
+                        predicate_selector=predicate_selector)
         source_runs.append(sr)
         if not versions:
             versions = dict(sr.output["versions"])
@@ -1059,7 +1074,8 @@ def run_benchmark(corpus: Corpus, *, mode: str = DEFAULT_MODE,
             acumulados, mode=mode, strict_small_sample=True, final=True)
     return BenchmarkRun(
         mode=mode,
-        config=_config_for_mode(mode, external_model=external_model).to_dict(),
+        config=_config_for_mode(mode, external_model=external_model,
+                                predicate_selector=predicate_selector).to_dict(),
         versions=versions,
         source_runs=source_runs,
         corpus_hashes=dict(corpus.corpus_hashes),

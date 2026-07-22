@@ -329,9 +329,13 @@ def determinism_report(corpus, mode: str, reference: BenchmarkRun) -> dict:
                        "(y duplicaria llamadas reales); determinismo NO EVALUADO"),
         }
 
-    # La segunda ejecucion debe usar EXACTAMENTE la misma submuestra de fuentes.
+    # La segunda ejecucion debe usar EXACTAMENTE la misma submuestra de fuentes Y
+    # el mismo selector de predicados (B2): el override viaja en `reference.config`,
+    # no en el `mode`, asi que hay que releerlo o la segunda pasada correria con el
+    # selector por defecto (v1) y un run v2 daria `deterministic=False` ESPURIO.
     second = run_benchmark(corpus, mode=mode,
-                           source_ids=list(getattr(reference, "source_ids", []) or []) or None)
+                           source_ids=list(getattr(reference, "source_ids", []) or []) or None,
+                           predicate_selector=(getattr(reference, "config", None) or {}).get("predicate_selector"))
     ref_hashes = reference.result_hashes()
     sec_hashes = second.result_hashes()
     hashes_equal = ref_hashes == sec_hashes
