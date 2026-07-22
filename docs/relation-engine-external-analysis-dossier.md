@@ -171,11 +171,32 @@ errores de transporte; **0/4 aceptados**, todos por `offsets_invalidos` (antes d
 `evidencia_inexistente`). → **P0 elimina el primer muro pero destapa el de los offsets.**
 Evidencia: `real-provider/base_p0_payloads.jsonl`, doc `15b-real-provider-min-result.md`.
 
-**Datos fiables (corpus completo, n≈52) — EN CURSO:** 3 corridas en paralelo
-(BASE / V2-realignment / V3-fragments) para medir con muestra grande cuántos
-`offsets_invalidos` se convierten en aceptaciones con cada mecanismo. Artefactos previstos:
-`real-provider/{base_full,v2_full_real,v3_full_real}.*`. *(Esta sección se actualizará con
-las cifras reales al terminar las corridas.)*
+**Datos fiables (corpus completo, mismos 52 candidatos, NVIDIA real `meta/llama-3.3-70b-instruct`):**
+
+| Config | Verdictos VÁLIDOS | Rechazos | Motivo del rechazo |
+|---|---|---|---|
+| **BASE** (solo P0) | **0/52** | 52 | `offsets_invalidos` (50 no casan, 2 fuera de rango) |
+| **V2** realineamiento | **52/52** | 0 | — |
+| **V3** fragmentos | **49/52** | 3 | 2 fragmentos vacíos del modelo, 1 timeout transporte |
+
+Artefactos: `real-provider/{base_classic_real,v2_full_real,v3_full_real}.jsonl`.
+
+**Conclusión firme (ya con datos reales, no sintéticos):**
+- **P0 es necesario pero NO suficiente:** solo con P0, NVIDIA da **0/52** (el 100% cae por
+  `offsets_invalidos`). El modelo ve el texto real pero **cuenta mal los offsets**.
+- **P0 + V2 o V3 desatasca la capa externa:** de 0/52 a **52/52 (V2)** / **49/52 (V3)**.
+
+**Matiz de seguridad (crítico):** "válido" = cita **literal con offsets coherentes**, NO que
+la evidencia sea la **correcta**. El banco sintético mostró que V2 ancla en el **span
+equivocado ~18%** de las veces (literal pero erróneo) — riesgo que este recuento NO detecta.
+V3 no tiene ese riesgo (reconstruye desde los fragmentos que el modelo eligió). Por tanto:
+**aceptación bruta V2 (100%) ≥ V3 (94%); seguridad de la evidencia aceptada V3 ≥ V2.** La
+elección V2/V3 es un trade-off, no "gana el número más alto". Falta un experimento que
+compare la evidencia ACEPTADA contra el ground truth (cuántas son la cita correcta).
+
+> **Y no olvidar la Capa B:** aunque V2/V3 arreglen la corroboración externa, el **motor
+> propio sigue con el predicado débil (0.256)** → el dictamen sigue siendo "revisión humana
+> total" y la **ingesta sigue bloqueada**. La capa externa desatascada no basta por sí sola.
 
 ---
 
