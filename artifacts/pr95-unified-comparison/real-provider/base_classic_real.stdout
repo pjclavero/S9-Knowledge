@@ -1,0 +1,3 @@
+FLAG=classic total_candidatos=52 aceptados=0 invalid=52
+estados: {'INVALID_RESPONSES': 52}
+motivos_rechazo: {'offsets_invalidos: segmento[start:end] no coincide con evide': 50, 'offsets_invalidos: fuera de rango [0,165] o start>end': 1, 'offsets_invalidos: fuera de rango [0,150] o start>end': 1}

@@ -1,0 +1,3 @@
+FLAG=realignment total_candidatos=52 aceptados=52 invalid=0
+estados: {'STRONG_CONSENSUS': 29, 'MODEL_CONFLICT': 20, 'PARTIAL_CONSENSUS': 3}
+motivos_rechazo: {}

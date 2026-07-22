@@ -1,0 +1,52 @@
+{"source_id": "src-01", "candidate_id": "fbf77a39983e8fe2", "state": "STRONG_CONSENSUS", "reason_codes": ["direct-mention"], "validation_errors": []}
+{"source_id": "src-01", "candidate_id": "3683c16360451ca7", "state": "INVALID_RESPONSES", "reason_codes": ["invalid_response"], "validation_errors": ["fragment_ids vacío o no es lista"]}
+{"source_id": "src-01", "candidate_id": "53d85a54a2508335", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_mention"], "validation_errors": []}
+{"source_id": "src-01", "candidate_id": "791010f3383a60bc", "state": "STRONG_CONSENSUS", "reason_codes": ["alianza_explicita"], "validation_errors": []}
+{"source_id": "src-01", "candidate_id": "de9a9545c1080eeb", "state": "MODEL_CONFLICT", "reason_codes": ["negacion_explicita"], "validation_errors": []}
+{"source_id": "src-02", "candidate_id": "dd5b62f19e2e47d5", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_family_relation"], "validation_errors": []}
+{"source_id": "src-03", "candidate_id": "7f5daecaf0ac58c0", "state": "MODEL_CONFLICT", "reason_codes": ["fundador_no_miembro"], "validation_errors": []}
+{"source_id": "src-03", "candidate_id": "19f135899022b67c", "state": "MODEL_CONFLICT", "reason_codes": ["NEGATED_RELATION"], "validation_errors": []}
+{"source_id": "src-03", "candidate_id": "16030e4ca510ed73", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_evidence"], "validation_errors": []}
+{"source_id": "src-03", "candidate_id": "081adf33519ee03d", "state": "MODEL_CONFLICT", "reason_codes": ["NO_LOCACION_EXPRESA"], "validation_errors": []}
+{"source_id": "src-04", "candidate_id": "85cb2634d43ec921", "state": "STRONG_CONSENSUS", "reason_codes": ["co-mention"], "validation_errors": []}
+{"source_id": "src-04", "candidate_id": "c305ffaa6807b725", "state": "STRONG_CONSENSUS", "reason_codes": ["co-mention"], "validation_errors": []}
+{"source_id": "src-04", "candidate_id": "a67bb73c4fbf77e0", "state": "MODEL_CONFLICT", "reason_codes": ["no hay evidencia de ubicación"], "validation_errors": []}
+{"source_id": "src-04", "candidate_id": "8a7eb84e4386137b", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_mention"], "validation_errors": []}
+{"source_id": "src-04", "candidate_id": "e4b6ac94448a352f", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_mention"], "validation_errors": []}
+{"source_id": "src-04", "candidate_id": "313cbb3df211bcb1", "state": "MODEL_CONFLICT", "reason_codes": ["condicionalidad"], "validation_errors": []}
+{"source_id": "src-04", "candidate_id": "309f067d9e8fa34c", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_mention"], "validation_errors": []}
+{"source_id": "src-04", "candidate_id": "51bac6e6dda3becd", "state": "STRONG_CONSENSUS", "reason_codes": ["co-mention"], "validation_errors": []}
+{"source_id": "src-05", "candidate_id": "ae816a5f5f3bfa0e", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_mention"], "validation_errors": []}
+{"source_id": "src-05", "candidate_id": "7cc77c891aa68dbe", "state": "STRONG_CONSENSUS", "reason_codes": ["co-ocurrencia"], "validation_errors": []}
+{"source_id": "src-05", "candidate_id": "514d4269fa8c559f", "state": "INVALID_RESPONSES", "reason_codes": ["invalid_response"], "validation_errors": ["fragment_ids vacío o no es lista"]}
+{"source_id": "src-05", "candidate_id": "c6bde51f4f210d27", "state": "STRONG_CONSENSUS", "reason_codes": ["explicit_membership"], "validation_errors": []}
+{"source_id": "src-05", "candidate_id": "b514d33977d5f2c4", "state": "MODEL_CONFLICT", "reason_codes": ["lideraba_no_pertenece"], "validation_errors": []}
+{"source_id": "src-06", "candidate_id": "d46b2dbd1c8d9e45", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_evidence"], "validation_errors": []}
+{"source_id": "src-06", "candidate_id": "4db53b00da227455", "state": "INVALID_RESPONSES", "reason_codes": ["provider_error"], "validation_errors": ["ProviderTimeoutError"]}
+{"source_id": "src-06", "candidate_id": "6f7b2fa72c4cabe7", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_evidence"], "validation_errors": []}
+{"source_id": "src-06", "candidate_id": "a631a49af94131f0", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_evidence"], "validation_errors": []}
+{"source_id": "src-07", "candidate_id": "3746cf5df3bc1130", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_statement"], "validation_errors": []}
+{"source_id": "src-07", "candidate_id": "3b221f8ad7b704e2", "state": "STRONG_CONSENSUS", "reason_codes": ["MENTION_OF_RELATIONSHIP"], "validation_errors": []}
+{"source_id": "src-08", "candidate_id": "9aa04c26214bb97d", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_testimony"], "validation_errors": []}
+{"source_id": "src-08", "candidate_id": "51ec439c7afa79a3", "state": "MODEL_CONFLICT", "reason_codes": ["contradicting_evidence"], "validation_errors": []}
+{"source_id": "src-08", "candidate_id": "7fb0ca1469f58b15", "state": "MODEL_CONFLICT", "reason_codes": ["negacion_explicita"], "validation_errors": []}
+{"source_id": "src-09", "candidate_id": "0ef894c965214c66", "state": "MODEL_CONFLICT", "reason_codes": ["NEGATED_RELATION"], "validation_errors": []}
+{"source_id": "src-09", "candidate_id": "74984c8d05c9f47d", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_statement"], "validation_errors": []}
+{"source_id": "src-10", "candidate_id": "9959194928fb6c40", "state": "STRONG_CONSENSUS", "reason_codes": ["participacion_en_evento"], "validation_errors": []}
+{"source_id": "src-10", "candidate_id": "ed49a49cefaf0338", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_mention"], "validation_errors": []}
+{"source_id": "src-10", "candidate_id": "2c895044516d55b1", "state": "MODEL_CONFLICT", "reason_codes": ["no-evidencia-de-ubicacion"], "validation_errors": []}
+{"source_id": "src-10", "candidate_id": "d12cfac18d1d2c7b", "state": "MODEL_CONFLICT", "reason_codes": ["negated_relation"], "validation_errors": []}
+{"source_id": "src-11", "candidate_id": "bf991b4f5bb41d54", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_statement"], "validation_errors": []}
+{"source_id": "src-11", "candidate_id": "af2cc2ab30626dcb", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_evidence"], "validation_errors": []}
+{"source_id": "src-11", "candidate_id": "a023656ba31c7d94", "state": "STRONG_CONSENSUS", "reason_codes": ["explicit_mention"], "validation_errors": []}
+{"source_id": "src-12", "candidate_id": "58e2422a2cc8a41c", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_relationship"], "validation_errors": []}
+{"source_id": "src-12", "candidate_id": "4152794d70d0185c", "state": "MODEL_CONFLICT", "reason_codes": ["negated_relation"], "validation_errors": []}
+{"source_id": "src-13", "candidate_id": "a1ba107f5691f27c", "state": "MODEL_CONFLICT", "reason_codes": ["enemistad_explicita"], "validation_errors": []}
+{"source_id": "src-13", "candidate_id": "5ec4f421fd24c6bf", "state": "STRONG_CONSENSUS", "reason_codes": ["rivalidad_explicita", "evento_conexo"], "validation_errors": []}
+{"source_id": "src-14", "candidate_id": "0874ac78f1fc7936", "state": "STRONG_CONSENSUS", "reason_codes": ["ROBADO_POR"], "validation_errors": []}
+{"source_id": "src-14", "candidate_id": "449430d4a415b6d5", "state": "MODEL_CONFLICT", "reason_codes": ["negated_relation"], "validation_errors": []}
+{"source_id": "src-15", "candidate_id": "ff114f369babb08a", "state": "STRONG_CONSENSUS", "reason_codes": ["participacion_en_evento"], "validation_errors": []}
+{"source_id": "src-15", "candidate_id": "93acadd62bb808a1", "state": "MODEL_CONFLICT", "reason_codes": ["negacion_explicita"], "validation_errors": []}
+{"source_id": "src-15", "candidate_id": "edd417e39d94fa5d", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_statement"], "validation_errors": []}
+{"source_id": "src-16", "candidate_id": "f97132750915609b", "state": "STRONG_CONSENSUS", "reason_codes": ["fundacion", "posible_residencia"], "validation_errors": []}
+{"source_id": "src-16", "candidate_id": "8cdfd47efe913d5e", "state": "STRONG_CONSENSUS", "reason_codes": ["direct_evidence"], "validation_errors": []}
