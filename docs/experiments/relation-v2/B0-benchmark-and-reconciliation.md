@@ -226,9 +226,25 @@ verdict_scope=COMPLETO
 fingerprint sha256 = 9b0917a3328bcb2fd4ea0de78b83a51a6ae4963a80837dbda71765a9c1ddbf40
 ```
 
-### 4.3. Resultado post-B0 (DESPUÉS) — PENDIENTE en commit 2
+### 4.3. Resultado post-B0 (DESPUÉS)
 
-<!-- COMMIT-2: rellenar con la salida real post-cambio; el fingerprint sha256 debe ser IDÉNTICO al base. -->
+```
+mode=baseline1 verdict='APTO CON REVISION HUMANA TOTAL'
+global P=0.8269 R=0.7963 F1=0.8113 TP=43 FP=9 FN=11
+deterministic=True
+predicate_structural gate = FAIL (value 0.2558, threshold 0.50)
+predicted distribution = {LOCATED_IN: 22, MEMBER_OF: 9, OWNS: 4, PARTICIPATED_IN: 1, RELATED_TO: 16}
+verdict_scope=COMPLETO
+fingerprint sha256 = 9b0917a3328bcb2fd4ea0de78b83a51a6ae4963a80837dbda71765a9c1ddbf40
+```
+
+**Fingerprint base == fingerprint post-B0** (`9b0917a3…c1ddbf40`). Todas las métricas
+(global, strict, estructurales, por predicado, gates, dictamen, `result_hashes`) son
+IDÉNTICAS: ampliar `ALLOWED_RELATION_TYPES` **no movió nada**. Cero amaño, cero efecto
+colateral, como se predijo en §4.
+
+sha256 del ground truth ANTES y DESPUÉS:
+`15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c` (igual).
 
 ---
 
