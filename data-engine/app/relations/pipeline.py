@@ -71,6 +71,7 @@ from relations.syntax import SYNTAX_VERSION, get_analyzer, safe_analyze
 from relations import ontology as _ontology
 from relations import predicate_selector as _predicate_selector
 from relations import direction as _direction
+from relations import temporal_v2 as _temporal_v2
 
 PIPELINE_VERSION = "relation-pipeline-1.0.0"
 PIPELINE_SCHEMA = "relation-pipeline/v1"
@@ -366,6 +367,11 @@ def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace
     if config.predicate_selector == "v2":
         selection = _predicate_selector.choose_predicate_v2(sigmap, pair, seg_text)
         predicate = selection.predicate
+        # Temporalidad/vigencia por el MODULO INDEPENDIENTE (Bloque 4): estado rico
+        # + clase del contrato, acotado a la frase del par. Emite PRESENT/ONGOING
+        # para el presente relacional (que v1 suprimia) y amplia la morfologia de
+        # pasado. El prefijo es la clase que el arnes lee sin reclasificar.
+        temporal_scope = _temporal_v2.temporal_scope_for_pair(seg_text, pair)
         # Direccion resuelta por el MODULO INDEPENDIENTE (Bloque 3): sujeto/objeto
         # gramatical, pasiva+agente, expresion inversa/activa de la ontologia,
         # simetria y orden textual (fallback). Sustituye a `_direction_for`, que
@@ -377,6 +383,8 @@ def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace
     else:
         predicate = _choose_predicate(sigmap, pair)
         direction = _DIR_BY_PRED.get(predicate, Direction.UNDIRECTED)
+        # v1 INTACTO y metric-neutral: alcance temporal como hasta ahora.
+        temporal_scope = _temporal_scope(sigmap)
 
     candidate = RelationCandidate(
         subject_id=pair.subject_id,
@@ -395,7 +403,7 @@ def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace
         extraction_method=ExtractionMethod.HEURISTIC,
         model=None,
         negated=bool(sigmap.get("negation")),
-        temporal_scope=_temporal_scope(sigmap),
+        temporal_scope=temporal_scope,
         epistemic_status=_epistemic_status(sigmap),
         workspace=workspace,
         validation_flags=flags,
