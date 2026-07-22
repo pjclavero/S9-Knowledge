@@ -1,0 +1,62 @@
+# Manifiesto de CORPUS congelado - Comparativa unificada PR#95
+# Congelado ANTES de ejecutar. No se adapto para favorecer a ninguna version.
+comparison: pr95-unified-comparison
+frozen_at: "2026-07-22"
+python: "3.13.5"
+offline: true            # sin red, sin escritura Neo4j, sin ingesta, sin proveedores reales
+
+corpora:
+  C1:
+    name: corpus vigente del proyecto (B1)
+    path: data-engine/app/tests/data/relation_benchmark
+    role: PISTA PIPELINE (real) + base documental de la PISTA PROTOCOLO
+    sources: 16
+    relations: 54
+    manifest_sha256: a2cc506f953a405db507cfe53389d2923f2d8a7015b6f7164f5a90ec825d2631
+    ground_truth_sha256: 15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c
+    literalidad_gt: "54/54 relaciones con document[start:end] == evidence_text (verificado)"
+    uso: "sin modificar; verify=True (sha256 por fuente + ground truth)"
+
+  C3:
+    name: corpus ADVERSARIAL (protocolo)
+    file: ground-truth.jsonl (prefijo c3-*)
+    cases: 6
+    role: PISTA PROTOCOLO (robustez / fail-closed)
+    cubre:
+      - evidencia repetida / dos coincidencias validas (ambiguo)
+      - prompt injection dentro de la evidencia (no literal)
+      - offsets maliciosos fuera de rango
+      - fragment IDs inexistentes (V3)
+      - JSON hostil (verdict fuera de catalogo, confidence>1)
+      - negacion distante + atribucion en otra frase + rumor
+    nota: >
+      Subconjunto adversarial centrado en la PISTA PROTOCOLO (que es donde vive el
+      riesgo de aceptar salida no literal del modelo). La robustez adversarial del
+      PIPELINE se cubre indirectamente via el corpus real C1 (offsets/derivacion
+      deterministas) + la ablacion por etapas de V4.
+
+  C2:
+    name: corpus independiente REDUCIDO (declarado)
+    file: ground-truth.jsonl (prefijo c2-*)
+    cases: 4
+    role: PISTA PROTOCOLO (casos no usados para desarrollar V1-V4)
+    cubre: [positiva, direccion inversa, hipotesis, temporalidad-pasado]
+    DECLARACION_HONESTA: >
+      C2 se entrega REDUCIDO (4 casos) por presupuesto de un solo ciclo, tal como
+      autoriza el encargo (priorizar C1+C3). Ampliarlo (ausencia de relacion,
+      rumor, intencion, multi-mencion, interfrase con mas volumen) queda para una
+      2a oleada.
+
+synthetic_bank:
+  file: synthetic-bank.json
+  sha256: 5e143fe25cdc4170aeba9e8e2abf5b97fcf184e57d2d65ff09cb66716c3ac508
+  descripcion: >
+    Banco COMUN y CONGELADO de respuestas de un "modelo de competencia fija".
+    Para cada (documento, relacion GT) se genera la respuesta apropiada a CADA
+    protocolo (classic_response con evidence_text+offsets para base/V2;
+    fragment_response con fragment_ids que cubren el MISMO span GT para V3), con la
+    MISMA mezcla de dificultad. SINTETICO: NO es el juez real. El juez real es la
+    corrida NVIDIA (fase separada, NO ejecutada aqui).
+  difficulty_tiers: [exact, offset_shift, para_light, para_strong, injection]
+  common_c1_cases: 54
+  gt_c2c3_sha256: c897da1cf4506aaa1762787f88c9dbf753a72c7685730fb169edcd5a53c69e2b

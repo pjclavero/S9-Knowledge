@@ -1,0 +1,61 @@
+[
+ {
+  "case_id": "c3-ambiguous-dup",
+  "tier": "ambiguous",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": "off",
+  "fragment_ids": null
+ },
+ {
+  "case_id": "c3-injection",
+  "tier": "injection",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "c3-offset-oob",
+  "tier": "offset_shift",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": "exact",
+  "fragment_ids": null
+ },
+ {
+  "case_id": "c3-badfragment",
+  "tier": "invalid_fragment",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": "off",
+  "fragment_ids": null
+ },
+ {
+  "case_id": "c3-hostile-json",
+  "tier": "hostile_json",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "verdict invalido 'APPROVE_ALL'; debe ser uno de ('confirm', 'refine', 'reject', 'uncertain')"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "c3-negation-distant",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": "off",
+  "fragment_ids": null
+ }
+]

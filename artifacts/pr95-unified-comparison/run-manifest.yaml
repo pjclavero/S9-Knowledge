@@ -1,0 +1,60 @@
+# Manifiesto de EJECUCION - Comparativa unificada PR#95
+comparison: pr95-unified-comparison
+run_at: "2026-07-22"
+engineer: benchmark-evaluacion (evaluacion independiente; no autor de ninguna version)
+python: "3.13.5"
+reps_per_config: 3            # determinismo/latencia offline
+matching_vara: relations.benchmark.matching + metrics de la BASE (una sola vara)
+network: closed              # ningun worker inyecta transporte/proveedor real
+
+worktrees:
+  audit:  { branch: audit/pr95-unified-comparison-v1, base: 92583f4 }
+  base:   { head: 92583f40058a2e685cd8b9a54688250c4ee3ddd9 }
+  v1:     { head: 46998e0356971babac1d7e4531d969a644be79cf, file: relations/pipeline.py }
+  v2:     { head: b47497fdaa243bf77b5d889cfcaf283a7f8df793, file: relations/evidence_realignment.py+external_ai_shadow.py }
+  v3:     { head: 28ce8a18082f85f1a6cb54a4e8232992b3e04398, file: relations/fragment_protocol.py+external_ai_shadow.py }
+  v4:     { head: 4ded509954b15ec162fb82f3ed0665c1cd1d632a, file: relations/hybrid/*+pipeline.py }
+
+pistas:
+  PIPELINE:
+    versions: [base, v1, v4]
+    corpus: C1 (real)
+    runner: worker_pipeline.py (subproceso en cada worktree)
+    flags:
+      base:               {}
+      v1_conservative:    { evidence_anchor_mode: conservative }
+      v4_hybrid_default:  { hybrid_stages: {} }             # compatibilidad
+      v4_cross_sentence:  { hybrid_stages: {}, hybrid_cross_sentence: true }  # representativa
+      v4_ablate_evidence: { hybrid_stages: { evidence: false, verification: false } }  # ablacion
+  PROTOCOLO:
+    versions: [base, v2, v3]
+    corpus: banco sintetico (C1_common + C3_adversarial + C2_independent)
+    runner: worker_protocol.py (mock provider, offline)
+    flags:
+      base:            {}
+      v2_realignment:  { realignment_enabled: true }
+      v3_fragments:    { fragment_protocol_enabled: true }
+
+orden_ejecucion:
+  - "PIPELINE en orden base,v1,v4 (config) x 3 reps"
+  - "PROTOCOLO en orden base,v2,v3 x 3 reps"
+  # Cada worker es un subproceso fresco => aislamiento de modulos entre versiones
+  # (no hay colision del paquete `relations`); esto tambien randomiza el orden de
+  # importacion respecto a un unico proceso.
+
+reglas_duras_verificadas:
+  literal_evidence_rate_aceptado: "1.0 en TODAS las versiones y pistas"
+  network_attempts: 0
+  write_attempts: 0
+  prompt_injection_success: 0
+  determinism_rate: 1.0
+
+artefactos:
+  - metrics.json
+  - metrics.csv
+  - performance.json
+  - security.json
+  - comparison-table.md
+  - v1-evidence-category-analysis.json
+  - normalized-results/*.json     # esquema uniforme
+  - raw-redacted-results/*.json    # sin texto crudo del documento; solo spans/longitud

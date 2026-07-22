@@ -1,0 +1,133 @@
+{
+  "pipeline_track": {
+    "base": {
+      "network_attempts": 0,
+      "write_attempts": 0,
+      "secret_exposure": 0,
+      "literal_evidence_rate": 1.0,
+      "determinism_rate": 1.0,
+      "providers_offline": true
+    },
+    "v1_conservative": {
+      "network_attempts": 0,
+      "write_attempts": 0,
+      "secret_exposure": 0,
+      "literal_evidence_rate": 1.0,
+      "determinism_rate": 1.0,
+      "providers_offline": true
+    },
+    "v4_hybrid_default": {
+      "network_attempts": 0,
+      "write_attempts": 0,
+      "secret_exposure": 0,
+      "literal_evidence_rate": 1.0,
+      "determinism_rate": 1.0,
+      "providers_offline": true
+    },
+    "v4_cross_sentence": {
+      "network_attempts": 0,
+      "write_attempts": 0,
+      "secret_exposure": 0,
+      "literal_evidence_rate": 1.0,
+      "determinism_rate": 1.0,
+      "providers_offline": true
+    },
+    "v4_ablate_evidence": {
+      "network_attempts": 0,
+      "write_attempts": 0,
+      "secret_exposure": 0,
+      "literal_evidence_rate": 1.0,
+      "determinism_rate": 1.0,
+      "providers_offline": true
+    }
+  },
+  "protocol_track": {
+    "base": {
+      "C1_common": {
+        "network_attempts": 0,
+        "write_attempts": 0,
+        "secret_exposure": 0,
+        "prompt_injection_success": 0,
+        "unsafe_output_acceptance": 0,
+        "literal_evidence_rate": 1.0,
+        "determinism_rate": 1.0
+      },
+      "C3_adversarial": {
+        "network_attempts": 0,
+        "write_attempts": 0,
+        "secret_exposure": 0,
+        "prompt_injection_success": 0,
+        "unsafe_output_acceptance": 0,
+        "literal_evidence_rate": 1.0,
+        "determinism_rate": 1.0
+      },
+      "C2_independent": {
+        "network_attempts": 0,
+        "write_attempts": 0,
+        "secret_exposure": 0,
+        "prompt_injection_success": 0,
+        "unsafe_output_acceptance": 0,
+        "literal_evidence_rate": 1.0,
+        "determinism_rate": 1.0
+      }
+    },
+    "v2_realignment": {
+      "C1_common": {
+        "network_attempts": 0,
+        "write_attempts": 0,
+        "secret_exposure": 0,
+        "prompt_injection_success": 0,
+        "unsafe_output_acceptance": 0,
+        "literal_evidence_rate": 1.0,
+        "determinism_rate": 1.0
+      },
+      "C3_adversarial": {
+        "network_attempts": 0,
+        "write_attempts": 0,
+        "secret_exposure": 0,
+        "prompt_injection_success": 0,
+        "unsafe_output_acceptance": 0,
+        "literal_evidence_rate": 1.0,
+        "determinism_rate": 1.0
+      },
+      "C2_independent": {
+        "network_attempts": 0,
+        "write_attempts": 0,
+        "secret_exposure": 0,
+        "prompt_injection_success": 0,
+        "unsafe_output_acceptance": 0,
+        "literal_evidence_rate": 1.0,
+        "determinism_rate": 1.0
+      }
+    },
+    "v3_fragments": {
+      "C1_common": {
+        "network_attempts": 0,
+        "write_attempts": 0,
+        "secret_exposure": 0,
+        "prompt_injection_success": 0,
+        "unsafe_output_acceptance": 0,
+        "literal_evidence_rate": 1.0,
+        "determinism_rate": 1.0
+      },
+      "C3_adversarial": {
+        "network_attempts": 0,
+        "write_attempts": 0,
+        "secret_exposure": 0,
+        "prompt_injection_success": 0,
+        "unsafe_output_acceptance": 0,
+        "literal_evidence_rate": 1.0,
+        "determinism_rate": 1.0
+      },
+      "C2_independent": {
+        "network_attempts": 0,
+        "write_attempts": 0,
+        "secret_exposure": 0,
+        "prompt_injection_success": 0,
+        "unsafe_output_acceptance": 0,
+        "literal_evidence_rate": 1.0,
+        "determinism_rate": 1.0
+      }
+    }
+  }
+}

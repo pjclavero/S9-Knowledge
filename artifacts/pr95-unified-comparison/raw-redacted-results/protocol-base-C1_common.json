@@ -1,0 +1,607 @@
+[
+ {
+  "case_id": "C1-rel-001-exact",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-002-offset_shift",
+  "tier": "offset_shift",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-003-para_light",
+  "tier": "para_light",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-004-para_strong",
+  "tier": "para_strong",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-005-injection",
+  "tier": "injection",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-006-exact",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-007-offset_shift",
+  "tier": "offset_shift",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-008-para_light",
+  "tier": "para_light",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-009-para_strong",
+  "tier": "para_strong",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-010-injection",
+  "tier": "injection",
+  "state": "WORKER_ERROR",
+  "accepted": false,
+  "validation_errors": [
+   "RelationContractError: subject_id y object_id no pueden coincidir salvo predicado reflexivo permitido (reflexivos permitidos: ninguno)"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-011-exact",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-012-offset_shift",
+  "tier": "offset_shift",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-013-para_light",
+  "tier": "para_light",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-014-para_strong",
+  "tier": "para_strong",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-015-injection",
+  "tier": "injection",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-016-exact",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-017-offset_shift",
+  "tier": "offset_shift",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-018-para_light",
+  "tier": "para_light",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-019-para_strong",
+  "tier": "para_strong",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-020-injection",
+  "tier": "injection",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-021-exact",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-022-offset_shift",
+  "tier": "offset_shift",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-023-para_light",
+  "tier": "para_light",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-024-para_strong",
+  "tier": "para_strong",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-025-injection",
+  "tier": "injection",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-026-exact",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-027-offset_shift",
+  "tier": "offset_shift",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-028-para_light",
+  "tier": "para_light",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-029-para_strong",
+  "tier": "para_strong",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-030-injection",
+  "tier": "injection",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-031-exact",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-032-offset_shift",
+  "tier": "offset_shift",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "offsets_invalidos: fuera de rango [0,191] o start>end"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-033-para_light",
+  "tier": "para_light",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-034-para_strong",
+  "tier": "para_strong",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-035-injection",
+  "tier": "injection",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-036-exact",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-037-offset_shift",
+  "tier": "offset_shift",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-038-para_light",
+  "tier": "para_light",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-039-para_strong",
+  "tier": "para_strong",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-040-injection",
+  "tier": "injection",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-041-exact",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-042-offset_shift",
+  "tier": "offset_shift",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-043-para_light",
+  "tier": "para_light",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-044-para_strong",
+  "tier": "para_strong",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-045-injection",
+  "tier": "injection",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-046-exact",
+  "tier": "exact",
+  "state": "WORKER_ERROR",
+  "accepted": false,
+  "validation_errors": [
+   "RelationContractError: subject_id y object_id no pueden coincidir salvo predicado reflexivo permitido (reflexivos permitidos: ninguno)"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-047-offset_shift",
+  "tier": "offset_shift",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-048-para_light",
+  "tier": "para_light",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-049-para_strong",
+  "tier": "para_strong",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-050-injection",
+  "tier": "injection",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-051-exact",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-052-offset_shift",
+  "tier": "offset_shift",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-053-para_light",
+  "tier": "para_light",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "C1-rel-054-para_strong",
+  "tier": "para_strong",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "evidencia_inexistente: evidence_text no es subcadena literal del segmento",
+   "offsets_invalidos: segmento[start:end] no coincide con evidence_text"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ }
+]

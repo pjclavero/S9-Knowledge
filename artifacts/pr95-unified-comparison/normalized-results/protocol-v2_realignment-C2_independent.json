@@ -1,0 +1,86 @@
+[
+ {
+  "candidate_id": "orin|MENTORED|sela",
+  "subject": "orin",
+  "predicate": "MENTORED",
+  "object": "sela",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 16,
+    "end": 40,
+    "text": "instruyó a la joven Sela"
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.85,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "sela|MENTORED|orin",
+  "subject": "sela",
+  "predicate": "MENTORED",
+  "object": "orin",
+  "direction": "OBJECT_TO_SUBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 29,
+    "text": "Sela superó a su maestro Orin"
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.85,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "veranmor|CLAIMS|trono",
+  "subject": "veranmor",
+  "predicate": "CLAIMS",
+  "object": "trono",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 18,
+    "end": 53,
+    "text": "la Casa Veranmor reclamará el trono"
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.85,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "valen|SERVES|orden",
+  "subject": "valen",
+  "predicate": "SERVES",
+  "object": "orden",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 14,
+    "end": 37,
+    "text": "Valen sirvió a la Orden"
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.85,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ }
+]

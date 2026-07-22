@@ -1,0 +1,1124 @@
+[
+ {
+  "candidate_id": "ysolde|ALLIED_WITH|clan-roble",
+  "subject": "ysolde",
+  "predicate": "ALLIED_WITH",
+  "object": "clan-roble",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 83,
+    "text": "La reina Ysolde de Valmyr selló una alianza con el Clan del Roble antes del asedio."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "clan-roble|ENEMY_OF|horda-grael",
+  "subject": "clan-roble",
+  "predicate": "ENEMY_OF",
+  "object": "horda-grael",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 126,
+    "end": 204,
+    "text": "Allí, el Clan del Roble luchó contra la Horda de Grael en la Batalla del Vado."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "clan-roble|PARTICIPATED_IN|batalla-vado",
+  "subject": "clan-roble",
+  "predicate": "PARTICIPATED_IN",
+  "object": "batalla-vado",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 126,
+    "end": 204,
+    "text": "Allí, el Clan del Roble luchó contra la Horda de Grael en la Batalla del Vado."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "ysolde|TRUSTS|horda-grael",
+  "subject": "ysolde",
+  "predicate": "TRUSTS",
+  "object": "horda-grael",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 205,
+    "end": 255,
+    "text": "La reina Ysolde nunca confió en la Horda de Grael."
+   }
+  ],
+  "negated": true,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "draven|MEMBER_OF|orden-alba",
+  "subject": "draven",
+  "predicate": "MEMBER_OF",
+  "object": "orden-alba",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 34,
+    "end": 72,
+    "text": "Facción: miembro de la Orden del Alba."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "draven|LIVES_IN|torre-sable",
+  "subject": "draven",
+  "predicate": "LIVES_IN",
+  "object": "torre-sable",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 73,
+    "end": 111,
+    "text": "Residencia: vive en la Torre de Sable."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "draven|OWNS|filo-luna",
+  "subject": "draven",
+  "predicate": "OWNS",
+  "object": "filo-luna",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 112,
+    "end": 153,
+    "text": "Posesiones: porta la espada Filo de Luna."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "aldric|PARENT_OF|draven",
+  "subject": "aldric",
+  "predicate": "PARENT_OF",
+  "object": "draven",
+  "direction": "OBJECT_TO_SUBJECT",
+  "evidence_spans": [
+   {
+    "start": 154,
+    "end": 193,
+    "text": "Familia: hijo de Aldric, padre de Nima."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "draven|PARENT_OF|nima",
+  "subject": "draven",
+  "predicate": "PARENT_OF",
+  "object": "nima",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 154,
+    "end": 193,
+    "text": "Familia: hijo de Aldric, padre de Nima."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": null,
+  "subject": "draven",
+  "predicate": "ALIAS_OF",
+  "object": "draven",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [],
+  "negated": "unsupported",
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": "unsupported",
+  "provider_status": "WORKER_ERROR",
+  "validation_status": "human",
+  "latency_ms": null
+ },
+ {
+  "candidate_id": "aldric|FOUNDED|reino-valmyr",
+  "subject": "aldric",
+  "predicate": "FOUNDED",
+  "object": "reino-valmyr",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 41,
+    "text": "Año 812: Aldric funda el Reino de Valmyr."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "ysolde|SUCCEEDED|aldric",
+  "subject": "ysolde",
+  "predicate": "SUCCEEDED",
+  "object": "aldric",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 42,
+    "end": 109,
+    "text": "Año 850: a la muerte de Aldric, Ysolde sucede a Aldric en el trono."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "sequia|CAUSED|gran-hambruna",
+  "subject": "sequia",
+  "predicate": "CAUSED",
+  "object": "gran-hambruna",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 110,
+    "end": 154,
+    "text": "Año 851: la sequía provocó la Gran Hambruna."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "nima|SUCCEEDED|reino-valmyr",
+  "subject": "nima",
+  "predicate": "SUCCEEDED",
+  "object": "reino-valmyr",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 155,
+    "end": 209,
+    "text": "Año 900: se espera que Nima herede el trono de Valmyr."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "draven|MEMBER_OF|orden-alba",
+  "subject": "draven",
+  "predicate": "MEMBER_OF",
+  "object": "orden-alba",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 50,
+    "text": "La Orden del Alba reúne a Draven, a Sela y a Kael."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "sela|MEMBER_OF|orden-alba",
+  "subject": "sela",
+  "predicate": "MEMBER_OF",
+  "object": "orden-alba",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 50,
+    "text": "La Orden del Alba reúne a Draven, a Sela y a Kael."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "kael|MEMBER_OF|orden-alba",
+  "subject": "kael",
+  "predicate": "MEMBER_OF",
+  "object": "orden-alba",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 50,
+    "text": "La Orden del Alba reúne a Draven, a Sela y a Kael."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "orden-alba|ALLIED_WITH|cuchillos-grises",
+  "subject": "orden-alba",
+  "predicate": "ALLIED_WITH",
+  "object": "cuchillos-grises",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 51,
+    "end": 124,
+    "text": "Se dice que la Orden del Alba financia en secreto a los Cuchillos Grises."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "orden-alba|LOCATED_IN|puerto-niebla",
+  "subject": "orden-alba",
+  "predicate": "LOCATED_IN",
+  "object": "puerto-niebla",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 125,
+    "end": 207,
+    "text": "Si cayera la Torre de Sable, la Orden del Alba podría trasladarse a Puerto Niebla."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "kaelin|MEMBER_OF|guardia-hierro",
+  "subject": "kaelin",
+  "predicate": "MEMBER_OF",
+  "object": "guardia-hierro",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 57,
+    "text": "Kaelin y Kaelan sirvieron juntos en la Guardia de Hierro."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "kaelan|MEMBER_OF|guardia-hierro",
+  "subject": "kaelan",
+  "predicate": "MEMBER_OF",
+  "object": "guardia-hierro",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 57,
+    "text": "Kaelin y Kaelan sirvieron juntos en la Guardia de Hierro."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "kaelin|LEADS|vanguardia",
+  "subject": "kaelin",
+  "predicate": "LEADS",
+  "object": "vanguardia",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 58,
+    "end": 86,
+    "text": "Ella lideraba la vanguardia."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "kaelin|MEMBER_OF|pacto-escarlata",
+  "subject": "kaelin",
+  "predicate": "MEMBER_OF",
+  "object": "pacto-escarlata",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 87,
+    "end": 164,
+    "text": "Más tarde, Kaelin abandonó la Guardia de Hierro y se unió al Pacto Escarlata."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "herreros-abismo|CREATED|corona-espinas",
+  "subject": "herreros-abismo",
+  "predicate": "CREATED",
+  "object": "corona-espinas",
+  "direction": "OBJECT_TO_SUBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 61,
+    "text": "La Corona de Espinas fue forjada por los Herreros del Abismo."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "guardia-hierro|GUARDS|corona-espinas",
+  "subject": "guardia-hierro",
+  "predicate": "GUARDS",
+  "object": "corona-espinas",
+  "direction": "OBJECT_TO_SUBJECT",
+  "evidence_spans": [
+   {
+    "start": 62,
+    "end": 157,
+    "text": "Durante siglos, la Corona de Espinas fue custodiada por la Guardia de Hierro en la Cripta Roja."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "corona-espinas|LOCATED_IN|cripta-roja",
+  "subject": "corona-espinas",
+  "predicate": "LOCATED_IN",
+  "object": "cripta-roja",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 62,
+    "end": 157,
+    "text": "Durante siglos, la Corona de Espinas fue custodiada por la Guardia de Hierro en la Cripta Roja."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "sela|LOCATED_IN|puerto-niebla",
+  "subject": "sela",
+  "predicate": "LOCATED_IN",
+  "object": "puerto-niebla",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 39,
+    "text": "Sela llegó a Puerto Niebla en invierno."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "vayra|MENTOR_OF|sela",
+  "subject": "vayra",
+  "predicate": "MENTOR_OF",
+  "object": "sela",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 83,
+    "end": 140,
+    "text": "Su maestra, la hechicera Vayra, la esperaba en el Ateneo."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "vayra|MENTOR_OF|sela",
+  "subject": "vayra",
+  "predicate": "MENTOR_OF",
+  "object": "sela",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 141,
+    "end": 178,
+    "text": "Vayra le enseñó el arte de las runas."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "kaelan|MEMBER_OF|pacto-escarlata",
+  "subject": "kaelan",
+  "predicate": "MEMBER_OF",
+  "object": "pacto-escarlata",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 81,
+    "text": "[Segmento A] Según los archivos de la Guardia, Kaelan es leal al Pacto Escarlata."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "kaelan|MEMBER_OF|pacto-escarlata",
+  "subject": "kaelan",
+  "predicate": "MEMBER_OF",
+  "object": "pacto-escarlata",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 82,
+    "end": 190,
+    "text": "[Segmento B] Según el testimonio de Sela, Kaelan no es leal al Pacto Escarlata, sino a la Guardia de Hierro."
+   }
+  ],
+  "negated": true,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "kaelan|MEMBER_OF|guardia-hierro",
+  "subject": "kaelan",
+  "predicate": "MEMBER_OF",
+  "object": "guardia-hierro",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 82,
+    "end": 190,
+    "text": "[Segmento B] Según el testimonio de Sela, Kaelan no es leal al Pacto Escarlata, sino a la Guardia de Hierro."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "portador-runas|KNOWS|escritura-astral",
+  "subject": "portador-runas",
+  "predicate": "KNOWS",
+  "object": "escritura-astral",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 33,
+    "end": 83,
+    "text": "Todo Portador de Runas domina la Escritura Astral."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "portador-runas|OWNS|cetro-vacio",
+  "subject": "portador-runas",
+  "predicate": "OWNS",
+  "object": "cetro-vacio",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 84,
+    "end": 165,
+    "text": "Un Portador de Runas no puede empuñar el Cetro de Vacío sin permiso del Cónclave."
+   }
+  ],
+  "negated": true,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "gremio-cartografos|PARTICIPATED_IN|conclave-estrellas",
+  "subject": "gremio-cartografos",
+  "predicate": "PARTICIPATED_IN",
+  "object": "conclave-estrellas",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 94,
+    "text": "En el Cónclave de las Estrellas participaron el Gremio de Cartógrafos y la Liga del Meridiano."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "liga-meridiano|PARTICIPATED_IN|conclave-estrellas",
+  "subject": "liga-meridiano",
+  "predicate": "PARTICIPATED_IN",
+  "object": "conclave-estrellas",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 94,
+    "text": "En el Cónclave de las Estrellas participaron el Gremio de Cartógrafos y la Liga del Meridiano."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "liga-meridiano|ALLIED_WITH|gremio-cartografos",
+  "subject": "liga-meridiano",
+  "predicate": "ALLIED_WITH",
+  "object": "gremio-cartografos",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 95,
+    "end": 194,
+    "text": "Antaño aliados, la Liga del Meridiano rompió su alianza con el Gremio de Cartógrafos ese mismo día."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "akio|OWNS|tsukikage",
+  "subject": "akio",
+  "predicate": "OWNS",
+  "object": "tsukikage",
+  "direction": "OBJECT_TO_SUBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 68,
+    "text": "La espada legendaria 月光 (Tsukikage) pertenece al samurái Ronin Akio."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "santuario-runico|GUARDS|vaina-tsukikage",
+  "subject": "santuario-runico",
+  "predicate": "GUARDS",
+  "object": "vaina-tsukikage",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 69,
+    "end": 117,
+    "text": "El santuario ᛟ del Valle Rúnico guarda su vaina."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "akio|LIVES_IN|valle-runico",
+  "subject": "akio",
+  "predicate": "LIVES_IN",
+  "object": "valle-runico",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 118,
+    "end": 149,
+    "text": "Akio reside en el Valle Rúnico."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "lyra|MARRIED_TO|torin",
+  "subject": "lyra",
+  "predicate": "MARRIED_TO",
+  "object": "torin",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 27,
+    "text": "Lyra está casada con Torin."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "torin|PARENT_OF|bran",
+  "subject": "torin",
+  "predicate": "PARENT_OF",
+  "object": "bran",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 28,
+    "end": 52,
+    "text": "De esa unión nació Bran."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "torin|SIBLING_OF|aldric",
+  "subject": "torin",
+  "predicate": "SIBLING_OF",
+  "object": "aldric",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 53,
+    "end": 80,
+    "text": "Torin es hermano de Aldric."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "gremio-cartografos|ENEMY_OF|conclave-estrellas",
+  "subject": "gremio-cartografos",
+  "predicate": "ENEMY_OF",
+  "object": "conclave-estrellas",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 59,
+    "text": "El Gremio de Cartógrafos es enemigo declarado del Cónclave."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "rivalidad|CAUSED|segunda-guerra-astral",
+  "subject": "rivalidad",
+  "predicate": "CAUSED",
+  "object": "segunda-guerra-astral",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 60,
+    "end": 144,
+    "text": "Los analistas creen que esta rivalidad podría desencadenar la Segunda Guerra Astral."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": null,
+  "subject": "ysolde",
+  "predicate": "ALIAS_OF",
+  "object": "ysolde",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [],
+  "negated": "unsupported",
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": "unsupported",
+  "provider_status": "WORKER_ERROR",
+  "validation_status": "human",
+  "latency_ms": null
+ },
+ {
+  "candidate_id": "ysolde|OWNS|caliz-ambar",
+  "subject": "ysolde",
+  "predicate": "OWNS",
+  "object": "caliz-ambar",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 74,
+    "text": "Ysolde, conocida como la Reina de Invierno, ya no posee el Cáliz de Ámbar."
+   }
+  ],
+  "negated": true,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "cuchillos-grises|OWNS|caliz-ambar",
+  "subject": "cuchillos-grises",
+  "predicate": "OWNS",
+  "object": "caliz-ambar",
+  "direction": "OBJECT_TO_SUBJECT",
+  "evidence_spans": [
+   {
+    "start": 75,
+    "end": 129,
+    "text": "El Cáliz de Ámbar fue robado por los Cuchillos Grises."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "torneo-sable|LOCATED_IN|torre-sable",
+  "subject": "torneo-sable",
+  "predicate": "LOCATED_IN",
+  "object": "torre-sable",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 51,
+    "text": "El Torneo de Sable se celebra en la Torre de Sable."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "draven|PARTICIPATED_IN|torneo-sable",
+  "subject": "draven",
+  "predicate": "PARTICIPATED_IN",
+  "object": "torneo-sable",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 52,
+    "end": 91,
+    "text": "Draven competirá en el Torneo de Sable."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "sela|PARTICIPATED_IN|torneo-sable",
+  "subject": "sela",
+  "predicate": "PARTICIPATED_IN",
+  "object": "torneo-sable",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 92,
+    "end": 142,
+    "text": "Sela prometió no participar en el Torneo de Sable."
+   }
+  ],
+  "negated": true,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "vayra|PARTICIPATED_IN|sellado-abismo",
+  "subject": "vayra",
+  "predicate": "PARTICIPATED_IN",
+  "object": "sellado-abismo",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 48,
+    "text": "Cuentan que Vayra selló el Abismo hace mil años."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "vayra|LIVES_IN|ateneo",
+  "subject": "vayra",
+  "predicate": "LIVES_IN",
+  "object": "ateneo",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 49,
+    "end": 92,
+    "text": "Es posible que Vayra aún viva en el Ateneo."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "vayra|FOUNDED|ateneo",
+  "subject": "vayra",
+  "predicate": "FOUNDED",
+  "object": "ateneo",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 93,
+    "end": 139,
+    "text": "Lo que sí consta es que Vayra fundó el Ateneo."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.9,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ }
+]
