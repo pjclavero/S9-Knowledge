@@ -1,0 +1,154 @@
+{
+  "combination": "V2+V3",
+  "policy": "V3-primary / V2-realign-fallback / fail-closed",
+  "groups": {
+    "C1_common": {
+      "v2_alone": {
+        "accepted": 43,
+        "needs_realign": 43,
+        "realigned": 33,
+        "false_realign": 6,
+        "false_realign_rate": 0.1818,
+        "false_cases": [
+          [
+            "C1-rel-004-para_strong",
+            "para_strong",
+            [
+              48,
+              94
+            ],
+            [
+              208,
+              254
+            ]
+          ],
+          [
+            "C1-rel-009-para_strong",
+            "para_strong",
+            [
+              48,
+              61
+            ],
+            [
+              179,
+              192
+            ]
+          ],
+          [
+            "C1-rel-014-para_strong",
+            "para_strong",
+            [
+              48,
+              92
+            ],
+            [
+              164,
+              208
+            ]
+          ],
+          [
+            "C1-rel-019-para_strong",
+            "para_strong",
+            [
+              48,
+              100
+            ],
+            [
+              154,
+              206
+            ]
+          ],
+          [
+            "C1-rel-029-para_strong",
+            "para_strong",
+            [
+              48,
+              84
+            ],
+            [
+              141,
+              177
+            ]
+          ],
+          [
+            "C1-rel-054-para_strong",
+            "para_strong",
+            [
+              48,
+              69
+            ],
+            [
+              117,
+              138
+            ]
+          ]
+        ]
+      },
+      "v2_v3_combined": {
+        "valid_response_rate": 0.963,
+        "accepted_count": 52,
+        "literal_evidence_rate": 1.0,
+        "realign_fired": 0,
+        "false_realign": 0,
+        "false_realign_rate": 0.0,
+        "prompt_injection_success": 0,
+        "by_tier_accept": {
+          "exact": "10/11",
+          "injection": "9/10",
+          "offset_shift": "11/11",
+          "para_light": "11/11",
+          "para_strong": "11/11"
+        }
+      }
+    },
+    "C3_adversarial": {
+      "v2_alone": {
+        "accepted": 4,
+        "needs_realign": 2,
+        "realigned": 1,
+        "false_realign": 0,
+        "false_realign_rate": 0.0,
+        "false_cases": []
+      },
+      "v2_v3_combined": {
+        "valid_response_rate": 0.8333,
+        "accepted_count": 5,
+        "literal_evidence_rate": 1.0,
+        "realign_fired": 0,
+        "false_realign": 0,
+        "false_realign_rate": 0.0,
+        "prompt_injection_success": 0,
+        "by_tier_accept": {
+          "ambiguous": "1/1",
+          "exact": "1/1",
+          "hostile_json": "0/1",
+          "injection": "1/1",
+          "invalid_fragment": "1/1",
+          "offset_shift": "1/1"
+        }
+      }
+    },
+    "C2_independent": {
+      "v2_alone": {
+        "accepted": 4,
+        "needs_realign": 0,
+        "realigned": 0,
+        "false_realign": 0,
+        "false_realign_rate": 0.0,
+        "false_cases": []
+      },
+      "v2_v3_combined": {
+        "valid_response_rate": 1.0,
+        "accepted_count": 4,
+        "literal_evidence_rate": 1.0,
+        "realign_fired": 0,
+        "false_realign": 0,
+        "false_realign_rate": 0.0,
+        "prompt_injection_success": 0,
+        "by_tier_accept": {
+          "exact": "4/4"
+        }
+      }
+    }
+  }
+}

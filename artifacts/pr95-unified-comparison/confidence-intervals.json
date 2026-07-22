@@ -1,0 +1,119 @@
+{
+  "method": "nonparametric bootstrap, resample of per-case units",
+  "resamples": 10000,
+  "seed": 20250721,
+  "ci": "95% percentile",
+  "metrics": {
+    "protocol_C1_valid_rate": {
+      "base": {
+        "n": 54,
+        "point": 0.1852,
+        "ci95": [
+          0.0926,
+          0.2963
+        ]
+      },
+      "v2_realignment": {
+        "n": 54,
+        "point": 0.7963,
+        "ci95": [
+          0.6852,
+          0.8889
+        ]
+      },
+      "v3_fragments": {
+        "n": 54,
+        "point": 0.963,
+        "ci95": [
+          0.9074,
+          1.0
+        ]
+      }
+    },
+    "protocol_C1_paired_diffs": {
+      "v3_minus_base": {
+        "n": 54,
+        "abs_diff": 0.7778,
+        "rel_diff_pct": 420.0,
+        "ci95_diff": [
+          0.6667,
+          0.8889
+        ],
+        "excludes_zero": true
+      },
+      "v3_minus_v2": {
+        "n": 54,
+        "abs_diff": 0.1667,
+        "rel_diff_pct": 20.9,
+        "ci95_diff": [
+          0.0741,
+          0.2778
+        ],
+        "excludes_zero": true
+      },
+      "v2_minus_base": {
+        "n": 54,
+        "abs_diff": 0.6111,
+        "rel_diff_pct": 330.0,
+        "ci95_diff": [
+          0.4815,
+          0.7407
+        ],
+        "excludes_zero": true
+      }
+    },
+    "v2_false_realign_rate_C1": {
+      "n": 33,
+      "point": 0.1818,
+      "ci95": [
+        0.0606,
+        0.3333
+      ],
+      "denominator": "realignments_fired=33",
+      "note": "muestra pequena (33); CI ancho; NO declarar magnitud exacta"
+    },
+    "v2v3_false_realign_rate_C1": {
+      "point": 0.0,
+      "realign_fired": 0,
+      "note": "V3 cubre todos los casos; el realineamiento de V2 nunca se activa -> false_realign estructuralmente 0 (no por mejor realineo, sino por hacerlo innecesario). Firmeza: solo banco sintetico."
+    },
+    "pipeline_C1_evidence_correct": {
+      "base": {
+        "n": 43,
+        "point": 0.907,
+        "ci95": [
+          0.814,
+          0.9767
+        ]
+      },
+      "v1_conservative": {
+        "n": 43,
+        "point": 0.8372,
+        "ci95": [
+          0.7209,
+          0.9302
+        ]
+      },
+      "base_minus_v1_paired": {
+        "n": 43,
+        "abs_diff": 0.0698,
+        "rel_diff_pct": 8.3,
+        "ci95_diff": [
+          0.0,
+          0.1628
+        ],
+        "excludes_zero": false
+      },
+      "discordant_pairs": {
+        "base_ok_v1_no": 3,
+        "base_no_v1_ok": 0
+      },
+      "mcnemar_exact_two_sided_p": 0.25,
+      "note": "solo 3 pares discordantes, todos en contra de V1; direccion consistente (0 mejoras) pero NO significativo (p=0.25). No se declara base>V1 con confianza; si se declara que V1 no mejora."
+    },
+    "calibration_ece_brier": {
+      "status": "INSUFICIENTE",
+      "reason": "confidence sale 'unsupported'/NOT_EXECUTED en ambas pistas (proveedor no ejecutado; scores no comparables). Sin casos con probabilidad calibrable -> ECE/Brier no calculables."
+    }
+  }
+}
