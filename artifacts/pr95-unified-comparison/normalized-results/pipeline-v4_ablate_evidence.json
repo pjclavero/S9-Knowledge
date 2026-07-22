@@ -1,0 +1,1094 @@
+[
+ {
+  "candidate_id": "fbf77a39983e8fe2",
+  "subject": "clan-roble",
+  "predicate": "LOCATED_IN",
+  "object": "batalla-vado",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 135,
+    "end": 149,
+    "text": "Clan del Roble"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | markers=luchó",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "MODEL_CONFLICT",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "3683c16360451ca7",
+  "subject": "clan-roble",
+  "predicate": "LOCATED_IN",
+  "object": "horda-grael",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 135,
+    "end": 149,
+    "text": "Clan del Roble"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | markers=luchó",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "MODEL_CONFLICT",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "53d85a54a2508335",
+  "subject": "horda-grael",
+  "predicate": "LOCATED_IN",
+  "object": "batalla-vado",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 166,
+    "end": 180,
+    "text": "Horda de Grael"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | markers=luchó",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "MODEL_CONFLICT",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "791010f3383a60bc",
+  "subject": "ysolde",
+  "predicate": "MEMBER_OF",
+  "object": "clan-roble",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 3,
+    "end": 15,
+    "text": "reina Ysolde"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | markers=selló",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "MODEL_CONFLICT",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "de9a9545c1080eeb",
+  "subject": "ysolde",
+  "predicate": "LOCATED_IN",
+  "object": "horda-grael",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 208,
+    "end": 220,
+    "text": "reina Ysolde"
+   }
+  ],
+  "negated": true,
+  "temporality": "PAST | markers=confió",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "dd5b62f19e2e47d5",
+  "subject": "aldric",
+  "predicate": "RELATED_TO",
+  "object": "nima",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 171,
+    "end": 177,
+    "text": "Aldric"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "7f5daecaf0ac58c0",
+  "subject": "aldric",
+  "predicate": "MEMBER_OF",
+  "object": "reino-valmyr",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 9,
+    "end": 15,
+    "text": "Aldric"
+   }
+  ],
+  "negated": true,
+  "temporality": "PAST | dates=812",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "MODEL_CONFLICT",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "19f135899022b67c",
+  "subject": "nima",
+  "predicate": "MEMBER_OF",
+  "object": "reino-valmyr",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 178,
+    "end": 182,
+    "text": "Nima"
+   }
+  ],
+  "negated": true,
+  "temporality": "FUTURE | markers=espera que,se espera | dates=900",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "MODEL_CONFLICT",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "16030e4ca510ed73",
+  "subject": "sequia",
+  "predicate": "RELATED_TO",
+  "object": "gran-hambruna",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 119,
+    "end": 128,
+    "text": "la sequía"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | markers=provocó | dates=851",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "081adf33519ee03d",
+  "subject": "ysolde",
+  "predicate": "LOCATED_IN",
+  "object": "aldric",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 74,
+    "end": 80,
+    "text": "Ysolde"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | dates=850",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "85cb2634d43ec921",
+  "subject": "draven",
+  "predicate": "RELATED_TO",
+  "object": "kael",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 26,
+    "end": 32,
+    "text": "Draven"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "c305ffaa6807b725",
+  "subject": "draven",
+  "predicate": "RELATED_TO",
+  "object": "sela",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 26,
+    "end": 32,
+    "text": "Draven"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "a67bb73c4fbf77e0",
+  "subject": "orden-alba",
+  "predicate": "LOCATED_IN",
+  "object": "cuchillos-grises",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 66,
+    "end": 80,
+    "text": "Orden del Alba"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "RUMORED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "8a7eb84e4386137b",
+  "subject": "orden-alba",
+  "predicate": "RELATED_TO",
+  "object": "draven",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 3,
+    "end": 17,
+    "text": "Orden del Alba"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "e4b6ac94448a352f",
+  "subject": "orden-alba",
+  "predicate": "RELATED_TO",
+  "object": "kael",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 3,
+    "end": 17,
+    "text": "Orden del Alba"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "313cbb3df211bcb1",
+  "subject": "orden-alba",
+  "predicate": "LOCATED_IN",
+  "object": "puerto-niebla",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 157,
+    "end": 171,
+    "text": "Orden del Alba"
+   }
+  ],
+  "negated": false,
+  "temporality": "FUTURE | markers=podria",
+  "epistemic": "HYPOTHETICAL",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "309f067d9e8fa34c",
+  "subject": "orden-alba",
+  "predicate": "RELATED_TO",
+  "object": "sela",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 3,
+    "end": 17,
+    "text": "Orden del Alba"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "51bac6e6dda3becd",
+  "subject": "sela",
+  "predicate": "RELATED_TO",
+  "object": "kael",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 36,
+    "end": 40,
+    "text": "Sela"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "ae816a5f5f3bfa0e",
+  "subject": "kaelan",
+  "predicate": "LOCATED_IN",
+  "object": "guardia-hierro",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 9,
+    "end": 15,
+    "text": "Kaelan"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "7cc77c891aa68dbe",
+  "subject": "kaelin",
+  "predicate": "LOCATED_IN",
+  "object": "guardia-hierro",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 6,
+    "text": "Kaelin"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "514d4269fa8c559f",
+  "subject": "kaelin",
+  "predicate": "LOCATED_IN",
+  "object": "kaelan",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 6,
+    "text": "Kaelin"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "c6bde51f4f210d27",
+  "subject": "kaelin",
+  "predicate": "MEMBER_OF",
+  "object": "pacto-escarlata",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 98,
+    "end": 104,
+    "text": "Kaelin"
+   }
+  ],
+  "negated": false,
+  "temporality": "ENDED | markers=abandono",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "b514d33977d5f2c4",
+  "subject": "kaelin",
+  "predicate": "OWNS",
+  "object": "vanguardia",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 58,
+    "end": 62,
+    "text": "Ella"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "d46b2dbd1c8d9e45",
+  "subject": "corona-espinas",
+  "predicate": "LOCATED_IN",
+  "object": "cripta-roja",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 81,
+    "end": 98,
+    "text": "Corona de Espinas"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | markers=fue",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "4db53b00da227455",
+  "subject": "corona-espinas",
+  "predicate": "LOCATED_IN",
+  "object": "guardia-hierro",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 81,
+    "end": 98,
+    "text": "Corona de Espinas"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | markers=fue",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "6f7b2fa72c4cabe7",
+  "subject": "corona-espinas",
+  "predicate": "RELATED_TO",
+  "object": "herreros-abismo",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 3,
+    "end": 20,
+    "text": "Corona de Espinas"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | markers=fue",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "a631a49af94131f0",
+  "subject": "guardia-hierro",
+  "predicate": "LOCATED_IN",
+  "object": "cripta-roja",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 121,
+    "end": 138,
+    "text": "Guardia de Hierro"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | markers=fue",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "3746cf5df3bc1130",
+  "subject": "sela",
+  "predicate": "LOCATED_IN",
+  "object": "puerto-niebla",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 4,
+    "text": "Sela"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | markers=llegó",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "3b221f8ad7b704e2",
+  "subject": "vayra",
+  "predicate": "RELATED_TO",
+  "object": "sela",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 141,
+    "end": 146,
+    "text": "Vayra"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | markers=enseñó",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "9aa04c26214bb97d",
+  "subject": "kaelan",
+  "predicate": "MEMBER_OF",
+  "object": "guardia-hierro",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 124,
+    "end": 130,
+    "text": "Kaelan"
+   }
+  ],
+  "negated": true,
+  "temporality": null,
+  "epistemic": "RUMORED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "51ec439c7afa79a3",
+  "subject": "kaelan",
+  "predicate": "MEMBER_OF",
+  "object": "pacto-escarlata",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 47,
+    "end": 53,
+    "text": "Kaelan"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "RUMORED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "MODEL_CONFLICT",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "7fb0ca1469f58b15",
+  "subject": "pacto-escarlata",
+  "predicate": "MEMBER_OF",
+  "object": "guardia-hierro",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 145,
+    "end": 160,
+    "text": "Pacto Escarlata"
+   }
+  ],
+  "negated": true,
+  "temporality": null,
+  "epistemic": "RUMORED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "0ef894c965214c66",
+  "subject": "portador-runas",
+  "predicate": "RELATED_TO",
+  "object": "cetro-vacio",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 87,
+    "end": 104,
+    "text": "Portador de Runas"
+   }
+  ],
+  "negated": true,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "74984c8d05c9f47d",
+  "subject": "portador-runas",
+  "predicate": "RELATED_TO",
+  "object": "escritura-astral",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 38,
+    "end": 55,
+    "text": "Portador de Runas"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "MODEL_CONFLICT",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "9959194928fb6c40",
+  "subject": "conclave-estrellas",
+  "predicate": "LOCATED_IN",
+  "object": "gremio-cartografos",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 6,
+    "end": 31,
+    "text": "Cónclave de las Estrellas"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "ed49a49cefaf0338",
+  "subject": "conclave-estrellas",
+  "predicate": "LOCATED_IN",
+  "object": "liga-meridiano",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 6,
+    "end": 31,
+    "text": "Cónclave de las Estrellas"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "2c895044516d55b1",
+  "subject": "gremio-cartografos",
+  "predicate": "LOCATED_IN",
+  "object": "liga-meridiano",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 48,
+    "end": 69,
+    "text": "Gremio de Cartógrafos"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "d12cfac18d1d2c7b",
+  "subject": "liga-meridiano",
+  "predicate": "OWNS",
+  "object": "gremio-cartografos",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 114,
+    "end": 132,
+    "text": "Liga del Meridiano"
+   }
+  ],
+  "negated": true,
+  "temporality": "ENDED | markers=rompio",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "MODEL_CONFLICT",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "bf991b4f5bb41d54",
+  "subject": "akio",
+  "predicate": "LOCATED_IN",
+  "object": "valle-runico",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 118,
+    "end": 122,
+    "text": "Akio"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "af2cc2ab30626dcb",
+  "subject": "santuario-runico",
+  "predicate": "OWNS",
+  "object": "vaina-tsukikage",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 72,
+    "end": 100,
+    "text": "santuario ᛟ del Valle Rúnico"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "a023656ba31c7d94",
+  "subject": "tsukikage",
+  "predicate": "MEMBER_OF",
+  "object": "akio",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 21,
+    "end": 35,
+    "text": "月光 (Tsukikage)"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "58e2422a2cc8a41c",
+  "subject": "lyra",
+  "predicate": "RELATED_TO",
+  "object": "torin",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 4,
+    "text": "Lyra"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "4152794d70d0185c",
+  "subject": "torin",
+  "predicate": "RELATED_TO",
+  "object": "aldric",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 53,
+    "end": 58,
+    "text": "Torin"
+   }
+  ],
+  "negated": true,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "MODEL_CONFLICT",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "a1ba107f5691f27c",
+  "subject": "gremio-cartografos",
+  "predicate": "MEMBER_OF",
+  "object": "conclave-estrellas",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 3,
+    "end": 24,
+    "text": "Gremio de Cartógrafos"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "5ec4f421fd24c6bf",
+  "subject": "rivalidad",
+  "predicate": "RELATED_TO",
+  "object": "segunda-guerra-astral",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 84,
+    "end": 98,
+    "text": "esta rivalidad"
+   }
+  ],
+  "negated": false,
+  "temporality": "FUTURE | markers=podria",
+  "epistemic": "RUMORED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "HUMAN_REQUIRED",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "0874ac78f1fc7936",
+  "subject": "caliz-ambar",
+  "predicate": "RELATED_TO",
+  "object": "cuchillos-grises",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 78,
+    "end": 92,
+    "text": "Cáliz de Ámbar"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | markers=fue",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "MODEL_CONFLICT",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "449430d4a415b6d5",
+  "subject": "ysolde",
+  "predicate": "OWNS",
+  "object": "caliz-ambar",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 22,
+    "end": 42,
+    "text": "la Reina de Invierno"
+   }
+  ],
+  "negated": true,
+  "temporality": "ENDED | markers=ya no",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "ff114f369babb08a",
+  "subject": "draven",
+  "predicate": "LOCATED_IN",
+  "object": "torneo-sable",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 52,
+    "end": 58,
+    "text": "Draven"
+   }
+  ],
+  "negated": false,
+  "temporality": "FUTURE | markers=competira",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "MODEL_CONFLICT",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "93acadd62bb808a1",
+  "subject": "sela",
+  "predicate": "LOCATED_IN",
+  "object": "torneo-sable",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 92,
+    "end": 96,
+    "text": "Sela"
+   }
+  ],
+  "negated": true,
+  "temporality": "FUTURE | markers=prometio",
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "edd417e39d94fa5d",
+  "subject": "torneo-sable",
+  "predicate": "LOCATED_IN",
+  "object": "torre-sable",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 3,
+    "end": 18,
+    "text": "Torneo de Sable"
+   }
+  ],
+  "negated": false,
+  "temporality": null,
+  "epistemic": "ASSERTED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "MODEL_CONFLICT",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "f97132750915609b",
+  "subject": "vayra",
+  "predicate": "LOCATED_IN",
+  "object": "ateneo",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 117,
+    "end": 122,
+    "text": "Vayra"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | markers=fundo",
+  "epistemic": "HYPOTHETICAL",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ },
+ {
+  "candidate_id": "8cdfd47efe913d5e",
+  "subject": "vayra",
+  "predicate": "PARTICIPATED_IN",
+  "object": "sellado-abismo",
+  "direction": "SUBJECT_TO_OBJECT",
+  "evidence_spans": [
+   {
+    "start": 12,
+    "end": 17,
+    "text": "Vayra"
+   }
+  ],
+  "negated": false,
+  "temporality": "PAST | markers=selló",
+  "epistemic": "RUMORED",
+  "confidence": "unsupported",
+  "provider_status": "NOT_EXECUTED",
+  "validation_status": "PARTIAL_CONSENSUS",
+  "latency_ms": "per_source_only"
+ }
+]

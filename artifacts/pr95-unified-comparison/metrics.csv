@@ -1,0 +1,17 @@
+track,config,pair_precision,pair_recall,pair_f1,strict_f1,evidence_correct,predicate_exact,direction_exact,negation_accuracy,temporality_accuracy,epistemic_accuracy,decision_accuracy,evidence_exact_match,evidence_char_f1,evidence_token_f1,evidence_iou,offset_exact_match,offsets_overlap,boundary_mae,literal_evidence_rate,evidence_overextension,evidence_underextension,candidate_count,determinism_rate
+pipeline,base,0.8269,0.7963,0.8113,0.2075,0.907,0.2558,0.6279,0.907,0.4419,0.8605,0.3023,0.3953,0.861,0.8942,0.8164,0.3953,0.9302,7.291,1.0,0.1163,0.4884,52,1.0
+pipeline,v1_conservative,0.8269,0.7963,0.8113,0.2075,0.8372,0.2558,0.6279,0.907,0.4419,0.8605,0.3023,0.0,0.8432,0.8895,0.7918,0.0,0.9302,9.5,1.0,0.907,0.093,52,1.0
+pipeline,v4_hybrid_default,0.8269,0.7963,0.8113,0.2075,0.907,0.2558,0.6279,0.907,0.4419,0.8605,0.3023,0.3953,0.861,0.8942,0.8164,0.3953,0.9302,7.291,1.0,0.1163,0.4884,52,1.0
+pipeline,v4_cross_sentence,0.3611,0.963,0.5253,0.1212,0.6346,0.2308,0.6923,0.9038,0.4038,0.7885,0.3654,0.2885,0.6883,0.7888,0.6235,0.2885,0.9615,18.635,1.0,0.2115,0.5,144,1.0
+pipeline,v4_ablate_evidence,0.8269,0.7963,0.8113,0.2075,0.0233,0.2558,0.6279,0.907,0.4419,0.8605,0.3023,0.0,0.2964,0.3449,0.1876,0.0,0.814,23.372,1.0,0.0,1.0,52,1.0
+
+track,config/group,valid_response_rate,invalid_response_rate,literal_evidence_rate,realignment_success_rate,false_realignment_rate,ambiguous_realignment_rate,fragment_reconstruction_rate,invalid_fragment_rate,prompt_injection_success,network_attempts,determinism_rate
+protocol,base/C1_common,0.1852,0.8148,1.0,unsupported,unsupported,unsupported,unsupported,unsupported,0,0,1.0
+protocol,base/C3_adversarial,0.5,0.5,1.0,unsupported,unsupported,unsupported,unsupported,unsupported,0,0,1.0
+protocol,base/C2_independent,1.0,0.0,1.0,unsupported,unsupported,unsupported,unsupported,unsupported,0,0,1.0
+protocol,v2_realignment/C1_common,0.7963,0.2037,1.0,0.7674,0.1818,0.0,unsupported,unsupported,0,0,1.0
+protocol,v2_realignment/C3_adversarial,0.6667,0.3333,1.0,0.5,0.0,0.0,unsupported,unsupported,0,0,1.0
+protocol,v2_realignment/C2_independent,1.0,0.0,1.0,0.0,0.0,0.0,unsupported,unsupported,0,0,1.0
+protocol,v3_fragments/C1_common,0.963,0.037,1.0,unsupported,unsupported,unsupported,0.963,0.037,0,0,1.0
+protocol,v3_fragments/C3_adversarial,0.6667,0.3333,1.0,unsupported,unsupported,unsupported,0.6667,0.3333,0,0,1.0
+protocol,v3_fragments/C2_independent,1.0,0.0,1.0,unsupported,unsupported,unsupported,1.0,0.0,0,0,1.0

@@ -1,0 +1,101 @@
+{
+  "pipeline_track": {
+    "base": {
+      "total_ms_per_rep": [
+        51.448,
+        52.453,
+        52.421
+      ],
+      "latency_p50_ms": 2.822,
+      "latency_p95_ms": 6.127,
+      "n_sources": 16,
+      "candidate_count": 52
+    },
+    "v1_conservative": {
+      "total_ms_per_rep": [
+        54.134,
+        55.167,
+        54.261
+      ],
+      "latency_p50_ms": 2.795,
+      "latency_p95_ms": 6.228,
+      "n_sources": 16,
+      "candidate_count": 52
+    },
+    "v4_hybrid_default": {
+      "total_ms_per_rep": [
+        57.079,
+        57.042,
+        53.569
+      ],
+      "latency_p50_ms": 2.561,
+      "latency_p95_ms": 7.089,
+      "n_sources": 16,
+      "candidate_count": 52
+    },
+    "v4_cross_sentence": {
+      "total_ms_per_rep": [
+        165.519,
+        148.966,
+        149.463
+      ],
+      "latency_p50_ms": 6.937,
+      "latency_p95_ms": 18.868,
+      "n_sources": 16,
+      "candidate_count": 144
+    },
+    "v4_ablate_evidence": {
+      "total_ms_per_rep": [
+        56.223,
+        57.234,
+        56.599
+      ],
+      "latency_p50_ms": 2.717,
+      "latency_p95_ms": 7.26,
+      "n_sources": 16,
+      "candidate_count": 52
+    }
+  },
+  "determinism": {
+    "base": {
+      "determinism_rate": 1.0,
+      "output_hashes": [
+        "2511892dea959879830121b5e4ad0ebc5d9990542e2d4f3d14b8265fa72813b8",
+        "2511892dea959879830121b5e4ad0ebc5d9990542e2d4f3d14b8265fa72813b8",
+        "2511892dea959879830121b5e4ad0ebc5d9990542e2d4f3d14b8265fa72813b8"
+      ]
+    },
+    "v1_conservative": {
+      "determinism_rate": 1.0,
+      "output_hashes": [
+        "ea7de48b207f4bb81b81d91f6218049165456f35813f62bff61953ffa6333c48",
+        "ea7de48b207f4bb81b81d91f6218049165456f35813f62bff61953ffa6333c48",
+        "ea7de48b207f4bb81b81d91f6218049165456f35813f62bff61953ffa6333c48"
+      ]
+    },
+    "v4_hybrid_default": {
+      "determinism_rate": 1.0,
+      "output_hashes": [
+        "2511892dea959879830121b5e4ad0ebc5d9990542e2d4f3d14b8265fa72813b8",
+        "2511892dea959879830121b5e4ad0ebc5d9990542e2d4f3d14b8265fa72813b8",
+        "2511892dea959879830121b5e4ad0ebc5d9990542e2d4f3d14b8265fa72813b8"
+      ]
+    },
+    "v4_cross_sentence": {
+      "determinism_rate": 1.0,
+      "output_hashes": [
+        "cbd0417c6b093433a47cac2d9a9a5c928ccd973bfccb402ceb8ea8fae779ee58",
+        "cbd0417c6b093433a47cac2d9a9a5c928ccd973bfccb402ceb8ea8fae779ee58",
+        "cbd0417c6b093433a47cac2d9a9a5c928ccd973bfccb402ceb8ea8fae779ee58"
+      ]
+    },
+    "v4_ablate_evidence": {
+      "determinism_rate": 1.0,
+      "output_hashes": [
+        "8e9399f06c010a95b2376a9015f92cd5826fd31bb24d40c28263dba65e409301",
+        "8e9399f06c010a95b2376a9015f92cd5826fd31bb24d40c28263dba65e409301",
+        "8e9399f06c010a95b2376a9015f92cd5826fd31bb24d40c28263dba65e409301"
+      ]
+    }
+  }
+}

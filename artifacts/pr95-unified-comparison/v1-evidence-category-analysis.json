@@ -1,0 +1,47 @@
+{
+  "matched_pairs": 43,
+  "base_evidence_correct_rate": 0.907,
+  "v1_evidence_correct_rate": 0.8372,
+  "improved": 0,
+  "regressed": 3,
+  "unchanged_ok": 36,
+  "unchanged_bad": 4,
+  "changed_detail": [
+    {
+      "relation_id": "rel-001",
+      "predicate": "ALLIED_WITH",
+      "negated": false,
+      "temporal": "PAST",
+      "epistemic": "ASSERTED",
+      "base_iou": 0.629,
+      "v1_iou": 0.4699,
+      "base_ok": true,
+      "v1_ok": false,
+      "cause": "reencuadre (span movido; posible GT alternativo)"
+    },
+    {
+      "relation_id": "rel-002",
+      "predicate": "ENEMY_OF",
+      "negated": false,
+      "temporal": "PAST",
+      "epistemic": "ASSERTED",
+      "base_iou": 0.6667,
+      "v1_iou": 0.4167,
+      "base_ok": true,
+      "v1_ok": false,
+      "cause": "reencuadre (span movido; posible GT alternativo)"
+    },
+    {
+      "relation_id": "rel-047",
+      "predicate": "OWNS",
+      "negated": true,
+      "temporal": "ENDED",
+      "epistemic": "ASSERTED",
+      "base_iou": 0.5686,
+      "v1_iou": 0.4394,
+      "base_ok": true,
+      "v1_ok": false,
+      "cause": "reencuadre (span movido; posible GT alternativo)"
+    }
+  ]
+}

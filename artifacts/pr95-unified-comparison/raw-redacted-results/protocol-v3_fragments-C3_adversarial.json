@@ -1,0 +1,69 @@
+[
+ {
+  "case_id": "c3-ambiguous-dup",
+  "tier": "ambiguous",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": [
+   "f-001"
+  ]
+ },
+ {
+  "case_id": "c3-injection",
+  "tier": "injection",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": [
+   "f-001"
+  ]
+ },
+ {
+  "case_id": "c3-offset-oob",
+  "tier": "offset_shift",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": [
+   "f-001"
+  ]
+ },
+ {
+  "case_id": "c3-badfragment",
+  "tier": "invalid_fragment",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "fragment_inexistente: 'f-900' no existe en el documento",
+   "fragment_inexistente: 'f-901' no existe en el documento"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "c3-hostile-json",
+  "tier": "hostile_json",
+  "state": "INVALID_RESPONSES",
+  "accepted": false,
+  "validation_errors": [
+   "verdict invalido 'APPROVE_ALL'; debe ser uno de ('confirm', 'refine', 'reject', 'uncertain')"
+  ],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "c3-negation-distant",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": [
+   "f-002"
+  ]
+ }
+]

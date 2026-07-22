@@ -1,0 +1,149 @@
+{
+  "weights": {
+    "evidencia": 0.25,
+    "estructura": 0.2,
+    "falsos_aceptados": 0.2,
+    "recall": 0.1,
+    "rendimiento": 0.1,
+    "mantenibilidad": 0.1,
+    "complejidad": 0.05
+  },
+  "gate_section18": {
+    "A_solo_P0": true,
+    "B_P0_V2": true,
+    "C_P0_V3": true,
+    "D_P0_V2_V3": true,
+    "E_V4_componentes": true,
+    "F_ninguna": true
+  },
+  "dimensions": [
+    "evidencia",
+    "estructura",
+    "falsos_aceptados",
+    "recall",
+    "rendimiento",
+    "mantenibilidad",
+    "complejidad"
+  ],
+  "options": {
+    "A_solo_P0": {
+      "gate_pass": true,
+      "scores": {
+        "evidencia": 0.9,
+        "estructura": 0.81,
+        "falsos_aceptados": 1.0,
+        "recall": 0.19,
+        "rendimiento": 0.9,
+        "mantenibilidad": 1.0,
+        "complejidad": 1.0
+      },
+      "weighted_total": 0.846,
+      "firmeza": "FIRME: integrable ya (CI+§18 verdes)."
+    },
+    "B_P0_V2": {
+      "gate_pass": true,
+      "scores": {
+        "evidencia": 0.9,
+        "estructura": 0.81,
+        "falsos_aceptados": 0.72,
+        "recall": 0.8,
+        "rendimiento": 0.85,
+        "mantenibilidad": 0.6,
+        "complejidad": 0.55
+      },
+      "weighted_total": 0.7835,
+      "firmeza": "PROVISIONAL + riesgo: false_realign 0.182 sin guarda; V2 no aporta unico sobre V3."
+    },
+    "C_P0_V3": {
+      "gate_pass": true,
+      "scores": {
+        "evidencia": 0.75,
+        "estructura": 0.81,
+        "falsos_aceptados": 1.0,
+        "recall": 0.96,
+        "rendimiento": 0.8,
+        "mantenibilidad": 0.8,
+        "complejidad": 0.7
+      },
+      "weighted_total": 0.8405,
+      "firmeza": "PROVISIONAL: recall del banco 0.963, pendiente validacion NVIDIA real."
+    },
+    "D_P0_V2_V3": {
+      "gate_pass": true,
+      "scores": {
+        "evidencia": 0.78,
+        "estructura": 0.81,
+        "falsos_aceptados": 1.0,
+        "recall": 0.96,
+        "rendimiento": 0.78,
+        "mantenibilidad": 0.55,
+        "complejidad": 0.45
+      },
+      "weighted_total": 0.8085,
+      "firmeza": "PROVISIONAL: en banco realign_fired=0 -> V2 no aporta; complejidad mayor."
+    },
+    "E_V4_componentes": {
+      "gate_pass": true,
+      "scores": {
+        "evidencia": 0.9,
+        "estructura": 0.81,
+        "falsos_aceptados": 1.0,
+        "recall": 0.2,
+        "rendimiento": 0.85,
+        "mantenibilidad": 0.75,
+        "complejidad": 0.6
+      },
+      "weighted_total": 0.797,
+      "firmeza": "hybrid_default == base (habilitador); cross_sentence descartado (F1 0.525)."
+    },
+    "F_ninguna": {
+      "gate_pass": true,
+      "scores": {
+        "evidencia": 0.9,
+        "estructura": 0.81,
+        "falsos_aceptados": 1.0,
+        "recall": 0.19,
+        "rendimiento": 0.9,
+        "mantenibilidad": 1.0,
+        "complejidad": 1.0
+      },
+      "weighted_total": 0.846,
+      "firmeza": "equivale a A en scores pero renuncia a P0 firme -> peor por dejar valor en la mesa."
+    }
+  },
+  "pareto_non_dominated": [
+    "A_solo_P0",
+    "B_P0_V2",
+    "C_P0_V3",
+    "D_P0_V2_V3",
+    "E_V4_componentes",
+    "F_ninguna"
+  ],
+  "ranking_weighted": [
+    {
+      "option": "A_solo_P0",
+      "score": 0.846
+    },
+    {
+      "option": "F_ninguna",
+      "score": 0.846
+    },
+    {
+      "option": "C_P0_V3",
+      "score": 0.8405
+    },
+    {
+      "option": "D_P0_V2_V3",
+      "score": 0.8085
+    },
+    {
+      "option": "E_V4_componentes",
+      "score": 0.797
+    },
+    {
+      "option": "B_P0_V2",
+      "score": 0.7835
+    }
+  ],
+  "note": "Comparacion entre pistas es INDICATIVA. Seguridad es puerta, no peso. El veredicto respeta la separacion de pistas y la distincion FIRME (P0/§18/V1-neg/V4-compat) vs PROVISIONAL (V2 vs V3)."
+}

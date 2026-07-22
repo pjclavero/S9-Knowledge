@@ -1,0 +1,1010 @@
+[
+ {
+  "candidate_id": "41f9585d149bc6bb",
+  "evidence_start": 187,
+  "evidence_end": 254,
+  "evidence_len": 67,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "85abbee7076b0b6d",
+  "evidence_start": 187,
+  "evidence_end": 220,
+  "evidence_len": 33,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "fbf77a39983e8fe2",
+  "evidence_start": 135,
+  "evidence_end": 203,
+  "evidence_len": 68,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "3683c16360451ca7",
+  "evidence_start": 135,
+  "evidence_end": 180,
+  "evidence_len": 45,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "57bb38c172cacdbd",
+  "evidence_start": 135,
+  "evidence_end": 220,
+  "evidence_len": 85,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "53d85a54a2508335",
+  "evidence_start": 166,
+  "evidence_end": 203,
+  "evidence_len": 37,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "04f666ac640e710a",
+  "evidence_start": 166,
+  "evidence_end": 220,
+  "evidence_len": 54,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "ac2d1cdab31fd569",
+  "evidence_start": 3,
+  "evidence_end": 203,
+  "evidence_len": 200,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "791010f3383a60bc",
+  "evidence_start": 3,
+  "evidence_end": 65,
+  "evidence_len": 62,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "de9a9545c1080eeb",
+  "evidence_start": 208,
+  "evidence_end": 254,
+  "evidence_len": 46,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "dd5b62f19e2e47d5",
+  "evidence_start": 171,
+  "evidence_end": 192,
+  "evidence_len": 21,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "86ec9f91c0542969",
+  "evidence_start": 23,
+  "evidence_end": 177,
+  "evidence_len": 154,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "23968ee07aa6d272",
+  "evidence_start": 23,
+  "evidence_end": 152,
+  "evidence_len": 129,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "18886a5bb0657669",
+  "evidence_start": 23,
+  "evidence_end": 192,
+  "evidence_len": 169,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "8ceb488c533f5fae",
+  "evidence_start": 23,
+  "evidence_end": 71,
+  "evidence_len": 48,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "db89c5d4a23be1e2",
+  "evidence_start": 23,
+  "evidence_end": 110,
+  "evidence_len": 87,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "30f61deb7d8ab832",
+  "evidence_start": 140,
+  "evidence_end": 177,
+  "evidence_len": 37,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "f0db690d4652fe35",
+  "evidence_start": 140,
+  "evidence_end": 192,
+  "evidence_len": 52,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "a4df3ad676b8dd5e",
+  "evidence_start": 57,
+  "evidence_end": 177,
+  "evidence_len": 120,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "e88e59696071d1eb",
+  "evidence_start": 57,
+  "evidence_end": 152,
+  "evidence_len": 95,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "210e3f0fdb5e0337",
+  "evidence_start": 57,
+  "evidence_end": 192,
+  "evidence_len": 135,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "5863777c4fd5d061",
+  "evidence_start": 57,
+  "evidence_end": 110,
+  "evidence_len": 53,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "c957dd4d4238154c",
+  "evidence_start": 96,
+  "evidence_end": 177,
+  "evidence_len": 81,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "4e47c051f5d478d9",
+  "evidence_start": 96,
+  "evidence_end": 152,
+  "evidence_len": 56,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "a2284b26e7083927",
+  "evidence_start": 96,
+  "evidence_end": 192,
+  "evidence_len": 96,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "282bc714b3c77503",
+  "evidence_start": 90,
+  "evidence_end": 153,
+  "evidence_len": 63,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "850790c4e27672e4",
+  "evidence_start": 90,
+  "evidence_end": 182,
+  "evidence_len": 92,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "7f5daecaf0ac58c0",
+  "evidence_start": 9,
+  "evidence_end": 40,
+  "evidence_len": 31,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "6846f8653727e51e",
+  "evidence_start": 90,
+  "evidence_end": 128,
+  "evidence_len": 38,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "f22bc293de3f0f63",
+  "evidence_start": 9,
+  "evidence_end": 80,
+  "evidence_len": 71,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "b40fa934ebf3592c",
+  "evidence_start": 140,
+  "evidence_end": 182,
+  "evidence_len": 42,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "7bcd03208fc4ad10",
+  "evidence_start": 140,
+  "evidence_end": 208,
+  "evidence_len": 68,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "19f135899022b67c",
+  "evidence_start": 178,
+  "evidence_end": 208,
+  "evidence_len": 30,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "9e96051f46e0db4c",
+  "evidence_start": 25,
+  "evidence_end": 96,
+  "evidence_len": 71,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "83a66440e124ac96",
+  "evidence_start": 25,
+  "evidence_end": 153,
+  "evidence_len": 128,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "323711b469ec5869",
+  "evidence_start": 25,
+  "evidence_end": 182,
+  "evidence_len": 157,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "063dc62bcd4f9dce",
+  "evidence_start": 25,
+  "evidence_end": 128,
+  "evidence_len": 103,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "2781f45d4004fd30",
+  "evidence_start": 25,
+  "evidence_end": 80,
+  "evidence_len": 55,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "16030e4ca510ed73",
+  "evidence_start": 119,
+  "evidence_end": 153,
+  "evidence_len": 34,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "298151e1b57d79ad",
+  "evidence_start": 119,
+  "evidence_end": 182,
+  "evidence_len": 63,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "55225f4a3af9fdc1",
+  "evidence_start": 119,
+  "evidence_end": 208,
+  "evidence_len": 89,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "081adf33519ee03d",
+  "evidence_start": 74,
+  "evidence_end": 96,
+  "evidence_len": 22,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "5fd459ba1e3094f8",
+  "evidence_start": 74,
+  "evidence_end": 153,
+  "evidence_len": 79,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "ff7b9aba91a801de",
+  "evidence_start": 74,
+  "evidence_end": 182,
+  "evidence_len": 108,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "050d28f479b321bd",
+  "evidence_start": 74,
+  "evidence_end": 208,
+  "evidence_len": 134,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "08bca1fdfa596d01",
+  "evidence_start": 74,
+  "evidence_end": 128,
+  "evidence_len": 54,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "1e591395a0523e1a",
+  "evidence_start": 107,
+  "evidence_end": 171,
+  "evidence_len": 64,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "cec5c6c304921af1",
+  "evidence_start": 107,
+  "evidence_end": 206,
+  "evidence_len": 99,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "8bbf13173dc5c869",
+  "evidence_start": 26,
+  "evidence_end": 123,
+  "evidence_len": 97,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "85cb2634d43ec921",
+  "evidence_start": 26,
+  "evidence_end": 49,
+  "evidence_len": 23,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "8d3b68c77392935e",
+  "evidence_start": 26,
+  "evidence_end": 80,
+  "evidence_len": 54,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "2722a15d6d6b7625",
+  "evidence_start": 26,
+  "evidence_end": 206,
+  "evidence_len": 180,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "c305ffaa6807b725",
+  "evidence_start": 26,
+  "evidence_end": 40,
+  "evidence_len": 14,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "04a2d3f8d5b7d486",
+  "evidence_start": 45,
+  "evidence_end": 123,
+  "evidence_len": 78,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "9cea0ef08c4b4dc6",
+  "evidence_start": 45,
+  "evidence_end": 80,
+  "evidence_len": 35,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "a26da4224fd01a94",
+  "evidence_start": 45,
+  "evidence_end": 206,
+  "evidence_len": 161,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "a67bb73c4fbf77e0",
+  "evidence_start": 66,
+  "evidence_end": 123,
+  "evidence_len": 57,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "8a7eb84e4386137b",
+  "evidence_start": 3,
+  "evidence_end": 32,
+  "evidence_len": 29,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "e4b6ac94448a352f",
+  "evidence_start": 3,
+  "evidence_end": 49,
+  "evidence_len": 46,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "313cbb3df211bcb1",
+  "evidence_start": 157,
+  "evidence_end": 206,
+  "evidence_len": 49,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "309f067d9e8fa34c",
+  "evidence_start": 3,
+  "evidence_end": 40,
+  "evidence_len": 37,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "2736ddde3ed00838",
+  "evidence_start": 36,
+  "evidence_end": 123,
+  "evidence_len": 87,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "51bac6e6dda3becd",
+  "evidence_start": 36,
+  "evidence_end": 49,
+  "evidence_len": 13,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "ab600e19fb697451",
+  "evidence_start": 36,
+  "evidence_end": 80,
+  "evidence_len": 44,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "aa2b666d796e4050",
+  "evidence_start": 36,
+  "evidence_end": 206,
+  "evidence_len": 170,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "1d65872dc5624d1a",
+  "evidence_start": 39,
+  "evidence_end": 62,
+  "evidence_len": 23,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "2866b7949365ae80",
+  "evidence_start": 39,
+  "evidence_end": 163,
+  "evidence_len": 124,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "4588c14bfd27243b",
+  "evidence_start": 39,
+  "evidence_end": 85,
+  "evidence_len": 46,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "ae816a5f5f3bfa0e",
+  "evidence_start": 9,
+  "evidence_end": 56,
+  "evidence_len": 47,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "ccdf845aad37f962",
+  "evidence_start": 9,
+  "evidence_end": 62,
+  "evidence_len": 53,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "de234f8790a416f5",
+  "evidence_start": 9,
+  "evidence_end": 163,
+  "evidence_len": 154,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "a5f633a5fe04a5b3",
+  "evidence_start": 9,
+  "evidence_end": 85,
+  "evidence_len": 76,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "7cc77c891aa68dbe",
+  "evidence_start": 0,
+  "evidence_end": 56,
+  "evidence_len": 56,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "514d4269fa8c559f",
+  "evidence_start": 0,
+  "evidence_end": 15,
+  "evidence_len": 15,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "c6bde51f4f210d27",
+  "evidence_start": 98,
+  "evidence_end": 163,
+  "evidence_len": 65,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "b514d33977d5f2c4",
+  "evidence_start": 58,
+  "evidence_end": 85,
+  "evidence_len": 27,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "af193cf96cf2da3d",
+  "evidence_start": 72,
+  "evidence_end": 104,
+  "evidence_len": 32,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "2e5f0666f7464bbc",
+  "evidence_start": 72,
+  "evidence_end": 163,
+  "evidence_len": 91,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "d46b2dbd1c8d9e45",
+  "evidence_start": 81,
+  "evidence_end": 156,
+  "evidence_len": 75,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "4db53b00da227455",
+  "evidence_start": 81,
+  "evidence_end": 138,
+  "evidence_len": 57,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "6f7b2fa72c4cabe7",
+  "evidence_start": 3,
+  "evidence_end": 60,
+  "evidence_len": 57,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "a631a49af94131f0",
+  "evidence_start": 121,
+  "evidence_end": 156,
+  "evidence_len": 35,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "ebbd394fe6c82545",
+  "evidence_start": 41,
+  "evidence_end": 98,
+  "evidence_len": 57,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "aa7c08a36f2b5c0f",
+  "evidence_start": 41,
+  "evidence_end": 156,
+  "evidence_len": 115,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "ec28efa077cb7858",
+  "evidence_start": 41,
+  "evidence_end": 138,
+  "evidence_len": 97,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "6da6a1b61d09349b",
+  "evidence_start": 13,
+  "evidence_end": 149,
+  "evidence_len": 136,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "e3a07924e4b48ea9",
+  "evidence_start": 13,
+  "evidence_end": 113,
+  "evidence_len": 100,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "3746cf5df3bc1130",
+  "evidence_start": 0,
+  "evidence_end": 26,
+  "evidence_len": 26,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "31ca5180d595e53e",
+  "evidence_start": 0,
+  "evidence_end": 113,
+  "evidence_len": 113,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "3b221f8ad7b704e2",
+  "evidence_start": 141,
+  "evidence_end": 149,
+  "evidence_len": 8,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "9aa04c26214bb97d",
+  "evidence_start": 124,
+  "evidence_end": 189,
+  "evidence_len": 65,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "51ec439c7afa79a3",
+  "evidence_start": 47,
+  "evidence_end": 80,
+  "evidence_len": 33,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "7fb0ca1469f58b15",
+  "evidence_start": 145,
+  "evidence_end": 189,
+  "evidence_len": 44,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "8375769161577cbf",
+  "evidence_start": 65,
+  "evidence_end": 130,
+  "evidence_len": 65,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "02b56ad27b295e17",
+  "evidence_start": 66,
+  "evidence_end": 139,
+  "evidence_len": 73,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "e9c65a555b4ef535",
+  "evidence_start": 66,
+  "evidence_end": 104,
+  "evidence_len": 38,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "0ef894c965214c66",
+  "evidence_start": 87,
+  "evidence_end": 139,
+  "evidence_len": 52,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "74984c8d05c9f47d",
+  "evidence_start": 38,
+  "evidence_end": 82,
+  "evidence_len": 44,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "9959194928fb6c40",
+  "evidence_start": 6,
+  "evidence_end": 69,
+  "evidence_len": 63,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "ed49a49cefaf0338",
+  "evidence_start": 6,
+  "evidence_end": 93,
+  "evidence_len": 87,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "2c895044516d55b1",
+  "evidence_start": 48,
+  "evidence_end": 93,
+  "evidence_len": 45,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "d12cfac18d1d2c7b",
+  "evidence_start": 114,
+  "evidence_end": 179,
+  "evidence_len": 65,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "ac72d5d200317597",
+  "evidence_start": 49,
+  "evidence_end": 100,
+  "evidence_len": 51,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "b870fbf52bad78e7",
+  "evidence_start": 49,
+  "evidence_end": 116,
+  "evidence_len": 67,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "bf991b4f5bb41d54",
+  "evidence_start": 118,
+  "evidence_end": 148,
+  "evidence_len": 30,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "499d2109a597b573",
+  "evidence_start": 72,
+  "evidence_end": 122,
+  "evidence_len": 50,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "af2cc2ab30626dcb",
+  "evidence_start": 72,
+  "evidence_end": 116,
+  "evidence_len": 44,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "984d6d110eccce8a",
+  "evidence_start": 72,
+  "evidence_end": 148,
+  "evidence_len": 76,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "a023656ba31c7d94",
+  "evidence_start": 21,
+  "evidence_end": 67,
+  "evidence_len": 46,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "8516427924c89edf",
+  "evidence_start": 21,
+  "evidence_end": 100,
+  "evidence_len": 79,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "9195992539e8986b",
+  "evidence_start": 21,
+  "evidence_end": 116,
+  "evidence_len": 95,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "2d93d6442e600863",
+  "evidence_start": 21,
+  "evidence_end": 148,
+  "evidence_len": 127,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "d87740c6aa02d393",
+  "evidence_start": 108,
+  "evidence_end": 122,
+  "evidence_len": 14,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "5cb438a1a2198fec",
+  "evidence_start": 108,
+  "evidence_end": 148,
+  "evidence_len": 40,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "21644c78baffb188",
+  "evidence_start": 47,
+  "evidence_end": 79,
+  "evidence_len": 32,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "5593b2c6647ce9e0",
+  "evidence_start": 47,
+  "evidence_end": 58,
+  "evidence_len": 11,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "0aa143c25f48cccb",
+  "evidence_start": 0,
+  "evidence_end": 79,
+  "evidence_len": 79,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "8ae5dc864157f2a4",
+  "evidence_start": 0,
+  "evidence_end": 51,
+  "evidence_len": 51,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "58e2422a2cc8a41c",
+  "evidence_start": 0,
+  "evidence_end": 26,
+  "evidence_len": 26,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "4152794d70d0185c",
+  "evidence_start": 53,
+  "evidence_end": 79,
+  "evidence_len": 26,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "2ebcdf8feb9c700e",
+  "evidence_start": 21,
+  "evidence_end": 51,
+  "evidence_len": 30,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "bc146d845394cf20",
+  "evidence_start": 50,
+  "evidence_end": 98,
+  "evidence_len": 48,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "0d80b04e1b316f3b",
+  "evidence_start": 50,
+  "evidence_end": 143,
+  "evidence_len": 93,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "a1ba107f5691f27c",
+  "evidence_start": 3,
+  "evidence_end": 58,
+  "evidence_len": 55,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "b3e257907de7cd8f",
+  "evidence_start": 3,
+  "evidence_end": 98,
+  "evidence_len": 95,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "422a0ea3ae2bec1c",
+  "evidence_start": 3,
+  "evidence_end": 143,
+  "evidence_len": 140,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "5ec4f421fd24c6bf",
+  "evidence_start": 84,
+  "evidence_end": 143,
+  "evidence_len": 59,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "0874ac78f1fc7936",
+  "evidence_start": 78,
+  "evidence_end": 128,
+  "evidence_len": 50,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "449430d4a415b6d5",
+  "evidence_start": 22,
+  "evidence_end": 73,
+  "evidence_len": 51,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "a2ac179df59faf30",
+  "evidence_start": 22,
+  "evidence_end": 128,
+  "evidence_len": 106,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "3e2fd4511fb1f301",
+  "evidence_start": 52,
+  "evidence_end": 96,
+  "evidence_len": 44,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "ff114f369babb08a",
+  "evidence_start": 52,
+  "evidence_end": 90,
+  "evidence_len": 38,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "93acadd62bb808a1",
+  "evidence_start": 92,
+  "evidence_end": 141,
+  "evidence_len": 49,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "eff971784e3ce34f",
+  "evidence_start": 3,
+  "evidence_end": 58,
+  "evidence_len": 55,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "ec87ba1b5dea54cd",
+  "evidence_start": 75,
+  "evidence_end": 96,
+  "evidence_len": 21,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "edd417e39d94fa5d",
+  "evidence_start": 3,
+  "evidence_end": 50,
+  "evidence_len": 47,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "e5dc78164c48f962",
+  "evidence_start": 36,
+  "evidence_end": 58,
+  "evidence_len": 22,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "968e1389f8ebdcd8",
+  "evidence_start": 36,
+  "evidence_end": 96,
+  "evidence_len": 60,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "bbdb6f15930635b3",
+  "evidence_start": 36,
+  "evidence_end": 90,
+  "evidence_len": 54,
+  "consensus_state": "MODEL_CONFLICT"
+ },
+ {
+  "candidate_id": "c17050d4c1c1e076",
+  "evidence_start": 82,
+  "evidence_end": 122,
+  "evidence_len": 40,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "933e032aa56c2c3d",
+  "evidence_start": 18,
+  "evidence_end": 91,
+  "evidence_len": 73,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "88e37ed90d8fd1af",
+  "evidence_start": 18,
+  "evidence_end": 69,
+  "evidence_len": 51,
+  "consensus_state": "HUMAN_REQUIRED"
+ },
+ {
+  "candidate_id": "f97132750915609b",
+  "evidence_start": 117,
+  "evidence_end": 138,
+  "evidence_len": 21,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ },
+ {
+  "candidate_id": "8cdfd47efe913d5e",
+  "evidence_start": 12,
+  "evidence_end": 33,
+  "evidence_len": 21,
+  "consensus_state": "PARTIAL_CONSENSUS"
+ }
+]

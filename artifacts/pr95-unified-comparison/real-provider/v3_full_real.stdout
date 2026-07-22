@@ -1,0 +1,3 @@
+FLAG=fragments total_candidatos=52 aceptados=49 invalid=3
+estados: {'STRONG_CONSENSUS': 33, 'INVALID_RESPONSES': 3, 'MODEL_CONFLICT': 16}
+motivos_rechazo: {'fragment_ids vacío o no es lista': 2, 'ProviderTimeoutError': 1}

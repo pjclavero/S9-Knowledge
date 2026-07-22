@@ -1,0 +1,38 @@
+[
+ {
+  "case_id": "c2-positive",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "c2-inverse-dir",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "c2-hypothesis",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": null
+ },
+ {
+  "case_id": "c2-temporal-past",
+  "tier": "exact",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true,
+  "validation_errors": [],
+  "realignment_tier": null,
+  "fragment_ids": null
+ }
+]

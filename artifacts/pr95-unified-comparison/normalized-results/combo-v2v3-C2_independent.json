@@ -1,0 +1,30 @@
+[
+ {
+  "case_id": "c2-positive",
+  "tier": "exact",
+  "path": "v3_fragment",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true
+ },
+ {
+  "case_id": "c2-inverse-dir",
+  "tier": "exact",
+  "path": "v3_fragment",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true
+ },
+ {
+  "case_id": "c2-hypothesis",
+  "tier": "exact",
+  "path": "v3_fragment",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true
+ },
+ {
+  "case_id": "c2-temporal-past",
+  "tier": "exact",
+  "path": "v3_fragment",
+  "state": "STRONG_CONSENSUS",
+  "accepted": true
+ }
+]

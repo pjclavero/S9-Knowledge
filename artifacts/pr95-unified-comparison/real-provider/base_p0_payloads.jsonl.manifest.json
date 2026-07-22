@@ -1,0 +1,18 @@
+{
+  "code_sha": "92583f40058a2e685cd8b9a54688250c4ee3ddd9",
+  "corpus_hashes": {
+    "src-09": "b090e532a17de2f1573e576edc48391608f0eccbf9e8c3712da398e50d078465",
+    "src-13": "d940054dc57e9f5d3346d487a2d4df1ab803461ed66954aea48b74d61b73a51a"
+  },
+  "ground_truth_sha256": "15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c",
+  "manifest": "relation-benchmark-payloads-manifest-v1",
+  "mode": "nvidia_shadow",
+  "payloads_bytes": 37108,
+  "payloads_sha256": "71958a9ea703c0e9f3bb5b8aa5b0bb11bb2a675513f9a3f1cfdab1ca2c90744a",
+  "pipeline_version": "relation-pipeline-1.0.0",
+  "records": 4,
+  "source_ids": [
+    "src-09",
+    "src-13"
+  ]
+}

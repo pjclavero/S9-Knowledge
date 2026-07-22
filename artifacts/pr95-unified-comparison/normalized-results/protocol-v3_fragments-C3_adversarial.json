@@ -1,0 +1,116 @@
+[
+ {
+  "candidate_id": "aldric|ALLIED_WITH|bran",
+  "subject": "aldric",
+  "predicate": "ALLIED_WITH",
+  "object": "bran",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 22,
+    "text": "Aldric pacto con Bran."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.8,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "ysolde|ALLIED_WITH|roble",
+  "subject": "ysolde",
+  "predicate": "ALLIED_WITH",
+  "object": "roble",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 73,
+    "text": "La reina Ysolde selló una alianza con el Clan del Roble antes del asedio."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.8,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "kaelin|BETRAYED|orden",
+  "subject": "kaelin",
+  "predicate": "BETRAYED",
+  "object": "orden",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 0,
+    "end": 57,
+    "text": "Kaelin traicionó a la Orden del Alba durante la retirada."
+   }
+  ],
+  "negated": false,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.8,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "draven|SERVES|veranmor",
+  "subject": "draven",
+  "predicate": "SERVES",
+  "object": "veranmor",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [],
+  "negated": "unsupported",
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": "unsupported",
+  "provider_status": "INVALID_RESPONSES",
+  "validation_status": "human",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "meridiano|ENEMIES_WITH|nova",
+  "subject": "meridiano",
+  "predicate": "ENEMIES_WITH",
+  "object": "nova",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [],
+  "negated": "unsupported",
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": "unsupported",
+  "provider_status": "INVALID_RESPONSES",
+  "validation_status": "human",
+  "latency_ms": 12.0
+ },
+ {
+  "candidate_id": "lyra|BETRAYED|corona",
+  "subject": "lyra",
+  "predicate": "BETRAYED",
+  "object": "corona",
+  "direction": "UNDIRECTED",
+  "evidence_spans": [
+   {
+    "start": 28,
+    "end": 70,
+    "text": "Se dice que Lyra no traicionó a la corona."
+   }
+  ],
+  "negated": true,
+  "temporality": "unsupported",
+  "epistemic": "unsupported",
+  "confidence": 0.8,
+  "provider_status": "STRONG_CONSENSUS",
+  "validation_status": "confirm",
+  "latency_ms": 12.0
+ }
+]
