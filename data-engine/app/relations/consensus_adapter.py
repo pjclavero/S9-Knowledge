@@ -70,7 +70,7 @@ from relations.contracts import (
     RelationContractError,
 )
 
-MODULE_VERSION = "relation-consensus-1.0.0"
+MODULE_VERSION = "relation-consensus-1.1.0"  # B6: +policy, +decision_reasons
 
 # Politicas de consenso (Bloque 6). "v1" = comportamiento HISTORICO INTACTO (es el
 # DEFAULT: ninguna llamada existente cambia de resultado). "v2" = ademas consume las

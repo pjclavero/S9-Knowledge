@@ -62,6 +62,7 @@ import json
 import os
 import subprocess
 import time
+import warnings as _warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
@@ -1044,6 +1045,19 @@ def run_benchmark(corpus: Corpus, *, mode: str = DEFAULT_MODE,
     La llave de proveedores se comprueba AQUI, en el nucleo, antes de construir
     ninguna `PipelineConfig` (B1): ver `authorize_provider_run`.
     """
+    if consensus_policy is not None:
+        # `report.determinism_report()` repite la corrida SIN este override (y no
+        # se puede tocar `report.py`, congelado por el programa), asi que la
+        # segunda pasada usa otra politica y los hashes difieren: el dictamen
+        # saldria `deterministic=False` siendo un FALSO NEGATIVO. Se avisa en voz
+        # alta en vez de dejar la trampa en silencio.
+        _warnings.warn(
+            "consensus_policy override activo: determinism_report() re-ejecuta "
+            "sin el override, de modo que 'deterministic' seria un FALSO "
+            "NEGATIVO. Use check_determinism=False y compare las metricas.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
     authorize_provider_run(mode, enable_providers=enable_providers,
                            local_transport=local_transport,
                            external_provider=external_provider)

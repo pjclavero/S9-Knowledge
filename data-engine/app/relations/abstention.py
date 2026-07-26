@@ -66,6 +66,7 @@ from external_ai.models import (
     PARTIAL_CONSENSUS,
 )
 
+from relations import ontology as _ontology
 from relations.direction import REVIEW_DIRECTION_FLAG
 from relations.predicate_selector import REVIEW_PREDICATE_FLAG
 from relations.temporal_v2 import TemporalState
@@ -305,6 +306,35 @@ def temporal_state_of(temporal_scope: Any) -> str:
     return TemporalState.UNKNOWN
 
 
+def _types_incompatible(candidate: Any) -> bool:
+    """¿Los tipos del par CONTRADICEN el dominio/rango del predicado en B1?
+
+    Solo devuelve True cuando hay una contradiccion DEMOSTRABLE: el predicado esta
+    en la ontologia autoritativa (`relations.ontology`), declara dominio/rango, y
+    el tipo de sujeto u objeto queda fuera. En cualquier otro caso -- predicado
+    desconocido, tipos ausentes, dominio/rango sin declarar -- devuelve False:
+    "no consta" NO es "incompatible". Ausencia de informacion nunca es un veto.
+    """
+    predicate = _get(candidate, "predicate") or _get(candidate, "relation_type")
+    subject_type = _get(candidate, "subject_type")
+    object_type = _get(candidate, "object_type")
+    if not isinstance(predicate, str) or subject_type is None or object_type is None:
+        return False
+    try:
+        entry = _ontology.get(predicate)
+    except Exception:            # predicado fuera de la ontologia: no se juzga
+        return False
+    if entry is None:
+        return False
+    domain = getattr(entry, "domain", None)
+    range_ = getattr(entry, "range", None)
+    if domain and subject_type not in domain:
+        return True
+    if range_ and object_type not in range_:
+        return True
+    return False
+
+
 def _signal_value(signals: Optional[Sequence[Any]], name: str) -> Any:
     for s in signals or ():
         if _get(s, "name") == name:
@@ -402,10 +432,15 @@ def assess(candidate: Any, *, signals: Optional[Sequence[Any]] = None,
         ))
 
     # --- Tipos incompatibles con la ontologia ----------------------------------
-    type_compat = _signal_value(signals, "type_compatibility")
-    both_types = (_get(candidate, "subject_type") is not None
-                  and _get(candidate, "object_type") is not None)
-    if both_types and isinstance(type_compat, list) and type_compat == []:
+    # FUENTE: `relations.ontology` (B1), que es la AUTORIDAD del programa y define
+    # dominio/rango POR PREDICADO. NO se usa `signals.type_compatibility`: esa
+    # senal se calcula sobre `TYPE_ONTOLOGY`, una ontologia deliberadamente MINIMA
+    # cuya propia documentacion dice "NO descarta la relacion; solo informa", y que
+    # ni siquiera contempla el par (Character, Character) -- justo el de los
+    # predicados familiares y sociales que B0 anadio en este programa. Tratar su
+    # lista vacia como "incompatible" bloqueaba 23 de 52 candidatos (44%) por una
+    # laguna de cobertura, no por una incompatibilidad real.
+    if _types_incompatible(candidate):
         reasons.append(DecisionReason(
             REASON_TYPE_INCOMPATIBLE,
             SEVERITY_BLOCKING if policy.veto_on_type_incompatible
@@ -417,16 +452,20 @@ def assess(candidate: Any, *, signals: Optional[Sequence[Any]] = None,
     ordered = tuple(sorted(reasons, key=lambda r: (r.code, r.source)))
     severities = {r.severity for r in ordered}
 
+    # `predicate_abstention_blocks_reject` es INDEPENDIENTE de
+    # `veto_on_predicate_abstention`: son dos decisiones distintas (una veta
+    # proponer, la otra veta rechazar) y acoplarlas hacia que desactivar el veto
+    # desactivara en silencio tambien la guarda contra rechazos infundados.
     blocked_by_predicate = (
-        predicate_abstained
-        and policy.veto_on_predicate_abstention
-        and policy.predicate_abstention_blocks_reject
+        predicate_abstained and policy.predicate_abstention_blocks_reject
     )
-    if blocked_by_predicate:
-        verdict = VERDICT_ABSTAIN
-    elif SEVERITY_REJECTING in severities:
+    rejecting = SEVERITY_REJECTING in severities
+    blocking = SEVERITY_BLOCKING in severities
+    if rejecting and not blocked_by_predicate:
         verdict = VERDICT_REJECT
-    elif SEVERITY_BLOCKING in severities:
+    elif rejecting or blocking:
+        # Un rechazo SUPRIMIDO por la guarda no se convierte en "todo bien": queda
+        # en abstencion (revision humana), que es lo honesto.
         verdict = VERDICT_ABSTAIN
     else:
         verdict = VERDICT_NEUTRAL

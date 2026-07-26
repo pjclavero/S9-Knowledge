@@ -357,3 +357,98 @@ decisión en el carril del dictamen (+0.0698) y **la empeora en el carril del en
 (−0.0930)**, con la métrica de control (falsos ACCEPT) a 0 en ambos.
 
 **No me autoapruebo:** el dictamen lo emiten el revisor independiente y el supervisor.
+
+---
+
+## 9. Auditoría independiente y corrección supervisada
+
+El revisor independiente emitió **`DICTAMEN DEL REVISOR: CONFORME`** sobre `f601a47`,
+verificando por su cuenta: la garantía de seguridad central con un barrido adversarial
+propio de **38.808 combinaciones** (estados × recomendaciones × veredictos × 241
+conjuntos de motivos) **sin un solo contraejemplo**; que el banco no está amañado
+(`report.py`/`matching.py`/`review_policy.py`/corpus a diferencia cero, y las 44 líneas
+de `runner.py` solo propagan un kwarg); y que **todas** las cifras publicadas —incluida
+la negativa— se reproducen al dígito.
+
+Pero **condicionó el visto bueno** a medir por separado la contribución de los tres
+vetos bloqueantes activados por defecto, y encontró 3 mutantes supervivientes.
+
+### 9.1. Ablación de vetos (supervisor) — lo que exigía el revisor
+
+Medida inyectando cada `AbstentionPolicy` en el banco completo
+(`tmp/b6_ablacion.py`; sin red, sin proveedores, sin escritura):
+
+| Regla | Contribución medida | Decisión |
+|---|---|---|
+| `reject_on_negation` | **+0.093** en ambos carriles; sin ella vuelven 2 falsos ACCEPT | **Activada** — es la que compra la seguridad |
+| `veto_on_epistemic` | **+0.047** en ambos carriles | **Activada** |
+| `veto_on_predicate_abstention` | **−0.093** en ambos carriles | **Activada pese al coste**: es el objetivo de coherencia declarado del bloque (no proponer lo que el propio selector declara dudoso). Se documenta el precio en vez de ocultarlo |
+| `veto_on_temporal_not_in_force` | **0.000** — no dispara ni una vez en el corpus B1 | **Activada pero NO MEDIBLE aquí**. No se afirma que aporte nada |
+| `veto_on_type_incompatible` | Ver §9.2 | **Activada tras corregir su fuente** |
+
+### 9.2. DEFECTO DE FONDO encontrado por el supervisor: el veto de tipos usaba la ontología equivocada
+
+`assess` juzgaba la compatibilidad de tipos con `signals.type_compatibility`, calculada
+sobre `TYPE_ONTOLOGY` (`signals.py`) — una ontología **deliberadamente mínima** cuya
+propia documentación dice literalmente *"NO descarta la relación; solo informa"*, y que
+**no contempla el par `(Character, Character)`**: justo el de los predicados familiares
+y sociales (`SIBLING_OF`, `PARENT_OF`, `MARRIED_TO`, `MENTOR_OF`, `ALLIED_WITH`) que
+**B0 añadió en este mismo programa**. Tratar su lista vacía como "incompatible" convertía
+una **laguna de cobertura** en un veto bloqueante.
+
+Medido: disparaba en **23 de 52 candidatos (44%)**, entre ellos 9 pares
+`(Character, Character)`. Era la causa **íntegra** del resultado negativo en el carril
+del ensemble.
+
+**Corrección:** el veto consulta ahora `relations.ontology` (B1), la fuente autoritativa
+del programa, que define dominio/rango **por predicado**. Solo veta cuando hay una
+contradicción **demostrable**; predicado desconocido, tipos ausentes o dominio/rango sin
+declarar → **no se veta** ("no consta" no es "incompatible"). Tras la corrección dispara
+en **10 de 52**, y son violaciones reales de dirección:
+`MEMBER_OF (Faction→Character)` ×3, `PARTICIPATED_IN (Event→Faction)` ×2,
+`OWNS (Object→Character)`, `GUARDS (Object→Location)`, `CREATED (Object→Faction)`…
+
+### 9.3. Otras correcciones
+
+| Hallazgo | Corrección |
+|---|---|
+| **N4 (mutante superviviente)**: `predicate_abstention_blocks_reject` estaba **acoplado** a `veto_on_predicate_abstention`, de modo que desactivar el veto de proponer desactivaba **en silencio** la guarda contra rechazos infundados | Desacoplados. Un rechazo suprimido por la guarda queda en **abstención**, no en "todo bien". Test nuevo que muere con el acoplamiento |
+| **N14**: el veto de tipos no tenía cobertura por el camino real | Cubierto con 5 aserciones, incluida la de que la señal informativa **no puede vetar por sí sola** |
+| Versiones de esquema sin subir pese a cambiar el payload | `relation-consensus-1.1.0`, `relation-ensemble-1.1.0` |
+| `deterministic=False` **espurio y silencioso** con `consensus_policy` override (y `report.py` congelado, no se puede corregir ahí) | `run_benchmark` emite ahora un `RuntimeWarning` explícito: la trampa deja de ser silenciosa |
+| Docstring afirmaba "nunca eleva el estado", falso para `HUMAN_REQUIRED → PARTIAL_CONSENSUS` | Corregido en la redacción (el código es correcto e inocuo) |
+
+### 9.4. A/B DEFINITIVO tras la corrección
+
+Base = `a9f5121` (pre-B6) con **el mismo selector v2**, medida en worktree de solo
+lectura ya eliminado:
+
+| Carril | base `a9f5121` | B6 corregido | Δ | falsos ACCEPT | rechazos falsos |
+|---|--:|--:|--:|:--:|:--:|
+| `baseline1` (dictamen) | 0.3023 | **0.3488** | **+0.0465** | **3 → 0** | 0 |
+| `ensemble_offline` | 0.4651 | **0.4651** | **+0.0000** | **3 → 0** | 0 |
+
+**El resultado negativo desaparece.** Antes de la corrección el carril del ensemble caía
+−0.0930; ahora es **neutro**, y en ambos carriles los falsos ACCEPT bajan a 0 sin
+producir ni un solo rechazo falso. El resto de métricas sigue intacto
+(predicado 0.8140, dirección 0.9302, temporal 0.8837, strict_F1 0.6604, evidencia
+0.9302, pair_F1 0.8113, `deterministic=True` en los cuatro runs).
+
+Honestidad sobre el coste: el `+0.0698` que reportó el editor en `baseline1` baja a
+`+0.0465`, porque el veto de tipos corregido sí abstiene —con razón— en 10 candidatos
+con tipos contradictorios. Se prefiere el número más bajo y correcto al más alto y
+apoyado en una laguna.
+
+Suite: **1638 passed, 2 skipped**. Umbrales, arnés de medición y ground truth con
+diferencia **cero**.
+
+### 9.5. Lo que sigue ABIERTO
+
+- **La precisión real de la señal que dispara el rechazo es 4/9 (44%)**. De los 9
+  candidatos con `negated=True` predicho, solo 4 lo son en el ground truth. Hoy los 5
+  falsos positivos los absorbe la guarda de `MODEL_CONFLICT`, lo que el editor calificó
+  —con razón— de **"suerte, no garantía"**. El revisor exige, y el supervisor asume,
+  **no promocionar el camino de rechazo** más allá del modo sombra hasta que la
+  detección de negación mejore.
+- `veto_on_temporal_not_in_force` sigue **sin poder medirse** en este corpus.
+- n=54 con dev==test: **todo lo anterior es EN-CORPUS**, no una estimación de producción.

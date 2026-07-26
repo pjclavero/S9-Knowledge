@@ -103,7 +103,7 @@ from relations.pipeline import (
     _canonical,
 )
 
-ENSEMBLE_VERSION = "relation-ensemble-1.0.0"
+ENSEMBLE_VERSION = "relation-ensemble-1.1.0"  # B6: +consensus_policy, +decision_reasons
 ENSEMBLE_SCHEMA = "relation-ensemble/v1"
 
 

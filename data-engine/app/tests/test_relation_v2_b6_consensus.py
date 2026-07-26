@@ -237,13 +237,64 @@ def test_direction_low_confidence_is_informative_by_default():
 
 
 def test_type_incompatibility_blocks():
-    a = A.assess(_cand(), signals=_structural_signals(type_compatibility=()))
+    """La incompatibilidad se juzga contra la ontologia B1 (dominio/rango).
+
+    NO contra `signals.type_compatibility`: esa senal se calcula sobre una
+    ontologia deliberadamente MINIMA que declara "NO descarta la relacion; solo
+    informa" y que ni siquiera contempla (Character, Character). Usarla como veto
+    bloqueaba 23/52 candidatos por una laguna de cobertura.
+    """
+    # MEMBER_OF invertido: una faccion no es miembro de un personaje.
+    a = A.assess(_cand(subject_type="Faction", object_type="Character"),
+                 signals=_structural_signals())
     assert a.verdict == A.VERDICT_ABSTAIN
     assert A.REASON_TYPE_INCOMPATIBLE in _codes(a, A.SEVERITY_BLOCKING)
+
     # Sin tipos conocidos NO se puede afirmar incompatibilidad.
     b = A.assess(_cand(subject_type=None, object_type=None),
-                 signals=_structural_signals(type_compatibility=()))
+                 signals=_structural_signals())
     assert A.REASON_TYPE_INCOMPATIBLE not in _codes(b)
+
+    # Predicado fuera de la ontologia: "no consta" NO es "incompatible".
+    c = A.assess(_cand(predicate="PREDICADO_INVENTADO_QUE_NO_EXISTE"),
+                 signals=_structural_signals())
+    assert A.REASON_TYPE_INCOMPATIBLE not in _codes(c)
+
+    # La senal informativa NO puede, por si sola, vetar nada.
+    d = A.assess(_cand(), signals=_structural_signals(type_compatibility=()))
+    assert A.REASON_TYPE_INCOMPATIBLE not in _codes(d)
+    assert d.verdict == A.VERDICT_NEUTRAL
+
+    # Character -> Character es LEGITIMO para los predicados familiares que
+    # anadio B0; la ontologia minima de signals.py no los contempla.
+    e = A.assess(_cand(predicate="SIBLING_OF", subject_type="Character",
+                       object_type="Character"), signals=_structural_signals())
+    assert A.REASON_TYPE_INCOMPATIBLE not in _codes(e)
+
+
+def test_veto_de_prediccion_y_guarda_de_rechazo_son_independientes():
+    """N4: desacoplar `veto_on_predicate_abstention` de la guarda de rechazo.
+
+    Acoplarlas hacia que desactivar el veto de proponer desactivara EN SILENCIO
+    la guarda que impide rechazar lo que el motor no sabe formular.
+    """
+    sin_veto = A.AbstentionPolicy(veto_on_predicate_abstention=False)
+    cand = _cand(negated=True,
+                 validation_flags=["dry_run", REVIEW_PREDICATE_FLAG])
+    # Aun sin veto de proposicion, la guarda sigue impidiendo el rechazo.
+    a = A.assess(cand, signals=_structural_signals(), policy=sin_veto)
+    assert a.verdict == A.VERDICT_ABSTAIN
+
+    # Y si se desactiva la guarda explicitamente, entonces si se rechaza.
+    sin_guarda = A.AbstentionPolicy(veto_on_predicate_abstention=False,
+                                    predicate_abstention_blocks_reject=False)
+    b = A.assess(cand, signals=_structural_signals(), policy=sin_guarda)
+    assert b.verdict == A.VERDICT_REJECT
+
+    # Sin negacion y sin veto, la abstencion del predicado es solo INFORMATIVA.
+    c = A.assess(_cand(validation_flags=["dry_run", REVIEW_PREDICATE_FLAG]),
+                 signals=_structural_signals(), policy=sin_veto)
+    assert c.verdict == A.VERDICT_NEUTRAL
 
 
 def test_clean_candidate_has_no_blocking_reason():
