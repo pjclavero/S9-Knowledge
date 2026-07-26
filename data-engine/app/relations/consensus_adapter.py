@@ -62,6 +62,11 @@ from external_ai.models import (
 #     traduce senales YA CALCULADAS en motivos estructurados y SOLO DEGRADA. -----
 from relations import abstention as _abstention
 
+# --- IA externa como CONSULTOR (Bloque 7). Puerta unica que SOLO degrada: techo de
+#     estado (nunca STRONG_CONSENSUS con externa presente) y disenso que como mucho
+#     manda a revision humana. Nunca aprueba, nunca escribe, nunca eleva. ----------
+from relations import external_consult as _consult
+
 # --- Contrato de la relacion (solo lectura/validacion sobre una COPIA) -------
 from relations.contracts import (
     EpistemicStatus,
@@ -70,7 +75,7 @@ from relations.contracts import (
     RelationContractError,
 )
 
-MODULE_VERSION = "relation-consensus-1.1.0"  # B6: +policy, +decision_reasons
+MODULE_VERSION = "relation-consensus-1.2.0"  # B7: +external_consultation (techo externo)
 
 # Politicas de consenso (Bloque 6). "v1" = comportamiento HISTORICO INTACTO (es el
 # DEFAULT: ninguna llamada existente cambia de resultado). "v2" = ademas consume las
@@ -150,6 +155,10 @@ class RelationConsensus:
     #: Motivos ESTRUCTURADOS de abstencion/rechazo (`abstention.DecisionReason`
     #: serializados). Vacio con la politica v1.
     decision_reasons: list = field(default_factory=list)
+    # --- Bloque 7 (aditivo; None sin fuente externa y con la politica v1) ---------
+    #: Consulta externa YA VALIDADA localmente (`external_consult.ExternalConsultation`
+    #: serializada). Es TRAZA: la decision no la lee, la produce `apply_consultation`.
+    external_consultation: Optional[dict] = None
 
     def __post_init__(self) -> None:
         # Barreras duras (defensa en profundidad).
@@ -284,12 +293,13 @@ def compute_relation_consensus(
     if policy == POLICY_V1:
         return base
     return _apply_policy_v2(base, candidate, signals=signals,
-                            abstention_policy=abstention_policy)
+                            abstention_policy=abstention_policy, external=external)
 
 
 def _apply_policy_v2(base: RelationConsensus, candidate: Any, *,
                      signals: Optional[Sequence[Any]] = None,
-                     abstention_policy: Any = None) -> RelationConsensus:
+                     abstention_policy: Any = None,
+                     external: Optional[Any] = None) -> RelationConsensus:
     """Aplica la abstencion/rechazo del Bloque 6 SOBRE un consenso v1 ya emitido.
 
     No recalcula ninguna fuente ni toca ningun umbral: traduce senales ya
@@ -311,6 +321,23 @@ def _apply_policy_v2(base: RelationConsensus, candidate: Any, *,
     reason = base.reason
     if changed:
         reason = f"{base.reason} [B6] {_abstention.summarize(assessment)}"
+
+    # --- Bloque 7: la IA externa como CONSULTOR, nunca autoridad ---------------
+    # Se aplica DESPUES de B6 a proposito: la puerta externa solo recibe un estado ya
+    # degradado por las senales locales y solo puede degradarlo mas. Asi ninguna
+    # consulta externa puede revertir una abstencion local. Ausente => no cambia nada.
+    consultation = _consult.consultation_from_evaluation(external)
+    ext_state, ext_reco = _consult.apply_consultation(
+        state, recommendation, consultation,
+        human_recommendation=RECO_HUMAN,
+        propose_recommendation=RECO_PROPOSE,
+    )
+    if (ext_state, ext_reco) != (state, recommendation):
+        reason = f"{reason} [B7] {_consult.summarize(consultation)}"
+    state, recommendation = ext_state, ext_reco
+    if consultation is not None:
+        reason_codes = sorted(set(reason_codes) | set(consultation.reason_codes))
+
     return replace(
         base,
         state=state,
@@ -319,6 +346,7 @@ def _apply_policy_v2(base: RelationConsensus, candidate: Any, *,
         reason=reason,
         policy=POLICY_V2,
         decision_reasons=[r.to_dict() for r in assessment.reasons],
+        external_consultation=consultation.to_dict() if consultation is not None else None,
     )
 
 

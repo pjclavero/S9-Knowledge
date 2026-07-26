@@ -171,6 +171,13 @@ class PipelineConfig:
     # selector (uso de laboratorio: comparar plumbing vs efecto).
     consensus_policy: str = "auto"
 
+    # Protocolo de consulta a la IA externa (B7). "legacy" (DEFAULT) = contrato
+    # clasico: el modelo devuelve la cita y los offsets. "fragments" = el sistema
+    # fragmenta el documento con ids estables, el modelo solo ELIGE ids y el sistema
+    # reconstruye los offsets (literalidad POR CONSTRUCCION). Offline es inerte: sin
+    # proveedor inyectado el carril externo no se ejecuta.
+    external_protocol: str = "legacy"
+
     def to_dict(self) -> dict:
         return {
             "max_segments_per_doc": self.max_segments_per_doc,
@@ -193,6 +200,7 @@ class PipelineConfig:
             "prompt_suite": self.prompt_suite,
             "predicate_selector": self.predicate_selector,
             "consensus_policy": self.consensus_policy,
+            "external_protocol": self.external_protocol,
         }
 
 
@@ -516,8 +524,15 @@ def _run_local(cand: RelationCandidate, pair: CandidatePair, seg_text: str, conf
         return None, PROVIDER_FAILED_CLOSED
 
 
-def _run_external(cand: RelationCandidate, config: PipelineConfig, ctx: "_RunContext") -> tuple[Optional[Any], str]:
-    """Ejecuta la IA externa en sombra si esta habilitada. Devuelve (evaluacion, estado)."""
+def _run_external(cand: RelationCandidate, seg_text: str, config: PipelineConfig,
+                  ctx: "_RunContext") -> tuple[Optional[Any], str]:
+    """Ejecuta la IA externa en sombra si esta habilitada. Devuelve (evaluacion, estado).
+
+    BLOQUE 7 (defecto P0): se pasa `seg_text`, el TEXTO REAL del segmento. Antes no se
+    pasaba nada y el evaluador caia a `cand.source_segment`, que es el IDENTIFICADOR
+    del segmento (`pairs.py`: `source_segment=seg["id"]`): el modelo recibia `"seg-1"`
+    como DOCUMENTO y su evidencia se validaba contra `"seg-1"`. Rechazo garantizado.
+    """
     if not config.external_ai_enabled:
         return None, PROVIDER_NOT_EXECUTED
     from relations.external_ai_shadow import (
@@ -531,9 +546,10 @@ def _run_external(cand: RelationCandidate, config: PipelineConfig, ctx: "_RunCon
         suite=config.prompt_suite,
         shadow_mode=True,
         provider=ctx.external_provider,   # None => registry (sin key => fallo cerrado)
+        protocol=config.external_protocol,
     )
     try:
-        evals = evaluate_relation_external(cand, config=ext_cfg)
+        evals = evaluate_relation_external(cand, config=ext_cfg, document=seg_text)
         return (evals[0] if evals else None), PROVIDER_EXECUTED
     except Exception:  # noqa: BLE001 - aislado; ausencia/fallo != rechazo
         return None, PROVIDER_FAILED_CLOSED
@@ -757,7 +773,7 @@ def _process_pair(
 
     # --- proveedores en sombra (opcionales) ---
     local_rec, local_status = _run_local(candidate, pair, seg_text, config, ctx)
-    external_eval, external_status = _run_external(candidate, config, ctx)
+    external_eval, external_status = _run_external(candidate, seg_text, config, ctx)
     if local_status == PROVIDER_EXECUTED:
         summary["local_calls_simulated"] += 1
     if external_status == PROVIDER_EXECUTED:

@@ -54,6 +54,9 @@ from external_ai.models import (
 
 # --- Combinador canonico en el que este modulo DELEGA ------------------------
 from relations import abstention as _abstention
+
+# --- IA externa como CONSULTOR (Bloque 7): puerta unica que SOLO degrada ---------
+from relations import external_consult as _consult
 from relations.consensus_adapter import (
     CONSENSUS_POLICIES,
     MODULE_VERSION as CONSENSUS_VERSION,
@@ -103,7 +106,7 @@ from relations.pipeline import (
     _canonical,
 )
 
-ENSEMBLE_VERSION = "relation-ensemble-1.1.0"  # B6: +consensus_policy, +decision_reasons
+ENSEMBLE_VERSION = "relation-ensemble-1.2.0"  # B7: +external_consultation (techo externo)
 ENSEMBLE_SCHEMA = "relation-ensemble/v1"
 
 
@@ -391,6 +394,9 @@ class EnsembleDecision:
     consensus_policy: str = POLICY_V1
     #: Motivos ESTRUCTURADOS de abstencion/rechazo. Vacio con la politica v1.
     decision_reasons: tuple = field(default_factory=tuple)
+    # --- Bloque 7 (aditivo) ---------------------------------------------------
+    #: Consulta externa ya validada localmente. TRAZA: la decision no la lee.
+    external_consultation: Optional[dict] = None
 
     def __post_init__(self) -> None:
         # BARRERA (a): modo sombra obligatorio.
@@ -428,6 +434,8 @@ class EnsembleDecision:
             "shadow": self.shadow,
             "consensus_policy": self.consensus_policy,
             "decision_reasons": [dict(r) for r in self.decision_reasons],
+            "external_consultation": (dict(self.external_consultation)
+                                      if self.external_consultation else None),
         }
 
     def to_json(self) -> str:
@@ -925,6 +933,24 @@ def combine(
             reason = f"{reason} [B6] {_abstention.summarize(assessment)}"
         state, recommendation = new_state, new_reco
 
+    # -- (5) B7: la IA externa como CONSULTOR (SOLO DEGRADA) -------------------
+    # Se aplica DESPUES de los umbrales Y DESPUES de B6: ninguna recalibracion de
+    # pesos, y ninguna consulta externa, puede revertir una degradacion local. El
+    # techo de estado (`EXTERNAL_MAX_STATE`) hace que con la externa presente sea
+    # imposible quedar en STRONG_CONSENSUS, que es lo que `review_policy` exige para
+    # AUTO_PROPOSABLE: la auto-proposicion por via externa queda cerrada.
+    consultation = None
+    if consensus_policy == POLICY_V2:
+        consultation = _consult.consultation_from_evaluation(external)
+        ext_state, ext_reco = _consult.apply_consultation(
+            state, recommendation, consultation,
+            human_recommendation=RECO_HUMAN,
+            propose_recommendation=RECO_PROPOSE,
+        )
+        if (ext_state, ext_reco) != (state, recommendation):
+            reason = f"{reason} [B7] {_consult.summarize(consultation)}"
+        state, recommendation = ext_state, ext_reco
+
     return EnsembleDecision(
         state=state,
         recommendation=recommendation,
@@ -941,6 +967,8 @@ def combine(
         reason=reason,
         consensus_policy=consensus_policy,
         decision_reasons=decision_reasons,
+        external_consultation=(consultation.to_dict() if consultation is not None
+                               else None),
     )
 
 
