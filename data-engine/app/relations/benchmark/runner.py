@@ -369,7 +369,8 @@ def segment_context(output: dict) -> dict:
     return index
 
 
-def extract_predictions_ensemble(output: dict, ensemble_config: Any = None) -> list[dict]:
+def extract_predictions_ensemble(output: dict, ensemble_config: Any = None,
+                                 consensus_policy: Optional[str] = None) -> list[dict]:
     """Predicciones planas con el consenso RECALIBRADO por `relations.ensemble`.
 
     Mismo esquema que `extract_predictions` (que NO se modifica), pero
@@ -384,6 +385,16 @@ def extract_predictions_ensemble(output: dict, ensemble_config: Any = None) -> l
     kwargs = {}
     if ensemble_config is not None:
         kwargs["config"] = ensemble_config
+    # B6: la politica de consenso es la MISMA que resolvio el pipeline para este
+    # `output` (viaja en su config), de modo que el carril del ensemble no puede
+    # divergir del carril base por descuido. Si no consta, se conserva el default
+    # historico (v1).
+    if consensus_policy is None and output.get("config"):
+        consensus_policy = _r8_pipeline.resolve_consensus_policy(
+            _r8_pipeline.config_from_dict(dict(output["config"]))
+        )
+    if consensus_policy is not None:
+        kwargs["consensus_policy"] = consensus_policy
 
     ctx = segment_context(output)
     preds: list[dict] = []
@@ -840,7 +851,8 @@ def check_provider_transport_health(
 
 
 def _config_for_mode(mode: str, external_model: Optional[str] = None,
-                     predicate_selector: Optional[str] = None) -> PipelineConfig:
+                     predicate_selector: Optional[str] = None,
+                     consensus_policy: Optional[str] = None) -> PipelineConfig:
     preset = mode_preset(mode)
     base = {"local_llm_enabled": False, "external_ai_enabled": False}
     base.update(preset)
@@ -857,6 +869,15 @@ def _config_for_mode(mode: str, external_model: Optional[str] = None,
     # iteran MODES cambian su conjunto) y solo aplica cuando el llamante lo pide.
     if predicate_selector is not None and str(predicate_selector).strip():
         base["predicate_selector"] = str(predicate_selector).strip()
+    # B6 -- politica de consenso. `None` conserva el default de PipelineConfig
+    # ("auto" = la politica del motor seleccionado; con selector v1 eso es el
+    # consenso v1 HISTORICO). Es un override de LABORATORIO: la segunda pasada de
+    # determinismo (`report.determinism_report`, fuera del alcance de B6) NO
+    # reenvia este override, asi que forzarlo explicitamente exige desactivar la
+    # comprobacion de determinismo. Con el default "auto" no hay divergencia
+    # posible: la segunda pasada lo resuelve igual desde el selector.
+    if consensus_policy is not None and str(consensus_policy).strip():
+        base["consensus_policy"] = str(consensus_policy).strip()
     return PipelineConfig(**base)
 
 
@@ -865,7 +886,8 @@ def run_source(corpus: Corpus, source_id: str, *, mode: str = DEFAULT_MODE,
                ensemble_config: Any = None,
                enable_providers: bool = False,
                external_model: Optional[str] = None,
-               predicate_selector: Optional[str] = None) -> SourceRun:
+               predicate_selector: Optional[str] = None,
+               consensus_policy: Optional[str] = None) -> SourceRun:
     """Ejecuta el pipeline REAL sobre una fuente.
 
     Proveedores SIEMPRE off salvo que el llamante inyecte explicitamente
@@ -883,7 +905,8 @@ def run_source(corpus: Corpus, source_id: str, *, mode: str = DEFAULT_MODE,
     entities, notes = derive_entities(source_id, text, corpus.relations)
     payload = build_payload(source_id, text, workspace, entities)
     config = _config_for_mode(mode, external_model=external_model,
-                              predicate_selector=predicate_selector)
+                              predicate_selector=predicate_selector,
+                              consensus_policy=consensus_policy)
 
     t0 = time.perf_counter()
     # Sin inyeccion (caso por defecto) => jamas red, jamas Ollama/NVIDIA.
@@ -893,7 +916,9 @@ def run_source(corpus: Corpus, source_id: str, *, mode: str = DEFAULT_MODE,
     elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
     if uses_ensemble(mode):
-        preds = extract_predictions_ensemble(output, ensemble_config=ensemble_config)
+        preds = extract_predictions_ensemble(
+            output, ensemble_config=ensemble_config,
+            consensus_policy=_r8_pipeline.resolve_consensus_policy(config))
     else:
         preds = extract_predictions(output)
     return SourceRun(
@@ -1012,7 +1037,8 @@ def run_benchmark(corpus: Corpus, *, mode: str = DEFAULT_MODE,
                   provider_endpoints: Optional[dict] = None,
                   max_run_seconds: Optional[float] = None,
                   external_model: Optional[str] = None,
-                  predicate_selector: Optional[str] = None) -> BenchmarkRun:
+                  predicate_selector: Optional[str] = None,
+                  consensus_policy: Optional[str] = None) -> BenchmarkRun:
     """Ejecuta el pipeline REAL sobre el corpus (o una submuestra), determinista.
 
     La llave de proveedores se comprueba AQUI, en el nucleo, antes de construir
@@ -1053,7 +1079,8 @@ def run_benchmark(corpus: Corpus, *, mode: str = DEFAULT_MODE,
                         ensemble_config=ensemble_config,
                         enable_providers=enable_providers,
                         external_model=external_model,
-                        predicate_selector=predicate_selector)
+                        predicate_selector=predicate_selector,
+                        consensus_policy=consensus_policy)
         source_runs.append(sr)
         if not versions:
             versions = dict(sr.output["versions"])
@@ -1075,7 +1102,8 @@ def run_benchmark(corpus: Corpus, *, mode: str = DEFAULT_MODE,
     return BenchmarkRun(
         mode=mode,
         config=_config_for_mode(mode, external_model=external_model,
-                                predicate_selector=predicate_selector).to_dict(),
+                                predicate_selector=predicate_selector,
+                                consensus_policy=consensus_policy).to_dict(),
         versions=versions,
         source_runs=source_runs,
         corpus_hashes=dict(corpus.corpus_hashes),

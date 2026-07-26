@@ -43,6 +43,8 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable, Optional
 
 # --- Componentes reutilizados (NO se reimplementa nada) --------------------
+from relations import abstention as _abstention
+from relations import consensus_adapter as _consensus
 from relations.consensus_adapter import (
     MODULE_VERSION as CONSENSUS_VERSION,
     compute_relation_consensus,
@@ -161,6 +163,14 @@ class PipelineConfig:
     # estructurado por reglas+ontologia (`relations.predicate_selector`).
     predicate_selector: str = "v1"
 
+    # Politica de consenso (B6). "auto" (DEFAULT) = la del motor seleccionado: con
+    # `predicate_selector="v1"` se usa el consenso v1 HISTORICO (comportamiento base
+    # INTACTO), y con "v2" se usa el consenso v2, que consume las senales del motor
+    # v2 (abstencion de predicado, confianza de direccion, vigencia, epistemico,
+    # negacion). "v1"/"v2" fuerzan una politica concreta con independencia del
+    # selector (uso de laboratorio: comparar plumbing vs efecto).
+    consensus_policy: str = "auto"
+
     def to_dict(self) -> dict:
         return {
             "max_segments_per_doc": self.max_segments_per_doc,
@@ -182,6 +192,7 @@ class PipelineConfig:
             "external_provider_name": self.external_provider_name,
             "prompt_suite": self.prompt_suite,
             "predicate_selector": self.predicate_selector,
+            "consensus_policy": self.consensus_policy,
         }
 
 
@@ -193,6 +204,24 @@ _FORBIDDEN_CONFIG_KEYS = frozenset(
 )
 # Selectores de predicado validos (B2). Default "v1" = comportamiento base.
 _VALID_PREDICATE_SELECTORS = frozenset({"v1", "v2"})
+# Politicas de consenso validas (B6). Default "auto" = la del motor seleccionado.
+_VALID_CONSENSUS_POLICIES = frozenset({"auto", _consensus.POLICY_V1, _consensus.POLICY_V2})
+
+
+def resolve_consensus_policy(config: "PipelineConfig") -> str:
+    """Politica de consenso EFECTIVA de una config (funcion pura y explicita).
+
+    `"auto"` (default) sigue al motor: selector v2 -> consenso v2; selector v1 ->
+    consenso v1 (comportamiento historico INTACTO). Cualquier otro valor es un
+    override explicito. Se expone como funcion para poder testearla y para que el
+    arnes la resuelva EXACTAMENTE igual que el pipeline.
+    """
+    policy = getattr(config, "consensus_policy", "auto")
+    if policy == "auto":
+        return (_consensus.POLICY_V2
+                if getattr(config, "predicate_selector", "v1") == "v2"
+                else _consensus.POLICY_V1)
+    return policy
 
 
 def config_from_dict(data: Optional[dict]) -> PipelineConfig:
@@ -211,6 +240,12 @@ def config_from_dict(data: Optional[dict]) -> PipelineConfig:
         raise PipelineError(
             f"predicate_selector invalido: {selector!r}; validos: "
             f"{sorted(_VALID_PREDICATE_SELECTORS)}"
+        )
+    policy = data.get("consensus_policy", "auto")
+    if policy not in _VALID_CONSENSUS_POLICIES:
+        raise PipelineError(
+            f"consensus_policy invalida: {policy!r}; validas: "
+            f"{sorted(_VALID_CONSENSUS_POLICIES)}"
         )
     return PipelineConfig(**data)
 
@@ -376,10 +411,19 @@ def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace
         # gramatical, pasiva+agente, expresion inversa/activa de la ontologia,
         # simetria y orden textual (fallback). Sustituye a `_direction_for`, que
         # solo daba la direccion POR DEFECTO del predicado (nunca OBJECT_TO_SUBJECT).
-        direction = _direction.direction_for_pair(
-            predicate, pair, seg_text, syntax=syntax_analysis).direction
+        resolved_direction = _direction.direction_for_pair(
+            predicate, pair, seg_text, syntax=syntax_analysis)
+        direction = resolved_direction.direction
         if selection.abstained:
             flags.append(_predicate_selector.REVIEW_PREDICATE_FLAG)
+        # B6: la CONFIANZA de la direccion (B3) se perdia por completo (solo se
+        # consumia `.direction`). Se marca el candidato cuando la direccion sale de
+        # un fallback debil (orden textual / predicado sin direccion semantica) para
+        # que el consenso pueda REGISTRAR la senal. Es un flag INFORMATIVO: la
+        # politica de abstencion por defecto NO veta por el (medido: acierta la
+        # direccion en 18 de las 21 veces que dispara en el banco B1).
+        if resolved_direction.confidence < _direction.LOW_CONFIDENCE_THRESHOLD:
+            flags.append(_direction.REVIEW_DIRECTION_FLAG)
     else:
         predicate = _choose_predicate(sigmap, pair)
         direction = _DIR_BY_PRED.get(predicate, Direction.UNDIRECTED)
@@ -730,6 +774,7 @@ def _process_pair(
         syntax=syntax_analysis,
         local=local_rec,
         external=external_eval,
+        policy=resolve_consensus_policy(config),
     )
     counter = _STATE_COUNTER.get(consensus.state)
     if counter:
@@ -839,6 +884,9 @@ def run_pipeline(
         "signals": SIGNALS_VERSION,
         "syntax": SYNTAX_VERSION,
         "consensus": CONSENSUS_VERSION,
+        # B6: version del modulo de abstencion/rechazo justificado. Es ADITIVO: no
+        # sustituye a `consensus` (el combinador sigue siendo el mismo modulo).
+        "abstention": _abstention.ABSTENTION_VERSION,
         "prompts": relation_prompts.PROMPT_SUITE_VERSION,
         "template": relation_prompts.TEMPLATE_VERSION,
     }

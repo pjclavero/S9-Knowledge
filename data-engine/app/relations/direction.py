@@ -55,6 +55,14 @@ GENERIC_PREDICATE = "RELATED_TO"
 # Confianzas ordinales por senal (no son probabilidades calibradas).
 CONF_SYMMETRIC = 0.9
 CONF_PASSIVE_AGENT = 0.85
+# --- B6: umbral por debajo del cual la direccion se considera NO CORROBORADA ---
+# No es un umbral de decision (no aprueba ni rechaza nada): marca el candidato para
+# que el consenso pueda registrar la senal. Queda POR ENCIMA de CONF_TEXTUAL (0.5) y
+# CONF_GENERIC (0.5) y POR DEBAJO de CONF_ACTIVE_EXPR (0.7): solo los fallbacks
+# debiles (orden textual, predicado sin direccion semantica) quedan marcados.
+LOW_CONFIDENCE_THRESHOLD = 0.7
+#: Flag de validacion que emite el pipeline cuando la confianza queda por debajo.
+REVIEW_DIRECTION_FLAG = "review_direction"
 CONF_INVERSE_EXPR = 0.8
 CONF_GRAMMATICAL = 0.75
 CONF_ACTIVE_EXPR = 0.7
@@ -369,6 +377,8 @@ def direction_for_pair(predicate: str, pair: Any, seg_text: str,
 __all__ = [
     "DIRECTION_VERSION",
     "GENERIC_PREDICATE",
+    "LOW_CONFIDENCE_THRESHOLD",
+    "REVIEW_DIRECTION_FLAG",
     "DirectionResult",
     "resolve_direction",
     "direction_for_pair",
