@@ -2,9 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [ main, 'fix/**', 'feat/**', 'audit/**', 'docs/**', 'chore/**' ]
+    # 'exp/**' y 'work/**': ramas de programas experimentales multibloque. Sin
+    # ellas, un programa cuyos bloques se integran en una rama 'exp/...' pasaba
+    # su "puerta de CI" SIN QUE SE EJECUTARA UN SOLO JOB. Cambio ADITIVO: no se
+    # retira ninguna rama ni se relaja ninguna comprobacion.
+    branches: [ main, 'fix/**', 'feat/**', 'audit/**', 'docs/**', 'chore/**', 'exp/**', 'work/**' ]
   pull_request:
-    branches: [ main ]
+    # Los PR entre bloques apuntan a la rama de integracion, no a main; sin
+    # 'exp/**' aqui, esos PR tampoco disparaban CI.
+    branches: [ main, 'exp/**' ]
 
 jobs:
   test-data-engine:

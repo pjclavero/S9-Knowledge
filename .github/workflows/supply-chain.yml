@@ -2,9 +2,11 @@ name: Supply Chain Security
 
 on:
   push:
-    branches: [ main, 'fix/**', 'feat/**', 'audit/**', 'docs/**', 'chore/**' ]
+    # Mismo criterio que ci.yml: las ramas de programas experimentales tambien
+    # deben pasar el control de cadena de suministro. Cambio ADITIVO.
+    branches: [ main, 'fix/**', 'feat/**', 'audit/**', 'docs/**', 'chore/**', 'exp/**', 'work/**' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, 'exp/**' ]
   schedule:
     # Ejecucion semanal para detectar CVE nuevas sobre dependencias ya fijadas.
     - cron: '0 6 * * 1'
