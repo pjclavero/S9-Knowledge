@@ -45,7 +45,7 @@ Garantias (verificadas por los tests):
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from typing import Any, Optional, Sequence
 
 # --- Reutilizacion de la taxonomia canonica de consenso (NO se duplica) ------
@@ -58,6 +58,15 @@ from external_ai.models import (
     STRONG_CONSENSUS,
 )
 
+# --- Abstencion y rechazo justificados (Bloque 6). No define estados propios:
+#     traduce senales YA CALCULADAS en motivos estructurados y SOLO DEGRADA. -----
+from relations import abstention as _abstention
+
+# --- IA externa como CONSULTOR (Bloque 7). Puerta unica que SOLO degrada: techo de
+#     estado (nunca STRONG_CONSENSUS con externa presente) y disenso que como mucho
+#     manda a revision humana. Nunca aprueba, nunca escribe, nunca eleva. ----------
+from relations import external_consult as _consult
+
 # --- Contrato de la relacion (solo lectura/validacion sobre una COPIA) -------
 from relations.contracts import (
     EpistemicStatus,
@@ -66,7 +75,16 @@ from relations.contracts import (
     RelationContractError,
 )
 
-MODULE_VERSION = "relation-consensus-1.0.0"
+MODULE_VERSION = "relation-consensus-1.2.0"  # B7: +external_consultation (techo externo)
+
+# Politicas de consenso (Bloque 6). "v1" = comportamiento HISTORICO INTACTO (es el
+# DEFAULT: ninguna llamada existente cambia de resultado). "v2" = ademas consume las
+# senales del motor v2 (abstencion del selector de predicado, confianza de direccion,
+# estado de vigencia, estado epistemico, negacion) via `relations.abstention`, que
+# SOLO puede degradar la decision (propose -> human/reject), nunca mejorarla.
+POLICY_V1 = "v1"
+POLICY_V2 = "v2"
+CONSENSUS_POLICIES = (POLICY_V1, POLICY_V2)
 
 # Recomendaciones permitidas del adaptador. NINGUNA aprueba, escribe ni aplica.
 RECO_PROPOSE = "propose"   # sugerir la relacion (positiva) a humano/ensemble
@@ -131,6 +149,16 @@ class RelationConsensus:
     consensus_states_source: str = "external_ai.models.CONSENSUS_STATES"
     version: str = MODULE_VERSION
     shadow: bool = True
+    # --- Bloque 6 (aditivo; vacio y "v1" para el comportamiento historico) ------
+    #: Politica aplicada (`CONSENSUS_POLICIES`).
+    policy: str = POLICY_V1
+    #: Motivos ESTRUCTURADOS de abstencion/rechazo (`abstention.DecisionReason`
+    #: serializados). Vacio con la politica v1.
+    decision_reasons: list = field(default_factory=list)
+    # --- Bloque 7 (aditivo; None sin fuente externa y con la politica v1) ---------
+    #: Consulta externa YA VALIDADA localmente (`external_consult.ExternalConsultation`
+    #: serializada). Es TRAZA: la decision no la lee, la produce `apply_consultation`.
+    external_consultation: Optional[dict] = None
 
     def __post_init__(self) -> None:
         # Barreras duras (defensa en profundidad).
@@ -143,6 +171,10 @@ class RelationConsensus:
             )
         if self.recommendation.lower() in _FORBIDDEN_RECOMMENDATIONS:
             raise ValueError("recomendacion prohibida (aprobacion/escritura no permitida)")
+        if self.policy not in CONSENSUS_POLICIES:
+            raise ValueError(
+                f"policy {self.policy!r} no es valida (permitidas: {CONSENSUS_POLICIES})"
+            )
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -235,6 +267,134 @@ def _has_evidence(cand: RelationCandidate) -> bool:
 # Funcion principal
 # ---------------------------------------------------------------------------
 def compute_relation_consensus(
+    candidate: Any,
+    *,
+    signals: Optional[Sequence[Any]] = None,
+    syntax: Optional[Any] = None,
+    local: Optional[Any] = None,
+    external: Optional[Any] = None,
+    policy: str = POLICY_V1,
+    abstention_policy: Any = None,
+) -> RelationConsensus:
+    """Combina las fuentes de un candidato y emite el consenso (politica `policy`).
+
+    Que es exclusivo de cada politica (separacion FIJADA tras la auditoria de B7):
+
+      * `policy="v2"` -- **ABSTENCION de B6** (`relations.abstention`), que consume las
+        senales del motor v2 y SOLO PUEDE DEGRADAR la decision.
+      * AMBAS politicas -- **puerta externa de B7** (`external_consult`). El techo de
+        estado y la imposibilidad de que la externa fabrique `propose`/`reject` NO son
+        una caracteristica de v2: son una garantia de SEGURIDAD del motor, y una
+        garantia que solo rige con una bandera activada no es una garantia. Antes de
+        la correccion, `policy="v1"` (el DEFAULT) dejaba a la IA externa ser
+        CO-SUFICIENTE para `STRONG_CONSENSUS` y por tanto para `AUTO_PROPOSABLE`.
+
+    Neutralidad: la puerta B7 solo actua si hay `external` (una evaluacion externa
+    REAL). Sin externa `consultation_from_evaluation` devuelve `None` y
+    `apply_consultation` es la identidad, luego `policy="v1"` sin externa sigue siendo
+    el comportamiento HISTORICO byte a byte. Todos los modos offline del banco corren
+    con `external_ai_enabled=False`.
+    """
+    if policy not in CONSENSUS_POLICIES:
+        raise ValueError(
+            f"policy {policy!r} no es valida (permitidas: {CONSENSUS_POLICIES})"
+        )
+    base = _compute_consensus_v1(
+        candidate, signals=signals, syntax=syntax, local=local, external=external
+    )
+    if policy == POLICY_V1:
+        return _apply_external_gate(base, external=external)
+    return _apply_policy_v2(base, candidate, signals=signals,
+                            abstention_policy=abstention_policy, external=external)
+
+
+def _apply_external_gate(base: RelationConsensus, *,
+                         external: Optional[Any] = None) -> RelationConsensus:
+    """Aplica la puerta externa de B7 sobre un consenso ya emitido. SOLO DEGRADA.
+
+    Se usa en la ruta `policy="v1"`. Es la MISMA puerta que usa v2 (misma funcion
+    `external_consult.apply_consultation`), de modo que no existen dos techos que
+    puedan divergir.
+
+    Sin `external` no toca absolutamente nada (ni estado, ni recomendacion, ni
+    `reason`, ni `reason_codes`): devuelve el mismo objeto.
+    """
+    consultation = _consult.consultation_from_evaluation(external)
+    if consultation is None:
+        return base
+    state, recommendation = _consult.apply_consultation(
+        base.state, base.recommendation, consultation,
+        human_recommendation=RECO_HUMAN,
+        propose_recommendation=RECO_PROPOSE,
+    )
+    reason = base.reason
+    if (state, recommendation) != (base.state, base.recommendation):
+        reason = f"{base.reason} [B7] {_consult.summarize(consultation)}"
+    return replace(
+        base,
+        state=state,
+        recommendation=recommendation,
+        reason=reason,
+        reason_codes=sorted(set(base.reason_codes) | set(consultation.reason_codes)),
+        external_consultation=consultation.to_dict(),
+    )
+
+
+def _apply_policy_v2(base: RelationConsensus, candidate: Any, *,
+                     signals: Optional[Sequence[Any]] = None,
+                     abstention_policy: Any = None,
+                     external: Optional[Any] = None) -> RelationConsensus:
+    """Aplica la abstencion/rechazo del Bloque 6 SOBRE un consenso v1 ya emitido.
+
+    No recalcula ninguna fuente ni toca ningun umbral: traduce senales ya
+    calculadas en motivos estructurados y aplica `abstention.apply_verdict`, que
+    solo degrada. Los motivos se emiten SIEMPRE (aunque el veredicto sea NEUTRAL):
+    la abstencion tiene que ser INFORMATIVA, y para eso la traza debe existir
+    tambien cuando no cambia nada.
+    """
+    kwargs = {} if abstention_policy is None else {"policy": abstention_policy}
+    assessment = _abstention.assess(candidate, signals=signals, **kwargs)
+    state, recommendation = _abstention.apply_verdict(
+        base.state, base.recommendation, assessment,
+        reject_recommendation=RECO_REJECT,
+        human_recommendation=RECO_HUMAN,
+        propose_recommendation=RECO_PROPOSE,
+    )
+    changed = (state, recommendation) != (base.state, base.recommendation)
+    reason_codes = sorted(set(base.reason_codes) | set(assessment.codes))
+    reason = base.reason
+    if changed:
+        reason = f"{base.reason} [B6] {_abstention.summarize(assessment)}"
+
+    # --- Bloque 7: la IA externa como CONSULTOR, nunca autoridad ---------------
+    # Se aplica DESPUES de B6 a proposito: la puerta externa solo recibe un estado ya
+    # degradado por las senales locales y solo puede degradarlo mas. Asi ninguna
+    # consulta externa puede revertir una abstencion local. Ausente => no cambia nada.
+    consultation = _consult.consultation_from_evaluation(external)
+    ext_state, ext_reco = _consult.apply_consultation(
+        state, recommendation, consultation,
+        human_recommendation=RECO_HUMAN,
+        propose_recommendation=RECO_PROPOSE,
+    )
+    if (ext_state, ext_reco) != (state, recommendation):
+        reason = f"{reason} [B7] {_consult.summarize(consultation)}"
+    state, recommendation = ext_state, ext_reco
+    if consultation is not None:
+        reason_codes = sorted(set(reason_codes) | set(consultation.reason_codes))
+
+    return replace(
+        base,
+        state=state,
+        recommendation=recommendation,
+        reason_codes=reason_codes,
+        reason=reason,
+        policy=POLICY_V2,
+        decision_reasons=[r.to_dict() for r in assessment.reasons],
+        external_consultation=consultation.to_dict() if consultation is not None else None,
+    )
+
+
+def _compute_consensus_v1(
     candidate: Any,
     *,
     signals: Optional[Sequence[Any]] = None,

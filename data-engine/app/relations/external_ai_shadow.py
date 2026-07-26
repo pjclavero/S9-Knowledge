@@ -78,6 +78,14 @@ logger = logging.getLogger("relations.external_ai_shadow")
 # Verdictos que el modelo externo puede emitir sobre una relacion propuesta.
 VALID_VERDICTS = ("confirm", "refine", "reject", "uncertain")
 
+# Protocolos de consulta (Bloque 7). "legacy" = contrato clasico (el modelo devuelve
+# la cita y los offsets); "fragments" = seleccion por fragmentos (el modelo elige ids
+# y el SISTEMA reconstruye los offsets). El DEFAULT es "legacy": el comportamiento por
+# defecto no cambia.
+EXTERNAL_PROTOCOL_LEGACY = "legacy"
+EXTERNAL_PROTOCOL_FRAGMENTS = "fragments"
+EXTERNAL_PROTOCOLS = (EXTERNAL_PROTOCOL_FRAGMENTS, EXTERNAL_PROTOCOL_LEGACY)
+
 # Recomendaciones sombra permitidas. AUTO_APPROVED esta PROHIBIDO por diseno.
 SHADOW_RECOMMENDATIONS = ("confirm", "refine", "reject", "human")
 _FORBIDDEN_RECOMMENDATION = "AUTO_APPROVED"
@@ -118,9 +126,20 @@ class RelationExternalConfig:
     max_candidates: int = 25          # control de volumen
     shadow_mode: bool = True          # obligatorio True en Fase A
     repo_root: Optional[Path] = None
+    #: Bloque 7. `"legacy"` (DEFAULT) = contrato clasico: el modelo devuelve la cita y
+    #: los offsets. `"fragments"` = protocolo de SELECCION POR FRAGMENTOS: el sistema
+    #: fragmenta el documento con ids estables, el modelo solo ELIGE ids y el sistema
+    #: reconstruye los offsets (literalidad POR CONSTRUCCION).
+    protocol: str = "legacy"
     # Proveedor ya construido (reutiliza external_ai). En tests se inyecta un
     # mock con `_post_chat`; en produccion se construye via registry.
     provider: Optional[Any] = None
+
+    def __post_init__(self) -> None:
+        if self.protocol not in EXTERNAL_PROTOCOLS:
+            raise ValueError(
+                f"protocol {self.protocol!r} no valido (permitidos: {EXTERNAL_PROTOCOLS})"
+            )
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -220,8 +239,36 @@ def _extract_verdicts(raw_text: str) -> list[dict]:
     raise InvalidResponseError("formato de respuesta inesperado (ni dict ni list)")
 
 
-def _build_messages(cand: RelationCandidate, cid: str, suite: str) -> list[dict]:
+def resolve_document(cand: RelationCandidate, document: Any = None) -> str:
+    """Devuelve el TEXTO del documento que se debe mostrar y contra el que validar.
+
+    DEFECTO P0 (Bloque 7, hallado vivo en esta rama)
+    ------------------------------------------------
+    `RelationCandidate.source_segment` es el **IDENTIFICADOR** del segmento
+    (`relations/pairs.py` lo construye con `source_segment=seg["id"]`), NO su texto.
+    Usarlo como "DOCUMENTO" hace que el modelo reciba `"seg-1"` y que su evidencia se
+    valide contra `"seg-1"`: rechazo garantizado del 100 %, que es exactamente la
+    firma del historico 27/27 de NVIDIA del programa anterior.
+
+    Por eso el llamante DEBE pasar el texto real (`pipeline` ya lo tiene en
+    `seg_text`). El fallback a `source_segment` se conserva solo por compatibilidad
+    con los llamantes de libreria que ya pasaban el texto en ese campo; no es la via
+    correcta y no la usa el pipeline.
+    """
+    if isinstance(document, str) and document.strip():
+        return document
+    if isinstance(document, dict):
+        val = document.get(_candidate_id(cand))
+        if isinstance(val, str) and val.strip():
+            return val
+    return cand.source_segment or ""
+
+
+def _build_messages(cand: RelationCandidate, cid: str, suite: str,
+                    document: str, protocol: str = "legacy") -> list[dict]:
     """Construye los mensajes chat reutilizando el prompt de sistema de relaciones."""
+    if protocol == "fragments":
+        return _build_messages_fragments(cand, cid, suite, document)
     system = build_system_prompt(suite)
     proposed = {
         "candidate_id": cid,
@@ -251,7 +298,62 @@ def _build_messages(cand: RelationCandidate, cid: str, suite: str) -> list[dict]
         "Evalua la RELACION PROPUESTA contra el DOCUMENTO delimitado. No la "
         "extraigas de nuevo: juzga si el documento la sustenta.\n\n"
         "Relacion propuesta (JSON):\n" + json.dumps(proposed, ensure_ascii=False) + "\n\n"
-        f"DOCUMENTO {INPUT_OPEN}\n{sanitize_document(cand.source_segment)}\n{INPUT_CLOSE}\n\n"
+        f"DOCUMENTO {INPUT_OPEN}\n{sanitize_document(document)}\n{INPUT_CLOSE}\n\n"
+        'Devuelve UNICAMENTE JSON con la forma {"verdicts": [<objeto>]} y UN objeto '
+        f'para candidate_id="{cid}" con EXACTAMENTE estas claves:\n' + schema_txt
+    )
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+
+
+def _build_messages_fragments(cand: RelationCandidate, cid: str, suite: str,
+                              document: str) -> list[dict]:
+    """Prompt del PROTOCOLO DE FRAGMENTOS (Bloque 7, via preferida).
+
+    El documento se presenta ya FRAGMENTADO, con ids estables `f-NNN`. Al modelo NO se
+    le pide `evidence_text` ni offsets: solo `fragment_ids`. Asi no puede parafrasear
+    la cita ni contar caracteres mal, y el sistema reconstruye los offsets contra el
+    documento REAL.
+    """
+    from relations import fragment_protocol as _frag
+
+    system = build_system_prompt(suite)
+    fragments = _frag.fragment_document(document)
+    rendered = _frag.render_fragments_for_prompt(fragments, sanitizer=sanitize_document)
+    proposed = {
+        "candidate_id": cid,
+        "subject_id": cand.subject_id,
+        "subject_type": cand.subject_type,
+        "predicate": cand.predicate,
+        "object_id": cand.object_id,
+        "object_type": cand.object_type,
+        "direction": cand.direction.value if hasattr(cand.direction, "value") else cand.direction,
+        "negated": cand.negated,
+    }
+    verdicts_txt = " | ".join(VALID_VERDICTS)
+    types_txt = " | ".join(ALLOWED_ENTITY_TYPES)
+    schema_txt = (
+        '{"candidate_id": <string>, '
+        f'"verdict": <uno de: {verdicts_txt}>, '
+        '"predicate": <MAYUSCULAS_CON_GUION_BAJO>, '
+        f'"subject_type": <{types_txt} o null>, '
+        f'"object_type": <{types_txt} o null>, '
+        '"negated": <bool>, '
+        '"fragment_ids": <lista de ids f-NNN de los fragmentos que SUSTENTAN el '
+        'juicio; NO copies texto ni calcules posiciones>, '
+        '"confidence": <0.0..1.0>, "reason_codes": <lista de strings>, '
+        '"explanation": <string breve>}'
+    )
+    user = (
+        "Evalua la RELACION PROPUESTA contra los FRAGMENTOS del documento. No la "
+        "extraigas de nuevo: juzga si los fragmentos la sustentan.\n\n"
+        "Relacion propuesta (JSON):\n" + json.dumps(proposed, ensure_ascii=False) + "\n\n"
+        f"FRAGMENTOS {INPUT_OPEN}\n{rendered}\n{INPUT_CLOSE}\n\n"
+        "IMPORTANTE: la evidencia se identifica SOLO por `fragment_ids`. El sistema "
+        "reconstruye el texto y las posiciones; cualquier cita que escribas se "
+        "ignora.\n"
         'Devuelve UNICAMENTE JSON con la forma {"verdicts": [<objeto>]} y UN objeto '
         f'para candidate_id="{cid}" con EXACTAMENTE estas claves:\n' + schema_txt
     )
@@ -264,8 +366,17 @@ def _build_messages(cand: RelationCandidate, cid: str, suite: str) -> list[dict]
 # ---------------------------------------------------------------------------
 # Validacion estricta del verdicto por candidato
 # ---------------------------------------------------------------------------
-def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str) -> tuple[Optional[dict], list[str]]:
+def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str,
+                      document: Optional[str] = None,
+                      protocol: str = "legacy") -> tuple[Optional[dict], list[str]]:
     """Valida un verdicto crudo. Devuelve (verdicto_saneado, errores).
+
+    `document` es el TEXTO REAL del segmento (Bloque 7, defecto P0). Si no se pasa se
+    cae a `cand.source_segment` por compatibilidad; ver `resolve_document`.
+
+    Con `protocol="fragments"` la evidencia NO la aporta el modelo: se reconstruye
+    desde `fragment_ids` contra el documento real (`relations.fragment_protocol`), de
+    modo que la literalidad y los offsets son correctos POR CONSTRUCCION.
 
     Rechaza (errores hard, devuelven None):
       * candidate_id ausente o que no coincide.
@@ -274,6 +385,11 @@ def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str) -> tuple[Opt
       * subject_type/object_type no nulos y fuera de ALLOWED_ENTITY_TYPES (tipo incompatible).
       * evidence vacia, inexistente en el segmento (evidencia inexistente).
       * offsets no enteros, fuera de rango, o que no casan con la cita (offsets invalidos).
+      * **evidencia AMBIGUA**: la cita aparece mas de una vez en el documento
+        (`evidencia_ambigua`). Fail-closed deliberado: desambiguar con los offsets del
+        modelo es exactamente el falso anclaje que B7 dice eliminar, asi que no se
+        desambigua, se RECHAZA. Es la MISMA regla que `external_consult`, compartida
+        via `evidence_realignment.realign_evidence_unique`.
       * negated no booleano.
     """
     errors: list[str] = []
@@ -315,30 +431,75 @@ def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str) -> tuple[Opt
         elif pred != normalize_predicate(pred):
             errors.append(f"predicate no normalizado: {pred!r}")
 
-    # evidencia + offsets ESTRICTOS contra el segmento del candidato
-    seg = cand.source_segment or ""
-    ev = raw.get("evidence_text")
-    start = raw.get("evidence_start")
-    end = raw.get("evidence_end")
+    # evidencia + offsets ESTRICTOS contra el DOCUMENTO REAL (B7: ya no contra el
+    # identificador del segmento; ver `resolve_document`).
+    seg = document if isinstance(document, str) and document else (cand.source_segment or "")
 
-    if not isinstance(ev, str) or not ev.strip():
-        errors.append("evidence_text vacia o ausente")
-    elif ev not in seg:
-        errors.append("evidencia_inexistente: evidence_text no es subcadena literal del segmento")
+    if protocol == "fragments":
+        # VIA PREFERIDA: el sistema reconstruye la evidencia desde los ids elegidos.
+        # El modelo no aporta texto ni offsets, luego no puede fallar en la cita.
+        from relations import fragment_protocol as _frag
 
-    off_ok = True
-    for label, off in (("evidence_start", start), ("evidence_end", end)):
-        if not isinstance(off, int) or isinstance(off, bool):
-            errors.append(f"{label} debe ser int")
-            off_ok = False
-    if off_ok:
-        if start < 0 or end < 0 or start > end or end > len(seg):
-            errors.append(f"offsets_invalidos: fuera de rango [0,{len(seg)}] o start>end")
-        elif isinstance(ev, str) and seg[start:end] != ev:
-            errors.append("offsets_invalidos: segmento[start:end] no coincide con evidence_text")
+        fragments = _frag.fragment_document(seg)
+        index = _frag.build_fragment_index(fragments)
+        rec = _frag.reconstruct_evidence(seg, index, raw.get("fragment_ids"))
+        if not rec.ok:
+            errors.extend(rec.errors)
+            return None, errors
+        ev, start, end = rec.text, rec.start, rec.end
+        fragment_ids = list(rec.fragment_ids)
+    else:
+        ev = raw.get("evidence_text")
+        start = raw.get("evidence_start")
+        end = raw.get("evidence_end")
+        fragment_ids = []
+
+        if not isinstance(ev, str) or not ev.strip():
+            errors.append("evidence_text vacia o ausente")
+        elif ev not in seg:
+            errors.append("evidencia_inexistente: evidence_text no es subcadena literal del segmento")
+
+        off_ok = True
+        for label, off in (("evidence_start", start), ("evidence_end", end)):
+            if not isinstance(off, int) or isinstance(off, bool):
+                errors.append(f"{label} debe ser int")
+                off_ok = False
+        if off_ok:
+            if start < 0 or end < 0 or start > end or end > len(seg):
+                errors.append(f"offsets_invalidos: fuera de rango [0,{len(seg)}] o start>end")
+            elif isinstance(ev, str) and seg[start:end] != ev:
+                errors.append("offsets_invalidos: segmento[start:end] no coincide con evidence_text")
+
+        # --- REGLA DE UNICIDAD (correccion D2 de la auditoria de B7) ------------
+        # Los comprobantes anteriores solo miran que la rodaja sea LITERAL. Con una
+        # cita que aparece VARIAS veces, eso lo cumplen TODAS las ocurrencias, de
+        # modo que el modelo escogia el ancla con SUS PROPIOS offsets -que es la
+        # fuente medida del falso anclaje-. Aqui se exige que la cita ancle de forma
+        # UNICA y se toman los offsets que resuelve el SISTEMA, no los del modelo.
+        # Misma regla y misma implementacion que `external_consult._resolve_evidence`
+        # (`evidence_realignment.realign_evidence_unique`): no hay dos reglas.
+        if not errors and isinstance(ev, str):
+            from relations import evidence_realignment as _realign
+
+            res = _realign.realign_evidence_unique(seg, ev)
+            if not res.ok:
+                errors.append(
+                    "evidencia_ambigua: la cita no ancla de forma unica en el "
+                    f"documento ({res.tier}); los offsets del modelo no desempatan"
+                )
+            else:
+                # El sistema manda: si el resolutor y el modelo discrepasen, gana
+                # el resolutor (en la rama legacy solo sobrevive `exact`, luego
+                # esto es una reafirmacion estructural, no un cambio de ancla).
+                ev, start, end = res.evidence_text, res.start, res.end
 
     if errors:
         return None, errors
+
+    # BARRERA FINAL de literalidad, comun a ambos protocolos: lo que se emite es
+    # SIEMPRE la rodaja real del documento, nunca el texto que mando el modelo.
+    if not (0 <= start <= end <= len(seg) and seg[start:end] == ev):
+        return None, ["literalidad no verificable: documento[start:end] != evidence_text"]
 
     # Verdicto saneado (solo claves conocidas; sin secretos ni campos extra).
     clean = {
@@ -355,6 +516,8 @@ def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str) -> tuple[Opt
         "reason_codes": list(raw.get("reason_codes", [])) if isinstance(raw.get("reason_codes"), list) else [],
         "explanation": str(raw.get("explanation", "")),
     }
+    if fragment_ids:
+        clean["fragment_ids"] = fragment_ids
     return clean, []
 
 
@@ -427,6 +590,7 @@ def evaluate_relation_external(
     candidate_or_pair: Any,
     *,
     config: RelationExternalConfig,
+    document: Any = None,
 ) -> list[RelationExternalEvaluation]:
     """Evalua una o varias relaciones candidatas con IA externa, EN SOMBRA.
 
@@ -438,6 +602,11 @@ def evaluate_relation_external(
     config:
         ``RelationExternalConfig``. En tests se inyecta ``config.provider`` con
         un ``_post_chat`` mockeado; NUNCA hay red.
+    document:
+        TEXTO REAL del documento/segmento (Bloque 7). Puede ser un ``str`` (mismo
+        documento para todos los candidatos) o un ``dict`` ``{candidate_id: texto}``.
+        Si se omite se cae a ``cand.source_segment``, que en el pipeline es el
+        IDENTIFICADOR del segmento y NO su texto: ver `resolve_document` (defecto P0).
 
     Devuelve
     --------
@@ -475,7 +644,8 @@ def evaluate_relation_external(
         # Fallo AISLADO por candidato: cualquier excepcion se convierte en un
         # resultado INVALID_RESPONSES, nunca propaga y aborta el lote.
         try:
-            messages = _build_messages(cand, cid, config.suite)
+            doc_text = resolve_document(cand, document)
+            messages = _build_messages(cand, cid, config.suite, doc_text, config.protocol)
 
             # Guarda de secretos ANTES de cualquier envio (redaccion de external_ai).
             assert_no_secrets(messages)
@@ -492,7 +662,8 @@ def evaluate_relation_external(
             verdict_list = _extract_verdicts(raw_text)
             verdict_raw = _pick_verdict(verdict_list, cid)
 
-            clean_verdict, errors = _validate_verdict(verdict_raw, cand, cid)
+            clean_verdict, errors = _validate_verdict(
+                verdict_raw, cand, cid, doc_text, config.protocol)
             request_hash = _sha256_text(json.dumps(messages, ensure_ascii=False, sort_keys=True))
             response_hash = _sha256_text(raw_text)
 
@@ -589,6 +760,10 @@ __all__ = [
     "RelationVolumeError",
     "VALID_VERDICTS",
     "SHADOW_RECOMMENDATIONS",
+    "EXTERNAL_PROTOCOLS",
+    "EXTERNAL_PROTOCOL_FRAGMENTS",
+    "EXTERNAL_PROTOCOL_LEGACY",
     "evaluate_relation_external",
+    "resolve_document",
     "summarize",
 ]

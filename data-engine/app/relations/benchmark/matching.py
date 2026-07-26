@@ -45,7 +45,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from relations import temporality, vocabulary
+from relations import ontology, temporality, vocabulary
 from relations.contracts import normalize_predicate
 
 # Umbral de solape de spans de evidencia para considerarla "correcta" (IoU).
@@ -84,9 +84,30 @@ def structural_flags(pred: dict, gt: dict) -> dict:
     """
     pred_predicate = normalize_predicate(pred["predicate"])
     gt_predicate = normalize_predicate(gt["predicate"])
-    # El acierto de predicado usa el vocabulario CANONICO (alias/sinonimos), no
-    # igualdad tipografica pura: p.ej. "ENEMY_OF" == "ENEMIES_WITH".
-    predicate_correct = vocabulary.predicates_match(pred["predicate"], gt["predicate"])
+    # CORRECCION DE MEDICION (B2, Parte A) — IGUALDAD CANONICA ESTRICTA.
+    #
+    # El acierto de predicado se mide con `ontology.predicate_exact_strict` (los
+    # 20 canonicos del GROUND TRUTH son la fuente unica), NO con
+    # `vocabulary.predicates_match`. Este ultimo introducia un DOBLE SESGO
+    # demostrado sobre el corpus B1:
+    #
+    #   * SUB-CUENTA (~31%): `predicates_match` canonicaliza ambos lados con
+    #     `vocabulary`, que marca 11 canonicos del GT como `out_of_vocab`
+    #     (canonical=None). Un acierto EXACTO de esos predicados (p.ej.
+    #     MENTOR_OF==MENTOR_OF) daba False porque `None != None`. La igualdad
+    #     estricta lo reconoce como acierto.
+    #   * SOBRE-CUENTA (~13%): `predicates_match` concede CREDITO POR ALIAS que
+    #     colapsa a otro canonico (LIVES_IN->LOCATED_IN, ENEMY_OF->ENEMIES_WITH,
+    #     SUCCEEDED->SUCCESSOR_OF). Predecir LOCATED_IN para un GT LIVES_IN NO es
+    #     acertar el predicado: la igualdad estricta deja de premiarlo.
+    #
+    # `predicate_exact_strict` normaliza SOLO tipograficamente
+    # (`contracts.normalize_predicate`) y compara por igualdad: (i) un acierto
+    # exacto canonico cuenta como correcto; (ii) un no-acierto (alias a canonico
+    # distinto) deja de contar. NUNCA convierte un fallo en acierto. Los THRESHOLDS
+    # (report.py) NO se tocan. `vocabulary` se sigue importando: es la fuente de
+    # `is_symmetric` para la orientacion de la direccion, un eje independiente.
+    predicate_correct = ontology.predicate_exact_strict(pred["predicate"], gt["predicate"])
 
     inter, union = _span_overlap(
         int(pred["evidence_start"]),

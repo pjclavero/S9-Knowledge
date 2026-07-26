@@ -183,7 +183,12 @@ def test_full_combination_reaches_high_state_and_proposes():
     assert dec.score > 0
     assert dec.ensemble_version == ENSEMBLE_VERSION
     assert dec.shadow is True
-    assert dec.consensus_state == STRONG_CONSENSUS  # delegacion trazada
+    # Delegacion trazada. El consenso delegado YA trae el techo de B7 aplicado
+    # (hay evaluacion externa presente), luego es PARTIAL y no STRONG: el techo
+    # rige con cualquier politica, tambien con la v1 por defecto.
+    assert dec.consensus_state == PARTIAL_CONSENSUS
+    assert dec.consensus_state != STRONG_CONSENSUS
+    assert dec.state != STRONG_CONSENSUS
     for src in ("local_llm", "external_ai"):
         assert contribution(dec, src).availability == AVAIL_PRESENT
 
@@ -656,8 +661,13 @@ def test_mut_strong_exige_evidencia_en_ambas_ramas():
         conflict_margin=0.0,
         min_decisive_sources=1,
     )
-    kwargs = dict(local=FakeLocal("recommend_reject"),
-                  external=FakeExternal("reject"), config=cfg)
+    # SIN evaluacion externa: el techo de B7 no interviene, de modo que el CONTROL
+    # sigue pudiendo alcanzar STRONG y la prueba conserva su poder discriminante.
+    # (Antes de la correccion de la auditoria de B7 este montaje llevaba
+    # `external=FakeExternal("reject")`; con el techo aplicandose ya en la politica
+    # por defecto, el control quedaba capado a PARTIAL y el mutante "quitar
+    # has_evidence de la rama negativa" habria sobrevivido.)
+    kwargs = dict(local=FakeLocal("recommend_reject"), external=None, config=cfg)
 
     sin_evidencia = make_candidate(extraction_method=ExtractionMethod.ONTOLOGY,
                                    evidence_text="", evidence_start=0,
@@ -674,6 +684,14 @@ def test_mut_strong_exige_evidencia_en_ambas_ramas():
     assert ok.recommendation == RECO_REJECT
     assert ok.state == STRONG_CONSENSUS
     assert ok.score == dec.score                  # solo cambia la evidencia
+
+    # Y el techo externo por encima de todo: el MISMO caso que llega a STRONG deja
+    # de hacerlo en cuanto hay una evaluacion externa presente, con la politica POR
+    # DEFECTO (v1). El techo no es opcional ni depende de una bandera.
+    con_externa = combine(con_evidencia, local=FakeLocal("recommend_reject"),
+                          external=FakeExternal("reject"), config=cfg)
+    assert con_externa.state == PARTIAL_CONSENSUS
+    assert con_externa.state != STRONG_CONSENSUS
 
 
 @pytest.mark.mutation

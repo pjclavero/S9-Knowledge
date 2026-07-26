@@ -63,6 +63,15 @@ ALLOWED_RELATION_TYPES: frozenset[str] = frozenset({
     "HAS_TALKED_TO", "DISCOVERED", "WAS_PRESENT_AT", "PARTICIPATED_IN",
     "WITNESSED", "WAS_TOLD_BY", "TELLS", "TELLS_ABOUT", "SHARED_WITH",
     "KNOWN_BY_PARTY", "KNOWN_PUBLICLY", "INVOLVES",
+    # ── Reconciliación GT↔ontología v2 (Bloque 0) ─────────────────────────────
+    # Predicados presentes en el ground truth del corpus de benchmark que no
+    # existían como canónicos. Se añaden como canónicos NUEVOS y DISTINTOS (no
+    # como alias). En particular LIVES_IN NO se colapsa con LOCATED_IN: son
+    # residencia vs. ubicación (ver docs/experiments/relation-v2/B0-*.md §2.3).
+    # Dominio/rango/inversa/simetría de estos tipos = hueco documentado para B1
+    # (el frozenset de contrato no los soporta; viven en relations/vocabulary.py).
+    "LIVES_IN", "ALIAS_OF", "FOUNDED", "SUCCEEDED", "CAUSED", "LEADS",
+    "CREATED", "MARRIED_TO", "SIBLING_OF",
 })
 
 # ── Vocabularios controlados para propiedades de entidad (Fase 2) ─────────────
@@ -238,6 +247,16 @@ RELATION_LABELS_ES: dict[str, str] = {
     "KNOWN_BY_PARTY": "conocido por el grupo",
     "KNOWN_PUBLICLY": "conocido públicamente",
     "INVOLVES": "involucra a",
+    # ── Reconciliación GT↔ontología v2 (Bloque 0) ─────────────────────────────
+    "LIVES_IN": "vive en",
+    "ALIAS_OF": "es alias de",
+    "FOUNDED": "fundó",
+    "SUCCEEDED": "sucedió a",
+    "CAUSED": "causó",
+    "LEADS": "lidera",
+    "CREATED": "creó",
+    "MARRIED_TO": "está casado/a con",
+    "SIBLING_OF": "es hermano/a de",
 }
 
 

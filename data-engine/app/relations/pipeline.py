@@ -43,6 +43,8 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable, Optional
 
 # --- Componentes reutilizados (NO se reimplementa nada) --------------------
+from relations import abstention as _abstention
+from relations import consensus_adapter as _consensus
 from relations.consensus_adapter import (
     MODULE_VERSION as CONSENSUS_VERSION,
     compute_relation_consensus,
@@ -67,7 +69,11 @@ from relations.pairs import (
     generate_pairs,
 )
 from relations.signals import SIGNALS_VERSION, SignalContext, compute_all_signals
-from relations.syntax import SYNTAX_VERSION, get_analyzer, safe_analyze
+from relations.syntax import SYNTAX_VERSION, get_analyzer, get_default_analyzer, safe_analyze
+from relations import ontology as _ontology
+from relations import predicate_selector as _predicate_selector
+from relations import direction as _direction
+from relations import temporal_v2 as _temporal_v2
 
 PIPELINE_VERSION = "relation-pipeline-1.0.0"
 PIPELINE_SCHEMA = "relation-pipeline/v1"
@@ -152,6 +158,26 @@ class PipelineConfig:
     external_provider_name: str = "nvidia"
     prompt_suite: str = relation_prompts.DEFAULT_SUITE
 
+    # Selector de predicados (B2). "v1" = `_choose_predicate` historico (default:
+    # comportamiento base INTACTO -> metric-neutral por defecto). "v2" = selector
+    # estructurado por reglas+ontologia (`relations.predicate_selector`).
+    predicate_selector: str = "v1"
+
+    # Politica de consenso (B6). "auto" (DEFAULT) = la del motor seleccionado: con
+    # `predicate_selector="v1"` se usa el consenso v1 HISTORICO (comportamiento base
+    # INTACTO), y con "v2" se usa el consenso v2, que consume las senales del motor
+    # v2 (abstencion de predicado, confianza de direccion, vigencia, epistemico,
+    # negacion). "v1"/"v2" fuerzan una politica concreta con independencia del
+    # selector (uso de laboratorio: comparar plumbing vs efecto).
+    consensus_policy: str = "auto"
+
+    # Protocolo de consulta a la IA externa (B7). "legacy" (DEFAULT) = contrato
+    # clasico: el modelo devuelve la cita y los offsets. "fragments" = el sistema
+    # fragmenta el documento con ids estables, el modelo solo ELIGE ids y el sistema
+    # reconstruye los offsets (literalidad POR CONSTRUCCION). Offline es inerte: sin
+    # proveedor inyectado el carril externo no se ejecuta.
+    external_protocol: str = "legacy"
+
     def to_dict(self) -> dict:
         return {
             "max_segments_per_doc": self.max_segments_per_doc,
@@ -172,6 +198,9 @@ class PipelineConfig:
             "external_model": self.external_model,
             "external_provider_name": self.external_provider_name,
             "prompt_suite": self.prompt_suite,
+            "predicate_selector": self.predicate_selector,
+            "consensus_policy": self.consensus_policy,
+            "external_protocol": self.external_protocol,
         }
 
 
@@ -181,6 +210,26 @@ _CONFIG_KEYS = frozenset(PipelineConfig().to_dict().keys())
 _FORBIDDEN_CONFIG_KEYS = frozenset(
     {"write", "apply", "persist", "commit", "auto_approve", "autoapprove", "dry_run"}
 )
+# Selectores de predicado validos (B2). Default "v1" = comportamiento base.
+_VALID_PREDICATE_SELECTORS = frozenset({"v1", "v2"})
+# Politicas de consenso validas (B6). Default "auto" = la del motor seleccionado.
+_VALID_CONSENSUS_POLICIES = frozenset({"auto", _consensus.POLICY_V1, _consensus.POLICY_V2})
+
+
+def resolve_consensus_policy(config: "PipelineConfig") -> str:
+    """Politica de consenso EFECTIVA de una config (funcion pura y explicita).
+
+    `"auto"` (default) sigue al motor: selector v2 -> consenso v2; selector v1 ->
+    consenso v1 (comportamiento historico INTACTO). Cualquier otro valor es un
+    override explicito. Se expone como funcion para poder testearla y para que el
+    arnes la resuelva EXACTAMENTE igual que el pipeline.
+    """
+    policy = getattr(config, "consensus_policy", "auto")
+    if policy == "auto":
+        return (_consensus.POLICY_V2
+                if getattr(config, "predicate_selector", "v1") == "v2"
+                else _consensus.POLICY_V1)
+    return policy
 
 
 def config_from_dict(data: Optional[dict]) -> PipelineConfig:
@@ -194,6 +243,18 @@ def config_from_dict(data: Optional[dict]) -> PipelineConfig:
     unknown = set(data) - _CONFIG_KEYS
     if unknown:
         raise PipelineError(f"claves de config desconocidas: {sorted(unknown)}")
+    selector = data.get("predicate_selector", "v1")
+    if selector not in _VALID_PREDICATE_SELECTORS:
+        raise PipelineError(
+            f"predicate_selector invalido: {selector!r}; validos: "
+            f"{sorted(_VALID_PREDICATE_SELECTORS)}"
+        )
+    policy = data.get("consensus_policy", "auto")
+    if policy not in _VALID_CONSENSUS_POLICIES:
+        raise PipelineError(
+            f"consensus_policy invalida: {policy!r}; validas: "
+            f"{sorted(_VALID_CONSENSUS_POLICIES)}"
+        )
     return PipelineConfig(**data)
 
 
@@ -307,11 +368,35 @@ class _CandidateBuildError(Exception):
     message: str
 
 
-def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace: str) -> RelationCandidate:
+def _direction_for(predicate: str) -> Direction:
+    """Direccion por defecto del predicado.
+
+    Prioriza el catalogo de plantillas (compatibilidad con v1) y, para predicados
+    sin plantilla (los que anade el selector v2: GUARDS, MENTOR_OF, ...), la deriva
+    de la SIMETRIA de la ontologia (simetrico -> UNDIRECTED; dirigido ->
+    SUBJECT_TO_OBJECT). Nunca inventa: RELATED_TO cae en UNDIRECTED.
+    """
+    if predicate in _DIR_BY_PRED:
+        return _DIR_BY_PRED[predicate]
+    if predicate == GENERIC_PREDICATE:
+        return Direction.UNDIRECTED
+    if _ontology.get(predicate) is not None:
+        return Direction.UNDIRECTED if _ontology.is_symmetric(predicate) else Direction.SUBJECT_TO_OBJECT
+    return Direction.UNDIRECTED
+
+
+def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace: str,
+                     config: PipelineConfig, syntax_analysis: Any = None) -> RelationCandidate:
     """Construye (y valida) un RelationCandidate a partir del par y sus senales.
 
     La evidencia es el span LITERAL que cubre ambas menciones. Un span vacio se
     rechaza EXPLICITAMENTE (evidencia inexistente): objetivo de mutacion.
+
+    El predicado lo elige el selector segun `config.predicate_selector`: "v1"
+    (default, `_choose_predicate` historico -> comportamiento base INTACTO) o "v2"
+    (`relations.predicate_selector`, estructurado por reglas+ontologia). En "v2" una
+    ABSTENCION del selector (margen insuficiente / sin evidencia lexica) NO fuerza:
+    marca el candidato con `review_predicate` en `validation_flags` para revision.
     """
     lo = min(pair.subject_start, pair.object_start)
     hi = max(pair.subject_end, pair.object_end)
@@ -321,14 +406,45 @@ def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace
     if not evidence_text.strip():
         raise _CandidateBuildError("evidence_blank", "la evidencia es solo espacios")
 
-    predicate = _choose_predicate(sigmap, pair)
+    flags = ["dry_run", "heuristic"]
+    if config.predicate_selector == "v2":
+        selection = _predicate_selector.choose_predicate_v2(sigmap, pair, seg_text)
+        predicate = selection.predicate
+        # Temporalidad/vigencia por el MODULO INDEPENDIENTE (Bloque 4): estado rico
+        # + clase del contrato, acotado a la frase del par. Emite PRESENT/ONGOING
+        # para el presente relacional (que v1 suprimia) y amplia la morfologia de
+        # pasado. El prefijo es la clase que el arnes lee sin reclasificar.
+        temporal_scope = _temporal_v2.temporal_scope_for_pair(seg_text, pair)
+        # Direccion resuelta por el MODULO INDEPENDIENTE (Bloque 3): sujeto/objeto
+        # gramatical, pasiva+agente, expresion inversa/activa de la ontologia,
+        # simetria y orden textual (fallback). Sustituye a `_direction_for`, que
+        # solo daba la direccion POR DEFECTO del predicado (nunca OBJECT_TO_SUBJECT).
+        resolved_direction = _direction.direction_for_pair(
+            predicate, pair, seg_text, syntax=syntax_analysis)
+        direction = resolved_direction.direction
+        if selection.abstained:
+            flags.append(_predicate_selector.REVIEW_PREDICATE_FLAG)
+        # B6: la CONFIANZA de la direccion (B3) se perdia por completo (solo se
+        # consumia `.direction`). Se marca el candidato cuando la direccion sale de
+        # un fallback debil (orden textual / predicado sin direccion semantica) para
+        # que el consenso pueda REGISTRAR la senal. Es un flag INFORMATIVO: la
+        # politica de abstencion por defecto NO veta por el (medido: acierta la
+        # direccion en 18 de las 21 veces que dispara en el banco B1).
+        if resolved_direction.confidence < _direction.LOW_CONFIDENCE_THRESHOLD:
+            flags.append(_direction.REVIEW_DIRECTION_FLAG)
+    else:
+        predicate = _choose_predicate(sigmap, pair)
+        direction = _DIR_BY_PRED.get(predicate, Direction.UNDIRECTED)
+        # v1 INTACTO y metric-neutral: alcance temporal como hasta ahora.
+        temporal_scope = _temporal_scope(sigmap)
+
     candidate = RelationCandidate(
         subject_id=pair.subject_id,
         subject_type=pair.subject_type,
         predicate=predicate,
         object_id=pair.object_id,
         object_type=pair.object_type,
-        direction=_DIR_BY_PRED.get(predicate, Direction.UNDIRECTED),
+        direction=direction,
         confidence=_confidence(sigmap),
         evidence_text=evidence_text,
         evidence_start=lo,
@@ -339,10 +455,10 @@ def _build_candidate(pair: CandidatePair, sigmap: dict, seg_text: str, workspace
         extraction_method=ExtractionMethod.HEURISTIC,
         model=None,
         negated=bool(sigmap.get("negation")),
-        temporal_scope=_temporal_scope(sigmap),
+        temporal_scope=temporal_scope,
         epistemic_status=_epistemic_status(sigmap),
         workspace=workspace,
-        validation_flags=["dry_run", "heuristic"],
+        validation_flags=flags,
     )
     try:
         candidate.validate()
@@ -408,8 +524,15 @@ def _run_local(cand: RelationCandidate, pair: CandidatePair, seg_text: str, conf
         return None, PROVIDER_FAILED_CLOSED
 
 
-def _run_external(cand: RelationCandidate, config: PipelineConfig, ctx: "_RunContext") -> tuple[Optional[Any], str]:
-    """Ejecuta la IA externa en sombra si esta habilitada. Devuelve (evaluacion, estado)."""
+def _run_external(cand: RelationCandidate, seg_text: str, config: PipelineConfig,
+                  ctx: "_RunContext") -> tuple[Optional[Any], str]:
+    """Ejecuta la IA externa en sombra si esta habilitada. Devuelve (evaluacion, estado).
+
+    BLOQUE 7 (defecto P0): se pasa `seg_text`, el TEXTO REAL del segmento. Antes no se
+    pasaba nada y el evaluador caia a `cand.source_segment`, que es el IDENTIFICADOR
+    del segmento (`pairs.py`: `source_segment=seg["id"]`): el modelo recibia `"seg-1"`
+    como DOCUMENTO y su evidencia se validaba contra `"seg-1"`. Rechazo garantizado.
+    """
     if not config.external_ai_enabled:
         return None, PROVIDER_NOT_EXECUTED
     from relations.external_ai_shadow import (
@@ -423,9 +546,10 @@ def _run_external(cand: RelationCandidate, config: PipelineConfig, ctx: "_RunCon
         suite=config.prompt_suite,
         shadow_mode=True,
         provider=ctx.external_provider,   # None => registry (sin key => fallo cerrado)
+        protocol=config.external_protocol,
     )
     try:
-        evals = evaluate_relation_external(cand, config=ext_cfg)
+        evals = evaluate_relation_external(cand, config=ext_cfg, document=seg_text)
         return (evals[0] if evals else None), PROVIDER_EXECUTED
     except Exception:  # noqa: BLE001 - aislado; ausencia/fallo != rechazo
         return None, PROVIDER_FAILED_CLOSED
@@ -550,7 +674,9 @@ def _process_segment(
     summary["pairs_generated"] += len(pairs)
 
     # --- sintaxis (proveedor heuristico, stdlib) una vez por segmento ---
-    syntax_analysis = safe_analyze(get_analyzer("heuristic"), text)
+    # `get_default_analyzer()` comparte un heuristico cacheado: mismo resultado
+    # (funcion pura y determinista) sin reanalizar textos repetidos.
+    syntax_analysis = safe_analyze(get_default_analyzer(), text)
 
     candidate_records: list[dict] = []
     seen_candidates: set[str] = set()
@@ -628,7 +754,8 @@ def _process_pair(
 
     # --- candidato (contrato unico) ---
     try:
-        candidate = _build_candidate(pair, sigmap, seg_text, workspace)
+        candidate = _build_candidate(pair, sigmap, seg_text, workspace, config,
+                                     syntax_analysis)
     except _CandidateBuildError as exc:
         errors.append({
             "code": exc.reason_code,
@@ -646,7 +773,7 @@ def _process_pair(
 
     # --- proveedores en sombra (opcionales) ---
     local_rec, local_status = _run_local(candidate, pair, seg_text, config, ctx)
-    external_eval, external_status = _run_external(candidate, config, ctx)
+    external_eval, external_status = _run_external(candidate, seg_text, config, ctx)
     if local_status == PROVIDER_EXECUTED:
         summary["local_calls_simulated"] += 1
     if external_status == PROVIDER_EXECUTED:
@@ -663,6 +790,7 @@ def _process_pair(
         syntax=syntax_analysis,
         local=local_rec,
         external=external_eval,
+        policy=resolve_consensus_policy(config),
     )
     counter = _STATE_COUNTER.get(consensus.state)
     if counter:
@@ -772,6 +900,9 @@ def run_pipeline(
         "signals": SIGNALS_VERSION,
         "syntax": SYNTAX_VERSION,
         "consensus": CONSENSUS_VERSION,
+        # B6: version del modulo de abstencion/rechazo justificado. Es ADITIVO: no
+        # sustituye a `consensus` (el combinador sigue siendo el mismo modulo).
+        "abstention": _abstention.ABSTENTION_VERSION,
         "prompts": relation_prompts.PROMPT_SUITE_VERSION,
         "template": relation_prompts.TEMPLATE_VERSION,
     }

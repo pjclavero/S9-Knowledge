@@ -53,8 +53,15 @@ from external_ai.models import (
 )
 
 # --- Combinador canonico en el que este modulo DELEGA ------------------------
+from relations import abstention as _abstention
+
+# --- IA externa como CONSULTOR (Bloque 7): puerta unica que SOLO degrada ---------
+from relations import external_consult as _consult
 from relations.consensus_adapter import (
+    CONSENSUS_POLICIES,
     MODULE_VERSION as CONSENSUS_VERSION,
+    POLICY_V1,
+    POLICY_V2,
     RECO_HUMAN,
     RECO_PROPOSE,
     RECO_REJECT,
@@ -99,7 +106,7 @@ from relations.pipeline import (
     _canonical,
 )
 
-ENSEMBLE_VERSION = "relation-ensemble-1.0.0"
+ENSEMBLE_VERSION = "relation-ensemble-1.2.0"  # B7: +external_consultation (techo externo)
 ENSEMBLE_SCHEMA = "relation-ensemble/v1"
 
 
@@ -382,6 +389,14 @@ class EnsembleDecision:
     reason: str = ""
     schema: str = ENSEMBLE_SCHEMA
     shadow: bool = True
+    # --- Bloque 6 (aditivo) ---------------------------------------------------
+    #: Politica de consenso aplicada (`consensus_adapter.CONSENSUS_POLICIES`).
+    consensus_policy: str = POLICY_V1
+    #: Motivos ESTRUCTURADOS de abstencion/rechazo. Vacio con la politica v1.
+    decision_reasons: tuple = field(default_factory=tuple)
+    # --- Bloque 7 (aditivo) ---------------------------------------------------
+    #: Consulta externa ya validada localmente. TRAZA: la decision no la lee.
+    external_consultation: Optional[dict] = None
 
     def __post_init__(self) -> None:
         # BARRERA (a): modo sombra obligatorio.
@@ -417,6 +432,10 @@ class EnsembleDecision:
             "reason": self.reason,
             "schema": self.schema,
             "shadow": self.shadow,
+            "consensus_policy": self.consensus_policy,
+            "decision_reasons": [dict(r) for r in self.decision_reasons],
+            "external_consultation": (dict(self.external_consultation)
+                                      if self.external_consultation else None),
         }
 
     def to_json(self) -> str:
@@ -653,6 +672,7 @@ def combine(
     config: EnsembleConfig = DEFAULT_PROFILE,
     local_availability: Optional[str] = None,
     external_availability: Optional[str] = None,
+    consensus_policy: str = POLICY_V1,
 ) -> EnsembleDecision:
     """Calibra el consenso de UN candidato de relacion.
 
@@ -686,10 +706,16 @@ def combine(
     """
     if not isinstance(config, EnsembleConfig):
         raise EnsembleConfigError("config debe ser una EnsembleConfig")
+    if consensus_policy not in CONSENSUS_POLICIES:
+        raise EnsembleConfigError(
+            f"consensus_policy {consensus_policy!r} no es valida "
+            f"(permitidas: {CONSENSUS_POLICIES})"
+        )
 
     # -- (1) DELEGACION en el combinador canonico ------------------------------
     consensus = compute_relation_consensus(
-        candidate, signals=signals, syntax=syntax, local=local, external=external
+        candidate, signals=signals, syntax=syntax, local=local, external=external,
+        policy=consensus_policy,
     )
     consensus_codes = tuple(sorted(consensus.reason_codes or ()))
 
@@ -724,6 +750,7 @@ def combine(
                 "Invalidacion DELEGADA en consensus_adapter (no recalculada): "
                 + (consensus.reason or "candidato invalido")
             ),
+            consensus_policy=consensus_policy,
         )
 
     assert cand is not None, "consenso valido implica candidato valido"
@@ -887,6 +914,49 @@ def combine(
         providers_present=providers_present,
     )
 
+    # -- (4) B6: abstencion/rechazo justificado (SOLO DEGRADA) -----------------
+    # El ensemble calibra la zona gris con pesos y umbrales; eso NO ve las senales
+    # cualitativas del motor v2 (predicado dudoso, vigencia, epistemico, negacion).
+    # Se aplican DESPUES de los umbrales y solo pueden degradar: ningun cambio de
+    # calibracion puede saltarselas.
+    decision_reasons: tuple = ()
+    if consensus_policy == POLICY_V2:
+        assessment = _abstention.assess(candidate, signals=signals)
+        decision_reasons = tuple(r.to_dict() for r in assessment.reasons)
+        new_state, new_reco = _abstention.apply_verdict(
+            state, recommendation, assessment,
+            reject_recommendation=RECO_REJECT,
+            human_recommendation=RECO_HUMAN,
+            propose_recommendation=RECO_PROPOSE,
+        )
+        if (new_state, new_reco) != (state, recommendation):
+            reason = f"{reason} [B6] {_abstention.summarize(assessment)}"
+        state, recommendation = new_state, new_reco
+
+    # -- (5) B7: la IA externa como CONSULTOR (SOLO DEGRADA) -------------------
+    # Se aplica DESPUES de los umbrales Y DESPUES de B6: ninguna recalibracion de
+    # pesos, y ninguna consulta externa, puede revertir una degradacion local. El
+    # techo de estado (`EXTERNAL_MAX_STATE`) hace que con la externa presente sea
+    # imposible quedar en STRONG_CONSENSUS, que es lo que `review_policy` exige para
+    # AUTO_PROPOSABLE: la auto-proposicion por via externa queda cerrada.
+    #
+    # SE APLICA CON CUALQUIER `consensus_policy`, no solo con v2. Lo exclusivo de v2
+    # es la ABSTENCION de B6 (bloque 4), no el techo externo: una garantia de
+    # seguridad que depende de una bandera no es una garantia. Esto importa porque el
+    # DEFAULT es `POLICY_V1` y porque `benchmark/review_policy_metrics.py` -la ruta
+    # que produce las metricas de AUTO_PROPOSABLE- llama a `combine(...)` sin fijar
+    # la politica. Neutralidad: sin `external`, `consultation` es `None` y
+    # `apply_consultation` es la identidad.
+    consultation = _consult.consultation_from_evaluation(external)
+    ext_state, ext_reco = _consult.apply_consultation(
+        state, recommendation, consultation,
+        human_recommendation=RECO_HUMAN,
+        propose_recommendation=RECO_PROPOSE,
+    )
+    if (ext_state, ext_reco) != (state, recommendation):
+        reason = f"{reason} [B7] {_consult.summarize(consultation)}"
+    state, recommendation = ext_state, ext_reco
+
     return EnsembleDecision(
         state=state,
         recommendation=recommendation,
@@ -901,6 +971,10 @@ def combine(
         weights_version=config.weights_version,
         thresholds_version=config.thresholds_version,
         reason=reason,
+        consensus_policy=consensus_policy,
+        decision_reasons=decision_reasons,
+        external_consultation=(consultation.to_dict() if consultation is not None
+                               else None),
     )
 
 

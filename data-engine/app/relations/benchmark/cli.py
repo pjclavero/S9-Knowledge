@@ -794,6 +794,12 @@ def main(argv: Optional[list[str]] = None) -> int:
                              "por llamada no acota el total: un servidor que se atasca "
                              "1 de cada 10 llamadas anade el timeout entero por atasco "
                              "sin superar el umbral de fallos. Comprobado entre fuentes")
+    parser.add_argument("--predicate-selector", default=None, choices=["v1", "v2"],
+                        help="B2: selector de predicados. Omitido o 'v1' = selector "
+                             "historico (comportamiento base intacto, metric-neutral). "
+                             "'v2' = selector estructurado por reglas+ontologia "
+                             "(relations.predicate_selector). Override ADITIVO: no "
+                             "altera MODES ni --all-modes")
     parser.add_argument("--corpus-dir", default=None)
     parser.add_argument("--out-json", default=None)
     parser.add_argument("--out-jsonl", default=None)
@@ -831,7 +837,8 @@ def main(argv: Optional[list[str]] = None) -> int:
                         enable_providers=args.enable_providers,
                         provider_endpoints=endpoints,
                         max_run_seconds=args.max_run_seconds,
-                        external_model=external_model)
+                        external_model=external_model,
+                        predicate_selector=args.predicate_selector)
     # Con proveedores reales el determinismo NO aplica (y duplicaria el coste).
     check_determinism = not args.no_determinism and not is_provider_mode(args.mode)
     report = build_report(corpus, run, check_determinism=check_determinism)
