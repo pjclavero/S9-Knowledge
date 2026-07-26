@@ -121,11 +121,15 @@ _QUOTE_FOLD = {
 # Caracteres ELIMINADOS por completo: zero-width, BOM, marcas y controles Bidi. No
 # deben poder falsear un alineamiento ni spoofear visualmente. Se eliminan en AMBOS
 # lados por igual (documento y evidencia).
+# NOTA: se escriben como ESCAPES, no como caracteres literales. Incrustarlos
+# literalmente hace saltar (con razon) el control anti-Trojan-Source del CI, y
+# la forma escapada es identica en tiempo de ejecucion y ademas legible en una
+# revision de codigo.
 _REMOVABLE = frozenset(
-    "​‌‍⁠﻿"      # zero-width space/joiner/word-joiner/BOM
-    "‎‏"                        # LRM / RLM
-    "‪‫‬‭‮"      # LRE RLE PDF LRO RLO
-    "⁦⁧⁨⁩"            # LRI RLI FSI PDI
+    "\u200b\u200c\u200d\u2060\ufeff"      # zero-width space/joiner/word-joiner/BOM
+    "\u200e\u200f"                        # LRM / RLM
+    "\u202a\u202b\u202c\u202d\u202e"      # LRE RLE PDF LRO RLO
+    "\u2066\u2067\u2068\u2069"            # LRI RLI FSI PDI
 )
 
 

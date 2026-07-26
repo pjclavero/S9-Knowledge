@@ -238,9 +238,9 @@ def test_realineamiento_no_acepta_texto_ausente_del_documento():
 
 
 def test_realineamiento_elimina_controles_zero_width_y_bidi():
-    r = realign.realign_evidence_unique(DOC, "Gorm​ rompio el pacto en el valle de Ysera.")
+    r = realign.realign_evidence_unique(DOC, "Gorm\u200b rompio el pacto en el valle de Ysera.")
     assert r.ok
-    assert "​" not in r.evidence_text
+    assert "\u200b" not in r.evidence_text
 
 
 @pytest.mark.parametrize("doc,ev,tier", [
