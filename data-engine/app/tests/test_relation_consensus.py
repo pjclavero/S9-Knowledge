@@ -166,12 +166,31 @@ def test_heuristics_plus_syntax_partial():
 
 
 def test_local_and_external_agree_strong():
+    """Acuerdo local+externa: STRONG en el CALCULO, techo de B7 en la SALIDA.
+
+    Antes de B7 esta prueba exigia `STRONG_CONSENSUS`. Tras la correccion de la
+    auditoria de B7 el techo externo (`external_consult.EXTERNAL_MAX_STATE`) se
+    aplica con CUALQUIER politica, tambien con la v1 por defecto: con una evaluacion
+    externa presente el motor no puede quedar en `STRONG_CONSENSUS`, porque eso es lo
+    que `review_policy` exige para `AUTO_PROPOSABLE` y la externa no es autoridad.
+
+    Lo que se comprueba aqui es justo eso, no una regresion: el acuerdo se preserva
+    en la recomendacion (`propose`), y el estado queda con techo.
+    """
     res = compute_relation_consensus(
         make_candidate(), signals=strong_signals(),
         local=local_propose(), external=external_confirm(),
     )
-    assert res.state == STRONG_CONSENSUS
+    assert res.state == PARTIAL_CONSENSUS
+    assert res.state != STRONG_CONSENSUS
     assert res.recommendation == RECO_PROPOSE
+    # Y sin externa, el MISMO escenario si alcanza STRONG: el techo es de la externa,
+    # no una degradacion generalizada.
+    from relations.consensus_adapter import _compute_consensus_v1
+    assert _compute_consensus_v1(
+        make_candidate(), signals=strong_signals(),
+        local=local_propose(), external=external_confirm(),
+    ).state == STRONG_CONSENSUS
 
 
 def test_local_and_external_disagree_conflict():

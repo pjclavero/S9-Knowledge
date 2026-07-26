@@ -285,8 +285,17 @@ def run_probe(
         cand = case.to_candidate()
         config = RelationExternalConfig(model=model, provider=provider)
         cr: Optional[CandidateResult] = None
+        # `document` EXPLICITO (cierre del camino residual del defecto P0). En esta
+        # sonda los casos son SINTETICOS y `ProbeCase.to_candidate` pone el TEXTO del
+        # parrafo en `source_segment`, no un identificador -al reves que el pipeline
+        # real (`relations/pairs.py`), donde `source_segment` es el id del segmento-.
+        # Apoyarse en esa coincidencia era fragil y silencioso: si alguien alineara la
+        # sonda con el pipeline, `evaluate_relation_external` caeria al fallback y
+        # validaria contra el ID, produciendo "el modelo externo lo rechaza todo".
+        # Pasando el texto aqui, la sonda deja de depender del fallback.
         for _ in range(repetitions):
-            results = evaluate_relation_external(cand, config=config)
+            results = evaluate_relation_external(
+                cand, config=config, document=case.segment)
             ev = results[0]
             if cr is None:
                 cr = CandidateResult(

@@ -254,6 +254,25 @@ def reconstruct_evidence(
 
     INVARIANTE: si ``ok``, entonces ``document[start:end] == text`` y
     ``0 <= start <= end <= len(document)``.
+
+    LIMITACION CONOCIDA (`min(start)..max(end)`)
+    --------------------------------------------
+    La reconstruccion es un span CONTIGUO, no la union de los fragmentos elegidos.
+    Elegir ``["f-001", "f-009"]`` devuelve **todo lo que hay entre medias**, no dos
+    trozos. Consecuencias:
+
+      * La literalidad NUNCA se rompe (siempre es una rodaja real del documento), que
+        es la propiedad que sostiene el bloque.
+      * Pero un modelo puede AMPLIAR la cita mas alla de lo que justifica su juicio
+        eligiendo dos ids muy separados, y la evidencia anotada seria mas larga de lo
+        debido.
+
+    Hoy es INOCUO para la decision: la unica postura que puede derivarse de una
+    evidencia aceptada es ``REINFORCE``, y `apply_consultation` no mueve ni el estado
+    ni la recomendacion con un refuerzo (solo degrada). Es decir, el peor caso es una
+    ANOTACION mas larga de la cuenta, nunca una decision distinta. Si en el futuro el
+    refuerzo llegara a pesar en la decision, esto DEBE volverse un rechazo (o una
+    union de spans), no antes.
     """
     doc = document or ""
     errors: list = []

@@ -939,17 +939,23 @@ def combine(
     # techo de estado (`EXTERNAL_MAX_STATE`) hace que con la externa presente sea
     # imposible quedar en STRONG_CONSENSUS, que es lo que `review_policy` exige para
     # AUTO_PROPOSABLE: la auto-proposicion por via externa queda cerrada.
-    consultation = None
-    if consensus_policy == POLICY_V2:
-        consultation = _consult.consultation_from_evaluation(external)
-        ext_state, ext_reco = _consult.apply_consultation(
-            state, recommendation, consultation,
-            human_recommendation=RECO_HUMAN,
-            propose_recommendation=RECO_PROPOSE,
-        )
-        if (ext_state, ext_reco) != (state, recommendation):
-            reason = f"{reason} [B7] {_consult.summarize(consultation)}"
-        state, recommendation = ext_state, ext_reco
+    #
+    # SE APLICA CON CUALQUIER `consensus_policy`, no solo con v2. Lo exclusivo de v2
+    # es la ABSTENCION de B6 (bloque 4), no el techo externo: una garantia de
+    # seguridad que depende de una bandera no es una garantia. Esto importa porque el
+    # DEFAULT es `POLICY_V1` y porque `benchmark/review_policy_metrics.py` -la ruta
+    # que produce las metricas de AUTO_PROPOSABLE- llama a `combine(...)` sin fijar
+    # la politica. Neutralidad: sin `external`, `consultation` es `None` y
+    # `apply_consultation` es la identidad.
+    consultation = _consult.consultation_from_evaluation(external)
+    ext_state, ext_reco = _consult.apply_consultation(
+        state, recommendation, consultation,
+        human_recommendation=RECO_HUMAN,
+        propose_recommendation=RECO_PROPOSE,
+    )
+    if (ext_state, ext_reco) != (state, recommendation):
+        reason = f"{reason} [B7] {_consult.summarize(consultation)}"
+    state, recommendation = ext_state, ext_reco
 
     return EnsembleDecision(
         state=state,

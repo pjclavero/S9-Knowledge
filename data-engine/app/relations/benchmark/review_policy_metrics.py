@@ -132,6 +132,16 @@ def predictions_with_review_policy(
     NO ejecuta proveedores, NO abre red: reutiliza `relations.ensemble.combine`
     (mismo import que `runner.extract_predictions_ensemble`) sobre las senales
     y sintaxis YA CALCULADAS por el pipeline REAL.
+
+    Politica de consenso
+    --------------------
+    Esta llamada NO fija `consensus_policy`, luego corre con el DEFAULT (`v1`). Eso
+    es DELIBERADO: replica exactamente lo que hace el pipeline por defecto y no
+    inventa senales que el pipeline no tendria. Importa para la seguridad: la puerta
+    externa de B7 (techo `EXTERNAL_MAX_STATE`) se aplica en `combine` con CUALQUIER
+    politica, precisamente para que esta ruta -la que produce las metricas de
+    `AUTO_PROPOSABLE`- no pueda quedarse sin techo. Lo exclusivo de `v2` es la
+    abstencion de B6, que no es una barrera de seguridad frente a la externa.
     """
     kwargs = {}
     if ensemble_config is not None:

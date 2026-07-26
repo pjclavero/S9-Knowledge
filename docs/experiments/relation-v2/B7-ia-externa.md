@@ -4,7 +4,14 @@
 supervisada) · **Ficheros:** `relations/fragment_protocol.py` (nuevo),
 `relations/evidence_realignment.py` (nuevo), `relations/external_consult.py` (nuevo),
 `relations/external_ai_shadow.py`, `relations/consensus_adapter.py`, `relations/ensemble.py`,
-`relations/pipeline.py`, `tests/test_relation_v2_b7_external.py` (nuevo)
+`relations/pipeline.py`, `relations/benchmark/review_policy_metrics.py`,
+`relations/calibration/nvidia_shadow_probe.py`, `tests/test_relation_v2_b7_external.py` (nuevo)
+
+> **ESTE DOCUMENTO HA SIDO CORREGIDO.** La primera entrega (`237c631`) recibió un
+> **NO CONFORME** del revisor independiente con tres condiciones. La §11 reproduce el
+> dictamen íntegro y detalla la corrección. Las secciones 2, 4, 5, 6 y 7 se han
+> **reescrito donde afirmaban cosas que eran falsas por defecto**; los cambios están
+> marcados. Lo que decía la versión auditada no se borra: se cita y se corrige.
 
 > **Caveat permanente del programa:** n=54 con **dev == test**. Toda cifra de este
 > documento es **EN-CORPUS**. No apoya ninguna decisión de producción.
@@ -132,13 +139,34 @@ sintácticamente imposible, no sólo desaconsejada.
   4. `REINFORCE` / `ABSTAIN` → sólo puede aplicar la regla 2.
   No existe rama que devuelva `propose` si la entrada no lo era, ni que suba el estado.
 
-### 2.5. Integración con B6 (consenso)
+### 2.5. Integración con B6 (consenso) — **corregido tras la auditoría (D1)**
 
-En `consensus_adapter._apply_policy_v2` y en `ensemble.combine` (rama `POLICY_V2`), tras
-la puerta de abstención de B6 se aplica la puerta de B7 **cuando hay fuente externa
-presente**. Orden deliberado: B6 primero (señales locales), B7 después (techo externo), de
-modo que **ninguna consulta externa pueda revertir una degradación local**: B7 sólo recibe
-un estado ya degradado y sólo puede degradarlo más.
+> **Lo que decía la versión auditada:** *"En `consensus_adapter._apply_policy_v2` y en
+> `ensemble.combine` (rama `POLICY_V2`) … se aplica la puerta de B7"*. Era cierto **y
+> era el defecto**: `POLICY_V1` es el **default**, así que por defecto no había puerta.
+
+La puerta de B7 se aplica ahora **en ambas políticas de consenso**:
+
+- `consensus_adapter.compute_relation_consensus` la aplica en la rama `POLICY_V1`
+  (`_apply_external_gate`) y en la rama `POLICY_V2` (`_apply_policy_v2`), **con la misma
+  función** `external_consult.apply_consultation`: no hay dos techos que puedan divergir.
+- `ensemble.combine` la aplica fuera del `if consensus_policy == POLICY_V2`.
+
+**Separación explícita de responsabilidades**, que la versión auditada mezclaba:
+
+| Mecanismo | ¿En qué políticas? | Por qué |
+|---|---|---|
+| **Abstención de B6** (`relations.abstention`) | **sólo `v2`** | es una *característica* del motor v2: consume señales que v1 no produce |
+| **Puerta externa de B7** (techo `EXTERNAL_MAX_STATE` + imposibilidad de fabricar `propose`/`reject`) | **`v1` y `v2`** | es una *garantía de seguridad*. Una garantía que sólo rige con una bandera activada no es una garantía |
+
+Orden deliberado dentro de v2: B6 primero (señales locales), B7 después (techo externo),
+de modo que **ninguna consulta externa pueda revertir una degradación local**: B7 sólo
+recibe un estado ya degradado y sólo puede degradarlo más.
+
+Esto importa además porque **`relations/benchmark/review_policy_metrics.py` llama a
+`combine(...)` sin fijar `consensus_policy`**: es la ruta que produce las métricas de
+`AUTO_PROPOSABLE`, y corría por `v1`. Con el techo sólo en `v2`, esa ruta medía un motor
+sin techo.
 
 ### 2.6. Flags y neutralidad por defecto
 
@@ -147,9 +175,13 @@ un estado ya degradado y sólo puede degradarlo más.
 - El **fix de P0** (pasar el texto real del segmento al evaluador) **no va detrás de flag**:
   es una corrección de defecto, y es **inerte offline** (sin proveedores el carril externo
   no se ejecuta). La neutralidad métrica se demuestra en el A/B (§5).
-- El **techo de estado externo** vive en la política de consenso `v2` (B6). Offline no hay
-  proveedores → no hay `STRONG_CONSENSUS` posible → metric-neutral. Es una garantía que
-  **hoy no cuesta nada y mañana lo impide todo**.
+- El **techo de estado externo** rige en **ambas** políticas (corrección D1; antes vivía
+  sólo en `v2`). La neutralidad métrica **no depende de la política**, sino de que
+  **offline no hay evaluación externa**: los cuatro modos offline del banco (`baseline1`,
+  `baseline2`, `full_offline`, `ensemble_offline`) llevan `external_ai_enabled=False`
+  (`benchmark/runner.py`), luego `consultation_from_evaluation(None)` devuelve `None` y
+  `apply_consultation` es la identidad. Demostrado en el A/B de §6 y §11.4. Es una
+  garantía que **hoy no cuesta nada y mañana lo impide todo**.
 
 ### 2.7. Qué se DESCARTÓ y por qué
 
@@ -187,17 +219,28 @@ un estado ya degradado y sólo puede degradarlo más.
 | `relations/evidence_realignment.py` (nuevo, 282 líneas) | Realineamiento RESTRINGIDO: normalización reversible (NFC, comillas, blancos, Bidi/zero-width) + dos peldaños con **unicidad obligatoria**. Sin fuzzy, sin `hints` |
 | `relations/external_consult.py` (nuevo, 574 líneas) | `validate_external_verdict` (validación local obligatoria), `consultation_from_evaluation` (postura), `apply_consultation` (**puerta única**), `EXTERNAL_MAX_STATE` |
 | `relations/external_ai_shadow.py` | Parámetro `document` + `resolve_document` (**fix de P0**), prompt de fragmentos, validación contra el documento real, barrera final de literalidad, `protocol` en la config |
-| `relations/consensus_adapter.py` | Puerta B7 tras B6 en la política v2; campo `external_consultation`; versión `1.2.0` |
-| `relations/ensemble.py` | Misma puerta tras los umbrales y tras B6; campo `external_consultation`; versión `1.2.0` |
+| `relations/consensus_adapter.py` | Puerta B7 en **ambas** políticas (`_apply_external_gate` en v1, tras B6 en v2); campo `external_consultation`; versión `1.2.0` |
+| `relations/ensemble.py` | Misma puerta tras los umbrales y tras B6, **con cualquier `consensus_policy`**; campo `external_consultation`; versión `1.2.0` |
+| `relations/benchmark/review_policy_metrics.py` | Sólo documentación: por qué esta ruta corre con la política por defecto y por qué eso ya es seguro (corrección D1) |
+| `relations/calibration/nvidia_shadow_probe.py` | `document=case.segment` **explícito**: cierra el camino residual de P0 que se apoyaba en la convención de que `source_segment` lleva texto |
 | `relations/pipeline.py` | `_run_external` recibe `seg_text` (**fix de P0** por el camino real); `PipelineConfig.external_protocol` |
-| `tests/test_relation_v2_b7_external.py` (nuevo) | **782 tests**, 0 skip, 0 xfail |
+| `tests/test_relation_v2_b7_external.py` (nuevo) | **94 funciones de test**, que pytest expande a **793 casos** por dos barridos parametrizados (555 + 112). 0 skip, 0 xfail. Ver §5 sobre cómo se contaba antes |
 
 ---
 
 ## 5. Pruebas
 
-`tests/test_relation_v2_b7_external.py` — **782 tests, 0 skip, 0 xfail**. Entidades
-inventadas (Marcus, Kael, Gorm, Ysera, la Cofradía del Yunque), nunca del corpus.
+`tests/test_relation_v2_b7_external.py` — **94 funciones de test** (83 en la entrega
+auditada + 11 de la corrección), que pytest expande a **793 casos recolectados**.
+0 skip, 0 xfail. Entidades inventadas (Marcus, Kael, Gorm, Ysera, la Cofradía del
+Yunque), nunca del corpus.
+
+> **Corregido (defecto menor de la auditoría):** la versión auditada titulaba
+> **"782 tests nuevos"**, y eso **sobrevende**. El número real de piezas de prueba
+> escritas eran **83 funciones**; los 782 salían de contar los casos de dos barridos
+> `@pytest.mark.parametrize` (**555** combinaciones del barrido anti-mejora y **112**
+> del barrido de literalidad). Un barrido de 555 casos es **una** propiedad probada
+> exhaustivamente, no 555 pruebas independientes. Se dice así a partir de ahora.
 
 Bloques:
 
@@ -293,9 +336,18 @@ Todo con `PYTHONDONTWRITEBYTECODE=1` y purga de `__pycache__` antes de cada corr
 >   barreras eran código no verificado.
 
 ### 5.2. Suite completa
-`PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/ -q` → **2420 passed, 2 skipped**
-(referencia previa: 1638 + 2; los 782 nuevos son exactamente la diferencia). Ningún
-test previo modificado ni adaptado. `deterministic=True` en los ocho runs del A/B.
+`PYTHONDONTWRITEBYTECODE=1 python3 -m pytest data-engine/app/tests -q` →
+**2431 passed, 2 skipped** (entrega auditada: 2420 + 2; +11 casos de la corrección).
+`deterministic=True` en los ocho runs del A/B.
+
+> **Corregido:** la versión auditada afirmaba *"ningún test previo modificado ni
+> adaptado"*. Eso **ya no es cierto y no puede serlo**: cablear el techo en `v1`
+> cambia, a propósito, el resultado de escenarios que tres tests previos daban por
+> buenos (`test_local_and_external_agree_strong`,
+> `test_full_combination_reaches_high_state_and_proposes`,
+> `test_mut_strong_exige_evidencia_en_ambas_ramas`). Los tres se han **reescrito
+> conservando su poder discriminante** —no relajado— y se detalla exactamente cómo en
+> §11.3. Ninguno se ha marcado `skip` ni `xfail`.
 
 ---
 
@@ -343,13 +395,19 @@ falsa.
 ### 6.2. Lo único que cambió: **el hash de resultado** (y por qué)
 
 `determinism.result_hashes` **difiere** entre `fd0b934` y B7 en los 16 documentos.
-Diferencia reproducida y acotada campo a campo: son **tres campos aditivos**, nada más:
+Diferencia reproducida y acotada campo a campo: **dos campos aditivos y un bump de
+versión**, nada más:
 
 ```
-+ config.external_protocol: "legacy"
-+ consensus.external_consultation: null
-  consensus.version: "relation-consensus-1.1.0" -> "relation-consensus-1.2.0"
++ config.external_protocol: "legacy"                                    (ADITIVO)
++ consensus.external_consultation: null                                 (ADITIVO)
+~ consensus.version: "relation-consensus-1.1.0" -> "...-1.2.0"          (BUMP, no aditivo)
 ```
+
+> **Corregido (defecto menor de la auditoría):** la versión auditada los llamaba
+> *"tres campos aditivos"*. El tercero no es aditivo: es el **cambio de valor** de un
+> campo que ya existía. Es una diferencia menor pero real, y afecta a cómo un revisor
+> interpreta el hash.
 
 Ninguna decisión, evidencia, offset, predicado ni métrica cambia. El `deterministic`
 sigue `True` en las dos pasadas de cada run (que es lo que mide el arnés: reproducción
@@ -361,29 +419,62 @@ precisamente para que ese crecimiento sea explícito.
 
 ## 7. Seguridad — qué se garantiza y cómo se verificó
 
-| Garantía | Cómo es estructural | Cómo se verificó |
-|---|---|---|
-| **La externa no puede autoaprobar** | `apply_consultation` no tiene rama que devuelva `propose` si la entrada no lo era | Barrido exhaustivo de 555 combinaciones + mutante M5 |
-| **La externa no puede elevar a `STRONG_CONSENSUS`** | Techo `EXTERNAL_MAX_STATE = PARTIAL_CONSENSUS` aplicado siempre que hay consulta | 555 combinaciones + escenario real de dos proveedores de acuerdo + mutante M2 |
-| **`AUTO_PROPOSABLE` es inalcanzable por vía externa** | `review_policy` exige literalmente `state == STRONG_CONSENSUS`, y con externa presente ese estado no se emite | Test que llama a `classify_for_review` con la salida real del consenso |
-| **La externa no puede anular un rechazo local** | El disenso sólo actúa sobre `propose`; `reject` se devuelve intacto | 555 combinaciones + mutantes M3, M4 |
-| **La externa no puede escribir** | No existe ninguna ruta a Neo4j; los tres módulos nuevos no importan red, sockets, `neo4j` ni `open(` | Test que inspecciona el fuente de los tres módulos |
-| **Toda evidencia aceptada es literal** | Fragmentos ⇒ `document[start:end]` por construcción; realineamiento ⇒ se devuelve la rodaja real, nunca el texto del modelo; más **dos** reverificaciones finales independientes | Barrido de 112 casos + mutantes M9, M13, M24 |
-| **No se adivina el ancla** | La firma del realineamiento no acepta offsets; sin peldaño fuzzy; ambigüedad ⇒ rechazo | Tests estructurales (firma, `difflib` ausente) + mutantes M10, M11 |
-| **Inyección de prompt** | La evidencia se reconstruye del documento real; los campos inventados no sobreviven al saneado; la decisión pasa por la puerta que sólo degrada | 3 tests de inyección, uno de ellos sobre las 15 combinaciones estado × recomendación |
-| **Fail-closed** | Documento ausente, verdicto no-objeto, `candidate_id` que no casa, `negated` no booleano, recomendación desconocida ⇒ `ABSTAIN` (nunca refuerzo) | Tests parametrizados + mutantes M12, M14, M15 |
-| **Sin red** | Todo el transporte se inyecta; ningún modo con proveedor se ejecutó | `external_calls_simulated: 0` en los ocho runs del A/B |
+> **ESTA SECCIÓN SE HA REESCRITO ENTERA.** La versión auditada afirmaba **sin
+> condiciones** garantías que eran **falsas con la configuración por defecto** (el techo
+> sólo existía con `policy="v2"`, y el default es `v1`) o que describían un camino por el
+> que el pipeline **no pasa** (`validate_external_verdict`). La tabla que sigue dice lo
+> que es cierto **después** de la corrección, con la condición explícita cuando la hay.
 
-**Honestidad sobre una asimetría que NO cerré:** `external_ai_shadow._classify` sigue
-devolviendo `STRONG_CONSENSUS` como **estado propio de la evaluación externa** cuando
-el modelo confirma. Ese campo es **traza**: el consenso lee la
-`shadow_recommendation`, no ese estado, y el techo actúa sobre el estado **agregado**.
-Lo dejo como está porque cambiarlo rompería tests previos sin ganancia de seguridad
-—hay un test que verifica que el estado agregado nunca es STRONG—, pero **es una
-trampa de lectura para quien audite el payload** y merece limpiarse en un bloque
-futuro.
+**Convenio de lectura:** "estructural" significa *no hay rama de código que lo permita*.
+Donde la garantía depende de una condición, la condición está escrita. Donde no se ha
+medido, se dice.
 
----
+| Garantía | Alcance / condición | Cómo es estructural | Cómo se verificó |
+|---|---|---|---|
+| **La externa no puede autoaprobar** | Toda política de consenso. Sin condición | `apply_consultation` no tiene rama que devuelva `propose` si la entrada no lo era | Barrido de 555 combinaciones + mutante M5 |
+| **La externa no puede elevar a `STRONG_CONSENSUS`** | **`v1` y `v2`** y también `ensemble.combine` sin `consensus_policy` (la ruta de las métricas) | Techo `EXTERNAL_MAX_STATE = PARTIAL_CONSENSUS` aplicado siempre que hay consulta, con independencia de la política | Barrido `test_el_techo_externo_esta_cableado_en_AMBAS_politicas_barrido` + `test_la_ruta_de_METRICAS_de_review_policy_lleva_el_techo` + mutantes M2, **D1-a**, **D1-b** |
+| **`AUTO_PROPOSABLE` es inalcanzable por vía externa** | **Corregido.** Antes era falso con el default: el contraejemplo del revisor está en §11.2 | `review_policy` exige literalmente `state == STRONG_CONSENSUS`, y con externa presente ese estado no se emite en ninguna política | Tests que llaman a `classify_for_review` con la salida real del consenso **en ambas políticas** |
+| **La externa no puede anular un rechazo local** | Sin condición | El disenso sólo actúa sobre `propose`; `reject` se devuelve intacto | 555 combinaciones + mutantes M3, M4 |
+| **La externa no puede escribir** | Sin condición | No existe ninguna ruta a Neo4j; los tres módulos nuevos no importan red, sockets, `neo4j` ni `open(` | Test que inspecciona el fuente de los tres módulos |
+| **Toda evidencia aceptada es una rodaja literal del documento** | Sin condición, **en los dos caminos** | Fragmentos ⇒ `document[start:end]` por construcción; realineamiento ⇒ se devuelve la rodaja real; más dos reverificaciones finales independientes | Barrido de 112 casos + mutantes M9, M13, M24 |
+| **Una cita AMBIGUA se rechaza, no se desambigua con los offsets del modelo** | **Corregido.** Antes sólo valía en `external_consult`; **el pipeline real no lo cumplía** (§11.2) | Regla única `evidence_realignment.realign_evidence_unique`, aplicada por `external_consult._resolve_evidence` **y** por `external_ai_shadow._validate_verdict` (el camino del pipeline) | Mutantes **N17** y **N17-pipeline**, muertos por 4 tests nuevos (§11.3) |
+| **No se adivina el ancla** | Sin condición | La firma del realineamiento no acepta offsets; sin peldaño fuzzy | Tests estructurales (firma, `difflib` ausente) + mutantes M10, M11 |
+| **No se declara `ACCEPTED` lo que no se ha verificado** | **Corregido.** Antes `consultation_from_evaluation` marcaba `ACCEPTED` por el mero hecho de haber un verdicto | Sin `document` nunca hay `ACCEPTED` ni evidencia transportada; con `document`, se reverifica `document[start:end] == evidence_text` | Mutante **D2-b** + 2 tests nuevos |
+| **Inyección de prompt** | Sin condición | La evidencia se reconstruye del documento real; los campos inventados no sobreviven al saneado; la decisión pasa por la puerta que sólo degrada | 3 tests de inyección, uno sobre las 15 combinaciones estado × recomendación |
+| **Fail-closed** | Sin condición | Documento ausente, verdicto no-objeto, `candidate_id` que no casa, `negated` no booleano, recomendación desconocida ⇒ `ABSTAIN` | Tests parametrizados + mutantes M12, M14, M15 |
+| **Sin red** | En este bloque | Todo el transporte se inyecta; ningún modo con proveedor se ejecutó | `external_calls_simulated: 0` en los ocho runs del A/B |
+
+### 7.1. Lo que **NO** se garantiza (dicho sin adornos)
+
+- **`validate_external_verdict` NO es el único camino de entrada.** El docstring del
+  módulo lo afirmaba y era **falso**: el pipeline entra por
+  `evaluate_relation_external → _validate_verdict`. El docstring está corregido. Lo que
+  sí es único es **la regla de unicidad del anclaje**, compartida por ambos caminos vía
+  `realign_evidence_unique`. Cualquier tercer camino futuro debe reutilizarla.
+- **La tasa de falso anclaje residual no está medida en este motor.** Se ha eliminado el
+  mecanismo que lo producía (elegir ocurrencia con los offsets del modelo) y se ha fijado
+  con tests, pero sin proveedores reales no hay una cifra propia. El "18 %" es del
+  programa anterior y de otro motor.
+- **La reconstrucción por fragmentos devuelve `min(start)..max(end)`.** Elegir dos ids no
+  contiguos devuelve **todo el texto intermedio**, no la unión de dos trozos. La
+  literalidad nunca se rompe, pero un modelo puede **alargar** la cita eligiendo ids
+  separados. Hoy es **inocuo para la decisión**: la única postura derivable de una
+  evidencia aceptada es `REINFORCE`, y `apply_consultation` no mueve estado ni
+  recomendación con un refuerzo. Si algún día el refuerzo pesara en la decisión, esto
+  **debe** convertirse en rechazo o en unión de spans. Documentado en el propio
+  `fragment_protocol.reconstruct_evidence`.
+- **La asimetría de `_classify` sigue ahí.** `external_ai_shadow._classify` devuelve
+  `STRONG_CONSENSUS` como **estado propio de la evaluación externa** cuando el modelo
+  confirma. Ese campo es **traza**: el consenso lee la `shadow_recommendation`, no ese
+  estado, y el techo actúa sobre el estado **agregado**. Se deja como está porque
+  cambiarlo rompería tests previos sin ganancia de seguridad, pero **es una trampa de
+  lectura para quien audite el payload** y merece limpiarse en un bloque futuro.
+- **El camino residual de P0 en la sonda NVIDIA está cerrado, no eliminado.**
+  `calibration/nvidia_shadow_probe.py` ya pasa `document=case.segment` explícitamente, de
+  modo que no depende del fallback a `source_segment`. El **fallback sigue existiendo**
+  en `resolve_document` por compatibilidad con los tests que construyen candidatos con el
+  texto en `source_segment`; está documentado allí y produce `INVALID`, no una aceptación
+  silenciosa.
 
 ## 8. Limitaciones y lo que NO se ha medido
 
@@ -406,11 +497,16 @@ futuro.
    reales es **cero por construcción** (no puede haber `AUTO_PROPOSABLE` que perder,
    porque el arnés no lo usa), pero en producción **reduciría** la auto-proposición: es
    el precio deliberado de la garantía.
-5. **La granularidad de fragmento es la frase.** Un fragmento largo produce una
-   evidencia larga; si dos ids no son contiguos, la reconstrucción incluye el texto
-   intermedio (decisión de diseño heredada de V3: coherencia y literalidad por encima
-   de concisión). El efecto sobre `evidence_correct` con un modelo real está **sin
-   medir**.
+5. **La granularidad de fragmento es la frase, y la reconstrucción es
+   `min(start)..max(end)`.** No es la unión de los fragmentos elegidos: es el **span
+   contiguo** que los cubre. Elegir `["f-001", "f-009"]` devuelve **todo lo que hay
+   entre medias**. La literalidad nunca se rompe (siempre es rodaja real del
+   documento), pero un modelo puede **alargar la cita** eligiendo dos ids muy
+   separados. Hoy es **inocuo para la decisión** —la única postura derivable es
+   `REINFORCE`, que no mueve ni estado ni recomendación—, y por eso se documenta como
+   limitación en vez de convertirse en rechazo. Si el refuerzo llegara a pesar en la
+   decisión, **hay que cerrarlo antes**. El efecto sobre `evidence_correct` con un
+   modelo real está **sin medir**.
 6. **`fragment_ids` no viaja al contrato persistente.** Vive en el verdicto saneado
    (`clean["fragment_ids"]`) y en la traza de consulta. Un consumidor que quiera
    auditar qué fragmentos sustentaron una relación **ya persistida** no los encontrará.
@@ -440,10 +536,231 @@ En este orden, y sólo con autorización explícita:
 
 ## 10. Estado
 
-**B7 entregado para auditoría independiente.** Corrige un defecto crítico que estaba
-**vivo en esta rama** (P0), convierte a la IA externa en consultor con un techo
-estructural verificado por 555 combinaciones y 24 mutantes, e introduce la vía de
-fragmentos y un fallback restringido que se niega a adivinar. **Métricamente es neutro
-por construcción y no reclama ninguna mejora.**
+**B7 auditado, NO CONFORME, y corregido.** La primera entrega (`237c631`) fue rechazada
+por el revisor independiente con tres condiciones; las tres se han cumplido y se
+detallan en §11. Tras la corrección: el techo externo rige con la configuración **por
+defecto** (no sólo con `policy="v2"`), la ruta **real** del pipeline aplica la regla de
+unicidad del anclaje, y el mutante N17 muere. **Métricamente sigue siendo neutro por
+construcción y no reclama ninguna mejora.**
 
 **No me autoapruebo:** el dictamen lo emiten el revisor independiente y el supervisor.
+Este documento se vuelve a someter a auditoría.
+
+---
+
+## 11. Auditoría independiente y corrección supervisada
+
+**Objeto auditado:** `237c631`. **Dictamen:** **NO CONFORME**, con tres condiciones
+exactas. Esta sección reproduce el dictamen, la evidencia del revisor y qué se ha hecho
+con cada condición. **Nada de lo que decía el revisor se ha reformulado a la baja.**
+
+### 11.1. Las tres condiciones, literales
+
+| # | Sev. | Defecto |
+|---|---|---|
+| **D1** | ALTA | *El techo B7 NO se aplica con la política por defecto.* `consensus_adapter.py:295` hacía `if policy == POLICY_V1: return base` **antes** de la puerta; `ensemble.py:940` sólo calculaba la consulta `if consensus_policy == POLICY_V2`; el default es `POLICY_V1`. Y `benchmark/review_policy_metrics.py:145-155` llama a `combine(...)` **sin pasar nunca** `consensus_policy`, así que la ruta que produce las métricas de `AUTO_PROPOSABLE` corría **siempre** en v1, donde el techo no existía |
+| **D2** | ALTA | *El pipeline nunca pasa por `validate_external_verdict`.* El docstring afirmaba ser "el ÚNICO camino por el que una salida externa entra en el motor". **Falso**: el pipeline hace `evaluate_relation_external → _validate_verdict`, y el consenso consume vía `consultation_from_evaluation`, que no resolvía evidencia, no aplicaba la regla de unicidad y no reverificaba literalidad |
+| **D3** | MEDIA | *El mutante N17 sobrevive a los 2420 tests.* Reintroducido el fallback "si el realineamiento falla, acepta el `evidence_text` con los offsets del modelo", **la suite entera siguió verde**. La barrera final de literalidad no lo detecta porque la rodaja **sí** es literal |
+
+Más cinco defectos menores: la tabla de seguridad §7 afirmaba sin condiciones cosas
+falsas por defecto; `nvidia_shadow_probe.py:289` se apoyaba en la convención de que
+`source_segment` lleva texto; `consultation_from_evaluation` marcaba `ACCEPTED`
+evidencia arbitraria; "3 campos aditivos" eran 2 aditivos + 1 bump; "782 tests nuevos"
+sobrevendía; y el protocolo `fragments` devuelve `min(start)..max(end)` sin documentarlo.
+
+### 11.2. Los contraejemplos, **reproducidos otra vez** antes de tocar nada
+
+Ambos se reprodujeron sobre `237c631` limpio, con `PYTHONDONTWRITEBYTECODE=1`, antes de
+escribir una línea de corrección. No se dan por buenos de oído.
+
+**D1** — el techo desaparece justo donde importa (local + externa de acuerdo):
+
+```
+policy=v1  external=NO -> PARTIAL_CONSENSUS/propose  label=REVIEW_REQUIRED
+policy=v1  external=SI -> STRONG_CONSENSUS /propose  label=AUTO_PROPOSABLE   <-- AUTORIDAD
+policy=v2  external=NO -> PARTIAL_CONSENSUS/propose  label=REVIEW_REQUIRED
+policy=v2  external=SI -> PARTIAL_CONSENSUS/propose  label=REVIEW_REQUIRED
+```
+
+La externa era **co-suficiente** para `AUTO_PROPOSABLE` con la configuración por
+defecto. Es exactamente lo que el bloque decía haber cerrado "de forma estructural".
+
+**D2** — falso anclaje **vivo** en la ruta real, con protocolo `legacy` (el default):
+
+```
+ocurrencias de la cita: 2 (en 0, 99)
+realign_evidence_unique dice: ambiguous     <-- el modulo restringido la RECHAZARIA
+external state: STRONG_CONSENSUS | reco: confirm | errores: []
+ancla ACEPTADA: 99..154 | el candidato local ancla en: 0..55
+consultation_from_evaluation -> ACCEPTED REINFORCE 99 154
+evidencia arbitraria -> ACCEPTED REINFORCE 'texto inexistente' 9999 10000
+```
+
+El modelo eligió **con sus propios offsets** la segunda ocurrencia y fue aceptado.
+
+### 11.3. Qué se cambió, condición a condición
+
+#### D1 — el techo se **cablea también en `v1`** (decisión del supervisor)
+
+No se ha documentado el agujero: se ha cerrado.
+
+- `consensus_adapter.compute_relation_consensus`: la rama `POLICY_V1` ya no hace
+  `return base`, sino `return _apply_external_gate(base, external=external)`. La función
+  nueva llama a **la misma** `external_consult.apply_consultation` que usa `v2`; sin
+  `external` devuelve el objeto **intacto** (ni `reason`, ni `reason_codes`, ni campos).
+- `ensemble.combine`: el bloque B7 sale del `if consensus_policy == POLICY_V2`.
+- `benchmark/review_policy_metrics.py`: documentado por qué esa ruta corre con la
+  política por defecto y por qué **ahora** eso ya es seguro.
+
+**Separación fijada:** lo exclusivo de `v2` es la **abstención de B6**; el **techo de
+B7** es transversal. Hay un test que lo fija en ambos sentidos
+(`test_la_abstencion_de_B6_SIGUE_siendo_exclusiva_de_v2`).
+
+**Tres tests previos cambian de expectativa, a propósito**, y se explica cada uno:
+
+| Test | Antes | Ahora | Poder discriminante |
+|---|---|---|---|
+| `test_local_and_external_agree_strong` | exigía `STRONG_CONSENSUS` | exige `PARTIAL_CONSENSUS` **y** comprueba que `_compute_consensus_v1` (el cálculo sin puerta) **sí** da `STRONG` | **aumenta**: ahora falla tanto si el techo desaparece como si el escenario deja de producir STRONG |
+| `test_full_combination_reaches_high_state_and_proposes` | `consensus_state == STRONG` | `consensus_state == PARTIAL` + `state != STRONG` | igual, con una aserción más |
+| `test_mut_strong_exige_evidencia_en_ambas_ramas` | el control llegaba a STRONG **con externa presente** | el control corre **sin externa** (donde el techo no interviene), y se **añade** un caso que verifica que con externa presente el mismo montaje queda capado | **se conserva íntegro**: sin este cambio el control quedaba capado a PARTIAL y el mutante original ("quitar `has_evidence` de la rama negativa") habría **sobrevivido** |
+
+Y el test que afirmaba lo contrario de lo correcto,
+`test_la_politica_v1_no_cambia_nada_con_externa` ("la puerta B7 vive SOLO en la política
+v2"), se ha **sustituido** por `test_la_puerta_B7_se_aplica_TAMBIEN_con_la_politica_v1`,
+que comprueba a la vez que la puerta **se invoca** en v1 y que su **efecto llega a la
+salida** (invocarla y descartar el resultado sería otro mutante vivo).
+
+#### D2 — la ruta REAL aplica la regla de ambigüedad — **opción (ii), y por qué**
+
+Se eligió **replicar la regla en la ruta real** (`_validate_verdict`) en lugar de hacer
+que el pipeline pase por `validate_external_verdict`. Justificación:
+
+- `validate_external_verdict` valida un **verdicto crudo aislado**; `_validate_verdict`
+  hace además saneado de contrato (tipos ontológicos, predicado normalizado,
+  `confidence`, `reason_codes`, protocolo de fragmentos) y produce el `clean` que viaja
+  en la evaluación. Encajar uno dentro del otro obligaría a duplicar o a reordenar el
+  saneado, con riesgo de cambiar mensajes de error de los que dependen tests previos —
+  cambio grande, en un bloque de corrección, sin ganancia de seguridad.
+- Lo que **no** puede duplicarse es la **regla**. Así que no se duplica: ambos caminos
+  llaman a `evidence_realignment.realign_evidence_unique`. Hay **una** implementación
+  del anclaje y **un** criterio de ambigüedad.
+
+Concretamente, en la rama `legacy` de `_validate_verdict`, tras las comprobaciones
+existentes: si la cita no ancla de forma **única**, se emite `evidencia_ambigua` y el
+verdicto se **rechaza** (`INVALID_RESPONSES`); si ancla, `(ev, start, end)` se toman del
+**resolutor del sistema**, no del modelo. El docstring de `external_consult` que
+afirmaba ser el "ÚNICO camino" está **corregido** (§7.1).
+
+Además, `consultation_from_evaluation`:
+
+- acepta ahora un `document` opcional y, **sólo** con él, reverifica
+  `document[start:end] == evidence_text` antes de declarar `ACCEPTED`;
+- **sin** `document` (que es el caso del consenso y del ensemble, que no reciben texto)
+  **nunca** emite `ACCEPTED`, no transporta evidencia y degrada `REINFORCE → ABSTAIN`
+  con el código `external_evidence_unverified`.
+
+Es **neutro para la decisión** —`apply_consultation` sólo mira `stance`, y `REINFORCE` y
+`ABSTAIN` son ambos no-operaciones— y deja de mentir en la traza.
+
+#### D3 — los tests que matan N17
+
+Cuatro tests nuevos, escritos contra el mutante concreto y **verificados aplicándolo**:
+
+- `test_MUTANTE_N17_cita_ambigua_con_offsets_coherentes_del_modelo_se_RECHAZA`
+- `test_MUTANTE_N17_a_nivel_de_resolver_evidencia` (con control no trivial: la cita
+  **única** del mismo documento sí se resuelve)
+- `test_MUTANTE_N17_en_la_RUTA_REAL_del_pipeline_protocolo_legacy` (+ su control
+  `test_la_ruta_real_sigue_aceptando_la_cita_UNICA_control_no_trivial`)
+- `test_la_ruta_real_y_el_modulo_restringido_COINCIDEN_en_la_ambiguedad`
+
+Propiedad fijada, textual: **cita ambigua ⇒ rechazo, aunque el modelo aporte offsets
+coherentes y la rodaja sea literal**, tanto en `_resolve_evidence`/
+`validate_external_verdict` como en la ruta real del pipeline.
+
+### 11.4. Pruebas de mutación de la corrección — 6 mutantes, **6 muertos**
+
+Cada mutante aplicado **por separado** sobre el fichero limpio y restaurado siempre, con
+`PYTHONDONTWRITEBYTECODE=1` y **purga de `__pycache__` antes y después** de cada corrida.
+
+| Mutante | Qué reintroduce | Sobre `237c631` | Ahora | Tests que lo matan |
+|---|---|---|---|---|
+| **N17** | `_resolve_evidence` acepta `evidence_text` con los offsets del modelo si el realineamiento falla | **SUPERVIVIENTE** (2420 verdes) | **MUERTO** (3 fallos) | `test_MUTANTE_N17_cita_ambigua_…_se_RECHAZA`, `test_MUTANTE_N17_a_nivel_de_resolver_evidencia`, `test_la_ruta_real_y_el_modulo_restringido_COINCIDEN_en_la_ambiguedad` |
+| **N17-pipeline** | Quita la regla de unicidad de `_validate_verdict` (= estado de `237c631`) | n/a (era el estado real) | **MUERTO** (2 fallos) | `test_MUTANTE_N17_en_la_RUTA_REAL_del_pipeline_protocolo_legacy`, `test_la_ruta_real_y_el_modulo_restringido_COINCIDEN_en_la_ambiguedad` |
+| **D1-a** | `consensus_adapter` vuelve a `return base` en v1 (= estado de `237c631`) | n/a | **MUERTO** (5 fallos) | `test_local_and_external_agree_strong`, `test_full_combination_reaches_high_state_and_proposes`, `test_la_puerta_B7_se_aplica_TAMBIEN_con_la_politica_v1`, `test_dos_proveedores_de_acuerdo_darian_STRONG_pero_B7_lo_baja`, `test_el_techo_externo_esta_cableado_en_AMBAS_politicas_barrido` |
+| **D1-b** | `ensemble.combine` vuelve a calcular la consulta sólo en v2 (= estado de `237c631`) | n/a | **MUERTO** (5 fallos) | `test_full_combination_…`, `test_mut_strong_exige_evidencia_en_ambas_ramas`, `test_ensemble_expone_la_consulta_y_respeta_el_techo`, `test_el_techo_externo_…_barrido`, `test_la_ruta_de_METRICAS_de_review_policy_lleva_el_techo` |
+| **D2-b** | `consultation_from_evaluation` declara `ACCEPTED` sin verificar (= estado de `237c631`) | n/a | **MUERTO** (2 fallos) | `test_consultation_from_evaluation_no_declara_ACCEPTED_sin_verificar`, `test_consultation_from_evaluation_verifica_cuando_recibe_documento` |
+| **TECHO** | `EXTERNAL_MAX_STATE = STRONG_CONSENSUS` | MUERTO | **MUERTO** (107 fallos) | control de sensibilidad global |
+
+**SUPERVIVIENTES tras la corrección: NINGUNO.** El mutante N17, que era el hallazgo D3,
+ahora muere por tres tests distintos, y su versión "en la ruta real" muere por otros dos.
+
+### 11.5. A/B de 8 runs — **neutralidad métrica demostrada, Δ = 0.0000**
+
+Worktree de **solo lectura** (`git worktree add --detach … fd0b934`, **eliminado al
+terminar**). Ninguna rama tocada. 2 modos × 2 selectores × 2 versiones. Se añadió una
+tercera pata contra `237c631` (el commit auditado) para aislar el efecto de **esta
+corrección** del efecto del bloque entero.
+
+| Run | Métrica | `fd0b934` | HEAD corregido | Δ |
+|---|---|--:|--:|--:|
+| `baseline1` / v1 | P / R / F1 (existencia) | .8269 / .7963 / .8113 | .8269 / .7963 / .8113 | **0.0000** |
+| `baseline1` / v1 | TP / FP / FN | 43 / 9 / 11 | 43 / 9 / 11 | **0.0000** |
+| `baseline1` / v1 | `human_rate` / `conflict_rate` / `invalid_rate` | .3846 / .25 / .0 | .3846 / .25 / .0 | **0.0000** |
+| `baseline1` / v1 | `results_strong` / `partial` / `human` / `conflict` | 0 / 19 / 20 / 13 | 0 / 19 / 20 / 13 | **0.0000** |
+| `baseline1` / v1 | `external_calls` | 0 | 0 | **0.0000** |
+| `baseline1` / v1 | `verdict` | APTO CON REVISIÓN HUMANA TOTAL | = | — |
+| `baseline1` / v2 | P / R / F1 (existencia) | .8269 / .7963 / .8113 | .8269 / .7963 / .8113 | **0.0000** |
+| `baseline1` / v2 | TP / FP / FN | 43 / 9 / 11 | 43 / 9 / 11 | **0.0000** |
+| `baseline1` / v2 | `human_rate` / `conflict_rate` | .5577 / .25 | .5577 / .25 | **0.0000** |
+| `baseline1` / v2 | `results_strong` / `partial` / `human` / `conflict` | 0 / 10 / 29 / 13 | 0 / 10 / 29 / 13 | **0.0000** |
+| `baseline1` / v2 | `verdict` | APTO PARA CONTINUAR EN MODO SOMBRA | = | — |
+| `ensemble_offline` / v1 | P / R / F1 (existencia) | .8269 / .7963 / .8113 | .8269 / .7963 / .8113 | **0.0000** |
+| `ensemble_offline` / v1 | TP / FP / FN | 43 / 9 / 11 | 43 / 9 / 11 | **0.0000** |
+| `ensemble_offline` / v1 | `human_rate` / `conflict_rate` | .3846 / .25 | .3846 / .25 | **0.0000** |
+| `ensemble_offline` / v1 | `results_strong` / `partial` / `human` / `conflict` | 0 / 19 / 20 / 13 | 0 / 19 / 20 / 13 | **0.0000** |
+| `ensemble_offline` / v1 | `verdict` | APTO CON REVISIÓN HUMANA TOTAL | = | — |
+| `ensemble_offline` / v2 | P / R / F1 (existencia) | .8269 / .7963 / .8113 | .8269 / .7963 / .8113 | **0.0000** |
+| `ensemble_offline` / v2 | TP / FP / FN | 43 / 9 / 11 | 43 / 9 / 11 | **0.0000** |
+| `ensemble_offline` / v2 | `human_rate` / `conflict_rate` | .5577 / .25 | .5577 / .25 | **0.0000** |
+| `ensemble_offline` / v2 | `results_strong` / `partial` / `human` / `conflict` | 0 / 10 / 29 / 13 | 0 / 10 / 29 / 13 | **0.0000** |
+| `ensemble_offline` / v2 | `verdict` | APTO PARA CONTINUAR EN MODO SOMBRA | = | — |
+
+**Comparación exhaustiva campo a campo** (aplanando el JSON completo del informe, ~665
+claves por run): en los cuatro carriles, las **únicas** claves bajo `metrics.*` que
+difieren de `fd0b934` son las **tres de temporización** (`total_ms`, `per_doc_ms`,
+`per_candidate_ms`), que son wall-clock. Fuera de `metrics.*`, sólo
+`config.external_protocol` (`None → "legacy"`), `versions.consensus`
+(`1.1.0 → 1.2.0`) y los `determinism.result_hashes` que dependen de ellos — es decir,
+**lo mismo que ya reportaba §6.2 para el bloque entero**, ni un campo más.
+
+**Aislamiento de esta corrección** — contra `237c631`, el commit auditado:
+
+| Run | Claves que difieren (excluyendo timings y `code_sha`) |
+|---|--:|
+| `baseline1` / v1 | **0** |
+| `baseline1` / v2 | **0** |
+| `ensemble_offline` / v1 | **0** |
+| `ensemble_offline` / v2 | **0** |
+
+Cero diferencias, **incluidos los `result_hashes`**. La corrección es **estrictamente**
+metric-neutral: no toca un solo byte de la salida del banco.
+
+**Por qué tenía que salir así, dicho antes de mirar** (el supervisor lo predijo y se
+verificó): los cuatro modos offline del banco llevan `external_ai_enabled=False`
+(`benchmark/runner.py`, `MODES`), luego **no hay evaluación externa que filtrar** y el
+techo no puede actuar. `external_calls = 0` en los ocho runs lo confirma. Los modos con
+externa (`nvidia_shadow`, `ensemble_full`) viven en `PROVIDER_MODES`, exigen doble llave
+y **no se ejecutaron**. Si alguna métrica se hubiera movido, habría sido señal de que la
+externa **sí** corría en algún carril offline — un hallazgo más grave que los tres
+defectos. **No se movió ninguna.**
+
+### 11.6. Suite y prohibiciones
+
+- `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest data-engine/app/tests -q` →
+  **2431 passed, 2 skipped** (referencia auditada: 2420 + 2). **0 skip nuevos, 0 xfail.**
+- `git diff fd0b934 HEAD -- relations/benchmark/report.py relations/benchmark/matching.py
+  relations/review_policy.py` → **vacío**. Ningún umbral tocado.
+- Corpus y ground truth intactos. Sin red, sin proveedores reales, sin Neo4j, sin
+  ingestas, sin despliegues, sin VM105.
+- `main` y las ramas `#97-#101` intactas. Sin merge, rebase, cherry-pick ni borrado.
+- Worktrees temporales de solo lectura **eliminados** al terminar.

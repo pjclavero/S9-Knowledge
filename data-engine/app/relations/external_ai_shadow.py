@@ -385,6 +385,11 @@ def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str,
       * subject_type/object_type no nulos y fuera de ALLOWED_ENTITY_TYPES (tipo incompatible).
       * evidence vacia, inexistente en el segmento (evidencia inexistente).
       * offsets no enteros, fuera de rango, o que no casan con la cita (offsets invalidos).
+      * **evidencia AMBIGUA**: la cita aparece mas de una vez en el documento
+        (`evidencia_ambigua`). Fail-closed deliberado: desambiguar con los offsets del
+        modelo es exactamente el falso anclaje que B7 dice eliminar, asi que no se
+        desambigua, se RECHAZA. Es la MISMA regla que `external_consult`, compartida
+        via `evidence_realignment.realign_evidence_unique`.
       * negated no booleano.
     """
     errors: list[str] = []
@@ -464,6 +469,29 @@ def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str,
                 errors.append(f"offsets_invalidos: fuera de rango [0,{len(seg)}] o start>end")
             elif isinstance(ev, str) and seg[start:end] != ev:
                 errors.append("offsets_invalidos: segmento[start:end] no coincide con evidence_text")
+
+        # --- REGLA DE UNICIDAD (correccion D2 de la auditoria de B7) ------------
+        # Los comprobantes anteriores solo miran que la rodaja sea LITERAL. Con una
+        # cita que aparece VARIAS veces, eso lo cumplen TODAS las ocurrencias, de
+        # modo que el modelo escogia el ancla con SUS PROPIOS offsets -que es la
+        # fuente medida del falso anclaje-. Aqui se exige que la cita ancle de forma
+        # UNICA y se toman los offsets que resuelve el SISTEMA, no los del modelo.
+        # Misma regla y misma implementacion que `external_consult._resolve_evidence`
+        # (`evidence_realignment.realign_evidence_unique`): no hay dos reglas.
+        if not errors and isinstance(ev, str):
+            from relations import evidence_realignment as _realign
+
+            res = _realign.realign_evidence_unique(seg, ev)
+            if not res.ok:
+                errors.append(
+                    "evidencia_ambigua: la cita no ancla de forma unica en el "
+                    f"documento ({res.tier}); los offsets del modelo no desempatan"
+                )
+            else:
+                # El sistema manda: si el resolutor y el modelo discrepasen, gana
+                # el resolutor (en la rama legacy solo sobrevive `exact`, luego
+                # esto es una reafirmacion estructural, no un cambio de ancla).
+                ev, start, end = res.evidence_text, res.start, res.end
 
     if errors:
         return None, errors

@@ -278,10 +278,22 @@ def compute_relation_consensus(
 ) -> RelationConsensus:
     """Combina las fuentes de un candidato y emite el consenso (politica `policy`).
 
-    `policy="v1"` (DEFAULT) es el comportamiento HISTORICO, byte a byte: ninguna
-    llamada existente cambia. `policy="v2"` aplica ADEMAS, sobre el resultado v1,
-    la evaluacion de `relations.abstention`, que consume las senales del motor v2 y
-    SOLO PUEDE DEGRADAR la decision (ver `abstention.apply_verdict`).
+    Que es exclusivo de cada politica (separacion FIJADA tras la auditoria de B7):
+
+      * `policy="v2"` -- **ABSTENCION de B6** (`relations.abstention`), que consume las
+        senales del motor v2 y SOLO PUEDE DEGRADAR la decision.
+      * AMBAS politicas -- **puerta externa de B7** (`external_consult`). El techo de
+        estado y la imposibilidad de que la externa fabrique `propose`/`reject` NO son
+        una caracteristica de v2: son una garantia de SEGURIDAD del motor, y una
+        garantia que solo rige con una bandera activada no es una garantia. Antes de
+        la correccion, `policy="v1"` (el DEFAULT) dejaba a la IA externa ser
+        CO-SUFICIENTE para `STRONG_CONSENSUS` y por tanto para `AUTO_PROPOSABLE`.
+
+    Neutralidad: la puerta B7 solo actua si hay `external` (una evaluacion externa
+    REAL). Sin externa `consultation_from_evaluation` devuelve `None` y
+    `apply_consultation` es la identidad, luego `policy="v1"` sin externa sigue siendo
+    el comportamiento HISTORICO byte a byte. Todos los modos offline del banco corren
+    con `external_ai_enabled=False`.
     """
     if policy not in CONSENSUS_POLICIES:
         raise ValueError(
@@ -291,9 +303,41 @@ def compute_relation_consensus(
         candidate, signals=signals, syntax=syntax, local=local, external=external
     )
     if policy == POLICY_V1:
-        return base
+        return _apply_external_gate(base, external=external)
     return _apply_policy_v2(base, candidate, signals=signals,
                             abstention_policy=abstention_policy, external=external)
+
+
+def _apply_external_gate(base: RelationConsensus, *,
+                         external: Optional[Any] = None) -> RelationConsensus:
+    """Aplica la puerta externa de B7 sobre un consenso ya emitido. SOLO DEGRADA.
+
+    Se usa en la ruta `policy="v1"`. Es la MISMA puerta que usa v2 (misma funcion
+    `external_consult.apply_consultation`), de modo que no existen dos techos que
+    puedan divergir.
+
+    Sin `external` no toca absolutamente nada (ni estado, ni recomendacion, ni
+    `reason`, ni `reason_codes`): devuelve el mismo objeto.
+    """
+    consultation = _consult.consultation_from_evaluation(external)
+    if consultation is None:
+        return base
+    state, recommendation = _consult.apply_consultation(
+        base.state, base.recommendation, consultation,
+        human_recommendation=RECO_HUMAN,
+        propose_recommendation=RECO_PROPOSE,
+    )
+    reason = base.reason
+    if (state, recommendation) != (base.state, base.recommendation):
+        reason = f"{base.reason} [B7] {_consult.summarize(consultation)}"
+    return replace(
+        base,
+        state=state,
+        recommendation=recommendation,
+        reason=reason,
+        reason_codes=sorted(set(base.reason_codes) | set(consultation.reason_codes)),
+        external_consultation=consultation.to_dict(),
+    )
 
 
 def _apply_policy_v2(base: RelationConsensus, candidate: Any, *,

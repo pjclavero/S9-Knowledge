@@ -26,13 +26,28 @@ Y una garantia de estado por encima de las tres: con consulta externa presente,
 ``STRONG_CONSENSUS`` se rebaja a ``PARTIAL_CONSENSUS`` (``EXTERNAL_MAX_STATE``). Es la
 muerte ESTRUCTURAL de la auto-aprobacion por via externa, no una convencion.
 
-Validacion local OBLIGATORIA
-----------------------------
-`validate_external_verdict` es el UNICO camino por el que una salida externa entra en
-el motor, y es fail-closed en cada paso: estructura -> resolucion de evidencia
-(fragmentos > literal unica > realineamiento restringido) -> REVERIFICACION final de
-que ``document[start:end] == evidence_text``. Si algo no encaja: ``INVALID`` y
-``ABSTAIN``. Nunca "se acepta con dudas".
+Validacion local OBLIGATORIA (y donde vive de verdad)
+-----------------------------------------------------
+`validate_external_verdict` es fail-closed en cada paso: estructura -> resolucion de
+evidencia (fragmentos > literal unica > realineamiento restringido) -> REVERIFICACION
+final de que ``document[start:end] == evidence_text``. Si algo no encaja: ``INVALID``
+y ``ABSTAIN``. Nunca "se acepta con dudas".
+
+**No es, sin embargo, el unico punto de entrada del motor, y este modulo ya no afirma
+lo contrario** (lo afirmaba, y era falso: lo detecto la auditoria independiente de
+B7). El pipeline real entra por `external_ai_shadow.evaluate_relation_external` ->
+`external_ai_shadow._validate_verdict`, y el consenso consume el resultado via
+`consultation_from_evaluation`. Lo que SI es unico es la REGLA:
+
+  * la unicidad del anclaje la implementa `evidence_realignment.realign_evidence_unique`
+    y la aplican AMBOS caminos (`_resolve_evidence` aqui, `_validate_verdict` alli);
+    una cita ambigua se RECHAZA en los dos, nunca se desambigua con los offsets del
+    modelo;
+  * `consultation_from_evaluation` no declara `ACCEPTED` evidencia que no haya
+    verificado el mismo contra un documento.
+
+Cualquier tercer camino que se abra en el futuro debe reutilizar `realign_evidence_unique`
+o pasar por `validate_external_verdict`; no vale reimplementar el anclaje.
 
 Principios duros
 ----------------
@@ -449,12 +464,38 @@ def validate_external_verdict(
     )
 
 
-def consultation_from_evaluation(evaluation: Any) -> Optional[ExternalConsultation]:
+def consultation_from_evaluation(
+    evaluation: Any,
+    *,
+    document: Optional[str] = None,
+) -> Optional[ExternalConsultation]:
     """Deriva la POSTURA de una `RelationExternalEvaluation` ya emitida.
 
-    Se usa en el consenso (B6) y en el ensemble, donde lo que llega es la evaluacion
-    completa y no el verdicto crudo. Fail-closed: cualquier cosa que no se reconozca
-    es `ABSTAIN` (no cambia nada), nunca un refuerzo.
+    Se usa en el consenso (B6/B7) y en el ensemble, donde lo que llega es la
+    evaluacion completa y no el verdicto crudo. Fail-closed: cualquier cosa que no se
+    reconozca es `ABSTAIN` (no cambia nada), nunca un refuerzo.
+
+    `ACCEPTED` SOLO con verificacion propia (correccion D2 de la auditoria)
+    -----------------------------------------------------------------------
+    Antes, esta funcion marcaba `STATUS_ACCEPTED` por el mero hecho de que la
+    evaluacion trajese un `verdict`, y copiaba `evidence_text`/`evidence_start`/
+    `evidence_end` tal cual. Eso es una AFIRMACION que esta funcion no puede
+    sostener: sin documento no ha verificado nada (un auditor obtuvo asi un
+    `ACCEPTED` con evidencia ``9999-10000`` y texto inexistente).
+
+    Regla nueva, sin excepciones:
+
+      * `document` presente -> se REVERIFICA que ``document[start:end] ==
+        evidence_text``. Si casa: `ACCEPTED` con la rodaja REAL. Si no:
+        `NO_EVIDENCE`, sin evidencia, y codigo ``external_evidence_unverified``.
+      * `document` ausente (es el caso del consenso y del ensemble, que no reciben
+        el texto) -> NUNCA `ACCEPTED`. Se emite `NO_EVIDENCE` sin transportar
+        evidencia. La postura se degrada de `REINFORCE` a `ABSTAIN`, coherente con
+        `_stance_for`: reforzar sin evidencia validada no es reforzar.
+
+    Es una restriccion NEUTRA para la decision: `apply_consultation` solo mira
+    `stance`, y `REINFORCE` y `ABSTAIN` son ambos no-operaciones. Lo unico que
+    cambia es que la traza deja de mentir.
     """
     if evaluation is None:
         return None
@@ -472,16 +513,40 @@ def consultation_from_evaluation(evaluation: Any) -> Optional[ExternalConsultati
     # evaluacion no ha aportado evidencia y no refuerza nada.
     if stance == STANCE_REINFORCE and not verdict_obj:
         stance = STANCE_ABSTAIN
+
+    codes: list = ["external_" + str(reco)] if isinstance(reco, str) else []
+
+    # --- Verificacion PROPIA de la evidencia ----------------------------------
+    ev_text = ""
+    ev_start = -1
+    ev_end = -1
+    status = STATUS_NO_EVIDENCE
+    if verdict_obj:
+        raw_text = str(_get(verdict_obj, "evidence_text", "") or "")
+        raw_start = _as_offset(_get(verdict_obj, "evidence_start", -1))
+        raw_end = _as_offset(_get(verdict_obj, "evidence_end", -1))
+        verified = (
+            isinstance(document, str) and bool(document) and bool(raw_text)
+            and 0 <= raw_start <= raw_end <= len(document)
+            and document[raw_start:raw_end] == raw_text
+        )
+        if verified:
+            status = STATUS_ACCEPTED
+            ev_text, ev_start, ev_end = raw_text, raw_start, raw_end
+        else:
+            codes.append("external_evidence_unverified")
+            if stance == STANCE_REINFORCE:
+                stance = STANCE_ABSTAIN
+
     return ExternalConsultation(
         stance=stance,
-        status=STATUS_ACCEPTED if verdict_obj else STATUS_NO_EVIDENCE,
+        status=status,
         protocol=PROTOCOL_NONE,
         verdict=str(verdict),
-        evidence_text=(str(_get(verdict_obj, "evidence_text", "") or "")
-                       if verdict_obj else ""),
-        evidence_start=_as_offset(_get(verdict_obj, "evidence_start", -1)),
-        evidence_end=_as_offset(_get(verdict_obj, "evidence_end", -1)),
-        reason_codes=("external_" + str(reco),) if isinstance(reco, str) else (),
+        evidence_text=ev_text,
+        evidence_start=ev_start,
+        evidence_end=ev_end,
+        reason_codes=tuple(sorted(set(codes))),
     )
 
 

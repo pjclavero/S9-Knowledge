@@ -658,17 +658,57 @@ def test_consenso_v2_sin_externa_no_emite_consulta():
     assert out.external_consultation is None
 
 
-def test_la_politica_v1_no_cambia_nada_con_externa(monkeypatch):
-    """Neutralidad: la puerta B7 vive SOLO en la politica v2."""
+def test_la_puerta_B7_se_aplica_TAMBIEN_con_la_politica_v1(monkeypatch):
+    """MUTANTE `techo-solo-en-v2`: el techo externo NO puede depender de la politica.
+
+    Esta prueba sustituye a la anterior (`test_la_politica_v1_no_cambia_nada_con_externa`),
+    que exigia justo lo contrario y era el agujero D1 de la auditoria independiente:
+    el DEFAULT es `POLICY_V1`, asi que "la puerta vive solo en v2" equivalia a "no hay
+    puerta". Se comprueba a la vez que la puerta se INVOCA en v1 y que su EFECTO llega
+    a la salida (invocarla y descartar el resultado seria otro mutante vivo).
+
+    Lo que sigue siendo exclusivo de v2 es la ABSTENCION de B6, no el techo de B7.
+    """
     cand = _candidate()
     ext = _external_eval()
     llamadas = []
     original = consult.apply_consultation
     monkeypatch.setattr(consult, "apply_consultation",
                         lambda *a, **k: llamadas.append(a) or original(*a, **k))
-    compute_relation_consensus(cand, signals=_signals_fuertes(), external=ext,
-                               policy=POLICY_V1)
-    assert llamadas == []
+    out = compute_relation_consensus(cand, signals=_signals_fuertes(), external=ext,
+                                     policy=POLICY_V1)
+    assert llamadas, "la puerta B7 no se invoco con la politica v1 (DEFAULT)"
+    assert out.external_consultation is not None
+    assert out.state != STRONG_CONSENSUS
+    assert out.policy == POLICY_V1, "el techo no debe convertir la salida en v2"
+
+
+def test_sin_externa_la_politica_v1_es_IDENTICA_byte_a_byte():
+    """Neutralidad metrica: sin externa, la puerta B7 no toca NADA en v1.
+
+    Es la base del A/B de 8 runs: todos los modos offline del banco corren con
+    `external_ai_enabled=False`, luego no hay consulta que aplicar y ninguna metrica
+    puede moverse.
+    """
+    from relations.consensus_adapter import _compute_consensus_v1
+
+    cand = _candidate()
+    for local in (None, _LocalRec(cand)):
+        base = _compute_consensus_v1(cand, signals=_signals_fuertes(), local=local,
+                                     external=None)
+        out = compute_relation_consensus(cand, signals=_signals_fuertes(),
+                                         local=local, external=None, policy=POLICY_V1)
+        assert out.to_dict() == base.to_dict()
+        assert out.external_consultation is None
+
+
+def test_la_abstencion_de_B6_SIGUE_siendo_exclusiva_de_v2():
+    """Separacion explicita: B7 en ambas politicas, B6 solo en v2."""
+    cand = _candidate(negated=True)          # dispara motivos de abstencion B6
+    v1 = compute_relation_consensus(cand, signals=_signals_fuertes(), policy=POLICY_V1)
+    v2 = compute_relation_consensus(cand, signals=_signals_fuertes(), policy=POLICY_V2)
+    assert v1.decision_reasons in (None, [], ())
+    assert v2.decision_reasons
 
 
 def test_AUTO_PROPOSABLE_es_inalcanzable_por_via_externa():
@@ -728,9 +768,18 @@ def test_dos_proveedores_de_acuerdo_darian_STRONG_pero_B7_lo_baja():
     local = _LocalRec(cand)
     ext = _external_eval(reco="confirm")
 
+    # El calculo v1 SIN la puerta B7 (funcion interna) sigue dando STRONG: el
+    # escenario no se ha vuelto trivial. Lo que cambia es la SALIDA del motor.
+    from relations.consensus_adapter import _compute_consensus_v1
+    crudo = _compute_consensus_v1(cand, signals=_signals_fuertes(), local=local,
+                                  external=ext)
+    assert crudo.state == STRONG_CONSENSUS, "el escenario ya no produce STRONG en v1"
+
+    # Y con la politica v1 PUBLICA (el DEFAULT) el techo ya se aplica: es la
+    # correccion D1 de la auditoria.
     v1 = compute_relation_consensus(cand, signals=_signals_fuertes(), local=local,
                                     external=ext, policy=POLICY_V1)
-    assert v1.state == STRONG_CONSENSUS, "el escenario ya no produce STRONG en v1"
+    assert v1.state == PARTIAL_CONSENSUS
 
     v2 = compute_relation_consensus(cand, signals=_signals_fuertes(), local=local,
                                     external=ext, policy=POLICY_V2)
@@ -1036,10 +1085,18 @@ def test_ensemble_expone_la_consulta_y_respeta_el_techo():
                    config=EnsembleConfig(), consensus_policy=POLICY_V1)
     d_v2 = combine(cand, signals=_signals_fuertes(), external=ext,
                    config=EnsembleConfig(), consensus_policy=POLICY_V2)
-    assert d_v1.external_consultation is None      # v1 intacto
+    # AMBAS politicas exponen la consulta y respetan el techo (correccion D1).
+    assert d_v1.external_consultation is not None
     assert d_v2.external_consultation is not None
+    assert d_v1.state != STRONG_CONSENSUS
     assert d_v2.state != STRONG_CONSENSUS
+    assert d_v1.recommendation in RELATION_RECOMMENDATIONS
     assert d_v2.recommendation in RELATION_RECOMMENDATIONS
+    # Sin externa NO se emite consulta en ninguna de las dos (neutralidad offline).
+    for pol in (POLICY_V1, POLICY_V2):
+        sin = combine(cand, signals=_signals_fuertes(), external=None,
+                      config=EnsembleConfig(), consensus_policy=pol)
+        assert sin.external_consultation is None
 
 
 def test_ensemble_una_calibracion_permisiva_no_se_salta_el_techo_externo():
@@ -1065,3 +1122,237 @@ def test_modulos_de_B7_no_tienen_red_ni_escritura():
         for prohibido in ("import requests", "urllib.request", "http.client",
                           "neo4j", "open(", "socket"):
             assert prohibido not in src, f"{mod.__name__} contiene {prohibido!r}"
+
+
+# ===========================================================================
+# 10. CORRECCION SUPERVISADA tras la auditoria independiente de B7
+#
+# El revisor externo emitio NO CONFORME sobre 237c631 con tres condiciones. Esta
+# seccion fija las propiedades que faltaban, cada una escrita contra el MUTANTE
+# concreto que sobrevivia.
+# ===========================================================================
+_OCC = [i for i in range(len(DOC)) if DOC.startswith(REPEATED_SENTENCE, i)]
+assert len(_OCC) == 2, "el documento de pruebas debe tener la cita repetida DOS veces"
+#: Offsets COHERENTES (la rodaja es literal) de la SEGUNDA ocurrencia. Es justo lo que
+#: aportaria un modelo que "cuenta caracteres": literal, plausible, y mal anclado.
+_SEGUNDA_START = _OCC[1]
+_SEGUNDA_END = _OCC[1] + len(REPEATED_SENTENCE)
+assert DOC[_SEGUNDA_START:_SEGUNDA_END] == REPEATED_SENTENCE
+
+
+def test_MUTANTE_N17_cita_ambigua_con_offsets_coherentes_del_modelo_se_RECHAZA():
+    """MUTANTE N17 -- el fallback prohibido "si el realineamiento falla, usa los
+    offsets del modelo".
+
+    Por que sobrevivia a los 2420 tests: la barrera final de literalidad
+    (`document[start:end] == evidence_text`) NO lo detecta, porque con esos offsets la
+    rodaja SI es literal. Lo unico que lo detecta es exigir UNICIDAD del anclaje.
+
+    Propiedad fijada: *cita ambigua => RECHAZO, aunque el modelo aporte offsets
+    coherentes y la rodaja sea literal*.
+    """
+    cand = _candidate(evidence=REPEATED_SENTENCE)
+    raw = _raw(cand, evidence_text=REPEATED_SENTENCE,
+               evidence_start=_SEGUNDA_START, evidence_end=_SEGUNDA_END)
+
+    out = consult.validate_external_verdict(DOC, cand, raw)
+
+    assert out.status != consult.STATUS_ACCEPTED
+    assert out.status == consult.STATUS_NO_EVIDENCE
+    assert out.stance == consult.STANCE_ABSTAIN
+    assert not out.has_evidence
+    assert out.evidence_text == ""
+    # No se ha "desambiguado" eligiendo la ocurrencia que decia el modelo.
+    assert out.evidence_start != _SEGUNDA_START
+    assert "evidence_ambiguous" in out.reason_codes
+
+
+def test_MUTANTE_N17_a_nivel_de_resolver_evidencia():
+    """El mismo mutante, atacado en el punto EXACTO donde vive (`_resolve_evidence`).
+
+    Se comprueba tambien el caso simetrico de la PRIMERA ocurrencia: el fallback no
+    puede colarse por "es que el modelo acerto".
+    """
+    for start in _OCC:
+        raw = {"evidence_text": REPEATED_SENTENCE, "evidence_start": start,
+               "evidence_end": start + len(REPEATED_SENTENCE)}
+        ev = consult._resolve_evidence(DOC, raw, consult.DEFAULT_CONSULT_CONFIG)
+        assert ev.ok is False, "una cita ambigua no puede resolverse"
+        assert ev.start == -1 and ev.end == -1
+        assert ev.protocol == consult.PROTOCOL_NONE
+        assert f"evidence_{realign.TIER_AMBIGUOUS}" in ev.codes
+    # CONTROL no trivial: la cita UNICA del mismo documento SI se resuelve, luego el
+    # test no pasa por "aqui nunca se resuelve nada".
+    s = DOC.find(UNIQUE_SENTENCE)
+    ok = consult._resolve_evidence(
+        DOC, {"evidence_text": UNIQUE_SENTENCE, "evidence_start": s,
+              "evidence_end": s + len(UNIQUE_SENTENCE)},
+        consult.DEFAULT_CONSULT_CONFIG)
+    assert ok.ok and ok.start == s and DOC[ok.start:ok.end] == UNIQUE_SENTENCE
+
+
+def test_MUTANTE_N17_en_la_RUTA_REAL_del_pipeline_protocolo_legacy():
+    """La misma propiedad en el camino que USA el pipeline (defecto D2).
+
+    El pipeline NO pasa por `validate_external_verdict`: entra por
+    `evaluate_relation_external` -> `_validate_verdict`. Antes de la correccion, ese
+    camino aceptaba la cita ambigua anclada con los offsets del modelo y emitia
+    `STRONG_CONSENSUS`/`confirm` -- el falso anclaje del 18 % que el bloque decia
+    haber eliminado. Con protocolo `legacy`, que es el DEFAULT.
+    """
+    cand = _candidate(evidence=REPEATED_SENTENCE)
+    provider = _FakeProvider({"verdicts": [{
+        "candidate_id": _cid(cand), "verdict": "confirm", "negated": False,
+        "evidence_text": REPEATED_SENTENCE,
+        "evidence_start": _SEGUNDA_START, "evidence_end": _SEGUNDA_END,
+        "confidence": 0.9}]})
+    cfg = RelationExternalConfig(model="modelo-falso", provider=provider)
+    assert cfg.protocol == "legacy", "este test debe correr por el camino POR DEFECTO"
+
+    res = evaluate_relation_external(cand, config=cfg, document=DOC)[0]
+
+    assert res.state == INVALID_RESPONSES
+    assert res.shadow_recommendation == "human"
+    assert res.verdict is None
+    assert any("evidencia_ambigua" in e for e in res.validation_errors)
+
+    # Y la consulta derivada no refuerza nada.
+    c = consult.consultation_from_evaluation(res)
+    assert c.stance == consult.STANCE_ABSTAIN
+    assert c.status == consult.STATUS_INVALID
+
+
+def test_la_ruta_real_sigue_aceptando_la_cita_UNICA_control_no_trivial():
+    """Control del test anterior: la correccion rechaza lo ambiguo, no todo."""
+    cand = _candidate()
+    s = DOC.find(UNIQUE_SENTENCE)
+    provider = _FakeProvider({"verdicts": [{
+        "candidate_id": _cid(cand), "verdict": "confirm", "negated": False,
+        "evidence_text": UNIQUE_SENTENCE, "evidence_start": s,
+        "evidence_end": s + len(UNIQUE_SENTENCE), "confidence": 0.9}]})
+    cfg = RelationExternalConfig(model="modelo-falso", provider=provider)
+    res = evaluate_relation_external(cand, config=cfg, document=DOC)[0]
+    assert res.state != INVALID_RESPONSES
+    v = res.verdict
+    assert DOC[v["evidence_start"]:v["evidence_end"]] == v["evidence_text"]
+
+
+def test_la_ruta_real_y_el_modulo_restringido_COINCIDEN_en_la_ambiguedad():
+    """D2: los dos caminos deben dar el MISMO veredicto sobre la misma entrada.
+
+    El defecto era precisamente que divergian: `realign_evidence_unique` decia
+    `ambiguous` y el pipeline aceptaba igualmente.
+    """
+    cand = _candidate(evidence=REPEATED_SENTENCE)
+    raw = {"candidate_id": _cid(cand), "verdict": "confirm", "negated": False,
+           "evidence_text": REPEATED_SENTENCE, "evidence_start": _SEGUNDA_START,
+           "evidence_end": _SEGUNDA_END, "confidence": 0.9}
+
+    assert realign.realign_evidence_unique(DOC, REPEATED_SENTENCE).tier == \
+        realign.TIER_AMBIGUOUS
+
+    modulo = consult.validate_external_verdict(DOC, cand, dict(raw))
+    pipeline, errores = _validate_verdict_real(dict(raw), cand, _cid(cand), DOC, "legacy")
+
+    assert not modulo.has_evidence
+    assert pipeline is None and errores
+
+
+def _validate_verdict_real(raw, cand, cid, document, protocol):
+    from relations.external_ai_shadow import _validate_verdict
+    return _validate_verdict(raw, cand, cid, document, protocol)
+
+
+def test_consultation_from_evaluation_no_declara_ACCEPTED_sin_verificar():
+    """Defecto menor de la auditoria: `ACCEPTED` era una afirmacion sin respaldo.
+
+    El revisor obtuvo una consulta `ACCEPTED` transportando `evidence 9999-10000`
+    con texto inexistente. Sin documento no se puede verificar nada, luego no se
+    puede declarar `ACCEPTED` ni propagar evidencia.
+    """
+    class _Falsa:
+        state = PARTIAL_CONSENSUS
+        shadow_recommendation = "confirm"
+        verdict = {"verdict": "confirm", "evidence_text": "texto inexistente",
+                   "evidence_start": 9999, "evidence_end": 10000}
+
+    c = consult.consultation_from_evaluation(_Falsa())
+    assert c.status != consult.STATUS_ACCEPTED
+    assert c.status == consult.STATUS_NO_EVIDENCE
+    assert c.evidence_text == ""
+    assert c.evidence_start == -1 and c.evidence_end == -1
+    assert c.stance == consult.STANCE_ABSTAIN      # no refuerza lo no verificado
+    assert "external_evidence_unverified" in c.reason_codes
+
+
+def test_consultation_from_evaluation_verifica_cuando_recibe_documento():
+    """Con documento SI puede afirmar, y afirma solo lo que casa."""
+    s = DOC.find(UNIQUE_SENTENCE)
+
+    class _Buena:
+        state = PARTIAL_CONSENSUS
+        shadow_recommendation = "confirm"
+        verdict = {"verdict": "confirm", "evidence_text": UNIQUE_SENTENCE,
+                   "evidence_start": s, "evidence_end": s + len(UNIQUE_SENTENCE)}
+
+    ok = consult.consultation_from_evaluation(_Buena(), document=DOC)
+    assert ok.status == consult.STATUS_ACCEPTED
+    assert ok.has_evidence and DOC[ok.evidence_start:ok.evidence_end] == ok.evidence_text
+    assert ok.stance == consult.STANCE_REINFORCE
+
+    # Mismo objeto, documento que NO lo sostiene -> no se acepta.
+    malo = consult.consultation_from_evaluation(_Buena(), document="otro texto")
+    assert malo.status == consult.STATUS_NO_EVIDENCE
+    assert malo.evidence_text == ""
+
+
+def test_el_techo_externo_esta_cableado_en_AMBAS_politicas_barrido():
+    """MUTANTE `techo-solo-en-v2` (defecto D1), barrido sobre las dos politicas y
+    sobre `compute_relation_consensus` Y `ensemble.combine`.
+
+    Con local+externa de acuerdo, el consenso CRUDO da STRONG_CONSENSUS, que es
+    exactamente lo que `review_policy` exige para AUTO_PROPOSABLE. Ninguna politica
+    puede dejar pasar ese estado con la externa presente.
+    """
+    from relations.consensus_adapter import _compute_consensus_v1
+    from relations.ensemble import EnsembleConfig, combine
+
+    cand = _candidate()
+    local = _LocalRec(cand)
+    ext = _external_eval(reco="confirm")
+
+    # Premisa: sin la puerta, el escenario SI produce STRONG (test no vacio).
+    assert _compute_consensus_v1(cand, signals=_signals_fuertes(), local=local,
+                                 external=ext).state == STRONG_CONSENSUS
+
+    for policy in (POLICY_V1, POLICY_V2):
+        out = compute_relation_consensus(cand, signals=_signals_fuertes(),
+                                         local=local, external=ext, policy=policy)
+        assert out.state != STRONG_CONSENSUS, f"techo ausente en {policy}"
+        assert review_policy.classify_for_review(
+            state=out.state, recommendation=out.recommendation, score=1.0,
+            n_decisive=2, providers_present=2, has_evidence=True,
+            conflicts=[]).label == review_policy.REVIEW_REQUIRED
+
+        d = combine(cand, signals=_signals_fuertes(), local=local, external=ext,
+                    config=EnsembleConfig(), consensus_policy=policy)
+        assert d.state != STRONG_CONSENSUS, f"techo ausente en ensemble/{policy}"
+
+
+def test_la_ruta_de_METRICAS_de_review_policy_lleva_el_techo():
+    """D1: `benchmark/review_policy_metrics.py` llama a `combine(...)` SIN fijar la
+    politica; era la ruta que producia las metricas de AUTO_PROPOSABLE sin techo.
+
+    Se ataca la firma REAL usada alli (sin `consensus_policy`).
+    """
+    from relations.ensemble import combine
+
+    cand = _candidate()
+    d = combine(cand, signals=_signals_fuertes(), local=_LocalRec(cand),
+                external=_external_eval(reco="confirm"),
+                local_availability="PRESENT", external_availability="PRESENT")
+    assert d.state != STRONG_CONSENSUS
+    assert review_policy.classify_for_review(
+        state=d.state, recommendation=d.recommendation, score=d.score,
+        n_decisive=2, providers_present=2, has_evidence=True,
+        conflicts=d.conflicts).label == review_policy.REVIEW_REQUIRED
