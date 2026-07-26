@@ -470,6 +470,9 @@ _STRUCT_VACIO = {
     "evidence_correct": {"rate": 0.0},
     "offsets_correct": {"rate": 0.0},
     "predicate_correct": {"rate": 0.0},
+    "negation_signal": {"precision": 0.0, "measurable": False,
+                        "predicted_positive": 0, "true_positive": 0,
+                        "false_positive": 0},
 }
 
 

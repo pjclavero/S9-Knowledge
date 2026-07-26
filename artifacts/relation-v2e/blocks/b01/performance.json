@@ -1,0 +1,26 @@
+{
+  "benchmark_baseline1_v1": {
+    "harness_per_candidate_ms": 1.203,
+    "harness_per_doc_ms": 3.908,
+    "harness_total_ms": 62.535,
+    "wall_seconds": 0.516
+  },
+  "benchmark_baseline1_v2": {
+    "harness_per_candidate_ms": 1.711,
+    "harness_per_doc_ms": 5.56,
+    "harness_total_ms": 88.96,
+    "wall_seconds": 0.463
+  },
+  "benchmark_ensemble_offline_v1": {
+    "harness_per_candidate_ms": 1.128,
+    "harness_per_doc_ms": 3.666,
+    "harness_total_ms": 58.66,
+    "wall_seconds": 0.432
+  },
+  "benchmark_ensemble_offline_v2": {
+    "harness_per_candidate_ms": 1.707,
+    "harness_per_doc_ms": 5.548,
+    "harness_total_ms": 88.771,
+    "wall_seconds": 0.503
+  }
+}

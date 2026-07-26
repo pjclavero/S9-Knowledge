@@ -26,6 +26,9 @@ erroneo). Aqui se restringe:
     de modo que confiar en ellos es sintacticamente imposible, no solo desaconsejado.
   * **Coincidencia UNICA y NO AMBIGUA, o rechazo.** Dos spans reales distintos que
     casen => ``ambiguous`` => se rechaza en vez de elegir uno.
+  * **Solo ``exact`` ancla (Bloque 1 de V2E).** El peldano ``normalized`` se calcula
+    pero NO acepta: era una segunda envolvente de aceptacion, alcanzable solo por el
+    camino de API y no por el camino real del motor. Se cerro por el lado estricto.
 
 Garantias duras
 ---------------
@@ -70,7 +73,16 @@ REALIGN_TIERS: tuple = (
     TIER_NO_DOCUMENT, TIER_NO_MATCH, TIER_TOO_LONG,
 )
 #: Peldanos que constituyen un realineamiento ACEPTADO.
-REALIGN_OK_TIERS: frozenset = frozenset({TIER_EXACT, TIER_NORMALIZED})
+#:
+#: **CERRADO A ``exact`` (Bloque 1 de V2E).** Antes valia tambien ``normalized``,
+#: pero SOLO era alcanzable por el camino de API (`external_consult`), nunca por el
+#: camino real del motor (`external_ai_shadow`), que exige subcadena LITERAL antes
+#: de llamar aqui. Habia, por tanto, DOS envolventes de aceptacion para la misma
+#: garantia. La divergencia se cierra por el lado ESTRICTO: ``normalized`` deja de
+#: aceptarse y pasa a ser un MOTIVO DE FALLO diagnosticado (se sigue calculando el
+#: peldano para poder decir "casaba salvo tipografia", pero NO se ancla con el).
+#: Nunca al reves: relajar el camino real para igualarlo estaba prohibido.
+REALIGN_OK_TIERS: frozenset = frozenset({TIER_EXACT})
 
 
 @dataclass(frozen=True)
@@ -206,17 +218,20 @@ def _all_occurrences(hay: str, needle: str) -> list:
 def realign_evidence_unique(document: str, evidence_text: str) -> RealignmentResult:
     """Realinea ``evidence_text`` al documento REAL, SOLO si la coincidencia es UNICA.
 
-    Escalera (dos peldanos, sin fuzzy y sin pistas del modelo):
+    UN SOLO peldano de ACEPTACION (sin fuzzy y sin pistas del modelo):
 
       1. ``exact``      -- ``evidence_text`` aparece LITERALMENTE **una sola vez**.
-      2. ``normalized`` -- tras normalizar ambos lados, el texto casa y mapea a **una
-         sola** rodaja real distinta.
+         Es el UNICO caso con ``ok=True`` (ver ``REALIGN_OK_TIERS``).
+      2. ``normalized`` -- DIAGNOSTICO, no aceptacion: tras normalizar ambos lados el
+         texto casa y mapea a una sola rodaja real, pero **no** es subcadena literal.
+         Devuelve ``ok=False, tier="normalized"`` para que el llamador pueda decir
+         "casaba salvo tipografia" sin anclar nada.
 
     En cualquier otro caso se RECHAZA (``ambiguous`` / ``no_match`` / ...): no se
     elige "la mas cercana", porque la unica pista disponible seria el offset que el
     modelo cuenta mal, que es exactamente el origen del falso anclaje.
 
-    INVARIANTE de salida: si ``ok``, entonces
+    INVARIANTE de salida: si ``ok``, entonces ``tier == "exact"`` y
     ``document[start:end] == evidence_text`` (el texto devuelto es la rodaja REAL).
     """
     if not isinstance(document, str) or not document:
@@ -264,7 +279,9 @@ def realign_evidence_unique(document: str, evidence_text: str) -> RealignmentRes
     s, e = spans[0]
     if not (0 <= s <= e <= len(document)):
         return RealignmentResult(False, TIER_NO_MATCH)
-    return RealignmentResult(True, TIER_NORMALIZED, document[s:e], s, e)
+    # Casa tras normalizacion tipografica y de forma unica... pero NO es subcadena
+    # literal. Se DIAGNOSTICA (`tier=normalized`) y se RECHAZA: ver REALIGN_OK_TIERS.
+    return RealignmentResult(False, TIER_NORMALIZED)
 
 
 __all__ = [

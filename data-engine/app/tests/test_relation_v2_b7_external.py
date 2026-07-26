@@ -204,20 +204,37 @@ def test_realineamiento_RECHAZA_cita_literal_AMBIGUA():
     assert r.start is None and r.end is None
 
 
-def test_realineamiento_absorbe_diferencias_tipograficas_triviales():
+def test_realineamiento_DIAGNOSTICA_pero_NO_ancla_por_tipografia():
+    """B1-V2E: `normalized` deja de ser un peldano de ACEPTACION.
+
+    Era la SEGUNDA envolvente de aceptacion: alcanzable por la API
+    (`external_consult`) y no por el camino real del motor (`external_ai_shadow`,
+    que exige subcadena literal antes de llegar aqui). Se cierra por el lado
+    ESTRICTO: se sigue calculando el peldano -para poder decir "casaba salvo
+    tipografia"- pero NO ancla.
+    """
     doc = 'Kael dijo «el pacto» a Ysera.'
     r = realign.realign_evidence_unique(doc, 'Kael dijo "el pacto" a Ysera.')
-    assert r.ok and r.tier == realign.TIER_NORMALIZED
-    assert doc[r.start:r.end] == r.evidence_text
-    # Devuelve la rodaja REAL, no el texto del modelo.
-    assert "«" in r.evidence_text
+    assert not r.ok
+    assert r.tier == realign.TIER_NORMALIZED
+    assert r.start is None and r.end is None and r.evidence_text is None
 
 
-def test_realineamiento_absorbe_nfd_y_colapso_de_blancos():
+def test_realineamiento_NO_absorbe_nfd_ni_colapso_de_blancos():
     doc = "Ysera juro   lealtad a Marcus."
     r = realign.realign_evidence_unique(doc, "Ysera juro lealtad a Marcus.")
-    assert r.ok
-    assert doc[r.start:r.end] == r.evidence_text
+    assert not r.ok and r.tier == realign.TIER_NORMALIZED
+
+
+def test_solo_exact_puede_reportar_ok():
+    """Invariante ejecutable del catalogo: `REALIGN_OK_TIERS` es {exact}.
+
+    Muta `REALIGN_OK_TIERS` para incluir `normalized` y este test se pone ROJO:
+    el propio constructor de `RealignmentResult` deja de proteger la envolvente.
+    """
+    assert realign.REALIGN_OK_TIERS == frozenset({realign.TIER_EXACT})
+    with pytest.raises(ValueError):
+        realign.RealignmentResult(True, realign.TIER_NORMALIZED, "x", 0, 1)
 
 
 def test_realineamiento_RECHAZA_ambiguedad_tambien_tras_normalizar():
@@ -237,10 +254,12 @@ def test_realineamiento_no_acepta_texto_ausente_del_documento():
     assert not r.ok
 
 
-def test_realineamiento_elimina_controles_zero_width_y_bidi():
+def test_realineamiento_NO_ancla_citas_con_controles_zero_width_o_bidi():
+    """Los controles se siguen NEUTRALIZANDO en la normalizacion (no pueden falsear
+    un alineamiento), pero el resultado ya no ancla: es `normalized` => rechazo."""
     r = realign.realign_evidence_unique(DOC, "Gorm\u200b rompio el pacto en el valle de Ysera.")
-    assert r.ok
-    assert "\u200b" not in r.evidence_text
+    assert not r.ok
+    assert r.tier == realign.TIER_NORMALIZED
 
 
 @pytest.mark.parametrize("doc,ev,tier", [
@@ -362,10 +381,28 @@ def test_rechazo_externo_disiente_aunque_no_traiga_evidencia():
 
 
 def test_incertidumbre_externa_se_abstiene():
+    """`uncertain` SIEMPRE se abstiene... y ahora TAMBIEN valida la evidencia.
+
+    B1-V2E: se elimino el cortocircuito que devolvia sin mirar la cita. Era el hueco
+    que impedia que `validate_external_verdict` fuese la unica autoridad de la
+    envolvente (el camino real SI valida la cita de un `uncertain`). La POSTURA no
+    cambia -es lo unico que mira `apply_consultation`-, solo deja de mentir el
+    `status`.
+    """
     cand = _candidate()
     out = consult.validate_external_verdict(DOC, cand, _raw(cand, verdict="uncertain"))
     assert out.stance == consult.STANCE_ABSTAIN
+    assert out.status == consult.STATUS_ACCEPTED
+    assert "external_uncertain" in out.reason_codes
+
+
+def test_incertidumbre_con_evidencia_inventada_NO_se_declara_ACCEPTED():
+    cand = _candidate()
+    out = consult.validate_external_verdict(
+        DOC, cand, _raw(cand, verdict="uncertain", evidence_text="nada de esto existe"))
+    assert out.stance == consult.STANCE_ABSTAIN
     assert out.status == consult.STATUS_NO_EVIDENCE
+    assert out.evidence_text == ""
 
 
 @pytest.mark.parametrize("over,code", [
@@ -429,7 +466,7 @@ def test_catalogo_de_verdictos_coincide_con_el_del_evaluador():
 
 
 @pytest.mark.parametrize("bad", [
-    {"protocol": "magia"}, {"allow_realignment_fallback": "si"},
+    {"protocol": "magia"},
     {"max_fragments": 0}, {"max_fragments": True}, {"name": "  "},
 ])
 def test_configuracion_de_consulta_invalida_falla_ruidosamente(bad):
@@ -437,14 +474,21 @@ def test_configuracion_de_consulta_invalida_falla_ruidosamente(bad):
         consult.ExternalConsultConfig(**bad)
 
 
-def test_fallback_de_realineamiento_puede_desactivarse():
+def test_el_fallback_de_realineamiento_YA_NO_EXISTE():
+    """No hay interruptor porque no hay rama: la envolvente es una sola y estricta.
+
+    Antes esto dependia de `allow_realignment_fallback`, un knob de seguridad que
+    encendia una envolvente de aceptacion que el camino real del motor no tenia.
+    """
+    assert not hasattr(consult.DEFAULT_CONSULT_CONFIG, "allow_realignment_fallback")
+    assert "realignment" not in consult.CONSULT_PROTOCOLS
     cand = _candidate()
     doc = 'Kael dijo «el pacto» a Ysera.'
     raw = _raw(cand, evidence_text='Kael dijo "el pacto" a Ysera.')
-    cfg = consult.ExternalConsultConfig(allow_realignment_fallback=False)
-    out = consult.validate_external_verdict(doc, cand, raw, config=cfg)
+    out = consult.validate_external_verdict(doc, cand, raw)
     assert out.status == consult.STATUS_NO_EVIDENCE
-    assert "realignment_disabled" in out.reason_codes
+    assert "evidence_normalized" in out.reason_codes
+    assert out.evidence_text == ""
 
 
 def test_validacion_es_determinista_y_pura():
@@ -549,8 +593,8 @@ def test_barrido_exhaustivo_la_externa_solo_degrada(state, reco, consultation):
 
 def test_barrido_exhaustivo_cubre_todas_las_combinaciones():
     total = len(CONSENSUS_STATES) * len(RELATION_RECOMMENDATIONS) * len(_ALL_CONSULTATIONS)
-    assert total == 5 * 3 * (1 + 3 * 3 * 4)
-    assert total == 555
+    assert total == 5 * 3 * (1 + 3 * 3 * 3)
+    assert total == 420
 
 
 def test_el_disenso_degrada_propose_a_humano():

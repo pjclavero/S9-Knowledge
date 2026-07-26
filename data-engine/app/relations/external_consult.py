@@ -29,25 +29,35 @@ muerte ESTRUCTURAL de la auto-aprobacion por via externa, no una convencion.
 Validacion local OBLIGATORIA (y donde vive de verdad)
 -----------------------------------------------------
 `validate_external_verdict` es fail-closed en cada paso: estructura -> resolucion de
-evidencia (fragmentos > literal unica > realineamiento restringido) -> REVERIFICACION
-final de que ``document[start:end] == evidence_text``. Si algo no encaja: ``INVALID``
-y ``ABSTAIN``. Nunca "se acepta con dudas".
+evidencia (fragmentos > cita literal y UNICA) -> REVERIFICACION final de que
+``document[start:end] == evidence_text``. Si algo no encaja: ``INVALID`` y
+``ABSTAIN``. Nunca "se acepta con dudas". Tampoco hay excepcion para ``uncertain``:
+un verdicto incierto se abstiene igual, pero su cita se valida como cualquier otra.
 
-**No es, sin embargo, el unico punto de entrada del motor, y este modulo ya no afirma
-lo contrario** (lo afirmaba, y era falso: lo detecto la auditoria independiente de
-B7). El pipeline real entra por `external_ai_shadow.evaluate_relation_external` ->
-`external_ai_shadow._validate_verdict`, y el consenso consume el resultado via
-`consultation_from_evaluation`. Lo que SI es unico es la REGLA:
+**Y ahora SI es el punto por el que pasa el motor** (Bloque 1 de V2E). Historia corta:
+este modulo afirmaba ser el unico punto de entrada, era falso, la auditoria de B7 lo
+desmonto, y quedo una API de seguridad con 23 llamadas de test y CERO llamadores de
+produccion -- justo el patron que este programa se comprometio a erradicar-. El
+camino real (`external_ai_shadow.evaluate_relation_external` ->
+`external_ai_shadow._validate_verdict`) ya no reimplementa el anclaje: DELEGA aqui.
 
-  * la unicidad del anclaje la implementa `evidence_realignment.realign_evidence_unique`
-    y la aplican AMBOS caminos (`_resolve_evidence` aqui, `_validate_verdict` alli);
-    una cita ambigua se RECHAZA en los dos, nunca se desambigua con los offsets del
-    modelo;
+Estado actual, verificable:
+
+  * `_validate_verdict` llama a `validate_external_verdict` y solo emite un verdicto
+    si esta devuelve `ACCEPTED`; los offsets emitidos son los que resuelve ESTA
+    funcion, nunca los del modelo. Test de ruta real:
+    `tests/test_relation_v2e_block1_defects.py::test_LA_RUTA_REAL_PASA_POR_validate_external_verdict`.
+  * Los comprobantes propios del camino real (literalidad + offsets del modelo) se
+    conservan: son ADICIONALES, no alternativos. La envolvente comun es la de aqui,
+    y es la ESTRICTA.
+  * Hay UNA SOLA envolvente de aceptacion: subcadena LITERAL y UNICA
+    (`evidence_realignment`, `REALIGN_OK_TIERS == {exact}`). El peldano `normalized`
+    se calcula para diagnosticar, pero NO ancla en ninguna ruta.
   * `consultation_from_evaluation` no declara `ACCEPTED` evidencia que no haya
     verificado el mismo contra un documento.
 
-Cualquier tercer camino que se abra en el futuro debe reutilizar `realign_evidence_unique`
-o pasar por `validate_external_verdict`; no vale reimplementar el anclaje.
+Cualquier tercer camino que se abra en el futuro debe pasar por
+`validate_external_verdict`; no vale reimplementar el anclaje.
 
 Principios duros
 ----------------
@@ -96,10 +106,12 @@ CONSULT_STATUSES: tuple = (STATUS_ACCEPTED, STATUS_INVALID, STATUS_NO_EVIDENCE)
 #: Protocolo que resolvio la evidencia.
 PROTOCOL_FRAGMENTS = "fragments"        # via PREFERIDA (V3): literalidad por construccion
 PROTOCOL_LITERAL = "literal"            # cita literal y UNICA en el documento
-PROTOCOL_REALIGNMENT = "realignment"    # fallback RESTRINGIDO (V2), unico y no ambiguo
 PROTOCOL_NONE = "none"
+#: NO existe un protocolo "realignment": el peldano ``normalized`` dejo de aceptarse
+#: en el Bloque 1 de V2E (ver `evidence_realignment.REALIGN_OK_TIERS`). Mantener aqui
+#: un protocolo que ninguna rama puede emitir seria una etiqueta decorativa.
 CONSULT_PROTOCOLS: tuple = (
-    PROTOCOL_FRAGMENTS, PROTOCOL_LITERAL, PROTOCOL_NONE, PROTOCOL_REALIGNMENT,
+    PROTOCOL_FRAGMENTS, PROTOCOL_LITERAL, PROTOCOL_NONE,
 )
 
 #: Verdictos que el modelo externo puede emitir (mismo catalogo que
@@ -157,7 +169,6 @@ class ExternalConsultConfig:
     """
 
     protocol: str = "legacy"                 # "legacy" | "fragments"
-    allow_realignment_fallback: bool = True  # fallback V2 RESTRINGIDO (unico/no ambiguo)
     max_fragments: int = _frag.DEFAULT_MAX_FRAGMENTS
     name: str = "external-consult-default-1.0.0"
 
@@ -166,8 +177,6 @@ class ExternalConsultConfig:
             raise ExternalConsultError(
                 f"protocol {self.protocol!r} no valido (legacy|fragments)"
             )
-        if not isinstance(self.allow_realignment_fallback, bool):
-            raise ExternalConsultError("allow_realignment_fallback debe ser bool")
         if (not isinstance(self.max_fragments, int)
                 or isinstance(self.max_fragments, bool) or self.max_fragments < 1):
             raise ExternalConsultError("max_fragments debe ser un entero >= 1")
@@ -181,7 +190,6 @@ class ExternalConsultConfig:
     def to_dict(self) -> dict:
         return {
             "protocol": self.protocol,
-            "allow_realignment_fallback": self.allow_realignment_fallback,
             "max_fragments": self.max_fragments,
             "name": self.name,
         }
@@ -290,8 +298,9 @@ def _resolve_evidence(document: str, raw: dict,
       1. ``fragment_ids`` (via PREFERIDA, solo si el protocolo es "fragments"): el
          sistema reconstruye los offsets; el modelo no cuenta caracteres.
       2. ``evidence_text`` que aparezca LITERALMENTE y UNA SOLA VEZ en el documento.
-      3. Fallback RESTRINGIDO de realineamiento (`realign_evidence_unique`): solo
-         diferencias tipograficas y solo con coincidencia unica; ambiguo => rechazo.
+    NO hay tercer peldano: el realineamiento tipografico (`normalized`) se calcula
+    para poder DIAGNOSTICAR el fallo, pero no ancla (Bloque 1 de V2E). Ambiguo,
+    normalizado-solo o sin coincidencia => rechazo.
 
     Los offsets que manda el modelo NO se usan en ninguna rama: son la fuente medida
     del falso anclaje. Se ignoran deliberadamente.
@@ -321,17 +330,11 @@ def _resolve_evidence(document: str, raw: dict,
                          codes=["evidence_missing"])
 
     result = _realign.realign_evidence_unique(document, ev)
-    if result.ok and result.tier == _realign.TIER_EXACT:
+    if result.ok:
+        # UNICA envolvente de aceptacion del motor: subcadena LITERAL y UNICA.
+        # `realign_evidence_unique` solo devuelve ok con `tier == exact`.
         return _Evidence(True, PROTOCOL_LITERAL, result.evidence_text,
                          result.start, result.end)
-    if result.ok:
-        if not config.allow_realignment_fallback:
-            return _Evidence(
-                False, errors=["realineamiento desactivado por configuracion"],
-                codes=["realignment_disabled"],
-            )
-        return _Evidence(True, PROTOCOL_REALIGNMENT, result.evidence_text,
-                         result.start, result.end, codes=[f"realign_{result.tier}"])
     return _Evidence(False, errors=[f"evidencia no anclable ({result.tier})"],
                      codes=[f"evidence_{result.tier}"])
 
@@ -416,12 +419,15 @@ def validate_external_verdict(
         return _abstained(STATUS_INVALID, ["negated debe ser bool explicito"],
                           ["negated_not_bool"])
 
-    # --- Incertidumbre: no se le pide evidencia --------------------------------
+    # --- Incertidumbre: NO exime de validar la evidencia -----------------------
+    # Antes habia aqui un cortocircuito que devolvia sin mirar la cita. Era el hueco
+    # que impedia que ESTA funcion fuese la unica autoridad de la envolvente (el
+    # camino real SI valida la cita de un `uncertain`). Se cierra por el lado
+    # estricto: la evidencia se resuelve para TODO verdicto. La POSTURA de
+    # `uncertain` sigue siendo ABSTAIN pase lo que pase (`_VERDICT_STANCE`), asi que
+    # el cambio es NEUTRO para la decision: solo deja de mentir el `status`.
     if verdict == VERDICT_UNCERTAIN:
-        return ExternalConsultation(
-            stance=STANCE_ABSTAIN, status=STATUS_NO_EVIDENCE, verdict=verdict,
-            reason_codes=("external_uncertain",),
-        )
+        codes.append("external_uncertain")
 
     # --- Evidencia: resuelta SIEMPRE por el sistema ----------------------------
     ev = _resolve_evidence(document, raw_verdict, config)
@@ -624,7 +630,6 @@ __all__ = [
     "PROTOCOL_FRAGMENTS",
     "PROTOCOL_LITERAL",
     "PROTOCOL_NONE",
-    "PROTOCOL_REALIGNMENT",
     "STANCES",
     "STANCE_ABSTAIN",
     "STANCE_DISSENT",

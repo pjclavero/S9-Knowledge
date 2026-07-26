@@ -238,6 +238,11 @@ class RelationEvent:
     provider_status: dict = field(default_factory=dict)
     errors: list = field(default_factory=list)
 
+    #: Metricas NUMERICAS libres del componente (p.ej. la cache sintactica:
+    #: hits/misses/evictions/expirations/size). Solo numeros: la traza no es un
+    #: sitio donde volcar contenido del documento.
+    metrics: dict = field(default_factory=dict)
+
     # -- Redaccion / procedencia del dato --
     synthetic: bool = False
     sample_text: Optional[str] = None
@@ -287,6 +292,14 @@ class RelationEvent:
         if not isinstance(self.provider_status, dict):
             raise ObservabilityError("provider_status debe ser dict")
 
+        if not isinstance(self.metrics, dict):
+            raise ObservabilityError("metrics debe ser dict")
+        for k, v in self.metrics.items():
+            if not isinstance(k, str) or not k.strip():
+                raise ObservabilityError("las claves de metrics deben ser str no vacias")
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
+                raise ObservabilityError(f"metrics[{k!r}] debe ser numerico (sin texto)")
+
         if not isinstance(self.errors, list) or not all(isinstance(e, str) for e in self.errors):
             raise ObservabilityError("errors debe ser lista de strings")
 
@@ -327,6 +340,7 @@ class RelationEvent:
             "estimated_cost": self.estimated_cost,
             "consensus_decision": self.consensus_decision,
             "provider_status": redact(dict(self.provider_status)),
+            "metrics": {k: self.metrics[k] for k in sorted(self.metrics)},
             "errors": [redact(e) for e in self.errors],
             "synthetic": self.synthetic,
         }
@@ -399,6 +413,7 @@ class RelationEvent:
 _DERIVED_KEYS = frozenset({"sample_text_hash", "sample_text_len"})
 _EVENT_FIELD_NAMES = frozenset(
     {
+        "metrics",
         "execution_id",
         "document_id",
         "workspace",

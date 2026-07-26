@@ -69,7 +69,13 @@ from relations.pairs import (
     generate_pairs,
 )
 from relations.signals import SIGNALS_VERSION, SignalContext, compute_all_signals
-from relations.syntax import SYNTAX_VERSION, get_analyzer, get_default_analyzer, safe_analyze
+from relations.syntax import (
+    SYNTAX_VERSION,
+    get_analyzer,
+    get_default_analyzer,
+    new_scoped_analyzer,
+    safe_analyze,
+)
 from relations import ontology as _ontology
 from relations import predicate_selector as _predicate_selector
 from relations import direction as _direction
@@ -602,6 +608,7 @@ def _process_segment(
     ctx: _RunContext,
     trace: RelationTrace,
     summary: dict,
+    analyzer: Any = None,
 ) -> dict:
     errors: list[dict] = []
     seg_id = seg.get("segment_id") or seg.get("id")
@@ -674,9 +681,14 @@ def _process_segment(
     summary["pairs_generated"] += len(pairs)
 
     # --- sintaxis (proveedor heuristico, stdlib) una vez por segmento ---
-    # `get_default_analyzer()` comparte un heuristico cacheado: mismo resultado
-    # (funcion pura y determinista) sin reanalizar textos repetidos.
-    syntax_analysis = safe_analyze(get_default_analyzer(), text)
+    # B5-D4: el analizador es PROPIO DE LA EJECUCION (`new_scoped_analyzer` en
+    # `run_pipeline`), no el singleton de proceso. La cache nace y muere con el
+    # documento, de modo que ni el analisis ni el TEXTO cruzan a otro documento o
+    # workspace. `get_default_analyzer()` queda solo como red de compatibilidad
+    # para llamadores que invoquen `_process_segment` sin analizador.
+    syntax_analysis = safe_analyze(
+        analyzer if analyzer is not None else get_default_analyzer(), text
+    )
 
     candidate_records: list[dict] = []
     seen_candidates: set[str] = set()
@@ -924,10 +936,17 @@ def run_pipeline(
     trace = RelationTrace(execution_id=execution_id)
     ctx = _RunContext(local_transport=local_transport, external_provider=external_provider)
 
+    # --- Cache sintactica AISLADA POR EJECUCION (B5-D4) ---------------------
+    # Un analizador nuevo por corrida: su ambito es (workspace|documento|ejecucion),
+    # de modo que es IMPOSIBLE que un acierto -o la mera retencion del texto- cruce
+    # la frontera del documento o del workspace. Se descarta al terminar.
+    syntax_analyzer = new_scoped_analyzer(f"{workspace}|{document_id}|{execution_id}")
+
     segment_results: list[dict] = []
     for i, seg in enumerate(ordered):
         seg_res = _process_segment(
-            seg, i, workspace, document_id, execution_id, config, ctx, trace, summary
+            seg, i, workspace, document_id, execution_id, config, ctx, trace, summary,
+            analyzer=syntax_analyzer,
         )
         segment_results.append(seg_res)
         text = seg.get("text", "")
@@ -938,6 +957,28 @@ def run_pipeline(
             summary["segments_failed"] += 1
         else:
             summary["segments_processed"] += 1
+
+    # --- Metricas de la cache sintactica -> OBSERVABILIDAD, no `summary` ------
+    # Van a la traza (excluida del `result_hash` funcional) a proposito: son una
+    # medida de EFICIENCIA, no un hecho del contenido; meterlas en `summary`
+    # cambiaria el hash funcional de salidas identicas.
+    cache_stats = syntax_analyzer.stats()
+    trace.record(
+        document_id=document_id,
+        workspace=workspace,
+        component="pipeline.syntax_cache",
+        version=SYNTAX_VERSION,
+        result=ComponentResult.OK,
+        metrics={
+            "hits": cache_stats["hits"],
+            "misses": cache_stats["misses"],
+            "evictions": cache_stats["evictions"],
+            "expirations": cache_stats["expirations"],
+            "size": cache_stats["size"],
+        },
+    )
+    # La cache muere aqui: no queda texto del documento retenido tras la corrida.
+    syntax_analyzer.cache_clear()
 
     # --- Contadores derivados ---
     summary["pairs_discarded"] = max(0, summary["pairs_potential"] - summary["pairs_generated"])

@@ -291,7 +291,8 @@ def render_markdown(report: dict, *, all_modes: Optional[dict] = None) -> str:
     A("|---|---|---|---|---|")
     for name in ("determinism", "workspace_contamination", "provider_transport",
                  "simple_relations", "evidence", "offsets", "negation",
-                 "temporality", "rumors", "predicate_structural"):
+                 "negation_precision", "temporality", "rumors",
+                 "predicate_structural"):
         gate = report["gates"].get(name)
         if gate is None:  # provider_transport solo existe en modos con proveedor
             continue
@@ -299,9 +300,20 @@ def render_markdown(report: dict, *, all_modes: Optional[dict] = None) -> str:
         val_s = _fmt_pct(val) if isinstance(val, (int, float)) else "-"
         thr = gate.get("threshold")
         thr_s = _fmt_pct(thr) if isinstance(thr, (int, float)) else "-"
-        hard = "DURO" if gate.get("hard") else "calidad"
+        hard = ("DURO" if gate.get("hard")
+                else ("INFORMATIVA" if gate.get("informative") else "calidad"))
         A(f"| {name} | **{gate['status']}** | {val_s} | {thr_s} | {hard} |")
     A("")
+    negp = report["gates"].get("negation_precision") or {}
+    if negp:
+        det_np = negp.get("detail") or {}
+        A(f"- `negation` mide RECALL sobre las {(report['gates']['negation'].get('detail') or {}).get('count', '?')} "
+          "relaciones negadas del ground truth: no puede ponerse roja por falsos "
+          "positivos. `negation_precision` mide la PRECISION de la senal que dispara "
+          f"los rechazos: {det_np.get('true_positive', '?')} aciertos de "
+          f"{det_np.get('predicted_positive', '?')} marcados. Es INFORMATIVA: NO "
+          "gobierna el dictamen (ver `report.NEGATION_PRECISION_FLOOR`).")
+        A("")
 
     A("## Determinismo")
     A("")

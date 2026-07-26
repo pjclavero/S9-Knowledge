@@ -27,8 +27,11 @@ agregacion es responsabilidad de otro subsistema.
 """
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
 import re
+import time
 from collections import OrderedDict
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, replace
@@ -1092,41 +1095,130 @@ class FallbackSyntaxAnalyzer(SyntaxAnalyzer):
 
 
 # ---------------------------------------------------------------------------
-# Wrapper de CACHE por segmento: un unico analisis por (texto, idioma) — Bloque 5
+# Wrapper de CACHE por segmento — Bloque 5, endurecido en el Bloque 1 de V2E
 # ---------------------------------------------------------------------------
-class CachingSyntaxAnalyzer(SyntaxAnalyzer):
-    """Memoriza el analisis por segmento: clave (texto, idioma).
+#: TTL por defecto de una entrada de cache (segundos). Un proceso longevo NO debe
+#: retener el analisis (y con el, el TEXTO del documento) indefinidamente solo
+#: porque no se hayan visto 512 segmentos nuevos. `None` desactiva la caducidad.
+DEFAULT_CACHE_TTL_SECONDS: float = 900.0
 
-    Garantiza UN UNICO analisis por segmento/documento durante la vida del
-    analizador. Determinista y sin efectos externos. Delega en `inner`.
+#: Ambito por defecto cuando el llamador no declara ninguno. Un analizador SIN
+#: ambito declarado es el caso "global" heredado; los llamadores del pipeline
+#: declaran ambito de ejecucion/documento (ver `new_scoped_analyzer`).
+GLOBAL_SCOPE = "__global__"
+
+
+def _digest(text: str) -> str:
+    """Huella estable del texto. La cache NO guarda el texto crudo en la clave."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+class CachingSyntaxAnalyzer(SyntaxAnalyzer):
+    """Memoriza el analisis por segmento dentro de un AMBITO acotado.
+
+    Garantias (B5-D4 / B5-D7, cerradas en el bloque 1 de V2E):
+
+      * **La clave NO es el texto crudo**: es `(scope, language, sha256(text), len)`.
+        El texto del documento deja de vivir duplicado en la clave.
+      * **Aislamiento por ambito**: `scope` forma parte de la clave y cambiar de
+        ambito (`set_scope`) PURGA la cache. Dos documentos/workspaces distintos
+        no comparten ni resultado ni RETENCION.
+      * **Caducidad real (TTL)** ademas del desalojo LRU: una entrada vieja se
+        descarta aunque nadie vuelva a llenar la cache. Reloj INYECTABLE para
+        poder probarlo sin dormir.
+      * **Nadie puede contaminar a nadie (B5-D7)**: el objeto que se guarda es una
+        COPIA PROFUNDA privada, y en cada acierto se entrega otra copia profunda.
+        El objeto almacenado no sale nunca del analizador, asi que ni siquiera
+        `object.__setattr__` sobre lo devuelto alcanza a otro llamador.
+      * **Metricas**: hits / misses / evictions / expirations / size via `stats()`.
+
+    Determinista y sin efectos externos salvo el reloj (solo para el TTL, que no
+    influye en el VALOR devuelto: un fallo de cache recalcula lo mismo).
     """
 
-    def __init__(self, inner: SyntaxAnalyzer, *, maxsize: Optional[int] = None):
+    def __init__(
+        self,
+        inner: SyntaxAnalyzer,
+        *,
+        maxsize: Optional[int] = None,
+        ttl_seconds: Optional[float] = DEFAULT_CACHE_TTL_SECONDS,
+        scope: Optional[str] = None,
+        clock: Optional[Any] = None,
+    ):
         self.inner = inner
         self.name = getattr(inner, "name", "?")
         if maxsize is not None and maxsize < 1:
             raise SyntaxAdapterError("maxsize debe ser >= 1 o None")
+        if ttl_seconds is not None and (
+            isinstance(ttl_seconds, bool) or not isinstance(ttl_seconds, (int, float))
+            or ttl_seconds <= 0
+        ):
+            raise SyntaxAdapterError("ttl_seconds debe ser > 0 o None")
         self.maxsize = maxsize
+        self.ttl_seconds = float(ttl_seconds) if ttl_seconds is not None else None
+        self._clock = clock if clock is not None else time.monotonic
+        self._scope = str(scope) if scope is not None else GLOBAL_SCOPE
         # OrderedDict: el orden de insercion/uso ES la politica de desalojo LRU.
-        self._cache: "OrderedDict[tuple, SyntaxAnalysis]" = OrderedDict()
+        # Valor: (instante_de_alta, analisis PRIVADO que nunca se entrega).
+        self._cache: "OrderedDict[tuple, tuple]" = OrderedDict()
         self.hits = 0
         self.misses = 0
         self.evictions = 0
+        self.expirations = 0
 
+    # --- Ambito ------------------------------------------------------------
+    @property
+    def scope(self) -> str:
+        return self._scope
+
+    def set_scope(self, scope: Optional[str]) -> None:
+        """Declara el ambito activo. Cambiarlo PURGA la cache (sin conservar texto).
+
+        La purga es lo que convierte el aislamiento en una garantia de RETENCION y
+        no solo de correccion: al pasar del documento A al B no queda en memoria
+        ningun analisis (ni ningun texto) de A.
+        """
+        new = str(scope) if scope is not None else GLOBAL_SCOPE
+        if new != self._scope:
+            self._cache.clear()
+            self._scope = new
+
+    # --- Interfaz ----------------------------------------------------------
     def available(self) -> bool:
         return self.inner.available()
 
+    def _key(self, text: str, language: Optional[str]) -> tuple:
+        # Ni el texto ni un prefijo suyo: solo su huella y su longitud.
+        return (self._scope, language, _digest(text), len(text))
+
+    def _expired(self, born: float, now: float) -> bool:
+        return self.ttl_seconds is not None and (now - born) >= self.ttl_seconds
+
+    def _purge_expired(self, now: float) -> None:
+        if self.ttl_seconds is None:
+            return
+        muertas = [k for k, (born, _) in self._cache.items() if self._expired(born, now)]
+        for k in muertas:
+            del self._cache[k]
+            self.expirations += 1
+
     def analyze(self, text: str, *, language: Optional[str] = None) -> SyntaxAnalysis:
-        key = (text, language)
-        cached = self._cache.get(key)
-        if cached is not None:
+        now = float(self._clock())
+        self._purge_expired(now)
+        key = self._key(text, language)
+        entry = self._cache.get(key)
+        if entry is not None:
             self.hits += 1
-            # Politica LRU: un acierto renueva la entrada (la mueve al final).
+            # Politica LRU: un acierto renueva la posicion (no el TTL: la entrada
+            # caduca por ANTIGUEDAD, no por desuso; si no, un texto muy pedido se
+            # quedaria retenido para siempre).
             self._cache.move_to_end(key)
-            return cached
+            # B5-D7: copia defensiva. Lo guardado no sale nunca.
+            return copy.deepcopy(entry[1])
         self.misses += 1
         result = self.inner.analyze(text, language=language)
-        self._cache[key] = result
+        # Se guarda una COPIA: el objeto que ve el llamador no es el de la cache.
+        self._cache[key] = (now, copy.deepcopy(result))
         # DESALOJO real (LRU). Una politica de solo-insercion dejaria el cache
         # congelado con los primeros N segmentos vistos: en un proceso longevo la
         # tasa de acierto tenderia a 0 y solo quedaria el coste de memoria.
@@ -1141,6 +1233,20 @@ class CachingSyntaxAnalyzer(SyntaxAnalyzer):
         self.hits = 0
         self.misses = 0
         self.evictions = 0
+        self.expirations = 0
+
+    def stats(self) -> dict:
+        """Metricas de la cache. Serializable y sin texto del documento."""
+        return {
+            "scope": self._scope,
+            "size": len(self._cache),
+            "maxsize": self.maxsize,
+            "ttl_seconds": self.ttl_seconds,
+            "hits": self.hits,
+            "misses": self.misses,
+            "evictions": self.evictions,
+            "expirations": self.expirations,
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -1213,13 +1319,53 @@ _DEFAULT_ANALYZER: Optional[SyntaxAnalyzer] = None
 
 
 def get_default_analyzer() -> SyntaxAnalyzer:
-    """Analizador por defecto del pipeline (heuristico, cacheado, compartido)."""
+    """Analizador por defecto del pipeline (heuristico, cacheado, compartido).
+
+    ATENCION: es un singleton de PROCESO. El pipeline ya NO lo usa para procesar
+    documentos (usa `new_scoped_analyzer`, uno por ejecucion); se mantiene para
+    llamadores sueltos y utilidades. Si un proceso longevo lo usa, debe llamar a
+    `reset_default_analyzer()` en las fronteras que le interesen.
+    """
     global _DEFAULT_ANALYZER
     if _DEFAULT_ANALYZER is None:
         _DEFAULT_ANALYZER = CachingSyntaxAnalyzer(
             HeuristicSyntaxAnalyzer(), maxsize=_DEFAULT_CACHE_MAXSIZE
         )
     return _DEFAULT_ANALYZER
+
+
+def reset_default_analyzer() -> None:
+    """DESCARTA el singleton de modulo y todo lo que retenia. API EXPLICITA.
+
+    Cierra la mitad de B5-D4 que no cubria `cache_clear()`: aquella vacia la
+    cache del objeto, pero el objeto seguia vivo para todo el proceso. Esta
+    suelta el objeto entero. Idempotente; segura de llamar aunque nunca se haya
+    creado el singleton.
+    """
+    global _DEFAULT_ANALYZER
+    analyzer = _DEFAULT_ANALYZER
+    _DEFAULT_ANALYZER = None
+    clear = getattr(analyzer, "cache_clear", None)
+    if callable(clear):
+        clear()
+
+
+def new_scoped_analyzer(
+    scope: str,
+    *,
+    maxsize: int = _DEFAULT_CACHE_MAXSIZE,
+    ttl_seconds: Optional[float] = DEFAULT_CACHE_TTL_SECONDS,
+) -> CachingSyntaxAnalyzer:
+    """Analizador cacheado PROPIO de un ambito (una ejecucion, un documento).
+
+    Es la via que usa el pipeline: la cache nace y muere con la ejecucion, de modo
+    que ni el resultado ni el TEXTO cruzan la frontera de documento o workspace.
+    """
+    if not isinstance(scope, str) or not scope.strip():
+        raise SyntaxAdapterError("scope debe ser una cadena no vacia")
+    return CachingSyntaxAnalyzer(
+        HeuristicSyntaxAnalyzer(), maxsize=maxsize, ttl_seconds=ttl_seconds, scope=scope
+    )
 
 
 def analyze(text: str, *, provider: str = "heuristic", language: Optional[str] = None) -> SyntaxAnalysis:
@@ -1271,6 +1417,10 @@ __all__ = [
     "CachingSyntaxAnalyzer",
     "get_analyzer",
     "get_default_analyzer",
+    "reset_default_analyzer",
+    "new_scoped_analyzer",
+    "DEFAULT_CACHE_TTL_SECONDS",
+    "GLOBAL_SCOPE",
     "analyze",
     "safe_analyze",
 ]

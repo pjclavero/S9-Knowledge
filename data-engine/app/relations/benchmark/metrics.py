@@ -120,6 +120,25 @@ def structural_quality(match: MatchResult) -> dict:
         ok = sum(1 for m in subset if m["flags"][flag])
         return {"ok": ok, "total": k, "rate": round(ok / k, 4) if k else 0.0}
 
+    # --- PRECISION de la senal de negacion (B1-V2E) ---------------------------
+    # El subgrupo `negated_relations` de abajo mide RECALL sobre las 4 relaciones
+    # negadas del GT (sale 1.0 y NO PUEDE ponerse rojo aunque la senal dispare a
+    # diestro y siniestro): es el patron "test que no puede fallar". Esto mide lo
+    # contrario y es lo que gobierna los RECHAZOS: de todos los pares a los que el
+    # motor marco `negated=True`, cuantos lo estaban de verdad.
+    predichos_neg = [m for m in tp if bool(m["pred"]["negated"])]
+    aciertos_neg = [m for m in predichos_neg if bool(m["gt"]["negated"])]
+    k_pred = len(predichos_neg)
+    negation_signal = {
+        "predicted_positive": k_pred,
+        "true_positive": len(aciertos_neg),
+        "false_positive": k_pred - len(aciertos_neg),
+        "precision": round(len(aciertos_neg) / k_pred, 4) if k_pred else 0.0,
+        # Sin un solo positivo predicho no hay precision que medir: se declara en
+        # vez de disfrazarse de 0.0 (o de 1.0, que seria peor).
+        "measurable": bool(k_pred),
+    }
+
     return {
         "predicate_correct": rate("predicate_correct"),
         "direction_correct": rate("direction_correct"),
@@ -132,6 +151,7 @@ def structural_quality(match: MatchResult) -> dict:
         "offsets_correct": rate("offsets_correct"),
         "workspace_correct": rate("workspace_correct"),
         "decision_correct": rate("decision_correct"),
+        "negation_signal": negation_signal,
         "subgroups": {
             "simple_relations": {
                 "count": len(simple_gt),
@@ -139,6 +159,9 @@ def structural_quality(match: MatchResult) -> dict:
             },
             "negated_relations": {
                 "count": len(negated_gt),
+                # OJO: esto es RECALL (sobre los GT-negados), no precision. Con 4
+                # GT-negados y 4 aciertos vale 1.0 por construccion. La precision
+                # -la que puede ponerse roja- esta en `negation_signal`.
                 "negation_correct": subgroup_rate(negated_gt, "negation_correct"),
             },
             "temporal_relations": {

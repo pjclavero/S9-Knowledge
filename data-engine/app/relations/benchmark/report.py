@@ -29,6 +29,11 @@ VERDICTS = (
 )
 
 # Umbrales de los gates de calidad (deterministas y documentados en docs/50).
+#: Suelo de PRECISION de la senal de negacion (B1-V2E). Se declara APARTE de
+#: `THRESHOLDS` a proposito: `THRESHOLDS` gobierna el dictamen y esta CONGELADO en
+#: este bloque, y esta metrica nace en ROJO (0.44 medido). Ver `evaluate_gates`.
+NEGATION_PRECISION_FLOOR = 0.80
+
 THRESHOLDS = {
     "simple_relations_recall": 0.80,
     "evidence": 0.80,
@@ -166,6 +171,33 @@ def evaluate_gates(match, struct: dict, contamination: dict, determinism: dict,
         "status": _status(neg, THRESHOLDS["negation"]),
         "value": neg, "threshold": THRESHOLDS["negation"],
         "detail": sub["negated_relations"],
+    }
+    # --- PRECISION de la senal de negacion: metrica INFORMATIVA que SI se pone roja
+    # El gate `negation` de arriba lee `negated_relations.negation_correct`, que es
+    # el RECALL sobre las relaciones negadas del ground truth. Con 4 GT-negados y 4
+    # aciertos vale 1.0 y NO PUEDE ponerse en FAIL por muchos falsos positivos que
+    # produzca la senal: es un gate que no puede fallar, justo lo que este programa
+    # se comprometio a erradicar.
+    #
+    # Esta metrica mide lo que gobierna los RECHAZOS (`abstention.reject_on_negation`):
+    # la PRECISION. Hoy sale 4/9 = 0.4444 => FAIL visible.
+    #
+    # Por que INFORMATIVA y no un gate duro: `decide_verdict` deriva el dictamen de
+    # la lista cerrada `quality`, y meter aqui una metrica que nace en FAIL cambiaria
+    # el dictamen de las cuatro corridas por una medicion que YA ERA VERDAD antes de
+    # este bloque. Convertirla en gate es una decision de CALIDAD (bloque 2+), no de
+    # cierre de defectos. Lo que se cierra hoy es la ceguera: la cifra existe, se
+    # publica y puede ponerse roja.
+    negsig = struct["negation_signal"]
+    gates["negation_precision"] = {
+        "status": (_status(negsig["precision"], NEGATION_PRECISION_FLOOR)
+                   if negsig["measurable"] else "NOT_EVALUATED"),
+        "value": negsig["precision"],
+        "threshold": NEGATION_PRECISION_FLOOR,
+        "hard": False,
+        "informative": True,
+        "governs_verdict": False,
+        "detail": negsig,
     }
     temp = sub["temporal_relations"]["temporal_correct"]["rate"]
     gates["temporality"] = {

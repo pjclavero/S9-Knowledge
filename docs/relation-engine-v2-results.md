@@ -275,6 +275,14 @@ fueron un adorno: destaparon 4 huecos en B5, 2 en B6 y 1 en B7 que la suite comp
 | B7 | BAJA | La **envolvente de aceptación** de los dos caminos no es idéntica: el peldaño `TIER_NORMALIZED` es inalcanzable en la ruta real. Es fail-closed, pero es deriva futura |
 | B7 | BAJA | `validate_external_verdict` **no tiene ningún llamador de producción**: una API de seguridad que nadie ejecuta puede pudrirse sin que nadie lo note |
 
+> **ESTADO POSTERIOR (Bloque 1 del programa "Motor V2 temporal, episódico y trazable").**
+> Este documento es el informe **del programa V2** y se deja como está: es un registro
+> histórico, no un panel de estado. Cinco de estos seis defectos se cerraron después,
+> sobre la rama `exp/relation-engine-v2-temporal-provenance-v1`; el sexto (`pair_F1`)
+> sigue abierto por decisión de alcance. El detalle, la evidencia y las mediciones A/B
+> están en **`docs/relation-engine-v2e/BLOQUE_1_CIERRE_DEFECTOS.md`**. La tabla de
+> arriba describe el estado en el commit `8fc7c8d`, no el estado actual de la rama.
+
 ---
 
 ## 9. Próximos pasos recomendados

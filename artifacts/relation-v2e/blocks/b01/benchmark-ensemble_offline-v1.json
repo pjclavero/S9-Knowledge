@@ -1,0 +1,981 @@
+{
+  "benchmark": "relation-benchmark-runner-v1",
+  "code_sha": "76018a3e8ad3511c2d44289e5ad7a4badf3912fb",
+  "config": {
+    "consensus_policy": "auto",
+    "context_mode": "sentence",
+    "external_ai_enabled": false,
+    "external_model": "external-model",
+    "external_protocol": "legacy",
+    "external_provider_name": "nvidia",
+    "local_llm_enabled": false,
+    "local_model": "local-llm",
+    "max_distance": null,
+    "max_entities_per_segment": 200,
+    "max_errors_per_batch": 1000,
+    "max_pairs_per_segment": 1000,
+    "max_prompt_chars": 24000,
+    "max_response_bytes": 65536,
+    "max_results": 100000,
+    "max_segments_per_doc": 500,
+    "max_text_chars": 200000,
+    "max_time_per_candidate_ms": 30000,
+    "pair_window": "char",
+    "predicate_selector": "v1",
+    "prompt_suite": "balanced"
+  },
+  "config_notes": {
+    "max_time_per_candidate_ms": "DECLARADO PERO NO APLICADO: el pipeline no lo comprueba en ningun punto; no limita el tiempo por candidato. No es un control efectivo (la correccion vive en relations/pipeline.py, fuera del alcance del Bloque 7)."
+  },
+  "corpus": {
+    "corpus_hashes": {
+      "src-01": "5235a7f3d70dba1fdea910fb54b8a63ef720b0f754ac65cc78546d88457655cb",
+      "src-02": "382e3bffd30ba8f180a059ee04904c6ae03dee8dc802a7cc4505296ed300346a",
+      "src-03": "76c5337a1856b4c30d370a090a538a9e77387e96811f926d11752e0d7265e2ed",
+      "src-04": "710bfcf30713b188b91310cd028fa029f10b54575b3941a5bc2aa57fcd875384",
+      "src-05": "1654b47ae96cc56e740b54fd4ad3864886244b0bc89bb31fb463c04375e36f55",
+      "src-06": "cd6e6fe5aa834dbb353b07044b78b1cde2cf31d79b0a9cb0713e6401e3df61ca",
+      "src-07": "91eb861452c6038299d0024fff886b312d492bb4aaf62303c89cb561798ba3f6",
+      "src-08": "43175c9f0f1d89d85336e72a1748d7a626d49ecf23b0992c58b3fd9afe8b2b86",
+      "src-09": "b090e532a17de2f1573e576edc48391608f0eccbf9e8c3712da398e50d078465",
+      "src-10": "e8ac34bee0b93cd8b9959429ffb523f761449a06d2e7ea04454583bf67684667",
+      "src-11": "e0c310a2ce693865176eea6c51d624791b1917dd837cd69c774b28523f3aab36",
+      "src-12": "5b28e6528fe018c0d953bc074ff69308bf0c3f5536f1a861137ea0078fdc4f76",
+      "src-13": "d940054dc57e9f5d3346d487a2d4df1ab803461ed66954aea48b74d61b73a51a",
+      "src-14": "d158f02dc1adcb4f5ecd536e941ccfcc32ea76306de085ceb7541a34f36ef6b0",
+      "src-15": "be65f2b2dc501c34c7151b1f1ffd719898a40c8063f37f073a8eb96e5be0fdce",
+      "src-16": "8ba198c09c8d4023a4a878096f65643953e61add0068d2156e74bfe8cdd7b9d1"
+    },
+    "ground_truth_sha256": "15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c",
+    "relation_count": 54,
+    "source_count": 16,
+    "version": "1.0.0"
+  },
+  "determinism": {
+    "deterministic": true,
+    "hashes_equal": true,
+    "metrics_equal": true,
+    "predictions_equal": true,
+    "result_hashes": {
+      "src-01": "8933a9302db7a10e348ecdca04e5524c",
+      "src-02": "8619e7e3c19d99a17310a58bb2c20e25",
+      "src-03": "0749ed1ad40e6718490282cb69146904",
+      "src-04": "08c646ef899f201835e8091d0bf04631",
+      "src-05": "d9d7e10ec53bc5759fdc9a4248930875",
+      "src-06": "6695dc7bd43795dc5ee5d2c3af5fe4a2",
+      "src-07": "4e0ea50a4e044e484dcc1797b01b8132",
+      "src-08": "0160f334e8b51444ed25b35bc3f2bdc3",
+      "src-09": "0a036531147f8fe50ee2a69e96af9925",
+      "src-10": "28add16df34783e48151ecf4b6c1e441",
+      "src-11": "123db880fbc8d146b530fd463d11bf63",
+      "src-12": "fe2eaafb4539c69cd954a86234e8f75c",
+      "src-13": "3da3253bfbf19dd9b719b73246330194",
+      "src-14": "2ce07a1dc9c4e62dd628a07c2a407046",
+      "src-15": "92a1ac6bc0140ed1ee275b5204d5d6fc",
+      "src-16": "96c07a375f607373b6b753bba28e6f14"
+    }
+  },
+  "ensemble": true,
+  "errors": {
+    "derivation_notes": [],
+    "false_negatives": [
+      {
+        "annotator_notes": "Pertenencia explicita.",
+        "expected_decision": "ACCEPT",
+        "object_id": "orden-alba",
+        "predicate": "MEMBER_OF",
+        "relation_id": "rel-005",
+        "source_id": "src-02",
+        "subject_id": "draven",
+        "workspace": "eldoria"
+      },
+      {
+        "annotator_notes": "Sujeto omitido (elipsis en ficha); sujeto = Draven por contexto de la ficha.",
+        "expected_decision": "ACCEPT",
+        "object_id": "torre-sable",
+        "predicate": "LIVES_IN",
+        "relation_id": "rel-006",
+        "source_id": "src-02",
+        "subject_id": "draven",
+        "workspace": "eldoria"
+      },
+      {
+        "annotator_notes": "Posesion de objeto; sujeto omitido = Draven.",
+        "expected_decision": "ACCEPT",
+        "object_id": "filo-luna",
+        "predicate": "OWNS",
+        "relation_id": "rel-007",
+        "source_id": "src-02",
+        "subject_id": "draven",
+        "workspace": "eldoria"
+      },
+      {
+        "annotator_notes": "Direccional: 'Draven hijo de Aldric' => Aldric PARENT_OF Draven (object_to_subject).",
+        "expected_decision": "ACCEPT",
+        "object_id": "draven",
+        "predicate": "PARENT_OF",
+        "relation_id": "rel-008",
+        "source_id": "src-02",
+        "subject_id": "aldric",
+        "workspace": "eldoria"
+      },
+      {
+        "annotator_notes": "Direccional: Draven PARENT_OF Nima.",
+        "expected_decision": "ACCEPT",
+        "object_id": "nima",
+        "predicate": "PARENT_OF",
+        "relation_id": "rel-009",
+        "source_id": "src-02",
+        "subject_id": "draven",
+        "workspace": "eldoria"
+      },
+      {
+        "annotator_notes": "ALIAS: 'el Cuervo' == Draven. Relacion reflexiva de identidad; se marca REVIEW porque el contrato prohibe subject==object salvo reflexivos permitidos (aqui alias documental, no relacion de grafo).",
+        "expected_decision": "REVIEW",
+        "object_id": "draven",
+        "predicate": "ALIAS_OF",
+        "relation_id": "rel-010",
+        "source_id": "src-02",
+        "subject_id": "draven",
+        "workspace": "eldoria"
+      },
+      {
+        "annotator_notes": "PRONOMBRE OBJETO: 'le' = Sela. Refuerza la relacion de mentoria (repeticion).",
+        "expected_decision": "ACCEPT",
+        "object_id": "sela",
+        "predicate": "MENTOR_OF",
+        "relation_id": "rel-029",
+        "source_id": "src-07",
+        "subject_id": "vayra",
+        "workspace": "umbral"
+      },
+      {
+        "annotator_notes": "CONTRADICCION 2/2: segmento B NIEGA la lealtad al Pacto. negated=True.",
+        "expected_decision": "REVIEW",
+        "object_id": "pacto-escarlata",
+        "predicate": "MEMBER_OF",
+        "relation_id": "rel-031",
+        "source_id": "src-08",
+        "subject_id": "kaelan",
+        "workspace": "umbral"
+      },
+      {
+        "annotator_notes": "Parentesco inferido de 'esa unión' (Lyra+Torin). Sujeto omitido / evidencia dependiente de frase previa.",
+        "expected_decision": "ACCEPT",
+        "object_id": "bran",
+        "predicate": "PARENT_OF",
+        "relation_id": "rel-042",
+        "source_id": "src-12",
+        "subject_id": "torin",
+        "workspace": "eldoria"
+      },
+      {
+        "annotator_notes": "ALIAS 2: 'conocida como la Reina de Invierno'. Identidad, no arista de grafo.",
+        "expected_decision": "REVIEW",
+        "object_id": "ysolde",
+        "predicate": "ALIAS_OF",
+        "relation_id": "rel-046",
+        "source_id": "src-14",
+        "subject_id": "ysolde",
+        "workspace": "eldoria"
+      },
+      {
+        "annotator_notes": "HECHO PASADO CONFIRMADO: 'Lo que sí consta es que ... fundó'. ASSERTED.",
+        "expected_decision": "ACCEPT",
+        "object_id": "ateneo",
+        "predicate": "FOUNDED",
+        "relation_id": "rel-054",
+        "source_id": "src-16",
+        "subject_id": "vayra",
+        "workspace": "umbral"
+      }
+    ],
+    "false_positives": [
+      {
+        "consensus_state": "MODEL_CONFLICT",
+        "direction": "SUBJECT_TO_OBJECT",
+        "evidence_text": "Horda de Grael en la Batalla del Vado",
+        "object_id": "batalla-vado",
+        "predicate": "LOCATED_IN",
+        "recommendation": "human",
+        "source_id": "src-01",
+        "subject_id": "horda-grael",
+        "workspace": "eldoria"
+      },
+      {
+        "consensus_state": "PARTIAL_CONSENSUS",
+        "direction": "UNDIRECTED",
+        "evidence_text": "Aldric, padre de Nima",
+        "object_id": "nima",
+        "predicate": "RELATED_TO",
+        "recommendation": "propose",
+        "source_id": "src-02",
+        "subject_id": "aldric",
+        "workspace": "eldoria"
+      },
+      {
+        "consensus_state": "PARTIAL_CONSENSUS",
+        "direction": "UNDIRECTED",
+        "evidence_text": "Draven, a Sela y a Kael",
+        "object_id": "kael",
+        "predicate": "RELATED_TO",
+        "recommendation": "propose",
+        "source_id": "src-04",
+        "subject_id": "draven",
+        "workspace": "eldoria"
+      },
+      {
+        "consensus_state": "PARTIAL_CONSENSUS",
+        "direction": "UNDIRECTED",
+        "evidence_text": "Draven, a Sela",
+        "object_id": "sela",
+        "predicate": "RELATED_TO",
+        "recommendation": "propose",
+        "source_id": "src-04",
+        "subject_id": "draven",
+        "workspace": "eldoria"
+      },
+      {
+        "consensus_state": "PARTIAL_CONSENSUS",
+        "direction": "UNDIRECTED",
+        "evidence_text": "Sela y a Kael",
+        "object_id": "kael",
+        "predicate": "RELATED_TO",
+        "recommendation": "propose",
+        "source_id": "src-04",
+        "subject_id": "sela",
+        "workspace": "eldoria"
+      },
+      {
+        "consensus_state": "HUMAN_REQUIRED",
+        "direction": "SUBJECT_TO_OBJECT",
+        "evidence_text": "Kaelin y Kaelan",
+        "object_id": "kaelan",
+        "predicate": "LOCATED_IN",
+        "recommendation": "human",
+        "source_id": "src-05",
+        "subject_id": "kaelin",
+        "workspace": "umbral"
+      },
+      {
+        "consensus_state": "PARTIAL_CONSENSUS",
+        "direction": "SUBJECT_TO_OBJECT",
+        "evidence_text": "Guardia de Hierro en la Cripta Roja",
+        "object_id": "cripta-roja",
+        "predicate": "LOCATED_IN",
+        "recommendation": "propose",
+        "source_id": "src-06",
+        "subject_id": "guardia-hierro",
+        "workspace": "umbral"
+      },
+      {
+        "consensus_state": "HUMAN_REQUIRED",
+        "direction": "SUBJECT_TO_OBJECT",
+        "evidence_text": "Pacto Escarlata, sino a la Guardia de Hierro",
+        "object_id": "guardia-hierro",
+        "predicate": "MEMBER_OF",
+        "recommendation": "human",
+        "source_id": "src-08",
+        "subject_id": "pacto-escarlata",
+        "workspace": "umbral"
+      },
+      {
+        "consensus_state": "MODEL_CONFLICT",
+        "direction": "SUBJECT_TO_OBJECT",
+        "evidence_text": "Liga del Meridiano rompió su alianza con el Gremio de Cartógrafos",
+        "object_id": "gremio-cartografos",
+        "predicate": "OWNS",
+        "recommendation": "human",
+        "source_id": "src-10",
+        "subject_id": "liga-meridiano",
+        "workspace": "nova-frontier"
+      }
+    ]
+  },
+  "gates": {
+    "determinism": {
+      "detail": {
+        "deterministic": true,
+        "hashes_equal": true,
+        "metrics_equal": true,
+        "predictions_equal": true,
+        "result_hashes": {
+          "src-01": "8933a9302db7a10e348ecdca04e5524c",
+          "src-02": "8619e7e3c19d99a17310a58bb2c20e25",
+          "src-03": "0749ed1ad40e6718490282cb69146904",
+          "src-04": "08c646ef899f201835e8091d0bf04631",
+          "src-05": "d9d7e10ec53bc5759fdc9a4248930875",
+          "src-06": "6695dc7bd43795dc5ee5d2c3af5fe4a2",
+          "src-07": "4e0ea50a4e044e484dcc1797b01b8132",
+          "src-08": "0160f334e8b51444ed25b35bc3f2bdc3",
+          "src-09": "0a036531147f8fe50ee2a69e96af9925",
+          "src-10": "28add16df34783e48151ecf4b6c1e441",
+          "src-11": "123db880fbc8d146b530fd463d11bf63",
+          "src-12": "fe2eaafb4539c69cd954a86234e8f75c",
+          "src-13": "3da3253bfbf19dd9b719b73246330194",
+          "src-14": "2ce07a1dc9c4e62dd628a07c2a407046",
+          "src-15": "92a1ac6bc0140ed1ee275b5204d5d6fc",
+          "src-16": "96c07a375f607373b6b753bba28e6f14"
+        }
+      },
+      "evaluated": true,
+      "hard": true,
+      "status": "PASS"
+    },
+    "evidence": {
+      "detail": {
+        "ok": 39,
+        "rate": 0.907,
+        "total": 43
+      },
+      "status": "PASS",
+      "threshold": 0.8,
+      "value": 0.907
+    },
+    "negation": {
+      "detail": {
+        "count": 4,
+        "negation_correct": {
+          "ok": 4,
+          "rate": 1.0,
+          "total": 4
+        }
+      },
+      "status": "PASS",
+      "threshold": 0.8,
+      "value": 1.0
+    },
+    "negation_precision": {
+      "detail": {
+        "false_positive": 4,
+        "measurable": true,
+        "precision": 0.5,
+        "predicted_positive": 8,
+        "true_positive": 4
+      },
+      "governs_verdict": false,
+      "hard": false,
+      "informative": true,
+      "status": "PARTIAL",
+      "threshold": 0.8,
+      "value": 0.5
+    },
+    "offsets": {
+      "detail": {
+        "ok": 40,
+        "rate": 0.9302,
+        "total": 43
+      },
+      "status": "PASS",
+      "threshold": 0.9,
+      "value": 0.9302
+    },
+    "predicate_structural": {
+      "detail": {
+        "ok": 9,
+        "rate": 0.2093,
+        "total": 43
+      },
+      "status": "FAIL",
+      "threshold": 0.5,
+      "value": 0.2093
+    },
+    "rumors": {
+      "detail": {
+        "count": 2,
+        "epistemic_correct": {
+          "ok": 2,
+          "rate": 1.0,
+          "total": 2
+        }
+      },
+      "status": "PASS",
+      "threshold": 0.6,
+      "value": 1.0
+    },
+    "simple_relations": {
+      "detail": {
+        "count": 30,
+        "evidence_correct": {
+          "ok": 28,
+          "rate": 0.9333,
+          "total": 30
+        }
+      },
+      "status": "PASS",
+      "threshold": 0.8,
+      "value": 0.9333
+    },
+    "temporality": {
+      "detail": {
+        "count": 25,
+        "temporal_correct": {
+          "ok": 19,
+          "rate": 0.76,
+          "total": 25
+        }
+      },
+      "status": "PASS",
+      "threshold": 0.6,
+      "value": 0.76
+    },
+    "workspace_contamination": {
+      "detail": {
+        "clean": true,
+        "cross_workspace_predictions": 0,
+        "workspace_mismatch_errors": 0
+      },
+      "hard": true,
+      "status": "PASS"
+    }
+  },
+  "metrics": {
+    "decision_confusion": {
+      "ACCEPT": {
+        "ACCEPT": 13,
+        "None": 0,
+        "REJECT": 0,
+        "REVIEW": 17
+      },
+      "REJECT": {
+        "ACCEPT": 2,
+        "None": 0,
+        "REJECT": 0,
+        "REVIEW": 3
+      },
+      "REVIEW": {
+        "ACCEPT": 4,
+        "None": 0,
+        "REJECT": 0,
+        "REVIEW": 4
+      }
+    },
+    "global_existence": {
+      "f1": 0.8113,
+      "fn": 11,
+      "fp": 9,
+      "precision": 0.8269,
+      "recall": 0.7963,
+      "tp": 43
+    },
+    "operational": {
+      "consensus_rates": {
+        "conflict_rate": 0.25,
+        "human_rate": 0.3846,
+        "invalid_rate": 0.0
+      },
+      "counters": {
+        "bytes_processed": 2771,
+        "candidates_evaluated": 52,
+        "chars_processed": 2711,
+        "documents": 16,
+        "entities": 93,
+        "errors": 0,
+        "external_calls": 0,
+        "external_calls_simulated": 0,
+        "local_calls": 0,
+        "local_calls_simulated": 0,
+        "pairs_discarded": 184,
+        "pairs_generated": 52,
+        "pairs_potential": 236,
+        "provider_fail_closed": 0,
+        "results_conflict": 13,
+        "results_human": 20,
+        "results_invalid": 0,
+        "results_partial": 19,
+        "results_strong": 0,
+        "segments": 16,
+        "segments_failed": 0,
+        "segments_processed": 16,
+        "timeouts": 0
+      },
+      "timings": {
+        "per_candidate_ms": 1.128,
+        "per_doc_ms": 3.666,
+        "total_ms": 58.66
+      }
+    },
+    "per_predicate": {
+      "ALIAS_OF": {
+        "exact_tp": 0,
+        "existence_tp": 0,
+        "recall_exact": 0.0,
+        "recall_existence": 0.0,
+        "support": 2
+      },
+      "ALLIED_WITH": {
+        "exact_tp": 0,
+        "existence_tp": 3,
+        "recall_exact": 0.0,
+        "recall_existence": 1.0,
+        "support": 3
+      },
+      "CAUSED": {
+        "exact_tp": 0,
+        "existence_tp": 2,
+        "recall_exact": 0.0,
+        "recall_existence": 1.0,
+        "support": 2
+      },
+      "CREATED": {
+        "exact_tp": 0,
+        "existence_tp": 1,
+        "recall_exact": 0.0,
+        "recall_existence": 1.0,
+        "support": 1
+      },
+      "ENEMY_OF": {
+        "exact_tp": 0,
+        "existence_tp": 2,
+        "recall_exact": 0.0,
+        "recall_existence": 1.0,
+        "support": 2
+      },
+      "FOUNDED": {
+        "exact_tp": 0,
+        "existence_tp": 1,
+        "recall_exact": 0.0,
+        "recall_existence": 0.5,
+        "support": 2
+      },
+      "GUARDS": {
+        "exact_tp": 0,
+        "existence_tp": 2,
+        "recall_exact": 0.0,
+        "recall_existence": 1.0,
+        "support": 2
+      },
+      "KNOWS": {
+        "exact_tp": 0,
+        "existence_tp": 1,
+        "recall_exact": 0.0,
+        "recall_existence": 1.0,
+        "support": 1
+      },
+      "LEADS": {
+        "exact_tp": 0,
+        "existence_tp": 1,
+        "recall_exact": 0.0,
+        "recall_existence": 1.0,
+        "support": 1
+      },
+      "LIVES_IN": {
+        "exact_tp": 0,
+        "existence_tp": 2,
+        "recall_exact": 0.0,
+        "recall_existence": 0.6667,
+        "support": 3
+      },
+      "LOCATED_IN": {
+        "exact_tp": 4,
+        "existence_tp": 4,
+        "recall_exact": 1.0,
+        "recall_existence": 1.0,
+        "support": 4
+      },
+      "MARRIED_TO": {
+        "exact_tp": 0,
+        "existence_tp": 1,
+        "recall_exact": 0.0,
+        "recall_existence": 1.0,
+        "support": 1
+      },
+      "MEMBER_OF": {
+        "exact_tp": 3,
+        "existence_tp": 8,
+        "recall_exact": 0.3,
+        "recall_existence": 0.8,
+        "support": 10
+      },
+      "MENTOR_OF": {
+        "exact_tp": 0,
+        "existence_tp": 1,
+        "recall_exact": 0.0,
+        "recall_existence": 0.5,
+        "support": 2
+      },
+      "OWNS": {
+        "exact_tp": 1,
+        "existence_tp": 4,
+        "recall_exact": 0.2,
+        "recall_existence": 0.8,
+        "support": 5
+      },
+      "PARENT_OF": {
+        "exact_tp": 0,
+        "existence_tp": 0,
+        "recall_exact": 0.0,
+        "recall_existence": 0.0,
+        "support": 3
+      },
+      "PARTICIPATED_IN": {
+        "exact_tp": 1,
+        "existence_tp": 6,
+        "recall_exact": 0.1667,
+        "recall_existence": 1.0,
+        "support": 6
+      },
+      "SIBLING_OF": {
+        "exact_tp": 0,
+        "existence_tp": 1,
+        "recall_exact": 0.0,
+        "recall_existence": 1.0,
+        "support": 1
+      },
+      "SUCCEEDED": {
+        "exact_tp": 0,
+        "existence_tp": 2,
+        "recall_exact": 0.0,
+        "recall_existence": 1.0,
+        "support": 2
+      },
+      "TRUSTS": {
+        "exact_tp": 0,
+        "existence_tp": 1,
+        "recall_exact": 0.0,
+        "recall_existence": 1.0,
+        "support": 1
+      }
+    },
+    "predicted_predicate_distribution": {
+      "LOCATED_IN": 22,
+      "MEMBER_OF": 9,
+      "OWNS": 4,
+      "PARTICIPATED_IN": 1,
+      "RELATED_TO": 16
+    },
+    "provider_cost": {
+      "calls_counter_note": "calls proviene de summary.local_calls_simulated/external_calls_simulated del pipeline: el sufijo '_simulated' es historico y NO implica simulacion; cuenta llamadas REALES cuando hay transporte/proveedor inyectado.",
+      "external": {
+        "calls": 0,
+        "failed_latency": {
+          "max_ms": null,
+          "p50_ms": null,
+          "p95_ms": null,
+          "samples": 0
+        },
+        "indeterminate": {
+          "by_type": {},
+          "count": 0,
+          "rate": 0.0
+        },
+        "indeterminate_latency": {
+          "max_ms": null,
+          "p50_ms": null,
+          "p95_ms": null,
+          "samples": 0
+        },
+        "latency": {
+          "max_ms": null,
+          "p50_ms": null,
+          "p95_ms": null,
+          "samples": 0
+        },
+        "payloads": 0,
+        "statuses": {
+          "NOT_EXECUTED": 52
+        },
+        "transport_error_rate": 0.0,
+        "transport_errors": {
+          "attempted": 0,
+          "by_type": {},
+          "errors": 0,
+          "rate": 0.0,
+          "responded": 0
+        }
+      },
+      "fail_closed": 0,
+      "fail_closed_note": "candidatos que un proveedor habilitado no llego a evaluar (sin payload): NO aparecen en attempted ni en errors; contrastar con attempted",
+      "indeterminate": {
+        "external": {
+          "by_type": {},
+          "count": 0,
+          "rate": 0.0
+        },
+        "local": {
+          "by_type": {},
+          "count": 0,
+          "rate": 0.0
+        },
+        "note": "llamadas cuyo marcador ('provider_error' generico) NO permite decidir si el proveedor respondio: NO se cuentan como transporte ni como calidad",
+        "rate": 0.0,
+        "total": 0
+      },
+      "indeterminate_rate": 0.0,
+      "local": {
+        "calls": 0,
+        "failed_latency": {
+          "max_ms": null,
+          "p50_ms": null,
+          "p95_ms": null,
+          "samples": 0
+        },
+        "indeterminate": {
+          "by_type": {},
+          "count": 0,
+          "rate": 0.0
+        },
+        "indeterminate_latency": {
+          "max_ms": null,
+          "p50_ms": null,
+          "p95_ms": null,
+          "samples": 0
+        },
+        "latency": {
+          "max_ms": null,
+          "p50_ms": null,
+          "p95_ms": null,
+          "samples": 0
+        },
+        "payloads": 0,
+        "statuses": {
+          "NOT_EXECUTED": 52
+        },
+        "transport_error_rate": 0.0,
+        "transport_errors": {
+          "attempted": 0,
+          "by_type": {},
+          "errors": 0,
+          "rate": 0.0,
+          "responded": 0
+        }
+      },
+      "total_calls": 0,
+      "transport_error_rate": 0.0,
+      "transport_errors": {
+        "external": {
+          "attempted": 0,
+          "by_type": {},
+          "errors": 0,
+          "rate": 0.0,
+          "responded": 0
+        },
+        "indeterminate": {
+          "external": {
+            "by_type": {},
+            "count": 0,
+            "rate": 0.0
+          },
+          "local": {
+            "by_type": {},
+            "count": 0,
+            "rate": 0.0
+          },
+          "note": "llamadas cuyo marcador ('provider_error' generico) NO permite decidir si el proveedor respondio: NO se cuentan como transporte ni como calidad",
+          "rate": 0.0,
+          "total": 0
+        },
+        "local": {
+          "attempted": 0,
+          "by_type": {},
+          "errors": 0,
+          "rate": 0.0,
+          "responded": 0
+        },
+        "rate": 0.0,
+        "total_attempted": 0,
+        "total_errors": 0,
+        "total_indeterminate": 0,
+        "total_responded": 0
+      }
+    },
+    "strict_predicate": {
+      "f1": 0.1698,
+      "fn": 45,
+      "fp": 43,
+      "precision": 0.1731,
+      "recall": 0.1667,
+      "tp": 9
+    },
+    "structural_quality": {
+      "decision_correct": {
+        "ok": 17,
+        "rate": 0.3953,
+        "total": 43
+      },
+      "direction_correct": {
+        "ok": 27,
+        "rate": 0.6279,
+        "total": 43
+      },
+      "direction_orientation_ok": {
+        "ok": 33,
+        "rate": 0.7674,
+        "total": 43
+      },
+      "epistemic_correct": {
+        "ok": 37,
+        "rate": 0.8605,
+        "total": 43
+      },
+      "evidence_correct": {
+        "ok": 39,
+        "rate": 0.907,
+        "total": 43
+      },
+      "negation_correct": {
+        "ok": 39,
+        "rate": 0.907,
+        "total": 43
+      },
+      "negation_signal": {
+        "false_positive": 4,
+        "measurable": true,
+        "precision": 0.5,
+        "predicted_positive": 8,
+        "true_positive": 4
+      },
+      "offsets_correct": {
+        "ok": 40,
+        "rate": 0.9302,
+        "total": 43
+      },
+      "predicate_correct": {
+        "ok": 9,
+        "rate": 0.2093,
+        "total": 43
+      },
+      "subgroups": {
+        "negated_relations": {
+          "count": 4,
+          "negation_correct": {
+            "ok": 4,
+            "rate": 1.0,
+            "total": 4
+          }
+        },
+        "rumored_relations": {
+          "count": 2,
+          "epistemic_correct": {
+            "ok": 2,
+            "rate": 1.0,
+            "total": 2
+          }
+        },
+        "simple_relations": {
+          "count": 30,
+          "evidence_correct": {
+            "ok": 28,
+            "rate": 0.9333,
+            "total": 30
+          }
+        },
+        "temporal_relations": {
+          "count": 25,
+          "temporal_correct": {
+            "ok": 19,
+            "rate": 0.76,
+            "total": 25
+          }
+        }
+      },
+      "temporal_correct": {
+        "ok": 19,
+        "rate": 0.4419,
+        "total": 43
+      },
+      "types_correct": {
+        "ok": 43,
+        "rate": 1.0,
+        "total": 43
+      },
+      "workspace_correct": {
+        "ok": 43,
+        "rate": 1.0,
+        "total": 43
+      }
+    }
+  },
+  "mode": "ensemble_offline",
+  "pipeline_version": "relation-pipeline-1.0.0",
+  "provider_status": {
+    "external_ai": "NOT_EXECUTED",
+    "local_llm": "NOT_EXECUTED"
+  },
+  "provider_transport": {},
+  "providers": {
+    "endpoints": {},
+    "external_ai": "NOT_EXECUTED",
+    "local_llm": "NOT_EXECUTED",
+    "network": "none",
+    "network_calls_counted": 0,
+    "provider_status": {
+      "external_ai": "NOT_EXECUTED",
+      "local_llm": "NOT_EXECUTED"
+    },
+    "provider_status_raw": {
+      "external_ai": "NOT_EXECUTED",
+      "local_llm": "NOT_EXECUTED"
+    },
+    "status_consistency": "OK",
+    "transport": {},
+    "writes": "none (dry-run, sin Neo4j)"
+  },
+  "result_hashes": {
+    "src-01": "8933a9302db7a10e348ecdca04e5524c",
+    "src-02": "8619e7e3c19d99a17310a58bb2c20e25",
+    "src-03": "0749ed1ad40e6718490282cb69146904",
+    "src-04": "08c646ef899f201835e8091d0bf04631",
+    "src-05": "d9d7e10ec53bc5759fdc9a4248930875",
+    "src-06": "6695dc7bd43795dc5ee5d2c3af5fe4a2",
+    "src-07": "4e0ea50a4e044e484dcc1797b01b8132",
+    "src-08": "0160f334e8b51444ed25b35bc3f2bdc3",
+    "src-09": "0a036531147f8fe50ee2a69e96af9925",
+    "src-10": "28add16df34783e48151ecf4b6c1e441",
+    "src-11": "123db880fbc8d146b530fd463d11bf63",
+    "src-12": "fe2eaafb4539c69cd954a86234e8f75c",
+    "src-13": "3da3253bfbf19dd9b719b73246330194",
+    "src-14": "2ce07a1dc9c4e62dd628a07c2a407046",
+    "src-15": "92a1ac6bc0140ed1ee275b5204d5d6fc",
+    "src-16": "96c07a375f607373b6b753bba28e6f14"
+  },
+  "sources_available": [
+    "src-01",
+    "src-02",
+    "src-03",
+    "src-04",
+    "src-05",
+    "src-06",
+    "src-07",
+    "src-08",
+    "src-09",
+    "src-10",
+    "src-11",
+    "src-12",
+    "src-13",
+    "src-14",
+    "src-15",
+    "src-16"
+  ],
+  "sources_used": [
+    "src-01",
+    "src-02",
+    "src-03",
+    "src-04",
+    "src-05",
+    "src-06",
+    "src-07",
+    "src-08",
+    "src-09",
+    "src-10",
+    "src-11",
+    "src-12",
+    "src-13",
+    "src-14",
+    "src-15",
+    "src-16"
+  ],
+  "verdict": "APTO CON REVISION HUMANA TOTAL",
+  "verdict_justification": "evidencia/offsets fiables pero el predicado heuristico es debil: toda relacion requiere revision humana antes de considerarse",
+  "verdict_scope": "COMPLETO",
+  "versions": {
+    "abstention": "relation-abstention-1.0.0",
+    "consensus": "relation-consensus-1.2.0",
+    "contract": "internal-1.0.0",
+    "pipeline": "relation-pipeline-1.0.0",
+    "prompts": "1.0",
+    "signals": "relation-signals-1.0.0",
+    "syntax": "relation-syntax-1.0.0",
+    "template": "1.0.0"
+  }
+}

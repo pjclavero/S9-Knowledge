@@ -1,0 +1,570 @@
+{
+  "baseline1_v1": {
+    "corpus_ground_truth_sha256": "15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c",
+    "deterministic": true,
+    "gates": {
+      "determinism": "PASS",
+      "evidence": "PASS",
+      "negation": "PASS",
+      "negation_precision": "PARTIAL",
+      "offsets": "PASS",
+      "predicate_structural": "FAIL",
+      "rumors": "PASS",
+      "simple_relations": "PASS",
+      "temporality": "PASS",
+      "workspace_contamination": "PASS"
+    },
+    "global_existence": {
+      "f1": 0.8113,
+      "fn": 11,
+      "fp": 9,
+      "precision": 0.8269,
+      "recall": 0.7963,
+      "tp": 43
+    },
+    "global_existence_igual_que_B0": true,
+    "negation_precision": {
+      "detail": {
+        "false_positive": 4,
+        "measurable": true,
+        "precision": 0.5,
+        "predicted_positive": 8,
+        "true_positive": 4
+      },
+      "governs_verdict": false,
+      "hard": false,
+      "informative": true,
+      "status": "PARTIAL",
+      "threshold": 0.8,
+      "value": 0.5
+    },
+    "result_hashes_iguales_que_B0": true,
+    "structural_quality": {
+      "decision_correct": {
+        "ok": 13,
+        "rate": 0.3023,
+        "total": 43
+      },
+      "direction_correct": {
+        "ok": 27,
+        "rate": 0.6279,
+        "total": 43
+      },
+      "direction_orientation_ok": {
+        "ok": 33,
+        "rate": 0.7674,
+        "total": 43
+      },
+      "epistemic_correct": {
+        "ok": 37,
+        "rate": 0.8605,
+        "total": 43
+      },
+      "evidence_correct": {
+        "ok": 39,
+        "rate": 0.907,
+        "total": 43
+      },
+      "negation_correct": {
+        "ok": 39,
+        "rate": 0.907,
+        "total": 43
+      },
+      "negation_signal": {
+        "false_positive": 4,
+        "measurable": true,
+        "precision": 0.5,
+        "predicted_positive": 8,
+        "true_positive": 4
+      },
+      "offsets_correct": {
+        "ok": 40,
+        "rate": 0.9302,
+        "total": 43
+      },
+      "predicate_correct": {
+        "ok": 9,
+        "rate": 0.2093,
+        "total": 43
+      },
+      "subgroups": {
+        "negated_relations": {
+          "count": 4,
+          "negation_correct": {
+            "ok": 4,
+            "rate": 1.0,
+            "total": 4
+          }
+        },
+        "rumored_relations": {
+          "count": 2,
+          "epistemic_correct": {
+            "ok": 2,
+            "rate": 1.0,
+            "total": 2
+          }
+        },
+        "simple_relations": {
+          "count": 30,
+          "evidence_correct": {
+            "ok": 28,
+            "rate": 0.9333,
+            "total": 30
+          }
+        },
+        "temporal_relations": {
+          "count": 25,
+          "temporal_correct": {
+            "ok": 19,
+            "rate": 0.76,
+            "total": 25
+          }
+        }
+      },
+      "temporal_correct": {
+        "ok": 19,
+        "rate": 0.4419,
+        "total": 43
+      },
+      "types_correct": {
+        "ok": 43,
+        "rate": 1.0,
+        "total": 43
+      },
+      "workspace_correct": {
+        "ok": 43,
+        "rate": 1.0,
+        "total": 43
+      }
+    },
+    "verdict": "APTO CON REVISION HUMANA TOTAL",
+    "verdict_igual_que_B0": true,
+    "verdict_scope": "COMPLETO"
+  },
+  "baseline1_v2": {
+    "corpus_ground_truth_sha256": "15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c",
+    "deterministic": true,
+    "gates": {
+      "determinism": "PASS",
+      "evidence": "PASS",
+      "negation": "PASS",
+      "negation_precision": "FAIL",
+      "offsets": "PASS",
+      "predicate_structural": "PASS",
+      "rumors": "PASS",
+      "simple_relations": "PASS",
+      "temporality": "PASS",
+      "workspace_contamination": "PASS"
+    },
+    "global_existence": {
+      "f1": 0.8113,
+      "fn": 11,
+      "fp": 9,
+      "precision": 0.8269,
+      "recall": 0.7963,
+      "tp": 43
+    },
+    "global_existence_igual_que_B0": true,
+    "negation_precision": {
+      "detail": {
+        "false_positive": 5,
+        "measurable": true,
+        "precision": 0.4444,
+        "predicted_positive": 9,
+        "true_positive": 4
+      },
+      "governs_verdict": false,
+      "hard": false,
+      "informative": true,
+      "status": "FAIL",
+      "threshold": 0.8,
+      "value": 0.4444
+    },
+    "result_hashes_iguales_que_B0": true,
+    "structural_quality": {
+      "decision_correct": {
+        "ok": 15,
+        "rate": 0.3488,
+        "total": 43
+      },
+      "direction_correct": {
+        "ok": 40,
+        "rate": 0.9302,
+        "total": 43
+      },
+      "direction_orientation_ok": {
+        "ok": 41,
+        "rate": 0.9535,
+        "total": 43
+      },
+      "epistemic_correct": {
+        "ok": 37,
+        "rate": 0.8605,
+        "total": 43
+      },
+      "evidence_correct": {
+        "ok": 40,
+        "rate": 0.9302,
+        "total": 43
+      },
+      "negation_correct": {
+        "ok": 38,
+        "rate": 0.8837,
+        "total": 43
+      },
+      "negation_signal": {
+        "false_positive": 5,
+        "measurable": true,
+        "precision": 0.4444,
+        "predicted_positive": 9,
+        "true_positive": 4
+      },
+      "offsets_correct": {
+        "ok": 41,
+        "rate": 0.9535,
+        "total": 43
+      },
+      "predicate_correct": {
+        "ok": 35,
+        "rate": 0.814,
+        "total": 43
+      },
+      "subgroups": {
+        "negated_relations": {
+          "count": 4,
+          "negation_correct": {
+            "ok": 4,
+            "rate": 1.0,
+            "total": 4
+          }
+        },
+        "rumored_relations": {
+          "count": 2,
+          "epistemic_correct": {
+            "ok": 2,
+            "rate": 1.0,
+            "total": 2
+          }
+        },
+        "simple_relations": {
+          "count": 30,
+          "evidence_correct": {
+            "ok": 28,
+            "rate": 0.9333,
+            "total": 30
+          }
+        },
+        "temporal_relations": {
+          "count": 25,
+          "temporal_correct": {
+            "ok": 24,
+            "rate": 0.96,
+            "total": 25
+          }
+        }
+      },
+      "temporal_correct": {
+        "ok": 38,
+        "rate": 0.8837,
+        "total": 43
+      },
+      "types_correct": {
+        "ok": 43,
+        "rate": 1.0,
+        "total": 43
+      },
+      "workspace_correct": {
+        "ok": 43,
+        "rate": 1.0,
+        "total": 43
+      }
+    },
+    "verdict": "APTO PARA CONTINUAR EN MODO SOMBRA",
+    "verdict_igual_que_B0": true,
+    "verdict_scope": "COMPLETO"
+  },
+  "ensemble_offline_v1": {
+    "corpus_ground_truth_sha256": "15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c",
+    "deterministic": true,
+    "gates": {
+      "determinism": "PASS",
+      "evidence": "PASS",
+      "negation": "PASS",
+      "negation_precision": "PARTIAL",
+      "offsets": "PASS",
+      "predicate_structural": "FAIL",
+      "rumors": "PASS",
+      "simple_relations": "PASS",
+      "temporality": "PASS",
+      "workspace_contamination": "PASS"
+    },
+    "global_existence": {
+      "f1": 0.8113,
+      "fn": 11,
+      "fp": 9,
+      "precision": 0.8269,
+      "recall": 0.7963,
+      "tp": 43
+    },
+    "global_existence_igual_que_B0": true,
+    "negation_precision": {
+      "detail": {
+        "false_positive": 4,
+        "measurable": true,
+        "precision": 0.5,
+        "predicted_positive": 8,
+        "true_positive": 4
+      },
+      "governs_verdict": false,
+      "hard": false,
+      "informative": true,
+      "status": "PARTIAL",
+      "threshold": 0.8,
+      "value": 0.5
+    },
+    "result_hashes_iguales_que_B0": true,
+    "structural_quality": {
+      "decision_correct": {
+        "ok": 17,
+        "rate": 0.3953,
+        "total": 43
+      },
+      "direction_correct": {
+        "ok": 27,
+        "rate": 0.6279,
+        "total": 43
+      },
+      "direction_orientation_ok": {
+        "ok": 33,
+        "rate": 0.7674,
+        "total": 43
+      },
+      "epistemic_correct": {
+        "ok": 37,
+        "rate": 0.8605,
+        "total": 43
+      },
+      "evidence_correct": {
+        "ok": 39,
+        "rate": 0.907,
+        "total": 43
+      },
+      "negation_correct": {
+        "ok": 39,
+        "rate": 0.907,
+        "total": 43
+      },
+      "negation_signal": {
+        "false_positive": 4,
+        "measurable": true,
+        "precision": 0.5,
+        "predicted_positive": 8,
+        "true_positive": 4
+      },
+      "offsets_correct": {
+        "ok": 40,
+        "rate": 0.9302,
+        "total": 43
+      },
+      "predicate_correct": {
+        "ok": 9,
+        "rate": 0.2093,
+        "total": 43
+      },
+      "subgroups": {
+        "negated_relations": {
+          "count": 4,
+          "negation_correct": {
+            "ok": 4,
+            "rate": 1.0,
+            "total": 4
+          }
+        },
+        "rumored_relations": {
+          "count": 2,
+          "epistemic_correct": {
+            "ok": 2,
+            "rate": 1.0,
+            "total": 2
+          }
+        },
+        "simple_relations": {
+          "count": 30,
+          "evidence_correct": {
+            "ok": 28,
+            "rate": 0.9333,
+            "total": 30
+          }
+        },
+        "temporal_relations": {
+          "count": 25,
+          "temporal_correct": {
+            "ok": 19,
+            "rate": 0.76,
+            "total": 25
+          }
+        }
+      },
+      "temporal_correct": {
+        "ok": 19,
+        "rate": 0.4419,
+        "total": 43
+      },
+      "types_correct": {
+        "ok": 43,
+        "rate": 1.0,
+        "total": 43
+      },
+      "workspace_correct": {
+        "ok": 43,
+        "rate": 1.0,
+        "total": 43
+      }
+    },
+    "verdict": "APTO CON REVISION HUMANA TOTAL",
+    "verdict_igual_que_B0": true,
+    "verdict_scope": "COMPLETO"
+  },
+  "ensemble_offline_v2": {
+    "corpus_ground_truth_sha256": "15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c",
+    "deterministic": true,
+    "gates": {
+      "determinism": "PASS",
+      "evidence": "PASS",
+      "negation": "PASS",
+      "negation_precision": "FAIL",
+      "offsets": "PASS",
+      "predicate_structural": "PASS",
+      "rumors": "PASS",
+      "simple_relations": "PASS",
+      "temporality": "PASS",
+      "workspace_contamination": "PASS"
+    },
+    "global_existence": {
+      "f1": 0.8113,
+      "fn": 11,
+      "fp": 9,
+      "precision": 0.8269,
+      "recall": 0.7963,
+      "tp": 43
+    },
+    "global_existence_igual_que_B0": true,
+    "negation_precision": {
+      "detail": {
+        "false_positive": 5,
+        "measurable": true,
+        "precision": 0.4444,
+        "predicted_positive": 9,
+        "true_positive": 4
+      },
+      "governs_verdict": false,
+      "hard": false,
+      "informative": true,
+      "status": "FAIL",
+      "threshold": 0.8,
+      "value": 0.4444
+    },
+    "result_hashes_iguales_que_B0": true,
+    "structural_quality": {
+      "decision_correct": {
+        "ok": 20,
+        "rate": 0.4651,
+        "total": 43
+      },
+      "direction_correct": {
+        "ok": 40,
+        "rate": 0.9302,
+        "total": 43
+      },
+      "direction_orientation_ok": {
+        "ok": 41,
+        "rate": 0.9535,
+        "total": 43
+      },
+      "epistemic_correct": {
+        "ok": 37,
+        "rate": 0.8605,
+        "total": 43
+      },
+      "evidence_correct": {
+        "ok": 40,
+        "rate": 0.9302,
+        "total": 43
+      },
+      "negation_correct": {
+        "ok": 38,
+        "rate": 0.8837,
+        "total": 43
+      },
+      "negation_signal": {
+        "false_positive": 5,
+        "measurable": true,
+        "precision": 0.4444,
+        "predicted_positive": 9,
+        "true_positive": 4
+      },
+      "offsets_correct": {
+        "ok": 41,
+        "rate": 0.9535,
+        "total": 43
+      },
+      "predicate_correct": {
+        "ok": 35,
+        "rate": 0.814,
+        "total": 43
+      },
+      "subgroups": {
+        "negated_relations": {
+          "count": 4,
+          "negation_correct": {
+            "ok": 4,
+            "rate": 1.0,
+            "total": 4
+          }
+        },
+        "rumored_relations": {
+          "count": 2,
+          "epistemic_correct": {
+            "ok": 2,
+            "rate": 1.0,
+            "total": 2
+          }
+        },
+        "simple_relations": {
+          "count": 30,
+          "evidence_correct": {
+            "ok": 28,
+            "rate": 0.9333,
+            "total": 30
+          }
+        },
+        "temporal_relations": {
+          "count": 25,
+          "temporal_correct": {
+            "ok": 24,
+            "rate": 0.96,
+            "total": 25
+          }
+        }
+      },
+      "temporal_correct": {
+        "ok": 38,
+        "rate": 0.8837,
+        "total": 43
+      },
+      "types_correct": {
+        "ok": 43,
+        "rate": 1.0,
+        "total": 43
+      },
+      "workspace_correct": {
+        "ok": 43,
+        "rate": 1.0,
+        "total": 43
+      }
+    },
+    "verdict": "APTO PARA CONTINUAR EN MODO SOMBRA",
+    "verdict_igual_que_B0": true,
+    "verdict_scope": "COMPLETO"
+  }
+}

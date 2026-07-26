@@ -1,0 +1,87 @@
+# commands.log — Bloque 1 (cierre de defectos abiertos)
+
+Rama: exp/relation-engine-v2-temporal-provenance-v1
+Base: 97b9a51 (Bloque 0)
+Entorno: /usr/bin/python3 (Python 3.13), sin red, sin proveedores, sin Neo4j, sin despliegue.
+Directorio de trabajo: /home/ia02/S9-Knowledge/.claude/worktrees/rel-v2e
+
+DISCIPLINA DE BYTECODE
+----------------------
+NO se usa PYTHONDONTWRITEBYTECODE=1 en ningun punto de este bloque. Rompe
+deploy/tests/test_release_checksum.py::test_import_real_de_python_no_altera_checksum,
+cuya premisa es que el import genere bytecode (incidencia registrada por B0). En su
+lugar se purga antes y despues de cada mutacion y de cada corrida:
+
+$ find . -name __pycache__ -type d -prune -exec rm -rf {} +
+$ find . -name '*.pyc' | wc -l
+  -> 0
+
+==============================================================================
+BLOQUE A — Reproduccion del baseline ANTES de tocar nada
+==============================================================================
+
+$ cd data-engine/app && /usr/bin/python3 -m relations.benchmark.cli --mode <modo> \
+    --predicate-selector <v1|v2> --out-json <tmp>
+  4 corridas: baseline1 x {v1,v2}, ensemble_offline x {v1,v2}
+  -> P=0.8269 R=0.7963 F1=0.8113 TP=43 FP=9 FN=11 en las 4
+  -> deterministic=True, dictamenes identicos a artifacts/relation-v2e/baseline/
+  Reproduccion CONFIRMADA antes de empezar.
+
+==============================================================================
+BLOQUE B — A/B final (4 corridas) contra la baseline de B0
+==============================================================================
+
+$ find . -name __pycache__ -type d -prune -exec rm -rf {} +
+$ /usr/bin/python3 <script de comparacion>   # 4 llamadas a relations.benchmark.cli
+
+  baseline1        v1 | F1 0.8113 -> 0.8113 | TP/FP/FN 43/9/11 -> 43/9/11
+                      | result_hashes identicos = True | verdict identico = True
+                      | negation_precision = 0.5000 (PARTIAL)
+  baseline1        v2 | F1 0.8113 -> 0.8113 | TP/FP/FN 43/9/11 -> 43/9/11
+                      | result_hashes identicos = True | verdict identico = True
+                      | negation_precision = 0.4444 (FAIL)
+  ensemble_offline v1 | F1 0.8113 -> 0.8113 | TP/FP/FN 43/9/11 -> 43/9/11
+                      | result_hashes identicos = True | verdict identico = True
+                      | negation_precision = 0.5000 (PARTIAL)
+  ensemble_offline v2 | F1 0.8113 -> 0.8113 | TP/FP/FN 43/9/11 -> 43/9/11
+                      | result_hashes identicos = True | verdict identico = True
+                      | negation_precision = 0.4444 (FAIL)
+
+  corpus.ground_truth_sha256 = 15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c
+  (identico en las 4 corridas y al de B0: el corpus NO se ha tocado)
+
+  Salidas: benchmark-<modo>-<sel>.json, ab-summary.json, performance.json (este dir).
+
+==============================================================================
+BLOQUE C — Mutacion
+==============================================================================
+
+18 mutantes sobre codigo de produccion. Detalle en mutation-log.md.
+Ronda 1: 16 mutantes -> 14 muertos, 2 supervivientes (M3, M8).
+Ronda 2 (tras anadir cobertura de la ruta real): M3, M8 y M8b -> MUERTOS.
+Total: 18/18 muertos.
+
+==============================================================================
+BLOQUE D — Suites
+==============================================================================
+
+$ find . -name __pycache__ -type d -prune -exec rm -rf {} +
+$ S9K_ALLOW_REAL_INGEST="" /usr/bin/python3 -m pytest data-engine/app/tests/ \
+      -q --no-header --tb=short -rs -p no:cacheprovider
+  exit_code = 0
+  | 2339 passed, 2 skipped, 248 warnings
+  (B0: 2443 passed, 2 skipped -- delta -104, aritmetica completa en el documento del bloque)
+
+$ find . -name __pycache__ -type d -prune -exec rm -rf {} +
+$ S9K_ALLOW_REAL_INGEST="" /usr/bin/python3 -m pytest -q --no-header --tb=short -rs \
+      -p no:cacheprovider
+  exit_code = 0
+  | 3094 passed, 5 skipped, 221 warnings
+  (B0: 3198 passed, 5 skipped)
+
+  Los 5 skips son los MISMOS de B0 (Playwright, spaCy, Stanza, NVIDIA live, Ollama
+  live). No se ha anadido ningun skip ni ningun xfail.
+
+$ find . -name __pycache__ -type d -prune -exec rm -rf {} +
+$ find . -name '*.pyc' | wc -l
+  -> 0

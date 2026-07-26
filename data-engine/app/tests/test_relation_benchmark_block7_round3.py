@@ -1056,6 +1056,9 @@ def test_n7_fail_closed_degrada_el_gate_aunque_la_tasa_sea_cero():
     """Un carril entero muerto daba rate 0.0 y gate PASS."""
     struct = {"predicate_correct": {"rate": 1.0}, "evidence_correct": {"rate": 1.0},
               "offsets_correct": {"rate": 1.0},
+              "negation_signal": {"precision": 1.0, "measurable": True,
+                                  "predicted_positive": 1, "true_positive": 1,
+                                  "false_positive": 0},
               "subgroups": {"simple_relations": {"evidence_correct": {"rate": 1.0}},
                             "negated_relations": {"negation_correct": {"rate": 1.0}},
                             "temporal_relations": {"temporal_correct": {"rate": 1.0}},

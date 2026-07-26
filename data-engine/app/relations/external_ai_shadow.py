@@ -388,8 +388,14 @@ def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str,
       * **evidencia AMBIGUA**: la cita aparece mas de una vez en el documento
         (`evidencia_ambigua`). Fail-closed deliberado: desambiguar con los offsets del
         modelo es exactamente el falso anclaje que B7 dice eliminar, asi que no se
-        desambigua, se RECHAZA. Es la MISMA regla que `external_consult`, compartida
-        via `evidence_realignment.realign_evidence_unique`.
+        desambigua, se RECHAZA.
+      * **evidencia que solo casa tras normalizar** (`normalized`): tambien se
+        RECHAZA. Bloque 1 de V2E: hay UNA envolvente de aceptacion y es la estricta.
+
+    La decision de si la evidencia ancla NO se toma aqui: se DELEGA en
+    `external_consult.validate_external_verdict`, que es la unica autoridad. Los
+    comprobantes de literalidad y offsets que si viven aqui son ADICIONALES (mas
+    estrictos), nunca alternativos.
       * negated no booleano.
     """
     errors: list[str] = []
@@ -435,24 +441,17 @@ def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str,
     # identificador del segmento; ver `resolve_document`).
     seg = document if isinstance(document, str) and document else (cand.source_segment or "")
 
+    from relations import external_consult as _consult
+
     if protocol == "fragments":
         # VIA PREFERIDA: el sistema reconstruye la evidencia desde los ids elegidos.
         # El modelo no aporta texto ni offsets, luego no puede fallar en la cita.
-        from relations import fragment_protocol as _frag
-
-        fragments = _frag.fragment_document(seg)
-        index = _frag.build_fragment_index(fragments)
-        rec = _frag.reconstruct_evidence(seg, index, raw.get("fragment_ids"))
-        if not rec.ok:
-            errors.extend(rec.errors)
-            return None, errors
-        ev, start, end = rec.text, rec.start, rec.end
-        fragment_ids = list(rec.fragment_ids)
+        consult_config = _consult.FRAGMENT_CONSULT_CONFIG
     else:
+        consult_config = _consult.DEFAULT_CONSULT_CONFIG
         ev = raw.get("evidence_text")
         start = raw.get("evidence_start")
         end = raw.get("evidence_end")
-        fragment_ids = []
 
         if not isinstance(ev, str) or not ev.strip():
             errors.append("evidence_text vacia o ausente")
@@ -470,31 +469,43 @@ def _validate_verdict(raw: dict, cand: RelationCandidate, cid: str,
             elif isinstance(ev, str) and seg[start:end] != ev:
                 errors.append("offsets_invalidos: segmento[start:end] no coincide con evidence_text")
 
-        # --- REGLA DE UNICIDAD (correccion D2 de la auditoria de B7) ------------
-        # Los comprobantes anteriores solo miran que la rodaja sea LITERAL. Con una
-        # cita que aparece VARIAS veces, eso lo cumplen TODAS las ocurrencias, de
-        # modo que el modelo escogia el ancla con SUS PROPIOS offsets -que es la
-        # fuente medida del falso anclaje-. Aqui se exige que la cita ancle de forma
-        # UNICA y se toman los offsets que resuelve el SISTEMA, no los del modelo.
-        # Misma regla y misma implementacion que `external_consult._resolve_evidence`
-        # (`evidence_realignment.realign_evidence_unique`): no hay dos reglas.
-        if not errors and isinstance(ev, str):
-            from relations import evidence_realignment as _realign
-
-            res = _realign.realign_evidence_unique(seg, ev)
-            if not res.ok:
-                errors.append(
-                    "evidencia_ambigua: la cita no ancla de forma unica en el "
-                    f"documento ({res.tier}); los offsets del modelo no desempatan"
-                )
-            else:
-                # El sistema manda: si el resolutor y el modelo discrepasen, gana
-                # el resolutor (en la rama legacy solo sobrevive `exact`, luego
-                # esto es una reafirmacion estructural, no un cambio de ancla).
-                ev, start, end = res.evidence_text, res.start, res.end
-
     if errors:
         return None, errors
+
+    # --- UNICA ENVOLVENTE DE ACEPTACION (Bloque 1 de V2E) ----------------------
+    # Antes habia aqui una re-implementacion del anclaje (llamada suelta a
+    # `realign_evidence_unique`) que corria EN PARALELO a
+    # `external_consult.validate_external_verdict`. Resultado: dos envolventes para
+    # la misma garantia y una API de seguridad con 23 llamadas de test y CERO
+    # llamadores de produccion. Ahora el camino REAL del motor entra por esa API:
+    # `validate_external_verdict` es el unico juez de si la evidencia ancla, y lo
+    # que se emite son SIEMPRE sus offsets, no los del modelo.
+    # Los comprobantes de arriba (literalidad + offsets del modelo) NO se delegan a
+    # proposito: son estrictamente ADICIONALES a lo que exige `external_consult`, y
+    # quitarlos habria RELAJADO el camino real para igualarlo -exactamente lo que no
+    # se puede hacer-.
+    consultation = _consult.validate_external_verdict(
+        seg, cand, raw, candidate_id=str(cid), config=consult_config
+    )
+    if consultation.status != _consult.STATUS_ACCEPTED:
+        motivos = [e for e in consultation.errors]
+        tier = ""
+        for code in consultation.reason_codes:
+            if code.startswith("evidence_"):
+                tier = code[len("evidence_"):]
+        if tier:
+            errors.append(
+                "evidencia_ambigua: la cita no ancla de forma unica en el "
+                f"documento ({tier}); los offsets del modelo no desempatan"
+            )
+        else:
+            errors.extend(motivos or ["evidencia no validada por external_consult"])
+        return None, errors
+
+    ev = consultation.evidence_text
+    start = consultation.evidence_start
+    end = consultation.evidence_end
+    fragment_ids = list(consultation.fragment_ids)
 
     # BARRERA FINAL de literalidad, comun a ambos protocolos: lo que se emite es
     # SIEMPRE la rodaja real del documento, nunca el texto que mando el modelo.
