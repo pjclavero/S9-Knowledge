@@ -30,7 +30,7 @@ from __future__ import annotations
 import json
 import re
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Iterable, Optional, Sequence
 
 # Version del contrato de salida sintactica. Cada `SyntaxAnalysis` la expone.
@@ -764,6 +764,349 @@ class ExternalModelSyntaxAnalyzer(SyntaxAnalyzer):
 
 
 # ---------------------------------------------------------------------------
+# Proveedor perezoso con modelo fuerte (spaCy / Stanza) — Bloque 5
+# ---------------------------------------------------------------------------
+# Modelos por idioma que se INTENTAN cargar si la libreria esta instalada. NUNCA
+# se descargan: si el modelo no esta presente en disco, se lanza un error CLARO
+# (`SyntaxProviderUnavailable`) y el llamador cae al heuristico via fallback.
+_SPACY_DEFAULT_MODELS = {
+    "es": "es_core_news_sm",
+    "en": "en_core_web_sm",
+}
+_STANZA_DEFAULT_LANGS = {"es": "es", "en": "en"}
+
+
+class LazyModelSyntaxAnalyzer(SyntaxAnalyzer):
+    """Proveedor sintactico FUERTE opcional detras de la interfaz estandar.
+
+    Envuelve spaCy o Stanza con IMPORT PEREZOSO: la libreria pesada NO se importa
+    al cargar este modulo, solo dentro de `available()` / `analyze()`. Garantias:
+
+      * OFFLINE y SIN DESCARGA: si la libreria no esta instalada, o el modelo no
+        esta presente en disco, se lanza `SyntaxProviderUnavailable` con mensaje
+        CLARO. Jamas se invoca `spacy download` ni el auto-download de Stanza
+        (Stanza se instancia con ``download_method`` desactivado).
+      * OPCIONAL: no es dependencia obligatoria del pipeline; el default sigue
+        siendo el heuristico (metric-neutral).
+      * TRAZABILIDAD: la version de la libreria y el modelo usado se registran en
+        `SyntaxAnalysis.notes`, y `provider` identifica el motor.
+
+    Como spaCy/Stanza NO estan instalados en este entorno, `available()` devuelve
+    False y `analyze()` lanza `SyntaxProviderUnavailable`; la ruta de conversion
+    real solo se ejercita cuando la dependencia esta presente (ver el test
+    marcado ``skipif`` y `docs/experiments/relation-v2/B5-parser.md`).
+    """
+
+    def __init__(self, engine: str = "spacy", *, model: Optional[str] = None):
+        engine = (engine or "").lower()
+        if engine not in ("spacy", "stanza"):
+            raise SyntaxAdapterError(
+                f"motor perezoso desconocido '{engine}'; use 'spacy' o 'stanza'."
+            )
+        self.engine = engine
+        self.model = model
+        self.name = engine
+        # Cache del objeto de modelo cargado (por instancia): un unico load.
+        self._loaded: dict[str, Any] = {}
+
+    # -- disponibilidad SIN importar la libreria pesada -----------------------
+    def available(self) -> bool:
+        """True solo si la libreria esta instalada. NO la importa ni descarga."""
+        import importlib.util  # stdlib, barato
+
+        return importlib.util.find_spec(self.engine) is not None
+
+    # -- carga perezosa del modelo (nunca descarga) ---------------------------
+    def _resolve_language(self, language: Optional[str]) -> str:
+        lang = (language or "es").lower()
+        return lang if lang in SUPPORTED_LANGUAGES else "es"
+
+    def _load_spacy(self, language: str):
+        import importlib  # perezoso
+
+        spacy = importlib.import_module("spacy")
+        model = self.model or _SPACY_DEFAULT_MODELS.get(language, "es_core_news_sm")
+        cache_key = f"spacy:{model}"
+        if cache_key in self._loaded:
+            return self._loaded[cache_key], model, spacy
+        try:
+            nlp = spacy.load(model)  # OSError si el modelo no esta en disco
+        except Exception as exc:  # modelo ausente u otro fallo de carga
+            raise SyntaxProviderUnavailable(
+                f"spaCy instalado pero el modelo '{model}' no esta disponible en "
+                f"disco ({type(exc).__name__}: {exc}). NO se descarga nada; "
+                f"instale el modelo explicitamente o use el proveedor heuristico."
+            ) from exc
+        self._loaded[cache_key] = nlp
+        return nlp, model, spacy
+
+    def _load_stanza(self, language: str):
+        import importlib  # perezoso
+
+        stanza = importlib.import_module("stanza")
+        cache_key = f"stanza:{language}"
+        if cache_key in self._loaded:
+            return self._loaded[cache_key], language, stanza
+        try:
+            # download_method=None desactiva CUALQUIER descarga automatica de
+            # Stanza; si el modelo no esta ya en disco, la carga falla y se
+            # degrada de forma controlada. NUNCA se baja nada.
+            nlp = stanza.Pipeline(
+                lang=language,
+                processors="tokenize,pos,lemma,depparse",
+                download_method=None,
+                verbose=False,
+            )
+        except Exception as exc:
+            raise SyntaxProviderUnavailable(
+                f"Stanza instalado pero el modelo '{language}' no esta disponible "
+                f"en disco ({type(exc).__name__}: {exc}). NO se descarga nada; "
+                f"instale el modelo explicitamente o use el proveedor heuristico."
+            ) from exc
+        self._loaded[cache_key] = nlp
+        return nlp, language, stanza
+
+    def analyze(self, text: str, *, language: Optional[str] = None) -> SyntaxAnalysis:
+        if not isinstance(text, str):
+            raise SyntaxAdapterError("text debe ser str")
+        if not self.available():
+            raise SyntaxProviderUnavailable(
+                f"proveedor '{self.engine}' no disponible: libreria no instalada "
+                f"y NO se descarga nada. Use 'heuristic' o instale '{self.engine}'."
+            )
+        lang = self._resolve_language(language)
+        if self.engine == "spacy":
+            nlp, model, lib = self._load_spacy(lang)
+            trace = f"{self.engine}=={getattr(lib, '__version__', '?')} model={model}"
+            return self._spacy_to_analysis(nlp(text), text, lang, trace)
+        nlp, model, lib = self._load_stanza(lang)
+        trace = f"{self.engine}=={getattr(lib, '__version__', '?')} lang={model}"
+        return self._stanza_to_analysis(nlp(text), text, lang, trace)
+
+    # -- conversion a contrato SyntaxAnalysis (solo con dependencia presente) --
+    def _spacy_to_analysis(self, doc, text, lang, trace) -> SyntaxAnalysis:  # pragma: no cover
+        sentences = []
+        for s_idx, sent in enumerate(doc.sents):
+            toks, deps = [], []
+            subject_i = verb_i = object_i = None
+            negated = passive = False
+            for tok in sent:
+                dep = (tok.dep_ or DEP_DEP).lower()
+                is_neg = dep == "neg" or dep == DEP_NEG
+                toks.append(
+                    SyntaxToken(
+                        index=tok.i,
+                        text=tok.text,
+                        start=tok.idx,
+                        end=tok.idx + len(tok.text),
+                        lemma=(tok.lemma_ or None),
+                        pos=(tok.pos_ or None),
+                        head=tok.head.i,
+                        dep=dep,
+                        is_negation=is_neg,
+                    )
+                )
+                if tok.head.i != tok.i:
+                    deps.append(SyntaxDependency(tok.head.i, tok.i, dep))
+                if is_neg:
+                    negated = True
+                if "pass" in dep:
+                    passive = True
+                if subject_i is None and dep.startswith("nsubj"):
+                    subject_i = tok.i
+                if object_i is None and dep in ("obj", "dobj", "obl"):
+                    object_i = tok.i
+                if verb_i is None and (tok.pos_ in ("VERB", "AUX") or dep == DEP_ROOT):
+                    verb_i = tok.i
+            sentences.append(
+                SyntaxSentence(
+                    index=s_idx,
+                    text=sent.text,
+                    start=sent.start_char,
+                    end=sent.end_char,
+                    tokens=tuple(toks),
+                    dependencies=tuple(deps),
+                    subject_index=subject_i,
+                    main_verb_index=verb_i,
+                    object_index=object_i,
+                    negated=negated,
+                    passive=passive,
+                )
+            )
+        return SyntaxAnalysis(
+            text=text,
+            language=lang,
+            provider=self.name,
+            version=SYNTAX_VERSION,
+            sentences=tuple(sentences),
+            degraded=False,
+            quality=1.0 if sentences else 0.0,
+            notes=(f"analizador fuerte: {trace}",),
+        )
+
+    def _stanza_to_analysis(self, doc, text, lang, trace) -> SyntaxAnalysis:  # pragma: no cover
+        sentences = []
+        base = 0
+        # Stanza no expone offsets de caracter de forma uniforme entre versiones;
+        # se reconstruyen buscando cada token en el texto original de forma
+        # incremental (determinista).
+        for s_idx, sent in enumerate(doc.sentences):
+            toks, deps = [], []
+            subject_i = verb_i = object_i = None
+            negated = passive = False
+            # indice global de token dentro del documento
+            for local, word in enumerate(sent.words):
+                gidx = len(sum((list(s.words) for s in doc.sentences[:s_idx]), [])) + local
+                dep = (word.deprel or DEP_DEP).lower()
+                is_neg = "neg" in dep
+                found = text.find(word.text, base)
+                start = found if found >= 0 else base
+                end = start + len(word.text)
+                base = end
+                head_local = (word.head - 1) if word.head and word.head > 0 else local
+                head_global = gidx - local + head_local
+                toks.append(
+                    SyntaxToken(
+                        index=gidx,
+                        text=word.text,
+                        start=start,
+                        end=end,
+                        lemma=(word.lemma or None),
+                        pos=(word.upos or None),
+                        head=head_global,
+                        dep=dep,
+                        is_negation=is_neg,
+                    )
+                )
+                if word.head and word.head > 0:
+                    deps.append(SyntaxDependency(head_global, gidx, dep))
+                if is_neg:
+                    negated = True
+                if "pass" in dep:
+                    passive = True
+                if subject_i is None and dep.startswith("nsubj"):
+                    subject_i = gidx
+                if object_i is None and dep in ("obj", "dobj", "obl"):
+                    object_i = gidx
+                if verb_i is None and (word.upos in ("VERB", "AUX") or dep == DEP_ROOT):
+                    verb_i = gidx
+            s_start = toks[0].start if toks else 0
+            s_end = toks[-1].end if toks else 0
+            sentences.append(
+                SyntaxSentence(
+                    index=s_idx,
+                    text=text[s_start:s_end],
+                    start=s_start,
+                    end=s_end,
+                    tokens=tuple(toks),
+                    dependencies=tuple(deps),
+                    subject_index=subject_i,
+                    main_verb_index=verb_i,
+                    object_index=object_i,
+                    negated=negated,
+                    passive=passive,
+                )
+            )
+        return SyntaxAnalysis(
+            text=text,
+            language=lang,
+            provider=self.name,
+            version=SYNTAX_VERSION,
+            sentences=tuple(sentences),
+            degraded=False,
+            quality=1.0 if sentences else 0.0,
+            notes=(f"analizador fuerte: {trace}",),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Wrapper de FALLBACK SEGURO: intenta un primario, cae al heuristico — Bloque 5
+# ---------------------------------------------------------------------------
+class FallbackSyntaxAnalyzer(SyntaxAnalyzer):
+    """Envuelve un proveedor PRIMARIO (p.ej. spaCy) con FALLBACK SEGURO.
+
+    Si el primario no esta disponible o falla (incluido `SyntaxProviderUnavailable`),
+    delega en el proveedor de FALLBACK (por defecto el heuristico) SIN romper y SIN
+    descargar nada. La procedencia real queda registrada:
+
+      * `SyntaxAnalysis.provider` identifica quien SIRVIO de verdad el analisis.
+      * Se anade una nota de traza indicando el primario solicitado y el motivo
+        del fallback, de modo que siempre es auditable que analizador se uso.
+
+    `available()` es True siempre que el fallback lo sea (el heuristico lo es).
+    """
+
+    def __init__(
+        self,
+        primary: SyntaxAnalyzer,
+        fallback: Optional[SyntaxAnalyzer] = None,
+    ):
+        self.primary = primary
+        self.fallback = fallback if fallback is not None else HeuristicSyntaxAnalyzer()
+        self.name = f"fallback({getattr(primary, 'name', '?')}->{self.fallback.name})"
+
+    def available(self) -> bool:
+        return self.fallback.available()
+
+    def analyze(self, text: str, *, language: Optional[str] = None) -> SyntaxAnalysis:
+        requested = getattr(self.primary, "name", "?")
+        try:
+            if not self.primary.available():
+                raise SyntaxProviderUnavailable(
+                    f"primario '{requested}' no disponible"
+                )
+            result = self.primary.analyze(text, language=language)
+            note = f"analizador primario '{requested}' sirvio el analisis"
+            return replace(result, notes=tuple(result.notes) + (note,))
+        except Exception as exc:  # fallback seguro: NUNCA propaga, NUNCA descarga
+            result = self.fallback.analyze(text, language=language)
+            note = (
+                f"fallback seguro: primario '{requested}' no disponible "
+                f"({type(exc).__name__}: {exc}); sirvio '{self.fallback.name}'"
+            )
+            return replace(result, notes=tuple(result.notes) + (note,))
+
+
+# ---------------------------------------------------------------------------
+# Wrapper de CACHE por segmento: un unico analisis por (texto, idioma) — Bloque 5
+# ---------------------------------------------------------------------------
+class CachingSyntaxAnalyzer(SyntaxAnalyzer):
+    """Memoriza el analisis por segmento: clave (texto, idioma).
+
+    Garantiza UN UNICO analisis por segmento/documento durante la vida del
+    analizador. Determinista y sin efectos externos. Delega en `inner`.
+    """
+
+    def __init__(self, inner: SyntaxAnalyzer, *, maxsize: Optional[int] = None):
+        self.inner = inner
+        self.name = getattr(inner, "name", "?")
+        self.maxsize = maxsize
+        self._cache: dict[tuple, SyntaxAnalysis] = {}
+        self.hits = 0
+        self.misses = 0
+
+    def available(self) -> bool:
+        return self.inner.available()
+
+    def analyze(self, text: str, *, language: Optional[str] = None) -> SyntaxAnalysis:
+        key = (text, language)
+        cached = self._cache.get(key)
+        if cached is not None:
+            self.hits += 1
+            return cached
+        self.misses += 1
+        result = self.inner.analyze(text, language=language)
+        if self.maxsize is None or len(self._cache) < self.maxsize:
+            self._cache[key] = result
+        return result
+
+    def cache_clear(self) -> None:
+        self._cache.clear()
+        self.hits = 0
+        self.misses = 0
+
+
+# ---------------------------------------------------------------------------
 # Fabrica y ayudas de alto nivel
 # ---------------------------------------------------------------------------
 _BUILTIN_PROVIDERS = {
@@ -774,28 +1117,72 @@ _BUILTIN_PROVIDERS = {
 # Proveedores que requieren dependencias/modelos pesados (no instalados aqui).
 _EXTERNAL_PROVIDERS = ("spacy", "stanza")
 
+# Tope de entradas del cache por analizador (evita crecimiento sin limite).
+_DEFAULT_CACHE_MAXSIZE = 512
 
-def get_analyzer(provider: str = "heuristic", **kwargs: Any) -> SyntaxAnalyzer:
+
+def get_analyzer(
+    provider: str = "heuristic",
+    *,
+    fallback: bool = False,
+    cache: bool = False,
+    **kwargs: Any,
+) -> SyntaxAnalyzer:
     """Devuelve un proveedor por nombre.
 
     - "heuristic" (por defecto): sin dependencias, siempre disponible.
     - "null": estructura vacia.
-    - "spacy" / "stanza": NO disponibles aqui -> `SyntaxProviderUnavailable`
-      (fallo CLARO, nunca descarga ni instala).
+    - "spacy" / "stanza": proveedor PEREZOSO (`LazyModelSyntaxAnalyzer`). Si la
+      libreria no esta instalada y `fallback=False` (por defecto) se lanza
+      `SyntaxProviderUnavailable` con mensaje CLARO; NUNCA se descarga ni se
+      instala nada.
+
+    Opciones de envoltura (ambas apagadas por defecto = comportamiento base):
+
+    - `fallback=True`: envuelve el proveedor en `FallbackSyntaxAnalyzer`, que
+      degrada al heuristico si el primario no esta o falla, dejando traza en
+      `notes`. Con esto `get_analyzer("spacy", fallback=True)` NUNCA lanza.
+    - `cache=True`: envuelve en `CachingSyntaxAnalyzer` (un unico analisis por
+      (texto, idioma) durante la vida del objeto).
     """
     if provider in _BUILTIN_PROVIDERS:
-        return _BUILTIN_PROVIDERS[provider](**kwargs)
-    if provider in _EXTERNAL_PROVIDERS:
-        raise SyntaxProviderUnavailable(
-            f"proveedor '{provider}' requiere una dependencia pesada no "
-            f"instalada; no se descarga nada. Proveedores disponibles: "
-            f"{sorted(_BUILTIN_PROVIDERS)}."
+        analyzer: SyntaxAnalyzer = _BUILTIN_PROVIDERS[provider](**kwargs)
+    elif provider in _EXTERNAL_PROVIDERS:
+        analyzer = LazyModelSyntaxAnalyzer(provider, **kwargs)
+        if not fallback and not analyzer.available():
+            raise SyntaxProviderUnavailable(
+                f"proveedor '{provider}' requiere una dependencia pesada no "
+                f"instalada; no se descarga nada. Proveedores disponibles: "
+                f"{sorted(_BUILTIN_PROVIDERS)}. Use fallback=True para degradar "
+                f"al heuristico en vez de fallar."
+            )
+    else:
+        raise SyntaxAdapterError(
+            f"proveedor desconocido '{provider}'. Disponibles: "
+            f"{sorted(_BUILTIN_PROVIDERS)}; externos (no instalados): "
+            f"{list(_EXTERNAL_PROVIDERS)}."
         )
-    raise SyntaxAdapterError(
-        f"proveedor desconocido '{provider}'. Disponibles: "
-        f"{sorted(_BUILTIN_PROVIDERS)}; externos (no instalados): "
-        f"{list(_EXTERNAL_PROVIDERS)}."
-    )
+    if fallback:
+        analyzer = FallbackSyntaxAnalyzer(analyzer)
+    if cache:
+        analyzer = CachingSyntaxAnalyzer(analyzer, maxsize=_DEFAULT_CACHE_MAXSIZE)
+    return analyzer
+
+
+# Analizador por defecto compartido: heuristico + cache por segmento. Es puro y
+# determinista, por lo que cachear NO altera ninguna metrica (metric-neutral);
+# solo evita reanalizar el mismo texto una y otra vez.
+_DEFAULT_ANALYZER: Optional[SyntaxAnalyzer] = None
+
+
+def get_default_analyzer() -> SyntaxAnalyzer:
+    """Analizador por defecto del pipeline (heuristico, cacheado, compartido)."""
+    global _DEFAULT_ANALYZER
+    if _DEFAULT_ANALYZER is None:
+        _DEFAULT_ANALYZER = CachingSyntaxAnalyzer(
+            HeuristicSyntaxAnalyzer(), maxsize=_DEFAULT_CACHE_MAXSIZE
+        )
+    return _DEFAULT_ANALYZER
 
 
 def analyze(text: str, *, provider: str = "heuristic", language: Optional[str] = None) -> SyntaxAnalysis:
@@ -842,7 +1229,11 @@ __all__ = [
     "HeuristicSyntaxAnalyzer",
     "NullSyntaxAnalyzer",
     "ExternalModelSyntaxAnalyzer",
+    "LazyModelSyntaxAnalyzer",
+    "FallbackSyntaxAnalyzer",
+    "CachingSyntaxAnalyzer",
     "get_analyzer",
+    "get_default_analyzer",
     "analyze",
     "safe_analyze",
 ]

@@ -67,7 +67,7 @@ from relations.pairs import (
     generate_pairs,
 )
 from relations.signals import SIGNALS_VERSION, SignalContext, compute_all_signals
-from relations.syntax import SYNTAX_VERSION, get_analyzer, safe_analyze
+from relations.syntax import SYNTAX_VERSION, get_analyzer, get_default_analyzer, safe_analyze
 from relations import ontology as _ontology
 from relations import predicate_selector as _predicate_selector
 from relations import direction as _direction
@@ -614,7 +614,9 @@ def _process_segment(
     summary["pairs_generated"] += len(pairs)
 
     # --- sintaxis (proveedor heuristico, stdlib) una vez por segmento ---
-    syntax_analysis = safe_analyze(get_analyzer("heuristic"), text)
+    # `get_default_analyzer()` comparte un heuristico cacheado: mismo resultado
+    # (funcion pura y determinista) sin reanalizar textos repetidos.
+    syntax_analysis = safe_analyze(get_default_analyzer(), text)
 
     candidate_records: list[dict] = []
     seen_candidates: set[str] = set()
