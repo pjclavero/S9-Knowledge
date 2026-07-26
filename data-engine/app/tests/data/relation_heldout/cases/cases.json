@@ -1,0 +1,457 @@
+{
+  "corpus_version": "1.0.0",
+  "description": "Indice de CASOS del corpus held-out: cada caso agrupa fuentes, episodios (sesiones de juego ficticias) y relaciones esperadas. Este fichero es METADATO: el arnes `relations/benchmark/` no lo lee.",
+  "cases": [
+    {
+      "case_id": "H-01",
+      "title": "Alianza que termina y se vuelve enemistad",
+      "coverage": [
+        "alianza-terminada",
+        "relacion-que-cambia",
+        "simetrica",
+        "transicion-temporal",
+        "varias-relaciones-por-segmento",
+        "voz-activa"
+      ],
+      "sources": [
+        "src-01"
+      ],
+      "episodes": [
+        "ses-01"
+      ],
+      "relations": [
+        "rel-001",
+        "rel-002"
+      ]
+    },
+    {
+      "case_id": "H-02",
+      "title": "Voz pasiva con sujeto y objeto invertidos",
+      "coverage": [
+        "voz-pasiva",
+        "sujeto-objeto-invertidos"
+      ],
+      "sources": [
+        "src-02"
+      ],
+      "episodes": [
+        "ses-01"
+      ],
+      "relations": [
+        "rel-003",
+        "rel-004"
+      ]
+    },
+    {
+      "case_id": "H-03",
+      "title": "Rumor que nunca se vuelve hecho",
+      "coverage": [
+        "rumor",
+        "negacion",
+        "fuentes-en-sesiones-distintas"
+      ],
+      "sources": [
+        "src-03",
+        "src-04"
+      ],
+      "episodes": [
+        "ses-04",
+        "ses-09"
+      ],
+      "relations": [
+        "rel-005",
+        "rel-006"
+      ]
+    },
+    {
+      "case_id": "H-04",
+      "title": "Culpable aparente exonerado despues",
+      "coverage": [
+        "culpable-exonerado",
+        "negacion",
+        "relacion-que-cambia",
+        "fuentes-contradictorias"
+      ],
+      "sources": [
+        "src-05",
+        "src-06"
+      ],
+      "episodes": [
+        "ses-02",
+        "ses-06"
+      ],
+      "relations": [
+        "rel-007",
+        "rel-008",
+        "rel-009"
+      ]
+    },
+    {
+      "case_id": "H-05",
+      "title": "Salto de tres meses y relevo de mando",
+      "coverage": [
+        "salto-temporal",
+        "relacion-que-cambia",
+        "negacion"
+      ],
+      "sources": [
+        "src-07"
+      ],
+      "episodes": [
+        "ses-11"
+      ],
+      "relations": [
+        "rel-010",
+        "rel-011"
+      ]
+    },
+    {
+      "case_id": "H-06",
+      "title": "Flashback con dos marcos temporales",
+      "coverage": [
+        "flashback",
+        "transicion-temporal",
+        "varias-relaciones-por-segmento"
+      ],
+      "sources": [
+        "src-08"
+      ],
+      "episodes": [
+        "ses-12"
+      ],
+      "relations": [
+        "rel-012",
+        "rel-013"
+      ]
+    },
+    {
+      "case_id": "H-07",
+      "title": "Conversacion no relacionada (ruido)",
+      "coverage": [
+        "ruido",
+        "sin-relacion",
+        "puntuacion"
+      ],
+      "sources": [
+        "src-09",
+        "src-30"
+      ],
+      "episodes": [
+        "ses-13",
+        "ses-30"
+      ],
+      "relations": [
+        "rel-014",
+        "rel-044",
+        "rel-045"
+      ]
+    },
+    {
+      "case_id": "H-08",
+      "title": "Mismo nombre en dos workspaces",
+      "coverage": [
+        "homonimia",
+        "multi-workspace"
+      ],
+      "sources": [
+        "src-10",
+        "src-11"
+      ],
+      "episodes": [
+        "ses-03"
+      ],
+      "relations": [
+        "rel-015",
+        "rel-016",
+        "rel-017"
+      ]
+    },
+    {
+      "case_id": "H-09",
+      "title": "Unicode y puntuacion",
+      "coverage": [
+        "unicode",
+        "puntuacion"
+      ],
+      "sources": [
+        "src-12"
+      ],
+      "episodes": [
+        "ses-21"
+      ],
+      "relations": [
+        "rel-018",
+        "rel-019"
+      ]
+    },
+    {
+      "case_id": "H-10",
+      "title": "Texto repetido literalmente",
+      "coverage": [
+        "texto-repetido",
+        "offsets"
+      ],
+      "sources": [
+        "src-13"
+      ],
+      "episodes": [
+        "ses-22"
+      ],
+      "relations": [
+        "rel-020"
+      ]
+    },
+    {
+      "case_id": "H-11",
+      "title": "Frase muy larga con una sola relacion",
+      "coverage": [
+        "frases-largas"
+      ],
+      "sources": [
+        "src-14"
+      ],
+      "episodes": [
+        "ses-23"
+      ],
+      "relations": [
+        "rel-021"
+      ]
+    },
+    {
+      "case_id": "H-12",
+      "title": "Fragmento ambiguo con pronombre sin referente claro",
+      "coverage": [
+        "fragmento-ambiguo",
+        "negacion"
+      ],
+      "sources": [
+        "src-15"
+      ],
+      "episodes": [
+        "ses-23"
+      ],
+      "relations": [
+        "rel-022"
+      ]
+    },
+    {
+      "case_id": "H-13",
+      "title": "Hipotesis de jugador fuera de ficcion",
+      "coverage": [
+        "hipotesis",
+        "fuera-de-ficcion"
+      ],
+      "sources": [
+        "src-16"
+      ],
+      "episodes": [
+        "ses-14"
+      ],
+      "relations": [
+        "rel-023"
+      ]
+    },
+    {
+      "case_id": "H-14",
+      "title": "Fecha vaga",
+      "coverage": [
+        "fecha-vaga",
+        "transicion-temporal"
+      ],
+      "sources": [
+        "src-17"
+      ],
+      "episodes": [
+        "ses-15"
+      ],
+      "relations": [
+        "rel-024"
+      ]
+    },
+    {
+      "case_id": "H-15",
+      "title": "Predicado desconocido para la ontologia",
+      "coverage": [
+        "predicado-desconocido",
+        "cobertura"
+      ],
+      "sources": [
+        "src-18"
+      ],
+      "episodes": [
+        "ses-16"
+      ],
+      "relations": [
+        "rel-025"
+      ]
+    },
+    {
+      "case_id": "H-16",
+      "title": "Descubrimiento posterior de un evento antiguo",
+      "coverage": [
+        "descubrimiento-posterior",
+        "transicion-temporal"
+      ],
+      "sources": [
+        "src-19"
+      ],
+      "episodes": [
+        "ses-24"
+      ],
+      "relations": [
+        "rel-026"
+      ]
+    },
+    {
+      "case_id": "H-17",
+      "title": "Relacion confirmada por dos fuentes independientes",
+      "coverage": [
+        "dos-fuentes",
+        "sujeto-objeto-invertidos"
+      ],
+      "sources": [
+        "src-20",
+        "src-21"
+      ],
+      "episodes": [
+        "ses-25",
+        "ses-26"
+      ],
+      "relations": [
+        "rel-027",
+        "rel-028"
+      ]
+    },
+    {
+      "case_id": "H-18",
+      "title": "Relacion contradicha por una tercera fuente",
+      "coverage": [
+        "fuentes-contradictorias",
+        "negacion"
+      ],
+      "sources": [
+        "src-22"
+      ],
+      "episodes": [
+        "ses-27"
+      ],
+      "relations": [
+        "rel-029",
+        "rel-030"
+      ]
+    },
+    {
+      "case_id": "H-19",
+      "title": "Fuente retirada del canon",
+      "coverage": [
+        "fuente-retirada"
+      ],
+      "sources": [
+        "src-23"
+      ],
+      "episodes": [
+        "ses-17"
+      ],
+      "relations": [
+        "rel-031"
+      ]
+    },
+    {
+      "case_id": "H-20",
+      "title": "Escena que ocupa varias sesiones",
+      "coverage": [
+        "escena-multi-sesion",
+        "coocurrencia-enganosa"
+      ],
+      "sources": [
+        "src-24",
+        "src-25"
+      ],
+      "episodes": [
+        "ses-28",
+        "ses-29"
+      ],
+      "relations": [
+        "rel-032",
+        "rel-033",
+        "rel-034"
+      ]
+    },
+    {
+      "case_id": "H-21",
+      "title": "Entidades repetidas y varias relaciones por segmento",
+      "coverage": [
+        "entidades-repetidas",
+        "varias-relaciones-por-segmento",
+        "predicados-no-vistos"
+      ],
+      "sources": [
+        "src-26"
+      ],
+      "episodes": [
+        "ses-18"
+      ],
+      "relations": [
+        "rel-035",
+        "rel-036",
+        "rel-037"
+      ]
+    },
+    {
+      "case_id": "H-22",
+      "title": "Familia en voz activa con relaciones simetricas",
+      "coverage": [
+        "voz-activa",
+        "simetrica",
+        "varias-relaciones-por-segmento"
+      ],
+      "sources": [
+        "src-27"
+      ],
+      "episodes": [
+        "ses-19"
+      ],
+      "relations": [
+        "rel-038",
+        "rel-039",
+        "rel-040"
+      ]
+    },
+    {
+      "case_id": "H-23",
+      "title": "Intencion futura no consumada",
+      "coverage": [
+        "intencion",
+        "futuro"
+      ],
+      "sources": [
+        "src-28"
+      ],
+      "episodes": [
+        "ses-19"
+      ],
+      "relations": [
+        "rel-041"
+      ]
+    },
+    {
+      "case_id": "H-24",
+      "title": "Alias y localizacion debil",
+      "coverage": [
+        "alias",
+        "simetrica",
+        "localizacion-debil"
+      ],
+      "sources": [
+        "src-29"
+      ],
+      "episodes": [
+        "ses-20"
+      ],
+      "relations": [
+        "rel-042",
+        "rel-043"
+      ]
+    }
+  ]
+}

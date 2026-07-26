@@ -1,0 +1,325 @@
+{
+  "corpus": "relation-benchmark",
+  "corpus_role": "held-out",
+  "version": "1.0.0",
+  "synthetic": true,
+  "contains_private_corpus": false,
+  "workspaces": [
+    "ferrovia",
+    "mareas",
+    "orbita"
+  ],
+  "encoding": "utf-8",
+  "source_count": 30,
+  "relation_count": 45,
+  "sources": [
+    {
+      "id": "src-01",
+      "path": "sources/src-01-pacto-roto.txt",
+      "title": "El pacto del primer invierno",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 269,
+      "chars": 260,
+      "sha256": "2a9459dc7a8cd207c6e5a452db205d6200495fe850ea9a8cc8098e589ff0e674"
+    },
+    {
+      "id": "src-02",
+      "path": "sources/src-02-voz-pasiva.txt",
+      "title": "Actas de fundación y custodia",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 193,
+      "chars": 188,
+      "sha256": "5d29ef8a04546bd4e11ebdeaeb1cd5bc666c9bd867222bbd0ea6636314b931b9"
+    },
+    {
+      "id": "src-03",
+      "path": "sources/src-03-rumor-taller.txt",
+      "title": "Lo que se murmura en los talleres",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 133,
+      "chars": 131,
+      "sha256": "150e1790897c14d7bc4557c6d97ab02ec11b8711ad10af0002fdf2d0f799db27"
+    },
+    {
+      "id": "src-04",
+      "path": "sources/src-04-rumor-desmentido.txt",
+      "title": "Cinco sesiones después",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 142,
+      "chars": 140,
+      "sha256": "5bfbaae78ad21171bfd1f28a4b37b264c027495d99d6a3b455afdbb6f9c9928f"
+    },
+    {
+      "id": "src-05",
+      "path": "sources/src-05-culpable-aparente.txt",
+      "title": "El correo nocturno",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 155,
+      "chars": 153,
+      "sha256": "f0bc8c15e37e6babea6e897feae0e01b2b7bb0655a0667068bfa1c6c0c9bb92e"
+    },
+    {
+      "id": "src-06",
+      "path": "sources/src-06-exoneracion.txt",
+      "title": "El peritaje del eje",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 153,
+      "chars": 148,
+      "sha256": "21b74ec957e4d87c94f09f10728ed4158447f7e494cac342dc7abc0b1a0a2073"
+    },
+    {
+      "id": "src-07",
+      "path": "sources/src-07-salto-tres-meses.txt",
+      "title": "Tres meses después",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 140,
+      "chars": 136,
+      "sha256": "58f584b3e3f662f8625252818c788fe0d17cdc01f8d1af80c506c5b45354a266"
+    },
+    {
+      "id": "src-08",
+      "path": "sources/src-08-flashback.txt",
+      "title": "Flashback: la sala de diagramas",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 206,
+      "chars": 197,
+      "sha256": "e2d3f15f6c0aa802dd93574ddb790a76f1691d11128c7fe9356dff6e44da0133"
+    },
+    {
+      "id": "src-09",
+      "path": "sources/src-09-charla-mesa.txt",
+      "title": "Charla de mesa",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 170,
+      "chars": 162,
+      "sha256": "e1cca438d5908f7de83f1178843125d7506d565c6eb85be9995c61372b842322"
+    },
+    {
+      "id": "src-10",
+      "path": "sources/src-10-halvard-ferrovia.txt",
+      "title": "Halvard, el de las vías",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 113,
+      "chars": 111,
+      "sha256": "0e861d62d86422bdb73e1f71fe3cb678a2aca30b85a0a63418705e8c3e4efa69"
+    },
+    {
+      "id": "src-11",
+      "path": "sources/src-11-halvard-mareas.txt",
+      "title": "Halvard, el del Fondeadero",
+      "workspace": "mareas",
+      "encoding": "utf-8",
+      "bytes": 126,
+      "chars": 125,
+      "sha256": "d5cb2d7d492fc773d1566b212dd590fa71a3c89a04b0e5e61a85a5c29dd6587d"
+    },
+    {
+      "id": "src-12",
+      "path": "sources/src-12-unicode.txt",
+      "title": "Bitácora de la Заря-7",
+      "workspace": "orbita",
+      "encoding": "utf-8",
+      "bytes": 180,
+      "chars": 151,
+      "sha256": "244a1dc611d08e0b7e63e2aab68e2a1a95bf2ad5984176415e20a2beac01c70c"
+    },
+    {
+      "id": "src-13",
+      "path": "sources/src-13-texto-repetido.txt",
+      "title": "El acta que se copió dos veces",
+      "workspace": "mareas",
+      "encoding": "utf-8",
+      "bytes": 127,
+      "chars": 123,
+      "sha256": "d9aeab75fd88521c3b4d1c1acdb3a02090585893c6952a52a63ef25820ed836a"
+    },
+    {
+      "id": "src-14",
+      "path": "sources/src-14-frase-larga.txt",
+      "title": "Informe extenso del Astillero Bajo",
+      "workspace": "mareas",
+      "encoding": "utf-8",
+      "bytes": 386,
+      "chars": 381,
+      "sha256": "27a092006dd8c5c783844736ced9cf39cdd7b16c6bd254f8ae305727ca36da4f"
+    },
+    {
+      "id": "src-15",
+      "path": "sources/src-15-fragmento-ambiguo.txt",
+      "title": "Fragmento ambiguo",
+      "workspace": "mareas",
+      "encoding": "utf-8",
+      "bytes": 128,
+      "chars": 121,
+      "sha256": "c1686a5a434917dc9524d81e97cf57a94792986d849e65131b685b10fe5b4519"
+    },
+    {
+      "id": "src-16",
+      "path": "sources/src-16-hipotesis-jugador.txt",
+      "title": "Teoría del jugador de Bricio",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 179,
+      "chars": 174,
+      "sha256": "c97897be1cb4f70e7fbb38fe88b32f31adc54952ba5558c78a3f9c7b91a44031"
+    },
+    {
+      "id": "src-17",
+      "path": "sources/src-17-fecha-vaga.txt",
+      "title": "En algún momento del último ciclo",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 117,
+      "chars": 112,
+      "sha256": "d181a372d96c2978e08bae5eae0db274baeabd8071638a447a2ac695082457f1"
+    },
+    {
+      "id": "src-18",
+      "path": "sources/src-18-predicado-desconocido.txt",
+      "title": "Mecenazgo",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 76,
+      "chars": 75,
+      "sha256": "13b492dd539901b54f8a061d6f657fee8fe4bed7b581995217d4c0ca643bc19a"
+    },
+    {
+      "id": "src-19",
+      "path": "sources/src-19-descubrimiento-antiguo.txt",
+      "title": "Lo que dormía en los archivos",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 161,
+      "chars": 154,
+      "sha256": "9e9f4cbfe47028207f0428609359e83e95d9d6f68798c8c971538133e2475bf1"
+    },
+    {
+      "id": "src-20",
+      "path": "sources/src-20-confirmacion-a.txt",
+      "title": "Registro portuario",
+      "workspace": "mareas",
+      "encoding": "utf-8",
+      "bytes": 81,
+      "chars": 80,
+      "sha256": "933f689efb18332c0cb0babd3a863a75059e3929c0497ec8e45b52f05464d80b"
+    },
+    {
+      "id": "src-21",
+      "path": "sources/src-21-confirmacion-b.txt",
+      "title": "Carta del cónsul",
+      "workspace": "mareas",
+      "encoding": "utf-8",
+      "bytes": 130,
+      "chars": 126,
+      "sha256": "bfc0f78dbcbc2f91639df31c9d891c7447fca5307733d3710286f8b434d7137e"
+    },
+    {
+      "id": "src-22",
+      "path": "sources/src-22-contradiccion.txt",
+      "title": "El desmentido del contramaestre",
+      "workspace": "mareas",
+      "encoding": "utf-8",
+      "bytes": 103,
+      "chars": 102,
+      "sha256": "b258b6df6d5c28469e872a30e9a9c676b5c574f78a11f3a09522278f16bccfaa"
+    },
+    {
+      "id": "src-23",
+      "path": "sources/src-23-fuente-retirada.txt",
+      "title": "Fuente retirada del canon",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 157,
+      "chars": 149,
+      "sha256": "c627cd5835b0d9f9e1738ea70944a9018c2eb5fa155487a886d8d0cc56da1c97"
+    },
+    {
+      "id": "src-24",
+      "path": "sources/src-24-asamblea-parte-1.txt",
+      "title": "Asamblea de Mareas, primera parte",
+      "workspace": "mareas",
+      "encoding": "utf-8",
+      "bytes": 160,
+      "chars": 156,
+      "sha256": "7bf5af62894ce0610e30880e72b2e6f699cedb663b668203253a02851915de96"
+    },
+    {
+      "id": "src-25",
+      "path": "sources/src-25-asamblea-parte-2.txt",
+      "title": "Asamblea de Mareas, segunda parte",
+      "workspace": "mareas",
+      "encoding": "utf-8",
+      "bytes": 171,
+      "chars": 168,
+      "sha256": "2bea74c372317cb51373d828d10666696d3efeb831c0598440379b36f7985ade"
+    },
+    {
+      "id": "src-26",
+      "path": "sources/src-26-entidades-repetidas.txt",
+      "title": "Retrato de Tessaly",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 209,
+      "chars": 204,
+      "sha256": "6061abf7f28d87c0970885ad58e3c6eb1826859e125e48cc4cd85548d956f750"
+    },
+    {
+      "id": "src-27",
+      "path": "sources/src-27-familia.txt",
+      "title": "La familia de Nauel",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 134,
+      "chars": 133,
+      "sha256": "07687acab4c41846dbb6783b3920e466e074adccf11637c2142d55fa66a2f5fe"
+    },
+    {
+      "id": "src-28",
+      "path": "sources/src-28-intencion-futura.txt",
+      "title": "Planes para la primavera",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 111,
+      "chars": 110,
+      "sha256": "4ce3c7a83e9344e0c3366c44ed887b0f26fa6f06458b01c21fb3bcb024862efe"
+    },
+    {
+      "id": "src-29",
+      "path": "sources/src-29-alias.txt",
+      "title": "El Fogonero",
+      "workspace": "ferrovia",
+      "encoding": "utf-8",
+      "bytes": 87,
+      "chars": 87,
+      "sha256": "5ba0d44286aed1e78c7b79873f2c1a2da26d06a2d9be2a7168d3690aab131759"
+    },
+    {
+      "id": "src-30",
+      "path": "sources/src-30-ruido-reglas.txt",
+      "title": "Discusión de reglas",
+      "workspace": "orbita",
+      "encoding": "utf-8",
+      "bytes": 173,
+      "chars": 161,
+      "sha256": "9ed697171bf50caad0b7a14387c8f5bb3e7cb82daf8549731acca012c7764cc3"
+    }
+  ],
+  "ground_truth": {
+    "path": "ground_truth/relations.json",
+    "sha256": "eac8a6097bb0729e8ecfd50c562655c26a49bb5864e2975d1e5710b29cabdd35"
+  },
+  "cases": {
+    "path": "cases/cases.json",
+    "sha256": "a22950cfa0b0592df000c600db245ef40a707046fb2e05674d7b5241c47a2b39"
+  }
+}
