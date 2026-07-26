@@ -370,4 +370,37 @@ caso ocultaba un defecto que habría producido un **100% de rechazos** si el car
 hubiera ejecutado. **Un test verde sólo vale si puede ponerse rojo**, y las pruebas de mutación
 fueron lo único que lo demostró.
 
-Firmado: Supervisor del programa. Sin merge, sin despliegue, sin ingesta. `main` intacto.
+Firmado: Supervisor del programa. Sin despliegue, sin ingesta.
+
+### Adenda — decisión del propietario (2026-07-26): FUSIONAR SIN ACTIVAR
+
+El propietario del repositorio autoriza **fusionar esta rama a `main`**, y **únicamente eso**.
+La adenda deja constancia de qué significa y qué NO significa.
+
+**Por qué fusionar es de bajo riesgo:** todo el motor v2 vive **tras un flag cuyo valor por
+defecto sigue siendo `v1`** (`PipelineConfig.predicate_selector = "v1"`, `consensus_policy =
+"auto"`, `local_llm_enabled = False`, `external_ai_enabled = False`). **El merge no cambia el
+comportamiento del motor.** Lo que sí entra, y es estrictamente una mejora:
+
+1. **El fix de P0**, que hoy está **roto en `main`**: el evaluador externo recibe el *ID* del
+   segmento en lugar del texto. Quien activara el carril externo sobre `main` obtendría un
+   **100% de rechazos**. Dejarlo sin fusionar mantiene ese defecto en la rama principal.
+2. **El techo de seguridad de B7**, que impide que la IA externa actúe como autoridad.
+3. **La corrección del metro** del banco, que mide de forma más estricta, no más laxa.
+
+**Lo que esta autorización NO cubre — sigue BLOQUEADO:**
+
+- **Activar `v2` como valor por defecto.** El motivo principal no es la calidad, que es buena:
+  es que **de las 30 relaciones que el GT acepta, v2 sólo propone 3** y manda 27 a revisión
+  humana. Antes de activarlo hay que comprobar que el flujo de revisión soporta ese volumen.
+- **Retirar el camino `v1`.** Es el default y la **vía de rollback** que este programa se
+  comprometió a conservar. No se retira hasta que v2 demuestre su valor fuera del banco.
+- **Promocionar el camino de rechazo** (precisión de la negación **4/9**).
+- **Desplegar o ingerir** con este motor.
+
+Las condiciones de §8 y de este dictamen siguen íntegramente en vigor: el rango honesto sigue
+siendo **[0.42, 0.81]**, sigue sin haber **held-out**, y **B5-D4/D7 siguen abiertos** — y D4
+(retención de texto crudo sin TTL) es precisamente un defecto de proceso longevo, es decir, de
+producción.
+
+**Resumen: se fusiona el código, no se activa el motor.**
