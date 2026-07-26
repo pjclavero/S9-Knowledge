@@ -1,0 +1,38 @@
+{
+  "python_version": "3.13.5 (main, May  5 2026, 21:05:52) [GCC 14.2.0]",
+  "python_executable": "/usr/bin/python3",
+  "platform": "Linux-6.12.90+deb13.1-amd64-x86_64-with-glibc2.41",
+  "os_release": "PRETTY_NAME=\"Debian GNU/Linux 13 (trixie)\"",
+  "machine": "x86_64",
+  "cpu_count_logico": 8,
+  "cpu_modelo": "NO MEDIDO (no se ha perfilado hardware; no se estima)",
+  "ram": "NO MEDIDA (no se ha perfilado hardware; no se estima)",
+  "paquetes_relevantes_instalados": {
+    "pytest": "8.4.2",
+    "pytest-asyncio": "1.4.0",
+    "pydantic": "2.13.4",
+    "pydantic_core": "2.46.4",
+    "pydantic-settings": "2.14.2",
+    "jsonschema": "4.26.0",
+    "jsonschema-specifications": "2025.9.1",
+    "referencing": "0.37.0",
+    "neo4j": "5.28.4",
+    "fastapi": "0.139.0",
+    "starlette": "1.3.1",
+    "httpx": "0.28.1",
+    "anyio": "4.14.1",
+    "PyYAML": "6.0.3",
+    "requests": "2.34.2",
+    "llama-index-core": "0.14.23",
+    "numpy": "2.5.1",
+    "spacy": "NO INSTALADO",
+    "stanza": "NO INSTALADO",
+    "playwright": "NO INSTALADO"
+  },
+  "red": "NO USADA. Ningun proveedor real ejecutado; providers local/external = NOT_EXECUTED, 0 llamadas.",
+  "divergencias_con_CI": [
+    "CI instala data-engine/requirements.lock (pytest==9.1.1). El entorno local tiene pytest 8.4.2. Las cifras de este baseline son del entorno local, no de CI.",
+    "spaCy y Stanza NO estan instalados (igual que en CI): 2 tests de B5 quedan en skip.",
+    "Playwright NO esta instalado en local: 1 test de navegador en skip. En CI ese job SI lo instala y falla si algo se salta."
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "generated_utc": "2026-07-26T18:08:59+00:00",
+  "worktree": "/home/ia02/S9-Knowledge/.claude/worktrees/rel-v2e",
+  "branch": "exp/relation-engine-v2-temporal-provenance-v1",
+  "head_sha": "8fc7c8d45b2a03be92b7935f9d9b9c2bd32390bb",
+  "origin_main_sha": "8fc7c8d45b2a03be92b7935f9d9b9c2bd32390bb",
+  "head_equals_origin_main": true,
+  "working_tree_clean_before_artifacts": true,
+  "porcelain_at_audit_start": "",
+  "v2_merge_commit": {
+    "sha": "5ad9f18bfdbcda3db911e03656ba2bbc7a8a0024",
+    "subject": "feat: relation engine v2 hybrid semantic extraction (#105)",
+    "date": "2026-07-26T19:05:54+02:00",
+    "is_ancestor_of_main": true,
+    "nota": "PR #105, merge por SQUASH: por eso el tip de la rama historica NO es ancestro de main"
+  },
+  "historical_branch": {
+    "name": "feat/relation-engine-v2-hybrid",
+    "tip_sha": "baabb548a5dd723aef2026712888c3277f3035b0",
+    "subject": "docs(rel-v2): adenda — el propietario autoriza FUSIONAR SIN ACTIVAR",
+    "date": "2026-07-26T18:41:53+02:00",
+    "is_ancestor_of_main": false,
+    "tocada_en_este_bloque": false
+  },
+  "commits_after_v2_merge": [
+    {
+      "sha": "8fc7c8d",
+      "subject": "Add files via upload"
+    },
+    {
+      "sha": "d4ce6b2",
+      "subject": "build(deps): update pydantic requirement in /viewer (#56)"
+    },
+    {
+      "sha": "9df81cc",
+      "subject": "build(deps): update jsonschema requirement in /data-engine (#57)"
+    },
+    {
+      "sha": "5325cfa",
+      "subject": "build(deps): update pydantic-settings requirement in /viewer (#52)"
+    },
+    {
+      "sha": "36aed9d",
+      "subject": "build(deps): update jsonschema requirement in /viewer (#54)"
+    },
+    {
+      "sha": "f665892",
+      "subject": "build(deps): update fastapi requirement in /viewer (#55)"
+    },
+    {
+      "sha": "c452edf",
+      "subject": "feat(review): limpieza del grafo controlada y reversible (Prioridad 5) (#96)"
+    },
+    {
+      "sha": "53db182",
+      "subject": "chore(deps): bump actions/setup-python from 5 to 7 (#104)"
+    },
+    {
+      "sha": "7ee6406",
+      "subject": "build(deps): bump actions/checkout from 4 to 7 (#51)"
+    },
+    {
+      "sha": "8f85c53",
+      "subject": "docs: dosier de análisis externo del motor de relaciones (#103)"
+    },
+    {
+      "sha": "4ae4c6b",
+      "subject": "docs: informe del motor de extracción para auditoría externa (52) (#95)"
+    }
+  ],
+  "diff_5ad9f18_to_main": [
+    "15\t15\t.github/workflows/ci.yml",
+    "2\t2\t.github/workflows/supply-chain.yml",
+    "457\t0\tdata-engine/app/review/graph_cleanup.py",
+    "198\t0\tdata-engine/app/tests/test_graph_cleanup.py",
+    "1\t1\tdata-engine/requirements.in",
+    "286\t0\tdocs/52-motor-extraccion-auditoria-externa.md",
+    "131\t0\tdocs/53-graph-cleanup-migrations.md",
+    "2033\t0\tdocs/S9_KNOWLEDGE_INFORME_MEJORA_MOTOR_CONSOLIDADO_V2.md",
+    "236\t0\tdocs/relation-engine-external-analysis-dossier.md",
+    "4\t4\tviewer/requirements.txt"
+  ],
+  "relations_module_untouched_after_merge": true,
+  "corpus_b1": {
+    "dir": "data-engine/app/tests/app_relative: tests/data/relation_benchmark",
+    "ground_truth_sha256": "15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c",
+    "relation_count": 54,
+    "source_count": 16,
+    "sha256": {
+      "README.md": "6a229758485d75aff241915ac66e4f92b111d00e9594151ad046f0f0ca2b3281",
+      "ground_truth/relations.json": "15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c",
+      "ground_truth/review-notes.md": "eeb66300b5bb407d2e91724a32062ef1c38f5e8ede6d66d93ed626677dbf4e98",
+      "manifest.json": "a2cc506f953a405db507cfe53389d2923f2d8a7015b6f7164f5a90ec825d2631",
+      "schemas/ground_truth.schema.json": "ee642357703ea19d3d7db3f50ead97735efa1fa8df5e678c143d750954af21cb",
+      "schemas/manifest.schema.json": "b6115e633f55f5d7a426b58797b5a1e003b76f1d0b1fdf754a27f4d838d44995",
+      "sources/src-01-batalla-del-vado.txt": "5235a7f3d70dba1fdea910fb54b8a63ef720b0f754ac65cc78546d88457655cb",
+      "sources/src-02-ficha-draven.txt": "382e3bffd30ba8f180a059ee04904c6ae03dee8dc802a7cc4505296ed300346a",
+      "sources/src-03-cronologia-valmyr.txt": "76c5337a1856b4c30d370a090a538a9e77387e96811f926d11752e0d7265e2ed",
+      "sources/src-04-faccion-orden-alba.txt": "710bfcf30713b188b91310cd028fa029f10b54575b3941a5bc2aa57fcd875384",
+      "sources/src-05-kaelin-kaelan.txt": "1654b47ae96cc56e740b54fd4ad3864886244b0bc89bb31fb463c04375e36f55",
+      "sources/src-06-reliquia-corona.txt": "cd6e6fe5aa834dbb353b07044b78b1cde2cf31d79b0a9cb0713e6401e3df61ca",
+      "sources/src-07-maestro-y-aprendiz.txt": "91eb861452c6038299d0024fff886b312d492bb4aaf62303c89cb561798ba3f6",
+      "sources/src-08-lealtad-disputada.txt": "43175c9f0f1d89d85336e72a1748d7a626d49ecf23b0992c58b3fd9afe8b2b86",
+      "sources/src-09-manual-runas.txt": "b090e532a17de2f1573e576edc48391608f0eccbf9e8c3712da398e50d078465",
+      "sources/src-10-consejo-conclave.txt": "e8ac34bee0b93cd8b9959429ffb523f761449a06d2e7ea04454583bf67684667",
+      "sources/src-11-espada-tsuki.txt": "e0c310a2ce693865176eea6c51d624791b1917dd837cd69c774b28523f3aab36",
+      "sources/src-12-casa-veranmor.txt": "5b28e6528fe018c0d953bc074ff69308bf0c3f5536f1a861137ea0078fdc4f76",
+      "sources/src-13-guerra-fria-meridiano.txt": "d940054dc57e9f5d3346d487a2d4df1ab803461ed66954aea48b74d61b73a51a",
+      "sources/src-14-corona-perdida.txt": "d158f02dc1adcb4f5ecd536e941ccfcc32ea76306de085ceb7541a34f36ef6b0",
+      "sources/src-15-torneo-sable.txt": "be65f2b2dc501c34c7151b1f1ffd719898a40c8063f37f073a8eb96e5be0fdce",
+      "sources/src-16-leyenda-abismo.txt": "8ba198c09c8d4023a4a878096f65643953e61add0068d2156e74bfe8cdd7b9d1"
+    },
+    "coincide_con_hashes_reportados_por_el_arnes": true
+  }
+}

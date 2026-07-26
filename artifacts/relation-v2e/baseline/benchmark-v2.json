@@ -1,0 +1,1952 @@
+{
+  "code_sha": "8fc7c8d45b2a03be92b7935f9d9b9c2bd32390bb",
+  "generated_by": "Bloque 0 — auditoria y baseline (sin cambios funcionales)",
+  "predicate_selector": "v2",
+  "providers": "DESACTIVADOS (local_llm_enabled=false, external_ai_enabled=false); 0 llamadas",
+  "runs": {
+    "baseline1": {
+      "benchmark": "relation-benchmark-runner-v1",
+      "code_sha": "8fc7c8d45b2a03be92b7935f9d9b9c2bd32390bb",
+      "config": {
+        "consensus_policy": "auto",
+        "context_mode": "sentence",
+        "external_ai_enabled": false,
+        "external_model": "external-model",
+        "external_protocol": "legacy",
+        "external_provider_name": "nvidia",
+        "local_llm_enabled": false,
+        "local_model": "local-llm",
+        "max_distance": null,
+        "max_entities_per_segment": 200,
+        "max_errors_per_batch": 1000,
+        "max_pairs_per_segment": 1000,
+        "max_prompt_chars": 24000,
+        "max_response_bytes": 65536,
+        "max_results": 100000,
+        "max_segments_per_doc": 500,
+        "max_text_chars": 200000,
+        "max_time_per_candidate_ms": 30000,
+        "pair_window": "char",
+        "predicate_selector": "v2",
+        "prompt_suite": "balanced"
+      },
+      "config_notes": {
+        "max_time_per_candidate_ms": "DECLARADO PERO NO APLICADO: el pipeline no lo comprueba en ningun punto; no limita el tiempo por candidato. No es un control efectivo (la correccion vive en relations/pipeline.py, fuera del alcance del Bloque 7)."
+      },
+      "corpus": {
+        "corpus_hashes": {
+          "src-01": "5235a7f3d70dba1fdea910fb54b8a63ef720b0f754ac65cc78546d88457655cb",
+          "src-02": "382e3bffd30ba8f180a059ee04904c6ae03dee8dc802a7cc4505296ed300346a",
+          "src-03": "76c5337a1856b4c30d370a090a538a9e77387e96811f926d11752e0d7265e2ed",
+          "src-04": "710bfcf30713b188b91310cd028fa029f10b54575b3941a5bc2aa57fcd875384",
+          "src-05": "1654b47ae96cc56e740b54fd4ad3864886244b0bc89bb31fb463c04375e36f55",
+          "src-06": "cd6e6fe5aa834dbb353b07044b78b1cde2cf31d79b0a9cb0713e6401e3df61ca",
+          "src-07": "91eb861452c6038299d0024fff886b312d492bb4aaf62303c89cb561798ba3f6",
+          "src-08": "43175c9f0f1d89d85336e72a1748d7a626d49ecf23b0992c58b3fd9afe8b2b86",
+          "src-09": "b090e532a17de2f1573e576edc48391608f0eccbf9e8c3712da398e50d078465",
+          "src-10": "e8ac34bee0b93cd8b9959429ffb523f761449a06d2e7ea04454583bf67684667",
+          "src-11": "e0c310a2ce693865176eea6c51d624791b1917dd837cd69c774b28523f3aab36",
+          "src-12": "5b28e6528fe018c0d953bc074ff69308bf0c3f5536f1a861137ea0078fdc4f76",
+          "src-13": "d940054dc57e9f5d3346d487a2d4df1ab803461ed66954aea48b74d61b73a51a",
+          "src-14": "d158f02dc1adcb4f5ecd536e941ccfcc32ea76306de085ceb7541a34f36ef6b0",
+          "src-15": "be65f2b2dc501c34c7151b1f1ffd719898a40c8063f37f073a8eb96e5be0fdce",
+          "src-16": "8ba198c09c8d4023a4a878096f65643953e61add0068d2156e74bfe8cdd7b9d1"
+        },
+        "ground_truth_sha256": "15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c",
+        "relation_count": 54,
+        "source_count": 16,
+        "version": "1.0.0"
+      },
+      "determinism": {
+        "deterministic": true,
+        "hashes_equal": true,
+        "metrics_equal": true,
+        "predictions_equal": true,
+        "result_hashes": {
+          "src-01": "b1fcfb5305ba62ee6fa35ae95f556f59",
+          "src-02": "312fda9c926749c6697fc30234c18f5f",
+          "src-03": "f3ed10e2e9e2521eb7578ac924d8ceff",
+          "src-04": "e4fe30b39d6666fdc865052d091da948",
+          "src-05": "908dd336acfce5d44358f4c67b2d7ff5",
+          "src-06": "1cb0a4f8f3f792441a65e5930c4dd745",
+          "src-07": "8a96be734efb735ed387dd771f461839",
+          "src-08": "6b021059e9fc2ecbb08c749ad814be21",
+          "src-09": "7295ee4ead8da897c88e1b0ee9bb8cc1",
+          "src-10": "100788f81624b066f971925ba633a81a",
+          "src-11": "6c7f46ef14f2ba5b17be80bc23e6679d",
+          "src-12": "20619f75c5511e144d513d7cad732d65",
+          "src-13": "dc8fc69943ec9bce02e04f4ea19680e2",
+          "src-14": "e53f5872f6ec4447b233e1325d697541",
+          "src-15": "a66ff9a3d41afb0f7186705cd956b585",
+          "src-16": "3d2a8f7bc7452ac2f1b84db5a326b9d1"
+        }
+      },
+      "ensemble": false,
+      "errors": {
+        "derivation_notes": [],
+        "false_negatives": [
+          {
+            "annotator_notes": "Pertenencia explicita.",
+            "expected_decision": "ACCEPT",
+            "object_id": "orden-alba",
+            "predicate": "MEMBER_OF",
+            "relation_id": "rel-005",
+            "source_id": "src-02",
+            "subject_id": "draven",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "Sujeto omitido (elipsis en ficha); sujeto = Draven por contexto de la ficha.",
+            "expected_decision": "ACCEPT",
+            "object_id": "torre-sable",
+            "predicate": "LIVES_IN",
+            "relation_id": "rel-006",
+            "source_id": "src-02",
+            "subject_id": "draven",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "Posesion de objeto; sujeto omitido = Draven.",
+            "expected_decision": "ACCEPT",
+            "object_id": "filo-luna",
+            "predicate": "OWNS",
+            "relation_id": "rel-007",
+            "source_id": "src-02",
+            "subject_id": "draven",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "Direccional: 'Draven hijo de Aldric' => Aldric PARENT_OF Draven (object_to_subject).",
+            "expected_decision": "ACCEPT",
+            "object_id": "draven",
+            "predicate": "PARENT_OF",
+            "relation_id": "rel-008",
+            "source_id": "src-02",
+            "subject_id": "aldric",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "Direccional: Draven PARENT_OF Nima.",
+            "expected_decision": "ACCEPT",
+            "object_id": "nima",
+            "predicate": "PARENT_OF",
+            "relation_id": "rel-009",
+            "source_id": "src-02",
+            "subject_id": "draven",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "ALIAS: 'el Cuervo' == Draven. Relacion reflexiva de identidad; se marca REVIEW porque el contrato prohibe subject==object salvo reflexivos permitidos (aqui alias documental, no relacion de grafo).",
+            "expected_decision": "REVIEW",
+            "object_id": "draven",
+            "predicate": "ALIAS_OF",
+            "relation_id": "rel-010",
+            "source_id": "src-02",
+            "subject_id": "draven",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "PRONOMBRE OBJETO: 'le' = Sela. Refuerza la relacion de mentoria (repeticion).",
+            "expected_decision": "ACCEPT",
+            "object_id": "sela",
+            "predicate": "MENTOR_OF",
+            "relation_id": "rel-029",
+            "source_id": "src-07",
+            "subject_id": "vayra",
+            "workspace": "umbral"
+          },
+          {
+            "annotator_notes": "CONTRADICCION 2/2: segmento B NIEGA la lealtad al Pacto. negated=True.",
+            "expected_decision": "REVIEW",
+            "object_id": "pacto-escarlata",
+            "predicate": "MEMBER_OF",
+            "relation_id": "rel-031",
+            "source_id": "src-08",
+            "subject_id": "kaelan",
+            "workspace": "umbral"
+          },
+          {
+            "annotator_notes": "Parentesco inferido de 'esa unión' (Lyra+Torin). Sujeto omitido / evidencia dependiente de frase previa.",
+            "expected_decision": "ACCEPT",
+            "object_id": "bran",
+            "predicate": "PARENT_OF",
+            "relation_id": "rel-042",
+            "source_id": "src-12",
+            "subject_id": "torin",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "ALIAS 2: 'conocida como la Reina de Invierno'. Identidad, no arista de grafo.",
+            "expected_decision": "REVIEW",
+            "object_id": "ysolde",
+            "predicate": "ALIAS_OF",
+            "relation_id": "rel-046",
+            "source_id": "src-14",
+            "subject_id": "ysolde",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "HECHO PASADO CONFIRMADO: 'Lo que sí consta es que ... fundó'. ASSERTED.",
+            "expected_decision": "ACCEPT",
+            "object_id": "ateneo",
+            "predicate": "FOUNDED",
+            "relation_id": "rel-054",
+            "source_id": "src-16",
+            "subject_id": "vayra",
+            "workspace": "umbral"
+          }
+        ],
+        "false_positives": [
+          {
+            "consensus_state": "MODEL_CONFLICT",
+            "direction": "SUBJECT_TO_OBJECT",
+            "evidence_text": "Horda de Grael en la Batalla del Vado",
+            "object_id": "batalla-vado",
+            "predicate": "PARTICIPATED_IN",
+            "recommendation": "human",
+            "source_id": "src-01",
+            "subject_id": "horda-grael",
+            "workspace": "eldoria"
+          },
+          {
+            "consensus_state": "HUMAN_REQUIRED",
+            "direction": "SUBJECT_TO_OBJECT",
+            "evidence_text": "Aldric, padre de Nima",
+            "object_id": "nima",
+            "predicate": "PARENT_OF",
+            "recommendation": "human",
+            "source_id": "src-02",
+            "subject_id": "aldric",
+            "workspace": "eldoria"
+          },
+          {
+            "consensus_state": "HUMAN_REQUIRED",
+            "direction": "UNDIRECTED",
+            "evidence_text": "Draven, a Sela y a Kael",
+            "object_id": "kael",
+            "predicate": "RELATED_TO",
+            "recommendation": "human",
+            "source_id": "src-04",
+            "subject_id": "draven",
+            "workspace": "eldoria"
+          },
+          {
+            "consensus_state": "HUMAN_REQUIRED",
+            "direction": "UNDIRECTED",
+            "evidence_text": "Draven, a Sela",
+            "object_id": "sela",
+            "predicate": "RELATED_TO",
+            "recommendation": "human",
+            "source_id": "src-04",
+            "subject_id": "draven",
+            "workspace": "eldoria"
+          },
+          {
+            "consensus_state": "HUMAN_REQUIRED",
+            "direction": "UNDIRECTED",
+            "evidence_text": "Sela y a Kael",
+            "object_id": "kael",
+            "predicate": "RELATED_TO",
+            "recommendation": "human",
+            "source_id": "src-04",
+            "subject_id": "sela",
+            "workspace": "eldoria"
+          },
+          {
+            "consensus_state": "HUMAN_REQUIRED",
+            "direction": "UNDIRECTED",
+            "evidence_text": "Kaelin y Kaelan",
+            "object_id": "kaelan",
+            "predicate": "RELATED_TO",
+            "recommendation": "human",
+            "source_id": "src-05",
+            "subject_id": "kaelin",
+            "workspace": "umbral"
+          },
+          {
+            "consensus_state": "PARTIAL_CONSENSUS",
+            "direction": "SUBJECT_TO_OBJECT",
+            "evidence_text": "Guardia de Hierro en la Cripta Roja",
+            "object_id": "cripta-roja",
+            "predicate": "GUARDS",
+            "recommendation": "propose",
+            "source_id": "src-06",
+            "subject_id": "guardia-hierro",
+            "workspace": "umbral"
+          },
+          {
+            "consensus_state": "PARTIAL_CONSENSUS",
+            "direction": "UNDIRECTED",
+            "evidence_text": "Pacto Escarlata, sino a la Guardia de Hierro",
+            "object_id": "guardia-hierro",
+            "predicate": "RELATED_TO",
+            "recommendation": "reject",
+            "source_id": "src-08",
+            "subject_id": "pacto-escarlata",
+            "workspace": "umbral"
+          },
+          {
+            "consensus_state": "PARTIAL_CONSENSUS",
+            "direction": "UNDIRECTED",
+            "evidence_text": "Gremio de Cartógrafos y la Liga del Meridiano",
+            "object_id": "liga-meridiano",
+            "predicate": "RELATED_TO",
+            "recommendation": "propose",
+            "source_id": "src-10",
+            "subject_id": "gremio-cartografos",
+            "workspace": "nova-frontier"
+          }
+        ]
+      },
+      "gates": {
+        "determinism": {
+          "detail": {
+            "deterministic": true,
+            "hashes_equal": true,
+            "metrics_equal": true,
+            "predictions_equal": true,
+            "result_hashes": {
+              "src-01": "b1fcfb5305ba62ee6fa35ae95f556f59",
+              "src-02": "312fda9c926749c6697fc30234c18f5f",
+              "src-03": "f3ed10e2e9e2521eb7578ac924d8ceff",
+              "src-04": "e4fe30b39d6666fdc865052d091da948",
+              "src-05": "908dd336acfce5d44358f4c67b2d7ff5",
+              "src-06": "1cb0a4f8f3f792441a65e5930c4dd745",
+              "src-07": "8a96be734efb735ed387dd771f461839",
+              "src-08": "6b021059e9fc2ecbb08c749ad814be21",
+              "src-09": "7295ee4ead8da897c88e1b0ee9bb8cc1",
+              "src-10": "100788f81624b066f971925ba633a81a",
+              "src-11": "6c7f46ef14f2ba5b17be80bc23e6679d",
+              "src-12": "20619f75c5511e144d513d7cad732d65",
+              "src-13": "dc8fc69943ec9bce02e04f4ea19680e2",
+              "src-14": "e53f5872f6ec4447b233e1325d697541",
+              "src-15": "a66ff9a3d41afb0f7186705cd956b585",
+              "src-16": "3d2a8f7bc7452ac2f1b84db5a326b9d1"
+            }
+          },
+          "evaluated": true,
+          "hard": true,
+          "status": "PASS"
+        },
+        "evidence": {
+          "detail": {
+            "ok": 40,
+            "rate": 0.9302,
+            "total": 43
+          },
+          "status": "PASS",
+          "threshold": 0.8,
+          "value": 0.9302
+        },
+        "negation": {
+          "detail": {
+            "count": 4,
+            "negation_correct": {
+              "ok": 4,
+              "rate": 1.0,
+              "total": 4
+            }
+          },
+          "status": "PASS",
+          "threshold": 0.8,
+          "value": 1.0
+        },
+        "offsets": {
+          "detail": {
+            "ok": 41,
+            "rate": 0.9535,
+            "total": 43
+          },
+          "status": "PASS",
+          "threshold": 0.9,
+          "value": 0.9535
+        },
+        "predicate_structural": {
+          "detail": {
+            "ok": 35,
+            "rate": 0.814,
+            "total": 43
+          },
+          "status": "PASS",
+          "threshold": 0.5,
+          "value": 0.814
+        },
+        "rumors": {
+          "detail": {
+            "count": 2,
+            "epistemic_correct": {
+              "ok": 2,
+              "rate": 1.0,
+              "total": 2
+            }
+          },
+          "status": "PASS",
+          "threshold": 0.6,
+          "value": 1.0
+        },
+        "simple_relations": {
+          "detail": {
+            "count": 30,
+            "evidence_correct": {
+              "ok": 28,
+              "rate": 0.9333,
+              "total": 30
+            }
+          },
+          "status": "PASS",
+          "threshold": 0.8,
+          "value": 0.9333
+        },
+        "temporality": {
+          "detail": {
+            "count": 25,
+            "temporal_correct": {
+              "ok": 24,
+              "rate": 0.96,
+              "total": 25
+            }
+          },
+          "status": "PASS",
+          "threshold": 0.6,
+          "value": 0.96
+        },
+        "workspace_contamination": {
+          "detail": {
+            "clean": true,
+            "cross_workspace_predictions": 0,
+            "workspace_mismatch_errors": 0
+          },
+          "hard": true,
+          "status": "PASS"
+        }
+      },
+      "metrics": {
+        "decision_confusion": {
+          "ACCEPT": {
+            "ACCEPT": 3,
+            "None": 0,
+            "REJECT": 0,
+            "REVIEW": 27
+          },
+          "REJECT": {
+            "ACCEPT": 0,
+            "None": 0,
+            "REJECT": 4,
+            "REVIEW": 1
+          },
+          "REVIEW": {
+            "ACCEPT": 0,
+            "None": 0,
+            "REJECT": 0,
+            "REVIEW": 8
+          }
+        },
+        "global_existence": {
+          "f1": 0.8113,
+          "fn": 11,
+          "fp": 9,
+          "precision": 0.8269,
+          "recall": 0.7963,
+          "tp": 43
+        },
+        "operational": {
+          "consensus_rates": {
+            "conflict_rate": 0.25,
+            "human_rate": 0.5577,
+            "invalid_rate": 0.0
+          },
+          "counters": {
+            "bytes_processed": 2771,
+            "candidates_evaluated": 52,
+            "chars_processed": 2711,
+            "documents": 16,
+            "entities": 93,
+            "errors": 0,
+            "external_calls": 0,
+            "external_calls_simulated": 0,
+            "local_calls": 0,
+            "local_calls_simulated": 0,
+            "pairs_discarded": 184,
+            "pairs_generated": 52,
+            "pairs_potential": 236,
+            "provider_fail_closed": 0,
+            "results_conflict": 13,
+            "results_human": 29,
+            "results_invalid": 0,
+            "results_partial": 10,
+            "results_strong": 0,
+            "segments": 16,
+            "segments_failed": 0,
+            "segments_processed": 16,
+            "timeouts": 0
+          },
+          "timings": {
+            "per_candidate_ms": 1.863,
+            "per_doc_ms": 6.056,
+            "total_ms": 96.892
+          }
+        },
+        "per_predicate": {
+          "ALIAS_OF": {
+            "exact_tp": 0,
+            "existence_tp": 0,
+            "recall_exact": 0.0,
+            "recall_existence": 0.0,
+            "support": 2
+          },
+          "ALLIED_WITH": {
+            "exact_tp": 1,
+            "existence_tp": 3,
+            "recall_exact": 0.3333,
+            "recall_existence": 1.0,
+            "support": 3
+          },
+          "CAUSED": {
+            "exact_tp": 2,
+            "existence_tp": 2,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 2
+          },
+          "CREATED": {
+            "exact_tp": 1,
+            "existence_tp": 1,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 1
+          },
+          "ENEMY_OF": {
+            "exact_tp": 1,
+            "existence_tp": 2,
+            "recall_exact": 0.5,
+            "recall_existence": 1.0,
+            "support": 2
+          },
+          "FOUNDED": {
+            "exact_tp": 1,
+            "existence_tp": 1,
+            "recall_exact": 0.5,
+            "recall_existence": 0.5,
+            "support": 2
+          },
+          "GUARDS": {
+            "exact_tp": 2,
+            "existence_tp": 2,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 2
+          },
+          "KNOWS": {
+            "exact_tp": 0,
+            "existence_tp": 1,
+            "recall_exact": 0.0,
+            "recall_existence": 1.0,
+            "support": 1
+          },
+          "LEADS": {
+            "exact_tp": 1,
+            "existence_tp": 1,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 1
+          },
+          "LIVES_IN": {
+            "exact_tp": 1,
+            "existence_tp": 2,
+            "recall_exact": 0.3333,
+            "recall_existence": 0.6667,
+            "support": 3
+          },
+          "LOCATED_IN": {
+            "exact_tp": 3,
+            "existence_tp": 4,
+            "recall_exact": 0.75,
+            "recall_existence": 1.0,
+            "support": 4
+          },
+          "MARRIED_TO": {
+            "exact_tp": 1,
+            "existence_tp": 1,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 1
+          },
+          "MEMBER_OF": {
+            "exact_tp": 8,
+            "existence_tp": 8,
+            "recall_exact": 0.8,
+            "recall_existence": 0.8,
+            "support": 10
+          },
+          "MENTOR_OF": {
+            "exact_tp": 0,
+            "existence_tp": 1,
+            "recall_exact": 0.0,
+            "recall_existence": 0.5,
+            "support": 2
+          },
+          "OWNS": {
+            "exact_tp": 4,
+            "existence_tp": 4,
+            "recall_exact": 0.8,
+            "recall_existence": 0.8,
+            "support": 5
+          },
+          "PARENT_OF": {
+            "exact_tp": 0,
+            "existence_tp": 0,
+            "recall_exact": 0.0,
+            "recall_existence": 0.0,
+            "support": 3
+          },
+          "PARTICIPATED_IN": {
+            "exact_tp": 6,
+            "existence_tp": 6,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 6
+          },
+          "SIBLING_OF": {
+            "exact_tp": 1,
+            "existence_tp": 1,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 1
+          },
+          "SUCCEEDED": {
+            "exact_tp": 1,
+            "existence_tp": 2,
+            "recall_exact": 0.5,
+            "recall_existence": 1.0,
+            "support": 2
+          },
+          "TRUSTS": {
+            "exact_tp": 1,
+            "existence_tp": 1,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 1
+          }
+        },
+        "predicted_predicate_distribution": {
+          "ALLIED_WITH": 1,
+          "CAUSED": 2,
+          "CREATED": 1,
+          "ENEMY_OF": 1,
+          "FOUNDED": 2,
+          "GUARDS": 4,
+          "LEADS": 1,
+          "LIVES_IN": 1,
+          "LOCATED_IN": 3,
+          "MARRIED_TO": 1,
+          "MEMBER_OF": 9,
+          "OWNS": 4,
+          "PARENT_OF": 1,
+          "PARTICIPATED_IN": 7,
+          "RELATED_TO": 11,
+          "SIBLING_OF": 1,
+          "SUCCEEDED": 1,
+          "TRUSTS": 1
+        },
+        "provider_cost": {
+          "calls_counter_note": "calls proviene de summary.local_calls_simulated/external_calls_simulated del pipeline: el sufijo '_simulated' es historico y NO implica simulacion; cuenta llamadas REALES cuando hay transporte/proveedor inyectado.",
+          "external": {
+            "calls": 0,
+            "failed_latency": {
+              "max_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "samples": 0
+            },
+            "indeterminate": {
+              "by_type": {},
+              "count": 0,
+              "rate": 0.0
+            },
+            "indeterminate_latency": {
+              "max_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "samples": 0
+            },
+            "latency": {
+              "max_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "samples": 0
+            },
+            "payloads": 0,
+            "statuses": {
+              "NOT_EXECUTED": 52
+            },
+            "transport_error_rate": 0.0,
+            "transport_errors": {
+              "attempted": 0,
+              "by_type": {},
+              "errors": 0,
+              "rate": 0.0,
+              "responded": 0
+            }
+          },
+          "fail_closed": 0,
+          "fail_closed_note": "candidatos que un proveedor habilitado no llego a evaluar (sin payload): NO aparecen en attempted ni en errors; contrastar con attempted",
+          "indeterminate": {
+            "external": {
+              "by_type": {},
+              "count": 0,
+              "rate": 0.0
+            },
+            "local": {
+              "by_type": {},
+              "count": 0,
+              "rate": 0.0
+            },
+            "note": "llamadas cuyo marcador ('provider_error' generico) NO permite decidir si el proveedor respondio: NO se cuentan como transporte ni como calidad",
+            "rate": 0.0,
+            "total": 0
+          },
+          "indeterminate_rate": 0.0,
+          "local": {
+            "calls": 0,
+            "failed_latency": {
+              "max_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "samples": 0
+            },
+            "indeterminate": {
+              "by_type": {},
+              "count": 0,
+              "rate": 0.0
+            },
+            "indeterminate_latency": {
+              "max_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "samples": 0
+            },
+            "latency": {
+              "max_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "samples": 0
+            },
+            "payloads": 0,
+            "statuses": {
+              "NOT_EXECUTED": 52
+            },
+            "transport_error_rate": 0.0,
+            "transport_errors": {
+              "attempted": 0,
+              "by_type": {},
+              "errors": 0,
+              "rate": 0.0,
+              "responded": 0
+            }
+          },
+          "total_calls": 0,
+          "transport_error_rate": 0.0,
+          "transport_errors": {
+            "external": {
+              "attempted": 0,
+              "by_type": {},
+              "errors": 0,
+              "rate": 0.0,
+              "responded": 0
+            },
+            "indeterminate": {
+              "external": {
+                "by_type": {},
+                "count": 0,
+                "rate": 0.0
+              },
+              "local": {
+                "by_type": {},
+                "count": 0,
+                "rate": 0.0
+              },
+              "note": "llamadas cuyo marcador ('provider_error' generico) NO permite decidir si el proveedor respondio: NO se cuentan como transporte ni como calidad",
+              "rate": 0.0,
+              "total": 0
+            },
+            "local": {
+              "attempted": 0,
+              "by_type": {},
+              "errors": 0,
+              "rate": 0.0,
+              "responded": 0
+            },
+            "rate": 0.0,
+            "total_attempted": 0,
+            "total_errors": 0,
+            "total_indeterminate": 0,
+            "total_responded": 0
+          }
+        },
+        "strict_predicate": {
+          "f1": 0.6604,
+          "fn": 19,
+          "fp": 17,
+          "precision": 0.6731,
+          "recall": 0.6481,
+          "tp": 35
+        },
+        "structural_quality": {
+          "decision_correct": {
+            "ok": 15,
+            "rate": 0.3488,
+            "total": 43
+          },
+          "direction_correct": {
+            "ok": 40,
+            "rate": 0.9302,
+            "total": 43
+          },
+          "direction_orientation_ok": {
+            "ok": 41,
+            "rate": 0.9535,
+            "total": 43
+          },
+          "epistemic_correct": {
+            "ok": 37,
+            "rate": 0.8605,
+            "total": 43
+          },
+          "evidence_correct": {
+            "ok": 40,
+            "rate": 0.9302,
+            "total": 43
+          },
+          "negation_correct": {
+            "ok": 38,
+            "rate": 0.8837,
+            "total": 43
+          },
+          "offsets_correct": {
+            "ok": 41,
+            "rate": 0.9535,
+            "total": 43
+          },
+          "predicate_correct": {
+            "ok": 35,
+            "rate": 0.814,
+            "total": 43
+          },
+          "subgroups": {
+            "negated_relations": {
+              "count": 4,
+              "negation_correct": {
+                "ok": 4,
+                "rate": 1.0,
+                "total": 4
+              }
+            },
+            "rumored_relations": {
+              "count": 2,
+              "epistemic_correct": {
+                "ok": 2,
+                "rate": 1.0,
+                "total": 2
+              }
+            },
+            "simple_relations": {
+              "count": 30,
+              "evidence_correct": {
+                "ok": 28,
+                "rate": 0.9333,
+                "total": 30
+              }
+            },
+            "temporal_relations": {
+              "count": 25,
+              "temporal_correct": {
+                "ok": 24,
+                "rate": 0.96,
+                "total": 25
+              }
+            }
+          },
+          "temporal_correct": {
+            "ok": 38,
+            "rate": 0.8837,
+            "total": 43
+          },
+          "types_correct": {
+            "ok": 43,
+            "rate": 1.0,
+            "total": 43
+          },
+          "workspace_correct": {
+            "ok": 43,
+            "rate": 1.0,
+            "total": 43
+          }
+        }
+      },
+      "mode": "baseline1",
+      "pipeline_version": "relation-pipeline-1.0.0",
+      "provider_status": {
+        "external_ai": "NOT_EXECUTED",
+        "local_llm": "NOT_EXECUTED"
+      },
+      "provider_transport": {},
+      "providers": {
+        "endpoints": {},
+        "external_ai": "NOT_EXECUTED",
+        "local_llm": "NOT_EXECUTED",
+        "network": "none",
+        "network_calls_counted": 0,
+        "provider_status": {
+          "external_ai": "NOT_EXECUTED",
+          "local_llm": "NOT_EXECUTED"
+        },
+        "provider_status_raw": {
+          "external_ai": "NOT_EXECUTED",
+          "local_llm": "NOT_EXECUTED"
+        },
+        "status_consistency": "OK",
+        "transport": {},
+        "writes": "none (dry-run, sin Neo4j)"
+      },
+      "result_hashes": {
+        "src-01": "b1fcfb5305ba62ee6fa35ae95f556f59",
+        "src-02": "312fda9c926749c6697fc30234c18f5f",
+        "src-03": "f3ed10e2e9e2521eb7578ac924d8ceff",
+        "src-04": "e4fe30b39d6666fdc865052d091da948",
+        "src-05": "908dd336acfce5d44358f4c67b2d7ff5",
+        "src-06": "1cb0a4f8f3f792441a65e5930c4dd745",
+        "src-07": "8a96be734efb735ed387dd771f461839",
+        "src-08": "6b021059e9fc2ecbb08c749ad814be21",
+        "src-09": "7295ee4ead8da897c88e1b0ee9bb8cc1",
+        "src-10": "100788f81624b066f971925ba633a81a",
+        "src-11": "6c7f46ef14f2ba5b17be80bc23e6679d",
+        "src-12": "20619f75c5511e144d513d7cad732d65",
+        "src-13": "dc8fc69943ec9bce02e04f4ea19680e2",
+        "src-14": "e53f5872f6ec4447b233e1325d697541",
+        "src-15": "a66ff9a3d41afb0f7186705cd956b585",
+        "src-16": "3d2a8f7bc7452ac2f1b84db5a326b9d1"
+      },
+      "sources_available": [
+        "src-01",
+        "src-02",
+        "src-03",
+        "src-04",
+        "src-05",
+        "src-06",
+        "src-07",
+        "src-08",
+        "src-09",
+        "src-10",
+        "src-11",
+        "src-12",
+        "src-13",
+        "src-14",
+        "src-15",
+        "src-16"
+      ],
+      "sources_used": [
+        "src-01",
+        "src-02",
+        "src-03",
+        "src-04",
+        "src-05",
+        "src-06",
+        "src-07",
+        "src-08",
+        "src-09",
+        "src-10",
+        "src-11",
+        "src-12",
+        "src-13",
+        "src-14",
+        "src-15",
+        "src-16"
+      ],
+      "verdict": "APTO PARA CONTINUAR EN MODO SOMBRA",
+      "verdict_justification": "sin gates de calidad en FAIL y predicado/evidencia solidos",
+      "verdict_scope": "COMPLETO",
+      "versions": {
+        "abstention": "relation-abstention-1.0.0",
+        "consensus": "relation-consensus-1.2.0",
+        "contract": "internal-1.0.0",
+        "pipeline": "relation-pipeline-1.0.0",
+        "prompts": "1.0",
+        "signals": "relation-signals-1.0.0",
+        "syntax": "relation-syntax-1.0.0",
+        "template": "1.0.0"
+      }
+    },
+    "ensemble_offline": {
+      "benchmark": "relation-benchmark-runner-v1",
+      "code_sha": "8fc7c8d45b2a03be92b7935f9d9b9c2bd32390bb",
+      "config": {
+        "consensus_policy": "auto",
+        "context_mode": "sentence",
+        "external_ai_enabled": false,
+        "external_model": "external-model",
+        "external_protocol": "legacy",
+        "external_provider_name": "nvidia",
+        "local_llm_enabled": false,
+        "local_model": "local-llm",
+        "max_distance": null,
+        "max_entities_per_segment": 200,
+        "max_errors_per_batch": 1000,
+        "max_pairs_per_segment": 1000,
+        "max_prompt_chars": 24000,
+        "max_response_bytes": 65536,
+        "max_results": 100000,
+        "max_segments_per_doc": 500,
+        "max_text_chars": 200000,
+        "max_time_per_candidate_ms": 30000,
+        "pair_window": "char",
+        "predicate_selector": "v2",
+        "prompt_suite": "balanced"
+      },
+      "config_notes": {
+        "max_time_per_candidate_ms": "DECLARADO PERO NO APLICADO: el pipeline no lo comprueba en ningun punto; no limita el tiempo por candidato. No es un control efectivo (la correccion vive en relations/pipeline.py, fuera del alcance del Bloque 7)."
+      },
+      "corpus": {
+        "corpus_hashes": {
+          "src-01": "5235a7f3d70dba1fdea910fb54b8a63ef720b0f754ac65cc78546d88457655cb",
+          "src-02": "382e3bffd30ba8f180a059ee04904c6ae03dee8dc802a7cc4505296ed300346a",
+          "src-03": "76c5337a1856b4c30d370a090a538a9e77387e96811f926d11752e0d7265e2ed",
+          "src-04": "710bfcf30713b188b91310cd028fa029f10b54575b3941a5bc2aa57fcd875384",
+          "src-05": "1654b47ae96cc56e740b54fd4ad3864886244b0bc89bb31fb463c04375e36f55",
+          "src-06": "cd6e6fe5aa834dbb353b07044b78b1cde2cf31d79b0a9cb0713e6401e3df61ca",
+          "src-07": "91eb861452c6038299d0024fff886b312d492bb4aaf62303c89cb561798ba3f6",
+          "src-08": "43175c9f0f1d89d85336e72a1748d7a626d49ecf23b0992c58b3fd9afe8b2b86",
+          "src-09": "b090e532a17de2f1573e576edc48391608f0eccbf9e8c3712da398e50d078465",
+          "src-10": "e8ac34bee0b93cd8b9959429ffb523f761449a06d2e7ea04454583bf67684667",
+          "src-11": "e0c310a2ce693865176eea6c51d624791b1917dd837cd69c774b28523f3aab36",
+          "src-12": "5b28e6528fe018c0d953bc074ff69308bf0c3f5536f1a861137ea0078fdc4f76",
+          "src-13": "d940054dc57e9f5d3346d487a2d4df1ab803461ed66954aea48b74d61b73a51a",
+          "src-14": "d158f02dc1adcb4f5ecd536e941ccfcc32ea76306de085ceb7541a34f36ef6b0",
+          "src-15": "be65f2b2dc501c34c7151b1f1ffd719898a40c8063f37f073a8eb96e5be0fdce",
+          "src-16": "8ba198c09c8d4023a4a878096f65643953e61add0068d2156e74bfe8cdd7b9d1"
+        },
+        "ground_truth_sha256": "15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c",
+        "relation_count": 54,
+        "source_count": 16,
+        "version": "1.0.0"
+      },
+      "determinism": {
+        "deterministic": true,
+        "hashes_equal": true,
+        "metrics_equal": true,
+        "predictions_equal": true,
+        "result_hashes": {
+          "src-01": "b1fcfb5305ba62ee6fa35ae95f556f59",
+          "src-02": "312fda9c926749c6697fc30234c18f5f",
+          "src-03": "f3ed10e2e9e2521eb7578ac924d8ceff",
+          "src-04": "e4fe30b39d6666fdc865052d091da948",
+          "src-05": "908dd336acfce5d44358f4c67b2d7ff5",
+          "src-06": "1cb0a4f8f3f792441a65e5930c4dd745",
+          "src-07": "8a96be734efb735ed387dd771f461839",
+          "src-08": "6b021059e9fc2ecbb08c749ad814be21",
+          "src-09": "7295ee4ead8da897c88e1b0ee9bb8cc1",
+          "src-10": "100788f81624b066f971925ba633a81a",
+          "src-11": "6c7f46ef14f2ba5b17be80bc23e6679d",
+          "src-12": "20619f75c5511e144d513d7cad732d65",
+          "src-13": "dc8fc69943ec9bce02e04f4ea19680e2",
+          "src-14": "e53f5872f6ec4447b233e1325d697541",
+          "src-15": "a66ff9a3d41afb0f7186705cd956b585",
+          "src-16": "3d2a8f7bc7452ac2f1b84db5a326b9d1"
+        }
+      },
+      "ensemble": true,
+      "errors": {
+        "derivation_notes": [],
+        "false_negatives": [
+          {
+            "annotator_notes": "Pertenencia explicita.",
+            "expected_decision": "ACCEPT",
+            "object_id": "orden-alba",
+            "predicate": "MEMBER_OF",
+            "relation_id": "rel-005",
+            "source_id": "src-02",
+            "subject_id": "draven",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "Sujeto omitido (elipsis en ficha); sujeto = Draven por contexto de la ficha.",
+            "expected_decision": "ACCEPT",
+            "object_id": "torre-sable",
+            "predicate": "LIVES_IN",
+            "relation_id": "rel-006",
+            "source_id": "src-02",
+            "subject_id": "draven",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "Posesion de objeto; sujeto omitido = Draven.",
+            "expected_decision": "ACCEPT",
+            "object_id": "filo-luna",
+            "predicate": "OWNS",
+            "relation_id": "rel-007",
+            "source_id": "src-02",
+            "subject_id": "draven",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "Direccional: 'Draven hijo de Aldric' => Aldric PARENT_OF Draven (object_to_subject).",
+            "expected_decision": "ACCEPT",
+            "object_id": "draven",
+            "predicate": "PARENT_OF",
+            "relation_id": "rel-008",
+            "source_id": "src-02",
+            "subject_id": "aldric",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "Direccional: Draven PARENT_OF Nima.",
+            "expected_decision": "ACCEPT",
+            "object_id": "nima",
+            "predicate": "PARENT_OF",
+            "relation_id": "rel-009",
+            "source_id": "src-02",
+            "subject_id": "draven",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "ALIAS: 'el Cuervo' == Draven. Relacion reflexiva de identidad; se marca REVIEW porque el contrato prohibe subject==object salvo reflexivos permitidos (aqui alias documental, no relacion de grafo).",
+            "expected_decision": "REVIEW",
+            "object_id": "draven",
+            "predicate": "ALIAS_OF",
+            "relation_id": "rel-010",
+            "source_id": "src-02",
+            "subject_id": "draven",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "PRONOMBRE OBJETO: 'le' = Sela. Refuerza la relacion de mentoria (repeticion).",
+            "expected_decision": "ACCEPT",
+            "object_id": "sela",
+            "predicate": "MENTOR_OF",
+            "relation_id": "rel-029",
+            "source_id": "src-07",
+            "subject_id": "vayra",
+            "workspace": "umbral"
+          },
+          {
+            "annotator_notes": "CONTRADICCION 2/2: segmento B NIEGA la lealtad al Pacto. negated=True.",
+            "expected_decision": "REVIEW",
+            "object_id": "pacto-escarlata",
+            "predicate": "MEMBER_OF",
+            "relation_id": "rel-031",
+            "source_id": "src-08",
+            "subject_id": "kaelan",
+            "workspace": "umbral"
+          },
+          {
+            "annotator_notes": "Parentesco inferido de 'esa unión' (Lyra+Torin). Sujeto omitido / evidencia dependiente de frase previa.",
+            "expected_decision": "ACCEPT",
+            "object_id": "bran",
+            "predicate": "PARENT_OF",
+            "relation_id": "rel-042",
+            "source_id": "src-12",
+            "subject_id": "torin",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "ALIAS 2: 'conocida como la Reina de Invierno'. Identidad, no arista de grafo.",
+            "expected_decision": "REVIEW",
+            "object_id": "ysolde",
+            "predicate": "ALIAS_OF",
+            "relation_id": "rel-046",
+            "source_id": "src-14",
+            "subject_id": "ysolde",
+            "workspace": "eldoria"
+          },
+          {
+            "annotator_notes": "HECHO PASADO CONFIRMADO: 'Lo que sí consta es que ... fundó'. ASSERTED.",
+            "expected_decision": "ACCEPT",
+            "object_id": "ateneo",
+            "predicate": "FOUNDED",
+            "relation_id": "rel-054",
+            "source_id": "src-16",
+            "subject_id": "vayra",
+            "workspace": "umbral"
+          }
+        ],
+        "false_positives": [
+          {
+            "consensus_state": "MODEL_CONFLICT",
+            "direction": "SUBJECT_TO_OBJECT",
+            "evidence_text": "Horda de Grael en la Batalla del Vado",
+            "object_id": "batalla-vado",
+            "predicate": "PARTICIPATED_IN",
+            "recommendation": "human",
+            "source_id": "src-01",
+            "subject_id": "horda-grael",
+            "workspace": "eldoria"
+          },
+          {
+            "consensus_state": "PARTIAL_CONSENSUS",
+            "direction": "SUBJECT_TO_OBJECT",
+            "evidence_text": "Aldric, padre de Nima",
+            "object_id": "nima",
+            "predicate": "PARENT_OF",
+            "recommendation": "propose",
+            "source_id": "src-02",
+            "subject_id": "aldric",
+            "workspace": "eldoria"
+          },
+          {
+            "consensus_state": "PARTIAL_CONSENSUS",
+            "direction": "UNDIRECTED",
+            "evidence_text": "Draven, a Sela y a Kael",
+            "object_id": "kael",
+            "predicate": "RELATED_TO",
+            "recommendation": "propose",
+            "source_id": "src-04",
+            "subject_id": "draven",
+            "workspace": "eldoria"
+          },
+          {
+            "consensus_state": "PARTIAL_CONSENSUS",
+            "direction": "UNDIRECTED",
+            "evidence_text": "Draven, a Sela",
+            "object_id": "sela",
+            "predicate": "RELATED_TO",
+            "recommendation": "propose",
+            "source_id": "src-04",
+            "subject_id": "draven",
+            "workspace": "eldoria"
+          },
+          {
+            "consensus_state": "PARTIAL_CONSENSUS",
+            "direction": "UNDIRECTED",
+            "evidence_text": "Sela y a Kael",
+            "object_id": "kael",
+            "predicate": "RELATED_TO",
+            "recommendation": "propose",
+            "source_id": "src-04",
+            "subject_id": "sela",
+            "workspace": "eldoria"
+          },
+          {
+            "consensus_state": "PARTIAL_CONSENSUS",
+            "direction": "UNDIRECTED",
+            "evidence_text": "Kaelin y Kaelan",
+            "object_id": "kaelan",
+            "predicate": "RELATED_TO",
+            "recommendation": "propose",
+            "source_id": "src-05",
+            "subject_id": "kaelin",
+            "workspace": "umbral"
+          },
+          {
+            "consensus_state": "PARTIAL_CONSENSUS",
+            "direction": "SUBJECT_TO_OBJECT",
+            "evidence_text": "Guardia de Hierro en la Cripta Roja",
+            "object_id": "cripta-roja",
+            "predicate": "GUARDS",
+            "recommendation": "propose",
+            "source_id": "src-06",
+            "subject_id": "guardia-hierro",
+            "workspace": "umbral"
+          },
+          {
+            "consensus_state": "PARTIAL_CONSENSUS",
+            "direction": "UNDIRECTED",
+            "evidence_text": "Pacto Escarlata, sino a la Guardia de Hierro",
+            "object_id": "guardia-hierro",
+            "predicate": "RELATED_TO",
+            "recommendation": "reject",
+            "source_id": "src-08",
+            "subject_id": "pacto-escarlata",
+            "workspace": "umbral"
+          },
+          {
+            "consensus_state": "PARTIAL_CONSENSUS",
+            "direction": "UNDIRECTED",
+            "evidence_text": "Gremio de Cartógrafos y la Liga del Meridiano",
+            "object_id": "liga-meridiano",
+            "predicate": "RELATED_TO",
+            "recommendation": "propose",
+            "source_id": "src-10",
+            "subject_id": "gremio-cartografos",
+            "workspace": "nova-frontier"
+          }
+        ]
+      },
+      "gates": {
+        "determinism": {
+          "detail": {
+            "deterministic": true,
+            "hashes_equal": true,
+            "metrics_equal": true,
+            "predictions_equal": true,
+            "result_hashes": {
+              "src-01": "b1fcfb5305ba62ee6fa35ae95f556f59",
+              "src-02": "312fda9c926749c6697fc30234c18f5f",
+              "src-03": "f3ed10e2e9e2521eb7578ac924d8ceff",
+              "src-04": "e4fe30b39d6666fdc865052d091da948",
+              "src-05": "908dd336acfce5d44358f4c67b2d7ff5",
+              "src-06": "1cb0a4f8f3f792441a65e5930c4dd745",
+              "src-07": "8a96be734efb735ed387dd771f461839",
+              "src-08": "6b021059e9fc2ecbb08c749ad814be21",
+              "src-09": "7295ee4ead8da897c88e1b0ee9bb8cc1",
+              "src-10": "100788f81624b066f971925ba633a81a",
+              "src-11": "6c7f46ef14f2ba5b17be80bc23e6679d",
+              "src-12": "20619f75c5511e144d513d7cad732d65",
+              "src-13": "dc8fc69943ec9bce02e04f4ea19680e2",
+              "src-14": "e53f5872f6ec4447b233e1325d697541",
+              "src-15": "a66ff9a3d41afb0f7186705cd956b585",
+              "src-16": "3d2a8f7bc7452ac2f1b84db5a326b9d1"
+            }
+          },
+          "evaluated": true,
+          "hard": true,
+          "status": "PASS"
+        },
+        "evidence": {
+          "detail": {
+            "ok": 40,
+            "rate": 0.9302,
+            "total": 43
+          },
+          "status": "PASS",
+          "threshold": 0.8,
+          "value": 0.9302
+        },
+        "negation": {
+          "detail": {
+            "count": 4,
+            "negation_correct": {
+              "ok": 4,
+              "rate": 1.0,
+              "total": 4
+            }
+          },
+          "status": "PASS",
+          "threshold": 0.8,
+          "value": 1.0
+        },
+        "offsets": {
+          "detail": {
+            "ok": 41,
+            "rate": 0.9535,
+            "total": 43
+          },
+          "status": "PASS",
+          "threshold": 0.9,
+          "value": 0.9535
+        },
+        "predicate_structural": {
+          "detail": {
+            "ok": 35,
+            "rate": 0.814,
+            "total": 43
+          },
+          "status": "PASS",
+          "threshold": 0.5,
+          "value": 0.814
+        },
+        "rumors": {
+          "detail": {
+            "count": 2,
+            "epistemic_correct": {
+              "ok": 2,
+              "rate": 1.0,
+              "total": 2
+            }
+          },
+          "status": "PASS",
+          "threshold": 0.6,
+          "value": 1.0
+        },
+        "simple_relations": {
+          "detail": {
+            "count": 30,
+            "evidence_correct": {
+              "ok": 28,
+              "rate": 0.9333,
+              "total": 30
+            }
+          },
+          "status": "PASS",
+          "threshold": 0.8,
+          "value": 0.9333
+        },
+        "temporality": {
+          "detail": {
+            "count": 25,
+            "temporal_correct": {
+              "ok": 24,
+              "rate": 0.96,
+              "total": 25
+            }
+          },
+          "status": "PASS",
+          "threshold": 0.6,
+          "value": 0.96
+        },
+        "workspace_contamination": {
+          "detail": {
+            "clean": true,
+            "cross_workspace_predictions": 0,
+            "workspace_mismatch_errors": 0
+          },
+          "hard": true,
+          "status": "PASS"
+        }
+      },
+      "metrics": {
+        "decision_confusion": {
+          "ACCEPT": {
+            "ACCEPT": 8,
+            "None": 0,
+            "REJECT": 0,
+            "REVIEW": 22
+          },
+          "REJECT": {
+            "ACCEPT": 0,
+            "None": 0,
+            "REJECT": 4,
+            "REVIEW": 1
+          },
+          "REVIEW": {
+            "ACCEPT": 0,
+            "None": 0,
+            "REJECT": 0,
+            "REVIEW": 8
+          }
+        },
+        "global_existence": {
+          "f1": 0.8113,
+          "fn": 11,
+          "fp": 9,
+          "precision": 0.8269,
+          "recall": 0.7963,
+          "tp": 43
+        },
+        "operational": {
+          "consensus_rates": {
+            "conflict_rate": 0.25,
+            "human_rate": 0.5577,
+            "invalid_rate": 0.0
+          },
+          "counters": {
+            "bytes_processed": 2771,
+            "candidates_evaluated": 52,
+            "chars_processed": 2711,
+            "documents": 16,
+            "entities": 93,
+            "errors": 0,
+            "external_calls": 0,
+            "external_calls_simulated": 0,
+            "local_calls": 0,
+            "local_calls_simulated": 0,
+            "pairs_discarded": 184,
+            "pairs_generated": 52,
+            "pairs_potential": 236,
+            "provider_fail_closed": 0,
+            "results_conflict": 13,
+            "results_human": 29,
+            "results_invalid": 0,
+            "results_partial": 10,
+            "results_strong": 0,
+            "segments": 16,
+            "segments_failed": 0,
+            "segments_processed": 16,
+            "timeouts": 0
+          },
+          "timings": {
+            "per_candidate_ms": 1.639,
+            "per_doc_ms": 5.328,
+            "total_ms": 85.247
+          }
+        },
+        "per_predicate": {
+          "ALIAS_OF": {
+            "exact_tp": 0,
+            "existence_tp": 0,
+            "recall_exact": 0.0,
+            "recall_existence": 0.0,
+            "support": 2
+          },
+          "ALLIED_WITH": {
+            "exact_tp": 1,
+            "existence_tp": 3,
+            "recall_exact": 0.3333,
+            "recall_existence": 1.0,
+            "support": 3
+          },
+          "CAUSED": {
+            "exact_tp": 2,
+            "existence_tp": 2,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 2
+          },
+          "CREATED": {
+            "exact_tp": 1,
+            "existence_tp": 1,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 1
+          },
+          "ENEMY_OF": {
+            "exact_tp": 1,
+            "existence_tp": 2,
+            "recall_exact": 0.5,
+            "recall_existence": 1.0,
+            "support": 2
+          },
+          "FOUNDED": {
+            "exact_tp": 1,
+            "existence_tp": 1,
+            "recall_exact": 0.5,
+            "recall_existence": 0.5,
+            "support": 2
+          },
+          "GUARDS": {
+            "exact_tp": 2,
+            "existence_tp": 2,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 2
+          },
+          "KNOWS": {
+            "exact_tp": 0,
+            "existence_tp": 1,
+            "recall_exact": 0.0,
+            "recall_existence": 1.0,
+            "support": 1
+          },
+          "LEADS": {
+            "exact_tp": 1,
+            "existence_tp": 1,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 1
+          },
+          "LIVES_IN": {
+            "exact_tp": 1,
+            "existence_tp": 2,
+            "recall_exact": 0.3333,
+            "recall_existence": 0.6667,
+            "support": 3
+          },
+          "LOCATED_IN": {
+            "exact_tp": 3,
+            "existence_tp": 4,
+            "recall_exact": 0.75,
+            "recall_existence": 1.0,
+            "support": 4
+          },
+          "MARRIED_TO": {
+            "exact_tp": 1,
+            "existence_tp": 1,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 1
+          },
+          "MEMBER_OF": {
+            "exact_tp": 8,
+            "existence_tp": 8,
+            "recall_exact": 0.8,
+            "recall_existence": 0.8,
+            "support": 10
+          },
+          "MENTOR_OF": {
+            "exact_tp": 0,
+            "existence_tp": 1,
+            "recall_exact": 0.0,
+            "recall_existence": 0.5,
+            "support": 2
+          },
+          "OWNS": {
+            "exact_tp": 4,
+            "existence_tp": 4,
+            "recall_exact": 0.8,
+            "recall_existence": 0.8,
+            "support": 5
+          },
+          "PARENT_OF": {
+            "exact_tp": 0,
+            "existence_tp": 0,
+            "recall_exact": 0.0,
+            "recall_existence": 0.0,
+            "support": 3
+          },
+          "PARTICIPATED_IN": {
+            "exact_tp": 6,
+            "existence_tp": 6,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 6
+          },
+          "SIBLING_OF": {
+            "exact_tp": 1,
+            "existence_tp": 1,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 1
+          },
+          "SUCCEEDED": {
+            "exact_tp": 1,
+            "existence_tp": 2,
+            "recall_exact": 0.5,
+            "recall_existence": 1.0,
+            "support": 2
+          },
+          "TRUSTS": {
+            "exact_tp": 1,
+            "existence_tp": 1,
+            "recall_exact": 1.0,
+            "recall_existence": 1.0,
+            "support": 1
+          }
+        },
+        "predicted_predicate_distribution": {
+          "ALLIED_WITH": 1,
+          "CAUSED": 2,
+          "CREATED": 1,
+          "ENEMY_OF": 1,
+          "FOUNDED": 2,
+          "GUARDS": 4,
+          "LEADS": 1,
+          "LIVES_IN": 1,
+          "LOCATED_IN": 3,
+          "MARRIED_TO": 1,
+          "MEMBER_OF": 9,
+          "OWNS": 4,
+          "PARENT_OF": 1,
+          "PARTICIPATED_IN": 7,
+          "RELATED_TO": 11,
+          "SIBLING_OF": 1,
+          "SUCCEEDED": 1,
+          "TRUSTS": 1
+        },
+        "provider_cost": {
+          "calls_counter_note": "calls proviene de summary.local_calls_simulated/external_calls_simulated del pipeline: el sufijo '_simulated' es historico y NO implica simulacion; cuenta llamadas REALES cuando hay transporte/proveedor inyectado.",
+          "external": {
+            "calls": 0,
+            "failed_latency": {
+              "max_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "samples": 0
+            },
+            "indeterminate": {
+              "by_type": {},
+              "count": 0,
+              "rate": 0.0
+            },
+            "indeterminate_latency": {
+              "max_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "samples": 0
+            },
+            "latency": {
+              "max_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "samples": 0
+            },
+            "payloads": 0,
+            "statuses": {
+              "NOT_EXECUTED": 52
+            },
+            "transport_error_rate": 0.0,
+            "transport_errors": {
+              "attempted": 0,
+              "by_type": {},
+              "errors": 0,
+              "rate": 0.0,
+              "responded": 0
+            }
+          },
+          "fail_closed": 0,
+          "fail_closed_note": "candidatos que un proveedor habilitado no llego a evaluar (sin payload): NO aparecen en attempted ni en errors; contrastar con attempted",
+          "indeterminate": {
+            "external": {
+              "by_type": {},
+              "count": 0,
+              "rate": 0.0
+            },
+            "local": {
+              "by_type": {},
+              "count": 0,
+              "rate": 0.0
+            },
+            "note": "llamadas cuyo marcador ('provider_error' generico) NO permite decidir si el proveedor respondio: NO se cuentan como transporte ni como calidad",
+            "rate": 0.0,
+            "total": 0
+          },
+          "indeterminate_rate": 0.0,
+          "local": {
+            "calls": 0,
+            "failed_latency": {
+              "max_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "samples": 0
+            },
+            "indeterminate": {
+              "by_type": {},
+              "count": 0,
+              "rate": 0.0
+            },
+            "indeterminate_latency": {
+              "max_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "samples": 0
+            },
+            "latency": {
+              "max_ms": null,
+              "p50_ms": null,
+              "p95_ms": null,
+              "samples": 0
+            },
+            "payloads": 0,
+            "statuses": {
+              "NOT_EXECUTED": 52
+            },
+            "transport_error_rate": 0.0,
+            "transport_errors": {
+              "attempted": 0,
+              "by_type": {},
+              "errors": 0,
+              "rate": 0.0,
+              "responded": 0
+            }
+          },
+          "total_calls": 0,
+          "transport_error_rate": 0.0,
+          "transport_errors": {
+            "external": {
+              "attempted": 0,
+              "by_type": {},
+              "errors": 0,
+              "rate": 0.0,
+              "responded": 0
+            },
+            "indeterminate": {
+              "external": {
+                "by_type": {},
+                "count": 0,
+                "rate": 0.0
+              },
+              "local": {
+                "by_type": {},
+                "count": 0,
+                "rate": 0.0
+              },
+              "note": "llamadas cuyo marcador ('provider_error' generico) NO permite decidir si el proveedor respondio: NO se cuentan como transporte ni como calidad",
+              "rate": 0.0,
+              "total": 0
+            },
+            "local": {
+              "attempted": 0,
+              "by_type": {},
+              "errors": 0,
+              "rate": 0.0,
+              "responded": 0
+            },
+            "rate": 0.0,
+            "total_attempted": 0,
+            "total_errors": 0,
+            "total_indeterminate": 0,
+            "total_responded": 0
+          }
+        },
+        "strict_predicate": {
+          "f1": 0.6604,
+          "fn": 19,
+          "fp": 17,
+          "precision": 0.6731,
+          "recall": 0.6481,
+          "tp": 35
+        },
+        "structural_quality": {
+          "decision_correct": {
+            "ok": 20,
+            "rate": 0.4651,
+            "total": 43
+          },
+          "direction_correct": {
+            "ok": 40,
+            "rate": 0.9302,
+            "total": 43
+          },
+          "direction_orientation_ok": {
+            "ok": 41,
+            "rate": 0.9535,
+            "total": 43
+          },
+          "epistemic_correct": {
+            "ok": 37,
+            "rate": 0.8605,
+            "total": 43
+          },
+          "evidence_correct": {
+            "ok": 40,
+            "rate": 0.9302,
+            "total": 43
+          },
+          "negation_correct": {
+            "ok": 38,
+            "rate": 0.8837,
+            "total": 43
+          },
+          "offsets_correct": {
+            "ok": 41,
+            "rate": 0.9535,
+            "total": 43
+          },
+          "predicate_correct": {
+            "ok": 35,
+            "rate": 0.814,
+            "total": 43
+          },
+          "subgroups": {
+            "negated_relations": {
+              "count": 4,
+              "negation_correct": {
+                "ok": 4,
+                "rate": 1.0,
+                "total": 4
+              }
+            },
+            "rumored_relations": {
+              "count": 2,
+              "epistemic_correct": {
+                "ok": 2,
+                "rate": 1.0,
+                "total": 2
+              }
+            },
+            "simple_relations": {
+              "count": 30,
+              "evidence_correct": {
+                "ok": 28,
+                "rate": 0.9333,
+                "total": 30
+              }
+            },
+            "temporal_relations": {
+              "count": 25,
+              "temporal_correct": {
+                "ok": 24,
+                "rate": 0.96,
+                "total": 25
+              }
+            }
+          },
+          "temporal_correct": {
+            "ok": 38,
+            "rate": 0.8837,
+            "total": 43
+          },
+          "types_correct": {
+            "ok": 43,
+            "rate": 1.0,
+            "total": 43
+          },
+          "workspace_correct": {
+            "ok": 43,
+            "rate": 1.0,
+            "total": 43
+          }
+        }
+      },
+      "mode": "ensemble_offline",
+      "pipeline_version": "relation-pipeline-1.0.0",
+      "provider_status": {
+        "external_ai": "NOT_EXECUTED",
+        "local_llm": "NOT_EXECUTED"
+      },
+      "provider_transport": {},
+      "providers": {
+        "endpoints": {},
+        "external_ai": "NOT_EXECUTED",
+        "local_llm": "NOT_EXECUTED",
+        "network": "none",
+        "network_calls_counted": 0,
+        "provider_status": {
+          "external_ai": "NOT_EXECUTED",
+          "local_llm": "NOT_EXECUTED"
+        },
+        "provider_status_raw": {
+          "external_ai": "NOT_EXECUTED",
+          "local_llm": "NOT_EXECUTED"
+        },
+        "status_consistency": "OK",
+        "transport": {},
+        "writes": "none (dry-run, sin Neo4j)"
+      },
+      "result_hashes": {
+        "src-01": "b1fcfb5305ba62ee6fa35ae95f556f59",
+        "src-02": "312fda9c926749c6697fc30234c18f5f",
+        "src-03": "f3ed10e2e9e2521eb7578ac924d8ceff",
+        "src-04": "e4fe30b39d6666fdc865052d091da948",
+        "src-05": "908dd336acfce5d44358f4c67b2d7ff5",
+        "src-06": "1cb0a4f8f3f792441a65e5930c4dd745",
+        "src-07": "8a96be734efb735ed387dd771f461839",
+        "src-08": "6b021059e9fc2ecbb08c749ad814be21",
+        "src-09": "7295ee4ead8da897c88e1b0ee9bb8cc1",
+        "src-10": "100788f81624b066f971925ba633a81a",
+        "src-11": "6c7f46ef14f2ba5b17be80bc23e6679d",
+        "src-12": "20619f75c5511e144d513d7cad732d65",
+        "src-13": "dc8fc69943ec9bce02e04f4ea19680e2",
+        "src-14": "e53f5872f6ec4447b233e1325d697541",
+        "src-15": "a66ff9a3d41afb0f7186705cd956b585",
+        "src-16": "3d2a8f7bc7452ac2f1b84db5a326b9d1"
+      },
+      "sources_available": [
+        "src-01",
+        "src-02",
+        "src-03",
+        "src-04",
+        "src-05",
+        "src-06",
+        "src-07",
+        "src-08",
+        "src-09",
+        "src-10",
+        "src-11",
+        "src-12",
+        "src-13",
+        "src-14",
+        "src-15",
+        "src-16"
+      ],
+      "sources_used": [
+        "src-01",
+        "src-02",
+        "src-03",
+        "src-04",
+        "src-05",
+        "src-06",
+        "src-07",
+        "src-08",
+        "src-09",
+        "src-10",
+        "src-11",
+        "src-12",
+        "src-13",
+        "src-14",
+        "src-15",
+        "src-16"
+      ],
+      "verdict": "APTO PARA CONTINUAR EN MODO SOMBRA",
+      "verdict_justification": "sin gates de calidad en FAIL y predicado/evidencia solidos",
+      "verdict_scope": "COMPLETO",
+      "versions": {
+        "abstention": "relation-abstention-1.0.0",
+        "consensus": "relation-consensus-1.2.0",
+        "contract": "internal-1.0.0",
+        "pipeline": "relation-pipeline-1.0.0",
+        "prompts": "1.0",
+        "signals": "relation-signals-1.0.0",
+        "syntax": "relation-syntax-1.0.0",
+        "template": "1.0.0"
+      }
+    }
+  }
+}

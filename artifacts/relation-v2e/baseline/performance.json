@@ -1,0 +1,70 @@
+{
+  "aviso": "Solo se registra lo MEDIDO. NO se han medido CPU ni RAM del proceso: no se estiman ni se inventan. El hardware no se ha perfilado.",
+  "reloj": "time.perf_counter() alrededor de subprocess.run (wall clock, incluye arranque de Python)",
+  "benchmark": {
+    "benchmark_baseline1_v1": {
+      "wall_seconds": 0.465,
+      "harness_total_ms": 51.081,
+      "harness_per_candidate_ms": 0.982,
+      "harness_per_doc_ms": 3.193
+    },
+    "benchmark_baseline1_v2": {
+      "wall_seconds": 0.593,
+      "harness_total_ms": 96.892,
+      "harness_per_candidate_ms": 1.863,
+      "harness_per_doc_ms": 6.056
+    },
+    "benchmark_ensemble_offline_v1": {
+      "wall_seconds": 0.511,
+      "harness_total_ms": 54.932,
+      "harness_per_candidate_ms": 1.056,
+      "harness_per_doc_ms": 3.433
+    },
+    "benchmark_ensemble_offline_v2": {
+      "wall_seconds": 0.594,
+      "harness_total_ms": 85.247,
+      "harness_per_candidate_ms": 1.639,
+      "harness_per_doc_ms": 5.328
+    }
+  },
+  "benchmark_nota": "harness_* proviene de metrics.operational.timings del propio arnes (solo el pipeline). wall_seconds incluye arranque del interprete, carga y verificacion del corpus y serializacion. Corpus: 16 documentos, 52 candidatos, 54 relaciones GT.",
+  "suites": {
+    "data-engine": {
+      "wall_seconds": 16.237,
+      "summary": "2443 passed, 2 skipped, 248 warnings in 15.49s"
+    },
+    "viewer": {
+      "wall_seconds": 12.547,
+      "summary": "366 passed, 1 skipped, 13 warnings in 11.77s"
+    },
+    "deploy": {
+      "wall_seconds": 5.629,
+      "summary": "155 passed in 5.24s"
+    },
+    "contracts-review-ingest-v1": {
+      "wall_seconds": 0.536,
+      "summary": "38 passed in 0.17s"
+    },
+    "tests-integration": {
+      "wall_seconds": 0.668,
+      "summary": "75 passed in 0.30s"
+    },
+    "tests-e2e": {
+      "wall_seconds": 2.273,
+      "summary": "10 passed, 3 warnings in 1.73s"
+    },
+    "tests-wave2": {
+      "wall_seconds": 0.739,
+      "summary": "42 passed in 0.36s"
+    },
+    "tests-wave2b": {
+      "wall_seconds": 1.716,
+      "summary": "69 passed, 2 skipped in 1.31s"
+    },
+    "COMBINADA (pytest.ini completo)": {
+      "wall_seconds": 36.025,
+      "summary": "3198 passed, 5 skipped, 221 warnings in 34.82s"
+    }
+  },
+  "observacion": "El selector v2 cuesta aprox. 1.7-1.9x el tiempo de pipeline de v1 (baseline1: 51.1 ms -> 96.9 ms totales; 0.98 -> 1.86 ms por candidato). Es una medida sobre 52 candidatos: sirve como orden de magnitud, no como cifra de produccion."
+}

@@ -1,0 +1,155 @@
+# commands.log — Bloque 0 (auditoria + baseline)
+
+Commit: 8fc7c8d45b2a03be92b7935f9d9b9c2bd32390bb (= origin/main)
+Generado: 2026-07-26T18:12:57+00:00 UTC
+Entorno: ver environment.json. Sin red, sin proveedores, sin Neo4j, sin despliegue.
+
+==============================================================================
+BLOQUE A — Descubrimiento de los comandos AUTORITATIVOS (solo lectura)
+==============================================================================
+
+$ cat pytest.ini
+  -> testpaths oficiales: data-engine/app/tests viewer/tests deploy/tests contracts/review-ingest/v1/tests tests/integration tests/e2e tests/wave2 tests/wave2b
+
+$ cat .github/workflows/ci.yml
+  -> 8 jobs. Los de test: 'python -m pytest data-engine/app/tests/ -v --tb=short --no-header', 'python -m pytest viewer/tests/ ...', 'python -m pytest --tb=short --no-header -q' (combinada), 'python -m pytest contracts/review-ingest/v1/tests/ -q'. Env: S9K_ALLOW_REAL_INGEST="". Python 3.13, deps de data-engine/requirements.lock
+
+$ cat .github/workflows/supply-chain.yml
+  -> no ejecutado en este bloque (no hay red)
+
+$ ls scripts/ scripts/dev scripts/backup
+  -> no hay script de validacion del motor de relaciones; el arnes oficial es relations.benchmark.cli
+
+$ python3 -m relations.benchmark.cli --help
+  -> modos offline: baseline1 baseline2 ensemble_offline full_offline. Los modos con proveedor exigen DOBLE LLAVE (--enable-providers + S9K_BENCH_PROVIDERS=1): NO usados
+
+Comandos autoritativos adoptados para este baseline:
+  1) python3 -m pytest data-engine/app/tests/ -q --no-header --tb=short -rs   (CI job 'Data Engine Tests')
+  2) python3 -m pytest -q --no-header --tb=short -rs                          (CI job 'Combined Test Suite')
+  3) python3 -m relations.benchmark.cli --mode <modo> --predicate-selector <v1|v2> --out-json <f>   (desde data-engine/app)
+Se anade -p no:cacheprovider para no dejar .pytest_cache en el arbol.
+
+==============================================================================
+BLOQUE B — Benchmark (4 corridas, proveedores DESACTIVADOS)
+==============================================================================
+
+$ cd data-engine/app && PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -m relations.benchmark.cli --mode baseline1 --predicate-selector v1 --out-json /home/ia02/.claude/jobs/d7a6832b/tmp/final_baseline1_v1.json
+  exit_code = 0   wall = 0.465 s
+  | mode=baseline1 verdict='APTO CON REVISION HUMANA TOTAL'
+  | global P=0.8269 R=0.7963 F1=0.8113 TP=43 FP=9 FN=11
+  | deterministic=True
+  | providers local=NOT_EXECUTED external=NOT_EXECUTED llamadas=0
+  | transport_errors=0 rate=0.0
+  | verdict_scope=COMPLETO
+  | sources=src-01,src-02,src-03,src-04,src-05,src-06,src-07,src-08,src-09,src-10,src-11,src-12,src-13,src-14,src-15,src-16
+  (stderr vacio)
+
+$ cd data-engine/app && PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -m relations.benchmark.cli --mode baseline1 --predicate-selector v2 --out-json /home/ia02/.claude/jobs/d7a6832b/tmp/final_baseline1_v2.json
+  exit_code = 0   wall = 0.593 s
+  | mode=baseline1 verdict='APTO PARA CONTINUAR EN MODO SOMBRA'
+  | global P=0.8269 R=0.7963 F1=0.8113 TP=43 FP=9 FN=11
+  | deterministic=True
+  | providers local=NOT_EXECUTED external=NOT_EXECUTED llamadas=0
+  | transport_errors=0 rate=0.0
+  | verdict_scope=COMPLETO
+  | sources=src-01,src-02,src-03,src-04,src-05,src-06,src-07,src-08,src-09,src-10,src-11,src-12,src-13,src-14,src-15,src-16
+  (stderr vacio)
+
+$ cd data-engine/app && PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -m relations.benchmark.cli --mode ensemble_offline --predicate-selector v1 --out-json /home/ia02/.claude/jobs/d7a6832b/tmp/final_ensemble_offline_v1.json
+  exit_code = 0   wall = 0.511 s
+  | mode=ensemble_offline verdict='APTO CON REVISION HUMANA TOTAL'
+  | global P=0.8269 R=0.7963 F1=0.8113 TP=43 FP=9 FN=11
+  | deterministic=True
+  | providers local=NOT_EXECUTED external=NOT_EXECUTED llamadas=0
+  | transport_errors=0 rate=0.0
+  | verdict_scope=COMPLETO
+  | sources=src-01,src-02,src-03,src-04,src-05,src-06,src-07,src-08,src-09,src-10,src-11,src-12,src-13,src-14,src-15,src-16
+  (stderr vacio)
+
+$ cd data-engine/app && PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -m relations.benchmark.cli --mode ensemble_offline --predicate-selector v2 --out-json /home/ia02/.claude/jobs/d7a6832b/tmp/final_ensemble_offline_v2.json
+  exit_code = 0   wall = 0.594 s
+  | mode=ensemble_offline verdict='APTO PARA CONTINUAR EN MODO SOMBRA'
+  | global P=0.8269 R=0.7963 F1=0.8113 TP=43 FP=9 FN=11
+  | deterministic=True
+  | providers local=NOT_EXECUTED external=NOT_EXECUTED llamadas=0
+  | transport_errors=0 rate=0.0
+  | verdict_scope=COMPLETO
+  | sources=src-01,src-02,src-03,src-04,src-05,src-06,src-07,src-08,src-09,src-10,src-11,src-12,src-13,src-14,src-15,src-16
+  (stderr vacio)
+
+==============================================================================
+BLOQUE C — Suites de tests
+==============================================================================
+
+$ /usr/bin/python3 -m pytest data-engine/app/tests/ -q --no-header --tb=short -rs -p no:cacheprovider
+  env: {"S9K_ALLOW_REAL_INGEST": "", "PYTHONDONTWRITEBYTECODE": "1"}
+  exit_code = 0   wall = 16.237 s
+  | 2443 passed, 2 skipped, 248 warnings in 15.49s
+
+$ /usr/bin/python3 -m pytest viewer/tests/ -q --no-header --tb=short -rs -p no:cacheprovider
+  env: {"S9K_ALLOW_REAL_INGEST": "", "PYTHONDONTWRITEBYTECODE": "1"}
+  exit_code = 0   wall = 12.547 s
+  | 366 passed, 1 skipped, 13 warnings in 11.77s
+
+$ /usr/bin/python3 -m pytest deploy/tests/ -q --no-header --tb=short -rs -p no:cacheprovider
+  env: {"S9K_ALLOW_REAL_INGEST": "", "PYTHONDONTWRITEBYTECODE": "(sin definir)"}
+  exit_code = 0   wall = 5.629 s
+  | 155 passed in 5.24s
+
+$ /usr/bin/python3 -m pytest contracts/review-ingest/v1/tests/ -q --no-header --tb=short -rs -p no:cacheprovider
+  env: {"S9K_ALLOW_REAL_INGEST": "", "PYTHONDONTWRITEBYTECODE": "1"}
+  exit_code = 0   wall = 0.536 s
+  | 38 passed in 0.17s
+
+$ /usr/bin/python3 -m pytest tests/integration -q --no-header --tb=short -rs -p no:cacheprovider
+  env: {"S9K_ALLOW_REAL_INGEST": "", "PYTHONDONTWRITEBYTECODE": "1"}
+  exit_code = 0   wall = 0.668 s
+  | 75 passed in 0.30s
+
+$ /usr/bin/python3 -m pytest tests/e2e -q --no-header --tb=short -rs -p no:cacheprovider
+  env: {"S9K_ALLOW_REAL_INGEST": "", "PYTHONDONTWRITEBYTECODE": "1"}
+  exit_code = 0   wall = 2.273 s
+  | 10 passed, 3 warnings in 1.73s
+
+$ /usr/bin/python3 -m pytest tests/wave2 -q --no-header --tb=short -rs -p no:cacheprovider
+  env: {"S9K_ALLOW_REAL_INGEST": "", "PYTHONDONTWRITEBYTECODE": "1"}
+  exit_code = 0   wall = 0.739 s
+  | 42 passed in 0.36s
+
+$ /usr/bin/python3 -m pytest tests/wave2b -q --no-header --tb=short -rs -p no:cacheprovider
+  env: {"S9K_ALLOW_REAL_INGEST": "", "PYTHONDONTWRITEBYTECODE": "1"}
+  exit_code = 0   wall = 1.716 s
+  | 69 passed, 2 skipped in 1.31s
+
+$ /usr/bin/python3 -m pytest -q --no-header --tb=short -rs -p no:cacheprovider
+  env: {"S9K_ALLOW_REAL_INGEST": "", "PYTHONDONTWRITEBYTECODE": "(sin definir)"}
+  exit_code = 0   wall = 36.025 s
+  | 3198 passed, 5 skipped, 221 warnings in 34.82s
+
+==============================================================================
+BLOQUE D — Integridad del corpus y purga de bytecode
+==============================================================================
+
+$ find data-engine/app/tests/data/relation_benchmark -type f | sort | xargs sha256sum
+  -> 22 ficheros. Hashes completos en git-state.json (.corpus_b1.sha256).
+  -> Los 16 sha256 de sources COINCIDEN uno a uno con corpus.corpus_hashes del arnes.
+  -> ground_truth/relations.json = 15973d1837deb29ea339bca6bb3980d62e07ef283b196bf38d0d1e2653d9cc5c
+     COINCIDE con corpus.ground_truth_sha256 del arnes. Corpus NO tocado.
+
+$ find . -name __pycache__ -type d -prune -exec rm -rf {} +   (antes y despues de cada mutacion/corrida)
+$ find . -name '*.pyc' | wc -l
+  -> 0
+
+==============================================================================
+INCIDENCIA REGISTRADA (no es un fallo del codigo)
+==============================================================================
+
+Primera pasada de la suite combinada CON PYTHONDONTWRITEBYTECODE=1:
+  exit_code = 1
+  | FAILED deploy/tests/test_release_checksum.py::test_import_real_de_python_no_altera_checksum
+  |   AssertionError: el import no genero bytecode; el test no estaria probando nada
+  | 1 failed, 3197 passed, 5 skipped
+El test es CORRECTO: su premisa es que el import genere .pyc. Se repitio SIN la variable
+(purgando __pycache__ despues) y el resultado real es: 3198 passed, 5 skipped, exit 0.
+Ver skipped-tests.md, seccion 'Aviso operativo'.
+

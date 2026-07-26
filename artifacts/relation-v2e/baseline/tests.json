@@ -1,0 +1,171 @@
+{
+  "medido_en": "entorno local (ver environment.json), NO en CI",
+  "code_sha": "8fc7c8d45b2a03be92b7935f9d9b9c2bd32390bb",
+  "comando_base": "python3 -m pytest <ruta> -q --no-header --tb=short -rs -p no:cacheprovider",
+  "env": {
+    "S9K_ALLOW_REAL_INGEST": "\"\" (vacio, igual que CI)"
+  },
+  "aviso_pycache": "Todas las corridas purgan __pycache__ antes/despues. Las suites marcadas pythondontwritebytecode=false DEBEN ejecutarse SIN esa variable: deploy/tests/test_release_checksum.py::test_import_real_de_python_no_altera_checksum falla con PYTHONDONTWRITEBYTECODE=1 porque su premisa es que el import genere bytecode.",
+  "referencia_historica": {
+    "data-engine": "2431 passed / 2 skipped (docs/relation-engine-v2-results.md §1)",
+    "repo completo": "~3186 passed / 5 skipped",
+    "nota": "REFERENCIA, NO GATE. El baseline real de este bloque es el de abajo."
+  },
+  "suites": {
+    "data-engine": {
+      "paths": [
+        "data-engine/app/tests/"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 16.237,
+      "summary_line": "2443 passed, 2 skipped, 248 warnings in 15.49s",
+      "counts": {
+        "passed": 2443,
+        "skipped": 2,
+        "warnings": 248
+      },
+      "skipped_reasons": [
+        "SKIPPED [1] data-engine/app/tests/test_relation_v2_b5_parser.py:286: spaCy no instalado: comparacion diferida",
+        "SKIPPED [1] data-engine/app/tests/test_relation_v2_b5_parser.py:298: Stanza no instalado: comparacion diferida"
+      ],
+      "pythondontwritebytecode": true
+    },
+    "viewer": {
+      "paths": [
+        "viewer/tests/"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 12.547,
+      "summary_line": "366 passed, 1 skipped, 13 warnings in 11.77s",
+      "counts": {
+        "passed": 366,
+        "skipped": 1,
+        "warnings": 13
+      },
+      "skipped_reasons": [
+        "SKIPPED [1] viewer/tests/browser/test_login_browser.py:22: Playwright no instalado: SKIP, no PASS"
+      ],
+      "pythondontwritebytecode": true
+    },
+    "deploy": {
+      "paths": [
+        "deploy/tests/"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 5.629,
+      "summary_line": "155 passed in 5.24s",
+      "counts": {
+        "passed": 155
+      },
+      "skipped_reasons": [],
+      "pythondontwritebytecode": false
+    },
+    "contracts-review-ingest-v1": {
+      "paths": [
+        "contracts/review-ingest/v1/tests/"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 0.536,
+      "summary_line": "38 passed in 0.17s",
+      "counts": {
+        "passed": 38
+      },
+      "skipped_reasons": [],
+      "pythondontwritebytecode": true
+    },
+    "tests-integration": {
+      "paths": [
+        "tests/integration"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 0.668,
+      "summary_line": "75 passed in 0.30s",
+      "counts": {
+        "passed": 75
+      },
+      "skipped_reasons": [],
+      "pythondontwritebytecode": true
+    },
+    "tests-e2e": {
+      "paths": [
+        "tests/e2e"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 2.273,
+      "summary_line": "10 passed, 3 warnings in 1.73s",
+      "counts": {
+        "passed": 10,
+        "warnings": 3
+      },
+      "skipped_reasons": [],
+      "pythondontwritebytecode": true
+    },
+    "tests-wave2": {
+      "paths": [
+        "tests/wave2"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 0.739,
+      "summary_line": "42 passed in 0.36s",
+      "counts": {
+        "passed": 42
+      },
+      "skipped_reasons": [],
+      "pythondontwritebytecode": true
+    },
+    "tests-wave2b": {
+      "paths": [
+        "tests/wave2b"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 1.716,
+      "summary_line": "69 passed, 2 skipped in 1.31s",
+      "counts": {
+        "passed": 69,
+        "skipped": 2
+      },
+      "skipped_reasons": [
+        "SKIPPED [1] tests/wave2b/test_external_nvidia_live.py:35: Test live NVIDIA: requiere S9K_NVIDIA_LIVE=1, S9K_NVIDIA_ENABLED=true y API key.",
+        "SKIPPED [1] tests/wave2b/test_local_llm_ollama_live.py:51: Test live de Ollama: requiere S9K_OLLAMA_LIVE=1 y S9K_OLLAMA_BASE_URL alcanzable."
+      ],
+      "pythondontwritebytecode": true
+    },
+    "COMBINADA (pytest.ini completo)": {
+      "paths": [
+        "<pytest.ini testpaths>"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 36.025,
+      "summary_line": "3198 passed, 5 skipped, 221 warnings in 34.82s",
+      "counts": {
+        "passed": 3198,
+        "skipped": 5,
+        "warnings": 221
+      },
+      "skipped_reasons": [
+        "SKIPPED [1] viewer/tests/browser/test_login_browser.py:22: Playwright no instalado: SKIP, no PASS",
+        "SKIPPED [1] data-engine/app/tests/test_relation_v2_b5_parser.py:286: spaCy no instalado: comparacion diferida",
+        "SKIPPED [1] data-engine/app/tests/test_relation_v2_b5_parser.py:298: Stanza no instalado: comparacion diferida",
+        "SKIPPED [1] tests/wave2b/test_external_nvidia_live.py:35: Test live NVIDIA: requiere S9K_NVIDIA_LIVE=1, S9K_NVIDIA_ENABLED=true y API key.",
+        "SKIPPED [1] tests/wave2b/test_local_llm_ollama_live.py:51: Test live de Ollama: requiere S9K_OLLAMA_LIVE=1 y S9K_OLLAMA_BASE_URL alcanzable."
+      ],
+      "pythondontwritebytecode": false
+    }
+  },
+  "totales_reales": {
+    "data_engine": {
+      "passed": 2443,
+      "skipped": 2,
+      "failed": 0,
+      "exit_code": 0,
+      "delta_vs_referencia_historica": "+12 passed, mismo numero de skips"
+    },
+    "repo_completo_pytest_ini": {
+      "passed": 3198,
+      "skipped": 5,
+      "failed": 0,
+      "exit_code": 0,
+      "delta_vs_referencia_historica": "+12 passed aprox., mismos 5 skips"
+    }
+  }
+}
