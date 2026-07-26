@@ -139,9 +139,54 @@ quitar el fichero de tests y las tres clases: no hay estado ni migración que de
 
 ---
 
-## 6. Estado
-**B5 CONFORME** como bloque de infraestructura: interfaz + fallback seguro + caché +
-fábrica, metric-neutral y con las garantías offline verificadas por mutación. La
+## 6. Auditoría independiente y corrección supervisada
+
+El revisor independiente emitió **`DICTAMEN DEL REVISOR: CONFORME`** sobre `dcc9e1c`,
+verificando por su cuenta las 10 afirmaciones del bloque. Lo más sólido de su
+verificación (reproducido por él, no afirmado por mí):
+
+- **Neutralidad métrica exacta**: diff estructural completo de los JSON del benchmark
+  entre `622fb8c` y `dcc9e1c` → **0 diferencias** salvo `code_sha` y timings;
+  `result_hashes` de las 16 fuentes **byte a byte iguales**.
+- **Cero red demostrada en ejecución**: corrida completa del benchmark con
+  `socket.socket` / `create_connection` / `getaddrinfo` parcheados a excepción →
+  `exit 0` y hashes idénticos.
+- **`**kwargs` no puede reactivar la descarga de Stanza**: probó el vector de
+  sobrescritura (`get_analyzer("stanza", download_method="download_resources")`) →
+  `TypeError`. El parámetro está fijado en el código, no difundido.
+
+Pero **refutó parcialmente la afirmación 8**: de 8 mutantes nuevos que probó,
+**4 sobrevivían** a los 1578 tests. Su conclusión, que acepto: la frase "garantías
+verificadas por mutación" describía una red de seguridad más fuerte de la que existía.
+
+### Correcciones aplicadas (commit de corrección supervisada)
+
+| Defecto | Gravedad | Corrección |
+|---|---|---|
+| **D1** Fallback enmascaraba fallos: el resultado degradado traía `degraded=False` y era **indistinguible en campos estructurados** de una corrida sana; además capturaba `MemoryError` | MEDIA-ALTA | El fallback marca ahora `degraded=True` (señal legible por máquina, no una cadena en `notes`) y expone contadores `degradations` / `last_error`. `MemoryError`, `KeyboardInterrupt` y `SystemExit` **se propagan**: un OOM no es "proveedor roto" y degradar en silencio lo ocultaría documento tras documento |
+| **D2** Caché de **solo inserción**: al llenarse dejaba de insertar y nunca desalojaba; en un proceso longevo se congelaba con los primeros 512 segmentos y la tasa de acierto tendía a 0, quedando solo el coste de memoria | MEDIA | Política **LRU real** sobre `OrderedDict`: un acierto renueva la entrada y al desbordar se desaloja la menos usada. Contador `evictions`. `maxsize < 1` es error |
+| **D3 / M6** Los tests de pereza eran **vacuos**: afirmaban `"spacy" not in sys.modules` en un entorno donde spaCy no puede estar. El escenario que la invariante protege no se ejercitaba | MEDIA | Test que **fabrica un paquete `spacy` falso que explota al importarse**, lo pone en `sys.path` y comprueba que `available()` devuelve `True` sin importarlo |
+| **M12** `FallbackSyntaxAnalyzer.available()` siempre `True` sobrevivía | — | Test con fallback no disponible |
+| **M13** `cache=True` de la fábrica sin cobertura | BAJA | Test de envoltura + acierto efectivo |
+| **M14 / D5** La auditoría "cero red" era una lista negra de nombres: bastaba partir el literal (`'url'+'open'`) para atravesarla | BAJA | La auditoría AST exige ahora que `import_module` reciba un **literal de una lista blanca** (`spacy`, `stanza`, `importlib.util`) y que `getattr` no use nombres calculados |
+
+**Verificación de la corrección (hecha por mí, supervisor):** los 6 mutantes
+correspondientes **mueren** (M6 → 2 fallos, M12 → 1, D1-degraded → 1, D1-MemoryError → 1,
+D2-solo-inserción → 4, D2-LRU-sin-renovar → 1). Suite completa: **1588 passed, 2 skipped**.
+Y lo esencial: los JSON del benchmark tras la corrección son **idénticos** a los de
+`dcc9e1c` (v1 y v2, `result_hashes` incluidos) → **la corrección sigue siendo
+metric-neutral**, no compra métricas.
+
+**D4 (retención global de texto crudo, sin TTL ni API pública de reset) y D7
+(el objeto cacheado se comparte por identidad) quedan ABIERTOS**, documentados aquí y
+no corregidos: afectan al uso en un proceso de producción longevo, no al banco offline,
+y tocarlos ahora saldría del alcance de B5. **Deben resolverse antes de que este código
+pase de infraestructura en sombra a ruta de producción.**
+
+## 7. Estado
+**B5 CONFORME** como bloque de infraestructura: interfaz + fallback seguro + caché LRU +
+fábrica, metric-neutral, con las garantías offline verificadas por mutación **y por una
+auditoría independiente que encontró y forzó a corregir cuatro huecos reales**. La
 comparación con parser fuerte queda abierta y explícitamente marcada como no medida.
 Siguiente: **B6 — consenso y abstención** (`decision_correct` sigue en 0.3023, es la
 métrica que menos se ha movido en todo el programa).

@@ -25,6 +25,7 @@ if str(APP) not in sys.path:
     sys.path.insert(0, str(APP))
 
 from relations.syntax import (  # noqa: E402
+    FALLBACK_NOTE_PREFIX,
     CachingSyntaxAnalyzer,
     FallbackSyntaxAnalyzer,
     HeuristicSyntaxAnalyzer,
@@ -300,3 +301,171 @@ def test_stanza_real_respeta_el_contrato():  # pragma: no cover
     out = an.analyze(TEXTO, language="es")
     assert out.provider == "stanza"
     assert out.sentences
+
+
+# --------------------------------------------------------------------------
+# 8. Correccion supervisada tras la auditoria del revisor de B5
+#    (defectos D1/D2/D3/D6 y mutantes supervivientes M6/M12/M13/M14)
+# --------------------------------------------------------------------------
+def test_pereza_con_libreria_PRESENTE_m6(tmp_path, monkeypatch):
+    """M6: `available()` debe consultar, NO importar, aunque la libreria EXISTA.
+
+    Los tests de pereza que solo comprueban `"spacy" not in sys.modules` son
+    vacuos en un entorno sin spaCy. Aqui se FABRICA un paquete instalable de
+    mentira que explota si se importa, y se comprueba que `available()` devuelve
+    True sin llegar a ejecutarlo.
+    """
+    paquete = tmp_path / "spacy"
+    paquete.mkdir()
+    (paquete / "__init__.py").write_text(
+        "raise AssertionError('la libreria pesada NO debe importarse')",
+        encoding="utf-8",
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    import importlib
+
+    importlib.invalidate_caches()
+    monkeypatch.delitem(sys.modules, "spacy", raising=False)
+
+    an = LazyModelSyntaxAnalyzer("spacy")
+    assert an.available() is True, "find_spec debe VER el paquete"
+    assert "spacy" not in sys.modules, "available() NO debe importar la libreria"
+
+
+def test_fallback_available_refleja_al_de_respaldo_m12():
+    """M12: `available()` del fallback no puede ser True incondicional."""
+
+    class NuncaDisponible(HeuristicSyntaxAnalyzer):
+        name = "nunca"
+
+        def available(self) -> bool:
+            return False
+
+    an = FallbackSyntaxAnalyzer(LazyModelSyntaxAnalyzer("spacy"), NuncaDisponible())
+    assert an.available() is False
+    ok = FallbackSyntaxAnalyzer(LazyModelSyntaxAnalyzer("spacy"))
+    assert ok.available() is True
+
+
+def test_get_analyzer_cache_true_envuelve_m13():
+    """M13: la opcion publica `cache=True` debe envolver de verdad."""
+    assert isinstance(get_analyzer("heuristic", cache=True), CachingSyntaxAnalyzer)
+    assert not isinstance(get_analyzer("heuristic"), CachingSyntaxAnalyzer)
+    an = get_analyzer("spacy", fallback=True, cache=True)
+    assert isinstance(an, CachingSyntaxAnalyzer)
+    an.analyze(TEXTO)
+    an.analyze(TEXTO)
+    assert an.hits == 1
+
+
+def test_auditoria_ast_caza_red_ofuscada_m14():
+    """M14: la lista negra de nombres no basta; se audita tambien el import dinamico.
+
+    `importlib.import_module` solo puede llamarse con un literal de una lista
+    blanca. Asi, partir la cadena ('url'+'open') deja de ser una via de escape.
+    """
+    import ast
+
+    arbol = ast.parse((APP / "relations" / "syntax.py").read_text(encoding="utf-8"))
+    permitidos = {"spacy", "stanza", "importlib.util"}
+    dinamicos = [
+        n
+        for n in ast.walk(arbol)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr == "import_module"
+    ]
+    for call in dinamicos:
+        assert call.args, "import_module sin argumento"
+        arg = call.args[0]
+        assert isinstance(arg, ast.Constant) and isinstance(arg.value, str), (
+            "import_module debe recibir un literal de cadena, no una expresion "
+            "(evita ofuscar 'url'+'open')"
+        )
+        assert arg.value in permitidos, f"modulo dinamico no permitido: {arg.value}"
+    # `getattr` dinamico sobre un modulo es la otra via de ofuscacion.
+    for n in ast.walk(arbol):
+        if isinstance(n, ast.Call) and getattr(n.func, "id", "") == "getattr":
+            arg = n.args[1] if len(n.args) > 1 else None
+            assert isinstance(arg, ast.Constant), (
+                "getattr con nombre calculado: posible ofuscacion de red"
+            )
+
+
+def test_fallback_marca_degradacion_en_campo_estructurado_d1():
+    """D1: una corrida caida al fallback NO puede parecer una corrida sana."""
+
+    class Roto(HeuristicSyntaxAnalyzer):
+        name = "roto"
+
+        def available(self) -> bool:
+            return True
+
+        def analyze(self, text, *, language=None):
+            raise RuntimeError("modelo corrupto")
+
+    sano = HeuristicSyntaxAnalyzer().analyze(TEXTO)
+    assert sano.degraded is False
+
+    an = FallbackSyntaxAnalyzer(Roto())
+    degradado = an.analyze(TEXTO)
+    assert degradado.degraded is True, "la degradacion debe ser legible por maquina"
+    assert an.degradations == 1
+    assert "modelo corrupto" in (an.last_error or "")
+    assert any(n.startswith(FALLBACK_NOTE_PREFIX) for n in degradado.notes)
+
+
+def test_fallback_no_se_traga_memoryerror_d1():
+    """D1: un OOM no es 'proveedor roto'; degradar en silencio lo ocultaria."""
+
+    class SinMemoria(HeuristicSyntaxAnalyzer):
+        name = "oom"
+
+        def available(self) -> bool:
+            return True
+
+        def analyze(self, text, *, language=None):
+            raise MemoryError("sin memoria")
+
+    with pytest.raises(MemoryError):
+        FallbackSyntaxAnalyzer(SinMemoria()).analyze(TEXTO)
+
+
+def test_cache_desaloja_lru_de_verdad_d2():
+    """D2: politica LRU real; solo-insercion congelaria el cache para siempre."""
+    an = CachingSyntaxAnalyzer(HeuristicSyntaxAnalyzer(), maxsize=2)
+    an.analyze("uno")
+    an.analyze("dos")
+    an.analyze("tres")  # desaloja "uno" (el menos usado recientemente)
+    assert an.evictions == 1
+    assert len(an._cache) == 2
+    an.analyze("uno")  # era el desalojado -> miss
+    assert an.hits == 0
+    # "tres" sigue vivo: acierto.
+    an.analyze("tres")
+    assert an.hits == 1
+
+
+def test_cache_lru_renueva_con_el_uso_d2():
+    """Un acierto renueva la entrada: lo caliente no se desaloja antes que lo frio."""
+    an = CachingSyntaxAnalyzer(HeuristicSyntaxAnalyzer(), maxsize=2)
+    an.analyze("viejo")
+    an.analyze("nuevo")
+    an.analyze("viejo")  # hit -> "viejo" pasa a ser el mas reciente
+    an.analyze("tercero")  # debe desalojar "nuevo", no "viejo"
+    assert an.analyze("viejo") is not None and an.hits == 2
+    assert ("nuevo", None) not in an._cache
+
+
+def test_cache_maxsize_invalido_es_error():
+    with pytest.raises(SyntaxAdapterError):
+        CachingSyntaxAnalyzer(HeuristicSyntaxAnalyzer(), maxsize=0)
+
+
+def test_cache_clear_reinicia_desalojos():
+    an = CachingSyntaxAnalyzer(HeuristicSyntaxAnalyzer(), maxsize=1)
+    an.analyze("a")
+    an.analyze("b")
+    assert an.evictions == 1
+    an.cache_clear()
+    assert an.evictions == 0

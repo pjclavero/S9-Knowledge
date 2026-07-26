@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections import OrderedDict
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, replace
 from typing import Any, Iterable, Optional, Sequence
@@ -51,6 +52,13 @@ DEP_NEG = "neg"
 DEP_AUX_PASS = "aux:pass"
 DEP_DEP = "dep"  # dependencia generica / desconocida
 DEP_PUNCT = "punct"
+
+# Excepciones que el fallback NUNCA debe capturar: no indican "proveedor roto"
+# sino que el proceso esta en mal estado. Ver `FallbackSyntaxAnalyzer.analyze`.
+_NEVER_SWALLOW = (MemoryError, KeyboardInterrupt, SystemExit)
+
+# Prefijo estable de la nota de degradacion (contrato de trazabilidad).
+FALLBACK_NOTE_PREFIX = "fallback seguro:"
 
 
 # ---------------------------------------------------------------------------
@@ -1044,6 +1052,10 @@ class FallbackSyntaxAnalyzer(SyntaxAnalyzer):
         self.primary = primary
         self.fallback = fallback if fallback is not None else HeuristicSyntaxAnalyzer()
         self.name = f"fallback({getattr(primary, 'name', '?')}->{self.fallback.name})"
+        # Contadores observables: permiten detectar degradacion sostenida sin
+        # tener que parsear cadenas de `notes`.
+        self.degradations = 0
+        self.last_error: Optional[str] = None
 
     def available(self) -> bool:
         return self.fallback.available()
@@ -1058,13 +1070,25 @@ class FallbackSyntaxAnalyzer(SyntaxAnalyzer):
             result = self.primary.analyze(text, language=language)
             note = f"analizador primario '{requested}' sirvio el analisis"
             return replace(result, notes=tuple(result.notes) + (note,))
+        except _NEVER_SWALLOW:
+            # Agotamiento de memoria / interrupcion / salida: NO son "el proveedor
+            # fallo", son fallos del proceso. Tragarselos convertiria un OOM en
+            # degradacion silenciosa documento tras documento. Se propagan.
+            raise
         except Exception as exc:  # fallback seguro: NUNCA propaga, NUNCA descarga
             result = self.fallback.analyze(text, language=language)
+            self.degradations += 1
+            self.last_error = f"{type(exc).__name__}: {exc}"
             note = (
-                f"fallback seguro: primario '{requested}' no disponible "
-                f"({type(exc).__name__}: {exc}); sirvio '{self.fallback.name}'"
+                f"{FALLBACK_NOTE_PREFIX} primario '{requested}' no disponible "
+                f"({self.last_error}); sirvio '{self.fallback.name}'"
             )
-            return replace(result, notes=tuple(result.notes) + (note,))
+            # `degraded=True` marca la degradacion en un campo ESTRUCTURADO: una
+            # corrida caida al fallback NO puede parecer una corrida sana. La nota
+            # en texto libre es trazabilidad humana, no la senal legible por maquina.
+            return replace(
+                result, degraded=True, notes=tuple(result.notes) + (note,)
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -1080,10 +1104,14 @@ class CachingSyntaxAnalyzer(SyntaxAnalyzer):
     def __init__(self, inner: SyntaxAnalyzer, *, maxsize: Optional[int] = None):
         self.inner = inner
         self.name = getattr(inner, "name", "?")
+        if maxsize is not None and maxsize < 1:
+            raise SyntaxAdapterError("maxsize debe ser >= 1 o None")
         self.maxsize = maxsize
-        self._cache: dict[tuple, SyntaxAnalysis] = {}
+        # OrderedDict: el orden de insercion/uso ES la politica de desalojo LRU.
+        self._cache: "OrderedDict[tuple, SyntaxAnalysis]" = OrderedDict()
         self.hits = 0
         self.misses = 0
+        self.evictions = 0
 
     def available(self) -> bool:
         return self.inner.available()
@@ -1093,17 +1121,26 @@ class CachingSyntaxAnalyzer(SyntaxAnalyzer):
         cached = self._cache.get(key)
         if cached is not None:
             self.hits += 1
+            # Politica LRU: un acierto renueva la entrada (la mueve al final).
+            self._cache.move_to_end(key)
             return cached
         self.misses += 1
         result = self.inner.analyze(text, language=language)
-        if self.maxsize is None or len(self._cache) < self.maxsize:
-            self._cache[key] = result
+        self._cache[key] = result
+        # DESALOJO real (LRU). Una politica de solo-insercion dejaria el cache
+        # congelado con los primeros N segmentos vistos: en un proceso longevo la
+        # tasa de acierto tenderia a 0 y solo quedaria el coste de memoria.
+        if self.maxsize is not None:
+            while len(self._cache) > self.maxsize:
+                self._cache.popitem(last=False)
+                self.evictions += 1
         return result
 
     def cache_clear(self) -> None:
         self._cache.clear()
         self.hits = 0
         self.misses = 0
+        self.evictions = 0
 
 
 # ---------------------------------------------------------------------------
