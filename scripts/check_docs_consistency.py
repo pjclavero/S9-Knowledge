@@ -10,7 +10,7 @@ CI + produccion verificada). Este script comprueba:
      (Basic Auth como acceso vigente, login pendiente, visor no desplegado,
      numero de tests fijo, RC1/RC5 desplegadas, timer de 5 minutos activo,
      auth DB dentro de la release, v0.2.6-B1 como estado vigente, etc.).
-  2. Que el documento canónico (docs/02-current-state.md) mencione el tag y el
+  2. Que el documento canónico (docs/archivados/02-current-state.md) mencione el tag y el
      commit de produccion declarados en project-status.yaml.
 
 Los bloques históricos marcados explícitamente se ignoran: una sección cuyo
@@ -38,7 +38,7 @@ DOCS = [
     "ROADMAP.md",
     "CHANGELOG.md",
     "viewer/README.md",
-    "docs/02-current-state.md",
+    "docs/archivados/02-current-state.md",
 ]
 
 HISTORIC_HEADING = re.compile(r"^#{1,6}\s.*(HIST[OÓ]RICO|DEPRECAD|DEPRECATED)", re.IGNORECASE)
@@ -116,7 +116,7 @@ def scan_doc(path: Path) -> list[str]:
 
 def check_canonical(status: dict) -> list[str]:
     findings: list[str] = []
-    canonical = REPO / "docs" / "02-current-state.md"
+    canonical = REPO / "docs" / "archivados" / "02-current-state.md"
     if not canonical.exists():
         return [f"falta el documento canónico {canonical.relative_to(REPO)}"]
     body = canonical.read_text(encoding="utf-8")
@@ -124,7 +124,7 @@ def check_canonical(status: dict) -> list[str]:
         val = str(status.get(key, "")).strip()
         if val and val not in body:
             findings.append(
-                f"docs/02-current-state.md no menciona {key}={val} (project-status.yaml)"
+                f"docs/archivados/02-current-state.md no menciona {key}={val} (project-status.yaml)"
             )
     return findings
 
