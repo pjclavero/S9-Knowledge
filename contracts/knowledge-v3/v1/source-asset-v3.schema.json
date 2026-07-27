@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/knowledge-v3/v1/source-asset-v3.schema.json",
+  "title": "source-asset/v3-internal-v1",
+  "description": "Fuente original ingerida (PDF, imagen, audio, video, YouTube, markdown, web, nota). Es la raiz de la procedencia: su content_hash es el source_hash que arrastra toda la cadena V3.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_id", "contract_version", "workspace", "source_asset_id", "source_hash",
+    "provider_trace", "asset_id", "collection_id", "game_profile", "source_kind",
+    "mime_type", "content_hash", "byte_size", "original_name", "original_location",
+    "created_at", "ingested_at", "language_hint", "privacy_class", "copyright_class",
+    "processing_policy"
+  ],
+  "properties": {
+    "contract_id": { "const": "source-asset/v3-internal-v1" },
+    "contract_version": { "$ref": "_common-v3.schema.json#/$defs/contract_version" },
+    "workspace": { "$ref": "_common-v3.schema.json#/$defs/workspace" },
+    "source_asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+    "source_hash": { "$ref": "_common-v3.schema.json#/$defs/hash" },
+    "provider_trace": { "$ref": "_common-v3.schema.json#/$defs/provider_trace" },
+
+    "asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+    "collection_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+    "game_profile": { "$ref": "_common-v3.schema.json#/$defs/game_profile" },
+    "source_kind": {
+      "type": "string",
+      "enum": [
+        "PDF", "IMAGE", "HANDWRITING", "MAP", "DIAGRAM", "CHARACTER_SHEET",
+        "TABLE", "AUDIO", "VIDEO", "YOUTUBE", "MARKDOWN", "TEXT", "WEB", "NOTE"
+      ]
+    },
+    "mime_type": { "type": "string", "pattern": "^[a-z0-9!#$&^_.+-]+/[a-zA-Z0-9!#$&^_.+-]+$", "maxLength": 128 },
+    "content_hash": { "$ref": "_common-v3.schema.json#/$defs/hash" },
+    "byte_size": { "type": "integer", "minimum": 0 },
+    "original_name": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "original_location": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Ubicacion logica de origen. NUNCA credenciales embebidas; el validador rechaza URLs con userinfo."
+    },
+    "created_at": { "$ref": "_common-v3.schema.json#/$defs/iso8601_utc" },
+    "ingested_at": { "$ref": "_common-v3.schema.json#/$defs/iso8601_utc" },
+    "language_hint": {
+      "anyOf": [
+        { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+        { "type": "null" }
+      ]
+    },
+    "privacy_class": { "type": "string", "enum": ["PUBLIC", "INTERNAL", "PERSONAL_DATA", "RESTRICTED"] },
+    "copyright_class": { "type": "string", "enum": ["OWN", "LICENSED", "COPYRIGHTED", "UNKNOWN"] },
+    "processing_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allow_external_providers", "allow_media_persistence", "retention_days"],
+      "properties": {
+        "allow_external_providers": {
+          "type": "boolean",
+          "description": "Si es false, ningun provider_trace de la cadena derivada puede tener provider='external'."
+        },
+        "allow_media_persistence": { "type": "boolean" },
+        "retention_days": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" }
+  },
+  "allOf": [
+    {
+      "$comment": "Material con datos personales o con copyright no se puede exponer a proveedores externos desde el propio contrato.",
+      "if": {
+        "properties": { "privacy_class": { "enum": ["PERSONAL_DATA", "RESTRICTED"] } },
+        "required": ["privacy_class"]
+      },
+      "then": {
+        "properties": { "processing_policy": { "properties": { "allow_external_providers": { "const": false } } } }
+      }
+    }
+  ]
+}

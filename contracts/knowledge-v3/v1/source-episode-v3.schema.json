@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/knowledge-v3/v1/source-episode-v3.schema.json",
+  "title": "source-episode/v3-internal-v1",
+  "description": "Trozo direccionable de una fuente: pagina, seccion, escena, intervalo de audio, turno de hablante, frame, region, bloque manuscrito, tabla o mensaje.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_id", "contract_version", "workspace", "source_asset_id", "source_hash",
+    "provider_trace", "episode_id", "asset_id", "sequence", "modality", "text",
+    "page", "bbox", "time_start", "time_end", "previous_episode_id",
+    "next_episode_id", "quality", "content_hash"
+  ],
+  "properties": {
+    "contract_id": { "const": "source-episode/v3-internal-v1" },
+    "contract_version": { "$ref": "_common-v3.schema.json#/$defs/contract_version" },
+    "workspace": { "$ref": "_common-v3.schema.json#/$defs/workspace" },
+    "source_asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+    "source_hash": { "$ref": "_common-v3.schema.json#/$defs/hash" },
+    "provider_trace": { "$ref": "_common-v3.schema.json#/$defs/provider_trace" },
+
+    "episode_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+    "asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "modality": { "$ref": "_common-v3.schema.json#/$defs/modality" },
+    "text": {
+      "type": ["string", "null"],
+      "maxLength": 200000,
+      "description": "Texto literal del episodio si la modalidad lo produce. NUNCA mezcla OCR literal con descripcion visual."
+    },
+    "page": { "$ref": "_common-v3.schema.json#/$defs/offset_or_null" },
+    "bbox": { "$ref": "_common-v3.schema.json#/$defs/bbox_or_null" },
+    "time_start": { "$ref": "_common-v3.schema.json#/$defs/seconds_or_null" },
+    "time_end": { "$ref": "_common-v3.schema.json#/$defs/seconds_or_null" },
+    "previous_episode_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null" },
+    "next_episode_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null" },
+    "quality": { "$ref": "_common-v3.schema.json#/$defs/quality" },
+    "content_hash": {
+      "$ref": "_common-v3.schema.json#/$defs/hash",
+      "description": "Hash del contenido del episodio. Distinto de source_hash (que es el del asset origen)."
+    },
+    "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" }
+  }
+}

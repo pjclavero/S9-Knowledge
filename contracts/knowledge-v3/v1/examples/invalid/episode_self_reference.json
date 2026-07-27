@@ -1,0 +1,43 @@
+{
+  "asset_id": "asset:manual-001",
+  "bbox": null,
+  "content_hash": {
+    "algorithm": "sha256",
+    "value": "40bed0de0496e4c71067ae173fdb2f7f4def543574b3c88549ff8ecc64b0a151"
+  },
+  "contract_id": "source-episode/v3-internal-v1",
+  "contract_version": "1.0.0",
+  "episode_id": "episode:manual-001:p12",
+  "modality": "TEXT",
+  "next_episode_id": "episode:manual-001:p13",
+  "page": 12,
+  "previous_episode_id": "episode:manual-001:p12",
+  "provider_trace": [
+    {
+      "model": null,
+      "name": "s9k.knowledge_v3",
+      "produced": [
+        "text",
+        "page",
+        "content_hash"
+      ],
+      "provider": "local",
+      "step": "pdf.text",
+      "version": "3.0.0"
+    }
+  ],
+  "quality": {
+    "flags": [],
+    "score": 0.97
+  },
+  "sequence": 12,
+  "source_asset_id": "asset:manual-001",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "a900b2ece307794d62690e1ffbe35853112ebbdef8fe18061b62f896d38f23a2"
+  },
+  "text": "Daiki, magistrado de la Casa del Ciervo, jamas juro lealtad al Consejo de Umbra.",
+  "time_end": null,
+  "time_start": null,
+  "workspace": "leyenda"
+}

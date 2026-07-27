@@ -1,0 +1,66 @@
+{
+  "abstained": false,
+  "alternatives": [],
+  "claim_id": "claim:p13:0",
+  "confidence": 0.44,
+  "contract_id": "claim-proposal/v3-internal-v1",
+  "contract_version": "1.0.0",
+  "direction_candidates": [
+    {
+      "confidence": 0.44,
+      "direction": "SUBJECT_TO_OBJECT"
+    }
+  ],
+  "episode_id": "episode:manual-001:p13",
+  "epistemic_cues": [],
+  "epistemic_status_hint": "VISUAL_INFERRED",
+  "evidence_fragment_ids": [
+    "fragment:p13:ocr:0"
+  ],
+  "negated": false,
+  "object_mentions": [
+    "mention:p13:1"
+  ],
+  "predicate_candidates": [
+    {
+      "confidence": 0.44,
+      "predicate": "LOCATED_IN"
+    }
+  ],
+  "provider_trace": [
+    {
+      "model": null,
+      "name": "s9k.knowledge_v3",
+      "produced": [
+        "bbox"
+      ],
+      "provider": "local",
+      "step": "layout",
+      "version": "3.0.0"
+    },
+    {
+      "model": "meta/llama-3.1-70b-instruct",
+      "name": "s9k.external_ai.nvidia",
+      "produced": [
+        "claim",
+        "predicate_candidates"
+      ],
+      "provider": "external",
+      "step": "extract.visual",
+      "version": "3.0.0"
+    }
+  ],
+  "qualifiers": [],
+  "relation_phrase": "aparece dentro del recinto de",
+  "review_required": false,
+  "source_asset_id": "asset:manual-001",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "a900b2ece307794d62690e1ffbe35853112ebbdef8fe18061b62f896d38f23a2"
+  },
+  "subject_mentions": [
+    "mention:p13:0"
+  ],
+  "temporal_expressions": [],
+  "workspace": "leyenda"
+}

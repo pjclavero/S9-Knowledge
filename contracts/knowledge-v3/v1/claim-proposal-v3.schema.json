@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/knowledge-v3/v1/claim-proposal-v3.schema.json",
+  "title": "claim-proposal/v3-internal-v1",
+  "description": "Afirmacion PROPUESTA por un extractor (determinista, Ollama, externo, visual, tablas, eventos, temporalidad). No decide el predicado canonico, no decide identidad y JAMAS es un grafo. Cualquier proveedor puede producirla; ninguno puede convertirla en escritura.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_id", "contract_version", "workspace", "source_asset_id", "source_hash",
+    "provider_trace", "claim_id", "episode_id", "subject_mentions", "relation_phrase",
+    "object_mentions", "predicate_candidates", "direction_candidates",
+    "temporal_expressions", "negated", "epistemic_cues", "epistemic_status_hint",
+    "qualifiers", "evidence_fragment_ids", "confidence", "alternatives", "abstained",
+    "review_required"
+  ],
+  "properties": {
+    "contract_id": { "const": "claim-proposal/v3-internal-v1" },
+    "contract_version": { "$ref": "_common-v3.schema.json#/$defs/contract_version" },
+    "workspace": { "$ref": "_common-v3.schema.json#/$defs/workspace" },
+    "source_asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+    "source_hash": { "$ref": "_common-v3.schema.json#/$defs/hash" },
+    "provider_trace": { "$ref": "_common-v3.schema.json#/$defs/provider_trace" },
+
+    "claim_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+    "episode_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+    "subject_mentions": {
+      "type": "array",
+      "items": { "$ref": "_common-v3.schema.json#/$defs/stable_id" }
+    },
+    "relation_phrase": { "type": "string", "maxLength": 2000 },
+    "object_mentions": {
+      "type": "array",
+      "items": { "$ref": "_common-v3.schema.json#/$defs/stable_id" }
+    },
+    "predicate_candidates": {
+      "type": "array",
+      "description": "Predicados candidatos ordenados por confianza descendente. El motor local decide; el extractor solo propone.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["predicate", "confidence"],
+        "properties": {
+          "predicate": { "$ref": "_common-v3.schema.json#/$defs/predicate" },
+          "confidence": { "$ref": "_common-v3.schema.json#/$defs/confidence" }
+        }
+      }
+    },
+    "direction_candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["direction", "confidence"],
+        "properties": {
+          "direction": { "$ref": "_common-v3.schema.json#/$defs/direction" },
+          "confidence": { "$ref": "_common-v3.schema.json#/$defs/confidence" }
+        }
+      }
+    },
+    "temporal_expressions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "kind"],
+        "properties": {
+          "text": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "kind": { "type": "string", "enum": ["POINT", "INTERVAL", "DURATION", "RELATIVE", "UNKNOWN"] },
+          "valid_from": { "$ref": "_common-v3.schema.json#/$defs/iso8601_utc_or_null" },
+          "valid_to": { "$ref": "_common-v3.schema.json#/$defs/iso8601_utc_or_null" },
+          "fragment_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null" }
+        }
+      }
+    },
+    "negated": { "type": "boolean" },
+    "epistemic_cues": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 256 }
+    },
+    "epistemic_status_hint": { "$ref": "_common-v3.schema.json#/$defs/epistemic_status" },
+    "qualifiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "value"],
+        "properties": {
+          "key": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "value": { "type": "string", "minLength": 1, "maxLength": 512 }
+        }
+      }
+    },
+    "evidence_fragment_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "_common-v3.schema.json#/$defs/stable_id" }
+    },
+    "confidence": { "$ref": "_common-v3.schema.json#/$defs/confidence" },
+    "alternatives": {
+      "type": "array",
+      "description": "Lecturas alternativas de la misma evidencia. Se conservan; no se descartan en silencio.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["predicate", "direction", "confidence"],
+        "properties": {
+          "predicate": { "$ref": "_common-v3.schema.json#/$defs/predicate" },
+          "direction": { "$ref": "_common-v3.schema.json#/$defs/direction" },
+          "confidence": { "$ref": "_common-v3.schema.json#/$defs/confidence" },
+          "reason_codes": { "type": "array", "items": { "$ref": "_common-v3.schema.json#/$defs/reason_code" } }
+        }
+      }
+    },
+    "abstained": {
+      "type": "boolean",
+      "description": "El extractor puede abstenerse. Abstenerse es una salida valida y preferible a inventar."
+    },
+    "review_required": { "type": "boolean" },
+    "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" }
+  },
+  "allOf": [
+    {
+      "$comment": "Abstenerse significa NO proponer predicado. Una abstencion con predicado es una contradiccion.",
+      "if": { "properties": { "abstained": { "const": true } }, "required": ["abstained"] },
+      "then": {
+        "properties": {
+          "predicate_candidates": { "maxItems": 0 },
+          "confidence": { "const": 0 }
+        }
+      }
+    },
+    {
+      "$comment": "Un claim no abstenido debe tener sujeto y objeto.",
+      "if": { "properties": { "abstained": { "const": false } }, "required": ["abstained"] },
+      "then": {
+        "properties": {
+          "subject_mentions": { "minItems": 1 },
+          "object_mentions": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "$comment": "Los claims derivados de dibujos/diagramas nacen exigiendo revision (dosier 7.6).",
+      "if": {
+        "properties": { "epistemic_status_hint": { "const": "VISUAL_INFERRED" } },
+        "required": ["epistemic_status_hint"]
+      },
+      "then": { "properties": { "review_required": { "const": true } } }
+    }
+  ]
+}

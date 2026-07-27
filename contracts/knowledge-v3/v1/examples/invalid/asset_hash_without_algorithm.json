@@ -1,0 +1,48 @@
+{
+  "asset_id": "asset:manual-001",
+  "byte_size": 4823191,
+  "collection_id": "collection:campana-leyenda",
+  "content_hash": {
+    "algorithm": "sha256",
+    "value": "a900b2ece307794d62690e1ffbe35853112ebbdef8fe18061b62f896d38f23a2"
+  },
+  "contract_id": "source-asset/v3-internal-v1",
+  "contract_version": "1.0.0",
+  "copyright_class": "COPYRIGHTED",
+  "created_at": "2026-07-01T09:00:00Z",
+  "game_profile": "generic",
+  "ingested_at": "2026-07-27T10:15:00Z",
+  "language_hint": "es",
+  "metadata": {
+    "pages": 214
+  },
+  "mime_type": "application/pdf",
+  "original_location": "staging/media/manual-de-campana.pdf",
+  "original_name": "manual-de-campana.pdf",
+  "privacy_class": "INTERNAL",
+  "processing_policy": {
+    "allow_external_providers": false,
+    "allow_media_persistence": true,
+    "retention_days": 365
+  },
+  "provider_trace": [
+    {
+      "model": null,
+      "name": "s9k.knowledge_v3",
+      "produced": [
+        "content_hash",
+        "byte_size",
+        "mime_type"
+      ],
+      "provider": "local",
+      "step": "ingest",
+      "version": "3.0.0"
+    }
+  ],
+  "source_asset_id": "asset:manual-001",
+  "source_hash": {
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "source_kind": "PDF",
+  "workspace": "leyenda"
+}

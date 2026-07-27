@@ -1,0 +1,45 @@
+{
+  "asset_id": "asset:sesion-2026-05-11",
+  "byte_size": 91238411,
+  "collection_id": "collection:campana-leyenda",
+  "content_hash": {
+    "algorithm": "sha256",
+    "value": "9cb4452782d2d14ccd1a1664e46bc3d96e12f93588e166dee4df965cfe2a1692"
+  },
+  "contract_id": "source-asset/v3-internal-v1",
+  "contract_version": "1.0.0",
+  "copyright_class": "OWN",
+  "created_at": "2026-05-11T18:30:00Z",
+  "game_profile": "generic",
+  "ingested_at": "2026-05-12T08:00:00Z",
+  "language_hint": "es",
+  "mime_type": "audio/ogg",
+  "original_location": "staging/media/sesion-2026-05-11.ogg",
+  "original_name": "sesion-2026-05-11.ogg",
+  "privacy_class": "PERSONAL_DATA",
+  "processing_policy": {
+    "allow_external_providers": false,
+    "allow_media_persistence": false,
+    "retention_days": 90
+  },
+  "provider_trace": [
+    {
+      "model": null,
+      "name": "s9k.knowledge_v3",
+      "produced": [
+        "content_hash",
+        "byte_size"
+      ],
+      "provider": "local",
+      "step": "ingest",
+      "version": "3.0.0"
+    }
+  ],
+  "source_asset_id": "asset:sesion-2026-05-11",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "9cb4452782d2d14ccd1a1664e46bc3d96e12f93588e166dee4df965cfe2a1692"
+  },
+  "source_kind": "AUDIO",
+  "workspace": "leyenda"
+}

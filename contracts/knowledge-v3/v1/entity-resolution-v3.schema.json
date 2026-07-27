@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/knowledge-v3/v1/entity-resolution-v3.schema.json",
+  "title": "entity-resolution/v3-internal-v1",
+  "description": "Decision de identidad sobre un grupo de menciones. Permite entidades PROVISIONALES para no fabricar nodos definitivos por cada error de ASR u OCR.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_id", "contract_version", "workspace", "source_asset_id", "source_hash",
+    "provider_trace", "resolution_id", "mention_ids", "candidate_entity_ids",
+    "selected_entity_id", "action", "confidence", "evidence", "reason_codes",
+    "game_profile"
+  ],
+  "properties": {
+    "contract_id": { "const": "entity-resolution/v3-internal-v1" },
+    "contract_version": { "$ref": "_common-v3.schema.json#/$defs/contract_version" },
+    "workspace": { "$ref": "_common-v3.schema.json#/$defs/workspace" },
+    "source_asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+    "source_hash": { "$ref": "_common-v3.schema.json#/$defs/hash" },
+    "provider_trace": { "$ref": "_common-v3.schema.json#/$defs/provider_trace" },
+
+    "resolution_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+    "mention_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "_common-v3.schema.json#/$defs/stable_id" }
+    },
+    "candidate_entity_ids": {
+      "type": "array",
+      "items": { "$ref": "_common-v3.schema.json#/$defs/stable_id" }
+    },
+    "selected_entity_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null" },
+    "action": {
+      "type": "string",
+      "enum": ["LINK_EXISTING", "CREATE_PROVISIONAL", "CREATE_NEW", "SPLIT", "REVIEW"]
+    },
+    "entity_type": {
+      "anyOf": [
+        { "$ref": "_common-v3.schema.json#/$defs/entity_type" },
+        { "type": "null" }
+      ]
+    },
+    "confidence": { "$ref": "_common-v3.schema.json#/$defs/confidence" },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Fragmentos que soportan la decision de identidad.",
+      "items": { "$ref": "_common-v3.schema.json#/$defs/stable_id" }
+    },
+    "reason_codes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "_common-v3.schema.json#/$defs/reason_code" }
+    },
+    "game_profile": { "$ref": "_common-v3.schema.json#/$defs/game_profile" },
+    "split_groups": {
+      "type": "array",
+      "description": "Solo para action=SPLIT: particion de mention_ids en grupos disjuntos.",
+      "items": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "$ref": "_common-v3.schema.json#/$defs/stable_id" }
+      }
+    },
+    "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" }
+  },
+  "allOf": [
+    {
+      "$comment": "Enlazar con algo existente exige decir con que.",
+      "if": { "properties": { "action": { "const": "LINK_EXISTING" } }, "required": ["action"] },
+      "then": {
+        "properties": { "selected_entity_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" } },
+        "required": ["selected_entity_id"]
+      }
+    },
+    {
+      "$comment": "REVIEW no selecciona entidad: es precisamente la ausencia de decision.",
+      "if": { "properties": { "action": { "const": "REVIEW" } }, "required": ["action"] },
+      "then": { "properties": { "selected_entity_id": { "type": "null" } } }
+    },
+    {
+      "$comment": "SPLIT exige la particion explicita.",
+      "if": { "properties": { "action": { "const": "SPLIT" } }, "required": ["action"] },
+      "then": { "required": ["split_groups"], "properties": { "split_groups": { "minItems": 2 } } }
+    }
+  ]
+}

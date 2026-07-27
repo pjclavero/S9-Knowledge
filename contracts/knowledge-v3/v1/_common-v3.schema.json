@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/knowledge-v3/v1/_common-v3.schema.json",
+  "title": "S9 Knowledge V3 — definiciones comunes (familia v3-internal-v1)",
+  "description": "Fuente UNICA de envelope, enums, hashes y trazas de proveedor para los nueve contratos internos V3. Ningun contrato duplica estas definiciones. Convencion heredada de contracts/review-ingest/v1/_common-v1.schema.json.",
+  "$defs": {
+    "iso8601_utc": {
+      "type": "string",
+      "description": "Fecha-hora en UTC ISO-8601, terminada en Z. Es un DATO del documento; nunca se genera en la serializacion.",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+    },
+    "iso8601_utc_or_null": {
+      "anyOf": [
+        { "$ref": "#/$defs/iso8601_utc" },
+        { "type": "null" }
+      ]
+    },
+    "stable_id": {
+      "type": "string",
+      "description": "Identificador estable, sin espacios, no dependiente del orden de arrays, sin informacion sensible.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "stable_id_or_null": {
+      "anyOf": [
+        { "$ref": "#/$defs/stable_id" },
+        { "type": "null" }
+      ]
+    },
+    "workspace": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+      "description": "Boveda/campana. Aislamiento duro: ningun documento cruza workspaces."
+    },
+    "game_profile": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+      "description": "Perfil de juego activo. En V3 inicial siempre 'generic'."
+    },
+    "contract_version": {
+      "type": "string",
+      "description": "Version semantica del contrato dentro de la familia v3-internal. Los consumidores DEBEN rechazar una version mayor desconocida.",
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confianza en [0,1]. NUNCA es razon suficiente por si sola para aprobar nada."
+    },
+    "hash": {
+      "type": "object",
+      "description": "Hash con algoritmo explicito. No se aceptan hashes sin algoritmo.",
+      "additionalProperties": false,
+      "required": ["algorithm", "value"],
+      "properties": {
+        "algorithm": { "type": "string", "enum": ["sha256"] },
+        "value": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "hash_or_null": {
+      "anyOf": [
+        { "$ref": "#/$defs/hash" },
+        { "type": "null" }
+      ]
+    },
+    "provider_kind": {
+      "type": "string",
+      "description": "Clase de proveedor. 'local' = codigo determinista del motor; 'ollama' = LLM local; 'external' = proveedor remoto. NINGUN proveedor externo puede decidir ni firmar.",
+      "enum": ["local", "ollama", "external"]
+    },
+    "provider_trace_entry": {
+      "type": "object",
+      "description": "Un paso de produccion: que proveedor/modelo produjo que parte del documento.",
+      "additionalProperties": false,
+      "required": ["step", "provider", "name", "version", "produced"],
+      "properties": {
+        "step": { "$ref": "#/$defs/stable_id" },
+        "provider": { "$ref": "#/$defs/provider_kind" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "model": { "type": ["string", "null"], "maxLength": 128 },
+        "produced": {
+          "type": "array",
+          "description": "Campos o artefactos que este paso produjo. Vacio no esta permitido: una traza que no dice que produjo no es trazabilidad.",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "params_hash": { "$ref": "#/$defs/hash_or_null" },
+        "notes": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "provider_trace": {
+      "type": "array",
+      "description": "Traza completa de produccion, ordenada. Obligatoria y no vacia en los nueve contratos.",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/provider_trace_entry" }
+    },
+    "bbox": {
+      "type": "object",
+      "description": "Caja normalizada [0,1] con origen en la esquina superior izquierda (misma convencion que media/multimedia_contract.py).",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "type": "number", "minimum": 0, "maximum": 1 },
+        "y": { "type": "number", "minimum": 0, "maximum": 1 },
+        "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "page": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "bbox_or_null": {
+      "anyOf": [
+        { "$ref": "#/$defs/bbox" },
+        { "type": "null" }
+      ]
+    },
+    "offset_or_null": {
+      "anyOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "null" }
+      ]
+    },
+    "seconds_or_null": {
+      "anyOf": [
+        { "type": "number", "minimum": 0 },
+        { "type": "null" }
+      ]
+    },
+    "entity_type": {
+      "type": "string",
+      "description": "Catalogo canonico de tipos (identico a external_ai.models.ALLOWED_ENTITY_TYPES; no se amplia aqui).",
+      "enum": ["Character", "Location", "Faction", "Object", "Event", "Concept"]
+    },
+    "media_type": {
+      "type": "string",
+      "description": "Tipos de artefacto multimedia. Identicos a media/multimedia_contract.MediaType: OCR literal e interpretacion visual son tipos DISTINTOS y no se mezclan.",
+      "enum": [
+        "EMBEDDED_TEXT", "ASR_TEXT", "OCR_TEXT", "IMAGE_DESCRIPTION", "TABLE",
+        "MAP", "DIAGRAM", "CHARACTER_SHEET", "CAPTION", "UNKNOWN_VISUAL"
+      ]
+    },
+    "modality": {
+      "type": "string",
+      "description": "Modalidad de un episodio de fuente.",
+      "enum": [
+        "TEXT", "OCR_TEXT", "HTR_TEXT", "ASR_TEXT", "IMAGE", "TABLE",
+        "DIAGRAM", "MAP", "VIDEO_FRAME", "SPEAKER_TURN", "MESSAGE"
+      ]
+    },
+    "direction": {
+      "type": "string",
+      "description": "Direccion de la relacion. Valores identicos a relations.contracts.Direction (frontera intocable).",
+      "enum": ["SUBJECT_TO_OBJECT", "OBJECT_TO_SUBJECT", "UNDIRECTED"]
+    },
+    "epistemic_status": {
+      "type": "string",
+      "description": "Estatus epistemico canonico. Los cuatro primeros son identicos a relations.contracts.EpistemicStatus; VISUAL_INFERRED es EXCLUSIVO de V3 (claims derivados de dibujos/diagramas) y NO existe en internal-v1.",
+      "enum": ["ASSERTED", "RUMORED", "HYPOTHETICAL", "INTENDED", "VISUAL_INFERRED"]
+    },
+    "predicate": {
+      "type": "string",
+      "description": "Predicado normalizado: MAYUSCULAS con guion_bajo (misma normalizacion que relations.contracts.normalize_predicate).",
+      "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+    },
+    "reason_code": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+      "description": "Codigo de razon estable y enumerable, nunca texto libre."
+    },
+    "quality": {
+      "type": "object",
+      "description": "Calidad medida del episodio. score bajo NO invalida, pero condiciona la decision del motor.",
+      "additionalProperties": false,
+      "required": ["score"],
+      "properties": {
+        "score": { "$ref": "#/$defs/confidence" },
+        "flags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reason_code" }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "EXCEPCION DOCUMENTADA a additionalProperties:false. Metadatos no sensibles, extensibles por definicion; el validador prohibe claves sensibles dentro. Es el unico bloque abierto de la familia v3-internal-v1.",
+      "additionalProperties": true
+    }
+  }
+}

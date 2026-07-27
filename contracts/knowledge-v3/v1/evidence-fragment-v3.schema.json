@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/knowledge-v3/v1/evidence-fragment-v3.schema.json",
+  "title": "evidence-fragment/v3-internal-v1",
+  "description": "Anclaje literal de evidencia dentro de un episodio. Offsets, bbox y timecodes los pone o los verifica el sistema local, NUNCA un proveedor.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_id", "contract_version", "workspace", "source_asset_id", "source_hash",
+    "provider_trace", "fragment_id", "episode_id", "literal_text", "normalized_text",
+    "start", "end", "bbox", "time_start", "time_end", "frame_id", "page",
+    "media_type", "confidence"
+  ],
+  "properties": {
+    "contract_id": { "const": "evidence-fragment/v3-internal-v1" },
+    "contract_version": { "$ref": "_common-v3.schema.json#/$defs/contract_version" },
+    "workspace": { "$ref": "_common-v3.schema.json#/$defs/workspace" },
+    "source_asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+    "source_hash": { "$ref": "_common-v3.schema.json#/$defs/hash" },
+    "provider_trace": { "$ref": "_common-v3.schema.json#/$defs/provider_trace" },
+
+    "fragment_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+    "episode_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+    "literal_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000,
+      "description": "Texto EXACTO tal y como aparece en el episodio. No se reescribe, no se corrige, no se traduce."
+    },
+    "normalized_text": { "type": "string", "maxLength": 20000 },
+    "start": { "type": "integer", "minimum": 0 },
+    "end": { "type": "integer", "minimum": 0 },
+    "bbox": { "$ref": "_common-v3.schema.json#/$defs/bbox_or_null" },
+    "time_start": { "$ref": "_common-v3.schema.json#/$defs/seconds_or_null" },
+    "time_end": { "$ref": "_common-v3.schema.json#/$defs/seconds_or_null" },
+    "frame_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null" },
+    "page": { "$ref": "_common-v3.schema.json#/$defs/offset_or_null" },
+    "media_type": { "$ref": "_common-v3.schema.json#/$defs/media_type" },
+    "confidence": { "$ref": "_common-v3.schema.json#/$defs/confidence" },
+    "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" }
+  }
+}
