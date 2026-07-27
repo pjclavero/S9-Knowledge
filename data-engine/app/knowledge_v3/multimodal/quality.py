@@ -14,6 +14,8 @@ import re
 import unicodedata
 from typing import Any, Iterable, Sequence
 
+from . import errors
+
 # ── Codigos de bandera (mismo formato que `reason_code` del contrato) ──────────
 EMPTY_TEXT = "EMPTY_TEXT"
 SHORT_TEXT = "SHORT_TEXT"
@@ -31,6 +33,12 @@ RAGGED_TABLE = "RAGGED_TABLE"
 
 #: Longitud por debajo de la cual un episodio de texto se marca como corto.
 SHORT_TEXT_CHARS = 24
+
+#: Confianza de proveedor por debajo de la cual se marca `LOW_PROVIDER_CONFIDENCE`.
+#: Mismo umbral que `media/multimedia_contract.LOW_CONFIDENCE_THRESHOLD`, y el
+#: mismo en las tres vias (ASR, hablante, visual): un umbral por via haria que
+#: "confianza baja" significase cosas distintas segun quien lo dijera.
+LOW_CONFIDENCE_THRESHOLD = 0.50
 
 #: Cobertura temporal minima (segundos transcritos / duracion declarada) por
 #: debajo de la cual el audio se considera mal cubierto.
@@ -59,6 +67,31 @@ def normalize_text(text: str) -> str:
 
 def _clamp(value: float) -> float:
     return max(0.0, min(1.0, round(value, 6)))
+
+
+def check_provider_confidence(value: Any, *, where: str) -> float:
+    """Valida una confianza VENIDA DE UN PROVEEDOR. Fuera de [0,1] -> rechazo.
+
+    Politica unica para las tres vias (ASR, hablante, visual): un valor fuera
+    de rango es un proveedor mal integrado (una escala 0-100, un porcentaje, un
+    -1 de "no se"), y **no se acota en silencio**. Acotar convertiria un 42.0
+    en 1.0, es decir, en la certeza absoluta de un motor que en realidad no
+    dijo eso: es mentir con la forma de un dato valido.
+    """
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError) as exc:
+        raise errors.NormalizationError(
+            errors.PROVIDER_CONFIDENCE_OUT_OF_RANGE,
+            f"confianza no numerica en {where}: {value!r}",
+        ) from exc
+    if not (0.0 <= confidence <= 1.0):
+        raise errors.NormalizationError(
+            errors.PROVIDER_CONFIDENCE_OUT_OF_RANGE,
+            f"confianza {confidence} fuera de [0,1] en {where}; acotarla en "
+            "silencio convertiria una escala equivocada en una certeza falsa",
+        )
+    return confidence
 
 
 def quality(score: float, flags: Iterable[str] = ()) -> dict[str, Any]:

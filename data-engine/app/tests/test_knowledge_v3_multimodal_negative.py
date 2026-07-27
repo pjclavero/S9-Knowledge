@@ -12,6 +12,7 @@ protegida por nada, y este fichero lo dejaria a la vista.
 """
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -33,7 +34,6 @@ from knowledge_v3.multimodal import (  # noqa: E402
     normalize_bytes,
 )
 from knowledge_v3.multimodal.base import AdapterOutput  # noqa: E402
-from knowledge_v3.multimodal.quality import quality  # noqa: E402
 from test_knowledge_v3_multimodal_fixtures import (  # noqa: E402
     MARKDOWN_FIXTURE,
     TEXT_FIXTURE,
@@ -548,3 +548,134 @@ class TestEntradasGrandes:
     def test_un_episodio_que_supera_el_limite_del_contrato_se_rechaza(self):
         with pytest.raises(V3ContractError):
             _assemble([EpisodeDraft(modality="TEXT", text="x" * 200_001)])
+
+
+# ── Mutaciones de la ronda de correcciones (H1, H2, H4) ───────────────────────
+class TestMutacionRondaCorrecciones:
+    def test_mutar_la_normalizacion_de_saltos_de_linea_pierde_el_fichero(
+        self, monkeypatch
+    ):
+        """H1. Sin normalizar CRLF, un .txt de Windows entero es UN episodio.
+
+        Pasado el limite de 200.000 caracteres del contrato, ese episodio unico
+        se rechaza y la fuente se pierde COMPLETA. La mutacion lo demuestra.
+        """
+        import knowledge_v3.multimodal.adapters.text as text_adapter
+        import knowledge_v3.multimodal.textutil as textutil
+
+        parrafo = "Elara cruzo el paso de Kerdan con el convoy del Gremio y " * 100
+        datos = ((parrafo + "llego.\r\n\r\n") * 40).encode("utf-8")
+
+        sano = normalize_bytes(
+            datos, original_name="w.txt", original_location="file:///w.txt",
+            options=options(),
+        )
+        assert len(sano.episodes) == 40
+
+        monkeypatch.setattr(textutil, "normalize_newlines", lambda text: text)
+        monkeypatch.setattr(text_adapter, "normalize_newlines", lambda text: text)
+        with pytest.raises(V3ContractError):
+            normalize_bytes(
+                datos, original_name="w.txt", original_location="file:///w.txt",
+                options=options(),
+            )
+
+    def test_mutar_la_guarda_de_proveedor_externo_produce_un_asset_contradictorio(
+        self, monkeypatch
+    ):
+        """H2. Sin la guarda: politica `false` y traza `external` a la vez."""
+        from knowledge_v3.multimodal.adapters import visual
+        from knowledge_v3.multimodal.registry import default_registry
+        from test_knowledge_v3_multimodal_fixtures import FakeVisualProvider
+
+        provider = FakeVisualProvider({visual.MODE_HTR: ("texto", 0.9)}, provider="external")
+        png = b"\x89PNG\r\n\x1a\nimagen"
+
+        with pytest.raises(NormalizationError) as exc:
+            normalize_bytes(
+                png, original_name="f.png", original_location="file:///f.png",
+                options=options(allow_external_providers=False), source_kind="HANDWRITING",
+                registry=default_registry(visual_provider=provider),
+            )
+        assert exc.value.reason_code == "EXTERNAL_PROVIDER_NOT_ALLOWED"
+
+        monkeypatch.setattr(
+            visual._BaseVisualAdapter, "_check_external_allowed",
+            lambda self, provider_kind, opts: None,
+        )
+        mutado = normalize_bytes(
+            png, original_name="f.png", original_location="file:///f.png",
+            options=options(allow_external_providers=False), source_kind="HANDWRITING",
+            registry=default_registry(visual_provider=provider),
+        )
+        # El documento resultante valida contra el schema y aun asi se
+        # contradice: eso es lo que la guarda impide.
+        assert mutado.asset.processing_policy["allow_external_providers"] is False
+        assert any(
+            paso["provider"] == "external"
+            for paso in mutado.episodes[0].provider_trace
+        )
+
+    def test_mutar_la_comprobacion_de_confianza_a_un_acotado_convierte_42_en_certeza(
+        self, monkeypatch
+    ):
+        """H4. Acotar en silencio convierte un 42.0 en 1.0: certeza inventada."""
+        import knowledge_v3.multimodal.adapters.transcript as transcript
+
+        rota = diarized_transcript()
+        for segmento in rota["segments"]:
+            segmento["confidence"] = 42.0
+
+        with pytest.raises(NormalizationError) as exc:
+            normalize_bytes(
+                b"AUDIO", original_name="s.mp3", original_location="file:///s.mp3",
+                options=options(), payload={"transcript": rota},
+            )
+        assert exc.value.reason_code == "PROVIDER_CONFIDENCE_OUT_OF_RANGE"
+
+        monkeypatch.setattr(
+            transcript,
+            "check_provider_confidence",
+            lambda value, where: max(0.0, min(1.0, float(value))),
+        )
+        mutado = normalize_bytes(
+            b"AUDIO", original_name="s.mp3", original_location="file:///s.mp3",
+            options=options(), payload={"transcript": rota},
+        )
+        assert all(f.confidence == 1.0 for f in mutado.fragments)
+
+    def test_mutar_la_deteccion_de_vallas_convierte_documentacion_en_datos(
+        self, monkeypatch
+    ):
+        """H9. Sin rastrear ``` el ejemplo de un manual entra como TABLE."""
+        import knowledge_v3.multimodal.adapters.markdown as markdown
+
+        from test_knowledge_v3_multimodal_fixtures import MARKDOWN_FENCED_FIXTURE
+
+        datos = MARKDOWN_FENCED_FIXTURE.encode("utf-8")
+        sano = normalize_bytes(
+            datos, original_name="m.md", original_location="vault://m.md",
+            options=options(),
+        )
+        assert sum(1 for e in sano.episodes if e.modality == "TABLE") == 1
+
+        monkeypatch.setattr(markdown, "_FENCE", re.compile(r"^(?!x)x"))
+        mutado = normalize_bytes(
+            datos, original_name="m.md", original_location="vault://m.md",
+            options=options(),
+        )
+        assert sum(1 for e in mutado.episodes if e.modality == "TABLE") == 2
+
+    def test_mutar_el_registro_para_admitir_colisiones_lo_hace_dependiente_del_orden(self):
+        """H6. Con `setdefault`, quien se registrase primero ganaba en silencio."""
+        from knowledge_v3.multimodal.adapters.text import PlainTextAdapter
+        from knowledge_v3.multimodal.registry import AdapterRegistry
+
+        class OtroTexto(PlainTextAdapter):
+            name = "otro.texto"
+            source_kinds = ("OTRO_TEXTO",)
+
+        registry = AdapterRegistry([PlainTextAdapter()])
+        with pytest.raises(NormalizationError) as exc:
+            registry.register(OtroTexto())
+        assert exc.value.reason_code == "DUPLICATE_ADAPTER"

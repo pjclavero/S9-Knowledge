@@ -42,11 +42,13 @@ from knowledge_v3.multimodal.adapters.visual import (  # noqa: E402
 from knowledge_v3.multimodal.registry import default_registry  # noqa: E402
 from test_knowledge_v3_multimodal_fixtures import (  # noqa: E402
     CSV_FIXTURE,
+    MARKDOWN_FENCED_FIXTURE,
     MARKDOWN_FIXTURE,
     TEXT_FIXTURE,
     FakeVisualProvider,
     MultimediaArtifactLike,
     TranscriptResultLike,
+    crlf,
     diarized_transcript,
     options,
     pdf_with_text,
@@ -108,6 +110,41 @@ class TestAdaptadorTexto:
         assert "SHORT_TEXT" in result.episodes[0].quality["flags"]
         assert result.episodes[0].quality["score"] < 1.0
 
+    # -- H1: finales de linea de Windows ------------------------------------
+    def test_crlf_produce_la_misma_granularidad_que_lf(self, result):
+        windows = normalize_bytes(
+            crlf(TEXT_FIXTURE),
+            original_name="cronica.txt",
+            original_location="file:///vault/cronica.txt",
+            options=options(),
+        )
+        assert len(windows.episodes) == len(result.episodes)
+        assert [e.text for e in windows.episodes] == [e.text for e in result.episodes]
+        assert [f.literal_text for f in windows.fragments] == [
+            f.literal_text for f in result.fragments
+        ]
+
+    def test_un_txt_de_windows_grande_no_acaba_en_un_solo_episodio(self):
+        """Sin normalizar CRLF, esto era UN episodio de >200k y el contrato lo tumbaba."""
+        parrafo = "Elara cruzo el paso de Kerdan con el convoy del Gremio y " * 100
+        datos = crlf((parrafo + "llego.\n\n") * 40)
+        assert len(datos) > 200_000  # el limite de `text` del contrato
+        result = normalize_bytes(
+            datos, original_name="largo.txt",
+            original_location="file:///largo.txt", options=options(),
+        )
+        assert len(result.episodes) == 40
+        _check_anclajes(result)
+
+    def test_cr_suelto_de_mac_clasico_tambien_se_normaliza(self):
+        result = normalize_bytes(
+            b"Primer parrafo.\r\rSegundo parrafo.",
+            original_name="mac.txt", original_location="file:///mac.txt",
+            options=options(),
+        )
+        assert len(result.episodes) == 2
+        assert "\r" not in (result.episodes[0].text or "")
+
     def test_bucle_de_repeticion_se_detecta(self):
         texto = "El barco zarpa. " * 6
         result = normalize_bytes(
@@ -157,6 +194,43 @@ class TestAdaptadorMarkdown:
             options=options(),
         )
         assert result.report["markdown_table_episodes"] == 0
+
+    # -- H9: bloques cercados ------------------------------------------------
+    def test_una_tabla_dentro_de_un_bloque_cercado_no_es_una_tabla(self):
+        result = normalize_bytes(
+            MARKDOWN_FENCED_FIXTURE.encode("utf-8"),
+            original_name="manual.md", original_location="vault://manual.md",
+            options=options(),
+        )
+        tablas = [e for e in result.episodes if e.modality == "TABLE"]
+        assert len(tablas) == 1  # solo la de datos, no la del ejemplo
+        assert tablas[0].table["header"] == ["Objeto", "Cantidad"]
+
+    def test_una_rejilla_dentro_del_bloque_cercado_queda_como_texto(self):
+        result = normalize_bytes(
+            MARKDOWN_FENCED_FIXTURE.encode("utf-8"),
+            original_name="manual.md", original_location="vault://manual.md",
+            options=options(),
+        )
+        texto = "\n".join(e.text or "" for e in result.episodes)
+        assert "| Columna | Otra |" in texto
+
+    def test_una_almohadilla_dentro_del_bloque_no_abre_seccion(self):
+        result = normalize_bytes(
+            MARKDOWN_FENCED_FIXTURE.encode("utf-8"),
+            original_name="manual.md", original_location="vault://manual.md",
+            options=options(),
+        )
+        rutas = [tuple(e.metadata.get("heading_path", [])) for e in result.episodes if e.metadata]
+        assert all(r in ((), ("Manual del formato",)) for r in rutas)
+
+    def test_crlf_en_markdown_no_rompe_la_deteccion_de_tabla(self):
+        result = normalize_bytes(
+            crlf(MARKDOWN_FIXTURE),
+            original_name="cronica.md", original_location="vault://cronica.md",
+            options=options(),
+        )
+        assert result.report["markdown_table_episodes"] == 1
 
     def test_una_barra_suelta_no_se_confunde_con_una_tabla(self):
         result = normalize_bytes(
@@ -467,6 +541,82 @@ class TestAdaptadorTranscripcion:
             coerce_transcript({"segments": [], "text": ""})
         assert exc.value.reason_code == "EMPTY_SOURCE"
 
+    # -- H4: confianza del proveedor ASR ------------------------------------
+    @pytest.mark.parametrize("valor", [95.0, 100, -1, 1.5])
+    def test_confianza_de_segmento_fuera_de_rango_se_rechaza(self, valor):
+        """Un motor con escala 0-100 se detecta, no se acota en silencio."""
+        transcript = plain_transcript()
+        transcript["segments"][0]["confidence"] = valor
+        with pytest.raises(NormalizationError) as exc:
+            self._audio(transcript)
+        assert exc.value.reason_code == "PROVIDER_CONFIDENCE_OUT_OF_RANGE"
+
+    def test_confianza_de_hablante_fuera_de_rango_se_rechaza(self):
+        transcript = diarized_transcript()
+        for segment in transcript["segments"]:
+            segment["confidence"] = 88.0
+        with pytest.raises(NormalizationError) as exc:
+            self._audio(transcript)
+        assert exc.value.reason_code == "PROVIDER_CONFIDENCE_OUT_OF_RANGE"
+
+    def test_confianza_no_numerica_se_rechaza(self):
+        transcript = plain_transcript()
+        transcript["segments"][0]["confidence"] = "alta"
+        with pytest.raises(NormalizationError) as exc:
+            self._audio(transcript)
+        assert exc.value.reason_code == "PROVIDER_CONFIDENCE_OUT_OF_RANGE"
+
+    def test_los_extremos_del_rango_si_se_aceptan(self):
+        transcript = plain_transcript()
+        transcript["segments"][0]["confidence"] = 0.0
+        transcript["segments"][1]["confidence"] = 1.0
+        result = self._audio(transcript)
+        assert result.fragments[0].confidence == 0.0
+        assert result.fragments[1].confidence == 1.0
+
+    # -- H7: el registro JSON de youtube/ no se envuelve tal cual ------------
+    def test_el_registro_crudo_de_youtube_no_es_envolvible(self):
+        """`transcript` como str: hay que remapearlo (ver docs/v3/02-multimodal.md)."""
+        with pytest.raises(NormalizationError) as exc:
+            normalize_bytes(
+                b"", original_name="v", original_location="https://youtu.be/x",
+                options=options(), source_kind="YOUTUBE",
+                payload={"transcript": "Elara vive en Nortala."},
+            )
+        assert exc.value.reason_code == "EMPTY_SOURCE"
+
+    def test_el_remapeo_documentado_si_funciona(self):
+        crudo = {"transcript": "Elara vive en Nortala.", "source_method": "subtitles"}
+        remapeado = {
+            "full_text": crudo["transcript"],
+            "source_method": crudo["source_method"],
+            "engine": "whisper",
+            "language": "es",
+        }
+        result = normalize_bytes(
+            b"", original_name="v", original_location="https://youtu.be/x",
+            options=options(), source_kind="YOUTUBE",
+            payload={"transcript": remapeado},
+        )
+        assert result.episodes[0].text == "Elara vive en Nortala."
+        assert {f.media_type for f in result.fragments} == {"CAPTION"}
+
+    def test_caption_depende_del_source_method_declarado_por_el_llamante(self):
+        """Frontera de confianza: declarar 'subtitles' sobre whisper da CAPTION sin tiempos."""
+        mentira = normalize_bytes(
+            b"", original_name="v", original_location="https://youtu.be/x",
+            options=options(), source_kind="YOUTUBE",
+            payload={"transcript": untimed_transcript(source_method="subtitles")},
+        )
+        honesto = normalize_bytes(
+            b"", original_name="v", original_location="https://youtu.be/x",
+            options=options(), source_kind="YOUTUBE",
+            payload={"transcript": untimed_transcript(source_method="whisper")},
+        )
+        assert {f.media_type for f in mentira.fragments} == {"CAPTION"}
+        assert all(f.time_start is None for f in mentira.fragments)
+        assert honesto.fragments == []
+
     def test_group_segments_corta_por_cambio_de_hablante(self):
         segmentos = [
             SegmentView(0.0, 1.0, "a", speaker="A"),
@@ -638,7 +788,7 @@ class TestAdaptadoresVisuales:
             PNG,
             original_name="f.png",
             original_location="file:///f.png",
-            options=options(),
+            options=options(allow_external_providers=True),
             source_kind="HANDWRITING",
             registry=default_registry(visual_provider=provider),
         )
@@ -660,6 +810,7 @@ class TestAdaptadoresVisuales:
                     confidence=0.9,
                     text="texto literal",
                     description="y ademas una interpretacion",
+                    provider="local",
                 )
 
         with pytest.raises(NormalizationError) as exc:
@@ -711,3 +862,108 @@ class TestAdaptadoresVisuales:
 
     def test_el_proveedor_ausente_es_un_caso_normal_no_una_excepcion(self):
         assert NoVisualProvider().recognize(object()) is None
+
+    # -- H2: la politica de proveedores externos se APLICA -------------------
+    def test_proveedor_externo_con_politica_cerrada_es_rechazado(self):
+        provider = FakeVisualProvider({MODE_HTR: ("texto", 0.9)}, provider="external")
+        with pytest.raises(NormalizationError) as exc:
+            normalize_bytes(
+                PNG, original_name="f.png", original_location="file:///f.png",
+                options=options(allow_external_providers=False),
+                source_kind="HANDWRITING",
+                registry=default_registry(visual_provider=provider),
+            )
+        assert exc.value.reason_code == "EXTERNAL_PROVIDER_NOT_ALLOWED"
+
+    def test_el_rechazo_ocurre_antes_de_mandarle_nada_al_proveedor(self):
+        """Rechazar solo el resultado ya habria expuesto los bytes."""
+        provider = FakeVisualProvider({MODE_HTR: ("texto", 0.9)}, provider="external")
+        with pytest.raises(NormalizationError):
+            normalize_bytes(
+                PNG, original_name="f.png", original_location="file:///f.png",
+                options=options(), source_kind="HANDWRITING",
+                registry=default_registry(visual_provider=provider),
+            )
+        assert provider.calls == []
+
+    def test_proveedor_que_oculta_su_clase_se_rechaza_al_ver_el_resultado(self):
+        """Mutacion: el proveedor no declara `provider_kind` y dice ser externo."""
+        provider = FakeVisualProvider({MODE_HTR: ("texto", 0.9)}, provider="external")
+        provider.provider_kind = "local"  # mentira por adelantado
+        with pytest.raises(NormalizationError) as exc:
+            normalize_bytes(
+                PNG, original_name="f.png", original_location="file:///f.png",
+                options=options(), source_kind="HANDWRITING",
+                registry=default_registry(visual_provider=provider),
+            )
+        assert exc.value.reason_code == "EXTERNAL_PROVIDER_NOT_ALLOWED"
+        assert provider.calls  # esta vez si se le llamo: por eso hay dos guardas
+
+    def test_proveedor_local_no_necesita_permiso_externo(self):
+        provider = FakeVisualProvider({MODE_HTR: ("texto leido", 0.9)}, provider="local")
+        result = normalize_bytes(
+            PNG, original_name="f.png", original_location="file:///f.png",
+            options=options(allow_external_providers=False), source_kind="HANDWRITING",
+            registry=default_registry(visual_provider=provider),
+        )
+        assert result.episodes[0].modality == "HTR_TEXT"
+
+    # -- H4/H5: confianza del proveedor -------------------------------------
+    @pytest.mark.parametrize("valor", [42.0, 100, -0.5, 1.0001])
+    def test_confianza_visual_fuera_de_rango_se_rechaza(self, valor):
+        provider = FakeVisualProvider({MODE_HTR: ("texto", valor)})
+        with pytest.raises(NormalizationError) as exc:
+            normalize_bytes(
+                PNG, original_name="f.png", original_location="file:///f.png",
+                options=options(), source_kind="HANDWRITING",
+                registry=default_registry(visual_provider=provider),
+            )
+        assert exc.value.reason_code == "PROVIDER_CONFIDENCE_OUT_OF_RANGE"
+
+    def test_confianza_visual_baja_deja_reason_code(self):
+        provider = FakeVisualProvider({MODE_HTR: ("texto reconocido dudoso", 0.31)})
+        result = normalize_bytes(
+            PNG, original_name="f.png", original_location="file:///f.png",
+            options=options(), source_kind="HANDWRITING",
+            registry=default_registry(visual_provider=provider),
+        )
+        assert "LOW_PROVIDER_CONFIDENCE" in result.episodes[0].quality["flags"]
+        assert result.episodes[0].quality["score"] <= 0.31
+
+    def test_confianza_baja_en_interpretacion_visual_tambien_deja_reason_code(self):
+        provider = FakeVisualProvider({MODE_DESCRIPTION: ("un mapa borroso", 0.2)})
+        result = normalize_bytes(
+            PNG, original_name="m.png", original_location="file:///m.png",
+            options=options(), source_kind="IMAGE",
+            registry=default_registry(visual_provider=provider),
+        )
+        visual = next(e for e in result.episodes if e.modality == "IMAGE" and e.metadata.get("description"))
+        assert "LOW_PROVIDER_CONFIDENCE" in visual.quality["flags"]
+
+    # -- H10: convencion de offsets del anclaje por bbox --------------------
+    def test_la_evidencia_anclada_por_bbox_no_finge_offsets_de_texto(self):
+        provider = FakeVisualProvider({MODE_DESCRIPTION: ("Mapa con dos torres", 0.8)})
+        result = normalize_bytes(
+            PNG, original_name="m.png", original_location="file:///m.png",
+            options=options(), source_kind="IMAGE",
+            registry=default_registry(visual_provider=provider),
+        )
+        fragmento = next(f for f in result.fragments if f.media_type == "IMAGE_DESCRIPTION")
+        assert (fragmento.start, fragmento.end) == (0, 0)
+        assert fragmento.metadata["anchor"] == "bbox"
+        assert fragmento.bbox is not None
+        # El episodio no tiene texto: leer esos offsets como offsets de texto
+        # no tendria contra que medir, y por eso valen 0.
+        episodio = next(e for e in result.episodes if e.episode_id == fragmento.episode_id)
+        assert episodio.text is None
+
+    def test_la_evidencia_ocr_si_lleva_offsets_de_texto_reales(self):
+        provider = FakeVisualProvider({MODE_HTR: ("Borin Hald", 0.9)})
+        result = normalize_bytes(
+            PNG, original_name="f.png", original_location="file:///f.png",
+            options=options(), source_kind="HANDWRITING",
+            registry=default_registry(visual_provider=provider),
+        )
+        fragmento = result.fragments[0]
+        episodio = result.episodes[0]
+        assert episodio.text[fragmento.start : fragmento.end] == fragmento.literal_text

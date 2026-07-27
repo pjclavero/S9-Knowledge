@@ -70,6 +70,31 @@ CSV_FIXTURE = (
     "Borin Hald,Corona de Kerdan,Kerdan\n"
 )
 
+#: Markdown con una tabla DENTRO de un bloque cercado: es documentacion de un
+#: formato, no datos. No debe salir como episodio TABLE.
+MARKDOWN_FENCED_FIXTURE = """# Manual del formato
+
+Asi se escribe una tabla en Markdown:
+
+```markdown
+| Columna | Otra |
+|---|---|
+| valor | otro |
+# Esto tampoco es un encabezado: va dentro del bloque cercado.
+```
+
+Y esta si es una tabla de datos:
+
+| Objeto | Cantidad |
+|---|---|
+| Espada | 1 |
+"""
+
+
+def crlf(text: str) -> bytes:
+    """Mismo contenido con finales de linea de Windows."""
+    return text.replace("\n", "\r\n").encode("utf-8")
+
 
 # ── PDF minimo generado ───────────────────────────────────────────────────────
 def make_pdf(pages: Sequence[Sequence[str]]) -> bytes:
@@ -230,9 +255,15 @@ class FakeVisualProvider:
     que se le configura.
     """
 
-    def __init__(self, responses: dict[str, tuple[str, float]], *, provider: str = "external"):
+    #: Clase de proveedor declarada POR ADELANTADO. El adaptador la consulta
+    #: antes de mandarle nada, para no exponer los bytes a un proveedor que la
+    #: politica del asset no admite.
+    provider_kind = "local"
+
+    def __init__(self, responses: dict[str, tuple[str, float]], *, provider: str = "local"):
         self.responses = responses
         self.provider = provider
+        self.provider_kind = provider
         self.calls: list = []
 
     def recognize(self, request):

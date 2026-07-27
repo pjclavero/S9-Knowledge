@@ -55,7 +55,9 @@ from ..base import (
 )
 from ...contracts import canonical_json
 from ..quality import (
+    LOW_CONFIDENCE_THRESHOLD,
     LOW_PROVIDER_CONFIDENCE,
+    check_provider_confidence,
     quality,
     transcript_quality,
 )
@@ -156,13 +158,20 @@ def coerce_transcript(payload: Any) -> TranscriptView:
             continue
         start = _get(raw, "start")
         end = _get(raw, "end")
+        confidence = _get(raw, "confidence")
+        if confidence is not None:
+            # Politica unica: una confianza fuera de [0,1] es un proveedor mal
+            # integrado y se rechaza aqui, no se acota mas adelante.
+            confidence = check_provider_confidence(
+                confidence, where=f"segmento de transcripcion {text[:32]!r}"
+            )
         segments.append(
             SegmentView(
                 start=float(start) if start is not None else None,
                 end=float(end) if end is not None else None,
                 text=text,
                 speaker=(_get(raw, "speaker") or None),
-                confidence=_get(raw, "confidence"),
+                confidence=confidence,
             )
         )
 
@@ -228,7 +237,9 @@ def _speaker_block(asset_seed: str, label: str, confidence: Optional[float]) -> 
         "label": label,
     }
     if confidence is not None:
-        block["confidence"] = max(0.0, min(1.0, float(confidence)))
+        block["confidence"] = check_provider_confidence(
+            confidence, where=f"hablante {label!r}"
+        )
     return block
 
 
@@ -288,7 +299,7 @@ def episodes_from_transcript(
             flags.append(NO_TIMECODES)
             score = min(score, 0.5)
         confidences = [s.confidence for s in group if s.confidence is not None]
-        if confidences and min(confidences) < 0.5:
+        if confidences and min(confidences) < LOW_CONFIDENCE_THRESHOLD:
             flags.append(LOW_PROVIDER_CONFIDENCE)
 
         fragments = []

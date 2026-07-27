@@ -110,6 +110,46 @@ class TestRegistry:
             registry.register(PlainTextAdapter())
         assert exc.value.reason_code == "DUPLICATE_ADAPTER"
 
+    def test_colision_de_mime_tambien_es_error(self):
+        """Con `setdefault`, el orden de registro decidia en silencio."""
+        class OtroTexto(PlainTextAdapter):
+            name = "otro.texto"
+            source_kinds = ("OTRO_TEXTO",)
+
+        registry = AdapterRegistry([PlainTextAdapter()])
+        with pytest.raises(NormalizationError) as exc:
+            registry.register(OtroTexto())
+        assert exc.value.reason_code == "DUPLICATE_ADAPTER"
+        assert "mime_type" in exc.value.message
+
+    def test_colision_de_extension_tambien_es_error(self):
+        class OtroTexto(PlainTextAdapter):
+            name = "otro.texto"
+            source_kinds = ("OTRO_TEXTO",)
+            mime_types = ("text/otro",)
+
+        registry = AdapterRegistry([PlainTextAdapter()])
+        with pytest.raises(NormalizationError) as exc:
+            registry.register(OtroTexto())
+        assert exc.value.reason_code == "DUPLICATE_ADAPTER"
+        assert "extension" in exc.value.message
+
+    def test_una_colision_no_deja_el_registro_a_medias(self):
+        """Se comprueba TODO antes de escribir nada."""
+        class OtroTexto(PlainTextAdapter):
+            name = "otro.texto"
+            source_kinds = ("OTRO_TEXTO",)
+
+        registry = AdapterRegistry([PlainTextAdapter()])
+        with pytest.raises(NormalizationError):
+            registry.register(OtroTexto())
+        assert "OTRO_TEXTO" not in registry.source_kinds()
+
+    def test_el_registro_por_defecto_no_tiene_ninguna_colision(self):
+        """Si la hubiera, `default_registry()` reventaria al construirse."""
+        registry = default_registry()
+        assert len(registry.adapters) == 10
+
     def test_replace_permite_sustituir_explicitamente(self):
         registry = AdapterRegistry([PlainTextAdapter()])
         nuevo = PlainTextAdapter()

@@ -22,6 +22,9 @@ from .text import episodes_from_text
 
 _HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 
+#: Valla de bloque cercado: ``` o ~~~ (con la longitud que sea, >= 3).
+_FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
+
 
 def _heading_path(stack: list[str]) -> list[str]:
     return [h for h in stack if h]
@@ -45,8 +48,27 @@ def parse_markdown(text: str) -> list[EpisodeDraft]:
     stack: list[str] = [""] * 6
     buffer: list[str] = []
     index = 0
+    fence: str | None = None
     while index < len(lines):
         line = lines[index]
+
+        # Dentro de un bloque cercado, el contenido es CODIGO: ni una linea que
+        # empiece por `#` es un encabezado, ni una rejilla de barras es una
+        # tabla. Extraer como TABLE el ejemplo de tabla de un manual convertiria
+        # la documentacion de un formato en datos del grafo.
+        marker = _FENCE.match(line)
+        if fence is not None:
+            buffer.append(line)
+            if marker and marker.group(1)[0] == fence[0] and len(marker.group(1)) >= len(fence):
+                fence = None
+            index += 1
+            continue
+        if marker:
+            fence = marker.group(1)
+            buffer.append(line)
+            index += 1
+            continue
+
         heading = _HEADING.match(line)
         if heading:
             _flush_text(buffer, _heading_path(stack), drafts)

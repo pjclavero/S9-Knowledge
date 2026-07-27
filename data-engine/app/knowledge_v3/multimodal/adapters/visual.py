@@ -45,7 +45,14 @@ from ..base import (
     SourceInput,
     provider_step,
 )
-from ..quality import pending_quality, quality, text_quality
+from ..quality import (
+    LOW_CONFIDENCE_THRESHOLD,
+    LOW_PROVIDER_CONFIDENCE,
+    check_provider_confidence,
+    pending_quality,
+    quality,
+    text_quality,
+)
 
 #: Paso de traza del proveedor de reconocimiento visual.
 STEP_VISION = "vision"
@@ -216,21 +223,31 @@ def _episode_from_result(
     if not content.strip():
         return _pending_episode(result.mode, region)
 
-    confidence = max(0.0, min(1.0, float(result.confidence)))
-    fragment = FragmentDraft(
-        literal_text=content,
-        start=0,
-        end=len(content),
-        media_type=media_type,
-        confidence=confidence,
-        bbox=region.bbox,
-        page=region.page,
-        frame_id=region.frame_id,
-        produced_by=STEP_VISION,
+    confidence = check_provider_confidence(
+        result.confidence, where=f"resultado visual {result.mode} de {result.name!r}"
     )
+    low = confidence < LOW_CONFIDENCE_THRESHOLD
+
     if literal:
+        # OCR/HTR: el texto ES el contenido del episodio, y los offsets son
+        # offsets de texto de verdad.
+        fragment = FragmentDraft(
+            literal_text=content,
+            start=0,
+            end=len(content),
+            media_type=media_type,
+            confidence=confidence,
+            bbox=region.bbox,
+            page=region.page,
+            frame_id=region.frame_id,
+            produced_by=STEP_VISION,
+        )
         episode_quality = text_quality(content)
         episode_quality["score"] = min(episode_quality["score"], confidence)
+        if low:
+            episode_quality["flags"] = sorted(
+                set(episode_quality["flags"]) | {LOW_PROVIDER_CONFIDENCE}
+            )
         return EpisodeDraft(
             modality=modality,
             text=content,
@@ -241,14 +258,34 @@ def _episode_from_result(
             produced_by=STEP_VISION,
             metadata={"region_id": region.region_id},
         )
-    # Interpretacion visual: el texto describe, no cita. Va a metadata, y el
-    # episodio NO se declara textual.
+
+    # Interpretacion visual: el texto describe, no cita. Va a metadata y el
+    # episodio NO se declara textual (`text=None`).
+    #
+    # Convencion de offsets (documentada en docs/v3/02-multimodal.md): el
+    # contrato exige `start` y `end`, no admite omitirlos. En un fragmento
+    # anclado por BBOX no existe texto de episodio contra el que medir, asi que
+    # ambos valen 0 — un tramo vacio — y `metadata.anchor = "bbox"` dice cual es
+    # el anclaje real. Poner `end = len(descripcion)` habria fabricado offsets
+    # que parecen de texto y no recortan nada de ningun sitio.
+    fragment = FragmentDraft(
+        literal_text=content,
+        start=0,
+        end=0,
+        media_type=media_type,
+        confidence=confidence,
+        bbox=region.bbox,
+        page=region.page,
+        frame_id=region.frame_id,
+        produced_by=STEP_VISION,
+        metadata={"anchor": "bbox", "region_id": region.region_id},
+    )
     return EpisodeDraft(
         modality=modality,
         text=None,
         page=region.page,
         bbox=region.bbox,
-        quality=quality(confidence),
+        quality=quality(confidence, [LOW_PROVIDER_CONFIDENCE] if low else []),
         fragments=[fragment],
         produced_by=STEP_VISION,
         metadata={"region_id": region.region_id, "description": content},
@@ -269,6 +306,23 @@ class _BaseVisualAdapter(SourceAdapter):
     def modes_for(self, source: SourceInput) -> tuple[str, ...]:
         """Modos a pedir para esta fuente concreta."""
         return self.modes
+
+    def _check_external_allowed(self, provider_kind: str, options: IngestOptions) -> None:
+        """`processing_policy.allow_external_providers` se APLICA, no se declara.
+
+        El contrato dice que si la politica es `false`, ningun `provider_trace`
+        de la cadena derivada puede llevar `provider='external'`. Sin esta
+        comprobacion, inyectar un proveedor remoto producia un asset que se
+        contradecia a si mismo: politica `false` y traza `external` en el mismo
+        documento, ambos validos por separado.
+        """
+        if provider_kind == "external" and not options.allow_external_providers:
+            raise errors.NormalizationError(
+                errors.EXTERNAL_PROVIDER_NOT_ALLOWED,
+                "proveedor visual externo con allow_external_providers=false: "
+                "la politica del asset prohibe exponer este material a un "
+                "proveedor remoto, y la traza no puede decir lo contrario",
+            )
 
     @property
     def is_stub(self) -> bool:  # type: ignore[override]
@@ -304,6 +358,12 @@ class _BaseVisualAdapter(SourceAdapter):
             raise errors.NormalizationError(
                 errors.EMPTY_SOURCE, f"{source.original_name} sin contenido binario"
             )
+        # Comprobacion PREVIA: si el proveedor declara su clase por adelantado
+        # (`provider_kind`) y la politica no la admite, no se le llega a mandar
+        # el material. Rechazar solo el resultado ya habria expuesto los bytes.
+        self._check_external_allowed(
+            str(getattr(self.provider, "provider_kind", "") or ""), options
+        )
         regions = _regions_from(source)
         mime = source.mime_type or self.default_mime_type
         modes = self.modes_for(source)
@@ -331,6 +391,9 @@ class _BaseVisualAdapter(SourceAdapter):
                         f"el proveedor respondio en modo {result.mode!r} a una "
                         f"peticion {mode!r}",
                     )
+                # Comprobacion POSTERIOR: el proveedor puede no haber declarado
+                # su clase por adelantado, pero el resultado siempre la lleva.
+                self._check_external_allowed(result.provider, options)
                 results.append(result)
                 episodes.append(_episode_from_result(result, region))
         return AdapterOutput(

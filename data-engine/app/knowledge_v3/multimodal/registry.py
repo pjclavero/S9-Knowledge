@@ -32,26 +32,32 @@ class AdapterRegistry:
 
     # -- Registro ----------------------------------------------------------
     def register(self, adapter: SourceAdapter, *, replace: bool = False) -> SourceAdapter:
-        """Registra un adaptador. Sin `replace`, pisar un tipo ya cubierto es un error.
+        """Registra un adaptador. Sin `replace`, pisar algo ya cubierto es un error.
 
-        Un registro que acepta duplicados en silencio convierte el resultado del
-        normalizador en una funcion del orden de importacion.
+        Vale para las TRES claves de resolucion: `source_kind`, MIME y
+        extension. Una colision de MIME o de extension que se resolviera en
+        silencio dejaria el resultado del normalizador a merced del orden de
+        importacion, que es exactamente lo que el determinismo prohibe.
         """
-        for kind in adapter.source_kinds:
-            if kind in self._by_kind and not replace:
-                raise errors.NormalizationError(
-                    errors.DUPLICATE_ADAPTER,
-                    f"source_kind {kind!r} ya lo cubre {self._by_kind[kind].name!r}",
-                )
-            self._by_kind[kind] = adapter
-        for mime in adapter.mime_types:
-            self._by_mime.setdefault(mime.lower(), adapter)
-            if replace:
-                self._by_mime[mime.lower()] = adapter
-        for ext in adapter.extensions:
-            self._by_extension.setdefault(ext.lower(), adapter)
-            if replace:
-                self._by_extension[ext.lower()] = adapter
+        claims = (
+            (self._by_kind, adapter.source_kinds, "source_kind", False),
+            (self._by_mime, adapter.mime_types, "mime_type", True),
+            (self._by_extension, adapter.extensions, "extension", True),
+        )
+        for table, keys, label, lower in claims:
+            for key in keys:
+                normalized = key.lower() if lower else key
+                current = table.get(normalized)
+                if current is not None and current is not adapter and not replace:
+                    raise errors.NormalizationError(
+                        errors.DUPLICATE_ADAPTER,
+                        f"{label} {normalized!r} ya lo cubre {current.name!r}; "
+                        "dos adaptadores compitiendo por la misma clave hacen que "
+                        "el resultado dependa del orden de registro",
+                    )
+        for table, keys, _, lower in claims:
+            for key in keys:
+                table[key.lower() if lower else key] = adapter
         self._adapters = [a for a in self._adapters if a is not adapter] + [adapter]
         return adapter
 

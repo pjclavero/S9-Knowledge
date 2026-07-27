@@ -11,13 +11,24 @@ from __future__ import annotations
 
 from ..base import AdapterOutput, EpisodeDraft, FragmentDraft, IngestOptions, SourceAdapter, SourceInput
 from ..quality import text_quality
-from ..textutil import decode_text, split_paragraphs, split_sentences
+from ..textutil import (
+    decode_text,
+    normalize_newlines,
+    split_paragraphs,
+    split_sentences,
+)
 
 
 def episodes_from_text(
     text: str, *, page: int | None = None, media_type: str = "EMBEDDED_TEXT"
 ) -> list[EpisodeDraft]:
-    """Parrafos -> episodios TEXT con un fragmento por frase."""
+    """Parrafos -> episodios TEXT con un fragmento por frase.
+
+    Normaliza saltos de linea antes de segmentar (idempotente): el texto puede
+    venir de `decode_text`, que ya lo hizo, o de un extractor como pypdf, que
+    no. Los offsets se refieren al texto normalizado.
+    """
+    text = normalize_newlines(text)
     drafts: list[EpisodeDraft] = []
     for _, _, paragraph in split_paragraphs(text):
         fragments = [
