@@ -22,7 +22,7 @@ auditan hardcodes y se documentan los modos futuros; no se construye instalador 
 
 | Variable | Default | Estado |
 |---|---|---|
-| `S9K_ALLOW_REAL_INGEST` | `false` | **implementada** (doble guard de ingesta) |
+| `S9K_ALLOW_REAL_INGEST` | ausente/`false` | **implementada**: guarda tanto el camino B (`review/ingest_approved.py`, triple guard) como, desde 2026-07-27, el camino A legacy (`data-engine/app/ingest_rpg.py` · `Neo4jWriter.__init__`) — sin `S9K_ALLOW_REAL_INGEST=1`/`true` cualquier escritura real en Neo4j desde `ingest_rpg.py` (CLI directo o subproceso lanzado por `youtube/fetch_youtube.py`) aborta con exit code != 0 antes de instanciar el driver. `--dry-run`/`--no-neo4j` siguen sin requerir la llave. Ver docs/v3/00-audit-current-system.md (W1-W3). |
 | `S9K_REVIEW_EXTRACTOR` | `hybrid`/`heuristic` | **implementada** (heuristic/llm/hybrid) |
 | `S9K_NEO4J_URI` / `_USER` / `_PASSWORD` | viewer/.env | **implementada** |
 | `S9K_GLOSSARY_DB` | `state/glossary.db` | **implementada** |
