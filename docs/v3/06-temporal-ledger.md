@@ -52,7 +52,7 @@ ledger que se pusiera la hora solo dejaría de ser reproducible.
 | Proyección a aristas directas | `ledger/projection.py` |
 | Orden total de instantes ISO-8601 | `ledger/timeline.py` |
 | Errores del subsistema | `ledger/errors.py` |
-| Tests (116) | `data-engine/app/tests/test_knowledge_v3_ledger.py`, `..._mutation.py` |
+| Tests (135) | `data-engine/app/tests/test_knowledge_v3_ledger.py`, `..._mutation.py` |
 
 ---
 
@@ -346,10 +346,20 @@ también quedan escritas—, no recortar el log.
 6. revisiones consecutivas por `assertion_id`;
 7. coherencia entrada/documento (`assertion_id` y `recorded_at` no pueden
    discrepar);
-8. opcionalmente (`validate_documents=True`), cada documento contra el contrato
+8. **la matriz de transiciones** entre revisiones consecutivas de cada
+   `assertion_id`;
+9. opcionalmente (`validate_documents=True`), cada documento contra el contrato
    congelado.
 
 Se ejecuta **al cargar** un ledger existente, salvo que se pida lo contrario.
+
+El punto 8 duplica a propósito una regla que ya se aplica al escribir. No es
+redundancia ociosa: escribir por la API no es el único camino. Quien reescriba
+el fichero entero — el modelo de amenaza que este diseño admite en §11 — puede
+forjar entradas con hashes impecables y un ciclo de vida imposible, por ejemplo
+un `RETRACTED` que revive como `CONFIRMED`. Si la matriz viviera sólo en la ruta
+de escritura, la verificación bendeciría esa historia. Tres tests de ledger
+forjado a mano lo comprueban.
 
 Editar una entrada antigua rompe su `entry_hash`; recalcularlo rompe el
 `prev_hash` de la siguiente. **No hay retoque local posible**: o se reescribe el
@@ -363,8 +373,13 @@ workspace ajeno y retroceso del tiempo de transacción.
 
 ## 10. Garantías
 
-1. Ninguna afirmación se muta: los documentos entran, salen y se guardan como
-   copias; mutar lo devuelto no llega al ledger.
+1. Ninguna afirmación se muta. **Toda entrada cruza cualquier frontera como
+   copia**: al almacén, a la caché y al valor devuelto por la operación.
+   `frozen=True` sólo congela las referencias — el dict `assertion` es mutable —,
+   así que sin esa disciplina de copia mutar la entrada devuelta reescribiría el
+   estado materializado del ledger **sin alterar ningún hash**, porque el hash
+   ya estaba calculado. Lo mismo vale para `AssertionVersion.document` y para
+   `LedgerView.entries`, que también devuelven copias.
 2. Toda la historia es recuperable: `history(assertion_id)` devuelve todas las
    revisiones, y ninguna operación reduce el número de entradas.
 3. El estado a cualquier `recorded_at` pasado se reconstruye sólo con el ledger.
@@ -385,12 +400,53 @@ workspace ajeno y retroceso del tiempo de transacción.
 | Límite | Detalle |
 |---|---|
 | **Truncado del final** | Cortar limpiamente las últimas líneas deja una cadena **válida**: el prefijo de un log encadenado sigue siendo un log encadenado. Lo que lo delata es el `snapshot_id`, que ya no se puede reproducir. Está probado como límite (`test_truncating_the_tail_is_detected_by_the_snapshot_not_by_the_chain`), no disimulado. Cerrarlo del todo exige un ancla externa (sello firmado, testigo o `seq` esperado persistido fuera). |
+| **Sustituir y re-sellar la ÚLTIMA entrada** | Variante más barata del anterior, y por eso peor: en vez de recalcular el ledger entero basta con **reemplazar la última línea** por otra distinta con el mismo `prev_hash` y volver a sellarla. Pasa `verify_chain` sin una queja, porque la cadena sólo mira hacia atrás y no hay nadie detrás. Es el ataque realista contra un log *append-only* sin testigo: el único eslabón que se puede reescribir sin efecto dominó es el último. Lo delata lo mismo que el truncado — el `snapshot_id` citado por un plan deja de reproducirse — y lo cierra la misma medida: anclar fuera el `seq`/hash esperado. **Mientras no exista ese ancla, el último eslabón no es de fiar.** |
 | **Verificable, no autenticado** | El hash demuestra que el contenido no ha cambiado; **no** demuestra quién lo escribió. Quien tenga permiso de escritura sobre el fichero puede reescribir el ledger entero y sellarlo de nuevo. La firma criptográfica real está reservada en el contrato (`signature`/`key_id` de `local_approval`) y **no se usa todavía**; el ledger no la suple. |
 | **Concurrencia de escritura** | Un solo escritor. `JsonlLedgerStore` no toma bloqueo de fichero: dos procesos escribiendo a la vez pueden entrelazar `seq` y romper la cadena. La verificación lo **detecta**, pero no lo previene. |
-| **Coste lineal de lectura** | `read_all` recorre el log completo en cada operación; el estado no está materializado en un índice. Es correcto y verificable, pero no está pensado para millones de entradas sin añadir antes snapshots persistidos. |
+| **Coste CUADRÁTICO de escritura** | El titular honesto no es «lectura lineal». `read_all` recorre el log entero, y `append` lo llama para comprobar la numeración: cada escritura cuesta O(n), luego construir un ledger de n entradas cuesta **O(n²)**. La revisión independiente lo midió: **×2.7-×3.1 al doblar el tamaño**, que es lo que se espera de un crecimiento cuadrático, no lineal. Es correcto y verificable, pero no está pensado para millones de entradas sin añadir antes un contador persistido y snapshots materializados. |
 | **`event_time` no se cruza con el eje de transacción** | `by_event_time` opera sobre una vista ya fijada; no hay una consulta tritemporal en un solo paso. No hace falta hoy y añadirla sin caso de uso sería adivinar. |
 | **La proyección no es autoridad** | `projection.py` produce estructuras planas, nunca escribe. Materializarlas es trabajo del writer y sólo mediante un plan firmado. |
-| **El motivo de retracción vive en la entrada, no en el documento** | El contrato congelado de `fact-assertion` **no tiene campo de motivo**. El `reason_code` va en la entrada del ledger, que es la estructura propia de este subsistema. Consecuencia: un `FactAssertion` proyectado a Neo4j **pierde el motivo**; quien lo necesite tiene que consultar el ledger. Se documenta como carencia del contrato, no se disimula duplicando el dato en `metadata` — dos copias divergen. |
+| **El motivo de retracción vive en la entrada, no en el documento** | El contrato congelado de `fact-assertion` **no tiene campo de motivo**. El `reason_code` va en la entrada del ledger, que es la estructura propia de este subsistema. Consecuencia: un `FactAssertion` proyectado a Neo4j **pierde el motivo**. No se disimula duplicando el dato en `metadata` — dos copias divergen. Esto **impone un requisito** a los bloques de writer y visor: ver §11.1. |
+
+### 11.1. Requisitos que este bloque impone a integración
+
+No son sugerencias. Son consecuencias de decisiones ya tomadas aquí, y si el
+bloque de integración no las recoge, el sistema pierde información que el ledger
+sí tiene.
+
+**R1 — El writer y el visor DEBEN leer el `reason_code` del ledger, no del grafo.**
+
+`COPYRIGHT_TAKEDOWN` y `EXTRACTION_ERROR` dejan exactamente el mismo
+`FactAssertion` (`status = RETRACTED`) y son **operativamente distintos**:
+
+- `COPYRIGHT_TAKEDOWN` es una obligación legal — el contenido no puede volver, y
+  quien lo reintroduzca comete el mismo problema otra vez;
+- `EXTRACTION_ERROR` es un fallo del pipeline — el hecho puede perfectamente ser
+  cierto y volver a afirmarse en cuanto la extracción mejore.
+
+Un consumidor que **sólo lea Neo4j no puede distinguirlos**. Por tanto:
+
+1. la operación de retracción del writer debe transportar el `reason_code` de la
+   entrada del ledger (campo propio de la operación o del `payload` del plan, que
+   es un bloque abierto por contrato);
+2. la consola de revisión debe mostrarlo junto al estado `RETRACTED`; presentar
+   «retractado» a secas es ocultar la única información que decide qué hacer
+   después;
+3. ninguna reingesta automática puede reafirmar un hecho cuya última entrada de
+   ledger sea `COPYRIGHT_TAKEDOWN` o `SOURCE_WITHDRAWN` sin decisión humana.
+
+Alternativa limpia si se abre un `1.1.0` de contratos: añadir
+`lifecycle_reason_code` a `fact-assertion`. **Mientras el contrato siga
+congelado, el requisito recae en integración.**
+
+**R2 — El `snapshot_id` que cita un plan debe conservarse fuera del ledger.**
+Es lo único que delata el truncado del final y la sustitución del último eslabón
+(§11). Un plan aplicado deja constancia de su `snapshot_id`; guardarlo fuera del
+fichero del ledger convierte esa constancia en el testigo externo que hoy falta.
+
+**R3 — Un solo escritor por workspace.** `JsonlLedgerStore` no toma bloqueo de
+fichero. Quien integre debe garantizar la exclusión mutua (proceso único, cola o
+bloqueo externo); la verificación detecta el entrelazado, pero no lo evita.
 | **Sin corpus** | Este subsistema no produce ninguna métrica de calidad de extracción. Aquí no hay nada que medir contra un held-out: son invariantes, y se demuestran con tests, no con porcentajes. |
 
 ---
@@ -405,15 +461,20 @@ python3 -m pytest data-engine/app/tests/test_knowledge_v3_ledger.py \
 | Fichero | Tests | Cubre |
 |---|---:|---|
 | `test_knowledge_v3_ledger.py` | 79 | entradas y almacén, ASSERT, CONFIRM, SUPERSEDE, CONTRADICT, RETRACT, ciclo completo, matriz de transiciones, bitemporalidad, snapshot, rollback, proyección |
-| `test_knowledge_v3_ledger_mutation.py` | 37 | manipulación de entradas antiguas, borrado/reordenación/inserción, entradas fabricadas a mano, ausencia de mutación in-place, matriz que no se afloja por la puerta de atrás |
-| **Total** | **116** | |
+| `test_knowledge_v3_ledger_mutation.py` | 56 | manipulación de entradas antiguas, borrado/reordenación/inserción, entradas fabricadas a mano, disciplina de copia (entrada devuelta, vista, historia), ledger forjado con transiciones ilegales, fracciones de segundo de longitudes distintas, guarda de numeración, matriz que no se afloja por la puerta de atrás |
+| **Total** | **135** | |
+
+Los mutantes correspondientes se han verificado uno a uno: compartir el objeto
+de entrada, quitar la matriz de `verify_chain`, quitar el relleno de la fracción
+de segundo, cambiar `!=` por `<` en la guarda de numeración y devolver el
+documento de la vista sin copiar **ponen la suite en rojo**.
 
 Las fixtures son **propias** del ledger: no se importan las de
 `contracts/knowledge-v3/v1/tests/`, para que un cambio en el subsistema de
 contratos no ponga esto en rojo por un motivo ajeno. El documento base que
 construyen se valida contra el contrato congelado en el primer test del fichero.
 
-Suite completa del repositorio tras el trabajo: **4290 pasados, 5 saltados**, sin
+Suite completa del repositorio tras el trabajo: **4309 pasados, 5 saltados**, sin
 regresiones.
 
 ---

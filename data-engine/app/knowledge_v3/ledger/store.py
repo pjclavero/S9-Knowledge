@@ -23,11 +23,10 @@ from __future__ import annotations
 import json
 import os
 from abc import ABC, abstractmethod
-from copy import deepcopy
 from pathlib import Path
 from typing import Iterator, List, Sequence
 
-from .entries import LedgerEntry
+from .entries import LedgerEntry, copy_entry
 
 
 class LedgerStore(ABC):
@@ -75,19 +74,12 @@ class InMemoryLedgerStore(LedgerStore):
 
     def append(self, entry: LedgerEntry) -> None:
         self._check_seq(entry, len(self._entries))
-        # deepcopy del documento: si el llamante conserva la referencia y la
-        # muta despues, el ledger no puede cambiar bajo los pies de nadie.
-        self._entries.append(
-            LedgerEntry(**{**entry.to_dict(), "assertion": deepcopy(entry.assertion),
-                           "related_assertion_ids": tuple(entry.related_assertion_ids)})
-        )
+        # Copia del documento: si el llamante conserva la referencia y la muta
+        # despues, el ledger no puede cambiar bajo los pies de nadie.
+        self._entries.append(copy_entry(entry))
 
     def read_all(self) -> List[LedgerEntry]:
-        return [
-            LedgerEntry(**{**e.to_dict(), "assertion": deepcopy(e.assertion),
-                           "related_assertion_ids": tuple(e.related_assertion_ids)})
-            for e in self._entries
-        ]
+        return [copy_entry(e) for e in self._entries]
 
 
 class JsonlLedgerStore(LedgerStore):

@@ -77,7 +77,7 @@ def project(
     """
     edges: List[ProjectedEdge] = []
     for rec in view.live():
-        doc = rec.document
+        doc = rec.stored_document
         if not include_negated and doc["negated"]:
             continue
         if not include_conflicted and doc["status"] == "CONTRADICTED":

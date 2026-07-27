@@ -115,7 +115,7 @@ def build_snapshot(view: LedgerView, *, workspace: str) -> GraphSnapshot:
         VersionedItem(
             item_id=r.assertion_id,
             version=r.revision,
-            hash=sha256_hash(r.document),
+            hash=sha256_hash(r.stored_document),
         )
         for r in records
     ]
@@ -126,9 +126,9 @@ def build_snapshot(view: LedgerView, *, workspace: str) -> GraphSnapshot:
     per_entity: Dict[str, List[Tuple[str, int, str]]] = {}
     for r in records:
         for key in ("subject_entity_id", "object_entity_id"):
-            eid = r.document[key]
+            eid = r.stored_document[key]
             per_entity.setdefault(eid, []).append(
-                (r.assertion_id, r.revision, str(r.document["status"]))
+                (r.assertion_id, r.revision, str(r.stored_document["status"]))
             )
 
     entities: List[VersionedItem] = []

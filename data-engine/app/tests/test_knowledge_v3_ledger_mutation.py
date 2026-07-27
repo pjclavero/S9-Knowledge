@@ -355,3 +355,240 @@ def test_an_invalid_document_never_reaches_the_store():
     with pytest.raises(V3ContractError):
         led.assert_fact(malo)
     assert len(led) == 0
+
+
+# ==========================================================================
+# 6. H1 — la entrada DEVUELTA no es la entrada del ledger
+# ==========================================================================
+def test_mutating_the_returned_entry_does_not_change_the_ledger():
+    """H1(a): el objeto devuelto por una operacion es una COPIA.
+
+    Si el ledger devolviera el mismo `LedgerEntry` que guarda en su cache,
+    `frozen=True` no protegeria nada: el dict `assertion` es mutable y quien lo
+    tocase reescribiria el estado materializado — `current`, `view`, `live`,
+    `history`, `snapshot`, `project` — sin alterar ningun hash, porque el hash
+    ya estaba calculado.
+    """
+    led = TemporalLedger(WORKSPACE, InMemoryLedgerStore())
+    entrada = led.assert_fact(make_assertion())
+    ancla = led.snapshot().snapshot_id
+
+    entrada.assertion["status"] = "RETRACTED"
+    entrada.assertion["confidence"] = 0.01
+    entrada.assertion["subject_entity_id"] = "entity:impostor"
+
+    assert led.current("assertion:0001")["status"] == "ASSERTED"
+    assert led.current("assertion:0001")["confidence"] == 0.72
+    assert led.view().document("assertion:0001")["subject_entity_id"] == "entity:daiki"
+    assert [r.assertion_id for r in led.live()] == ["assertion:0001"]
+    assert led.history("assertion:0001")[0].document["status"] == "ASSERTED"
+    assert led.snapshot().snapshot_id == ancla
+    assert led.verify_chain() is True
+
+
+def test_the_retract_mutate_confirm_attack_is_impossible():
+    """H1(b): el ataque exacto que demostro el revisor.
+
+    Retractar, mutar en memoria el `status` de la entrada devuelta y confirmar:
+    si la mutacion llegase al ledger, la comprobacion de transicion leeria
+    ASSERTED donde hay RETRACTED y PERSISTIRIA un RETRACTED -> CONFIRMED que
+    `verify_chain` aceptaria para siempre.
+    """
+    led = TemporalLedger(WORKSPACE, InMemoryLedgerStore())
+    led.assert_fact(make_assertion())
+    entrada = led.retract(
+        "assertion:0001", recorded_at="2026-02-01T09:00:00Z",
+        reason_code="EXTRACTION_ERROR",
+    )
+    entrada.assertion["status"] = "ASSERTED"  # el ataque
+
+    with pytest.raises(LedgerTransitionError):
+        led.confirm(
+            "assertion:0001", recorded_at="2026-03-01T09:00:00Z",
+            evidence_fragment_ids=["fragment:falso"],
+        )
+    assert led.current("assertion:0001")["status"] == "RETRACTED"
+    assert len(led) == 2
+    assert led.verify_chain() is True
+
+
+def test_mutating_a_view_record_does_not_corrupt_the_view():
+    """H5: `AssertionVersion.document` devuelve copia; la vista no se corrompe."""
+    led = TemporalLedger(WORKSPACE, InMemoryLedgerStore())
+    led.assert_fact(make_assertion())
+    vista = led.view()
+    registro = vista.records()[0]
+    registro.document["status"] = "RETRACTED"
+    assert registro.document["status"] == "ASSERTED"
+    assert vista.document("assertion:0001")["status"] == "ASSERTED"
+    assert registro.status == "ASSERTED"
+
+
+def test_mutating_the_entries_of_a_view_does_not_reach_the_ledger():
+    led = TemporalLedger(WORKSPACE, InMemoryLedgerStore())
+    led.assert_fact(make_assertion())
+    vista = led.view()
+    vista.entries[0].assertion["confidence"] = 0.01
+    assert led.current("assertion:0001")["confidence"] == 0.72
+    assert vista.document("assertion:0001")["confidence"] == 0.72
+
+
+# ==========================================================================
+# 7. H2 — verify_chain tambien comprueba la matriz de transiciones
+# ==========================================================================
+def _chain(store, docs: list[tuple[dict, int]]) -> None:
+    """Encadena a mano documentos ya sellados, saltandose toda la API."""
+    prev = GENESIS_HASH
+    for seq, (doc, revision) in enumerate(docs):
+        entry = make_entry(
+            seq=seq,
+            operation=LedgerOperation.ASSERT,
+            recorded_at=doc["recorded_at"],
+            workspace=WORKSPACE,
+            assertion=doc,
+            revision=revision,
+            reason_code="INITIAL_ASSERTION",
+            prev_hash=prev,
+        )
+        store.append(entry)
+        prev = entry.entry_hash
+
+
+def test_a_forged_ledger_with_an_illegal_transition_does_not_verify():
+    """Hashes perfectos, ciclo de vida imposible: RETRACTED -> ASSERTED."""
+    store = InMemoryLedgerStore()
+    _chain(
+        store,
+        [
+            (make_assertion(recorded_at="2026-01-10T09:00:00Z"), 1),
+            (make_assertion(recorded_at="2026-02-10T09:00:00Z", status="RETRACTED"), 2),
+            (make_assertion(recorded_at="2026-03-10T09:00:00Z", status="ASSERTED"), 3),
+        ],
+    )
+    with pytest.raises(LedgerIntegrityError, match="historia imposible"):
+        TemporalLedger(WORKSPACE, store)
+
+
+def test_a_forged_ledger_whose_assertion_is_born_confirmed_does_not_verify():
+    store = InMemoryLedgerStore()
+    _chain(store, [(make_assertion(status="CONFIRMED"), 1)])
+    with pytest.raises(LedgerIntegrityError, match="historia imposible"):
+        TemporalLedger(WORKSPACE, store)
+
+
+def test_a_forged_ledger_that_resurrects_a_superseded_version_does_not_verify():
+    store = InMemoryLedgerStore()
+    _chain(
+        store,
+        [
+            (make_assertion(recorded_at="2026-01-10T09:00:00Z"), 1),
+            (
+                make_assertion(
+                    recorded_at="2026-02-10T09:00:00Z", status="SUPERSEDED",
+                    state="ENDED", valid_to="1050-01-01T00:00:00Z",
+                ),
+                2,
+            ),
+            (make_assertion(recorded_at="2026-03-10T09:00:00Z", status="CONFIRMED"), 3),
+        ],
+    )
+    with pytest.raises(LedgerIntegrityError, match="historia imposible"):
+        TemporalLedger(WORKSPACE, store)
+
+
+def test_a_legitimate_ledger_passes_the_transition_check_on_every_operation():
+    """La comprobacion nueva no puede poner en rojo una historia legitima."""
+    led = TemporalLedger(WORKSPACE, InMemoryLedgerStore())
+    led.assert_fact(make_assertion())
+    led.confirm(
+        "assertion:0001", recorded_at="2026-02-01T09:00:00Z",
+        evidence_fragment_ids=["fragment:p20:1"],
+    )
+    led.supersede("assertion:0001", _successor())
+    led.retract(
+        "assertion:0002", recorded_at="2026-04-01T09:00:00Z",
+        reason_code="OPERATOR_RETRACTION",
+    )
+    assert led.verify_chain(validate_documents=True) is True
+
+
+# ==========================================================================
+# 8. H3 — fracciones de segundo de longitudes DISTINTAS
+# ==========================================================================
+def test_fractions_of_different_lengths_keep_their_true_order():
+    """`.5` es medio segundo; `.250` es un cuarto. Medio va DESPUES.
+
+    Sin normalizar la fraccion a microsegundos, la comparacion seria `5 < 250`
+    y el orden quedaria invertido: exactamente el mutante que sobrevivia.
+    """
+    from knowledge_v3.ledger import time_key
+
+    cuarto = time_key("2026-01-01T00:00:00.250Z")
+    medio = time_key("2026-01-01T00:00:00.5Z")
+    assert cuarto < medio
+    # Y una fraccion mas larga con el mismo valor es el MISMO instante.
+    assert time_key("2026-01-01T00:00:00.5Z") == time_key("2026-01-01T00:00:00.500000Z")
+    assert time_key("2026-01-01T00:00:00Z") == time_key("2026-01-01T00:00:00.0Z")
+
+
+def test_a_ledger_ordered_by_fractions_of_different_lengths():
+    led = TemporalLedger(WORKSPACE, InMemoryLedgerStore())
+    led.assert_fact(make_assertion(recorded_at="2026-01-10T09:00:00.250Z"))
+    led.confirm(
+        "assertion:0001",
+        recorded_at="2026-01-10T09:00:00.5Z",
+        evidence_fragment_ids=["fragment:p20:1"],
+    )
+    assert led.verify_chain() is True
+    assert led.view("2026-01-10T09:00:00.300Z").document("assertion:0001")["status"] == "ASSERTED"
+    assert led.view("2026-01-10T09:00:00.900Z").document("assertion:0001")["status"] == "CONFIRMED"
+
+
+# ==========================================================================
+# 9. H4 — la guarda de numeracion, probada por si sola
+# ==========================================================================
+def _entry_with_seq(seq: int) -> LedgerEntry:
+    doc = make_assertion()
+    return make_entry(
+        seq=seq, operation=LedgerOperation.ASSERT, recorded_at=doc["recorded_at"],
+        workspace=WORKSPACE, assertion=doc, revision=1,
+        reason_code="INITIAL_ASSERTION", prev_hash=GENESIS_HASH,
+    )
+
+
+@pytest.mark.parametrize("seq", [1, 2, 7, 99])
+def test_the_store_rejects_a_seq_that_jumps_forward(seq):
+    """Un `seq` DEMASIADO ALTO deja huecos: la cadena dejaria de serlo.
+
+    Se prueba hacia arriba a proposito: una guarda escrita como `<` en vez de
+    `!=` seguiria rechazando los `seq` bajos y dejaria pasar estos.
+    """
+    store = InMemoryLedgerStore()
+    with pytest.raises(ValueError, match="fuera de orden"):
+        store.append(_entry_with_seq(seq))
+    assert len(store) == 0
+
+
+@pytest.mark.parametrize("seq", [0, 1, 3, 50])
+def test_the_store_rejects_a_seq_that_repeats_or_skips_on_a_non_empty_log(seq):
+    store = InMemoryLedgerStore()
+    store.append(_entry_with_seq(0))
+    store.append(
+        make_entry(
+            seq=1, operation=LedgerOperation.ASSERT, recorded_at="2026-02-10T09:00:00Z",
+            workspace=WORKSPACE, assertion=make_assertion(
+                "assertion:0002", subject="entity:ren", recorded_at="2026-02-10T09:00:00Z"
+            ),
+            revision=1, reason_code="INITIAL_ASSERTION",
+            prev_hash=store.last().entry_hash,
+        )
+    )
+    with pytest.raises(ValueError, match="espera 2"):
+        store.append(_entry_with_seq(seq))
+    assert len(store) == 2
+
+
+def test_the_store_accepts_exactly_the_expected_seq():
+    store = InMemoryLedgerStore()
+    store.append(_entry_with_seq(0))
+    assert len(store) == 1

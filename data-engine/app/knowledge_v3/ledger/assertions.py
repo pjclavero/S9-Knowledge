@@ -36,8 +36,19 @@ from copy import deepcopy
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from ..contracts import AssertionStatus, FactAssertion, V3ContractError
-from .entries import GENESIS_HASH, LedgerEntry, LedgerOperation, make_entry
-from .errors import LedgerError, LedgerIntegrityError, LedgerWorkspaceError
+from .entries import (
+    GENESIS_HASH,
+    LedgerEntry,
+    LedgerOperation,
+    copy_entry,
+    make_entry,
+)
+from .errors import (
+    LedgerError,
+    LedgerIntegrityError,
+    LedgerTransitionError,
+    LedgerWorkspaceError,
+)
 from .snapshots import GraphSnapshot, build_snapshot
 from .store import InMemoryLedgerStore, LedgerStore
 from .supersession import (
@@ -194,16 +205,25 @@ class TemporalLedger:
 
         Comprueba, en este orden: numeracion sin huecos, enlace `prev_hash`,
         `entry_hash` recalculado, monotonia del tiempo de transaccion, revisiones
-        consecutivas por afirmacion y coherencia entrada/documento.
+        consecutivas por afirmacion, coherencia entrada/documento y la MATRIZ DE
+        TRANSICIONES entre revisiones consecutivas de cada afirmacion.
 
         Editar una entrada antigua rompe su `entry_hash` y, aunque alguien lo
         recalculase, rompe el `prev_hash` de la siguiente. No hay retoque local
         posible: o se reescribe el ledger entero, o la verificacion cae.
+
+        La matriz se comprueba AQUI ademas de al escribir (H2). Escribir por la
+        API no es el unico camino: quien reescriba el ledger entero — el modelo
+        de amenaza que este diseno admite en su §11 — puede forjar entradas
+        coherentes en hashes y absurdas en ciclo de vida, por ejemplo un
+        RETRACTED que revive como CONFIRMED. Si la matriz solo viviese en la
+        ruta de escritura, la verificacion bendeciria esa historia imposible.
         """
         entries = self._store.read_all()
         prev_hash = GENESIS_HASH
         prev_time: Optional[Tuple] = None
         revisions: Dict[str, int] = {}
+        last_status: Dict[str, str] = {}
         for i, e in enumerate(entries):
             if e.seq != i:
                 raise LedgerIntegrityError(
@@ -248,9 +268,21 @@ class TemporalLedger:
                     f"entrada {e.entry_id}: recorded_at de la entrada y del documento "
                     "no coinciden; habria dos tiempos de transaccion para un mismo hecho"
                 )
+            try:
+                check_transition(
+                    last_status.get(e.assertion_id),
+                    e.assertion.get("status"),
+                    assertion_id=e.assertion_id,
+                )
+            except LedgerTransitionError as exc:
+                raise LedgerIntegrityError(
+                    f"entrada {e.entry_id}: el ledger contiene una historia imposible "
+                    f"({exc}); los hashes cuadran, el ciclo de vida no"
+                ) from exc
             if validate_documents:
                 FactAssertion.from_dict(e.assertion)
             revisions[e.assertion_id] = e.revision
+            last_status[e.assertion_id] = str(e.assertion.get("status"))
             prev_hash = e.entry_hash
             prev_time = k
         return True
@@ -307,8 +339,13 @@ class TemporalLedger:
             related_assertion_ids=tuple(related),
         )
         self._store.append(entry)
-        self._cache.append(entry)
-        return entry
+        # H1: la cache guarda una COPIA y el llamante recibe OTRA. Si los tres
+        # (almacen, cache y retorno) compartieran el mismo dict `assertion`,
+        # mutar la entrada devuelta reescribiria el estado materializado del
+        # ledger sin tocar ningun hash — el hash ya estaba calculado — y
+        # `verify_chain` bendeciria la manipulacion para siempre.
+        self._cache.append(copy_entry(entry))
+        return copy_entry(entry)
 
     def _next_seq(self) -> int:
         return len(self._cache)
@@ -355,7 +392,7 @@ class TemporalLedger:
         if not allow_duplicate_identity:
             identity = logical_identity(doc)
             for rec in self.view().live():
-                if logical_identity(rec.document) == identity:
+                if logical_identity(rec.stored_document) == identity:
                     raise LedgerError(
                         f"ya existe una afirmacion viva con la misma identidad logica "
                         f"({rec.assertion_id}); repetir un hecho es CONFIRMARLO, no "

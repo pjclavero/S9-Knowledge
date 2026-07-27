@@ -26,6 +26,7 @@ from .entries import (  # noqa: F401
     LedgerEntry,
     LedgerOperation,
     compute_entry_hash,
+    copy_entry,
     entry_id_for,
     make_entry,
 )
@@ -86,6 +87,7 @@ __all__ = [
     "check_reason",
     "check_transition",
     "compute_entry_hash",
+    "copy_entry",
     "entry_id_for",
     "in_validity_interval",
     "is_iso_utc",

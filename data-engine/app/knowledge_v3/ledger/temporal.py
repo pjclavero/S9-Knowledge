@@ -23,25 +23,40 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Tuple
 
-from .entries import LedgerEntry
+from .entries import LedgerEntry, copy_entry
 from .supersession import chain_from, is_live
 from .timeline import in_validity_interval, time_key
 
 
 @dataclass(frozen=True)
 class AssertionVersion:
-    """Revision materializada de una afirmacion en un punto del ledger."""
+    """Revision materializada de una afirmacion en un punto del ledger.
+
+    El documento se guarda en `stored_document` y se expone por la propiedad
+    `document`, que devuelve una COPIA (H5). `frozen=True` solo congela las
+    referencias: sin la copia, dos consultas a la misma vista comparten dict y
+    quien toque el de la primera corrompe la segunda. No llega a alterar el
+    ledger — el ledger ya devolvia copias — pero deja en la mano del llamante
+    una vista que miente, y una vista que miente es peor que un error.
+
+    Para leer sin pagar la copia (bucles calientes, comprobaciones de solo
+    lectura) esta `stored_document`, que es explicito sobre lo que se coge.
+    """
 
     assertion_id: str
     revision: int
-    document: dict
+    stored_document: dict
     entry_seq: int
     recorded_at: str
     operation: str
 
     @property
+    def document(self) -> dict:
+        return deepcopy(self.stored_document)
+
+    @property
     def status(self) -> str:
-        return str(self.document["status"])
+        return str(self.stored_document["status"])
 
     @property
     def is_live(self) -> bool:
@@ -64,7 +79,7 @@ class LedgerView:
             self._records[entry.assertion_id] = AssertionVersion(
                 assertion_id=entry.assertion_id,
                 revision=entry.revision,
-                document=deepcopy(entry.assertion),
+                stored_document=deepcopy(entry.assertion),
                 entry_seq=entry.seq,
                 recorded_at=entry.recorded_at,
                 operation=entry.operation,
@@ -79,7 +94,13 @@ class LedgerView:
 
     @property
     def entries(self) -> Tuple[LedgerEntry, ...]:
-        return tuple(self._entries)
+        """Entradas de la vista, como COPIAS.
+
+        La vista se construye sobre la cache del ledger; devolver las entradas
+        tal cual pondria en manos del llamante el mismo dict `assertion` que
+        usa el ledger para materializar su estado (mismo defecto que H1).
+        """
+        return tuple(copy_entry(e) for e in self._entries)
 
     def get(self, assertion_id: str) -> Optional[AssertionVersion]:
         return self._records.get(assertion_id)
@@ -88,7 +109,7 @@ class LedgerView:
         rec = self._records.get(assertion_id)
         if rec is None:
             raise KeyError(f"afirmacion desconocida en esta vista: {assertion_id}")
-        return deepcopy(rec.document)
+        return rec.document
 
     def records(self) -> List[AssertionVersion]:
         """Todas las afirmaciones materializadas, en orden de `assertion_id`."""
@@ -103,7 +124,7 @@ class LedgerView:
         return [r for r in self.records() if r.is_live]
 
     def conflicted(self) -> List[AssertionVersion]:
-        return [r for r in self.records() if r.document["status"] == "CONTRADICTED"]
+        return [r for r in self.records() if r.stored_document["status"] == "CONTRADICTED"]
 
     def history(self, assertion_id: str) -> List[AssertionVersion]:
         """Todas las revisiones de una afirmacion, de la 1 a la actual."""
@@ -111,7 +132,7 @@ class LedgerView:
             AssertionVersion(
                 assertion_id=e.assertion_id,
                 revision=e.revision,
-                document=deepcopy(e.assertion),
+                stored_document=deepcopy(e.assertion),
                 entry_seq=e.seq,
                 recorded_at=e.recorded_at,
                 operation=e.operation,
@@ -122,7 +143,7 @@ class LedgerView:
 
     def supersession_chain(self, assertion_id: str) -> List[str]:
         """Cadena de custodia hacia adelante: version original -> ... -> vigente."""
-        return chain_from({k: v.document for k, v in self._records.items()}, assertion_id)
+        return chain_from({k: v.stored_document for k, v in self._records.items()}, assertion_id)
 
     # -- Eje de tiempo de validez -----------------------------------------
     def valid_at(
@@ -145,8 +166,8 @@ class LedgerView:
             for r in pool
             if in_validity_interval(
                 world_time,
-                r.document.get("valid_from"),
-                r.document.get("valid_to"),
+                r.stored_document.get("valid_from"),
+                r.stored_document.get("valid_to"),
                 include_unknown_start=include_unknown_start,
             )
         ]
@@ -167,7 +188,7 @@ class LedgerView:
         pool = self.records() if include_non_live else self.live()
         out = []
         for r in pool:
-            et = r.document.get("event_time")
+            et = r.stored_document.get("event_time")
             if et is None:
                 continue
             k = time_key(et)

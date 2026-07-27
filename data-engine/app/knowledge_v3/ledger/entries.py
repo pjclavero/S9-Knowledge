@@ -17,6 +17,7 @@ calculado una sola vez al crearla, con `canonical_json` (bytes estables).
 from __future__ import annotations
 
 import hashlib
+from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional
@@ -126,6 +127,34 @@ class LedgerEntry:
         )
 
 
+def copy_entry(entry: LedgerEntry) -> LedgerEntry:
+    """Copia independiente de una entrada, con el documento clonado a fondo.
+
+    `LedgerEntry` es `frozen`, pero eso solo congela las REFERENCIAS: el dict
+    `assertion` sigue siendo mutable. Compartir ese dict entre el almacen, la
+    cache y el valor devuelto convierte la inmutabilidad en una promesa vacia —
+    quien reciba la entrada puede reescribir el pasado del ledger sin tocar
+    ningun hash, porque el hash ya estaba calculado.
+
+    Por eso toda entrada cruza cualquier frontera (almacen, cache, retorno) como
+    COPIA.
+    """
+    return LedgerEntry(
+        seq=entry.seq,
+        entry_id=entry.entry_id,
+        operation=entry.operation,
+        recorded_at=entry.recorded_at,
+        workspace=entry.workspace,
+        assertion_id=entry.assertion_id,
+        revision=entry.revision,
+        assertion=deepcopy(entry.assertion),
+        related_assertion_ids=tuple(entry.related_assertion_ids),
+        reason_code=entry.reason_code,
+        prev_hash=entry.prev_hash,
+        entry_hash=entry.entry_hash,
+    )
+
+
 def compute_entry_hash(body: dict[str, Any]) -> str:
     """sha256 del JSON canonico del cuerpo de la entrada (sin `entry_hash`)."""
     return hashlib.sha256(canonical_json(body).encode("utf-8")).hexdigest()
@@ -185,6 +214,7 @@ __all__ = [
     "LedgerEntry",
     "LedgerOperation",
     "compute_entry_hash",
+    "copy_entry",
     "entry_id_for",
     "make_entry",
 ]
