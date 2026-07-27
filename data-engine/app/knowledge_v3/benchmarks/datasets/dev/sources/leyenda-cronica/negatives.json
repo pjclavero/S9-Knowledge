@@ -1,0 +1,39 @@
+{
+  "benchmark_file": "negatives",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "end": 233,
+      "episode_id": "episode:leyenda-cronica:e03",
+      "forbidden_predicates": [
+        "RIVAL_OF"
+      ],
+      "kind": "FICTION_WITHIN_FICTION",
+      "literal_text": "En la farsa que los titiriteros representaron en la plaza, el ciervo degollaba al búho.",
+      "must_not_produce": "CLAIM",
+      "negative_id": "negative:leyenda-cronica:farsa-titiriteros",
+      "rationale": "Lo narrado ocurre dentro de una representacion teatral: no es un hecho del mundo, por mucho que la frase tenga sujeto, verbo y objeto.",
+      "split": "dev",
+      "start": 146
+    },
+    {
+      "end": 293,
+      "episode_id": "episode:leyenda-cronica:e03",
+      "forbidden_predicates": [
+        "ALLY_OF",
+        "MEMBER_OF"
+      ],
+      "kind": "QUESTION",
+      "literal_text": "¿Llegó Ilaria Vandreth a jurar lealtad al Consejo de Umbra?",
+      "must_not_produce": "CLAIM",
+      "negative_id": "negative:leyenda-cronica:pregunta-lealtad",
+      "rationale": "Una pregunta no afirma nada. Las menciones si existen; la relacion, no.",
+      "split": "dev",
+      "start": 234
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-cronica",
+  "split": "dev",
+  "world": "leyenda"
+}

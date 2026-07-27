@@ -1,0 +1,280 @@
+{
+  "benchmark_file": "resolutions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:leyenda:daiki",
+        "entity:leyenda:ilaria"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:leyenda-cronica:e01:f03",
+        "fragment:leyenda-cronica:e02:f00",
+        "fragment:leyenda-cronica:e02:f02"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:leyenda-cronica:e01:m03",
+        "mention:leyenda-cronica:e02:m00",
+        "mention:leyenda-cronica:e02:m02"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS",
+        "TITLE_SUPPORTED"
+      ],
+      "resolution_id": "resolution:leyenda-cronica:daiki",
+      "selected_entity_id": "entity:leyenda:daiki",
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "workspace": "bench-dev"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:leyenda:ilaria",
+        "entity:leyenda:daiki"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:leyenda-cronica:e01:f00",
+        "fragment:leyenda-cronica:e03:f02"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:leyenda-cronica:e01:m00",
+        "mention:leyenda-cronica:e03:m02"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:leyenda-cronica:ilaria",
+      "selected_entity_id": "entity:leyenda:ilaria",
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "workspace": "bench-dev"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:leyenda:casa-ciervo"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:leyenda-cronica:e01:f01",
+        "fragment:leyenda-cronica:e03:f00"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:leyenda-cronica:e01:m01",
+        "mention:leyenda-cronica:e03:m00"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:leyenda-cronica:casa-ciervo",
+      "selected_entity_id": "entity:leyenda:casa-ciervo",
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "workspace": "bench-dev"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:leyenda:consejo-umbra"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:leyenda-cronica:e02:f01",
+        "fragment:leyenda-cronica:e03:f01",
+        "fragment:leyenda-cronica:e03:f03"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:leyenda-cronica:e02:m01",
+        "mention:leyenda-cronica:e03:m01",
+        "mention:leyenda-cronica:e03:m03"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:leyenda-cronica:consejo-umbra",
+      "selected_entity_id": "entity:leyenda:consejo-umbra",
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "workspace": "bench-dev"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:leyenda:vado-alto"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:leyenda-cronica:e01:f02"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:leyenda-cronica:e01:m02"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:leyenda-cronica:vado-alto",
+      "selected_entity_id": "entity:leyenda:vado-alto",
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-cronica",
+  "split": "dev",
+  "world": "leyenda"
+}

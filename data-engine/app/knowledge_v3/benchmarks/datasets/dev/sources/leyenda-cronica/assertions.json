@@ -1,0 +1,269 @@
+{
+  "benchmark_file": "assertions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "assertion_id": "assertion:leyenda:ilaria-leads-casa",
+      "calendar_id": "calendar:leyenda",
+      "collection_id": "collection:leyenda",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:leyenda-cronica:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "1041-12-01T00:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e01:f04"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "gold_key": "ilaria-leads-casa",
+        "phenomena": [
+          "SUPERSESSION",
+          "TEMPORALITY"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:leyenda:casa-ciervo",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LEADS",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T12:00:00Z",
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "state": "ENDED",
+      "status": "SUPERSEDED",
+      "subject_entity_id": "entity:leyenda:ilaria",
+      "superseded_by": "assertion:leyenda:daiki-leads-casa",
+      "supersedes": null,
+      "valid_from": "1041-12-01T00:00:00Z",
+      "valid_to": "1042-03-20T00:00:00Z",
+      "workspace": "bench-dev"
+    },
+    {
+      "assertion_id": "assertion:leyenda:daiki-leads-casa",
+      "calendar_id": "calendar:leyenda",
+      "collection_id": "collection:leyenda",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:leyenda-cronica:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "1042-03-21T00:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e01:f05"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "gold_key": "daiki-leads-casa",
+        "phenomena": [
+          "SUPERSESSION",
+          "TEMPORALITY"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:leyenda:casa-ciervo",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LEADS",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T12:00:00Z",
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:leyenda:daiki",
+      "superseded_by": null,
+      "supersedes": "assertion:leyenda:ilaria-leads-casa",
+      "valid_from": "1042-03-21T00:00:00Z",
+      "valid_to": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "assertion_id": "assertion:leyenda:daiki-not-member-consejo",
+      "calendar_id": null,
+      "collection_id": "collection:leyenda",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:leyenda-cronica:e02"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e02:f03"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "gold_key": "daiki-not-member-consejo",
+        "phenomena": [
+          "NEGATION"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:leyenda:consejo-umbra",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T12:00:00Z",
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:leyenda:daiki",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "assertion_id": "assertion:leyenda:casa-ally-consejo-rumor",
+      "calendar_id": null,
+      "collection_id": "collection:leyenda",
+      "confidence": 0.55,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:leyenda-cronica:e03"
+      ],
+      "epistemic_status": "RUMORED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e03:f04"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "gold_key": "casa-ally-consejo-rumor",
+        "phenomena": [
+          "RUMOR",
+          "SYMMETRIC"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:leyenda:consejo-umbra",
+      "ontology_version": "core-1.4.0",
+      "predicate": "ALLY_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T12:00:00Z",
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "state": "ACTIVE",
+      "status": "PROVISIONAL",
+      "subject_entity_id": "entity:leyenda:casa-ciervo",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-cronica",
+  "split": "dev",
+  "world": "leyenda"
+}

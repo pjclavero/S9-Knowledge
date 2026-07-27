@@ -1,0 +1,240 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:kestrel",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-07-27T12:30:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:kestrel-informe:e01:c00",
+          "confidence": 0.93,
+          "decision": "ACCEPT",
+          "decision_id": "decision:kestrel-0001",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:kestrel-informe:e01:f03"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:kestrel:halcyon",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED",
+            "EVIDENCE_LITERAL"
+          ],
+          "subject_entity_id": "entity:kestrel:vania"
+        },
+        {
+          "claim_id": "claim:kestrel-informe:e01:c01",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:kestrel-0002",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:kestrel-informe:e01:f04"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:kestrel:estacion",
+          "predicate": "LOCATED_IN",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:kestrel:vania"
+        },
+        {
+          "claim_id": "claim:kestrel-informe:e02:c00",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:kestrel-0003",
+          "direction": null,
+          "epistemic_status": "CONFLICTED",
+          "evidence_fragment_ids": [
+            "fragment:kestrel-informe:e02:f02"
+          ],
+          "negated": true,
+          "object_entity_id": null,
+          "predicate": null,
+          "reason_codes": [
+            "CONFLICT_WITH_EXISTING",
+            "SOURCE_DISAGREEMENT"
+          ],
+          "subject_entity_id": null
+        },
+        {
+          "claim_id": "claim:kestrel-informe:e03:c00",
+          "confidence": 0.48,
+          "decision": "ACCEPT",
+          "decision_id": "decision:kestrel-0004",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "RUMORED",
+          "evidence_fragment_ids": [
+            "fragment:kestrel-informe:e03:f04"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:kestrel:halcyon",
+          "predicate": "OWNED_BY",
+          "reason_codes": [
+            "LOCAL_APPROVED_WITH_WARNINGS",
+            "EPISTEMIC_DOWNGRADED"
+          ],
+          "subject_entity_id": "entity:kestrel:nucleo-bruma"
+        },
+        {
+          "claim_id": "claim:kestrel-informe:e03:c01",
+          "confidence": 0.31,
+          "decision": "REJECT_INVALID",
+          "decision_id": "decision:kestrel-0005",
+          "direction": null,
+          "evidence_fragment_ids": [
+            "fragment:kestrel-informe:e03:f05"
+          ],
+          "object_entity_id": null,
+          "predicate": null,
+          "reason_codes": [
+            "TYPE_INCOMPATIBLE"
+          ],
+          "subject_entity_id": null
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-07-28T12:30:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": false,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-07-27T12:30:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "521f2e9452c0314f89e10dd3eeeeaec51ef0f5ac9f83758e9b8f9a5b85e8d81c"
+        },
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "reason_codes": [
+              "CONFLICT_WITH_EXISTING"
+            ],
+            "result": "FAIL",
+            "validator": "conflict",
+            "version": "3.0.0-bench"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:kestrel:vania-member-halcyon",
+          "decision_id": "decision:kestrel-0001",
+          "evidence_fragment_ids": [
+            "fragment:kestrel-informe:e01:f03"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:c9fb6639a2fce48f8a5adba81ccaea76931dd4df6197c30d8e7f1e69ad8c4e89",
+          "operation_id": "op:kestrel-0001",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "object_entity_id": "entity:kestrel:halcyon",
+            "predicate": "MEMBER_OF",
+            "subject_entity_id": "entity:kestrel:vania"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:kestrel:vania-in-kestrel",
+          "decision_id": "decision:kestrel-0002",
+          "evidence_fragment_ids": [
+            "fragment:kestrel-informe:e01:f04"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:777d1d5e0a80eec13d8e4ef3f9fff41bfb7ccce7a91060e75183b9ad6cd702e1",
+          "operation_id": "op:kestrel-0002",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "object_entity_id": "entity:kestrel:estacion",
+            "predicate": "LOCATED_IN",
+            "subject_entity_id": "entity:kestrel:vania"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:kestrel:nucleo-owned-by-halcyon",
+          "decision_id": "decision:kestrel-0004",
+          "evidence_fragment_ids": [
+            "fragment:kestrel-informe:e03:f04"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:b52edf19dbaf8c95bd99884274252bb50f416cc162b3901d0a5aa48e58d9fbe5",
+          "operation_id": "op:kestrel-0003",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "epistemic_status": "RUMORED",
+            "object_entity_id": "entity:kestrel:halcyon",
+            "predicate": "OWNED_BY",
+            "subject_entity_id": "entity:kestrel:nucleo-bruma"
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "4d5a5cfa702210bf982ff43a6c3843ec8331b81ecd613dd892808094c9244d27"
+      },
+      "plan_id": "plan:kestrel-informe:0001",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:bench:kestrel-informe",
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "kestrel-informe",
+  "split": "dev",
+  "world": "kestrel"
+}

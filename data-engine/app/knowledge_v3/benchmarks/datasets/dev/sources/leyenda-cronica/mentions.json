@@ -1,0 +1,623 @@
+{
+  "benchmark_file": "mentions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 15,
+      "episode_id": "episode:leyenda-cronica:e01",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e01:f00"
+      ],
+      "mention_id": "mention:leyenda-cronica:e01:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "ilaria vandreth",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "start": 0,
+      "surface": "Ilaria Vandreth",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 42,
+      "episode_id": "episode:leyenda-cronica:e01",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e01:f01"
+      ],
+      "mention_id": "mention:leyenda-cronica:e01:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "casa del ciervo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "start": 27,
+      "surface": "Casa del Ciervo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 96,
+      "episode_id": "episode:leyenda-cronica:e01",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e01:f02"
+      ],
+      "mention_id": "mention:leyenda-cronica:e01:m02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "vado alto",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "start": 87,
+      "surface": "Vado Alto",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 163,
+      "episode_id": "episode:leyenda-cronica:e01",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e01:f03"
+      ],
+      "mention_id": "mention:leyenda-cronica:e01:m03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "daiki oharu",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "start": 152,
+      "surface": "Daiki Oharu",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [
+        "mention:leyenda-cronica:e02:m02"
+      ],
+      "end": 11,
+      "episode_id": "episode:leyenda-cronica:e02",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e02:f00"
+      ],
+      "mention_id": "mention:leyenda-cronica:e02:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "daiki oharu",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "start": 0,
+      "surface": "Daiki Oharu",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 73,
+      "episode_id": "episode:leyenda-cronica:e02",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e02:f01"
+      ],
+      "mention_id": "mention:leyenda-cronica:e02:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "consejo de umbra",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "start": 57,
+      "surface": "Consejo de Umbra",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [
+        "mention:leyenda-cronica:e02:m00"
+      ],
+      "end": 88,
+      "episode_id": "episode:leyenda-cronica:e02",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e02:f02"
+      ],
+      "mention_id": "mention:leyenda-cronica:e02:m02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NOMINAL"
+      },
+      "normalized_surface": "el magistrado",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "start": 75,
+      "surface": "El magistrado",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 40,
+      "episode_id": "episode:leyenda-cronica:e03",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e03:f00"
+      ],
+      "mention_id": "mention:leyenda-cronica:e03:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "casa del ciervo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "start": 25,
+      "surface": "Casa del Ciervo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [
+        "mention:leyenda-cronica:e03:m03"
+      ],
+      "end": 62,
+      "episode_id": "episode:leyenda-cronica:e03",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e03:f01"
+      ],
+      "mention_id": "mention:leyenda-cronica:e03:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "consejo de umbra",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "start": 46,
+      "surface": "Consejo de Umbra",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 256,
+      "episode_id": "episode:leyenda-cronica:e03",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e03:f02"
+      ],
+      "mention_id": "mention:leyenda-cronica:e03:m02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "ilaria vandreth",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "start": 241,
+      "surface": "Ilaria Vandreth",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [
+        "mention:leyenda-cronica:e03:m01"
+      ],
+      "end": 292,
+      "episode_id": "episode:leyenda-cronica:e03",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e03:f03"
+      ],
+      "mention_id": "mention:leyenda-cronica:e03:m03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "consejo de umbra",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "start": 276,
+      "surface": "Consejo de Umbra",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-cronica",
+  "split": "dev",
+  "world": "leyenda"
+}

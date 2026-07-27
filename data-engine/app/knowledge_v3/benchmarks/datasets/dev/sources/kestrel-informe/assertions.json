@@ -1,0 +1,263 @@
+{
+  "benchmark_file": "assertions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "assertion_id": "assertion:kestrel:vania-member-halcyon",
+      "calendar_id": null,
+      "collection_id": "collection:kestrel",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:kestrel-informe:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:kestrel-informe:e01:f03"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "gold_key": "vania-member-halcyon",
+        "phenomena": []
+      },
+      "negated": false,
+      "object_entity_id": "entity:kestrel:halcyon",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T12:00:00Z",
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:kestrel:vania",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "assertion_id": "assertion:kestrel:vania-in-kestrel",
+      "calendar_id": null,
+      "collection_id": "collection:kestrel",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:kestrel-informe:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:kestrel-informe:e01:f04"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "gold_key": "vania-in-kestrel",
+        "phenomena": []
+      },
+      "negated": false,
+      "object_entity_id": "entity:kestrel:estacion",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LOCATED_IN",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T12:00:00Z",
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:kestrel:vania",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "assertion_id": "assertion:kestrel:nadir-not-member-halcyon",
+      "calendar_id": "calendar:kestrel",
+      "collection_id": "collection:kestrel",
+      "confidence": 0.5,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:kestrel-informe:e02"
+      ],
+      "epistemic_status": "CONFLICTED",
+      "event_time": "2387-01-01T00:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:kestrel-informe:e02:f02"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "gold_key": "nadir-not-member-halcyon",
+        "phenomena": [
+          "CONFLICT",
+          "NEGATION"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:kestrel:halcyon",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T12:00:00Z",
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "state": "UNKNOWN",
+      "status": "CONTRADICTED",
+      "subject_entity_id": "entity:kestrel:nadir",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": "2387-01-01T00:00:00Z",
+      "valid_to": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "assertion_id": "assertion:kestrel:nucleo-owned-by-halcyon",
+      "calendar_id": null,
+      "collection_id": "collection:kestrel",
+      "confidence": 0.48,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:kestrel-informe:e03"
+      ],
+      "epistemic_status": "RUMORED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:kestrel-informe:e03:f04"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "gold_key": "nucleo-owned-by-halcyon",
+        "phenomena": [
+          "RUMOR"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:kestrel:halcyon",
+      "ontology_version": "core-1.4.0",
+      "predicate": "OWNED_BY",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T12:00:00Z",
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "state": "ACTIVE",
+      "status": "PROVISIONAL",
+      "subject_entity_id": "entity:kestrel:nucleo-bruma",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "kestrel-informe",
+  "split": "dev",
+  "world": "kestrel"
+}

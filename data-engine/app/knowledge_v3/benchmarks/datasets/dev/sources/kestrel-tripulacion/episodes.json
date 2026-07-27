@@ -1,0 +1,97 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:kestrel-tripulacion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "6e1060d4aa47e5ff26fdbf11220214076889b00d9a24ed2a18a68eb9ca0e9556"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:kestrel-tripulacion:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "phenomena": [
+          "CONFLICT",
+          "DUPLICATE_ACROSS_SOURCES",
+          "NEW_ENTITY",
+          "TABLE"
+        ]
+      },
+      "modality": "TABLE",
+      "next_episode_id": null,
+      "page": 1,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.99
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "speaker": null,
+      "table": {
+        "header": [
+          "Tripulante",
+          "Afiliación",
+          "Puesto",
+          "Ciclo"
+        ],
+        "rows": [
+          [
+            "Nadir Boone",
+            "Consorcio Halcyon",
+            "Sensores",
+            "2387"
+          ],
+          [
+            "Vania Ostrow",
+            "Consorcio Halcyon",
+            "Operaciones",
+            "2387"
+          ],
+          [
+            "Ruta Simm",
+            "Cooperativa Vela",
+            "Carga",
+            "2387"
+          ]
+        ]
+      },
+      "text": null,
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "kestrel-tripulacion",
+  "split": "dev",
+  "world": "kestrel"
+}

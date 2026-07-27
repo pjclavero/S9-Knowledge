@@ -1,0 +1,186 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:leyenda-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "803ff0946ea237dfe03adb5c0ade023b7354c17a832616ebab81efdb1cc81cdc"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:leyenda-cronica:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "phenomena": [
+          "SUPERSESSION",
+          "TEMPORALITY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:leyenda-cronica:e02",
+      "page": 1,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.98
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Ilaria Vandreth dirigió la Casa del Ciervo desde el invierno de 1041 hasta la caída de Vado Alto. Cuando entregó el bastón de mando, el cargo recayó en Daiki Oharu, que lo conserva desde la primavera de 1042.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "asset_id": "asset:leyenda-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "968bc6075d02f1d02fd9d552e7928d05fbfb54d2c973bfdcb39a4fdcb0c97f19"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:leyenda-cronica:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "phenomena": [
+          "COREFERENCE",
+          "NEGATION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:leyenda-cronica:e03",
+      "page": 1,
+      "previous_episode_id": "episode:leyenda-cronica:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.98
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Daiki Oharu ha negado en cada asamblea su pertenencia al Consejo de Umbra. El magistrado repitió la negativa incluso ante los emisarios llegados de Umbra.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "asset_id": "asset:leyenda-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "5d03027a1168670d106f72d9353021de91c6db33b64c0ce152af579528c8be3d"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:leyenda-cronica:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "phenomena": [
+          "FICTION_WITHIN_FICTION",
+          "QUESTION",
+          "RUMOR",
+          "SYMMETRIC"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": null,
+      "page": 2,
+      "previous_episode_id": "episode:leyenda-cronica:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.98
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Corre el rumor de que la Casa del Ciervo y el Consejo de Umbra firmaron un pacto secreto la noche de la última luna; nadie ha visto el documento. En la farsa que los titiriteros representaron en la plaza, el ciervo degollaba al búho. ¿Llegó Ilaria Vandreth a jurar lealtad al Consejo de Umbra?",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-cronica",
+  "split": "dev",
+  "world": "leyenda"
+}

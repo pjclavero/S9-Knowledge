@@ -1,0 +1,265 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:leyenda",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-07-27T12:30:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:leyenda-cronica:e01:c00",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:leyenda-0001",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:leyenda-cronica:e01:f04"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:leyenda:casa-ciervo",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "LOCAL_APPROVED",
+            "EVIDENCE_LITERAL"
+          ],
+          "subject_entity_id": "entity:leyenda:ilaria"
+        },
+        {
+          "claim_id": "claim:leyenda-cronica:e01:c01",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:leyenda-0002",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:leyenda-cronica:e01:f05"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:leyenda:casa-ciervo",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "LOCAL_APPROVED",
+            "FUNCTIONAL_PREDICATE_SUPERSEDES"
+          ],
+          "subject_entity_id": "entity:leyenda:daiki"
+        },
+        {
+          "claim_id": "claim:leyenda-cronica:e02:c00",
+          "confidence": 0.88,
+          "decision": "ACCEPT",
+          "decision_id": "decision:leyenda-0003",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:leyenda-cronica:e02:f03"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:leyenda:consejo-umbra",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED",
+            "NEGATION_EXPLICIT"
+          ],
+          "subject_entity_id": "entity:leyenda:daiki"
+        },
+        {
+          "claim_id": "claim:leyenda-cronica:e03:c00",
+          "confidence": 0.55,
+          "decision": "ACCEPT",
+          "decision_id": "decision:leyenda-0004",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "RUMORED",
+          "evidence_fragment_ids": [
+            "fragment:leyenda-cronica:e03:f04"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:leyenda:consejo-umbra",
+          "predicate": "ALLY_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED_WITH_WARNINGS",
+            "EPISTEMIC_DOWNGRADED"
+          ],
+          "subject_entity_id": "entity:leyenda:casa-ciervo"
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-07-28T12:30:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": true,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-07-27T12:30:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "0695c6659801a3299fcf0a5ca74c79e9a804f74dac28d536890f1ee5e03edd60"
+        },
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "ontology",
+            "version": "core-1.4.0"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:leyenda:ilaria-leads-casa",
+          "decision_id": "decision:leyenda-0001",
+          "evidence_fragment_ids": [
+            "fragment:leyenda-cronica:e01:f04"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:bf87514911ce2a9ec9611b65b5851b92b2ba84859432bfaad4b5794a441b0341",
+          "operation_id": "op:leyenda-0001",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "object_entity_id": "entity:leyenda:casa-ciervo",
+            "predicate": "LEADS",
+            "subject_entity_id": "entity:leyenda:ilaria",
+            "valid_from": "1041-12-01T00:00:00Z"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:leyenda:daiki-leads-casa",
+          "decision_id": "decision:leyenda-0002",
+          "evidence_fragment_ids": [
+            "fragment:leyenda-cronica:e01:f05"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:5bfc68edaa22ca398a39cd1b5abbb7fe4af24c2e6734049188f69049b7e428cf",
+          "operation_id": "op:leyenda-0002",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "object_entity_id": "entity:leyenda:casa-ciervo",
+            "predicate": "LEADS",
+            "subject_entity_id": "entity:leyenda:daiki",
+            "valid_from": "1042-03-21T00:00:00Z"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:leyenda:ilaria-leads-casa",
+          "decision_id": "decision:leyenda-0002",
+          "evidence_fragment_ids": [
+            "fragment:leyenda-cronica:e01:f05"
+          ],
+          "expected_hash": {
+            "algorithm": "sha256",
+            "value": "218faeb1fc49b2fe5a74cb22e3092c295725755056237a9ff3fc7f507fb631c7"
+          },
+          "expected_state": "WOULD_SUPERSEDE",
+          "expected_version": 1,
+          "idempotency_key": "idem:sha256:5b7d65a006e803f34e01af34376721191d22c55f734eabba202a121ed3b86625",
+          "operation_id": "op:leyenda-0003",
+          "operation_type": "SUPERSEDE_ASSERTION",
+          "payload": {
+            "superseded_by": "assertion:leyenda:daiki-leads-casa",
+            "valid_to": "1042-03-20T00:00:00Z"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:leyenda:daiki-not-member-consejo",
+          "decision_id": "decision:leyenda-0003",
+          "evidence_fragment_ids": [
+            "fragment:leyenda-cronica:e02:f03"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:f74469e79848b70c192f8a7795eb66b82ef8904a494af7fefd901e684c4426a6",
+          "operation_id": "op:leyenda-0004",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "negated": true,
+            "object_entity_id": "entity:leyenda:consejo-umbra",
+            "predicate": "MEMBER_OF",
+            "subject_entity_id": "entity:leyenda:daiki"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:leyenda:casa-ally-consejo-rumor",
+          "decision_id": "decision:leyenda-0004",
+          "evidence_fragment_ids": [
+            "fragment:leyenda-cronica:e03:f04"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:99b2cfb2a6e41c3afe1e83ee4ef37dbff1b1f12cb08c0f9dfdc571ccd03a1f2a",
+          "operation_id": "op:leyenda-0005",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "epistemic_status": "RUMORED",
+            "object_entity_id": "entity:leyenda:consejo-umbra",
+            "predicate": "ALLY_OF",
+            "subject_entity_id": "entity:leyenda:casa-ciervo"
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "210deef77e421b1685cb97dad146c94d3c1b5217b327a6db3ae8bb036b68821c"
+      },
+      "plan_id": "plan:leyenda-cronica:0001",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:bench:leyenda-cronica",
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-cronica",
+  "split": "dev",
+  "world": "leyenda"
+}

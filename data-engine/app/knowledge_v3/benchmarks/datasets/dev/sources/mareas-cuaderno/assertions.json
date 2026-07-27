@@ -1,0 +1,202 @@
+{
+  "benchmark_file": "assertions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "assertion_id": "assertion:mareas:gremio-rival-cofradia",
+      "calendar_id": "calendar:mareas",
+      "collection_id": "collection:mareas",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:mareas-cuaderno:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:mareas-cuaderno:e01:f02"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "gold_key": "gremio-rival-cofradia",
+        "phenomena": [
+          "SYMMETRIC"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:mareas:cofradia-ambar",
+      "ontology_version": "core-1.4.0",
+      "predicate": "RIVAL_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T12:00:00Z",
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:mareas:gremio-faros",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "assertion_id": "assertion:mareas:amarra-in-quilla",
+      "calendar_id": null,
+      "collection_id": "collection:mareas",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:mareas-cuaderno:e02"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:mareas-cuaderno:e02:f04"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "gold_key": "amarra-in-quilla",
+        "phenomena": [
+          "TRANSITIVE"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:mareas:puerto-quilla",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LOCATED_IN",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T12:00:00Z",
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:mareas:amarra-vieja",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "assertion_id": "assertion:mareas:torv-leads-cofradia-plan",
+      "calendar_id": "calendar:mareas",
+      "collection_id": "collection:mareas",
+      "confidence": 0.5,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:mareas-cuaderno:e03"
+      ],
+      "epistemic_status": "HYPOTHETICAL",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:mareas-cuaderno:e03:f04"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "gold_key": "torv-leads-cofradia-plan",
+        "phenomena": [
+          "HYPOTHETICAL"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:mareas:cofradia-ambar",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LEADS",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T12:00:00Z",
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "state": "PLANNED",
+      "status": "PROVISIONAL",
+      "subject_entity_id": "entity:mareas:torv",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "mareas-cuaderno",
+  "split": "dev",
+  "world": "mareas"
+}

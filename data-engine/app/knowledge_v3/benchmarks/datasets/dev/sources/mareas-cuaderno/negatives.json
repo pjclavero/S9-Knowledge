@@ -1,0 +1,24 @@
+{
+  "benchmark_file": "negatives",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "end": 103,
+      "episode_id": "episode:mareas-cuaderno:e03",
+      "forbidden_predicates": [
+        "LEADS"
+      ],
+      "kind": "COUNTERFACTUAL",
+      "literal_text": "Si Torv Marrec dirigiera hoy la Cofradía de Ámbar, la flota no habría zarpado con la marea de invierno.",
+      "must_not_produce": "CLAIM",
+      "negative_id": "negative:mareas-cuaderno:condicional-torv",
+      "rationale": "Condicional contrafactual: describe un mundo que no ocurrio. Aceptarlo escribiria en el grafo justo lo contrario de lo que dice el texto.",
+      "split": "dev",
+      "start": 0
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "mareas-cuaderno",
+  "split": "dev",
+  "world": "mareas"
+}

@@ -1,0 +1,183 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:mareas-cuaderno",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "6fc1753dfa43ae68a3ffdd8f880182e2a5c881410c3ee3b48e05b28be376c3df"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:mareas-cuaderno:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "phenomena": [
+          "SYMMETRIC"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:mareas-cuaderno:e02",
+      "page": 1,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.98
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "El Gremio de Faros y la Cofradía de Ámbar llevan enfrentados desde la marea negra; ninguna de las dos casas acepta ya el arbitraje del puerto.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "asset_id": "asset:mareas-cuaderno",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "44dc1af4a90cc79bc4c4850f6a658c05fff2dcfd69251705fa8be35c3a23a456"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:mareas-cuaderno:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "phenomena": [
+          "COREFERENCE",
+          "TRANSITIVE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:mareas-cuaderno:e03",
+      "page": 1,
+      "previous_episode_id": "episode:mareas-cuaderno:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.98
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Sela Marrec nació en Amarra Vieja, un barrio de Puerto Quilla, y allí conserva todavía su taller de ámbar.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "asset_id": "asset:mareas-cuaderno",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "959160fc69e4c2ce0287dedba3dcc78b0dfa61f86b20e4ef3a7d7318187bbdd5"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:mareas-cuaderno:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "phenomena": [
+          "COUNTERFACTUAL",
+          "HYPOTHETICAL"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": null,
+      "page": 2,
+      "previous_episode_id": "episode:mareas-cuaderno:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.98
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Si Torv Marrec dirigiera hoy la Cofradía de Ámbar, la flota no habría zarpado con la marea de invierno. El maestre de puerto, en cambio, planea entregar a Torv el bastón de la Cofradía de Ámbar en el próximo ciclo.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "mareas-cuaderno",
+  "split": "dev",
+  "world": "mareas"
+}

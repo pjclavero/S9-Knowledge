@@ -1,0 +1,22 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:leyenda-escaneo:e01",
+      "text": "Daiki Oharu fue nombrado magistrado de la Casa del Ciervo en el año 1042."
+    },
+    {
+      "episode_id": "episode:leyenda-escaneo:e02",
+      "text": "El escriba Vandreth firmó el acta junto al senescal de Vado Alto."
+    },
+    {
+      "episode_id": "episode:leyenda-escaneo:e03",
+      "text": "Plano del vado: el recinto de la Casa del Ciervo dentro de Vado Alto."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-escaneo",
+  "split": "dev",
+  "world": "leyenda"
+}

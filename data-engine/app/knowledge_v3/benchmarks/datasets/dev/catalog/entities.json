@@ -1,0 +1,226 @@
+{
+  "benchmark_file": "entities",
+  "dataset_version": "1.0.0",
+  "entities": [
+    {
+      "aliases": [
+        "Daiki",
+        "Daiki Oharu",
+        "Oharu",
+        "Daiki Oliaru"
+      ],
+      "entity_id": "entity:leyenda:daiki",
+      "name": "Daiki Oharu",
+      "note": "Magistrado desde 1042. 'Daiki Oliaru' es una degradacion de OCR, no otra persona.",
+      "type": "Character",
+      "world": "leyenda"
+    },
+    {
+      "aliases": [
+        "Ilaria",
+        "Ilaria Vandreth",
+        "Vandreth"
+      ],
+      "entity_id": "entity:leyenda:ilaria",
+      "name": "Ilaria Vandreth",
+      "note": "Predecesora de Daiki al frente de la Casa del Ciervo.",
+      "type": "Character",
+      "world": "leyenda"
+    },
+    {
+      "aliases": [
+        "Casa del Ciervo",
+        "la Casa",
+        "Casa de1 Ciervo"
+      ],
+      "entity_id": "entity:leyenda:casa-ciervo",
+      "name": "Casa del Ciervo",
+      "note": "'Casa de1 Ciervo' es degradacion de OCR (l -> 1).",
+      "type": "Faction",
+      "world": "leyenda"
+    },
+    {
+      "aliases": [
+        "Consejo de Umbra",
+        "el Consejo"
+      ],
+      "entity_id": "entity:leyenda:consejo-umbra",
+      "name": "Consejo de Umbra",
+      "note": "",
+      "type": "Faction",
+      "world": "leyenda"
+    },
+    {
+      "aliases": [
+        "Vado Alto"
+      ],
+      "entity_id": "entity:leyenda:vado-alto",
+      "name": "Vado Alto",
+      "note": "",
+      "type": "Location",
+      "world": "leyenda"
+    },
+    {
+      "aliases": [
+        "Sela",
+        "Sela Marrec",
+        "la tallista"
+      ],
+      "entity_id": "entity:mareas:sela",
+      "name": "Sela Marrec",
+      "note": "Hermana de Torv. Habla en primera persona en la transcripcion.",
+      "type": "Character",
+      "world": "mareas"
+    },
+    {
+      "aliases": [
+        "Torv",
+        "Torv Marrec"
+      ],
+      "entity_id": "entity:mareas:torv",
+      "name": "Torv Marrec",
+      "note": "",
+      "type": "Character",
+      "world": "mareas"
+    },
+    {
+      "aliases": [
+        "Gremio de Faros",
+        "el Gremio"
+      ],
+      "entity_id": "entity:mareas:gremio-faros",
+      "name": "Gremio de Faros",
+      "note": "",
+      "type": "Faction",
+      "world": "mareas"
+    },
+    {
+      "aliases": [
+        "Cofradia de Ambar",
+        "la Cofradia"
+      ],
+      "entity_id": "entity:mareas:cofradia-ambar",
+      "name": "Cofradia de Ambar",
+      "note": "",
+      "type": "Faction",
+      "world": "mareas"
+    },
+    {
+      "aliases": [
+        "Puerto Quilla"
+      ],
+      "entity_id": "entity:mareas:puerto-quilla",
+      "name": "Puerto Quilla",
+      "note": "",
+      "type": "Location",
+      "world": "mareas"
+    },
+    {
+      "aliases": [
+        "Amarra Vieja"
+      ],
+      "entity_id": "entity:mareas:amarra-vieja",
+      "name": "Amarra Vieja",
+      "note": "Barrio dentro de Puerto Quilla.",
+      "type": "Location",
+      "world": "mareas"
+    },
+    {
+      "aliases": [
+        "Vania",
+        "Vania Ostrow",
+        "Ostrow"
+      ],
+      "entity_id": "entity:kestrel:vania",
+      "name": "Vania Ostrow",
+      "note": "",
+      "type": "Character",
+      "world": "kestrel"
+    },
+    {
+      "aliases": [
+        "Nadir",
+        "Nadir Boone",
+        "Boone"
+      ],
+      "entity_id": "entity:kestrel:nadir",
+      "name": "Nadir Boone",
+      "note": "Su pertenencia al Consorcio la niega el informe y la afirma la tabla.",
+      "type": "Character",
+      "world": "kestrel"
+    },
+    {
+      "aliases": [
+        "Consorcio Halcyon",
+        "Halcyon",
+        "el Consorcio"
+      ],
+      "entity_id": "entity:kestrel:halcyon",
+      "name": "Consorcio Halcyon",
+      "note": "",
+      "type": "Faction",
+      "world": "kestrel"
+    },
+    {
+      "aliases": [
+        "Cooperativa Vela",
+        "Vela"
+      ],
+      "entity_id": "entity:kestrel:vela",
+      "name": "Cooperativa Vela",
+      "note": "",
+      "type": "Faction",
+      "world": "kestrel"
+    },
+    {
+      "aliases": [
+        "Estacion Kestrel",
+        "la estacion"
+      ],
+      "entity_id": "entity:kestrel:estacion",
+      "name": "Estacion Kestrel",
+      "note": "",
+      "type": "Location",
+      "world": "kestrel"
+    },
+    {
+      "aliases": [
+        "Nucleo Bruma"
+      ],
+      "entity_id": "entity:kestrel:nucleo-bruma",
+      "name": "Nucleo Bruma",
+      "note": "",
+      "type": "Object",
+      "world": "kestrel"
+    },
+    {
+      "aliases": [
+        "Ruta Simm"
+      ],
+      "entity_id": "entity:kestrel:ruta-simm",
+      "expected_action": "CREATE_NEW",
+      "name": "Ruta Simm",
+      "note": "Solo aparece en la tabla. El gold espera CREATE_NEW, no un enlace forzado.",
+      "type": "Character",
+      "world": "kestrel"
+    },
+    {
+      "aliases": [
+        "V4ndreth"
+      ],
+      "entity_id": "entity:prov:leyenda:v4ndreth",
+      "expected_action": "CREATE_PROVISIONAL",
+      "name": "V4ndreth",
+      "note": "Entidad PROVISIONAL. Se parece a Ilaria Vandreth, pero una superficie degradada por OCR no autoriza a fundir identidades: la regla de identidad del perfil exige revision.",
+      "provisional": true,
+      "type": null,
+      "world": "leyenda"
+    }
+  ],
+  "split": "dev",
+  "worlds": {
+    "kestrel": "Estaciones orbitales, consorcios y registros de tripulacion.",
+    "leyenda": "Cronica de corte medieval: casas, cargos y juramentos.",
+    "mareas": "Archipielago de gremios marineros, mareas y talleres."
+  }
+}

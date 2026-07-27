@@ -1,0 +1,182 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:kestrel-informe",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "b167daa1e369a24579fee256a9ee8a9cd4b5a3dcb4818019627373c9bff67955"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:kestrel-informe:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "phenomena": []
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:kestrel-informe:e02",
+      "page": 1,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.98
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Vania Ostrow figura como jefa de operaciones del Consorcio Halcyon a bordo de la Estación Kestrel.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "asset_id": "asset:kestrel-informe",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "2149137e221bd74b4140ee84744805d0dc8707ddece8baf43add8bc2751407c7"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:kestrel-informe:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "phenomena": [
+          "CONFLICT",
+          "NEGATION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:kestrel-informe:e03",
+      "page": 1,
+      "previous_episode_id": "episode:kestrel-informe:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.98
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "El informe de tripulación del ciclo 2387 no incluye a Nadir Boone entre el personal del Consorcio Halcyon.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "asset_id": "asset:kestrel-informe",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "17a65c69ee502b2df96e89dbf546ce070e2785541023df277191d292ade5e926"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:kestrel-informe:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "phenomena": [
+          "FICTION_WITHIN_FICTION",
+          "ONTOLOGY_VIOLATION",
+          "RUMOR"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": null,
+      "page": 2,
+      "previous_episode_id": "episode:kestrel-informe:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.98
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "En el serial que emiten los turnos de noche, Halcyon vende la estación a una flota pirata; el guionista lo inventó todo. Se rumorea, en cambio, que el Núcleo Bruma pertenece al Consorcio Halcyon desde el traslado.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "kestrel-informe",
+  "split": "dev",
+  "world": "kestrel"
+}

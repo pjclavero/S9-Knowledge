@@ -1,0 +1,74 @@
+{
+  "benchmark_file": "assertions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "assertion_id": "assertion:leyenda:daiki-member-casa",
+      "calendar_id": "calendar:leyenda",
+      "collection_id": "collection:leyenda",
+      "confidence": 0.68,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:leyenda-escaneo:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "1042-01-01T00:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-escaneo:e01:f02"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "gold_key": "daiki-member-casa",
+        "phenomena": [
+          "OCR_NOISE"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:leyenda:casa-ciervo",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T12:00:00Z",
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:leyenda:daiki",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": "1042-01-01T00:00:00Z",
+      "valid_to": null,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-escaneo",
+  "split": "dev",
+  "world": "leyenda"
+}

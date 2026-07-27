@@ -1,0 +1,22 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:kestrel-informe:e01",
+      "text": "Vania Ostrow figura como jefa de operaciones del Consorcio Halcyon a bordo de la Estación Kestrel."
+    },
+    {
+      "episode_id": "episode:kestrel-informe:e02",
+      "text": "El informe de tripulación del ciclo 2387 no incluye a Nadir Boone entre el personal del Consorcio Halcyon."
+    },
+    {
+      "episode_id": "episode:kestrel-informe:e03",
+      "text": "En el serial que emiten los turnos de noche, Halcyon vende la estación a una flota pirata; el guionista lo inventó todo. Se rumorea, en cambio, que el Núcleo Bruma pertenece al Consorcio Halcyon desde el traslado."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "kestrel-informe",
+  "split": "dev",
+  "world": "kestrel"
+}
