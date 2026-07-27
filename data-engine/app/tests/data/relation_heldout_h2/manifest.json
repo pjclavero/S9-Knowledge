@@ -1,0 +1,603 @@
+{
+  "corpus": "relation-benchmark",
+  "corpus_role": "held-out",
+  "version": "1.0.0",
+  "synthetic": false,
+  "contains_private_corpus": false,
+  "material_policy": "Fragmentos CITADOS de obra con derechos de autor y de una grabacion de partida. Solo se versionan citas cortas (<= 400 caracteres) imprescindibles como evidencia; los originales NO estan en el repositorio.",
+  "sampling_seed": 20260727,
+  "workspaces": [
+    "leyenda",
+    "trudvang",
+    "vampiro"
+  ],
+  "encoding": "utf-8",
+  "source_count": 36,
+  "relation_count": 52,
+  "sources": [
+    {
+      "id": "src-01",
+      "path": "sources/src-01-stormi-une-a-los-stormlandeses.txt",
+      "title": "Stormi une a los stormlandeses",
+      "workspace": "trudvang",
+      "encoding": "utf-8",
+      "bytes": 391,
+      "chars": 385,
+      "sha256": "df0c07d4c2486938ab49789839717fb0eb802187372b7e4fb042d20c882c0de5",
+      "provenance": {
+        "work": "trudvang_master",
+        "page": 24,
+        "window_start_sentence": 7,
+        "window_sentences": 3
+      }
+    },
+    {
+      "id": "src-02",
+      "path": "sources/src-02-los-viraneses-y-gave.txt",
+      "title": "Los viraneses y Gave",
+      "workspace": "trudvang",
+      "encoding": "utf-8",
+      "bytes": 300,
+      "chars": 297,
+      "sha256": "df83696b559b4020cd570e0ff226e3a451bd480933ae6abef79de91626aaf97a",
+      "provenance": {
+        "work": "trudvang_master",
+        "page": 29,
+        "window_start_sentence": 5,
+        "window_sentences": 3
+      }
+    },
+    {
+      "id": "src-03",
+      "path": "sources/src-03-arkland-en-jarngand.txt",
+      "title": "Arkland en Jarngand",
+      "workspace": "trudvang",
+      "encoding": "utf-8",
+      "bytes": 377,
+      "chars": 376,
+      "sha256": "aea84ddfde8b3e7668d66961f3cb70504963b918d4740c3e2608e29d73cef933",
+      "provenance": {
+        "work": "trudvang_master",
+        "page": 20,
+        "window_start_sentence": 26,
+        "window_sentences": 3
+      }
+    },
+    {
+      "id": "src-04",
+      "path": "sources/src-04-whote-creador-de-yggdrasil.txt",
+      "title": "Whote, creador de Yggdrasil",
+      "workspace": "trudvang",
+      "encoding": "utf-8",
+      "bytes": 377,
+      "chars": 372,
+      "sha256": "131d4c853ce32eb2ac7b5047795405cec58188741ef2ec8b7e171a60b76ba473",
+      "provenance": {
+        "work": "trudvang_master",
+        "page": 19,
+        "window_start_sentence": 2,
+        "window_sentences": 3
+      }
+    },
+    {
+      "id": "src-05",
+      "path": "sources/src-05-shurd-senor-oscuro.txt",
+      "title": "Shurd, senor oscuro",
+      "workspace": "trudvang",
+      "encoding": "utf-8",
+      "bytes": 287,
+      "chars": 282,
+      "sha256": "149fe5ffaf77a07065a0d503ff87831d6b7ef378d1c6c95cdf0436e1eac7ef06",
+      "provenance": {
+        "work": "trudvang_master",
+        "page": 19,
+        "window_start_sentence": 11,
+        "window_sentences": 3
+      }
+    },
+    {
+      "id": "src-06",
+      "path": "sources/src-06-kivala-acude-a-salvar-a-thorgarth.txt",
+      "title": "Kivala acude a salvar a Thorgarth",
+      "workspace": "trudvang",
+      "encoding": "utf-8",
+      "bytes": 344,
+      "chars": 336,
+      "sha256": "446aa9c82fb1dc52b3bc53a380e0abbf9bf2d013119f3f8f092bb2b792c13245",
+      "provenance": {
+        "work": "trudvang_master",
+        "page": 53,
+        "window_start_sentence": 33,
+        "window_sentences": 2
+      }
+    },
+    {
+      "id": "src-07",
+      "path": "sources/src-07-los-paises-de-vastermark.txt",
+      "title": "Los paises de Vastermark",
+      "workspace": "trudvang",
+      "encoding": "utf-8",
+      "bytes": 347,
+      "chars": 339,
+      "sha256": "8c6c666d88d5ab3ac189ab797c2242cee9168431bf3fd7f4f2b22e62ac83462a",
+      "provenance": {
+        "work": "trudvang_master",
+        "page": 27,
+        "window_start_sentence": 22,
+        "window_sentences": 3
+      }
+    },
+    {
+      "id": "src-08",
+      "path": "sources/src-08-el-ovus-de-vastermark.txt",
+      "title": "El ovus de Vastermark",
+      "workspace": "trudvang",
+      "encoding": "utf-8",
+      "bytes": 234,
+      "chars": 231,
+      "sha256": "ae156bffedb08e7864103bef76a45008ff3a00239453f574110076d0aae727cd",
+      "provenance": {
+        "work": "trudvang_master",
+        "page": 29,
+        "window_start_sentence": 8,
+        "window_sentences": 3
+      }
+    },
+    {
+      "id": "src-09",
+      "path": "sources/src-09-los-stormkelts-y-la-fe-gerbanica.txt",
+      "title": "Los stormkelts y la fe gerbanica",
+      "workspace": "trudvang",
+      "encoding": "utf-8",
+      "bytes": 351,
+      "chars": 345,
+      "sha256": "4a1979e29646c2421e2715a605091835d455e73ebe3e0d167f2b7c18bd6625b2",
+      "provenance": {
+        "work": "trudvang_player",
+        "page": 29,
+        "window_start_sentence": 25,
+        "window_sentences": 3
+      }
+    },
+    {
+      "id": "src-10",
+      "path": "sources/src-10-las-tribus-salvajes.txt",
+      "title": "Las tribus salvajes",
+      "workspace": "trudvang",
+      "encoding": "utf-8",
+      "bytes": 352,
+      "chars": 350,
+      "sha256": "23626e53d7ae9b2aa6daba7935fda6e3927746f712059220e273d14b5f3f3105",
+      "provenance": {
+        "work": "trudvang_player",
+        "page": 21,
+        "window_start_sentence": 11,
+        "window_sentences": 2
+      }
+    },
+    {
+      "id": "src-11",
+      "path": "sources/src-11-el-noaj-huglakk-y-su-reliquia.txt",
+      "title": "El noaj Huglakk y su reliquia",
+      "workspace": "trudvang",
+      "encoding": "utf-8",
+      "bytes": 393,
+      "chars": 388,
+      "sha256": "3bfcf88157d04147deefe1d478656d2adca431587574a30ecf41666fb785c3c3",
+      "provenance": {
+        "work": "trudvang_player",
+        "page": 213,
+        "window_start_sentence": 18,
+        "window_sentences": 2
+      }
+    },
+    {
+      "id": "src-12",
+      "path": "sources/src-12-la-misa-de-olmunda-en-firidge.txt",
+      "title": "La misa de Olmunda en Firidge",
+      "workspace": "trudvang",
+      "encoding": "utf-8",
+      "bytes": 144,
+      "chars": 142,
+      "sha256": "6d678942d6313df7dabb929c5492c575b3f62e2f13a5b16ca923f79a5f5d50a7",
+      "provenance": {
+        "work": "trudvang_player",
+        "page": 195,
+        "window_start_sentence": 14,
+        "window_sentences": 2
+      }
+    },
+    {
+      "id": "src-13",
+      "path": "sources/src-13-los-nueve-reyes-de-yggdrasil.txt",
+      "title": "Los nueve reyes de Yggdrasil",
+      "workspace": "trudvang",
+      "encoding": "utf-8",
+      "bytes": 292,
+      "chars": 289,
+      "sha256": "7d83e486067e98017fc8f281d7e972ae056410fddcf8b058c7a5a91d378b8a99",
+      "provenance": {
+        "work": "trudvang_player",
+        "page": 184,
+        "window_start_sentence": 3,
+        "window_sentences": 1
+      }
+    },
+    {
+      "id": "src-14",
+      "path": "sources/src-14-cain-y-los-ancianos-en-enoch.txt",
+      "title": "Cain y los Ancianos en Enoch",
+      "workspace": "vampiro",
+      "encoding": "utf-8",
+      "bytes": 380,
+      "chars": 369,
+      "sha256": "78809536f9437d3960160d2085b637c02ef83efc120da368b89a1139797dd895",
+      "provenance": {
+        "work": "v20",
+        "page": 24,
+        "window_start_sentence": 29,
+        "window_sentences": 2
+      }
+    },
+    {
+      "id": "src-15",
+      "path": "sources/src-15-los-capadocios-en-la-sociedad-cainita.txt",
+      "title": "Los Capadocios en la sociedad Cainita",
+      "workspace": "vampiro",
+      "encoding": "utf-8",
+      "bytes": 344,
+      "chars": 341,
+      "sha256": "960b9042dc182c30ae457325cc2d67c63d2257fc88e12400e773151946ae245f",
+      "provenance": {
+        "work": "v20",
+        "page": 397,
+        "window_start_sentence": 6,
+        "window_sentences": 2
+      }
+    },
+    {
+      "id": "src-16",
+      "path": "sources/src-16-ventrue-el-clan-de-los-reyes.txt",
+      "title": "Ventrue, el Clan de los Reyes",
+      "workspace": "vampiro",
+      "encoding": "utf-8",
+      "bytes": 317,
+      "chars": 314,
+      "sha256": "452f8935b6ca934d01f1e49a9b8913bc37966b08ad6a3836fc99622f7fe6803c",
+      "provenance": {
+        "work": "v20",
+        "page": 67,
+        "window_start_sentence": 1,
+        "window_sentences": 2
+      }
+    },
+    {
+      "id": "src-17",
+      "path": "sources/src-17-el-viejo-clan-tzimisce.txt",
+      "title": "El Viejo Clan Tzimisce",
+      "workspace": "vampiro",
+      "encoding": "utf-8",
+      "bytes": 221,
+      "chars": 216,
+      "sha256": "f3dcc3ff0f5aa7b49757471ea9866b7e22a3fe34e168c27a63efd1aa77b09172",
+      "provenance": {
+        "work": "v20",
+        "page": 418,
+        "window_start_sentence": 23,
+        "window_sentences": 3
+      }
+    },
+    {
+      "id": "src-18",
+      "path": "sources/src-18-vampiros-y-lupinos.txt",
+      "title": "Vampiros y Lupinos",
+      "workspace": "vampiro",
+      "encoding": "utf-8",
+      "bytes": 243,
+      "chars": 241,
+      "sha256": "55dd031db6f8b6b0ae81daa9a535fb339b7ddc869a566817016f06cc62c96bc6",
+      "provenance": {
+        "work": "v20",
+        "page": 358,
+        "window_start_sentence": 8,
+        "window_sentences": 2
+      }
+    },
+    {
+      "id": "src-19",
+      "path": "sources/src-19-ingrid-bauer-la-doncella-de-hierro.txt",
+      "title": "Ingrid Bauer, la Doncella de Hierro",
+      "workspace": "vampiro",
+      "encoding": "utf-8",
+      "bytes": 406,
+      "chars": 396,
+      "sha256": "be5864c416705ae21c431c00f8e169ea8e108ef0412af9219e6f322fa0907c4b",
+      "provenance": {
+        "work": "v20",
+        "page": 350,
+        "window_start_sentence": 13,
+        "window_sentences": 2
+      }
+    },
+    {
+      "id": "src-20",
+      "path": "sources/src-20-vinculo-de-sangre-y-jyhad.txt",
+      "title": "Vinculo de Sangre y Jyhad",
+      "workspace": "vampiro",
+      "encoding": "utf-8",
+      "bytes": 182,
+      "chars": 180,
+      "sha256": "842b597f10796d4b118c29d9946d72369790645e4d2b9ac94eae64dc4670b15c",
+      "provenance": {
+        "work": "v20",
+        "page": 288,
+        "window_start_sentence": 25,
+        "window_sentences": 1
+      }
+    },
+    {
+      "id": "src-21",
+      "path": "sources/src-21-principes-y-autoridades-de-la-estirpe.txt",
+      "title": "Principes y autoridades de la Estirpe",
+      "workspace": "vampiro",
+      "encoding": "utf-8",
+      "bytes": 299,
+      "chars": 297,
+      "sha256": "23488dd69c8604f761e3ba6ee73ab41282defd86d97c68218f294a8fffc5ae76",
+      "provenance": {
+        "work": "v20",
+        "page": 18,
+        "window_start_sentence": 27,
+        "window_sentences": 1
+      }
+    },
+    {
+      "id": "src-22",
+      "path": "sources/src-22-diablerie-y-el-odio-de-la-camarilla.txt",
+      "title": "Diablerie y el odio de la Camarilla",
+      "workspace": "vampiro",
+      "encoding": "utf-8",
+      "bytes": 348,
+      "chars": 346,
+      "sha256": "c3d9201a491739942107349692ce222aa55a115fefe0595072917f9a19ce3c3e",
+      "provenance": {
+        "work": "v20",
+        "page": 275,
+        "window_start_sentence": 9,
+        "window_sentences": 3
+      }
+    },
+    {
+      "id": "src-23",
+      "path": "sources/src-23-la-guia-de-muricia.txt",
+      "title": "La guia de Muricia",
+      "workspace": "vampiro",
+      "encoding": "utf-8",
+      "bytes": 298,
+      "chars": 293,
+      "sha256": "1ed138966961a403ae44be8911168e5adf17e748b88e9e3cab587f769b41f329",
+      "provenance": {
+        "work": "v20",
+        "page": 394,
+        "window_start_sentence": 13,
+        "window_sentences": 2
+      }
+    },
+    {
+      "id": "src-24",
+      "path": "sources/src-24-los-clanes-fundadores.txt",
+      "title": "Los Clanes Fundadores",
+      "workspace": "vampiro",
+      "encoding": "utf-8",
+      "bytes": 193,
+      "chars": 191,
+      "sha256": "96061df035bb29acd9f4932618637d0bcf2e56dc38f5941ac8f5e2925d1a779b",
+      "provenance": {
+        "work": "v20",
+        "page": 33,
+        "window_start_sentence": 16,
+        "window_sentences": 1
+      }
+    },
+    {
+      "id": "src-25",
+      "path": "sources/src-25-veronica-y-su-rival-giselle.txt",
+      "title": "Veronica y su rival Giselle",
+      "workspace": "vampiro",
+      "encoding": "utf-8",
+      "bytes": 348,
+      "chars": 343,
+      "sha256": "99fc4dbe17a4dd8fb85279c4c0fdb91fcc1e221010b76308a5240ef3327db76a",
+      "provenance": {
+        "work": "v20",
+        "page": 241,
+        "window_start_sentence": 40,
+        "window_sentences": 3
+      }
+    },
+    {
+      "id": "src-26",
+      "path": "sources/src-26-magistrados-de-los-clanes-en-el-comedor.txt",
+      "title": "Magistrados de los clanes en el comedor",
+      "workspace": "leyenda",
+      "encoding": "utf-8",
+      "bytes": 304,
+      "chars": 299,
+      "sha256": "e5d6c3180f612a4972dfbab4d874ae216bf0ee5e93a6a6b8df4317d6ad0097ba",
+      "provenance": {
+        "work": "transcripcion",
+        "page": 0,
+        "window_start_sentence": 193,
+        "window_sentences": 0
+      }
+    },
+    {
+      "id": "src-27",
+      "path": "sources/src-27-llega-un-diplomatico-leon.txt",
+      "title": "Llega un diplomatico Leon",
+      "workspace": "leyenda",
+      "encoding": "utf-8",
+      "bytes": 313,
+      "chars": 303,
+      "sha256": "854d014ea8f65b1e08e566e43731b9264074633793b3f0a561277ed891c4c9b5",
+      "provenance": {
+        "work": "transcripcion",
+        "page": 0,
+        "window_start_sentence": 1777,
+        "window_sentences": 0
+      }
+    },
+    {
+      "id": "src-28",
+      "path": "sources/src-28-la-ceremonia-del-te.txt",
+      "title": "La ceremonia del te",
+      "workspace": "leyenda",
+      "encoding": "utf-8",
+      "bytes": 277,
+      "chars": 265,
+      "sha256": "94591594700fc1488cea4ceaefab02e88c06e8a7933469bb7a11a097883266ea",
+      "provenance": {
+        "work": "transcripcion",
+        "page": 0,
+        "window_start_sentence": 1566,
+        "window_sentences": 0
+      }
+    },
+    {
+      "id": "src-29",
+      "path": "sources/src-29-invitacion-a-la-biblioteca.txt",
+      "title": "Invitacion a la biblioteca",
+      "workspace": "leyenda",
+      "encoding": "utf-8",
+      "bytes": 310,
+      "chars": 304,
+      "sha256": "896ccd9eb28608cdfc9d4205ee296e3cc5b00240690d1fad5bace654e0fe5b9b",
+      "provenance": {
+        "work": "transcripcion",
+        "page": 0,
+        "window_start_sentence": 1374,
+        "window_sentences": 0
+      }
+    },
+    {
+      "id": "src-30",
+      "path": "sources/src-30-registros-retirados-del-clan-grulla.txt",
+      "title": "Registros retirados del clan Grulla",
+      "workspace": "leyenda",
+      "encoding": "utf-8",
+      "bytes": 342,
+      "chars": 333,
+      "sha256": "a9144fe8957e5f55d255c4deb61d3e2df586d896632c49dda6bc6c198eae17c8",
+      "provenance": {
+        "work": "transcripcion",
+        "page": 0,
+        "window_start_sentence": 1404,
+        "window_sentences": 0
+      }
+    },
+    {
+      "id": "src-31",
+      "path": "sources/src-31-hanzo-y-sus-dos-companeros.txt",
+      "title": "Hanzo y sus dos companeros",
+      "workspace": "leyenda",
+      "encoding": "utf-8",
+      "bytes": 361,
+      "chars": 350,
+      "sha256": "45971c92eab282f0c3667979913045da6f53d58cab72ed2d0679ed59b98af7f4",
+      "provenance": {
+        "work": "transcripcion",
+        "page": 0,
+        "window_start_sentence": 414,
+        "window_sentences": 0
+      }
+    },
+    {
+      "id": "src-32",
+      "path": "sources/src-32-hanzo-pide-ensenanza-a-la-profesora.txt",
+      "title": "Hanzo pide ensenanza a la profesora",
+      "workspace": "leyenda",
+      "encoding": "utf-8",
+      "bytes": 269,
+      "chars": 263,
+      "sha256": "b6258d3447fdbe8b50aebd17f2b02ae451304906e38f40dcf6ee4aff5b3b02f0",
+      "provenance": {
+        "work": "transcripcion",
+        "page": 0,
+        "window_start_sentence": 997,
+        "window_sentences": 0
+      }
+    },
+    {
+      "id": "src-33",
+      "path": "sources/src-33-los-venenos-y-los-magistrados-esmeralda.txt",
+      "title": "Los venenos y los magistrados esmeralda",
+      "workspace": "leyenda",
+      "encoding": "utf-8",
+      "bytes": 299,
+      "chars": 295,
+      "sha256": "985b366546c2600ad021c84242b4b87610c536b4c84a97a16f89b67f76c468ed",
+      "provenance": {
+        "work": "transcripcion",
+        "page": 0,
+        "window_start_sentence": 1022,
+        "window_sentences": 0
+      }
+    },
+    {
+      "id": "src-34",
+      "path": "sources/src-34-ruido-reglas-de-armas-a-dos-manos.txt",
+      "title": "RUIDO: reglas de armas a dos manos",
+      "workspace": "trudvang",
+      "encoding": "utf-8",
+      "bytes": 340,
+      "chars": 338,
+      "sha256": "680f7edbe651ca224324cb48320e709760567659ca2fc81575a90610b034a272",
+      "provenance": {
+        "work": "trudvang_master",
+        "page": 47,
+        "window_start_sentence": 10,
+        "window_sentences": 2
+      }
+    },
+    {
+      "id": "src-35",
+      "path": "sources/src-35-ruido-la-tecnica-artesania.txt",
+      "title": "RUIDO: la Tecnica Artesania",
+      "workspace": "vampiro",
+      "encoding": "utf-8",
+      "bytes": 397,
+      "chars": 386,
+      "sha256": "a735bb305c91443dab3cf666062f747c67219ea40d1f9d6be42acadba9ac133f",
+      "provenance": {
+        "work": "v20",
+        "page": 96,
+        "window_start_sentence": 8,
+        "window_sentences": 3
+      }
+    },
+    {
+      "id": "src-36",
+      "path": "sources/src-36-ruido-los-cinco-elementos.txt",
+      "title": "RUIDO: los cinco elementos",
+      "workspace": "leyenda",
+      "encoding": "utf-8",
+      "bytes": 284,
+      "chars": 281,
+      "sha256": "20da5218caff9e1b237ed00717f4c11bf38e5e61ce32eb2f51286fff14dc946c",
+      "provenance": {
+        "work": "transcripcion",
+        "page": 0,
+        "window_start_sentence": 672,
+        "window_sentences": 0
+      }
+    }
+  ],
+  "ground_truth": {
+    "path": "ground_truth/relations.json",
+    "sha256": "2bbc64185cf86a05d23e78a75f73066da105a086d70458ab107cebe10af6c430"
+  },
+  "cases": {
+    "path": "cases/cases.json",
+    "sha256": "600120c93010f37b1480702b082f992eccc01ea175f2056b51a3a6dc1eb914a4"
+  }
+}

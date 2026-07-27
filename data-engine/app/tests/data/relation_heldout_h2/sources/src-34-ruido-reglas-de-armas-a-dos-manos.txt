@@ -1,0 +1,1 @@
+Usar armas en ambas manos Las especialidades Armas Ligeras a Una Mano, Armas Pesadas a Una Mano y Armas Arrojadizas se pueden aprender con ambas manos. Si un personaje aprende una o varias de estas especialidades tanto con la mano derecha como con la izquierda, podrá usar este tipo de armas con las dos manos durante una ronda de acción.

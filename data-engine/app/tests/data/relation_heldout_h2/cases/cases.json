@@ -1,0 +1,623 @@
+{
+  "corpus_version": "1.0.0",
+  "description": "Indice de CASOS del held-out H2 (material real). Este fichero es METADATO: el arnes `relations/benchmark/` no lo lee. Cada caso equivale a un fragmento muestreado y sus etiquetas de cobertura lingueistica.",
+  "cases": [
+    {
+      "case_id": "H2-01",
+      "title": "Stormi une a los stormlandeses",
+      "work": "trudvang_master",
+      "workspace": "trudvang",
+      "coverage": [
+        "causalidad",
+        "estructura-escindida",
+        "pertenencia-terminada"
+      ],
+      "sources": [
+        "src-01"
+      ],
+      "relations": [
+        "rel-001",
+        "rel-002"
+      ]
+    },
+    {
+      "case_id": "H2-02",
+      "title": "Los viraneses y Gave",
+      "work": "trudvang_master",
+      "workspace": "trudvang",
+      "coverage": [
+        "creacion",
+        "sujeto-elidido",
+        "coordinacion"
+      ],
+      "sources": [
+        "src-02"
+      ],
+      "relations": [
+        "rel-003",
+        "rel-004"
+      ]
+    },
+    {
+      "case_id": "H2-03",
+      "title": "Arkland en Jarngand",
+      "work": "trudvang_master",
+      "workspace": "trudvang",
+      "coverage": [
+        "geografia",
+        "voz-pasiva",
+        "complemento-agente"
+      ],
+      "sources": [
+        "src-03"
+      ],
+      "relations": [
+        "rel-005",
+        "rel-006"
+      ]
+    },
+    {
+      "case_id": "H2-04",
+      "title": "Whote, creador de Yggdrasil",
+      "work": "trudvang_master",
+      "workspace": "trudvang",
+      "coverage": [
+        "nominalizacion",
+        "filiacion-mitologica",
+        "artefacto-pdf"
+      ],
+      "sources": [
+        "src-04"
+      ],
+      "relations": [
+        "rel-007",
+        "rel-008"
+      ]
+    },
+    {
+      "case_id": "H2-05",
+      "title": "Shurd, senor oscuro",
+      "work": "trudvang_master",
+      "workspace": "trudvang",
+      "coverage": [
+        "enemistad-implicita",
+        "simetrica",
+        "predicado-ambiguo"
+      ],
+      "sources": [
+        "src-05"
+      ],
+      "relations": [
+        "rel-009",
+        "rel-010"
+      ]
+    },
+    {
+      "case_id": "H2-06",
+      "title": "Kivala acude a salvar a Thorgarth",
+      "work": "trudvang_master",
+      "workspace": "trudvang",
+      "coverage": [
+        "aposicion-a-distancia",
+        "epiteto",
+        "gentilicio"
+      ],
+      "sources": [
+        "src-06"
+      ],
+      "relations": [
+        "rel-011",
+        "rel-012"
+      ]
+    },
+    {
+      "case_id": "H2-07",
+      "title": "Los paises de Vastermark",
+      "work": "trudvang_master",
+      "workspace": "trudvang",
+      "coverage": [
+        "enumeracion",
+        "explosion-de-pares",
+        "copulativa"
+      ],
+      "sources": [
+        "src-07"
+      ],
+      "relations": [
+        "rel-013",
+        "rel-014"
+      ]
+    },
+    {
+      "case_id": "H2-08",
+      "title": "El ovus de Vastermark",
+      "work": "trudvang_master",
+      "workspace": "trudvang",
+      "coverage": [
+        "aposicion",
+        "liderazgo"
+      ],
+      "sources": [
+        "src-08"
+      ],
+      "relations": [
+        "rel-015"
+      ]
+    },
+    {
+      "case_id": "H2-09",
+      "title": "Los stormkelts y la fe gerbanica",
+      "work": "trudvang_player",
+      "workspace": "trudvang",
+      "coverage": [
+        "adhesion-religiosa",
+        "predicado-ambiguo"
+      ],
+      "sources": [
+        "src-09"
+      ],
+      "relations": [
+        "rel-016"
+      ]
+    },
+    {
+      "case_id": "H2-10",
+      "title": "Las tribus salvajes",
+      "work": "trudvang_player",
+      "workspace": "trudvang",
+      "coverage": [
+        "oracion-de-relativo",
+        "dos-puntos",
+        "tribus"
+      ],
+      "sources": [
+        "src-10"
+      ],
+      "relations": [
+        "rel-017",
+        "rel-018"
+      ]
+    },
+    {
+      "case_id": "H2-11",
+      "title": "El noaj Huglakk y su reliquia",
+      "work": "trudvang_player",
+      "workspace": "trudvang",
+      "coverage": [
+        "posesion",
+        "texto-de-reglas-con-narrativa"
+      ],
+      "sources": [
+        "src-11"
+      ],
+      "relations": [
+        "rel-019"
+      ]
+    },
+    {
+      "case_id": "H2-12",
+      "title": "La misa de Olmunda en Firidge",
+      "work": "trudvang_player",
+      "workspace": "trudvang",
+      "coverage": [
+        "evento",
+        "localizacion-de-evento",
+        "ejemplo-de-manual"
+      ],
+      "sources": [
+        "src-12"
+      ],
+      "relations": [
+        "rel-020",
+        "rel-021"
+      ]
+    },
+    {
+      "case_id": "H2-13",
+      "title": "Los nueve reyes de Yggdrasil",
+      "work": "trudvang_player",
+      "workspace": "trudvang",
+      "coverage": [
+        "sintagma-sin-verbo",
+        "filiacion-invertida"
+      ],
+      "sources": [
+        "src-13"
+      ],
+      "relations": [
+        "rel-022",
+        "rel-023"
+      ]
+    },
+    {
+      "case_id": "H2-14",
+      "title": "Cain y los Ancianos en Enoch",
+      "work": "v20",
+      "workspace": "vampiro",
+      "coverage": [
+        "argot-del-sistema",
+        "filiacion",
+        "subjuntivo"
+      ],
+      "sources": [
+        "src-14"
+      ],
+      "relations": [
+        "rel-024",
+        "rel-025"
+      ]
+    },
+    {
+      "case_id": "H2-15",
+      "title": "Los Capadocios en la sociedad Cainita",
+      "work": "v20",
+      "workspace": "vampiro",
+      "coverage": [
+        "pertenencia-terminada",
+        "artefacto-pdf"
+      ],
+      "sources": [
+        "src-15"
+      ],
+      "relations": [
+        "rel-026"
+      ]
+    },
+    {
+      "case_id": "H2-16",
+      "title": "Ventrue, el Clan de los Reyes",
+      "work": "v20",
+      "workspace": "vampiro",
+      "coverage": [
+        "alias",
+        "sujeto-a-distancia",
+        "artefacto-pdf"
+      ],
+      "sources": [
+        "src-16"
+      ],
+      "relations": [
+        "rel-027"
+      ]
+    },
+    {
+      "case_id": "H2-17",
+      "title": "El Viejo Clan Tzimisce",
+      "work": "v20",
+      "workspace": "vampiro",
+      "coverage": [
+        "copulativa",
+        "caso-facil"
+      ],
+      "sources": [
+        "src-17"
+      ],
+      "relations": [
+        "rel-028"
+      ]
+    },
+    {
+      "case_id": "H2-18",
+      "title": "Vampiros y Lupinos",
+      "work": "v20",
+      "workspace": "vampiro",
+      "coverage": [
+        "enemistad-implicita",
+        "simetrica"
+      ],
+      "sources": [
+        "src-18"
+      ],
+      "relations": [
+        "rel-029"
+      ]
+    },
+    {
+      "case_id": "H2-19",
+      "title": "Ingrid Bauer, la Doncella de Hierro",
+      "work": "v20",
+      "workspace": "vampiro",
+      "coverage": [
+        "alias",
+        "comillas-tipograficas"
+      ],
+      "sources": [
+        "src-19"
+      ],
+      "relations": [
+        "rel-030"
+      ]
+    },
+    {
+      "case_id": "H2-20",
+      "title": "Vinculo de Sangre y Jyhad",
+      "work": "v20",
+      "workspace": "vampiro",
+      "coverage": [
+        "rumor",
+        "posesion"
+      ],
+      "sources": [
+        "src-20"
+      ],
+      "relations": [
+        "rel-031"
+      ]
+    },
+    {
+      "case_id": "H2-21",
+      "title": "Principes y autoridades de la Estirpe",
+      "work": "v20",
+      "workspace": "vampiro",
+      "coverage": [
+        "coordinacion",
+        "pertenencia"
+      ],
+      "sources": [
+        "src-21"
+      ],
+      "relations": [
+        "rel-032"
+      ]
+    },
+    {
+      "case_id": "H2-22",
+      "title": "Diablerie y el odio de la Camarilla",
+      "work": "v20",
+      "workspace": "vampiro",
+      "coverage": [
+        "pronombre-cliticio",
+        "rumor",
+        "artefacto-pdf",
+        "enemistad"
+      ],
+      "sources": [
+        "src-22"
+      ],
+      "relations": [
+        "rel-033",
+        "rel-034"
+      ]
+    },
+    {
+      "case_id": "H2-23",
+      "title": "La guia de Muricia",
+      "work": "v20",
+      "workspace": "vampiro",
+      "coverage": [
+        "mentoria",
+        "nominalizacion",
+        "texto-de-reglas"
+      ],
+      "sources": [
+        "src-23"
+      ],
+      "relations": [
+        "rel-035"
+      ]
+    },
+    {
+      "case_id": "H2-24",
+      "title": "Los Clanes Fundadores",
+      "work": "v20",
+      "workspace": "vampiro",
+      "coverage": [
+        "enumeracion-larga",
+        "explosion-de-pares",
+        "entidad-repetida"
+      ],
+      "sources": [
+        "src-24"
+      ],
+      "relations": [
+        "rel-036",
+        "rel-037"
+      ]
+    },
+    {
+      "case_id": "H2-25",
+      "title": "Veronica y su rival Giselle",
+      "work": "v20",
+      "workspace": "vampiro",
+      "coverage": [
+        "ejemplo-de-manual",
+        "enemistad",
+        "clan-apositivo"
+      ],
+      "sources": [
+        "src-25"
+      ],
+      "relations": [
+        "rel-038",
+        "rel-039"
+      ]
+    },
+    {
+      "case_id": "H2-26",
+      "title": "Magistrados de los clanes en el comedor",
+      "work": "transcripcion",
+      "workspace": "leyenda",
+      "coverage": [
+        "habla-sin-puntuacion",
+        "error-asr-nombre-propio",
+        "repeticion"
+      ],
+      "sources": [
+        "src-26"
+      ],
+      "relations": [
+        "rel-040",
+        "rel-041"
+      ]
+    },
+    {
+      "case_id": "H2-27",
+      "title": "Llega un diplomatico Leon",
+      "work": "transcripcion",
+      "workspace": "leyenda",
+      "coverage": [
+        "habla-sin-puntuacion",
+        "tartamudeo",
+        "frase-cortada",
+        "minusculas"
+      ],
+      "sources": [
+        "src-27"
+      ],
+      "relations": [
+        "rel-042"
+      ]
+    },
+    {
+      "case_id": "H2-28",
+      "title": "La ceremonia del te",
+      "work": "transcripcion",
+      "workspace": "leyenda",
+      "coverage": [
+        "habla-sin-puntuacion",
+        "autocorreccion",
+        "dos-formas-de-la-misma-entidad"
+      ],
+      "sources": [
+        "src-28"
+      ],
+      "relations": [
+        "rel-043"
+      ]
+    },
+    {
+      "case_id": "H2-29",
+      "title": "Invitacion a la biblioteca",
+      "work": "transcripcion",
+      "workspace": "leyenda",
+      "coverage": [
+        "habla-sin-puntuacion",
+        "intencion-futura",
+        "deixis-sin-referente"
+      ],
+      "sources": [
+        "src-29"
+      ],
+      "relations": [
+        "rel-044"
+      ]
+    },
+    {
+      "case_id": "H2-30",
+      "title": "Registros retirados del clan Grulla",
+      "work": "transcripcion",
+      "workspace": "leyenda",
+      "coverage": [
+        "habla-sin-puntuacion",
+        "error-asr-nombre-propio",
+        "localizacion-caduca"
+      ],
+      "sources": [
+        "src-30"
+      ],
+      "relations": [
+        "rel-045"
+      ]
+    },
+    {
+      "case_id": "H2-31",
+      "title": "Hanzo y sus dos companeros",
+      "work": "transcripcion",
+      "workspace": "leyenda",
+      "coverage": [
+        "habla-sin-puntuacion",
+        "correferencia-pospuesta",
+        "simetrica"
+      ],
+      "sources": [
+        "src-31"
+      ],
+      "relations": [
+        "rel-046",
+        "rel-047"
+      ]
+    },
+    {
+      "case_id": "H2-32",
+      "title": "Hanzo pide ensenanza a la profesora",
+      "work": "transcripcion",
+      "workspace": "leyenda",
+      "coverage": [
+        "habla-sin-puntuacion",
+        "mentoria",
+        "direccion-invertida"
+      ],
+      "sources": [
+        "src-32"
+      ],
+      "relations": [
+        "rel-048"
+      ]
+    },
+    {
+      "case_id": "H2-33",
+      "title": "Los venenos y los magistrados esmeralda",
+      "work": "transcripcion",
+      "workspace": "leyenda",
+      "coverage": [
+        "habla-sin-puntuacion",
+        "negacion-por-cuantificador"
+      ],
+      "sources": [
+        "src-33"
+      ],
+      "relations": [
+        "rel-049"
+      ]
+    },
+    {
+      "case_id": "H2-34",
+      "title": "RUIDO: reglas de armas a dos manos",
+      "work": "trudvang_master",
+      "workspace": "trudvang",
+      "coverage": [
+        "centinela-ruido",
+        "reglas"
+      ],
+      "sources": [
+        "src-34"
+      ],
+      "relations": [
+        "rel-050"
+      ]
+    },
+    {
+      "case_id": "H2-35",
+      "title": "RUIDO: la Tecnica Artesania",
+      "work": "v20",
+      "workspace": "vampiro",
+      "coverage": [
+        "centinela-ruido",
+        "reglas",
+        "segunda-persona"
+      ],
+      "sources": [
+        "src-35"
+      ],
+      "relations": [
+        "rel-051"
+      ]
+    },
+    {
+      "case_id": "H2-36",
+      "title": "RUIDO: los cinco elementos",
+      "work": "transcripcion",
+      "workspace": "leyenda",
+      "coverage": [
+        "centinela-ruido",
+        "habla-sin-puntuacion"
+      ],
+      "sources": [
+        "src-36"
+      ],
+      "relations": [
+        "rel-052"
+      ]
+    }
+  ]
+}

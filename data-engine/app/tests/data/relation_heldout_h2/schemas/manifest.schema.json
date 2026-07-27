@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "relation-heldout-h2/manifest.schema.json",
+  "title": "Relation held-out H2 corpus manifest (material real)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "cases",
+    "contains_private_corpus",
+    "corpus",
+    "corpus_role",
+    "encoding",
+    "ground_truth",
+    "material_policy",
+    "relation_count",
+    "sampling_seed",
+    "source_count",
+    "sources",
+    "synthetic",
+    "version",
+    "workspaces"
+  ],
+  "properties": {
+    "corpus": {
+      "const": "relation-benchmark"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "synthetic": {
+      "const": false
+    },
+    "contains_private_corpus": {
+      "const": false
+    },
+    "workspaces": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "encoding": {
+      "const": "utf-8"
+    },
+    "source_count": {
+      "type": "integer",
+      "minimum": 20,
+      "maximum": 80
+    },
+    "relation_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 80,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "bytes",
+          "chars",
+          "encoding",
+          "id",
+          "path",
+          "provenance",
+          "sha256",
+          "title",
+          "workspace"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^src-\\d+$"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^sources/[A-Za-z0-9._-]+\\.txt$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "workspace": {
+            "type": "string",
+            "minLength": 1
+          },
+          "encoding": {
+            "const": "utf-8"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "chars": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 400
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "provenance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "work",
+              "page",
+              "window_start_sentence",
+              "window_sentences"
+            ],
+            "properties": {
+              "work": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "window_start_sentence": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "window_sentences": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "ground_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "const": "ground_truth/relations.json"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "corpus_role": {
+      "const": "held-out"
+    },
+    "cases": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "const": "cases/cases.json"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "material_policy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sampling_seed": {
+      "const": 20260727
+    }
+  }
+}
