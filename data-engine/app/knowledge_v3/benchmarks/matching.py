@@ -31,6 +31,11 @@ from typing import Any, Callable, Hashable, Iterable, Sequence
 #: Modos de emparejamiento de span admitidos.
 SPAN_MODES = ("exact", "overlap")
 
+#: Suelo del umbral de IoU en modo `overlap`. Por debajo de la mitad, dos spans
+#: que comparten menos texto del que NO comparten se contarian como el mismo:
+#: eso ya no es tolerancia de anclaje, es regalar aciertos. No es configurable.
+MIN_OVERLAP_THRESHOLD = 0.5
+
 
 @dataclass(frozen=True)
 class MatchConfig:
@@ -49,8 +54,12 @@ class MatchConfig:
     def __post_init__(self) -> None:
         if self.span_mode not in SPAN_MODES:
             raise ValueError(f"span_mode desconocido: {self.span_mode!r}")
-        if not 0 < self.overlap_threshold <= 1:
-            raise ValueError("overlap_threshold debe estar en (0, 1]")
+        if not MIN_OVERLAP_THRESHOLD <= self.overlap_threshold <= 1:
+            raise ValueError(
+                f"overlap_threshold debe estar en [{MIN_OVERLAP_THRESHOLD}, 1]: "
+                "un umbral mas bajo empareja spans que comparten menos de la "
+                "mitad de su extension"
+            )
         for extra in self.claim_key_extra:
             if extra not in ("predicate", "negated", "direction"):
                 raise ValueError(f"componente de clave de claim desconocido: {extra!r}")
@@ -322,6 +331,7 @@ def pair_set(clusters: Iterable[Iterable[str]]) -> set[tuple[str, str]]:
 
 
 __all__ = [
+    "MIN_OVERLAP_THRESHOLD",
     "MatchConfig",
     "MatchResult",
     "SPAN_MODES",

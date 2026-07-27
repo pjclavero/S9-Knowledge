@@ -185,7 +185,10 @@ class PredictionBundle:
     y el informe dice que no se puntuo.
     """
 
-    split: str = "dev"
+    #: Sin valor por defecto A PROPOSITO: un bundle que no declara su split se
+    #: mediria contra el gold que hubiera cargado, que es justo el accidente que
+    #: separa dev de held-out. `run()` exige que coincida.
+    split: str | None = None
     ablation: str = "unspecified"
     subsystem: str = "unspecified"
     run_id: str = "unspecified"
@@ -205,6 +208,12 @@ class PredictionBundle:
         unknown = sorted(set(data) - known)
         if unknown:
             raise DatasetError(f"campos desconocidos en las predicciones: {unknown}")
+        if not data.get("split"):
+            raise DatasetError(
+                "las predicciones no declaran `split`. Es obligatorio: medir una "
+                "salida contra el gold equivocado es el accidente que este arnes "
+                "existe para impedir"
+            )
         return cls(**{k: v for k, v in data.items() if k in known})
 
     @classmethod
@@ -254,13 +263,32 @@ def _read(path: Path) -> dict[str, Any]:
 
 
 def _documents(path: Path, expected_split: str) -> list[Any]:
+    """Documentos de un fichero del dataset, con DOBLE comprobacion de split.
+
+    La primera defensa es el sobre del fichero. La segunda es la marca de cada
+    documento, y tiene que estar aqui: instalar un split es "copiar un
+    directorio", asi que un fichero traido de otro split con el sobre reescrito
+    a mano pasaria la primera y no la segunda.
+    """
     data = _read(path)
     if data.get("split") != expected_split:
         raise DatasetError(
             f"{path.name} declara split {data.get('split')!r} y se esperaba "
             f"{expected_split!r}: un fichero sin marca de split correcta no entra"
         )
-    return data.get("documents", [])
+    documents = data.get("documents", [])
+    for doc in documents:
+        if not isinstance(doc, dict) or "contract_id" not in doc:
+            continue
+        marca = (doc.get("metadata") or {}).get("benchmark") or {}
+        if marca.get("split") != expected_split:
+            raise DatasetError(
+                f"{path.name}: el documento {doc.get('contract_id')} lleva "
+                f"metadata.benchmark.split={marca.get('split')!r} y el fichero "
+                f"declara {expected_split!r}. Un documento colado de otro split "
+                "no entra ni aunque el sobre diga lo contrario"
+            )
+    return documents
 
 
 def load_gold(split: str = "dev", *, root: Path | None = None, validate: bool = False) -> GoldDataset:

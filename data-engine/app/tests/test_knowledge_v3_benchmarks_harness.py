@@ -100,7 +100,8 @@ def test_un_normalizador_perfecto_no_tiene_ni_cer_ni_truncado(gold):
     assert r["cer"] == 0.0
     assert r["wer"] == 0.0
     assert r["truncation_rate"] == 0.0
-    assert r["text_coverage"] == 1.0
+    assert r["char_coverage"] == 1.0
+    assert r["episode_char_recall"] == 1.0
     assert r["page_recall"] == 1.0
     assert r["bbox_completeness"] == 1.0
     assert r["timecode_completeness"] == 1.0
@@ -411,7 +412,8 @@ def test_truncar_un_episodio_se_ve_en_el_truncado(gold, perfecta):
 def test_perder_episodios_se_ve_en_la_cobertura(gold, perfecta):
     perfecta.episodes = perfecta.episodes[:5]
     r = score_normalizer(gold, perfecta)
-    assert r["text_coverage"] < 1.0
+    assert r["episode_char_recall"] < 1.0
+    assert r["char_coverage"] < 1.0
     assert r["episode_detection"]["recall"] < 1.0
 
 
@@ -509,9 +511,9 @@ def test_el_markdown_marca_como_n_d_lo_que_no_tiene_poblacion(gold):
 
 
 def test_el_informe_registra_la_configuracion_de_emparejamiento(gold, perfecta):
-    report = run(gold, perfecta, config=MatchConfig(span_mode="overlap", overlap_threshold=0.3))
+    report = run(gold, perfecta, config=MatchConfig(span_mode="overlap", overlap_threshold=0.6))
     assert report["match_config"]["span_mode"] == "overlap"
-    assert report["match_config"]["overlap_threshold"] == 0.3
+    assert report["match_config"]["overlap_threshold"] == 0.6
 
 
 # --------------------------------------------------------------------------
@@ -582,3 +584,233 @@ def test_el_texto_de_una_tabla_es_su_render_canonico(gold):
     tabla = next(e for e in gold.episodes if e["modality"] == "TABLE")
     texto = episode_text(tabla)
     assert "\t" in texto and "Ruta Simm" in texto
+
+
+# --------------------------------------------------------------------------
+# Revision independiente: la superficie del informe no puede ser indulgente
+# --------------------------------------------------------------------------
+def test_h1_un_motor_que_decide_una_de_veintiuna_no_publica_f1_perfecta(gold, perfecta):
+    """H1: el caso adversario exacto. Una sola decision, correcta.
+
+    Sobre lo emparejado, todo sale 1.0 — y es cierto. Lo que no puede pasar es
+    que la TABLA se lea como si el motor hubiera resuelto el problema: la
+    cobertura tiene que estar en la superficie, no enterrada en el JSON.
+    """
+    total = len(gold.decisions)
+    assert total == 21
+    perfecta.decisions = [
+        d for d in perfecta.decisions if d["decision_id"] == gold.decisions[0]["decision_id"]
+    ]
+    report = run(gold, perfecta)
+    motor = report["engine"]
+
+    assert motor["decisions_matched"] == 1
+    assert motor["decisions_gold"] == total
+    assert motor["decision_coverage"] == pytest.approx(1 / 21, abs=1e-6)
+    assert motor["predicate"]["f1"] == 1.0, "sobre lo emparejado acierta, y es verdad"
+    assert motor["decision_accuracy"]["accuracy"] == 1.0
+
+    # Y las variantes estrictas delatan lo que falta.
+    assert motor["decision_accuracy_strict"]["accuracy"] == pytest.approx(1 / 21, abs=1e-6)
+    assert motor["predicate_strict"]["f1"] < 0.2
+    assert motor["direction_strict"]["f1"] < 0.2
+
+    md = to_markdown(report)
+    assert "| Motor · cobertura de decisiones | 0.0476 |" in md
+    assert "| Motor · decisiones emparejadas | 1 |" in md
+    assert "| Motor · decisiones gold | 21 |" in md
+    assert "| Motor · decision (gold entero) | 0.0476 |" in md
+    assert "| Motor · predicado F1 (emparejadas) | 1.0000 |" in md
+    linea_estricta = [l for l in md.splitlines() if "predicado F1 (gold entero)" in l][0]
+    assert "1.0000" not in linea_estricta
+
+
+def test_h1_el_resolver_tambien_publica_su_cobertura(gold, perfecta):
+    objetivo = perfecta.resolutions[0]["resolution_id"]
+    perfecta.resolutions = [r for r in perfecta.resolutions if r["resolution_id"] == objetivo]
+    report = run(gold, perfecta)
+    resolver = report["resolver"]
+    assert resolver["resolution_groups_matched"] == 1
+    assert resolver["resolution_coverage"] < 0.05
+    assert resolver["action_accuracy"]["accuracy"] == 1.0
+    assert resolver["action_accuracy_strict"]["accuracy"] < 0.05
+    md = to_markdown(report)
+    assert "| Resolutor · cobertura de grupos |" in md
+    assert "| Resolutor · accion correcta (gold entero) |" in md
+
+
+def test_h1_el_tipo_estricto_esta_en_la_tabla(gold, perfecta):
+    perfecta.mentions = perfecta.mentions[:5]
+    report = run(gold, perfecta)
+    extractor = report["extractor"]
+    assert extractor["type_accuracy_matched"]["accuracy"] == 1.0
+    assert extractor["type_accuracy_strict"]["accuracy"] < 0.2
+    md = to_markdown(report)
+    assert "| Extractor · tipo (sobre gold entero) |" in md
+
+
+def test_h2_un_episodio_detectado_con_el_texto_vacio_no_es_cobertura(gold, perfecta):
+    """H2: emitir el episodio y no emitir su contenido no puede dar 1.0."""
+    perfecta.episodes = [
+        dict(e, text="" if e.get("text") is not None else e.get("text"), table=None)
+        for e in perfecta.episodes
+    ]
+    r = score_normalizer(gold, perfecta)
+    assert r["episode_char_recall"] == 1.0, "los episodios si estan"
+    assert r["char_coverage"] == 0.0, "pero no traen ni un caracter de contenido"
+    assert r["cer"] == 1.0
+
+
+def test_h2_un_episodio_con_el_texto_entero_equivocado_no_es_cobertura(gold, perfecta):
+    perfecta.episodes = [
+        dict(e, text="zzzzzzzz" if e.get("text") is not None else e.get("text"), table=None)
+        for e in perfecta.episodes
+    ]
+    r = score_normalizer(gold, perfecta)
+    assert r["episode_char_recall"] == 1.0
+    assert r["char_coverage"] < 0.05
+    md = to_markdown(run(gold, perfecta))
+    assert "| Normalizador · cobertura de texto (contenido) | 0.0" in md
+
+
+def test_h3_la_tasa_de_trampas_no_se_diluye_emitiendo_mas_claims(gold, perfecta):
+    """H3: `false_candidate_rate` se diluye; `trap_hit_rate` no."""
+    negativo = next(n for n in gold.negatives if n["kind"] == "QUESTION")
+    perfecta.fragments = list(perfecta.fragments) + [
+        {
+            "fragment_id": "fragment:trampa",
+            "episode_id": negativo["episode_id"],
+            "start": negativo["start"] + 1,
+            "end": negativo["end"] - 1,
+        }
+    ]
+    trampa = dict(
+        perfecta.claims[0],
+        claim_id="claim:trampa",
+        episode_id=negativo["episode_id"],
+        evidence_fragment_ids=["fragment:trampa"],
+        subject_mentions=[],
+        object_mentions=[],
+    )
+    perfecta.claims = list(perfecta.claims) + [trampa]
+    antes = score_extractor(gold, perfecta, config_for(gold))["false_candidates"]
+    assert antes["traps_hit"] == 1
+    assert antes["trap_hit_rate"] == 0.25
+    tasa_antes = antes["false_candidate_rate"]
+
+    # Ahora el sistema emite cien claims correctos de mas: la tasa diluible baja.
+    perfecta.claims = list(perfecta.claims) + [
+        dict(perfecta.claims[0], claim_id=f"claim:relleno:{i}") for i in range(100)
+    ]
+    despues = score_extractor(gold, perfecta, config_for(gold))["false_candidates"]
+    assert despues["false_candidate_rate"] < tasa_antes / 5, "la tasa diluible se diluye"
+    assert despues["traps_hit"] == 1
+    assert despues["trap_hit_rate"] == 0.25, "la trampa pisada sigue pisada"
+
+
+def test_h3_las_trampas_pisadas_estan_en_la_tabla(gold, perfecta):
+    md = to_markdown(run(gold, perfecta))
+    assert "| Extractor · trampas pisadas | 0 |" in md
+    assert "| Extractor · trampas del split | 4 |" in md
+
+
+def test_h3_un_claim_sin_anclar_en_un_episodio_con_trampa_no_pasa_por_limpio(gold, perfecta):
+    """H3: la evasion de no declarar evidencia ni menciones."""
+    negativo = gold.negatives[0]
+    evasivo = dict(
+        perfecta.claims[0],
+        claim_id="claim:evasivo",
+        episode_id=negativo["episode_id"],
+        evidence_fragment_ids=["fragment:no-declarado"],
+        subject_mentions=["mention:no-declarada"],
+        object_mentions=["mention:tampoco"],
+    )
+    perfecta.fragments = []
+    perfecta.mentions = []
+    perfecta.claims = [evasivo]
+    r = score_extractor(gold, perfecta, config_for(gold))["false_candidates"]
+    assert r["unanchored_claims_in_trap_episodes"] == 1
+    md = to_markdown(run(gold, perfecta))
+    assert "| Extractor · claims sin anclar en episodio con trampa | 1 |" in md
+
+
+def test_h4_la_supersesion_se_reconoce_con_identificadores_propios(gold, perfecta):
+    """H4: un sistema real nombra sus afirmaciones; el gold no puede exigir las suyas."""
+    renombrado = {a["assertion_id"]: f"mia:{i:03d}" for i, a in enumerate(perfecta.assertions)}
+    perfecta.assertions = [
+        dict(
+            a,
+            assertion_id=renombrado[a["assertion_id"]],
+            supersedes=renombrado.get(a["supersedes"]) if a.get("supersedes") else None,
+            superseded_by=renombrado.get(a["superseded_by"]) if a.get("superseded_by") else None,
+        )
+        for a in perfecta.assertions
+    ]
+    r = run(gold, perfecta)["engine"]["temporal"]
+    assert r["supersession_recall"]["total"] == 1, "en dev la supersesion es binaria (n=1)"
+    assert r["supersession_recall"]["accuracy"] == 1.0
+
+
+def test_h4_romper_la_cadena_de_supersesion_si_penaliza(gold, perfecta):
+    perfecta.assertions = [dict(a, superseded_by=None, status="ASSERTED") for a in perfecta.assertions]
+    r = run(gold, perfecta)["engine"]["temporal"]
+    assert r["supersession_recall"]["accuracy"] == 0.0
+
+
+def test_h4_superseder_hacia_un_hecho_equivocado_no_cuenta(gold, perfecta):
+    otra = next(
+        a["assertion_id"]
+        for a in perfecta.assertions
+        if not a.get("supersedes") and not a.get("superseded_by")
+    )
+    perfecta.assertions = [
+        dict(a, superseded_by=otra) if a.get("superseded_by") else a
+        for a in perfecta.assertions
+    ]
+    r = run(gold, perfecta)["engine"]["temporal"]
+    assert r["supersession_recall"]["accuracy"] == 0.0
+
+
+def test_h5_un_documento_colado_de_otro_split_no_entra(tmp_path):
+    """H5: la segunda defensa vive en la carga, porque instalar un split es copiar."""
+    import shutil
+
+    from knowledge_v3.benchmarks.authoring import build as build_module
+
+    raiz = tmp_path / "datasets"
+    shutil.copytree(build_module.DATASETS_DIR, raiz)
+    ruta = raiz / "dev" / "sources" / "leyenda-cronica" / "mentions.json"
+    datos = json.loads(ruta.read_text(encoding="utf-8"))
+    datos["documents"][0]["metadata"]["benchmark"]["split"] = "heldout"
+    ruta.write_text(json.dumps(datos, ensure_ascii=False), encoding="utf-8")
+    with pytest.raises(DatasetError, match="metadata.benchmark.split"):
+        load_gold("dev", root=raiz)
+
+
+def test_h5_unas_predicciones_sin_split_no_se_puntuan():
+    with pytest.raises(DatasetError, match="split"):
+        PredictionBundle.from_dict({"ablation": "nominal", "mentions": []})
+
+
+def test_h5_el_bundle_no_tiene_split_por_defecto(gold):
+    vacio = PredictionBundle()
+    assert vacio.split is None
+    with pytest.raises(ValueError, match="split"):
+        run(gold, vacio)
+
+
+def test_h6_la_cli_rechaza_un_umbral_por_debajo_del_suelo():
+    with pytest.raises(SystemExit):
+        cli_main(
+            [
+                "score",
+                "--split",
+                "dev",
+                "--predictions",
+                "gold",
+                "--span-mode",
+                "overlap",
+                "--overlap-threshold",
+                "0.2",
+            ]
+        )

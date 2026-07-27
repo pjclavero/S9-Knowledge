@@ -108,7 +108,8 @@ def score_normalizer(gold: GoldDataset, pred: PredictionBundle) -> dict[str, Any
     pred_by_id = index_by(pred.episodes, "episode_id")
 
     total_ref_chars = sum(len(reference.get(e["episode_id"], "")) for e in gold.episodes)
-    covered_chars = 0
+    detected_chars = 0
+    matched_chars = 0
     char_edits = char_ref = word_edits = word_ref = 0
     truncated = repeated = 0
     bbox_expected = bbox_present = 0
@@ -119,8 +120,12 @@ def score_normalizer(gold: GoldDataset, pred: PredictionBundle) -> dict[str, Any
         p = pred_by_id[pid]
         ref = reference.get(gid, "")
         hyp = episode_text(p)
-        covered_chars += len(ref)
+        detected_chars += len(ref)
         ce, cr = error_rate(ref, hyp, unit="char")
+        # Caracteres de referencia REALMENTE recuperados: los que sobreviven a
+        # la distancia de edicion. Un episodio detectado con el texto entero
+        # equivocado aporta 0, no aporta su longitud.
+        matched_chars += max(0, len(ref) - ce)
         we, wr = error_rate(ref, hyp, unit="word")
         char_edits += ce
         char_ref += cr
@@ -145,7 +150,12 @@ def score_normalizer(gold: GoldDataset, pred: PredictionBundle) -> dict[str, Any
     return {
         "status": "scored",
         "episode_detection": prf(match.tp, match.fp, match.fn),
-        "text_coverage": ratio(covered_chars, total_ref_chars),
+        # OJO: son dos cosas distintas y por eso tienen dos nombres.
+        # `episode_char_recall` solo dice si se emitio un episodio para ese
+        # texto; no mira lo que dice. `char_coverage` mide contenido: cae a 0
+        # si el texto emitido no se parece a la referencia.
+        "episode_char_recall": ratio(detected_chars, total_ref_chars),
+        "char_coverage": ratio(matched_chars, total_ref_chars),
         "cer": ratio(char_edits, char_ref),
         "wer": ratio(word_edits, word_ref),
         "truncated_episodes": truncated,
@@ -271,6 +281,8 @@ def _false_candidates(gold: GoldDataset, pred: PredictionBundle) -> dict[str, An
     mention_index = index_by(pred.mentions or gold.mentions, "mention_id")
 
     hits: list[str] = []
+    traps_hit: set[str] = set()
+    unanchored: list[str] = []
     per_kind: dict[str, int] = {}
     for claim in pred.claims:
         spans: list[dict[str, Any]] = []
@@ -284,6 +296,16 @@ def _false_candidates(gold: GoldDataset, pred: PredictionBundle) -> dict[str, An
             mention = mention_index.get(mid)
             if mention is not None:
                 spans.append(mention)
+        if not spans:
+            # Evasion: un claim cuya evidencia y cuyas menciones no vienen
+            # declaradas en el bundle no se puede anclar, asi que no se puede
+            # descartar que pise una trampa. NO cuenta como limpio: cuenta como
+            # no evaluable, y sale a la superficie del informe.
+            if any(
+                str(n["episode_id"]) == str(claim.get("episode_id")) for n in negatives
+            ):
+                unanchored.append(claim["claim_id"])
+            continue
         for neg in negatives:
             for span in spans:
                 if str(span.get("episode_id")) != str(neg["episode_id"]):
@@ -292,6 +314,7 @@ def _false_candidates(gold: GoldDataset, pred: PredictionBundle) -> dict[str, An
                     int(span["start"]), int(span["end"]), int(neg["start"]), int(neg["end"])
                 ):
                     hits.append(claim["claim_id"])
+                    traps_hit.add(neg["negative_id"])
                     per_kind[neg["kind"]] = per_kind.get(neg["kind"], 0) + 1
                     break
             else:
@@ -301,7 +324,18 @@ def _false_candidates(gold: GoldDataset, pred: PredictionBundle) -> dict[str, An
         "status": "scored",
         "negatives_in_split": len(negatives),
         "false_candidate_claims": len(hits),
+        # DILUIBLE a proposito y con aviso: el denominador son los claims
+        # emitidos, asi que emitir mas claims correctos baja la tasa sin haber
+        # mejorado nada en las trampas. Por eso NO es la cifra de cabecera.
         "false_candidate_rate": ratio(len(hits), len(pred.claims)),
+        # NO diluible: cuantas de las trampas del split se han pisado. El
+        # denominador lo fija el dataset, no el sistema medido.
+        "traps_hit": len(traps_hit),
+        "traps_total": len(negatives),
+        "trap_hit_rate": ratio(len(traps_hit), len(negatives)),
+        "trap_ids_hit": sorted(traps_hit),
+        # Claims en un episodio con trampa que el bundle no permite anclar.
+        "unanchored_claims_in_trap_episodes": len(unanchored),
         "by_kind": dict(sorted(per_kind.items())),
         "claim_ids": sorted(hits),
     }
@@ -365,8 +399,12 @@ def score_resolver(
         **duplicate_rate(gold_assign, pred_assign),
         **over_merge_rate(gold_assign, pred_assign),
         "action_accuracy": accuracy(correct_action, matched),
+        # Exactitud de accion sobre el gold ENTERO: no resolver un grupo no
+        # puede salir gratis en la tabla.
+        "action_accuracy_strict": accuracy(correct_action, len(gold.resolutions)),
         "resolution_groups_matched": matched,
         "resolution_groups_gold": len(gold.resolutions),
+        "resolution_coverage": ratio(matched, len(gold.resolutions)),
         "cluster_alignment": {
             "strategy": "voraz por solape descendente; los ids del catalogo quedan fijados",
             "mapping_size": len(mapping),
@@ -411,6 +449,11 @@ def score_engine(gold: GoldDataset, pred: PredictionBundle) -> dict[str, Any]:
         "direction": lambda d: d.get("direction"),
         "epistemic": lambda d: d.get("epistemic_status"),
     }
+    #: Decisiones gold que ninguna prediccion cubrio, y predicciones que no
+    #: cubren ningun gold. Los ejes ESTRICTOS las cuentan; los emparejados no.
+    gold_sin_cubrir = [gold_by_id[g] for g in match.unmatched_gold]
+    pred_sin_gold = [pred_by_id[p] for p in match.unmatched_pred]
+
     axis_scores: dict[str, Any] = {}
     for name, getter in axes.items():
         tp = fp = fn = 0
@@ -424,12 +467,24 @@ def score_engine(gold: GoldDataset, pred: PredictionBundle) -> dict[str, Any]:
                 if gv is not None:
                     fn += 1
         axis_scores[name] = prf(tp, fp, fn)
+        # Variante ESTRICTA: el denominador es el gold ENTERO. Un motor que
+        # solo decide sobre una de veintiuna no puede publicar F1=1.0.
+        axis_scores[f"{name}_strict"] = prf(
+            tp,
+            fp + sum(1 for d in pred_sin_gold if getter(d) is not None),
+            fn + sum(1 for d in gold_sin_cubrir if getter(d) is not None),
+        )
 
     # Negacion: es una deteccion binaria, no una etiqueta entre muchas.
     tp = sum(1 for g, p in pairs if g.get("negated") and p.get("negated"))
     fp = sum(1 for g, p in pairs if not g.get("negated") and p.get("negated"))
     fn = sum(1 for g, p in pairs if g.get("negated") and not p.get("negated"))
     axis_scores["negation"] = prf(tp, fp, fn)
+    axis_scores["negation_strict"] = prf(
+        tp,
+        fp + sum(1 for d in pred_sin_gold if d.get("negated")),
+        fn + sum(1 for d in gold_sin_cubrir if d.get("negated")),
+    )
 
     correct_decision = sum(1 for g, p in pairs if g["decision"] == p["decision"])
     pred_accepts = [(g, p) for g, p in pairs if p["decision"] == _ACCEPT]
@@ -460,7 +515,10 @@ def score_engine(gold: GoldDataset, pred: PredictionBundle) -> dict[str, Any]:
         "decisions_predicted": len(decisions),
         "decisions_unmatched_predicted": match.fp,
         "decisions_missing": match.fn,
+        "decision_coverage": ratio(len(pairs), len(gold_decisions)),
         "decision_accuracy": accuracy(correct_decision, len(pairs)),
+        # Exactitud sobre el gold ENTERO: no decidir es no acertar.
+        "decision_accuracy_strict": accuracy(correct_decision, len(gold_decisions)),
         **axis_scores,
         "false_approve_count": len(false_approve),
         "false_approve_rate": ratio(len(false_approve), len(pred_accepts)),
@@ -512,16 +570,30 @@ def _score_temporal(gold: GoldDataset, pred: PredictionBundle) -> dict[str, Any]
             else:
                 ok = False
         correct += 1 if ok else 0
+    # Supersesion por CLAVE DE HECHO, nunca por identificador: exigir el
+    # `assertion_id` literal del gold haria que un sistema real perfecto, que
+    # nombra sus propias afirmaciones, sacase 0.0.
+    gold_assert_by_id = {a["assertion_id"]: a for a in gold.assertions}
+    pred_assert_by_id = {a["assertion_id"]: a for a in pred.assertions}
+    pred_by_key: dict[Any, list[dict[str, Any]]] = {}
+    for a in pred.assertions:
+        k = fact_key(a, config)
+        if k is not None:
+            pred_by_key.setdefault(k, []).append(a)
+
     supersession_gold = [a for a in gold.assertions if a.get("superseded_by")]
-    supersession_ok = sum(
-        1
-        for a in supersession_gold
-        if any(
-            p.get("assertion_id") == a["assertion_id"]
-            and p.get("superseded_by") == a["superseded_by"]
-            for p in pred.assertions
-        )
-    )
+    supersession_ok = 0
+    for a in supersession_gold:
+        sucesora_gold = gold_assert_by_id.get(a["superseded_by"])
+        clave = fact_key(a, config)
+        clave_sucesora = fact_key(sucesora_gold, config) if sucesora_gold else None
+        for candidata in pred_by_key.get(clave, []):
+            sucesora_pred = pred_assert_by_id.get(candidata.get("superseded_by"))
+            if sucesora_pred is None:
+                continue
+            if fact_key(sucesora_pred, config) == clave_sucesora:
+                supersession_ok += 1
+                break
     return {
         "status": "scored",
         "assertions_matched": len(match.pairs),

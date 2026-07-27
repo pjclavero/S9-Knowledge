@@ -225,6 +225,59 @@
       "action": "LINK_EXISTING",
       "assigned_entity_id": null,
       "candidate_entity_ids": [
+        "entity:leyenda:umbra",
+        "entity:leyenda:consejo-umbra"
+      ],
+      "confidence": 0.78,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:leyenda-cronica:e02:f03"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:leyenda-cronica:e02:m03"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS",
+        "TYPE_COMPATIBLE"
+      ],
+      "resolution_id": "resolution:leyenda-cronica:umbra-ciudad",
+      "selected_entity_id": "entity:leyenda:umbra",
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "workspace": "bench-dev"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
         "entity:leyenda:vado-alto"
       ],
       "confidence": 0.95,

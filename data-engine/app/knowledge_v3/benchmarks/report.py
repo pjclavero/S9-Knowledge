@@ -12,8 +12,17 @@ from typing import Any
 
 #: Filas de la tabla resumen: (seccion, ruta dentro de la seccion, etiqueta).
 #: El orden es el del pipeline, de la fuente al grafo.
+#:
+#: REGLA DE SUPERFICIE: toda metrica calculada sobre una poblacion EMPAREJADA va
+#: acompañada, en la propia tabla, de su cobertura y de su variante estricta
+#: (denominador = gold entero). Un motor que decide sobre una de veintiuna puede
+#: sacar F1=1.0 sobre lo emparejado; si la tabla no enseña que decidio sobre el
+#: 4.8 %, ese 1.0 se lee como si hubiera resuelto el problema. Es la forma exacta
+#: del 0.81 de V2, y no puede estar solo en el JSON.
 SUMMARY_ROWS: tuple[tuple[str, str, str], ...] = (
-    ("normalizer", "text_coverage", "Normalizador · cobertura de texto"),
+    ("normalizer", "char_coverage", "Normalizador · cobertura de texto (contenido)"),
+    ("normalizer", "episode_char_recall", "Normalizador · caracteres con episodio emitido"),
+    ("normalizer", "episode_detection.recall", "Normalizador · episodios detectados (R)"),
     ("normalizer", "cer", "Normalizador · CER"),
     ("normalizer", "wer", "Normalizador · WER"),
     ("normalizer", "truncation_rate", "Normalizador · truncado"),
@@ -22,21 +31,46 @@ SUMMARY_ROWS: tuple[tuple[str, str, str], ...] = (
     ("extractor", "mentions.recall", "Extractor · menciones R"),
     ("extractor", "mentions.f1", "Extractor · menciones F1"),
     ("extractor", "type_accuracy_matched.accuracy", "Extractor · tipo (sobre emparejadas)"),
+    ("extractor", "type_accuracy_strict.accuracy", "Extractor · tipo (sobre gold entero)"),
     ("extractor", "coreference.f1", "Extractor · correferencia F1"),
     ("extractor", "claims.precision", "Extractor · claims P"),
     ("extractor", "claims.recall", "Extractor · claims R"),
     ("extractor", "claims.f1", "Extractor · claims F1"),
-    ("extractor", "false_candidates.false_candidate_rate", "Extractor · candidatos falsos"),
+    ("extractor", "false_candidates.traps_hit", "Extractor · trampas pisadas"),
+    ("extractor", "false_candidates.traps_total", "Extractor · trampas del split"),
+    ("extractor", "false_candidates.trap_hit_rate", "Extractor · trampas pisadas (tasa)"),
+    (
+        "extractor",
+        "false_candidates.false_candidate_rate",
+        "Extractor · candidatos falsos (diluible)",
+    ),
+    (
+        "extractor",
+        "false_candidates.unanchored_claims_in_trap_episodes",
+        "Extractor · claims sin anclar en episodio con trampa",
+    ),
+    ("resolver", "resolution_groups_matched", "Resolutor · grupos emparejados"),
+    ("resolver", "resolution_groups_gold", "Resolutor · grupos gold"),
+    ("resolver", "resolution_coverage", "Resolutor · cobertura de grupos"),
     ("resolver", "identity_accuracy.accuracy", "Resolutor · exactitud de identidad"),
     ("resolver", "duplicate_rate", "Resolutor · duplicados"),
     ("resolver", "over_merge_rate", "Resolutor · fusiones indebidas"),
-    ("resolver", "action_accuracy.accuracy", "Resolutor · accion correcta"),
-    ("engine", "decision_accuracy.accuracy", "Motor · decision"),
-    ("engine", "predicate.f1", "Motor · predicado F1"),
-    ("engine", "direction.f1", "Motor · direccion F1"),
-    ("engine", "epistemic.f1", "Motor · epistemico F1"),
-    ("engine", "negation.precision", "Motor · negacion P"),
-    ("engine", "negation.recall", "Motor · negacion R"),
+    ("resolver", "action_accuracy.accuracy", "Resolutor · accion correcta (emparejados)"),
+    ("resolver", "action_accuracy_strict.accuracy", "Resolutor · accion correcta (gold entero)"),
+    ("engine", "decisions_matched", "Motor · decisiones emparejadas"),
+    ("engine", "decisions_gold", "Motor · decisiones gold"),
+    ("engine", "decision_coverage", "Motor · cobertura de decisiones"),
+    ("engine", "decision_accuracy.accuracy", "Motor · decision (emparejadas)"),
+    ("engine", "decision_accuracy_strict.accuracy", "Motor · decision (gold entero)"),
+    ("engine", "predicate.f1", "Motor · predicado F1 (emparejadas)"),
+    ("engine", "predicate_strict.f1", "Motor · predicado F1 (gold entero)"),
+    ("engine", "direction.f1", "Motor · direccion F1 (emparejadas)"),
+    ("engine", "direction_strict.f1", "Motor · direccion F1 (gold entero)"),
+    ("engine", "epistemic.f1", "Motor · epistemico F1 (emparejadas)"),
+    ("engine", "epistemic_strict.f1", "Motor · epistemico F1 (gold entero)"),
+    ("engine", "negation.precision", "Motor · negacion P (emparejadas)"),
+    ("engine", "negation.recall", "Motor · negacion R (emparejadas)"),
+    ("engine", "negation_strict.f1", "Motor · negacion F1 (gold entero)"),
     ("engine", "temporal.temporal_tuple_accuracy.accuracy", "Motor · temporalidad"),
     ("engine", "false_approve_rate", "Motor · aprobacion falsa"),
     ("engine", "false_reject_rate", "Motor · rechazo falso"),

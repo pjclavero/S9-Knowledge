@@ -52,6 +52,16 @@
     },
     {
       "aliases": [
+        "Umbra"
+      ],
+      "entity_id": "entity:leyenda:umbra",
+      "name": "Umbra",
+      "note": "La ciudad, no el Consejo. Aparece como 'de Umbra' dentro del nombre de la faccion y tambien suelta ('emisarios llegados de Umbra'): es la ambiguedad clasica sede/organizacion.",
+      "type": "Location",
+      "world": "leyenda"
+    },
+    {
+      "aliases": [
         "Vado Alto"
       ],
       "entity_id": "entity:leyenda:vado-alto",

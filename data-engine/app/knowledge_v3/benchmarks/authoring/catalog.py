@@ -62,6 +62,18 @@ ENTITIES: list[dict[str, Any]] = [
         "note": "",
     },
     {
+        "entity_id": "entity:leyenda:umbra",
+        "world": "leyenda",
+        "name": "Umbra",
+        "type": "Location",
+        "aliases": ["Umbra"],
+        "note": (
+            "La ciudad, no el Consejo. Aparece como 'de Umbra' dentro del nombre "
+            "de la faccion y tambien suelta ('emisarios llegados de Umbra'): "
+            "es la ambiguedad clasica sede/organizacion."
+        ),
+    },
+    {
         "entity_id": "entity:leyenda:vado-alto",
         "world": "leyenda",
         "name": "Vado Alto",

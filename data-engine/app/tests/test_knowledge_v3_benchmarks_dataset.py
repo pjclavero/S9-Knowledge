@@ -405,3 +405,102 @@ def test_las_fuentes_con_datos_personales_no_admiten_proveedor_externo(gold):
     for s in gold.sources:
         if s.asset["privacy_class"] in ("PERSONAL_DATA", "RESTRICTED"):
             assert s.asset["processing_policy"]["allow_external_providers"] is False
+
+
+# --------------------------------------------------------------------------
+# Revision independiente: observaciones sobre el gold
+# --------------------------------------------------------------------------
+#: Politica de anotacion de sustantivos de rol. Se anota como mencion toda
+#: expresion que designe una entidad IDENTIFICABLE del catalogo: nombre propio,
+#: nominal definido correferente ("El magistrado" -> Daiki) y pronombre
+#: correferente ("alli", "Yo"). NO se anotan los sustantivos de rol que no
+#: designan a nadie resoluble en este dataset. Exigirlos mediria otra tarea
+#: -deteccion de menciones genericas- que el pipeline V3 no hace, y dejarlos
+#: anotados sin entidad obligaria al resolutor a inventarse identidades.
+SUSTANTIVOS_DE_ROL_SIN_ANOTAR = (
+    "el senescal",
+    "El escriba",
+    "El maestre de puerto",
+    "los titiriteros",
+    "los estibadores",
+    "el guionista",
+    "jefa de operaciones",
+)
+
+
+def test_los_sustantivos_de_rol_sin_referente_no_se_anotan(gold):
+    superficies = {m["surface"] for m in gold.mentions}
+    for termino in SUSTANTIVOS_DE_ROL_SIN_ANOTAR:
+        assert termino not in superficies, (
+            f"{termino!r} no designa a ninguna entidad del catalogo: anotarlo "
+            "obligaria al resolutor a inventarse una identidad"
+        )
+
+
+def test_todo_nominal_o_pronombre_anotado_tiene_entidad_resuelta(gold):
+    """La otra cara de la politica: lo que se anota, se resuelve."""
+    asignacion = gold.mention_to_entity()
+    for m in gold.mentions:
+        kind = (m.get("metadata") or {}).get("mention_kind")
+        if kind in ("PRONOUN", "NOMINAL", "SPEAKER_SELF"):
+            assert m["mention_id"] in asignacion, m["surface"]
+
+
+def test_umbra_suelta_esta_anotada_y_no_es_el_consejo(gold):
+    """Observacion del revisor: 'emisarios llegados de Umbra'."""
+    umbra = [m for m in gold.mentions if m["surface"] == "Umbra"]
+    assert len(umbra) == 1, "la ciudad suelta tiene que estar anotada"
+    asignacion = gold.mention_to_entity()
+    assert asignacion[umbra[0]["mention_id"]] == "entity:leyenda:umbra"
+    consejo = [m for m in gold.mentions if m["surface"] == "Consejo de Umbra"]
+    assert consejo
+    for m in consejo:
+        assert asignacion[m["mention_id"]] == "entity:leyenda:consejo-umbra"
+
+
+def test_la_ciudad_y_la_faccion_son_entidades_distintas(gold):
+    por_id = {e["entity_id"]: e for e in gold.entities}
+    assert por_id["entity:leyenda:umbra"]["type"] == "Location"
+    assert por_id["entity:leyenda:consejo-umbra"]["type"] == "Faction"
+
+
+def test_la_magistratura_es_leads_en_todas_las_fuentes(gold):
+    """Observacion del revisor: el nombramiento de Daiki no puede ser MEMBER_OF
+    en una fuente y LEADS en otra. Es el mismo cargo."""
+    magistratura = [
+        c
+        for c in gold.claims
+        if "magistrado" in c["relation_phrase"] or "el cargo recay" in c["relation_phrase"]
+    ]
+    assert len(magistratura) >= 2, "el cargo se menciona en al menos dos fuentes"
+    for c in magistratura:
+        predicados = {p["predicate"] for p in c["predicate_candidates"]}
+        assert predicados == {"LEADS"}, c["claim_id"]
+
+
+def test_la_segunda_fuente_del_mismo_hecho_no_crea_una_afirmacion_nueva(gold):
+    """El escaneo confirma un hecho ya conocido: operacion idempotente, no duplicado."""
+    escaneo = next(s for s in gold.sources if s.source_id == "leyenda-escaneo")
+    assert escaneo.assertions == []
+    ops = [op for p in escaneo.plans for op in p["mutation_operations"]]
+    no_op = [op for op in ops if op["expected_state"] == "NO_OP"]
+    assert len(no_op) == 1
+    assert no_op[0]["assertion_id"] == "assertion:leyenda:daiki-leads-casa"
+
+
+def test_hay_dos_casos_de_hecho_repetido_entre_fuentes(gold):
+    todas = [
+        op
+        for p in gold.plans
+        for op in p["mutation_operations"]
+        if op["expected_state"] == "NO_OP"
+    ]
+    assert len(todas) == 2, "tabla y escaneo repiten cada uno un hecho ya conocido"
+
+
+def test_ninguna_clave_de_hecho_esta_duplicada_en_el_gold(gold):
+    from knowledge_v3.benchmarks.matching import MatchConfig, fact_key
+
+    config = MatchConfig(symmetric_predicates=gold.symmetric_predicates)
+    claves = [fact_key(a, config) for a in gold.assertions]
+    assert len(claves) == len(set(claves)), "dos afirmaciones gold para el mismo hecho"

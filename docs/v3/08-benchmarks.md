@@ -53,17 +53,22 @@ vocabulario: corte medieval, archipiélago gremial y estaciones orbitales.
 
 | Fuente | Mundo | Tipo | Modalidades | Ep. | Frag. | Menc. | Resol. | Claims | Afirm. | Dec. | Ops. | Negativos |
 |---|---|---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| `leyenda-cronica` | leyenda | MARKDOWN | TEXT | 3 | 15 | 11 | 5 | 4 | 4 | 4 | 5 | 2 |
+| `leyenda-cronica` | leyenda | MARKDOWN | TEXT | 3 | 16 | 12 | 6 | 4 | 4 | 4 | 5 | 2 |
 | `mareas-cuaderno` | mareas | MARKDOWN | TEXT | 3 | 13 | 10 | 6 | 3 | 3 | 3 | 3 | 1 |
 | `kestrel-informe` | kestrel | MARKDOWN | TEXT | 3 | 14 | 9 | 5 | 5 | 4 | 5 | 3 | 1 |
 | `kestrel-tripulacion` | kestrel | TABLE | TABLE | 1 | 9 | 6 | 5 | 3 | 2 | 3 | 3 | 0 |
 | `mareas-sesion` | mareas | AUDIO | SPEAKER_TURN | 3 | 11 | 8 | 5 | 3 | 3 | 3 | 3 | 0 |
-| `leyenda-escaneo` | leyenda | IMAGE | OCR_TEXT, DIAGRAM | 3 | 9 | 6 | 4 | 3 | 1 | 3 | 1 | 0 |
-| **Total** | 3 mundos | 6 fuentes | 6 modalidades | **16** | **71** | **50** | **30** | **21** | **17** | **21** | **18** | **4** |
+| `leyenda-escaneo` | leyenda | IMAGE | OCR_TEXT, DIAGRAM | 3 | 9 | 6 | 4 | 3 | 0 | 3 | 1 | 0 |
+| **Total** | 3 mundos | 6 fuentes | 6 modalidades | **16** | **72** | **51** | **31** | **21** | **16** | **21** | **18** | **4** |
 
-Más: **19 entidades** de catálogo (17 canónicas + 1 creada por la tabla + 1
+Más: **20 entidades** de catálogo (18 canónicas + 1 creada por la tabla + 1
 provisional), **2 perfiles de juego** y **6 planes de mutación** (3 aprobados,
-3 bloqueados). En total **219 documentos** de los nueve contratos V3.
+3 bloqueados). En total **220 documentos** de los nueve contratos V3.
+
+`leyenda-escaneo` no aporta afirmaciones propias a propósito: lo que dice ya lo
+dice la crónica, así que su plan lleva una operación **idempotente** (`NO_OP`)
+sobre la afirmación existente. Es el segundo caso de hecho repetido entre
+fuentes, junto con la fila de Vania en la tabla.
 
 De los 21 claims, **20 son gold del extractor**; uno está marcado
 `ENGINE_ONLY` (ver §3.7).
@@ -95,13 +100,36 @@ De los 21 claims, **20 son gold del extractor**; uno está marcado
 | OCR degradado de un nombre NO conocido ("V4ndreth") | `leyenda-escaneo` e02 | `CREATE_PROVISIONAL` |
 | Fragmento ilegible | `leyenda-escaneo` e02 | abstención |
 | Plano del que solo cabe inferir | `leyenda-escaneo` e03 | `VISUAL_INFERRED` → revisión |
+| El mismo cargo contado por segunda fuente con fecha más gruesa | `leyenda-escaneo` e01 | idempotencia (`NO_OP`) |
+| "Umbra" ciudad frente a "Consejo de Umbra" facción | `leyenda-cronica` e02 | sede vs organización |
 
 Fenómenos indexados en el manifiesto: `ABSTENTION`, `CONFLICT`, `COREFERENCE`,
 `COUNTERFACTUAL`, `DUPLICATE_ACROSS_SOURCES`, `FICTION_WITHIN_FICTION`,
 `HYPOTHETICAL`, `NEGATION`, `NEW_ENTITY`, `OCR_NOISE`, `ONTOLOGY_VIOLATION`,
 `PROVISIONAL_ENTITY`, `QUESTION`, `RUMOR`, `SPEAKER_COREFERENCE`,
-`SUPERSESSION`, `SYMMETRIC`, `TABLE`, `TEMPORALITY`, `TRANSITIVE`,
-`VISUAL_INFERRED`.
+`SEAT_VS_ORGANIZATION`, `SUPERSESSION`, `SYMMETRIC`, `TABLE`, `TEMPORALITY`,
+`TRANSITIVE`, `VISUAL_INFERRED`.
+
+### 2.1.1 Qué se anota como mención y qué no
+
+Se anota toda expresión que designa una entidad **identificable del catálogo**:
+nombre propio, nominal definido correferente ("El magistrado" → Daiki) y
+pronombre correferente ("allí" → Amarra Vieja, "Yo" → el hablante del turno).
+
+**No** se anotan los sustantivos de rol sin referente resoluble: "el senescal",
+"El escriba", "El maestre de puerto", "los titiriteros", "los estibadores", "el
+guionista", "jefa de operaciones". Exigirlos mediría otra tarea —detección de
+menciones genéricas— que el pipeline V3 no hace, y anotarlos sin entidad
+obligaría al resolutor a inventarse identidades. La política tiene dos tests:
+uno comprueba que esas superficies no están anotadas, y otro que todo pronombre
+o nominal que **sí** se anota queda resuelto a una entidad.
+
+Caso resuelto a raíz de la revisión: "emisarios llegados de Umbra" en
+`leyenda-cronica` e02. Ahí *Umbra* es la **ciudad**, no el Consejo, así que se
+anota como mención propia y se resuelve a `entity:leyenda:umbra`, una entidad
+`Location` distinta de la facción `entity:leyenda:consejo-umbra`. Dejarla sin
+anotar convertía en "acierto" que un extractor la ignorase y en "falso positivo"
+que la detectara bien.
 
 ### 2.2 Rumor / hipótesis frente a caso negativo
 
@@ -193,6 +221,15 @@ benchmarks/
 Un subsistema que no entrega nada no puntúa: su sección sale con
 `status: not_evaluated` y el motivo.
 
+**3. Ninguna métrica de población emparejada se publica sola.** Toda métrica
+calculada sobre lo que emparejó viaja en la tabla junto a su **cobertura** y a
+su **variante estricta** (denominador = gold entero). Un motor que decide sobre
+1 de 21 y acierta esa una publica `predicate F1 = 1.0` sobre lo emparejado — y
+es cierto —, pero leído solo eso parece que resolvió el problema. Es la forma
+exacta del 0.81 de V2. La tabla enseña `decision_coverage = 0.0476`,
+`decisions_matched = 1`, `decisions_gold = 21` y `predicate_strict.f1`, y la
+regla está escrita en `SUMMARY_ROWS`.
+
 ### 3.2 Emparejamiento (`matching.py`)
 
 Aquí es donde se hacen las trampas sin querer. Un emparejamiento laxo sube
@@ -203,6 +240,7 @@ todas las métricas a la vez sin que nadie toque el modelo.
 | **Uno a uno** | Una predicción empareja con como mucho un gold y al revés. Sin esto, repetir cien veces el mismo acierto subiría el recall sin coste. |
 | **Determinismo total** | Candidatos y desempates se ordenan siempre por la misma clave; el resultado no depende del orden de entrada. |
 | **Span exacto por defecto** | `span_mode="exact"` exige mismo episodio y mismos offsets. `overlap` (IoU con umbral) es un modo **explícito**, nunca el defecto, y queda registrado en el informe. |
+| **El umbral de solape tiene suelo** | `MIN_OVERLAP_THRESHOLD = 0.5`, no configurable, ni en librería ni en CLI. Por debajo de la mitad se emparejarían spans que comparten menos texto del que no comparten: eso ya no es tolerancia de anclaje, es regalar aciertos. |
 | **Voraz, nunca óptimo** | El modo `overlap` y el alineamiento de clusters son voraces. Voraz nunca supera al óptimo: como mucho **subestima**. Una métrica de benchmark debe equivocarse hacia abajo. |
 | **Lo no evaluable cuenta como fallo** | Un claim cuya mención no alineó no se descarta: se cuenta. Descartarlo inflaría la precisión. |
 | **La clave del claim NO lleva predicado** | Decidir el predicado es trabajo del motor. Meterlo en la clave del extractor mezclaría dos medidas. Se puede activar (`claim_key_extra`) y queda registrado. |
@@ -225,7 +263,8 @@ Claves canónicas:
 | Métrica | Definición |
 |---|---|
 | `episode_detection` P/R/F1 | episodios emparejados por `(asset, sequence)` |
-| `text_coverage` | caracteres de referencia cubiertos por un episodio predicho / caracteres de referencia totales |
+| `episode_char_recall` | caracteres de referencia para los que se emitió **algún** episodio / caracteres de referencia totales. **No mira el contenido**: dice si el normalizador llegó ahí, no si acertó |
+| `char_coverage` | caracteres de referencia realmente recuperados (`len(ref) − ediciones`, con suelo en 0) / caracteres de referencia totales. Un episodio detectado con el texto vacío o entero equivocado aporta **0** |
 | `cer` / `wer` | Levenshtein micro-agregado (ediciones totales / longitud de referencia total) sobre caracteres y sobre palabras |
 | `truncation_rate` | episodios cuyo texto predicho mide < 95 % de la referencia |
 | `repetition_rate` | episodios con un bloque de 24 caracteres repetido ≥ 3 veces (bucle de ASR/LLM) |
@@ -247,7 +286,9 @@ es normalizar, y el arnés lo cobra (CER ≈ 0.0046 con el gold como predicción
 | `coreference` P/R/F1 | pares positivos (estilo pairwise/BLANC) del cierre transitivo de `coreference_candidates`, restringido a menciones alineadas; los pares descartados se reportan en `pairs_dropped_unaligned` |
 | `claims` P/R/F1 | emparejamiento por clave de claim |
 | `claims_unevaluable` | claims predichos sin clave (mención no alineada) |
-| `false_candidates` | claims predichos anclados sobre un tramo negativo, con desglose por tipo de trampa |
+| `false_candidates.traps_hit` / `traps_total` / `trap_hit_rate` | **cifra de cabecera, no diluible**: cuántas de las trampas del split se han pisado. El denominador lo fija el dataset |
+| `false_candidates.false_candidate_rate` | claims que pisan una trampa / claims emitidos. **Diluible a propósito y con aviso**: emitir más claims correctos la baja sin haber mejorado nada en las trampas. Por eso no encabeza |
+| `false_candidates.unanchored_claims_in_trap_episodes` | claims en un episodio con trampa cuya evidencia y menciones no vienen declaradas en el bundle. No pasan por limpios: son **no evaluables** y salen a la tabla |
 
 La correferencia se mide sobre `coreference_candidates` (anotación del
 extractor) y **no** sobre las resoluciones: a qué entidad del catálogo
@@ -261,16 +302,20 @@ identidad contaminara la nota de correferencia y al revés.
 | `identity_accuracy` | menciones cuya entidad predicha mapea a la entidad gold, con alineamiento uno a uno e ids de catálogo fijados |
 | `duplicate_rate` | clusters predichos de más por entidad gold cubierta (el grafo llenándose de copias del mismo personaje) |
 | `over_merge_rate` | clusters predichos que mezclan entidades gold distintas |
-| `action_accuracy` | acción correcta (`LINK_EXISTING` / `CREATE_NEW` / `CREATE_PROVISIONAL` / `SPLIT` / `REVIEW`) sobre los grupos emparejados |
+| `resolution_coverage` | grupos gold cubiertos por alguna resolución predicha. **Va en la tabla** |
+| `action_accuracy` / `action_accuracy_strict` | acción correcta (`LINK_EXISTING` / `CREATE_NEW` / `CREATE_PROVISIONAL` / `SPLIT` / `REVIEW`) sobre los grupos emparejados y sobre el gold entero |
 
 **Motor**
 
 | Métrica | Definición |
 |---|---|
-| `decision_accuracy` | decisión idéntica a la gold |
+| `decision_coverage` | decisiones gold cubiertas por alguna predicción. **Va en la tabla** |
+| `decision_accuracy` / `decision_accuracy_strict` | decisión idéntica a la gold, sobre lo emparejado y sobre el gold entero |
 | `predicate`, `direction`, `epistemic` P/R/F1 | por eje; predicción no nula = positivo; un valor equivocado cuenta a la vez como FP y FN |
+| `predicate_strict`, `direction_strict`, `epistemic_strict`, `negation_strict` | ídem con el gold entero en el denominador: las decisiones gold sin cubrir suman FN y las predichas sin gold suman FP |
 | `negation` P/R/F1 | detección binaria de la negación |
-| `temporal` | tupla `(valid_from, valid_to, event_time, state)` exacta sobre afirmaciones emparejadas, más exactitud por campo y `supersession_recall` |
+| `temporal` | tupla `(valid_from, valid_to, event_time, state)` exacta sobre afirmaciones emparejadas, más exactitud por campo |
+| `temporal.supersession_recall` | supersesiones reconocidas **por clave de hecho**, nunca por identificador: se busca la afirmación predicha con la misma clave que la gold superada y se comprueba que su sucesora tiene la clave de la sucesora gold. Exigir el `assertion_id` literal haría que un sistema real perfecto, que nombra sus propias afirmaciones, sacara 0.0. En `dev` es **binaria (n = 1)** |
 | `false_approve_rate` | de todo lo aprobado, cuánto no debía aprobarse (gold no ACCEPT **o** tupla distinta) / total aprobado |
 | `false_reject_rate` | gold ACCEPT marcado `REJECT_INVALID` / total gold ACCEPT |
 | `abstention_rate` / `abstention_agreement` | cuánto se abstiene y cuánto acierta al hacerlo |
@@ -310,7 +355,7 @@ Dos excepciones documentadas y con test propio:
 
 ### 3.5 Ablaciones (§8)
 
-Doce configuraciones etiquetadas, validadas al construirse:
+Trece configuraciones etiquetadas, validadas al construirse:
 `nominal`, `gold_identity`, `gold_entities_to_engine`, `real_entities_to_engine`,
 `gold_claims_to_engine`, `local_only`, `external_only`, `local_plus_external`,
 `no_ollama`, `with_glossary`, `without_glossary`, `generic_profile`,
@@ -321,8 +366,9 @@ arnés puntúa todas y la etiqueta viaja siempre al informe. Una etiqueta
 desconocida **falla**; una etiqueta libre en el informe es una etiqueta que nadie
 podrá comparar después.
 
-`wrong_profile` apunta a `bench-narrow`, un perfil real del dataset al que le
-faltan `LEADS`, `RIVAL_OF` y `SIBLING_OF`. Sirve para medir si el motor se
+`wrong_profile` apunta a `bench-narrow`, un perfil real del dataset que se queda
+con 4 de los 10 predicados: le faltan `LEADS`, `LED_BY`, `RIVAL_OF`,
+`SIBLING_OF`, `OWNS` y `OWNED_BY`. Sirve para medir si el motor se
 abstiene o se inventa el predicado más parecido.
 
 Las ejecuciones reales de las ablaciones llegan en integración; aquí queda el
@@ -417,11 +463,11 @@ markdown es para leerlo. No hay ningún número en la tabla que no esté en el J
 
 | Fichero | Tests | Qué defiende |
 |---|--:|---|
-| `test_knowledge_v3_benchmarks_dataset.py` | 52 | los 219 documentos validan contra los contratos congelados; marca de split; regeneración byte a byte; referencias cruzadas; offsets reales; cobertura de los 21 fenómenos; el gold no pisa sus propias trampas |
-| `test_knowledge_v3_benchmarks_matching.py` | 29 | uno a uno, determinismo, span exacto, claves canónicas, simetría |
+| `test_knowledge_v3_benchmarks_dataset.py` | 60 | los 220 documentos validan contra los contratos congelados; marca de split; regeneración byte a byte; referencias cruzadas; offsets reales; cobertura de los 22 fenómenos; el gold no pisa sus propias trampas; política de sustantivos de rol; sin claves de hecho duplicadas |
+| `test_knowledge_v3_benchmarks_matching.py` | 31 | uno a uno, determinismo, span exacto, suelo del umbral, claves canónicas, simetría |
 | `test_knowledge_v3_benchmarks_metrics.py` | 21 | P/R/F1, CER/WER y alineamiento de clusters con resultados calculados a mano |
-| `test_knowledge_v3_benchmarks_harness.py` | 49 | prueba de cordura, una degradación controlada por métrica, ablaciones, informe y CLI |
-| **Total** | **151** | |
+| `test_knowledge_v3_benchmarks_harness.py` | 64 | prueba de cordura, una degradación controlada por métrica, superficie del informe, ablaciones y CLI |
+| **Total** | **176** | |
 
 ### 5.1 Tests de mutación
 
@@ -438,6 +484,23 @@ test estricto correspondiente habría dejado de demostrar nada.
 | Declarar simétrico lo asimétrico (borra el eje de dirección) | `test_mutacion_declarar_simetrico_lo_asimetrico_borra_el_error_de_direccion` |
 | No fijar los ids de catálogo (dos errores → dos aciertos) | `test_mutacion_sin_fijar_los_ids_un_enlace_equivocado_se_autocorrige` |
 
+### 5.2 Casos adversarios de la revisión independiente
+
+| Ataque | Test |
+|---|---|
+| Motor que decide 1 de 21 y publica F1=1.0 sin cobertura visible | `test_h1_un_motor_que_decide_una_de_veintiuna_no_publica_f1_perfecta` |
+| Resolutor que resuelve un grupo y publica acción perfecta | `test_h1_el_resolver_tambien_publica_su_cobertura` |
+| Tipo perfecto sobre 5 menciones de 51 | `test_h1_el_tipo_estricto_esta_en_la_tabla` |
+| Episodio emitido con el texto vacío | `test_h2_un_episodio_detectado_con_el_texto_vacio_no_es_cobertura` |
+| Episodio emitido con el texto entero equivocado | `test_h2_un_episodio_con_el_texto_entero_equivocado_no_es_cobertura` |
+| Diluir la tasa de candidatos falsos emitiendo 100 claims correctos | `test_h3_la_tasa_de_trampas_no_se_diluye_emitiendo_mas_claims` |
+| Evadir la trampa no declarando evidencia ni menciones | `test_h3_un_claim_sin_anclar_en_un_episodio_con_trampa_no_pasa_por_limpio` |
+| Sistema real que nombra sus propias afirmaciones | `test_h4_la_supersesion_se_reconoce_con_identificadores_propios` |
+| Superseder hacia el hecho equivocado | `test_h4_superseder_hacia_un_hecho_equivocado_no_cuenta` |
+| Documento de otro split con el sobre reescrito | `test_h5_un_documento_colado_de_otro_split_no_entra` |
+| Predicciones sin declarar split | `test_h5_unas_predicciones_sin_split_no_se_puntuan` |
+| Bajar el umbral de solape desde la CLI | `test_h6_la_cli_rechaza_un_umbral_por_debajo_del_suelo` |
+
 Además, cada métrica tiene su degradación controlada: perder una mención,
 inventarla, desplazar su offset, tiparla mal, romper una correferencia, fundirlo
 todo, anclar un claim sobre una ficción, partir una entidad, fundir dos, enlazar
@@ -452,7 +515,9 @@ episodios y perderlos.
 
 ## 6. Límites conocidos
 
-1. **`dev` es pequeño.** 50 menciones, 21 claims, 17 afirmaciones. Sirve para
+1. **`dev` es pequeño.** 51 menciones, 21 claims, 16 afirmaciones. Algunas
+   métricas son directamente binarias: `supersession_recall` tiene **n = 1**, así
+   que solo puede valer 0.0 o 1.0 y no admite lectura como porcentaje. Sirve para
    detectar que algo está roto, no para estimar rendimiento real. Un intervalo
    de confianza sobre 17 hechos no significa nada.
 2. **El gold es de autoría propia.** Los mundos están inventados para este
@@ -463,7 +528,11 @@ episodios y perderlos.
 4. **La correferencia se mide con pares positivos.** No es MUC ni B³ ni CEAF;
    la elección está documentada y es estable, pero no comparable con literatura
    que use otra métrica.
-5. **El arnés no ejecuta nada.** No mide latencia, RAM ni coste: los copia. Y no
+5. **`false_candidate_rate` es diluible por construcción.** Su denominador son
+   los claims emitidos. Está publicada porque es la forma habitual de la
+   métrica, pero la cifra que hay que leer es `trap_hit_rate`, cuyo denominador
+   lo fija el dataset.
+6. **El arnés no ejecuta nada.** No mide latencia, RAM ni coste: los copia. Y no
    valida por sí solo que la salida de un subsistema cumpla los contratos —
    `loader.validate_gold` es para el gold; para las predicciones esa validación
    corresponde al gate de cada bloque.
@@ -480,9 +549,13 @@ El procedimiento es una copia de directorio:
 1. El equipo independiente construye `datasets/heldout/` con **la misma
    estructura** de §2.3: `manifest.json`, `catalog/`, `sources/<id>/*.json`.
 2. Todo fichero lleva `"split": "heldout"` y todo documento
-   `metadata.benchmark.split = "heldout"`. El loader **rechaza** un fichero cuyo
-   split no coincida con el pedido: no hay forma de colar material de un split
-   en otro por descuido.
+   `metadata.benchmark.split = "heldout"`. El loader comprueba **las dos
+   marcas** al cargar: el sobre del fichero y la de cada documento. La segunda
+   defensa vive en la carga precisamente porque instalar un split es copiar un
+   directorio, y un fichero traído de otro split con el sobre reescrito a mano
+   pasaría la primera comprobación y no la segunda.
+   Además, un bundle de predicciones **sin `split`** no se puntúa: el campo no
+   tiene valor por defecto y `from_dict` falla con mensaje explícito.
 3. Todo el gold debe validar contra los contratos congelados. La misma llamada:
    `python -m knowledge_v3.benchmarks.cli validate --split heldout`.
 4. Medir: `--split heldout`. Ni una línea del arnés cambia. Un bundle de

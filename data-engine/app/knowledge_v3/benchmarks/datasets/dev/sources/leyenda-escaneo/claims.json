@@ -30,6 +30,7 @@
         },
         "gold_key": "daiki-member-casa-ocr",
         "phenomena": [
+          "DUPLICATE_ACROSS_SOURCES",
           "OCR_NOISE"
         ],
         "role": "EXTRACTOR_AND_ENGINE"
@@ -41,7 +42,7 @@
       "predicate_candidates": [
         {
           "confidence": 0.68,
-          "predicate": "MEMBER_OF"
+          "predicate": "LEADS"
         }
       ],
       "produced_by_step": "gold.claim",

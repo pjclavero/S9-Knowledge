@@ -54,7 +54,7 @@
           "direction": "SUBJECT_TO_OBJECT",
           "epistemic_status": "ASSERTED",
           "evidence_fragment_ids": [
-            "fragment:leyenda-cronica:e02:f03"
+            "fragment:leyenda-cronica:e02:f04"
           ],
           "negated": true,
           "object_entity_id": "entity:leyenda:consejo-umbra",
@@ -98,7 +98,7 @@
         "created_at": "2026-07-27T12:30:00Z",
         "decision_hash": {
           "algorithm": "sha256",
-          "value": "0695c6659801a3299fcf0a5ca74c79e9a804f74dac28d536890f1ee5e03edd60"
+          "value": "5e6886b1b11d0ad18ed2473528aef3dcfc8960d47ae5078f9b48db3c2f81ba08"
         },
         "validator_chain": [
           {
@@ -192,7 +192,7 @@
           "assertion_id": "assertion:leyenda:daiki-not-member-consejo",
           "decision_id": "decision:leyenda-0003",
           "evidence_fragment_ids": [
-            "fragment:leyenda-cronica:e02:f03"
+            "fragment:leyenda-cronica:e02:f04"
           ],
           "expected_hash": null,
           "expected_state": "WOULD_CREATE",
@@ -232,7 +232,7 @@
       "ontology_version": "core-1.4.0",
       "plan_hash": {
         "algorithm": "sha256",
-        "value": "210deef77e421b1685cb97dad146c94d3c1b5217b327a6db3ae8bb036b68821c"
+        "value": "7723b7fa325d726bcddada489e0599cdfcfb5349d51621c3a0800cf953cd6410"
       },
       "plan_id": "plan:leyenda-cronica:0001",
       "produced_by_step": "gold.plan",

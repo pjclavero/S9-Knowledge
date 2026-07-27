@@ -79,7 +79,8 @@
         },
         "phenomena": [
           "COREFERENCE",
-          "NEGATION"
+          "NEGATION",
+          "SEAT_VS_ORGANIZATION"
         ]
       },
       "modality": "TEXT",

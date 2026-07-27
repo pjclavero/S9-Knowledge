@@ -763,7 +763,11 @@ def build_ocr() -> SourceGold:
         subject_mentions=[m_daiki],
         object_mentions=[m_casa],
         relation_phrase="fue nornbrado magistrado de la Casa de1 Ciervo",
-        predicate="MEMBER_OF",
+        # Es el MISMO cargo que la cronica ya cuenta ("el cargo recayo en Daiki
+        # Oharu"): la magistratura de la Casa. El predicado es LEADS, no
+        # MEMBER_OF, y el hecho ya existe: esta fuente lo confirma con una fecha
+        # mas gruesa, no aporta uno nuevo.
+        predicate="LEADS",
         confidence=0.68,
         temporal_expressions=[
             {
@@ -786,7 +790,7 @@ def build_ocr() -> SourceGold:
                 normalized="fue nombrado magistrado de la casa del ciervo",
             )
         ],
-        phenomena=["OCR_NOISE"],
+        phenomena=["OCR_NOISE", "DUPLICATE_ACROSS_SOURCES"],
     )
 
     m_vandreth = s.mention(
@@ -920,34 +924,26 @@ def build_ocr() -> SourceGold:
     f_abstain = _fragment_of(s, c_abstain)
     f_visual = _fragment_of(s, c_visual)
 
-    a_ocr = s.assertion(
-        key="daiki-member-casa",
-        subject_entity_id="entity:leyenda:daiki",
-        object_entity_id="entity:leyenda:casa-ciervo",
-        predicate="MEMBER_OF",
-        episode_ids=[e1],
-        evidence_fragment_ids=[f_ocr],
-        valid_from="1042-01-01T00:00:00Z",
-        event_time="1042-01-01T00:00:00Z",
-        calendar_id="calendar:leyenda",
-        state="ACTIVE",
-        status="ASSERTED",
-        confidence=0.68,
-        phenomena=["OCR_NOISE"],
-    )
+    # No hay afirmacion nueva: el hecho ya vive en `leyenda-cronica`. Lo que
+    # produce esta fuente es una operacion IDEMPOTENTE sobre el mismo hecho.
+    a_ocr = "assertion:leyenda:daiki-leads-casa"
 
     d1 = decision(
         key="escaneo-0001",
         claim_id=c_ocr,
         decision_value="ACCEPT",
-        predicate="MEMBER_OF",
+        predicate="LEADS",
         direction="SUBJECT_TO_OBJECT",
         subject_entity_id="entity:leyenda:daiki",
         object_entity_id="entity:leyenda:casa-ciervo",
         epistemic_status="ASSERTED",
         negated=False,
         confidence=0.68,
-        reason_codes=["LOCAL_APPROVED_WITH_WARNINGS", "OCR_DEGRADED_SURFACE"],
+        reason_codes=[
+            "LOCAL_APPROVED_WITH_WARNINGS",
+            "OCR_DEGRADED_SURFACE",
+            "ALREADY_KNOWN",
+        ],
         evidence_fragment_ids=[f_ocr],
     )
     d2 = decision(
@@ -978,11 +974,12 @@ def build_ocr() -> SourceGold:
                 decision_id=d1["decision_id"],
                 assertion_id=a_ocr,
                 payload={
-                    "predicate": "MEMBER_OF",
+                    "predicate": "LEADS",
                     "subject_entity_id": "entity:leyenda:daiki",
                     "object_entity_id": "entity:leyenda:casa-ciervo",
                 },
                 evidence_fragment_ids=[f_ocr],
+                expected_state="NO_OP",
             )
         ],
         validator_chain=[

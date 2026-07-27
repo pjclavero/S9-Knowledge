@@ -421,9 +421,55 @@
       "confidence": 1.0,
       "contract_id": "evidence-fragment/v3-internal-v1",
       "contract_version": "1.0.0",
-      "end": 73,
+      "end": 153,
       "episode_id": "episode:leyenda-cronica:e02",
       "fragment_id": "fragment:leyenda-cronica:e02:f03",
+      "frame_id": null,
+      "literal_text": "Umbra",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "normalized_text": "umbra",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "start": 148,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 73,
+      "episode_id": "episode:leyenda-cronica:e02",
+      "fragment_id": "fragment:leyenda-cronica:e02:f04",
       "frame_id": null,
       "literal_text": "ha negado en cada asamblea su pertenencia al Consejo de Umbra",
       "media_type": "EMBEDDED_TEXT",

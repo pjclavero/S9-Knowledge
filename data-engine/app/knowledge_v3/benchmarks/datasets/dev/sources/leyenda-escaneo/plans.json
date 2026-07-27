@@ -20,10 +20,11 @@
           ],
           "negated": false,
           "object_entity_id": "entity:leyenda:casa-ciervo",
-          "predicate": "MEMBER_OF",
+          "predicate": "LEADS",
           "reason_codes": [
             "LOCAL_APPROVED_WITH_WARNINGS",
-            "OCR_DEGRADED_SURFACE"
+            "OCR_DEGRADED_SURFACE",
+            "ALREADY_KNOWN"
           ],
           "subject_entity_id": "entity:leyenda:daiki"
         },
@@ -77,7 +78,7 @@
         "created_at": "2026-07-27T12:30:00Z",
         "decision_hash": {
           "algorithm": "sha256",
-          "value": "18317fb74258d30179dadc718c4ad64e99b5345d65a55e6a86f9d025a4518cb0"
+          "value": "d4c4d607a7f69a459281352b8f149839b4eb44ae13e257bbb9b462f97d09161f"
         },
         "validator_chain": [
           {
@@ -110,20 +111,20 @@
       },
       "mutation_operations": [
         {
-          "assertion_id": "assertion:leyenda:daiki-member-casa",
+          "assertion_id": "assertion:leyenda:daiki-leads-casa",
           "decision_id": "decision:escaneo-0001",
           "evidence_fragment_ids": [
             "fragment:leyenda-escaneo:e01:f02"
           ],
           "expected_hash": null,
-          "expected_state": "WOULD_CREATE",
+          "expected_state": "NO_OP",
           "expected_version": null,
-          "idempotency_key": "idem:sha256:58a06fe87bb029b6cb4965ba3bfa766bf3d8326ec924f72f5bce48343c2f9404",
+          "idempotency_key": "idem:sha256:0a7fd965a9993c59dbdaf4bdeebd1455576fb496cb6d66a7e167da3ff2c0c7e2",
           "operation_id": "op:escaneo-0001",
           "operation_type": "CREATE_ASSERTION",
           "payload": {
             "object_entity_id": "entity:leyenda:casa-ciervo",
-            "predicate": "MEMBER_OF",
+            "predicate": "LEADS",
             "subject_entity_id": "entity:leyenda:daiki"
           },
           "target_entity_id": null
@@ -132,7 +133,7 @@
       "ontology_version": "core-1.4.0",
       "plan_hash": {
         "algorithm": "sha256",
-        "value": "9c80f373c9f58546c6080d17e6ceaae5b87fb65a85745433c23817ccd63ca93e"
+        "value": "ee0241a52f1c4c2a4fac270181224a10d357c7a88fe85b37a9180cdf36b19d3e"
       },
       "plan_id": "plan:leyenda-escaneo:0001",
       "produced_by_step": "gold.plan",

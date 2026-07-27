@@ -7,9 +7,9 @@
   ],
   "dataset_version": "1.0.0",
   "file_hashes": {
-    "dev/catalog/entities.json": "e23b0e431381c5ee9315cde45bc04b43015652e13a43c1a7e96002d6a144c68e",
-    "dev/catalog/game_profile_generic.json": "6f1f00e2faec1a945019d2d6518b3b4077313504f872fe1b5dfdf19ac3cee1ab",
-    "dev/catalog/game_profile_narrow.json": "b0de3e6d679fb8c89458d29a0c8619f7093e683a5cc8fe4f75b8ed17d1f29cd4",
+    "dev/catalog/entities.json": "17cd58370a7543c3c22874ee6f769550555c3355a4202d2f676d44c610bf2529",
+    "dev/catalog/game_profile_generic.json": "34756e3adc2bd166160a8e7452076c82bc4410b46de6a9d95214d5aedaee11d4",
+    "dev/catalog/game_profile_narrow.json": "6818026b7a4b91c3ba44d882f979ad82705780df9c9882434e0d266ec8e74ac8",
     "dev/sources/kestrel-informe/assertions.json": "8e72b8d0949ac10ec254602563e5331ad2b4df5e3e8657416813b197c00d04af",
     "dev/sources/kestrel-informe/claims.json": "a18935966164beaa4c31d1d45dffaebb8cde523e0ece3f1f69570c4dd144ae35",
     "dev/sources/kestrel-informe/episodes.json": "cbd5eb77f7882afe86d19cd21ab310a692e12489cd5bf06f11070079ca33288a",
@@ -30,23 +30,23 @@
     "dev/sources/kestrel-tripulacion/reference_text.json": "5c5160c7d1fbf5731f7ea3e3382c8464502748b1bf165891d06d4ec09eafef9b",
     "dev/sources/kestrel-tripulacion/resolutions.json": "915411e564c9ae03af9aaf361fa38c283d7a382c31c9a55956ff42cbb32174c2",
     "dev/sources/kestrel-tripulacion/source_asset.json": "14a4a5b08a92431c33e58b7fd4dfda34f4136e2b5556a4be50b7cc7e80fc07b6",
-    "dev/sources/leyenda-cronica/assertions.json": "b806ae93d8ac8a98b9930a3d6025583b190928147869519507057a468375160d",
-    "dev/sources/leyenda-cronica/claims.json": "088590f5213371f24eec54bc961a9b476d2e88b61dce2ee77dc0ce56435c4114",
-    "dev/sources/leyenda-cronica/episodes.json": "713e32b345b9ea8d10aac6afe9463030b708526af31f450b9c5ec8c8da231af5",
-    "dev/sources/leyenda-cronica/fragments.json": "54d5d1f2ff20a10f12fa7d3f43f983f3a767f3389dc94f4f1254e25163b63b72",
-    "dev/sources/leyenda-cronica/mentions.json": "a36354603749603af35bbc21c0653017c2cf84e42b5bc4a74b4c1c5c741f64c8",
+    "dev/sources/leyenda-cronica/assertions.json": "f3f38de10df1b99be1effc976d33f898b08eeb2f7c2e8c9ff79862a433a5880f",
+    "dev/sources/leyenda-cronica/claims.json": "a2abe84654f3debab88a7ca199667c091013e56c396a7d8d3f4a72ffb44827a8",
+    "dev/sources/leyenda-cronica/episodes.json": "b17c9ff2da76bb43c70d4d972644f2e330c73314df654dba4e75b22ff3599a1d",
+    "dev/sources/leyenda-cronica/fragments.json": "bf2203177e3286667749f9157e38e0f6f2929aa0927a9f0443f4fc3978d81179",
+    "dev/sources/leyenda-cronica/mentions.json": "04ae7da22fab8ffc7f398142c886700dfcc050f70b6f5bc14a70267e7d21bc24",
     "dev/sources/leyenda-cronica/negatives.json": "3c503736fbbb2e66050759685466236db3089c68735e2ae39f101958f758148a",
-    "dev/sources/leyenda-cronica/plans.json": "d5648e2ebaec6ab2fbb6ad5b033d73494c67993423075e09eb4b8dd08433906d",
+    "dev/sources/leyenda-cronica/plans.json": "d0d5750b54406b7e0ee2cdcff9459fad2f1ae49f6793d0d52052c1ce3c486d48",
     "dev/sources/leyenda-cronica/reference_text.json": "bdd27efe64b214f6f6ecccb7587250911d36c332c40b51bd0741daa9fe14bef8",
-    "dev/sources/leyenda-cronica/resolutions.json": "605f027d466f0f8e9db3c950623e9ea392037a5ba9c958b4e15828aee2082d5b",
+    "dev/sources/leyenda-cronica/resolutions.json": "ffb1cb573f90e12667ec6fa63707d4a85927a633d2ff3941b6f3f6375ecc8e12",
     "dev/sources/leyenda-cronica/source_asset.json": "245a6c70faf00e57a69f557a9823199be77cbc033fdc05451d35b8ff392f3071",
-    "dev/sources/leyenda-escaneo/assertions.json": "e5d508b75a30d531e0c05c0752588870715a03cfaf79190ab187f1695edd6c4d",
-    "dev/sources/leyenda-escaneo/claims.json": "3f0bf099f73f3f70126c3b62453f78e462b73d4b384fdfdc4319f4ff86ead4a3",
+    "dev/sources/leyenda-escaneo/assertions.json": "5e2954a2ff55d8d9e4bea10cc8f170cc1148dd89b5d3b33d8dbc0d8a11ecef65",
+    "dev/sources/leyenda-escaneo/claims.json": "8846a42ecb72286a471bc66b539de05253489d1237d486204a3095e0865882cd",
     "dev/sources/leyenda-escaneo/episodes.json": "02a53b7d609984782243566b2b8919485fb178d6bc5e6af3379acb570434cb33",
     "dev/sources/leyenda-escaneo/fragments.json": "12298ebd22e1a154f6938fff4f13873efd1dd94256fa4d92b4556495e33a8cc6",
     "dev/sources/leyenda-escaneo/mentions.json": "ae607673bb151b3689dc2f8752d25618d87227bac88577bc52878a21fccd11a2",
     "dev/sources/leyenda-escaneo/negatives.json": "9976c6a05d8221c73ee6f1710b499c677f9f7bf7736f2f9fa801b8caeb97f99b",
-    "dev/sources/leyenda-escaneo/plans.json": "35b59fcdc35f7d05f64ef1d239c3852129418c1c84f91c817c3b031f776c0863",
+    "dev/sources/leyenda-escaneo/plans.json": "8978ab817fde78b9f77c2196acaf0426bbae93927d0d8f2830450e0e79f8a33d",
     "dev/sources/leyenda-escaneo/reference_text.json": "6e847a0e7ed61808f6fa099d504a00157582b7787554a380066dfbeda2e32985",
     "dev/sources/leyenda-escaneo/resolutions.json": "1c2b59975e32abc3b47d81ba8248f6dbfe33df70af50904f92dd9f575515687b",
     "dev/sources/leyenda-escaneo/source_asset.json": "5ec441cf2eeb69969442531908524def0d7d653957ca5611a682b151dac3be90",
@@ -88,7 +88,8 @@
       "mareas-cuaderno"
     ],
     "DUPLICATE_ACROSS_SOURCES": [
-      "kestrel-tripulacion"
+      "kestrel-tripulacion",
+      "leyenda-escaneo"
     ],
     "FICTION_WITHIN_FICTION": [
       "kestrel-informe",
@@ -121,6 +122,9 @@
       "kestrel-informe",
       "leyenda-cronica",
       "mareas-sesion"
+    ],
+    "SEAT_VS_ORGANIZATION": [
+      "leyenda-cronica"
     ],
     "SPEAKER_COREFERENCE": [
       "mareas-sesion"
@@ -157,12 +161,12 @@
         "claims_extractor_gold": 4,
         "decisions": 4,
         "episodes": 3,
-        "fragments": 15,
-        "mentions": 11,
+        "fragments": 16,
+        "mentions": 12,
         "negatives": 2,
         "operations": 5,
         "plans": 1,
-        "resolutions": 5
+        "resolutions": 6
       },
       "description": "Markdown de cronica: sucesion de cargos, negacion explicita y rumor.",
       "modalities": [
@@ -174,6 +178,7 @@
         "NEGATION",
         "QUESTION",
         "RUMOR",
+        "SEAT_VS_ORGANIZATION",
         "SUPERSESSION",
         "SYMMETRIC",
         "TEMPORALITY"
@@ -309,7 +314,7 @@
     {
       "collection_id": "collection:leyenda",
       "counts": {
-        "assertions": 1,
+        "assertions": 0,
         "claims": 3,
         "claims_extractor_gold": 3,
         "decisions": 3,
@@ -328,6 +333,7 @@
       ],
       "phenomena": [
         "ABSTENTION",
+        "DUPLICATE_ACROSS_SOURCES",
         "OCR_NOISE",
         "PROVISIONAL_ENTITY",
         "VISUAL_INFERRED"
@@ -340,16 +346,16 @@
   ],
   "split": "dev",
   "totals": {
-    "assertions": 17,
+    "assertions": 16,
     "claims": 21,
     "claims_extractor_gold": 20,
     "decisions": 21,
     "episodes": 16,
-    "fragments": 71,
-    "mentions": 50,
+    "fragments": 72,
+    "mentions": 51,
     "negatives": 4,
     "operations": 18,
     "plans": 6,
-    "resolutions": 30
+    "resolutions": 31
   }
 }

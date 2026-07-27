@@ -54,7 +54,13 @@ def build_leyenda() -> SourceGold:
     )
 
     e1 = s.episode(seq=1, modality="TEXT", text=L1, page=1, phenomena=["TEMPORALITY", "SUPERSESSION"])
-    e2 = s.episode(seq=2, modality="TEXT", text=L2, page=1, phenomena=["NEGATION", "COREFERENCE"])
+    e2 = s.episode(
+        seq=2,
+        modality="TEXT",
+        text=L2,
+        page=1,
+        phenomena=["NEGATION", "COREFERENCE", "SEAT_VS_ORGANIZATION"],
+    )
     e3 = s.episode(
         seq=3,
         modality="TEXT",
@@ -113,6 +119,12 @@ def build_leyenda() -> SourceGold:
     m_consejo_2 = s.mention(e2, "Consejo de Umbra", entity_type="Faction", page=1)
     m_magistrado = s.mention(
         e2, "El magistrado", entity_type="Character", kind="NOMINAL", page=1
+    )
+    # "emisarios llegados de Umbra": aqui Umbra es la CIUDAD, no el Consejo.
+    # Anotarla es obligatorio: dejarla fuera convertiria en "acierto" que un
+    # extractor la ignore, y en "falso positivo" que la detecte bien.
+    m_umbra_ciudad = s.mention(
+        e2, "Umbra", entity_type="Location", occurrence=1, kind="NAME", page=1
     )
     s.link_coreference(m_daiki_2, m_magistrado)
 
@@ -210,6 +222,16 @@ def build_leyenda() -> SourceGold:
         selected_entity_id="entity:leyenda:consejo-umbra",
         candidate_entity_ids=["entity:leyenda:consejo-umbra"],
         reason_codes=["EXACT_ALIAS"],
+    )
+    s.resolution(
+        key="umbra-ciudad",
+        mention_ids=[m_umbra_ciudad],
+        action="LINK_EXISTING",
+        entity_type="Location",
+        selected_entity_id="entity:leyenda:umbra",
+        candidate_entity_ids=["entity:leyenda:umbra", "entity:leyenda:consejo-umbra"],
+        reason_codes=["EXACT_ALIAS", "TYPE_COMPATIBLE"],
+        confidence=0.78,
     )
     s.resolution(
         key="vado-alto",

@@ -397,6 +397,61 @@
       "contract_id": "entity-mention/v3-internal-v1",
       "contract_version": "1.0.0",
       "coreference_candidates": [],
+      "end": 153,
+      "episode_id": "episode:leyenda-cronica:e02",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e02:f03"
+      ],
+      "mention_id": "mention:leyenda-cronica:e02:m03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "umbra",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "start": 148,
+      "surface": "Umbra",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
       "end": 40,
       "episode_id": "episode:leyenda-cronica:e03",
       "evidence_fragment_ids": [

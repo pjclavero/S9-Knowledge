@@ -11,6 +11,7 @@ from __future__ import annotations
 import pytest
 
 from knowledge_v3.benchmarks.matching import (
+    MIN_OVERLAP_THRESHOLD,
     MatchConfig,
     build_alignment,
     canonical_endpoints,
@@ -28,7 +29,7 @@ def m(mid: str, episode: str, start: int, end: int) -> dict:
 
 
 EXACT = MatchConfig()
-LAXO = MatchConfig(span_mode="overlap", overlap_threshold=0.1)
+LAXO = MatchConfig(span_mode="overlap", overlap_threshold=MIN_OVERLAP_THRESHOLD)
 
 
 # --------------------------------------------------------------------------
@@ -42,6 +43,23 @@ def test_el_modo_de_span_desconocido_se_rechaza():
 def test_el_umbral_fuera_de_rango_se_rechaza():
     with pytest.raises(ValueError):
         MatchConfig(span_mode="overlap", overlap_threshold=0)
+    with pytest.raises(ValueError):
+        MatchConfig(span_mode="overlap", overlap_threshold=1.5)
+
+
+def test_el_umbral_de_solape_tiene_suelo_y_no_es_negociable():
+    """H6: por debajo de 0.5 se emparejan spans que comparten menos de la mitad."""
+    assert MIN_OVERLAP_THRESHOLD == 0.5
+    with pytest.raises(ValueError, match="overlap_threshold"):
+        MatchConfig(span_mode="overlap", overlap_threshold=0.3)
+    MatchConfig(span_mode="overlap", overlap_threshold=0.5)
+
+
+def test_con_el_suelo_un_solape_minoritario_ya_no_empareja():
+    gold = [m("g1", "e1", 0, 100)]
+    pred = [m("p1", "e1", 60, 100)]  # IoU = 40/100
+    r = match_spans(gold, pred, id_field="mention_id", config=LAXO)
+    assert r.tp == 0
 
 
 def test_la_configuracion_viaja_al_informe():

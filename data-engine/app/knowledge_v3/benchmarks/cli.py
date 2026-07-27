@@ -29,7 +29,7 @@ from .loader import (
     load_gold,
     validate_gold,
 )
-from .matching import MatchConfig
+from .matching import MIN_OVERLAP_THRESHOLD, MatchConfig
 from .report import to_json, to_markdown
 
 
@@ -104,6 +104,15 @@ def cmd_score(args: argparse.Namespace) -> int:
     return 0
 
 
+def _overlap_threshold(raw: str) -> float:
+    value = float(raw)
+    if not MIN_OVERLAP_THRESHOLD <= value <= 1:
+        raise argparse.ArgumentTypeError(
+            f"el umbral de solape no puede bajar de {MIN_OVERLAP_THRESHOLD}"
+        )
+    return value
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="knowledge_v3.benchmarks", description=__doc__)
     parser.add_argument("--root", type=Path, default=None, help="raiz alternativa de datasets/")
@@ -132,7 +141,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--ablation", default=None)
     p.add_argument("--span-mode", dest="span_mode", default="exact", choices=("exact", "overlap"))
-    p.add_argument("--overlap-threshold", dest="overlap_threshold", type=float, default=0.5)
+    p.add_argument(
+        "--overlap-threshold",
+        dest="overlap_threshold",
+        type=_overlap_threshold,
+        default=MIN_OVERLAP_THRESHOLD,
+        help=f"umbral de IoU en modo overlap; minimo {MIN_OVERLAP_THRESHOLD}",
+    )
     p.add_argument(
         "--claim-key-extra",
         dest="claim_key_extra",

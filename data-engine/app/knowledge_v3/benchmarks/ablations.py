@@ -64,7 +64,10 @@ def _a(label: str, description: str, **kw: Any) -> Ablation:
     return Ablation(label=label, description=description, **kw)
 
 
-#: Las diez ablaciones del dosier 8, mas la corrida nominal.
+#: TRECE configuraciones: las diez del dosier 8, la corrida nominal de
+#: referencia, `no_ollama` (que el dosier pide en pruebas conjuntas) y
+#: `gold_identity`, que no es una corrida del sistema sino la prueba de cordura
+#: del propio arnes. `labels()` es la lista autoritativa; este comentario no.
 ABLATIONS: dict[str, Ablation] = {
     a.label: a
     for a in (
