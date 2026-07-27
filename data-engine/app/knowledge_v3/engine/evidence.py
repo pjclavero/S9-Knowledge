@@ -61,6 +61,27 @@ class EvidenceIndex:
         return self.episodes.get(episode_id)
 
 
+def evidence_confidence(claim: ClaimProposal, index: EvidenceIndex) -> float:
+    """Techo que la evidencia le pone a la confianza de la decision.
+
+    Es el minimo entre la calidad del episodio y la confianza de los fragmentos
+    citados. Sin esto, un claim de 0.99 apoyado en una transcripcion de 0.50
+    escribia una afirmacion con `confidence: 0.99`, y cualquier consumidor que
+    filtre por confianza —el visor, el benchmark, una futura promocion
+    automatica— quedaba enganado sobre la calidad de la fuente (hallazgo H3).
+
+    Un fragmento o un episodio que no estan en el lote valen 0.0: la evidencia
+    que no se puede mirar no sostiene nada. Ese caso ya produce ademas una
+    abstencion por su propio eje; aqui solo se evita que herede confianza.
+    """
+    episode = index.episode(claim.episode_id)
+    floors = [episode.quality.get("score", 0.0) if episode is not None else 0.0]
+    for fragment_id in claim.evidence_fragment_ids:
+        fragment = index.fragment(fragment_id)
+        floors.append(fragment.confidence if fragment is not None else 0.0)
+    return min(floors, default=0.0)
+
+
 def verify_evidence(
     claim: ClaimProposal, index: EvidenceIndex, config: EngineConfig
 ) -> list[F.Finding]:

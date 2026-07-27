@@ -4,8 +4,9 @@
 `v3-contracts-frozen-1.0.0`)
 **Ámbito exclusivo:** `data-engine/app/knowledge_v3/engine/`,
 `data-engine/app/tests/test_knowledge_v3_engine*.py`, este documento.
-**Estado:** implementado, 117 tests propios en verde, suite completa sin
-regresiones (4291 passed / 5 skipped).
+**Estado:** implementado; revisión independiente **NO CONFORME** sobre
+`cbbcab8` → ronda de correcciones H1-H6 aplicada (§10). 138 tests propios en
+verde, suite completa sin regresiones (4312 passed / 5 skipped).
 
 El motor es el subsistema D del dosier (§11) y **la única autoridad del
 sistema**: solo él valida, aprueba, invalida, cierra vigencias y autoriza una
@@ -219,11 +220,20 @@ expresiones con anclajes incompatibles, o expresión que cita un fragmento
 inexistente. Un calendario no validado **no se copia** a la afirmación: una
 fecha en un calendario desconocido no es una fecha.
 
-### 3.8. Contradicción (`contradiction.py`)
+### 3.8. Contradicción (`contradiction.py`) — dos pasadas
 
 Regla dura, **sin puerta de configuración**: una contradicción nunca se
-auto-aprueba. Todo se compara sobre la **clave canónica** de la relación, no
-sobre los campos crudos:
+auto-aprueba — **ni contra lo que el grafo ya dice, ni contra lo que este mismo
+plan está a punto de escribir**. La segunda mitad de esa frase faltaba en la
+primera versión y era un agujero real (§10, H1).
+
+**Pasada 1 — contra el snapshot** (`check_contradictions`, por claim).
+**Pasada 2 — el lote contra sí mismo** (`batch_conflicts` +
+`decision.apply_batch_contradictions`, sobre el conjunto de decisiones, antes de
+construir ningún plan). `decide_claim` ve un claim y todo el grafo; no ve a su
+vecino de página, así que la segunda pasada no puede vivir dentro de él.
+
+Ambas usan la **clave canónica** de la relación, no los campos crudos:
 
 1. la orientación `OBJECT_TO_SUBJECT` se reescribe intercambiando extremos;
 2. si el predicado es simétrico, la pareja se ordena — para `ALLY_OF`, (A,B) y
@@ -232,18 +242,24 @@ sobre los campos crudos:
    afirmación. Sin esto, `MEMBER_OF(Daiki, Casa)` y `HAS_MEMBER(Casa, Daiki)`
    conviven como dos hechos distintos y el detector no ve nada.
 
-| Choque | Resultado |
-|---|---|
-| misma clave, `negated` opuesto | `REVIEW` · `CONFLICT_WITH_EXISTING` |
-| misma pareja y predicado, orientación canónica contraria | `REVIEW` · `DIRECTION_CONFLICT_WITH_VIGENTE` |
-| predicado `functional` apuntando a otro objeto | `REVIEW` · `FUNCTIONAL_PREDICATE_CONFLICT` |
-| misma clave, mismo `negated` | no es conflicto: `ALREADY_ASSERTED`, **sin operación** |
+| Choque | Contra el snapshot | Dentro del lote |
+|---|---|---|
+| misma clave, `negated` opuesto | `CONTRADICTS_VIGENTE_ASSERTION` | `CONTRADICTS_CLAIM_IN_BATCH` |
+| misma pareja y predicado, orientación contraria | `DIRECTION_CONFLICT_WITH_VIGENTE` | `DIRECTION_CONFLICT_IN_BATCH` |
+| predicado `functional` con otro objeto | `FUNCTIONAL_PREDICATE_CONFLICT` | `FUNCTIONAL_CONFLICT_IN_BATCH` |
+| reafirmar una `CONTRADICTED` sin resolver | `REAFFIRMS_CONTRADICTED_ASSERTION` | — |
+| misma clave, mismo `negated` | `ALREADY_ASSERTED`, sin operación | `DUPLICATE_IN_BATCH`, sin operación |
 
-Solo cuentan las afirmaciones **vigentes**: `status ∈ {PROVISIONAL, ASSERTED,
-CONFIRMED, LIMITED}` **y** `state ∈ {ACTIVE, RECURRING, UNKNOWN}`. Una
-afirmación superada, retractada o terminada describe otro tramo de la historia
-y no contradice nada. Los dos ejes (`status` de ciclo de vida y `state`
-temporal) se consultan por separado, como manda el contrato.
+Los cuatro primeros son `REVIEW` · `CONFLICT_WITH_EXISTING`. En un conflicto
+interno se marcan **los dos** claims: no hay uno «correcto» al que dejar pasar,
+y elegirlo sería justo la decisión que el motor no puede tomar solo.
+
+Qué cuenta del snapshot (`blocks_new_claims()`): las afirmaciones **vigentes**
+(`status ∈ {PROVISIONAL, ASSERTED, CONFIRMED, LIMITED}` **y** `state ∈ {ACTIVE,
+RECURRING, UNKNOWN}`) **más** las marcadas `CONTRADICTED` y aún sin resolver
+(§10, H2). `SUPERSEDED` y `RETRACTED` no cuentan: son historia. Los dos ejes
+(`status` de ciclo de vida y `state` temporal) se consultan por separado, como
+manda el contrato.
 
 ### 3.9. Autoridad (`signals.py`, `decision.py`)
 
@@ -298,13 +314,25 @@ partes: multiplicarlas castigaría dos veces lo mismo, promediarlas dejaría que
 una identidad dudosa quedara tapada por un predicado seguro. La cadena vale lo
 que su eslabón más débil.
 
-### Las tres invariantes sin umbral
+**Confianza = mínimo también sobre la evidencia**: entran la confianza del
+fragmento citado y la calidad del episodio (§10, H3). Sin ellas, un claim de
+0.99 anclado en una transcripción de 0.50 escribía `confidence: 0.99` y engañaba
+a cualquier consumidor que filtre por confianza.
+
+### Las invariantes sin umbral
 
 No tienen flag en `EngineConfig` y viven en `decision._enforce_invariants`:
 
 1. **no hay `ACCEPT` sin evidencia literal verificada**;
-2. **no hay `ACCEPT` con una contradicción vigente**;
-3. **no hay `ACCEPT` sin predicado, dirección, sujeto y objeto fijados**.
+2. **no hay `ACCEPT` con una contradicción vigente ni con una contradicción
+   dentro del propio lote**;
+3. **no hay `ACCEPT` sin predicado, dirección, sujeto y objeto fijados**;
+4. **no hay `ACCEPT` por debajo de `HARD_CONFIDENCE_FLOOR` (0.5)**, pase lo que
+   pase en la configuración (§10, H4).
+
+Y dos que `EngineConfig` rechaza en construcción, no en la decisión, para que el
+error salga donde se comete: `acceptable_epistemic_status` **debe** contener
+`ASSERTED` y **no puede** contener `UNKNOWN` ni `CONFLICTED`.
 
 Detalle deliberado: poner `require_literal_evidence=False` **no abre la puerta,
 la cierra del todo** — sin cotejo no hay nada verificado, y sin nada verificado
@@ -332,6 +360,15 @@ no hay aceptación. La configuración solo puede endurecer.
   Dos corridas sobre la misma entrada producen planes **byte a byte idénticos**
   (hay test);
 - `expires_at = now + plan_ttl_seconds` (24 h por defecto);
+- el validador interno `contradiction` comprueba además las **claves canónicas
+  de las operaciones del propio plan** (`plan_is_self_consistent`): mira el
+  artefacto final, no las decisiones que lo originaron, así que sigue delante
+  del writer aunque algún día se añada otra ruta que construya operaciones;
+- los pasos `engine.decide` / `engine.plan` están **reservados**: una señal que
+  se llame así se renombra a `signal.<paso>` antes de entrar en el
+  `provider_trace`, y `ExternalSignal` lo rechaza ya en construcción. El
+  `provider_trace` no entra en el `decision_hash`, de modo que una procedencia
+  falsa no rompería ninguna firma (§10, H5);
 - cadena de validadores registrada en la aprobación: `structural`, `semantic`,
   `ontology`, `contradiction`, `authority`, `concurrency`. `approved` solo si
   hay ≥1 operación, ninguna decisión `REVIEW` y **todos** dan `PASS`;
@@ -372,10 +409,10 @@ devuelve `False` a propósito.
 | Fichero | Tests | Qué cubre |
 |---|---|---|
 | `test_knowledge_v3_engine_gold.py` | 4 | corpus gold pequeño + comprobación de que el gold es gold |
-| `test_knowledge_v3_engine.py` | 96 | los diez ejes, positivo y negativo; plan; aislamiento; autoridad; cobertura de las diez decisiones del dosier |
-| `test_knowledge_v3_engine_mutations.py` | 17 | mutación: quitar reglas y comprobar que el resultado se vuelve incorrecto |
-| **Total propio** | **117** | |
-| Suite completa del repositorio | 4291 passed / 5 skipped | sin regresiones |
+| `test_knowledge_v3_engine.py` | 115 | los diez ejes, positivo y negativo; plan; aislamiento; autoridad; las diez decisiones del dosier **atadas cada una a su escenario**; regresión H1-H6 |
+| `test_knowledge_v3_engine_mutations.py` | 19 | mutación: quitar reglas y comprobar que el resultado se vuelve incorrecto |
+| **Total propio** | **138** | |
+| Suite completa del repositorio | 4312 passed / 5 skipped | sin regresiones |
 
 El corpus gold es **propio y pequeño** (seis entidades, dos episodios, un
 perfil). El de contratos existe para ejercitar el *schema*, y sus offsets,
@@ -387,7 +424,9 @@ construcción y donde romperla sea deliberado y visible.
 
 | Mutación | Consecuencia demostrada |
 |---|---|
-| quitar la regla de contradicción | el motor **aprueba y escribe** lo contrario de lo vigente |
+| quitar la regla de contradicción (snapshot) | el motor **aprueba y escribe** lo contrario de lo vigente |
+| quitar la pasada de lote | el lote que afirma y niega lo mismo saca dos `ACCEPT` (el validador del plan aún lo caza) |
+| quitar la pasada de lote **y** la defensa del plan | plan **aprobado y firmado** que se contradice a sí mismo |
 | dar la evidencia por buena sin cotejar | el motor **aprueba una cita falsificada** |
 | quitar la capa de invariantes | el motor escribe evidencia no verificable |
 | tomar el predicado de una señal externa | el motor **aprueba con base exclusivamente externa** |
@@ -414,10 +453,12 @@ construcción y donde romperla sea deliberado y visible.
    siempre a revisión. Es una decisión consciente con un coste real en
    cobertura; levantarla exige una forma de verificación visual, no un flag.
 3. **La supersession no está implementada aquí.** El motor detecta duplicados y
-   conflictos, pero no cierra vigencias ni emite `SUPERSEDE_ASSERTION`: eso es
-   del subsistema de ledger temporal (§12). Hoy un conflicto va a revisión y ahí
-   se queda.
-4. **No hay medición de calidad todavía.** Estos 117 tests demuestran que las
+   conflictos —contra el grafo y dentro del lote— pero no cierra vigencias ni
+   emite `SUPERSEDE_ASSERTION`: eso es del subsistema de ledger temporal (§12).
+   Hoy un conflicto va a revisión y ahí se queda. Consecuencia directa: un
+   corpus internamente contradictorio produce **cero escrituras y mucha cola de
+   revisión**, y no hay ningún mecanismo automático que la vacíe.
+4. **No hay medición de calidad todavía.** Estos 138 tests demuestran que las
    reglas hacen lo que dicen; **no** demuestran que el motor acierte sobre
    material real. Precisión, recall y tasa de falsos positivos son del bloque de
    benchmark, sobre held-out que este equipo no ha visto. Cualquier número de
@@ -449,3 +490,24 @@ tocar nada congelado:
   canónico + descriptivo `EPISTEMIC_NOT_ASSERTED` / `NEGATION_NOT_ACCEPTED`. Es
   correcto y trazable, pero si algún día se abre una minor del contrato, un
   `REVIEW_EPISTEMIC` canónico sería más limpio. **No se ha tocado nada.**
+
+
+---
+
+## 10. Ronda de correcciones tras la revisión independiente
+
+Dictamen **NO CONFORME** sobre `cbbcab8`. La autoridad resistió los 41 ataques
+del revisor (ninguna señal externa promovió jamás un `ACCEPT`; evidencia NFD,
+NBSP y cruzada, toda cazada; 7/7 mutaciones suyas muertas), pero apareció un
+agujero **bloqueante de alcance** y cinco hallazgos más. El diseño se mantuvo;
+las correcciones son quirúrgicas.
+
+| # | Hallazgo | Qué se hizo |
+|---|---|---|
+| **H1** | **BLOQUEANTE.** La contradicción solo se contrastaba contra el snapshot, nunca dentro del lote: `MEMBER_OF(daiki→casa)` y su negación en el mismo lote daban `[ACCEPT, ACCEPT]`, plan `approved: true` y `PASS` del validador congelado. También por la inversa (`MEMBER_OF` + `HAS_MEMBER` negada). La clave canónica era correcta; el fallo era de alcance. | (a) `contradiction.batch_conflicts` + `decision.apply_batch_contradictions`: pasada del lote contra sí mismo sobre la clave canónica, **antes** de construir el plan; los dos claims implicados a `REVIEW` con `CONFLICT_WITH_EXISTING`. Cubre negación opuesta, dirección invertida, predicado funcional y duplicado interno (que además producía dos `idempotency_key` iguales). (b) `planner.plan_is_self_consistent`: el validador interno `contradiction` comprueba las claves canónicas de las operaciones del propio plan. (c) tests con el par exacto del revisor y con la variante inversa, más dos mutantes. (d) docs §3.8 y docstrings de `contradiction.py` y `decision.py` corregidos: la promesa «una contradicción NUNCA se auto-aprueba» ya no se hace sin la salvedad. |
+| **H2** | `LIVE_STATUSES` excluía `CONTRADICTED`, así que reafirmar un hecho que un humano había marcado como contradicho se aprobaba en silencio: bastaba reprocesar el asset para saltarse la cola. | `BLOCKING_STATUSES = LIVE_STATUSES ∪ {CONTRADICTED}` y `SnapshotAssertion.blocks_new_claims()`. Reafirmar cualquiera de las dos caras de un conflicto abierto → `REVIEW` · `REAFFIRMS_CONTRADICTED_ASSERTION`. `SUPERSEDED` y `RETRACTED` siguen fuera: son historia. Test con el escenario exacto y test de que la historia sigue siendo historia. |
+| **H3** | El mínimo de confianza dejaba fuera la confianza del fragmento y la calidad del episodio: un claim de 0.99 con evidencia de 0.50 escribía `confidence: 0.99`. | `evidence.evidence_confidence()` entra en el mínimo, como el docstring ya prometía. Tests con el caso 0.99/0.50 y con la calidad de episodio. |
+| **H4** | `EngineConfig` permitía `acceptable_epistemic_status={"RUMORED","UNKNOWN"}` con todos los umbrales a 0.0 → `ACCEPT` de un `RUMORED` a 0.05. | Dos cierres: `EngineConfig.__post_init__` rechaza conjuntos sin `ASSERTED` o con `UNKNOWN`/`CONFLICTED`; y `HARD_CONFIDENCE_FLOOR = 0.5` como invariante, por debajo de cualquier umbral configurable. Tests de las cuatro configuraciones rechazadas y del suelo duro. |
+| **H5** | Una `ExternalSignal(step="engine.decide")` se colaba en el `provider_trace` del plan y la procedencia decía que Ollama produjo la decisión — sin romper ningún hash, porque el `provider_trace` no entra en el `decision_hash`. | `RESERVED_STEPS`: `ExternalSignal` lo rechaza en construcción y el planner renombra a `signal.<paso>` como defensa del lado del plan. Tests de ambos caminos (el segundo con una señal forjada vía `object.__setattr__`). |
+| **H6** | `trace_entry()` no revalidaba el proveedor: un objeto `frozen` sigue siendo mutable con `object.__setattr__`. | Revalidación en `trace_entry()`, que es el punto por el que la señal entra en un documento firmado. Test. |
+| — | El test de las diez decisiones acumulaba en un conjunto global: un escenario podía dejar de producir lo suyo tapado por otro. | Cada escenario atado a **su** `(decision, reason_code)` de `ENGINE_DECISION_MAP`, más una comprobación de que no falta ningún escenario. |

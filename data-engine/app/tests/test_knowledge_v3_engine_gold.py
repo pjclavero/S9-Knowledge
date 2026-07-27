@@ -137,6 +137,15 @@ def profile_dict(**overrides: Any) -> dict[str, Any]:
                 "inverse_of": None,
             },
             {
+                "predicate": "OWES_TO",
+                "domain": ["Character", "Faction"],
+                "range": ["Character", "Faction"],
+                "symmetric": False,
+                "transitive": False,
+                "functional": False,
+                "inverse_of": None,
+            },
+            {
                 "predicate": "SERVES",
                 "domain": ["Character"],
                 "range": ["Faction"],
@@ -315,6 +324,19 @@ def resolution_consejo(**overrides: Any) -> EntityResolution:
         selected_entity_id="entity:consejo-umbra",
         entity_type="Faction",
         confidence=0.86,
+    )
+    doc.update(overrides)
+    return EntityResolution.from_dict(doc)
+
+
+def resolution_puerto(**overrides: Any) -> EntityResolution:
+    doc = resolution_dict(
+        resolution_id="resolution:puerto",
+        mention_ids=["mention:puerto"],
+        candidate_entity_ids=["entity:puerto-sal"],
+        selected_entity_id="entity:puerto-sal",
+        entity_type="Location",
+        confidence=0.9,
     )
     doc.update(overrides)
     return EntityResolution.from_dict(doc)

@@ -28,6 +28,13 @@ from typing import Iterable, Optional
 
 from ..contracts.base import provider_step
 from . import findings as F
+from .config import STEP_DECIDE, STEP_PLAN
+
+#: Pasos RESERVADOS al motor. Una senal que se llame `engine.decide` acaba en el
+#: `provider_trace` del plan diciendo que la decision la produjo Ollama: la
+#: procedencia mentiria sin que ningun hash se rompiese, porque el nombre del
+#: paso es un dato como otro cualquiera (hallazgo H5).
+RESERVED_STEPS = frozenset({STEP_DECIDE, STEP_PLAN})
 
 
 @dataclass(frozen=True)
@@ -50,6 +57,14 @@ class ExternalSignal:
     notes: str = ""
 
     def __post_init__(self) -> None:
+        self._check_provider()
+        if self.step in RESERVED_STEPS:
+            raise ValueError(
+                f"el paso {self.step!r} esta RESERVADO al motor local: una senal que lo "
+                "usa se presenta en la traza como si hubiera producido la decision"
+            )
+
+    def _check_provider(self) -> None:
         if self.provider not in ("ollama", "external"):
             raise ValueError(
                 "una senal solo puede venir de 'ollama' o 'external': lo que produce "
@@ -57,7 +72,13 @@ class ExternalSignal:
             )
 
     def trace_entry(self) -> dict:
-        """Entrada de `provider_trace` veraz para esta senal."""
+        """Entrada de `provider_trace` veraz para esta senal.
+
+        Revalida el proveedor aqui y no solo en la construccion: este es el
+        punto por el que la senal entra en un documento firmado, y un objeto
+        `frozen` sigue siendo mutable con `object.__setattr__`.
+        """
+        self._check_provider()
         return provider_step(
             self.step,
             self.provider,

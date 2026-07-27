@@ -10,6 +10,8 @@ Los tests de mutacion viven aparte, en `test_knowledge_v3_engine_mutations.py`.
 """
 from __future__ import annotations
 
+from copy import deepcopy
+
 import pytest
 
 from knowledge_v3.contracts import GraphMutationPlan
@@ -24,6 +26,7 @@ from knowledge_v3.engine import (
     canonical_key,
 )
 from knowledge_v3.engine.ontology import ProfileIndex
+from knowledge_v3.engine.planner import plan_is_self_consistent
 from test_knowledge_v3_engine_gold import (  # noqa: I100 - modulo hermano de fixtures
     ASSET_ID,
     COLLECTION_ID,
@@ -45,6 +48,7 @@ from test_knowledge_v3_engine_gold import (  # noqa: I100 - modulo hermano de fi
     resolution,
     resolution_casa,
     resolution_consejo,
+    resolution_puerto,
     resolution_torre,
     run,
     snapshot,
@@ -1025,27 +1029,275 @@ def test_a_local_signal_is_a_contradiction_in_terms():
 # 13. Cobertura del mapa de decisiones del dosier §11.7
 # ==========================================================================
 def test_the_engine_can_reach_every_dossier_decision():
-    """Las diez decisiones del dosier 11.7, cada una producida de verdad."""
-    produced: set[tuple[str, str]] = set()
-    scenarios = [
-        run(),  # LOCAL_APPROVED
-        run([claim(negated=True, object_mentions=["mention:consejo"],
-                   predicate_candidates=[{"predicate": "SERVES", "confidence": 0.85}],
-                   evidence_fragment_ids=["fragment:gold:1"])]),  # ..._WITH_WARNINGS
-        run([claim(subject_mentions=["mention:fantasma"])]),  # REVIEW_ENTITY
-        run([claim(predicate_candidates=[{"predicate": "MEMBER_OF", "confidence": 0.4}])]),
-        run([claim(direction_candidates=[{"direction": "UNDIRECTED", "confidence": 0.9}])]),
-        run([claim(temporal_expressions=[
-            {"text": "x", "kind": "POINT", "calendar_id": "calendar:inventado"}])]),
-        run([claim(review_required=True)]),  # REVIEW_EVIDENCE
-        run(snap=snapshot(assertions=[vigente(negated=True)])),  # CONFLICT
-        run([claim(evidence_fragment_ids=["fragment:inventado"])]),  # ABSTAIN
-        run([claim(predicate_candidates=[{"predicate": "GOBIERNA_EN", "confidence": 0.9}])]),
-    ]
-    for result in scenarios:
-        for decision in result.decisions:
-            for code in decision.reason_codes():
-                produced.add((decision.decision, code))
+    """Las diez decisiones del dosier 11.7, cada una atada a SU escenario.
 
-    for dossier_decision, pair in V.ENGINE_DECISION_MAP.items():
-        assert pair in produced, f"el motor nunca produce {dossier_decision}"
+    Antes esta comprobacion acumulaba todas las decisiones en un conjunto
+    global y solo exigia que cada par apareciese en ALGUNA parte: un escenario
+    podia dejar de producir lo suyo sin que nadie se enterase, porque otro se lo
+    tapaba. Ahora cada escenario declara que decision y que razon canonica debe
+    producir, y falla el escenario concreto que se rompa.
+    """
+    scenarios = {
+        "LOCAL_APPROVED": run(),
+        "LOCAL_APPROVED_WITH_WARNINGS": run(
+            [
+                claim(
+                    negated=True,
+                    object_mentions=["mention:consejo"],
+                    predicate_candidates=[{"predicate": "SERVES", "confidence": 0.85}],
+                    evidence_fragment_ids=["fragment:gold:1"],
+                )
+            ]
+        ),
+        "REVIEW_ENTITY": run([claim(subject_mentions=["mention:fantasma"])]),
+        "REVIEW_PREDICATE": run(
+            [claim(predicate_candidates=[{"predicate": "MEMBER_OF", "confidence": 0.4}])]
+        ),
+        "REVIEW_DIRECTION": run(
+            [claim(direction_candidates=[{"direction": "UNDIRECTED", "confidence": 0.9}])]
+        ),
+        "REVIEW_TEMPORALITY": run(
+            [
+                claim(
+                    temporal_expressions=[
+                        {"text": "x", "kind": "POINT", "calendar_id": "calendar:inventado"}
+                    ]
+                )
+            ]
+        ),
+        "REVIEW_EVIDENCE": run([claim(review_required=True)]),
+        "CONFLICT": run(snap=snapshot(assertions=[vigente(negated=True)])),
+        "ABSTAIN": run([claim(evidence_fragment_ids=["fragment:inventado"])]),
+        "REJECT_INVALID": run(
+            [claim(predicate_candidates=[{"predicate": "GOBIERNA_EN", "confidence": 0.9}])]
+        ),
+    }
+    assert set(scenarios) == set(V.ENGINE_DECISION_MAP), "faltan escenarios del dosier"
+
+    for dossier_decision, result in scenarios.items():
+        expected_decision, expected_reason = V.ENGINE_DECISION_MAP[dossier_decision]
+        decision = only(result)
+        assert decision.decision == expected_decision, dossier_decision
+        assert expected_reason in codes(decision), dossier_decision
+
+
+# ==========================================================================
+# 14. Hallazgos de la revision independiente (H1-H6)
+# ==========================================================================
+def _opposite_pair():
+    """El par exacto del revisor: el mismo hecho afirmado y negado en un lote."""
+    return [
+        claim(claim_id="claim:batch:si", negated=False),
+        claim(claim_id="claim:batch:no", negated=True, epistemic_cues=["jamas"]),
+    ]
+
+
+def test_h1_two_opposite_claims_in_the_same_batch_never_both_accept():
+    result = run(_opposite_pair())
+    assert [d.decision for d in result.decisions] == ["REVIEW", "REVIEW"]
+    for decision in result.decisions:
+        assert "CONFLICT_WITH_EXISTING" in codes(decision)
+        assert "CONTRADICTS_CLAIM_IN_BATCH" in codes(decision)
+    assert result.plan is None
+    assert result.review_plan is not None and result.review_plan.approved is False
+
+
+def test_h1_the_inverse_predicate_variant_inside_the_batch_is_also_caught():
+    batch = [
+        claim(claim_id="claim:batch:member", negated=False),
+        claim(
+            claim_id="claim:batch:hasmember",
+            subject_mentions=["mention:casa"],
+            object_mentions=["mention:daiki"],
+            negated=True,
+            predicate_candidates=[{"predicate": "HAS_MEMBER", "confidence": 0.85}],
+        ),
+    ]
+    result = run(batch)
+    assert [d.decision for d in result.decisions] == ["REVIEW", "REVIEW"]
+    assert all("CONTRADICTS_CLAIM_IN_BATCH" in codes(d) for d in result.decisions)
+
+
+def test_h1_a_batch_contradiction_marks_the_claims_as_conflicted():
+    for decision in run(_opposite_pair()).decisions:
+        assert decision.epistemic_status == "CONFLICTED"
+
+
+def test_h1_the_same_claim_twice_in_a_batch_is_written_once():
+    result = run([claim(claim_id="claim:a"), claim(claim_id="claim:b")])
+    assert [d.decision for d in result.decisions] == ["ACCEPT", "ACCEPT"]
+    assert "DUPLICATE_IN_BATCH" in codes(result.decisions[1])
+    assert len(result.assertions) == 1
+    assert result.plan.approved is True
+
+
+def test_h1_an_inverted_direction_inside_the_batch_is_a_conflict():
+    batch = [
+        claim(claim_id="claim:s2o", predicate_candidates=[{"predicate": "OWES_TO", "confidence": 0.9}]),
+        claim(
+            claim_id="claim:o2s",
+            subject_mentions=["mention:casa"],
+            object_mentions=["mention:daiki"],
+            predicate_candidates=[{"predicate": "OWES_TO", "confidence": 0.9}],
+        ),
+    ]
+    result = run(batch)
+    assert [d.decision for d in result.decisions] == ["REVIEW", "REVIEW"]
+    assert all("DIRECTION_CONFLICT_IN_BATCH" in codes(d) for d in result.decisions)
+
+
+def test_h1_a_functional_predicate_with_two_objects_in_the_batch_is_a_conflict():
+    batch = [
+        claim(
+            claim_id="claim:torre",
+            object_mentions=["mention:torre"],
+            predicate_candidates=[{"predicate": "LOCATED_IN", "confidence": 0.9}],
+        ),
+        claim(
+            claim_id="claim:puerto",
+            object_mentions=["mention:puerto"],
+            predicate_candidates=[{"predicate": "LOCATED_IN", "confidence": 0.9}],
+        ),
+    ]
+    result = run(batch, resolutions=[*DEFAULT_RESOLUTIONS(), resolution_puerto()])
+    assert [d.decision for d in result.decisions] == ["REVIEW", "REVIEW"]
+    assert all("FUNCTIONAL_CONFLICT_IN_BATCH" in codes(d) for d in result.decisions)
+
+
+def test_h1b_the_plan_validator_checks_the_plan_against_itself():
+    """Defensa en profundidad: el validador mira el artefacto, no la decision."""
+    index = ProfileIndex(profile())
+    coherent = run().plan.mutation_operations
+    assert plan_is_self_consistent(coherent, index) is True
+
+    incoherent = [op for op in coherent if op["operation_type"] == "CREATE_ASSERTION"]
+    twin = deepcopy(incoherent[0])
+    twin["operation_id"] = "op:twin"
+    twin["payload"] = {**twin["payload"], "negated": True}
+    assert plan_is_self_consistent([*incoherent, twin], index) is False
+
+
+def test_h2_reaffirming_a_contradicted_assertion_goes_to_review():
+    """Reprocesar el asset no puede saltarse la cola humana."""
+    marked = vigente(assertion_id="assertion:enconflicto", status="CONTRADICTED")
+    decision = only(run(snap=snapshot(assertions=[marked])))
+    assert decision.decision == "REVIEW"
+    assert "CONFLICT_WITH_EXISTING" in codes(decision)
+    assert "REAFFIRMS_CONTRADICTED_ASSERTION" in codes(decision)
+
+
+def test_h2_history_is_still_history():
+    for status in ("SUPERSEDED", "RETRACTED"):
+        decision = only(run(snap=snapshot(assertions=[vigente(status=status)])))
+        assert decision.decision == "ACCEPT", status
+
+
+def test_h3_the_confidence_never_exceeds_the_evidence_that_supports_it():
+    weak = fragment(confidence=0.50)
+    result = run(
+        [
+            claim(
+                confidence=0.99,
+                predicate_candidates=[{"predicate": "MEMBER_OF", "confidence": 0.99}],
+                direction_candidates=[{"direction": "SUBJECT_TO_OBJECT", "confidence": 0.99}],
+            )
+        ],
+        fragments=[weak],
+    )
+    decision = only(result)
+    assert decision.confidence == 0.5
+    assert result.assertions[0].confidence == 0.5
+
+
+def test_h3_the_episode_quality_also_caps_the_confidence():
+    result = run(
+        [claim(confidence=0.99, predicate_candidates=[{"predicate": "MEMBER_OF", "confidence": 0.99}],
+               direction_candidates=[{"direction": "SUBJECT_TO_OBJECT", "confidence": 0.99}])],
+        episodes=[episode(quality={"score": 0.6, "flags": []})],
+    )
+    assert only(result).confidence == 0.6
+
+
+@pytest.mark.parametrize(
+    "acceptable",
+    [
+        frozenset({"RUMORED", "UNKNOWN"}),  # el ataque exacto del revisor
+        frozenset({"ASSERTED", "UNKNOWN"}),
+        frozenset({"ASSERTED", "CONFLICTED"}),
+        frozenset({"RUMORED"}),
+    ],
+)
+def test_h4_a_configuration_that_would_rubber_stamp_is_rejected(acceptable):
+    with pytest.raises(ValueError):
+        EngineConfig(acceptable_epistemic_status=acceptable)
+
+
+def test_h4_no_threshold_can_go_below_the_hard_confidence_floor():
+    permissive = EngineConfig(
+        min_claim_confidence=0.0,
+        min_predicate_confidence=0.0,
+        min_predicate_margin=0.0,
+        min_direction_confidence=0.0,
+        min_resolution_confidence=0.0,
+        min_episode_quality=0.0,
+        min_fragment_confidence=0.0,
+        acceptable_epistemic_status=frozenset({"ASSERTED", "RUMORED"}),
+    )
+    decision = only(
+        run(
+            [
+                claim(
+                    confidence=0.05,
+                    epistemic_status_hint="RUMORED",
+                    predicate_candidates=[{"predicate": "MEMBER_OF", "confidence": 0.05}],
+                )
+            ],
+            config=permissive,
+        )
+    )
+    assert decision.decision == "REVIEW"
+    assert "CONFIDENCE_BELOW_HARD_FLOOR" in codes(decision)
+
+
+def test_h5_a_signal_cannot_name_itself_after_an_engine_step():
+    with pytest.raises(ValueError, match="RESERVADO"):
+        ExternalSignal(
+            claim_id="claim:gold:0",
+            step="engine.decide",
+            provider="ollama",
+            name="s9k.signal.ollama",
+            version="1.0.0",
+        )
+
+
+def test_h5_a_forged_signal_step_is_renamed_before_entering_the_trace():
+    signal = ExternalSignal(
+        claim_id="claim:gold:0",
+        step="signal.ollama",
+        provider="ollama",
+        name="s9k.signal.ollama",
+        version="1.0.0",
+        predicate="MEMBER_OF",
+        direction="SUBJECT_TO_OBJECT",
+    )
+    object.__setattr__(signal, "step", "engine.decide")  # se salta la validacion
+    plan = run(signals=[signal]).plan
+    reserved = {"engine.decide", "engine.plan"}
+    assert all(
+        e["provider"] == "local" for e in plan.provider_trace if e["step"] in reserved
+    ), "una senal se ha colado en un paso del motor"
+    renamed = [e for e in plan.provider_trace if e["step"] == "signal.engine.decide"]
+    assert [e["provider"] for e in renamed] == ["ollama"]
+
+
+def test_h6_the_provider_is_revalidated_when_the_signal_enters_a_document():
+    signal = ExternalSignal(
+        claim_id="claim:gold:0",
+        step="signal.ollama",
+        provider="ollama",
+        name="s9k.signal.ollama",
+        version="1.0.0",
+    )
+    object.__setattr__(signal, "provider", "local")
+    with pytest.raises(ValueError, match="senal"):
+        signal.trace_entry()

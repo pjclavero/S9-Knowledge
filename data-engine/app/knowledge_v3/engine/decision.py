@@ -9,14 +9,22 @@ razones, no solo la primera que aparecio. Un motor que corta en el primer
 auditable.
 
 Despues de los ejes hay una capa de INVARIANTES. No es decoracion defensiva:
-es el sitio donde viven las tres reglas que no admiten umbral.
+es el sitio donde viven las reglas que no admiten umbral.
 
     1. no hay ACCEPT sin evidencia literal VERIFICADA;
-    2. no hay ACCEPT con una contradiccion vigente;
-    3. no hay ACCEPT sin predicado, direccion, sujeto y objeto fijados.
+    2. no hay ACCEPT con una contradiccion vigente NI con una contradiccion
+       dentro del propio lote (la segunda mitad faltaba: hallazgo H1);
+    3. no hay ACCEPT sin predicado, direccion, sujeto y objeto fijados;
+    4. no hay ACCEPT por debajo del suelo duro de confianza
+       (`HARD_CONFIDENCE_FLOOR`), pase lo que pase en la configuracion.
 
-Ninguna de las tres tiene flag en `EngineConfig`, y hay tests de mutacion que
-lo demuestran quitandolas.
+Ninguna tiene flag en `EngineConfig`, y hay tests de mutacion que lo demuestran
+quitandolas.
+
+La contradiccion tiene DOS pasadas y la segunda no puede vivir aqui: comparar
+un claim con los demas del lote exige verlos todos. Por eso el motor decide
+claim a claim y despues llama a `apply_batch_contradictions` sobre el conjunto,
+ANTES de construir ningun plan.
 """
 from __future__ import annotations
 
@@ -26,11 +34,16 @@ from typing import Optional, Sequence
 from ..contracts.claim import ClaimProposal
 from . import findings as F
 from . import signals as sig
-from .config import EngineConfig
-from .contradiction import ContradictionOutcome, check_contradictions
-from .evidence import EvidenceIndex, verify_evidence
+from .config import HARD_CONFIDENCE_FLOOR, EngineConfig
+from .contradiction import (
+    BatchClaimKey,
+    ContradictionOutcome,
+    batch_conflicts,
+    check_contradictions,
+)
+from .evidence import EvidenceIndex, evidence_confidence, verify_evidence
 from .identity import ResolutionIndex, Role, resolve_identity
-from .ontology import ProfileIndex, resolve_direction, resolve_predicate
+from .ontology import ProfileIndex, canonical_key, resolve_direction, resolve_predicate
 from .snapshot import GraphSnapshot, SnapshotAssertion
 from .temporal import TemporalOutcome, resolve_temporality
 
@@ -59,6 +72,9 @@ class ClaimDecision:
     temporal: Optional[TemporalOutcome] = None
     conflicts: tuple[SnapshotAssertion, ...] = ()
     duplicate_of: Optional[SnapshotAssertion] = None
+    #: Aceptada, pero otro claim del MISMO lote ya escribe exactamente esto.
+    #: No es un rechazo: es que la escritura ya esta cubierta.
+    duplicate_in_batch: bool = False
 
     @property
     def decision_id(self) -> str:
@@ -71,8 +87,16 @@ class ClaimDecision:
 
     @property
     def writes(self) -> bool:
-        """Aceptada Y no duplicada: solo entonces hay algo que escribir."""
-        return self.accepted and self.duplicate_of is None
+        """Aceptada Y no duplicada — ni contra el grafo ni dentro del lote."""
+        return self.accepted and self.duplicate_of is None and not self.duplicate_in_batch
+
+    def canonical_key(self, index: ProfileIndex) -> Optional[tuple[str, str, str]]:
+        """Clave canonica de lo que esta decision escribiria, si escribe algo."""
+        if not (self.predicate and self.direction and self.subject_entity_id and self.object_entity_id):
+            return None
+        return canonical_key(
+            index, self.subject_entity_id, self.object_entity_id, self.predicate, self.direction
+        )
 
     def reason_codes(self) -> list[str]:
         return F.reason_codes_for(self.findings, self.decision)
@@ -101,6 +125,13 @@ class ClaimDecision:
 
 def _confidence(*values: float) -> float:
     """Confianza del motor: el MINIMO de las confianzas que la sostienen.
+
+    Entran TODAS: la del claim, la del predicado, la de la direccion, las de
+    las dos resoluciones de identidad y —desde el hallazgo H3— la del fragmento
+    de evidencia y la calidad del episodio. Faltaban las dos ultimas, y con
+    ellas fuera un claim de 0.99 anclado en evidencia de 0.50 escribia 0.99:
+    cualquier consumidor que filtrase por confianza quedaba enganado sobre la
+    calidad de la fuente.
 
     Nunca por encima de ninguna de sus partes. Multiplicarlas seria mas
     "elegante" y castigaria dos veces lo mismo; promediarlas dejaria que una
@@ -147,11 +178,19 @@ def _enforce_invariants(
     subject: Role,
     obj: Role,
     contradictions: ContradictionOutcome,
+    confidence: float = 1.0,
 ) -> str:
-    """Las tres reglas sin umbral. Solo pueden endurecer la decision."""
+    """Las reglas sin umbral. Solo pueden endurecer la decision."""
     if decision != "ACCEPT":
         return decision
     extra: list[F.Finding] = []
+    if confidence < HARD_CONFIDENCE_FLOOR:
+        extra.append(
+            F.CONFIDENCE_BELOW_HARD_FLOOR(
+                f"{confidence:.3f} < suelo duro {HARD_CONFIDENCE_FLOOR}: ningun umbral "
+                "configurable puede bajar de aqui"
+            )
+        )
     if not any(f.code == "EVIDENCE_LITERAL_VERIFIED" for f in findings):
         extra.append(
             F.EVIDENCE_NOT_VERIFIABLE("invariante: ACCEPT exige una cita cotejada contra el episodio")
@@ -188,6 +227,7 @@ def decide_claim(
 
     # 3. evidencia
     findings.extend(verify_evidence(claim, evidence, config))
+    evidence_floor = evidence_confidence(claim, evidence)
     if claim.confidence < config.min_claim_confidence and not claim.abstained:
         findings.append(
             F.CLAIM_LOW_CONFIDENCE(f"{claim.confidence} < {config.min_claim_confidence}")
@@ -254,6 +294,14 @@ def decide_claim(
     )
 
     # 12. decision
+    confidence = _confidence(
+        claim.confidence,
+        predicate_outcome.confidence,
+        direction_confidence,
+        identity.subject.confidence,
+        identity.object.confidence,
+        evidence_floor,
+    )
     decision = F.decision_for(findings)
     decision = _enforce_invariants(
         decision,
@@ -263,6 +311,7 @@ def decide_claim(
         identity.subject,
         identity.object,
         contradictions,
+        confidence,
     )
 
     epistemic = CONFLICTED if contradictions.has_conflict else claim.epistemic_status_hint
@@ -276,16 +325,62 @@ def decide_claim(
         object_entity_id=identity.object.entity_id,
         epistemic_status=epistemic,
         negated=claim.negated,
-        confidence=_confidence(
-            claim.confidence,
-            predicate_outcome.confidence,
-            direction_confidence,
-            identity.subject.confidence,
-            identity.object.confidence,
-        ),
+        confidence=confidence,
         evidence_fragment_ids=list(claim.evidence_fragment_ids),
         episode_id=claim.episode_id,
         temporal=temporal,
         conflicts=contradictions.conflicts,
         duplicate_of=contradictions.duplicate_of,
     )
+
+
+# --------------------------------------------------------------------------
+# Segunda pasada de contradiccion: el lote contra si mismo
+# --------------------------------------------------------------------------
+def apply_batch_contradictions(
+    decisions: Sequence[ClaimDecision], profile: ProfileIndex
+) -> list[ClaimDecision]:
+    """Contrasta las decisiones del lote entre si y las endurece si procede.
+
+    Necesaria porque `decide_claim` ve UN claim: puede contrastarlo contra todo
+    el grafo y no contra su vecino de pagina. Sin esta pasada, un documento que
+    afirma y niega lo mismo producia dos `ACCEPT` y un plan firmado, valido para
+    el contrato congelado, que dejaba el grafo incoherente de una sentada
+    (hallazgo H1 de la revision independiente).
+
+    Solo entran en la comparacion las decisiones que ESCRIBIRIAN algo: una que
+    ya va a revision no puede volver a estropear nada, y arrastrarla aqui haria
+    que un claim rechazado degradase a uno bueno.
+
+    Endurece, nunca ablanda: se anaden hallazgos y se recalcula la decision con
+    la misma funcion de agregacion. Como todos los hallazgos nuevos son `REVIEW`
+    o `WARN`, el resultado solo puede quedarse igual o ponerse mas estricto.
+    """
+    decisions = list(decisions)
+    by_ref = {d.decision_id: d for d in decisions}
+    items: list[BatchClaimKey] = []
+    for decision in decisions:
+        if not decision.writes:
+            continue
+        key = decision.canonical_key(profile)
+        if key is None:  # pragma: no cover - `writes` ya lo garantiza
+            continue
+        spec = profile.spec(key[1])
+        items.append(
+            BatchClaimKey(
+                ref=decision.decision_id,
+                key=key,
+                negated=decision.negated,
+                functional=bool(spec and spec.functional),
+            )
+        )
+
+    for ref, new_findings in batch_conflicts(profile, items).items():
+        decision = by_ref[ref]
+        decision.findings.extend(new_findings)
+        if any(f.code == "DUPLICATE_IN_BATCH" for f in new_findings):
+            decision.duplicate_in_batch = True
+        if any(f.severity is F.Severity.REVIEW for f in new_findings):
+            decision.epistemic_status = CONFLICTED
+        decision.decision = F.decision_for(decision.findings)
+    return decisions

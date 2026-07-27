@@ -21,13 +21,39 @@ STEP_DECIDE = "engine.decide"
 STEP_PLAN = "engine.plan"
 
 #: Estados de `status` (ciclo de vida del ledger) que hacen VIGENTE a una
-#: afirmacion del snapshot. Una afirmacion superada, retractada o ya marcada
-#: como contradicha no contradice a nadie.
+#: afirmacion del snapshot.
 LIVE_STATUSES = frozenset({"PROVISIONAL", "ASSERTED", "CONFIRMED", "LIMITED"})
+
+#: Estados que BLOQUEAN un claim nuevo sobre la misma clave canonica.
+#:
+#: `CONTRADICTED` esta aqui y NO en `LIVE_STATUSES`, y la diferencia importa:
+#: una afirmacion marcada como contradicha no es vigente (nadie ha decidido aun
+#: si es cierta), pero tampoco es historia cerrada. Si no bloquease, reafirmar
+#: una de las dos caras de un conflicto sin resolver se aprobaria en silencio
+#: — bastaria con reprocesar el asset para saltarse la cola humana. Ese fue el
+#: hallazgo H2 de la revision independiente.
+#:
+#: `SUPERSEDED` y `RETRACTED` siguen fuera: eso si es historia.
+BLOCKING_STATUSES = LIVE_STATUSES | frozenset({"CONTRADICTED"})
 
 #: Estados de `state` (eje TEMPORAL) que mantienen viva una afirmacion. Una
 #: afirmacion ENDED no contradice una nueva: describe otro tramo de tiempo.
 LIVE_STATES = frozenset({"ACTIVE", "RECURRING", "UNKNOWN"})
+
+#: El UNICO estatus epistemico que puede aprobarse automaticamente, pase lo que
+#: pase en la configuracion. Ampliar `acceptable_epistemic_status` permite que
+#: otros estatus lleguen a la cola de revision con su afirmacion ya construida,
+#: pero NUNCA que se escriban solos.
+ALWAYS_ACCEPTABLE_EPISTEMIC = "ASSERTED"
+
+#: Estatus que jamas pueden entrar en `acceptable_epistemic_status`: "no lo se"
+#: y "el corpus dice dos cosas" no son grados de certeza, son ausencias de ella.
+NEVER_ACCEPTABLE_EPISTEMIC = frozenset({"UNKNOWN", "CONFLICTED"})
+
+#: Suelo DURO de confianza para aprobar. No es un umbral configurable: es el
+#: limite por debajo del cual "aprobado" deja de significar nada. Con todos los
+#: umbrales de `EngineConfig` a 0.0 el motor aprobaba a 0.05 (hallazgo H4).
+HARD_CONFIDENCE_FLOOR = 0.5
 
 
 @dataclass(frozen=True)
@@ -88,6 +114,26 @@ class EngineConfig:
     #: Codigos de razon descriptivos que el motor puede emitir. Solo
     #: documentacion viva: el conjunto real lo fija `findings.py`.
     extra: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Rechaza configuraciones que no son "permisivas" sino inservibles.
+
+        Un umbral bajo es una decision del operador. Un conjunto epistemico que
+        acepta `UNKNOWN` no es una decision: es aprobar lo que el propio
+        extractor declaro que no supo situar. Se rechaza en la construccion, no
+        en la decision, para que el error salga donde se comete.
+        """
+        if ALWAYS_ACCEPTABLE_EPISTEMIC not in self.acceptable_epistemic_status:
+            raise ValueError(
+                "acceptable_epistemic_status debe contener 'ASSERTED': un motor que "
+                "no aprueba ni lo asertado no aprueba nada"
+            )
+        forbidden = self.acceptable_epistemic_status & NEVER_ACCEPTABLE_EPISTEMIC
+        if forbidden:
+            raise ValueError(
+                f"estatus epistemicos que nunca pueden aprobarse: {sorted(forbidden)}; "
+                "'no lo se' y 'el corpus dice dos cosas' no son grados de certeza"
+            )
 
 
 DEFAULT_CONFIG = EngineConfig()

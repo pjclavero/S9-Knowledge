@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from typing import Iterable, Iterator, Optional, Protocol, runtime_checkable
 
 from ..contracts.base import sha256_hash
-from .config import LIVE_STATES, LIVE_STATUSES
+from .config import BLOCKING_STATUSES, LIVE_STATES, LIVE_STATUSES
 
 
 @dataclass(frozen=True)
@@ -88,6 +88,18 @@ class SnapshotAssertion:
         tramo de tiempo cerrado y no contradice a una nueva.
         """
         return self.status in LIVE_STATUSES and self.state in LIVE_STATES
+
+    def is_unresolved_conflict(self) -> bool:
+        """Marcada `CONTRADICTED` y aun sin resolver por un humano."""
+        return self.status == "CONTRADICTED" and self.state in LIVE_STATES
+
+    def blocks_new_claims(self) -> bool:
+        """Vigente, o pendiente de que un humano resuelva su contradiccion.
+
+        Es lo que el eje de contradiccion debe mirar: `is_live()` sola dejaba
+        pasar la reafirmacion de una cara de un conflicto abierto.
+        """
+        return self.status in BLOCKING_STATUSES and self.state in LIVE_STATES
 
 
 @runtime_checkable

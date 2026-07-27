@@ -36,7 +36,8 @@ from . import findings as F
 from .config import ENGINE_NAME, ENGINE_VERSION, STEP_DECIDE, STEP_PLAN, EngineConfig
 from .decision import ClaimDecision
 from .errors import EnginePlanError
-from .ontology import ProfileIndex
+from .signals import RESERVED_STEPS
+from .ontology import ProfileIndex, canonical_key
 from .snapshot import GraphSnapshot
 
 CONTRACT_VERSION = "1.0.0"
@@ -202,6 +203,42 @@ def _operations(
     return ops
 
 
+def plan_is_self_consistent(operations: Sequence[dict], profile: ProfileIndex) -> bool:
+    """Ninguna operacion del plan contradice o repite a otra del MISMO plan.
+
+    Defensa en profundidad del hallazgo H1: la pasada de lote ya deberia haber
+    mandado a revision cualquier par incoherente, pero este validador mira el
+    artefacto FINAL —lo que de verdad se va a escribir— y no las decisiones que
+    lo originaron. Si alguna vez se anade otra ruta que construya operaciones,
+    la comprobacion sigue estando delante del writer.
+
+    Se compara sobre la clave canonica, igual que el eje: decir lo mismo al
+    reves, o con la inversa del predicado, no lo convierte en otra cosa.
+    """
+    seen: dict[tuple[str, str, str], bool] = {}
+    pairs: dict[tuple[frozenset, str], tuple[str, str, str]] = {}
+    for op in operations:
+        if op["operation_type"] != "CREATE_ASSERTION":
+            continue
+        payload = op["payload"]
+        key = canonical_key(
+            profile,
+            payload["subject_entity_id"],
+            payload["object_entity_id"],
+            payload["predicate"],
+            payload["direction"],
+        )
+        negated = bool(payload["negated"])
+        if key in seen:
+            return False  # duplicado o contradiccion sobre la misma clave
+        pair_key = (frozenset({key[0], key[2]}), key[1])
+        if pair_key in pairs and pairs[pair_key] != key:
+            return False  # misma pareja y predicado, orientacion contraria
+        seen[key] = negated
+        pairs[pair_key] = key
+    return True
+
+
 def _validator_chain(
     context: PlanContext,
     decisions: Sequence[ClaimDecision],
@@ -230,7 +267,11 @@ def _validator_chain(
         if d.accepted
     )
     evidence_ok = all(d.evidence_fragment_ids for d in decisions)
-    no_conflict_accepted = all(not d.conflicts for d in decisions if d.accepted)
+    no_conflict_accepted = all(not d.conflicts for d in decisions if d.accepted) and all(
+        not any(f.axis == "CONTRADICTION" and f.severity >= 2 for f in d.findings)
+        for d in decisions
+        if d.accepted
+    ) and plan_is_self_consistent(operations, profile)
     ontology_ok = all(
         profile.spec(d.predicate) is not None for d in decisions if d.accepted and d.predicate
     ) and context.ontology_version == profile.ontology_version
@@ -273,11 +314,19 @@ def _plan_body(
             STEP_PLAN, "local", ENGINE_NAME, context.engine_version, ["decisions", "mutation_operations"]
         )
     ]
-    seen = {STEP_PLAN}
+    # Los pasos del motor estan RESERVADOS: una senal que se llame
+    # `engine.decide` haria que la traza del plan atribuyese la decision a
+    # Ollama o a un externo. `ExternalSignal` ya lo rechaza en construccion;
+    # esto es la defensa del lado del plan, porque el `provider_trace` no entra
+    # en el `decision_hash` y una procedencia falsa no rompe ninguna firma.
+    seen = {STEP_PLAN, STEP_DECIDE}
     for step in extra_steps:
-        if step["step"] not in seen:
-            trace.append(step)
-            seen.add(step["step"])
+        entry = dict(step)
+        if entry["step"] in RESERVED_STEPS:
+            entry["step"] = f"signal.{entry['step']}"
+        if entry["step"] not in seen:
+            trace.append(entry)
+            seen.add(entry["step"])
     body = {
         "contract_id": GraphMutationPlan.CONTRACT_ID,
         "contract_version": CONTRACT_VERSION,

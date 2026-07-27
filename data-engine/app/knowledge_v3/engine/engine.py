@@ -34,7 +34,7 @@ from ..contracts import (
     V3ContractError,
 )
 from .config import DEFAULT_CONFIG, ENGINE_VERSION, EngineConfig
-from .decision import ClaimDecision, decide_claim
+from .decision import ClaimDecision, apply_batch_contradictions, decide_claim
 from .errors import EngineInputError
 from .evidence import EvidenceIndex
 from .identity import ResolutionIndex
@@ -166,6 +166,10 @@ class LocalKnowledgeEngine:
             )
             for claim in claims
         ]
+        # Segunda pasada de contradiccion: el lote contra si mismo, ANTES de
+        # construir ningun plan. `decide_claim` ve un claim y todo el grafo;
+        # solo aqui se ven unos claims a otros.
+        decisions = apply_batch_contradictions(decisions, self.index)
 
         context = PlanContext(
             workspace=workspace,

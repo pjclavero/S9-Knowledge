@@ -26,6 +26,7 @@ from knowledge_v3.contracts import GraphMutationPlan, V3ContractError
 from knowledge_v3.contracts.base import schema_validator as V
 from knowledge_v3.engine import EngineConfig, EnginePlanError
 from knowledge_v3.engine import decision as decision_module
+from knowledge_v3.engine import engine as engine_module
 from knowledge_v3.engine import planner as planner_module
 from knowledge_v3.engine.contradiction import ContradictionOutcome
 from knowledge_v3.engine.ontology import DirectionOutcome, PredicateOutcome, PredicateSpec
@@ -62,6 +63,35 @@ def test_mutant_without_the_contradiction_rule_approves_a_contradiction(monkeypa
     mutant = run(snap=contradicted)
     assert only(mutant).decision == "ACCEPT"
     assert mutant.approved is True  # el mutante ESCRIBE lo contrario de lo vigente
+
+
+def test_mutant_without_the_batch_pass_approves_a_batch_that_says_both_things(monkeypatch):
+    """El agujero H1, reproducido: sin la segunda pasada vuelve tal cual."""
+    pair = [
+        claim(claim_id="claim:batch:si", negated=False),
+        claim(claim_id="claim:batch:no", negated=True),
+    ]
+    assert [d.decision for d in run(pair).decisions] == ["REVIEW", "REVIEW"]  # motor intacto
+
+    monkeypatch.setattr(engine_module, "apply_batch_contradictions", lambda decisions, profile: decisions)
+    mutant = run(pair)
+    assert [d.decision for d in mutant.decisions] == ["ACCEPT", "ACCEPT"]
+    # ...y el validador interno del plan lo caza igualmente: defensa en profundidad.
+    contradiction = [v for v in mutant.validator_chain if v["validator"] == "contradiction"][0]
+    assert contradiction["result"] == "FAIL"
+    assert not mutant.approved
+
+
+def test_mutant_without_the_plan_self_check_lets_an_incoherent_plan_through(monkeypatch):
+    """Y si ademas se quita la defensa del plan, el plan sale APROBADO."""
+    pair = [
+        claim(claim_id="claim:batch:si", negated=False),
+        claim(claim_id="claim:batch:no", negated=True),
+    ]
+    monkeypatch.setattr(engine_module, "apply_batch_contradictions", lambda decisions, profile: decisions)
+    monkeypatch.setattr(planner_module, "plan_is_self_consistent", lambda ops, profile: True)
+    mutant = run(pair)
+    assert mutant.approved is True  # plan firmado que se contradice a si mismo
 
 
 # --------------------------------------------------------------------------
@@ -310,7 +340,7 @@ def test_no_configuration_can_approve_a_contradiction():
         min_episode_quality=0.0,
         min_fragment_confidence=0.0,
         acceptable_epistemic_status=frozenset(
-            {"ASSERTED", "RUMORED", "HYPOTHETICAL", "INTENDED", "VISUAL_INFERRED", "CONFLICTED", "UNKNOWN"}
+            {"ASSERTED", "RUMORED", "HYPOTHETICAL", "INTENDED", "VISUAL_INFERRED"}
         ),
     )
     decision = only(run(snap=snapshot(assertions=[vigente(negated=True)]), config=permissive))
