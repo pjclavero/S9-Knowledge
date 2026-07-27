@@ -49,7 +49,7 @@ nuevo no puede introducir una variante del envelope.
 | Fichero | Qué es |
 |---|---|
 | `base.py` | `SourceInput`, `IngestOptions`, borradores, `SourceAdapter`, `assemble()`, `NormalizationResult` |
-| `registry.py` | `AdapterRegistry`, `default_registry()`, inventario real/stub |
+| `registry.py` | `AdapterRegistry` (sin colisiones de `source_kind`, MIME ni extensión), `default_registry()`, inventario real/stub |
 | `normalizer.py` | `normalize()` / `normalize_bytes()`: la API pública |
 | `ids.py` | derivación determinista de identificadores por sha256 |
 | `quality.py` | medida de calidad y banderas (`reason_code`) |
@@ -100,6 +100,34 @@ verificar una cita.
 
 `literal_text` es exacto por definición (no se reescribe, no se corrige, no se
 traduce). `normalized_text` es NFKC + espacios colapsados, y va aparte.
+
+### 3.1. Los offsets se refieren al texto con saltos de línea normalizados
+
+`decode_text()` convierte CRLF y CR sueltos a LF **antes** de segmentar, y los
+offsets se refieren a ese texto normalizado. Es una decisión, y tiene dos
+razones:
+
+1. Sin ella, un `.txt` de Windows no casa con el separador de párrafos
+   (`\n\s*\n`) y el fichero **entero** acaba en un único episodio; pasado de
+   200 000 caracteres el contrato lo rechaza y la fuente se pierde por completo.
+   La granularidad de episodios no puede depender del sistema operativo donde se
+   escribió el fichero.
+2. El anclaje sigue siendo verificable contra el texto del episodio, que es la
+   unidad direccionable del contrato. Quien quiera volver a los bytes originales
+   tiene el `content_hash` del asset.
+
+La normalización es idempotente y se aplica también a lo que devuelve pypdf.
+
+### 3.2. Convención de offsets cuando el anclaje es una bbox
+
+El contrato exige `start` y `end`; no admite omitirlos. En un fragmento de
+**interpretación visual** el episodio no tiene texto (`text: null`), así que no
+hay nada contra lo que medir: ambos valen **0** — un tramo vacío — y
+`metadata.anchor = "bbox"` dice cuál es el anclaje real. Poner
+`end = len(descripción)` habría fabricado offsets con aspecto de offsets de
+texto que no recortan nada de ningún sitio. Los fragmentos `OCR_TEXT` y
+`HTR_TEXT` sí llevan offsets de texto reales, porque ahí el episodio sí tiene
+texto.
 
 Además, `assemble()` verifica que no haya `episode_id` ni `fragment_id`
 repetidos: con identificadores duplicados la procedencia deja de ser una
@@ -169,6 +197,12 @@ Cubre CSV (delimitador y cabecera explícitos, **sin sniffer**: un sniffer que s
 equivoca convierte una tabla en una columna) y tablas Markdown, que salen del
 flujo de texto como episodio propio.
 
+Una tabla dentro de un **bloque cercado** (` ``` ` o `~~~`) **no** es una tabla:
+es documentación de un formato. El parser rastrea las vallas y trata su
+contenido como texto, igual que las almohadillas que haya dentro (que tampoco
+abren sección). Extraer como datos del grafo el ejemplo de tabla de un manual
+sería convertir la explicación de un formato en hechos sobre el mundo.
+
 ### 4.4. Audio, vídeo y YouTube — se **envuelve**, no se transcribe
 
 Este subsistema **no transcribe nada**. Consume por *forma* (duck typing, sin
@@ -204,6 +238,38 @@ contrato dice que los anclajes los pone o los verifica el sistema local.
 **Vídeo** (dosier 7.8) usa la misma vía: su audio va al flujo ASR. Keyframes,
 escenas y OCR de pantalla son trabajo de los adaptadores visuales sobre el mismo
 asset, y hoy están pendientes de proveedor. Este adaptador no los simula.
+
+#### El registro JSON de `youtube/` hay que remapearlo
+
+`youtube/fetch_youtube.py` guarda un registro cuya clave `transcript` es una
+**cadena**, no un objeto. Ese payload **no se puede envolver tal cual**: el
+adaptador lo rechaza con `EMPTY_SOURCE` (no hay ni segmentos ni `full_text`), y
+hay un test que fija ese comportamiento como el esperado. El llamante debe
+remapearlo explícitamente:
+
+```python
+crudo = json.loads(registro_de_youtube)          # {"transcript": "texto...", ...}
+payload = {"transcript": {
+    "full_text":     crudo["transcript"],        # la cadena pasa a full_text
+    "source_method": crudo["source_method"],     # "subtitles" | "whisper"
+    "engine":        "whisper",
+    "language":      crudo.get("language", "es"),
+}}
+```
+
+El remapeo es del llamante a propósito: adivinar aquí que una cadena suelta «es
+seguramente el texto» sería exactamente el tipo de suposición que hace que un
+formato cambie de significado sin que nadie se entere.
+
+#### Frontera de confianza: `source_method` lo declara el llamante
+
+`CAPTION` se emite cuando el `source_method` **declarado** es `subtitles` o
+`captions`. No se deriva ni se verifica: el normalizador no puede saber de dónde
+salió realmente un texto que le entregan ya hecho. Consecuencia concreta y
+asumida: **declarar `"subtitles"` sobre una salida de whisper produciría
+evidencia `CAPTION` sin timecodes**. Quien construye el payload responde de que
+ese campo diga la verdad. Hay un test que fija ambos comportamientos —el honesto
+y el mentiroso— para que la frontera esté escrita y no sea una sorpresa.
 
 ### 4.5. OCR, HTR, imagen y dibujo — declarados, no fingidos
 
@@ -251,6 +317,43 @@ El proveedor declara su `provider`/`name`/`version`/`model` reales y la traza lo
 copia tal cual; de ahí sale la atribución de procedencia (`provider: external`
 cuando lo es).
 
+**Supuesto de confianza, anotado y no resuelto aquí:** el adaptador *copia* lo
+que el proveedor dice de sí mismo, sin verificarlo contra ninguna fuente
+independiente. Un proveedor que mintiera sobre su `name`/`version` produciría
+una traza plausible y falsa. Es frontera con el bloque de proveedores y se
+resuelve en integración, no en esta rama.
+
+#### La política de proveedores externos se aplica, no se declara
+
+El contrato dice que si `processing_policy.allow_external_providers` es `false`,
+ningún `provider_trace` de la cadena derivada puede llevar `provider: external`.
+La vía visual lo **comprueba**, con dos guardas:
+
+1. **antes** de invocar al proveedor, si éste declara su clase por adelantado
+   (atributo `provider_kind`) — así el material no llega a salir;
+2. **después**, sobre el `provider` que trae el resultado — porque un proveedor
+   puede no declarar nada por adelantado.
+
+Cualquiera de las dos falla con `EXTERNAL_PROVIDER_NOT_ALLOWED`. Sin esto,
+inyectar un proveedor remoto producía un asset que se contradecía a sí mismo:
+política `false` y traza `external` en el mismo documento, ambos válidos por
+separado. Hay un test de mutación que desactiva la guarda y enseña justamente
+ese documento contradictorio.
+
+#### Confianza del proveedor: una sola política en las tres vías
+
+Un valor de confianza fuera de `[0,1]` — una escala 0-100, un porcentaje, un
+`-1` de «no sé», un `"alta"` — **se rechaza** con
+`PROVIDER_CONFIDENCE_OUT_OF_RANGE`, en las tres vías (segmento ASR, hablante,
+resultado visual). No se acota en silencio: acotar convertiría un `42.0` en
+`1.0`, es decir, en la certeza absoluta de un motor que no dijo eso. Es mentir
+con la forma de un dato válido.
+
+Por debajo de `LOW_CONFIDENCE_THRESHOLD` (0.50, el mismo umbral que
+`media/multimedia_contract`) el episodio se marca con el `reason_code`
+`LOW_PROVIDER_CONFIDENCE`, también en las tres vías: toda penalización del score
+lleva su código, sin excepciones.
+
 ---
 
 ## 5. Política de ingesta
@@ -267,7 +370,8 @@ en silencio ocultaría la intención de quien lo pidió.
 `NormalizationError` lleva `reason_code` enumerable:
 `EMPTY_SOURCE`, `CORRUPT_SOURCE`, `UNDECODABLE_TEXT`, `UNSUPPORTED_SOURCE_KIND`,
 `MISSING_PAYLOAD`, `INCONSISTENT_POLICY`, `ANCHOR_MISMATCH`,
-`NO_CONTENT_EXTRACTED`, `DUPLICATE_ADAPTER`.
+`NO_CONTENT_EXTRACTED`, `DUPLICATE_ADAPTER`,
+`PROVIDER_CONFIDENCE_OUT_OF_RANGE`, `EXTERNAL_PROVIDER_NOT_ALLOWED`.
 
 La decodificación de texto es **UTF-8 estricta**, sin `errors="replace"`:
 sustituir bytes ilegibles por `�` produce un texto que parece válido y no lo es,
@@ -277,23 +381,22 @@ y ese texto acabaría siendo evidencia literal de algo que nadie escribió.
 
 ## 7. Pruebas
 
-**138 tests, todos en verde.**
+**176 tests, todos en verde** (138 del bloque inicial + 38 de la ronda de
+correcciones tras la revisión independiente).
 
-* `data-engine/app/tests` + `contracts/knowledge-v3/v1/tests`: **3557 pasados,
-  2 saltados, 0 fallos**.
 * Suite completa del repositorio (`pytest` sin argumentos, los 9 `testpaths`):
-  **4312 pasados, 5 saltados, 0 fallos**.
+  **4350 pasados, 5 saltados, 0 fallos**.
 * Línea base sin los cuatro ficheros nuevos: **4174 pasados, 5 saltados**.
-  4174 + 138 = 4312: **cero regresiones**, ni un test previo alterado.
+  4174 + 176 = 4350: **cero regresiones**, ni un test previo alterado.
 
 No se ha tocado `ci.yml` ni `pytest.ini`: los tests de
 `data-engine/app/tests/` ya se recogen.
 
 | Fichero | Tests | Qué cubre |
 |---|---|---|
-| `test_knowledge_v3_multimodal_core.py` | 43 | registro (10), determinismo (7), envelope y contratos (11), política (7), informe (3), API (5) |
-| `test_knowledge_v3_multimodal_adapters.py` | 57 | texto (5), Markdown (5), tabla (6), PDF (5), transcripción (19), visuales (17) |
-| `test_knowledge_v3_multimodal_negative.py` | 38 | fuentes inválidas (12), mutación de anclaje (6), de identidad (3), de modalidad (9), de traza (3), aislamiento (3), entradas grandes (2) |
+| `test_knowledge_v3_multimodal_core.py` | 47 | registro (14), determinismo (7), envelope y contratos (11), política (7), informe (3), API (5) |
+| `test_knowledge_v3_multimodal_adapters.py` | 86 | texto (8), Markdown (9), tabla (6), PDF (5), transcripción (29), visuales (29) |
+| `test_knowledge_v3_multimodal_negative.py` | 43 | fuentes inválidas (12), mutación de anclaje (6), de identidad (3), de modalidad (9), de traza (3), de la ronda de correcciones (5), aislamiento (3), entradas grandes (2) |
 | `test_knowledge_v3_multimodal_fixtures.py` | — | fixtures compartidas (sin tests) |
 
 ### Fixtures
@@ -319,7 +422,7 @@ artefacto multimedia que no es ASR, región visual sin bbox.
 ### Pruebas de mutación
 
 Sección 10 del prompt: *un test verde sólo cuenta si la mutación correspondiente
-lo pone rojo*. 21 tests rompen a propósito una regla y exigen que algo lo
+lo pone rojo*. 26 tests rompen a propósito una regla y exigen que algo lo
 detecte:
 
 | Mutación | Quién la detecta |
@@ -337,6 +440,11 @@ detecte:
 | `produced_by_step` colgando de la traza | validador de contratos |
 | `metadata` con clave sensible | validador de contratos |
 | Episodio que supera el límite de longitud del contrato | validador de contratos |
+| Se quita la normalización de CRLF | un `.txt` de Windows grande pasa a ser un episodio único de >200 k y el contrato lo rechaza |
+| Se desactiva la guarda de proveedor externo | el asset resultante se contradice: política `false` + traza `external` |
+| `check_provider_confidence` se sustituye por un acotado | un `42.0` se convierte en `1.0`: certeza inventada |
+| Se desactiva la detección de vallas de código | el ejemplo de tabla de un manual entra como episodio `TABLE` |
+| El registro admite colisiones de MIME/extensión | el adaptador elegido pasa a depender del orden de registro |
 
 ### Cobertura
 
@@ -401,3 +509,28 @@ ningún campo que no exista.
    la auditoría). Este subsistema ya sabe envolverlo, así que el día que el
    worker lo emita no hay que tocar nada aquí; hoy la vía en uso es
    `TranscriptResult`.
+
+5. **La traza del proveedor se copia sin verificar** (H3 de la revisión). El
+   adaptador visual copia el `name`/`version`/`model` que el proveedor declara
+   de sí mismo. Un proveedor que mintiera produciría una traza plausible y
+   falsa. Es frontera con el bloque de proveedores y se resuelve en integración;
+   queda anotado como supuesto de confianza, no arreglado en esta rama.
+
+---
+
+## 10. Ronda de correcciones tras la revisión independiente
+
+Dictamen: **CONFORME CON OBSERVACIONES NO BLOQUEANTES**. Aplicado:
+
+| Hallazgo | Qué se hizo |
+|---|---|
+| **H1** CRLF | `normalize_newlines()` en `decode_text()` y en `episodes_from_text()`; los offsets se refieren al texto normalizado (§3.1). Tests CRLF/CR + mutación |
+| **H2** política externa | Dos guardas en la vía visual (antes y después de invocar), `EXTERNAL_PROVIDER_NOT_ALLOWED`. Tests + mutación que enseña el asset contradictorio |
+| **H4** confianza | `check_provider_confidence()` única para ASR, hablante y visual: fuera de `[0,1]` → rechazo, nunca acotado. Tests en las tres vías + mutación |
+| **H5** score sin código | `LOW_PROVIDER_CONFIDENCE` también en la vía visual (literal e interpretación), con `LOW_CONFIDENCE_THRESHOLD` compartido |
+| **H6** colisiones del registro | `DUPLICATE_ADAPTER` también para MIME y extensión; se comprueba todo antes de escribir nada (un fallo no deja el registro a medias) |
+| **H9** vallas de código | El parser Markdown rastrea ` ``` `/`~~~`; dentro no hay tablas ni encabezados |
+| **H10** offsets con bbox | Interpretación visual → `start = end = 0` y `metadata.anchor = "bbox"`; convención documentada (§3.2) + tests |
+| **H7** registro de `youtube/` | Remapeo exacto documentado + test que fija `EMPTY_SOURCE` como comportamiento esperado del payload crudo |
+| **H8** `source_method` | Documentada la frontera de confianza + test que fija el caso honesto y el mentiroso |
+| **H3** traza sin verificar | **No tocado** por indicación del coordinador: frontera con proveedores. Anotado en §9.5 |
