@@ -116,6 +116,7 @@
       "transitive": false
     }
   ],
+  "produced_by_step": "profile.load",
   "profile_id": "generic",
   "profile_version": "1.0.0",
   "provider_trace": [

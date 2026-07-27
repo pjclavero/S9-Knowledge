@@ -1,5 +1,6 @@
 {
   "action": "CREATE_NEW",
+  "assigned_entity_id": null,
   "candidate_entity_ids": [
     "entity:daiki",
     "entity:daiqui"
@@ -16,6 +17,7 @@
     "mention:p12:0",
     "mention:p12:3"
   ],
+  "produced_by_step": "resolve.identity",
   "provider_trace": [
     {
       "model": null,

@@ -7,7 +7,7 @@
   "additionalProperties": false,
   "required": [
     "contract_id", "contract_version", "workspace", "source_asset_id", "source_hash",
-    "provider_trace", "claim_id", "episode_id", "subject_mentions", "relation_phrase",
+    "provider_trace", "produced_by_step", "claim_id", "episode_id", "subject_mentions", "relation_phrase",
     "object_mentions", "predicate_candidates", "direction_candidates",
     "temporal_expressions", "negated", "epistemic_cues", "epistemic_status_hint",
     "qualifiers", "evidence_fragment_ids", "confidence", "alternatives", "abstained",
@@ -20,6 +20,10 @@
     "source_asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "source_hash": { "$ref": "_common-v3.schema.json#/$defs/hash" },
     "provider_trace": { "$ref": "_common-v3.schema.json#/$defs/provider_trace" },
+    "produced_by_step": {
+      "$ref": "_common-v3.schema.json#/$defs/stable_id",
+      "description": "Paso de `provider_trace` que produjo el CONTENIDO principal de este documento. Referencia explicita: la atribucion de proveedor no puede depender de heuristicas sobre `produced`, porque una traza mal adivinada convierte una salida externa en 'local' sin que nadie se entere."
+    },
 
     "claim_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "episode_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
@@ -68,6 +72,10 @@
           "kind": { "type": "string", "enum": ["POINT", "INTERVAL", "DURATION", "RELATIVE", "UNKNOWN"] },
           "valid_from": { "$ref": "_common-v3.schema.json#/$defs/iso8601_utc_or_null" },
           "valid_to": { "$ref": "_common-v3.schema.json#/$defs/iso8601_utc_or_null" },
+          "calendar_id": {
+            "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null",
+            "description": "Calendario del mundo de juego al que pertenece la expresion (GameProfile.calendars). Sin esto, `calendars` no tenia ningun consumidor."
+          },
           "fragment_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null" }
         }
       }

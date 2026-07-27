@@ -22,8 +22,16 @@ estructural y `validator.py` anade lo que JSON Schema no puede expresar.
 ```python
 import validator as V              # desde este directorio
 V.validate_document(doc)           # lanza V.ContractV3Error
-plan = V.seal_plan(plan)           # calcula decision_hash y plan_hash
+plan = V.seal_plan(plan)           # deriva idempotency_key + decision_hash + plan_hash
 ```
+
+`seal_plan` es la unica forma correcta de cerrar un `graph-mutation-plan`:
+deriva las claves de idempotencia y calcula los dos hashes en el orden debido.
+
+**Los hashes verifican, no autentican**: son sha256 sin clave. Detectan
+manipulacion y desincronizacion, pero cualquiera que pueda reescribir el
+documento puede resellarlo. `local_approval.signature` y `key_id` estan
+RESERVADOS para firma real y hoy no se usan.
 
 Desde el motor, mejor por los modelos Python:
 

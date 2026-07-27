@@ -11,6 +11,7 @@
   "media_type": "OCR_TEXT",
   "normalized_text": "casa del ciervo",
   "page": 13,
+  "produced_by_step": "ocr",
   "provider_trace": [
     {
       "model": null,

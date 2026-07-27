@@ -1,18 +1,35 @@
 # -*- coding: utf-8 -*-
 """`graph-mutation-plan/v3-internal-v1`: UNICA entrada admisible del writer.
 
-Lo que el writer exige y este contrato garantiza (dosier 13.2 y 18.8):
+VERIFICABLE, NO CONFIABLE
+-------------------------
+`plan_hash` y `decision_hash` son sha256 SIN clave. Detectan manipulacion
+accidental, ediciones parciales y desincronizacion entre firma y contenido —
+que es la clase de fallo que de verdad ocurre— pero **no autentican al
+firmante**: quien pueda reescribir el documento puede volver a sellarlo. Que
+`approved_by.provider` sea `const: "local"` invalida un plan que se declare
+firmado por Ollama o por un externo, pero no impide que alguien con acceso de
+escritura se declare local.
 
-  * `plan_hash`      — sha256 del plan canonico sin ese campo. Detecta cualquier
-    manipulacion posterior (workspace, source hash, operacion, decision).
+La garantia real hoy es la cadena de custodia: el plan no sale del proceso
+local. Para autenticacion criptografica se han RESERVADO ya
+`local_approval.signature` y `local_approval.key_id`, opcionales y sin usar, de
+modo que anadir firma no exija romper un contrato congelado.
+
+Lo que el writer exige y este contrato SI garantiza (dosier 13.2 y 18.8):
+
+  * `plan_hash`       — sha256 del plan canonico sin ese campo.
+  * `decision_hash`   — cubre tambien `approved`, `approved_by`,
+    `validator_chain` y `expires_at`: todo lo que el writer consume para
+    decidir si aplica.
   * `contract_version` — mayor no soportada = rechazo.
-  * `workspace`      — aislamiento duro; entra en la firma.
-  * `source_hash`    — procedencia; entra en la firma.
-  * `local_approval` — `approved`, `decision_hash`, cadena de validadores y
-    `approved_by.provider == "local"`. Un plan firmado por un proveedor externo
-    es invalido POR CONTRATO, no por politica configurable.
-  * `idempotency_key` por operacion, unica dentro del plan.
-  * `expires_at`     — un plan caduca.
+  * `workspace` y `source_hash` — aislamiento y procedencia; entran en el hash.
+  * `snapshot_id`     — ancla del estado sobre el que se calculo el plan.
+  * `idempotency_key` — DERIVADA de (workspace + snapshot + identidad logica de
+    la operacion), no inventada: la misma operacion en dos planes lleva la
+    misma clave y el segundo apply es un no-op.
+  * `expected_version` / `expected_hash` por operacion — concurrencia optimista.
+  * `expires_at`      — un plan caduca.
 """
 from __future__ import annotations
 
@@ -23,6 +40,7 @@ from typing import Any, ClassVar, Optional
 from .base import (
     V3Document,
     compute_decision_hash,
+    compute_idempotency_key,
     compute_plan_hash,
     seal_plan,
 )
@@ -55,8 +73,10 @@ class GraphMutationPlan(V3Document):
     source_asset_id: str
     source_hash: dict
     provider_trace: list
+    produced_by_step: str
     plan_id: str
     plan_hash: dict
+    snapshot_id: str
     engine_version: str
     ontology_version: str
     game_profile: str
@@ -96,8 +116,27 @@ class GraphMutationPlan(V3Document):
         return bool(self.local_approval.get("approved"))
 
     def signed_locally(self) -> bool:
-        """El firmante debe ser el motor local; jamas ollama ni un externo."""
+        """El firmante DECLARADO es el motor local.
+
+        Es una comprobacion de coherencia, no de autenticidad: sin
+        `signature`/`key_id` nadie puede demostrar quien lo escribio.
+        """
         return self.local_approval.get("approved_by", {}).get("provider") == "local"
+
+    def is_authenticated(self) -> bool:
+        """True solo si el plan lleva firma criptografica y su identificador.
+
+        Hoy devuelve False siempre: los campos estan reservados y sin usar. Se
+        expone para que ningun consumidor confunda "hash correcto" con "firmado".
+        """
+        return bool(self.local_approval.get("signature")) and bool(
+            self.local_approval.get("key_id")
+        )
+
+    def expected_idempotency_keys(self) -> list[str]:
+        """Claves derivadas de las operaciones, para contrastarlas con las declaradas."""
+        doc = self.to_dict()
+        return [compute_idempotency_key(doc, o) for o in self.mutation_operations]
 
     def idempotency_keys(self) -> list[str]:
         return [o["idempotency_key"] for o in self.mutation_operations]

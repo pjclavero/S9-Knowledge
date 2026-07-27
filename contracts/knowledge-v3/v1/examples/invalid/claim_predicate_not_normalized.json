@@ -38,6 +38,7 @@
       "predicate": "member of"
     }
   ],
+  "produced_by_step": "extract.claims",
   "provider_trace": [
     {
       "model": null,

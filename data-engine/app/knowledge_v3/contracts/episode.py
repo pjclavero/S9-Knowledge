@@ -34,6 +34,7 @@ class SourceEpisode(V3Document):
     source_asset_id: str
     source_hash: dict
     provider_trace: list
+    produced_by_step: str
     episode_id: str
     asset_id: str
     sequence: int
@@ -45,6 +46,9 @@ class SourceEpisode(V3Document):
     time_end: Optional[float]
     previous_episode_id: Optional[str]
     next_episode_id: Optional[str]
+    speaker: Optional[dict]
+    turn: Optional[int]
+    table: Optional[dict]
     quality: dict
     content_hash: dict
     metadata: Optional[dict[str, Any]] = None

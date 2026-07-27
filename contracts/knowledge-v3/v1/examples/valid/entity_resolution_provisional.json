@@ -1,5 +1,6 @@
 {
   "action": "CREATE_PROVISIONAL",
+  "assigned_entity_id": "entity:prov:consejo-umbra",
   "candidate_entity_ids": [],
   "confidence": 0.35,
   "contract_id": "entity-resolution/v3-internal-v1",
@@ -12,6 +13,7 @@
   "mention_ids": [
     "mention:p12:2"
   ],
+  "produced_by_step": "resolve.identity",
   "provider_trace": [
     {
       "model": null,

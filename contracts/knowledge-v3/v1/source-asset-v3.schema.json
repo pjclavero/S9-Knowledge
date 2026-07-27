@@ -7,7 +7,7 @@
   "additionalProperties": false,
   "required": [
     "contract_id", "contract_version", "workspace", "source_asset_id", "source_hash",
-    "provider_trace", "asset_id", "collection_id", "game_profile", "source_kind",
+    "provider_trace", "produced_by_step", "asset_id", "collection_id", "game_profile", "source_kind",
     "mime_type", "content_hash", "byte_size", "original_name", "original_location",
     "created_at", "ingested_at", "language_hint", "privacy_class", "copyright_class",
     "processing_policy"
@@ -19,6 +19,10 @@
     "source_asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "source_hash": { "$ref": "_common-v3.schema.json#/$defs/hash" },
     "provider_trace": { "$ref": "_common-v3.schema.json#/$defs/provider_trace" },
+    "produced_by_step": {
+      "$ref": "_common-v3.schema.json#/$defs/stable_id",
+      "description": "Paso de `provider_trace` que produjo el CONTENIDO principal de este documento. Referencia explicita: la atribucion de proveedor no puede depender de heuristicas sobre `produced`, porque una traza mal adivinada convierte una salida externa en 'local' sin que nadie se entere."
+    },
 
     "asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "collection_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },

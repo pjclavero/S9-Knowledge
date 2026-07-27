@@ -40,6 +40,7 @@
       "predicate": "ALLY_OF"
     }
   ],
+  "produced_by_step": "extract.claims",
   "provider_trace": [
     {
       "model": null,

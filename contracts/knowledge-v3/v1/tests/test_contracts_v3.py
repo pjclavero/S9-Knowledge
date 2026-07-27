@@ -364,3 +364,329 @@ def test_profile_cannot_invent_entity_types():
     doc = fixtures.game_profile()
     doc["entity_types"] = ["Character", "Vehiculo"]
     assert not V.is_valid(doc)
+
+
+# ==========================================================================
+# Ronda de correcciones: hallazgos del revisor independiente
+# ==========================================================================
+def test_epistemic_status_has_the_seven_minimum_states():
+    """H1 — dosier 11.6 fija siete estados minimos; faltaban dos."""
+    common = _load(CONTRACT_DIR / "_common-v3.schema.json")
+    assert set(common["$defs"]["epistemic_status"]["enum"]) == {
+        "ASSERTED", "RUMORED", "HYPOTHETICAL", "INTENDED",
+        "VISUAL_INFERRED", "CONFLICTED", "UNKNOWN",
+    }
+
+
+def test_engine_can_emit_a_conflicted_assertion():
+    """H1 — sin CONFLICTED el motor no tenia como expresar un conflicto."""
+    V.validate_document(fixtures.fact_assertion_conflicted())
+
+
+def test_media_type_distinguishes_htr_from_ocr():
+    """H11 — el manuscrito no es OCR y ya no tiene que disfrazarse de OCR."""
+    common = _load(CONTRACT_DIR / "_common-v3.schema.json")
+    enum = common["$defs"]["media_type"]["enum"]
+    assert "HTR_TEXT" in enum and "OCR_TEXT" in enum
+    V.validate_document(fixtures.evidence_fragment_htr())
+
+
+def test_assertion_has_two_independent_temporal_axes():
+    """H2 — `state` (temporal) y `status` (ciclo de vida) son ejes distintos."""
+    doc = fixtures.fact_assertion()
+    assert doc["state"] == "ACTIVE" and doc["status"] == "ASSERTED"
+    # Una afirmacion terminada puede seguir estando CONFIRMED en el ledger.
+    doc["state"] = "ENDED"
+    doc["valid_to"] = "1050-01-01T00:00:00Z"
+    doc["status"] = "CONFIRMED"
+    V.validate_document(doc)
+
+
+@pytest.mark.parametrize("field", ["state", "event_time", "negated"])
+def test_assertion_new_fields_are_mandatory(field):
+    """H2 y H5 — anadirlos despues de congelar es justo lo que no se puede."""
+    doc = fixtures.fact_assertion()
+    doc.pop(field)
+    assert not V.is_valid(doc)
+
+
+def test_assertion_state_cannot_contradict_validity():
+    """H2 — los dos ejes tienen que ser coherentes entre si."""
+    doc = fixtures.fact_assertion()
+    doc["valid_to"] = "1050-01-01T00:00:00Z"   # ACTIVE con vigencia cerrada
+    assert not V.is_valid(doc)
+
+
+@pytest.mark.parametrize("name", sorted(fixtures.VALID_BUILDERS), ids=str)
+def test_produced_by_step_must_point_at_a_real_step(name: str):
+    """H3 — la atribucion de proveedor es una referencia, no una adivinanza."""
+    doc = fixtures.VALID_BUILDERS[name]()
+    doc["produced_by_step"] = "paso:inexistente"
+    assert not V.is_valid(doc)
+
+
+@pytest.mark.parametrize("name", sorted(fixtures.VALID_BUILDERS), ids=str)
+def test_produced_by_step_is_mandatory(name: str):
+    doc = fixtures.VALID_BUILDERS[name]()
+    doc.pop("produced_by_step")
+    assert not V.is_valid(doc)
+
+
+def test_producing_step_resolves_the_declared_step():
+    doc = fixtures.claim_proposal_visual()
+    entry = V.producing_step(doc)
+    assert entry["step"] == doc["produced_by_step"]
+    assert entry["provider"] == "external"
+    # Y la traza NO dice "claim" en `produced`: es justo el caso que la vieja
+    # heuristica de subcadenas etiquetaba mal.
+    assert not any(p.startswith("claim") for p in entry["produced"])
+
+
+def test_direction_candidates_need_a_total_order():
+    """H4 — con confianzas empatadas el orden de llegada decidia la direccion."""
+    doc = fixtures.claim_proposal()
+    doc["direction_candidates"] = [
+        {"direction": "UNDIRECTED", "confidence": 0.5},
+        {"direction": "SUBJECT_TO_OBJECT", "confidence": 0.5},
+    ]
+    assert not V.is_valid(doc)
+    # El orden canonico (desempate por el enum) si es valido.
+    doc["direction_candidates"] = [
+        {"direction": "SUBJECT_TO_OBJECT", "confidence": 0.5},
+        {"direction": "UNDIRECTED", "confidence": 0.5},
+    ]
+    V.validate_document(doc)
+
+
+def test_alternatives_need_a_total_order():
+    doc = fixtures.claim_proposal()
+    doc["alternatives"] = [
+        {"predicate": "RIVAL_OF", "direction": "UNDIRECTED", "confidence": 0.3},
+        {"predicate": "ALLY_OF", "direction": "UNDIRECTED", "confidence": 0.3},
+    ]
+    assert not V.is_valid(doc)
+
+
+def test_predicate_tie_is_broken_alphabetically():
+    doc = fixtures.claim_proposal()
+    doc["predicate_candidates"] = [
+        {"predicate": "MEMBER_OF", "confidence": 0.5},
+        {"predicate": "ALLY_OF", "confidence": 0.5},
+    ]
+    doc["confidence"] = 0.5
+    assert not V.is_valid(doc)
+    doc["predicate_candidates"].reverse()
+    V.validate_document(doc)
+
+
+def test_sort_keys_are_a_total_order():
+    """Ningun par de candidatos distintos puede quedar 'empatado' en la clave."""
+    items = [
+        {"predicate": "ALLY_OF", "direction": "UNDIRECTED", "confidence": 0.5},
+        {"predicate": "ALLY_OF", "direction": "SUBJECT_TO_OBJECT", "confidence": 0.5},
+        {"predicate": "MEMBER_OF", "direction": "UNDIRECTED", "confidence": 0.5},
+    ]
+    keys = [V.alternative_sort_key(i) for i in items]
+    assert len(set(keys)) == len(keys)
+
+
+def test_resolution_entity_type_is_mandatory():
+    """H5 — puede ser null, pero el campo tiene que estar."""
+    doc = fixtures.entity_resolution()
+    doc.pop("entity_type")
+    assert not V.is_valid(doc)
+
+
+def test_creating_an_entity_requires_naming_it():
+    """H6 — el resolutor asigna el id; nadie lo deduce de una cadena."""
+    doc = fixtures.entity_resolution_provisional()
+    assert doc["assigned_entity_id"]
+    doc["assigned_entity_id"] = None
+    assert not V.is_valid(doc)
+
+
+def test_linking_cannot_assign_a_new_id():
+    doc = fixtures.entity_resolution()
+    doc["assigned_entity_id"] = "entity:nueva"
+    assert not V.is_valid(doc)
+
+
+def test_plan_requires_a_snapshot_anchor():
+    """H7 — sin snapshot, `expected_state` habla de un grafo desconocido."""
+    doc = fixtures.graph_mutation_plan()
+    doc.pop("snapshot_id")
+    assert not V.is_valid(doc)
+
+
+def test_idempotency_key_is_derived_and_checked():
+    """H7 — una clave inventada no garantiza idempotencia."""
+    plan = fixtures.graph_mutation_plan()
+    op = plan["mutation_operations"][0]
+    assert op["idempotency_key"] == V.compute_idempotency_key(plan, op)
+    tampered = V.seal_plan(
+        {**plan, "mutation_operations": [{**op, "idempotency_key": "idem:sha256:" + "c" * 64}]},
+        derive_keys=False,
+    )
+    assert not V.is_valid(tampered)
+
+
+def test_same_logical_operation_in_two_plans_gets_the_same_key():
+    """H7 — es la propiedad que hace que reaplicar sea un no-op."""
+    plan_a = fixtures.graph_mutation_plan()
+    plan_b = fixtures.graph_mutation_plan()
+    plan_b["plan_id"] = "plan:manual-001:0099"
+    plan_b["created_at"] = "2026-07-27T11:00:00Z"
+    plan_b["expires_at"] = "2026-07-28T11:00:00Z"
+    plan_b["mutation_operations"][0]["operation_id"] = "op:9999"
+    plan_b = V.seal_plan(plan_b)
+    assert (
+        plan_b["mutation_operations"][0]["idempotency_key"]
+        == plan_a["mutation_operations"][0]["idempotency_key"]
+    )
+
+
+def test_key_changes_with_workspace_and_snapshot():
+    plan = fixtures.graph_mutation_plan()
+    op = plan["mutation_operations"][0]
+    base = V.compute_idempotency_key(plan, op)
+    assert V.compute_idempotency_key({**plan, "workspace": "otro"}, op) != base
+    assert V.compute_idempotency_key({**plan, "snapshot_id": "snapshot:otro"}, op) != base
+
+
+def test_update_operations_need_optimistic_concurrency():
+    """H7 — modificar algo existente sin version esperada es pisar a ciegas."""
+    plan = V.seal_plan(
+        {
+            **fixtures.graph_mutation_plan(),
+            "mutation_operations": [
+                {**fixtures.graph_mutation_plan()["mutation_operations"][0],
+                 "operation_type": "UPDATE_ENTITY"}
+            ],
+        }
+    )
+    assert not V.is_valid(plan)
+
+
+def test_signature_and_key_id_are_reserved_and_optional():
+    """H8 — el hueco de la firma real existe ya, sin romper el contrato."""
+    schema = _load(CONTRACT_DIR / "graph-mutation-plan-v3.schema.json")
+    approval = schema["$defs"]["local_approval"]
+    assert "signature" in approval["properties"]
+    assert "key_id" in approval["properties"]
+    assert "signature" not in approval["required"]
+    plan = fixtures.graph_mutation_plan()
+    plan["local_approval"]["signature"] = "ed25519:" + "0" * 64
+    plan["local_approval"]["key_id"] = "key:engine-local-1"
+    V.validate_document(V.seal_plan(plan))
+
+
+def test_schema_no_longer_claims_unforgeable_signature():
+    """H8 — la descripcion decia una garantia que el hash sin clave no da."""
+    schema = _load(CONTRACT_DIR / "graph-mutation-plan-v3.schema.json")
+    text = schema["description"] + schema["$defs"]["local_approval"]["description"]
+    assert "VERIFICABLE, NO CONFIABLE" in schema["description"]
+    assert "invalido por contrato" not in text
+
+
+@pytest.mark.parametrize("field", ["approved", "approved_by", "validator_chain"])
+def test_decision_hash_covers_what_the_writer_consumes(field):
+    """H9 — cambiar `approved` no rompia el hash de decision."""
+    plan = fixtures.graph_mutation_plan()
+    before = V.compute_decision_hash(plan)
+    if field == "approved":
+        plan["local_approval"]["approved"] = False
+    elif field == "approved_by":
+        plan["local_approval"]["approved_by"]["name"] = "otro.motor"
+    else:
+        plan["local_approval"]["validator_chain"][0]["result"] = "SKIPPED"
+    assert V.compute_decision_hash(plan) != before
+
+
+def test_decision_hash_covers_expires_at():
+    plan = fixtures.graph_mutation_plan()
+    before = V.compute_decision_hash(plan)
+    plan["expires_at"] = "2026-12-31T00:00:00Z"
+    assert V.compute_decision_hash(plan) != before
+
+
+def test_removing_the_decision_hash_check_would_be_caught():
+    """H10 — mata el mutante: resellar SOLO plan_hash debe seguir fallando.
+
+    Si alguien suprime la comparacion de `decision_hash` en el validador, este
+    documento pasaria: su `plan_hash` es correcto y lo unico que delata la
+    manipulacion es el `decision_hash` obsoleto.
+    """
+    plan = fixtures.graph_mutation_plan()
+    plan["local_approval"]["approved"] = True
+    plan["decisions"][0]["predicate"] = "ALLY_OF"
+    plan["mutation_operations"][0]["payload"]["predicate"] = "ALLY_OF"
+    plan["mutation_operations"][0]["idempotency_key"] = V.compute_idempotency_key(
+        plan, plan["mutation_operations"][0]
+    )
+    # Solo se recalcula el hash del plan; el de decision se deja obsoleto.
+    plan["plan_hash"] = V.compute_plan_hash(plan)
+    assert plan["local_approval"]["decision_hash"] != V.compute_decision_hash(plan)
+    with pytest.raises(V.ContractV3Error, match="decision_hash"):
+        V.validate_document(plan)
+
+
+def test_supported_major_is_enforced_by_the_validator_itself():
+    """H17 — antes lo rechazaba el patron del schema, no SUPPORTED_MAJOR."""
+    assert V.SUPPORTED_MAJOR == 1
+    V._check_major_version({"contract_version": "1.4.2"})
+    for bad in ("2.0.0", "0.9.9", "10.0.0"):
+        with pytest.raises(V.ContractV3Error, match="version mayor no soportada"):
+            V._check_major_version({"contract_version": bad})
+    with pytest.raises(V.ContractV3Error, match="contract_version invalida"):
+        V._check_major_version({"contract_version": "uno"})
+
+
+def test_episode_table_keeps_its_structure():
+    """H16 — aplanar una tabla a texto pierde lo unico que la hace tabla."""
+    doc = fixtures.source_episode_table()
+    V.validate_document(doc)
+    assert doc["table"]["rows"][0][0] == "Casa del Ciervo"
+
+
+def test_episode_speaker_and_turn_are_typed():
+    """H12 — sin hablante no hay correferencia de yo/tu."""
+    doc = fixtures.source_episode_audio()
+    V.validate_document(doc)
+    assert doc["speaker"]["speaker_id"] == "speaker:02"
+    doc["speaker"] = {"speaker_id": "speaker:02", "campo_raro": 1}
+    assert not V.is_valid(doc)
+
+
+def test_calendar_id_gives_game_profile_calendars_a_consumer():
+    """H13 — `calendars` no tenia quien lo usara."""
+    assertion = fixtures.fact_assertion()
+    profile = fixtures.game_profile()
+    assert assertion["calendar_id"] in [c["calendar_id"] for c in profile["calendars"]]
+    claim = fixtures.claim_proposal()
+    claim["temporal_expressions"] = [
+        {"text": "en la tercera luna", "kind": "POINT", "valid_from": None,
+         "valid_to": None, "calendar_id": "calendar:umbra", "fragment_id": "fragment:p12:0"}
+    ]
+    V.validate_document(claim)
+
+
+def test_dossier_decisions_all_map_to_the_contract():
+    """H15 — las diez decisiones del dosier 11.7 tienen representacion exacta."""
+    dossier = {
+        "LOCAL_APPROVED", "LOCAL_APPROVED_WITH_WARNINGS", "REVIEW_ENTITY",
+        "REVIEW_PREDICATE", "REVIEW_DIRECTION", "REVIEW_TEMPORALITY",
+        "REVIEW_EVIDENCE", "CONFLICT", "ABSTAIN", "REJECT_INVALID",
+    }
+    assert set(V.ENGINE_DECISION_MAP) == dossier
+    schema = _load(CONTRACT_DIR / "graph-mutation-plan-v3.schema.json")
+    valid_decisions = set(schema["$defs"]["decision"]["properties"]["decision"]["enum"])
+    for dossier_decision, (decision, reason) in V.ENGINE_DECISION_MAP.items():
+        assert decision in valid_decisions, dossier_decision
+        assert reason in V.CANONICAL_REASON_CODES[decision], dossier_decision
+
+
+def test_every_plan_decision_needs_a_canonical_reason():
+    """H15 — sin razon canonica la decision del dosier no es reconstruible."""
+    plan = fixtures.graph_mutation_plan()
+    plan["decisions"][0]["reason_codes"] = ["PORQUE_SI"]
+    assert not V.is_valid(V.seal_plan(plan))

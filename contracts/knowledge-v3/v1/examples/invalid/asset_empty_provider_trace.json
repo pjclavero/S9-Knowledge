@@ -25,6 +25,7 @@
     "allow_media_persistence": true,
     "retention_days": 365
   },
+  "produced_by_step": "ingest",
   "provider_trace": [],
   "source_asset_id": "asset:manual-001",
   "source_hash": {

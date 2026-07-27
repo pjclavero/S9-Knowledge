@@ -12,6 +12,7 @@
   "next_episode_id": null,
   "page": null,
   "previous_episode_id": "episode:sesion-2026-05-11:t0041",
+  "produced_by_step": "asr",
   "provider_trace": [
     {
       "model": null,
@@ -47,8 +48,15 @@
     "algorithm": "sha256",
     "value": "9cb4452782d2d14ccd1a1664e46bc3d96e12f93588e166dee4df965cfe2a1692"
   },
+  "speaker": {
+    "confidence": 0.72,
+    "label": "Director de juego",
+    "speaker_id": "speaker:02"
+  },
+  "table": null,
   "text": "el magistrado nunca juro lealtad al consejo",
   "time_end": 1291.25,
   "time_start": 9999.0,
+  "turn": 17,
   "workspace": "leyenda"
 }

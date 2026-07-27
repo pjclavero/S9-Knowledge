@@ -18,6 +18,7 @@
       "object_entity_id": "entity:casa-del-ciervo",
       "predicate": "MEMBER_OF",
       "reason_codes": [
+        "LOCAL_APPROVED",
         "EVIDENCE_LITERAL",
         "ONTOLOGY_COMPATIBLE"
       ],
@@ -35,8 +36,7 @@
       "object_entity_id": null,
       "predicate": null,
       "reason_codes": [
-        "VISUAL_INFERRED",
-        "INSUFFICIENT_EVIDENCE"
+        "REVIEW_EVIDENCE"
       ],
       "subject_entity_id": null
     }
@@ -54,7 +54,7 @@
     "created_at": "2026-07-27T10:30:00Z",
     "decision_hash": {
       "algorithm": "sha256",
-      "value": "ccead494d2968cbe21a58d7f41438a2e2c87ddb9d1211b772090716e5b954635"
+      "value": "65e389f9008fd0402d8489c33c52b0db01c19f68fc5d794710da14fac9c8f854"
     },
     "validator_chain": [
       {
@@ -81,8 +81,10 @@
       "evidence_fragment_ids": [
         "fragment:p12:0"
       ],
+      "expected_hash": null,
       "expected_state": "WOULD_CREATE",
-      "idempotency_key": "idem:assertion:0001",
+      "expected_version": null,
+      "idempotency_key": "idem:sha256:2be8ab1c850b698a530216365c775b93787ddc4f7355e6673e843b377e0a6696",
       "operation_id": "op:0001",
       "operation_type": "CREATE_ASSERTION",
       "payload": {
@@ -96,9 +98,10 @@
   "ontology_version": "core-1.4.0",
   "plan_hash": {
     "algorithm": "sha256",
-    "value": "6ff873fde884d8c91fabf9b01d7cc3463f6bb5fa40a83e056f4e51e8a93712f5"
+    "value": "010192f2104fa3f6793287bffd7358aea4cc6e3a26470bf2cc354eb0baf7c4ec"
   },
   "plan_id": "plan:manual-001:0001",
+  "produced_by_step": "engine.plan",
   "provider_trace": [
     {
       "model": null,
@@ -112,6 +115,7 @@
       "version": "3.0.0"
     }
   ],
+  "snapshot_id": "snapshot:neo4j:2026-07-27T10:29:00Z",
   "source_asset_id": "asset:manual-001",
   "source_hash": {
     "algorithm": "sha256",

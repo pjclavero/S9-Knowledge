@@ -11,6 +11,7 @@
   "media_type": "EMBEDDED_TEXT",
   "normalized_text": "jamas juro lealtad al consejo de umbra",
   "page": 12,
+  "produced_by_step": "anchor",
   "provider_trace": [
     {
       "model": null,

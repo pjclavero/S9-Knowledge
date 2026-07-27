@@ -19,6 +19,8 @@ silencio, cada una deja un `validation_flag` (el unico campo v1 abierto):
     V3_HAS_ALTERNATIVES         habia lecturas alternativas
     V3_VISUAL_INFERRED          epistemic_status_hint=VISUAL_INFERRED, que no
                                 existe en v1 y se degrada a HYPOTHETICAL
+    V3_CONFLICTED               epistemic_status_hint=CONFLICTED (no existe en v1)
+    V3_UNKNOWN_EPISTEMIC        epistemic_status_hint=UNKNOWN (no existe en v1)
     V3_EXTERNAL_PROVIDER        lo produjo un proveedor externo
     V3_REVIEW_REQUIRED          el claim exigia revision humana
     V3_MULTI_MENTION_SUBJECT    el sujeto agrupaba varias menciones
@@ -68,28 +70,40 @@ _STATUS_MAP = {
     "RUMORED": EpistemicStatus.RUMORED,
     "HYPOTHETICAL": EpistemicStatus.HYPOTHETICAL,
     "INTENDED": EpistemicStatus.INTENDED,
+    # Los tres siguientes NO existen en v1. Se degradan al valor mas
+    # conservador que v1 admite, y cada uno deja su propio flag.
     "VISUAL_INFERRED": EpistemicStatus.HYPOTHETICAL,
+    "CONFLICTED": EpistemicStatus.HYPOTHETICAL,
+    "UNKNOWN": EpistemicStatus.HYPOTHETICAL,
 }
 
-_PROVISIONAL_PREFIX = "provisional:"
+#: Pistas epistemicas sin equivalente en v1 -> flag que deja constancia.
+_STATUS_FLAG = {
+    "VISUAL_INFERRED": "V3_VISUAL_INFERRED",
+    "CONFLICTED": "V3_CONFLICTED",
+    "UNKNOWN": "V3_UNKNOWN_EPISTEMIC",
+}
 
 
 def entity_id_from_resolution(resolution: EntityResolution) -> str:
-    """Identificador de entidad utilizable a partir de una `EntityResolution`.
+    """Identificador de entidad fijado por una `EntityResolution`.
 
-    `REVIEW` y `SPLIT` no producen identidad: no hay nada que adaptar.
-    `CREATE_NEW` / `CREATE_PROVISIONAL` aun no tienen id canonico, asi que se
-    usa un id derivado y estable `provisional:<resolution_id>` — nunca un id
-    inventado ni un nombre normalizado.
+    Sale de `selected_entity_id` (LINK_EXISTING) o de `assigned_entity_id`
+    (CREATE_NEW / CREATE_PROVISIONAL): quien crea la identidad es quien la
+    nombra. El adaptador NO fabrica identificadores por convencion de cadena.
+    `REVIEW` y `SPLIT` no fijan identidad: no hay nada que adaptar.
     """
     action = resolution.action
     if action in (ResolutionAction.REVIEW.value, ResolutionAction.SPLIT.value):
         raise V3AdapterError(
             f"la resolucion {resolution.resolution_id} con action={action} no fija identidad"
         )
-    if resolution.selected_entity_id:
-        return resolution.selected_entity_id
-    return f"{_PROVISIONAL_PREFIX}{resolution.resolution_id}"
+    entity_id = resolution.entity_id()
+    if not entity_id:
+        raise V3AdapterError(
+            f"la resolucion {resolution.resolution_id} no declara identificador de entidad"
+        )
+    return entity_id
 
 
 def claim_to_relation_candidate(
@@ -100,6 +114,8 @@ def claim_to_relation_candidate(
     object_entity_id: str,
     subject_type: Optional[str] = None,
     object_type: Optional[str] = None,
+    subject_provisional: bool = False,
+    object_provisional: bool = False,
     validate: bool = True,
 ) -> RelationCandidate:
     """Convierte un `ClaimProposal` V3 en un `RelationCandidate` v1 valido.
@@ -141,7 +157,7 @@ def claim_to_relation_candidate(
         temporal_scope=(claim.temporal_expressions or None),
         epistemic_status=_STATUS_MAP[claim.epistemic_status_hint],
         workspace=claim.workspace,
-        validation_flags=_flags(claim, subject_entity_id, object_entity_id),
+        validation_flags=_flags(claim, subject_provisional, object_provisional),
     )
     if validate:
         candidate.validate()
@@ -171,6 +187,8 @@ def claim_with_resolutions_to_relation_candidate(
         object_entity_id=entity_id_from_resolution(object_resolution),
         subject_type=subject_resolution.entity_type,
         object_type=object_resolution.entity_type,
+        subject_provisional=subject_resolution.is_provisional(),
+        object_provisional=object_resolution.is_provisional(),
         validate=validate,
     )
 
@@ -202,13 +220,29 @@ def _check_evidence_matches(claim: ClaimProposal, evidence: EvidenceFragment) ->
         )
     if evidence.source_hash != claim.source_hash:
         raise V3AdapterError("source_hash de la evidencia distinto del source_hash del claim")
+    # v1 exige evidencia textual salvo metodo ONTOLOGY. Mejor un error propio y
+    # explicito aqui que dejar escapar un RelationContractError ajeno desde
+    # dentro del contrato v1: el fallo es del adaptador, no de v1.
+    if not evidence.literal_text or not evidence.literal_text.strip():
+        raise V3AdapterError(
+            f"el fragmento {evidence.fragment_id} no tiene texto literal: "
+            "sin evidencia textual no hay candidato de relacion"
+        )
 
 
 def _producing_entry(claim: ClaimProposal) -> dict:
-    entry = claim.producing_provider()
-    if not entry:
+    """Paso productor por referencia EXPLICITA (`produced_by_step`).
+
+    No se adivina a partir de los nombres de `produced`: adivinarlo hacia que
+    una salida de NVIDIA cuya traza dijese `produced=["predicate_candidates"]`
+    acabase etiquetada HEURISTIC y sin V3_EXTERNAL_PROVIDER.
+    """
+    if not claim.provider_trace:
         raise V3AdapterError("el claim no tiene provider_trace: sin trazabilidad no se adapta")
-    return entry
+    try:
+        return claim.producing_provider()
+    except V3ContractError as exc:
+        raise V3AdapterError(str(exc)) from exc
 
 
 def _extraction_method(claim: ClaimProposal) -> ExtractionMethod:
@@ -223,14 +257,15 @@ def _model_of(claim: ClaimProposal) -> Optional[str]:
     return _producing_entry(claim).get("model")
 
 
-def _flags(claim: ClaimProposal, subject_id: str, object_id: str) -> list[str]:
+def _flags(claim: ClaimProposal, subject_provisional: bool, object_provisional: bool) -> list[str]:
     flags = {"V3_ADAPTED"}
     if len(claim.predicate_candidates) > 1:
         flags.add("V3_MULTIPLE_PREDICATES")
     if claim.alternatives:
         flags.add("V3_HAS_ALTERNATIVES")
-    if claim.epistemic_status_hint == "VISUAL_INFERRED":
-        flags.add("V3_VISUAL_INFERRED")
+    status_flag = _STATUS_FLAG.get(claim.epistemic_status_hint)
+    if status_flag:
+        flags.add(status_flag)
     if _producing_entry(claim).get("provider") == "external":
         flags.add("V3_EXTERNAL_PROVIDER")
     if claim.review_required:
@@ -239,9 +274,9 @@ def _flags(claim: ClaimProposal, subject_id: str, object_id: str) -> list[str]:
         flags.add("V3_MULTI_MENTION_SUBJECT")
     if len(claim.object_mentions) > 1:
         flags.add("V3_MULTI_MENTION_OBJECT")
-    if subject_id.startswith(_PROVISIONAL_PREFIX):
+    if subject_provisional:
         flags.add("V3_PROVISIONAL_SUBJECT")
-    if object_id.startswith(_PROVISIONAL_PREFIX):
+    if object_provisional:
         flags.add("V3_PROVISIONAL_OBJECT")
     # Orden estable: el candidato v1 debe serializarse igual siempre.
     return sorted(flags)

@@ -7,7 +7,7 @@
   "additionalProperties": false,
   "required": [
     "contract_id", "contract_version", "workspace", "source_asset_id", "source_hash",
-    "provider_trace", "fragment_id", "episode_id", "literal_text", "normalized_text",
+    "provider_trace", "produced_by_step", "fragment_id", "episode_id", "literal_text", "normalized_text",
     "start", "end", "bbox", "time_start", "time_end", "frame_id", "page",
     "media_type", "confidence"
   ],
@@ -18,6 +18,10 @@
     "source_asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "source_hash": { "$ref": "_common-v3.schema.json#/$defs/hash" },
     "provider_trace": { "$ref": "_common-v3.schema.json#/$defs/provider_trace" },
+    "produced_by_step": {
+      "$ref": "_common-v3.schema.json#/$defs/stable_id",
+      "description": "Paso de `provider_trace` que produjo el CONTENIDO principal de este documento. Referencia explicita: la atribucion de proveedor no puede depender de heuristicas sobre `produced`, porque una traza mal adivinada convierte una salida externa en 'local' sin que nadie se entere."
+    },
 
     "fragment_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "episode_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },

@@ -51,6 +51,7 @@ class SourceAsset(V3Document):
     source_asset_id: str
     source_hash: dict
     provider_trace: list
+    produced_by_step: str
     asset_id: str
     collection_id: str
     game_profile: str

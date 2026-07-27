@@ -19,6 +19,7 @@ class EntityMention(V3Document):
     source_asset_id: str
     source_hash: dict
     provider_trace: list
+    produced_by_step: str
     mention_id: str
     episode_id: str
     surface: str

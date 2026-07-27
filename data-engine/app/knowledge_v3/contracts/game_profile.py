@@ -25,6 +25,7 @@ class GameProfile(V3Document):
     source_asset_id: str
     source_hash: dict
     provider_trace: list
+    produced_by_step: str
     profile_id: str
     profile_version: str
     core_ontology_version: str

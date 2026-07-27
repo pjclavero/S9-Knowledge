@@ -24,13 +24,14 @@ class FactAssertion(V3Document):
     """La arista directa del grafo es una proyeccion; la verdad vive aqui."""
 
     CONTRACT_ID: ClassVar[str] = "fact-assertion/v3-internal-v1"
-    OMIT_IF_NONE: ClassVar[frozenset[str]] = frozenset({"metadata", "negated"})
+    OMIT_IF_NONE: ClassVar[frozenset[str]] = frozenset({"metadata", "calendar_id"})
 
     contract_version: str
     workspace: str
     source_asset_id: str
     source_hash: dict
     provider_trace: list
+    produced_by_step: str
     assertion_id: str
     subject_entity_id: str
     object_entity_id: str
@@ -42,6 +43,9 @@ class FactAssertion(V3Document):
     epistemic_status: str
     confidence: float
     status: str
+    state: str
+    event_time: Optional[str]
+    negated: bool
     collection_id: str
     game_profile: str
     engine_version: str
@@ -50,7 +54,7 @@ class FactAssertion(V3Document):
     episode_ids: list
     supersedes: Optional[str]
     superseded_by: Optional[str]
-    negated: Optional[bool] = None
+    calendar_id: Optional[str] = None
     metadata: Optional[dict[str, Any]] = None
 
     def is_open_interval(self) -> bool:

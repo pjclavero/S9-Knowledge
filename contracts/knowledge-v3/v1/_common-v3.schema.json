@@ -139,10 +139,10 @@
     },
     "media_type": {
       "type": "string",
-      "description": "Tipos de artefacto multimedia. Identicos a media/multimedia_contract.MediaType: OCR literal e interpretacion visual son tipos DISTINTOS y no se mezclan.",
+      "description": "Tipos de artefacto multimedia. Los diez primeros son identicos a media/multimedia_contract.MediaType; HTR_TEXT es propio de V3 (manuscrito reconocido) y NO se mezcla con OCR_TEXT ni con IMAGE_DESCRIPTION: OCR literal, HTR e interpretacion visual son tres cosas distintas.",
       "enum": [
-        "EMBEDDED_TEXT", "ASR_TEXT", "OCR_TEXT", "IMAGE_DESCRIPTION", "TABLE",
-        "MAP", "DIAGRAM", "CHARACTER_SHEET", "CAPTION", "UNKNOWN_VISUAL"
+        "EMBEDDED_TEXT", "ASR_TEXT", "OCR_TEXT", "HTR_TEXT", "IMAGE_DESCRIPTION",
+        "TABLE", "MAP", "DIAGRAM", "CHARACTER_SHEET", "CAPTION", "UNKNOWN_VISUAL"
       ]
     },
     "modality": {
@@ -160,8 +160,8 @@
     },
     "epistemic_status": {
       "type": "string",
-      "description": "Estatus epistemico canonico. Los cuatro primeros son identicos a relations.contracts.EpistemicStatus; VISUAL_INFERRED es EXCLUSIVO de V3 (claims derivados de dibujos/diagramas) y NO existe en internal-v1.",
-      "enum": ["ASSERTED", "RUMORED", "HYPOTHETICAL", "INTENDED", "VISUAL_INFERRED"]
+      "description": "Estatus epistemico canonico: los siete estados minimos del dosier 11.6. Los cuatro primeros son identicos a relations.contracts.EpistemicStatus; VISUAL_INFERRED, CONFLICTED y UNKNOWN son EXCLUSIVOS de V3 y NO existen en internal-v1 (el adaptador los degrada dejando flag).",
+      "enum": ["ASSERTED", "RUMORED", "HYPOTHETICAL", "INTENDED", "VISUAL_INFERRED", "CONFLICTED", "UNKNOWN"]
     },
     "predicate": {
       "type": "string",
@@ -172,6 +172,41 @@
       "type": "string",
       "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
       "description": "Codigo de razon estable y enumerable, nunca texto libre."
+    },
+    "assertion_state": {
+      "type": "string",
+      "description": "Eje TEMPORAL del estado de la afirmacion (dosier 11.5). Es un eje DISTINTO del ciclo de vida en el ledger (`status`): una afirmacion ENDED puede seguir siendo CONFIRMED. El pasado verbal no implica ENDED.",
+      "enum": ["ACTIVE", "ENDED", "PLANNED", "HYPOTHETICAL", "RECURRING", "UNKNOWN"]
+    },
+    "speaker": {
+      "type": "object",
+      "description": "Hablante de un turno (diarizacion). Necesario para resolver correferencias de primera y segunda persona.",
+      "additionalProperties": false,
+      "required": ["speaker_id"],
+      "properties": {
+        "speaker_id": { "$ref": "#/$defs/stable_id" },
+        "label": { "type": ["string", "null"], "maxLength": 128 },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "table_data": {
+      "type": "object",
+      "description": "Representacion estructurada minima de una tabla. Una tabla aplanada a texto pierde la relacion fila-columna, que es justamente su informacion.",
+      "additionalProperties": false,
+      "required": ["rows"],
+      "properties": {
+        "header": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 512 }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "type": ["string", "null"], "maxLength": 2000 }
+          }
+        }
+      }
     },
     "quality": {
       "type": "object",

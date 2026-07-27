@@ -13,6 +13,7 @@
   ],
   "mention_id": "mention:p12:0",
   "normalized_surface": "daiki",
+  "produced_by_step": "ner.llm",
   "provider_trace": [
     {
       "model": null,

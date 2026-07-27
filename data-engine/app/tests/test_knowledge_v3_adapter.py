@@ -122,7 +122,8 @@ def test_field_mapping_is_the_expected_one():
     src_claim = claim()
     ev = evidence()
     assert c.subject_id == "entity:daiki"
-    assert c.object_id == "provisional:resolution:consejo-umbra"
+    # El id lo ASIGNA la resolucion; el adaptador no lo fabrica.
+    assert c.object_id == "entity:prov:consejo-umbra"
     assert c.subject_type == "Character"
     assert c.object_type == "Faction"
     assert c.predicate == "MEMBER_OF"           # primer candidato, ya normalizado
@@ -183,9 +184,17 @@ def test_temporal_expressions_are_carried_into_temporal_scope():
     assert candidate.temporal_scope == src.temporal_expressions
 
 
-def test_provisional_id_is_derived_not_invented():
+def test_provisional_id_comes_from_the_resolution_not_from_a_convention():
     res = object_resolution()
-    assert entity_id_from_resolution(res) == f"provisional:{res.resolution_id}"
+    assert entity_id_from_resolution(res) == res.assigned_entity_id
+    assert entity_id_from_resolution(subject_resolution()) == "entity:daiki"
+
+
+def test_resolution_without_assigned_id_cannot_be_adapted():
+    res = object_resolution()
+    res.assigned_entity_id = None
+    with pytest.raises(V3AdapterError):
+        entity_id_from_resolution(res)
 
 
 # ==========================================================================
@@ -284,3 +293,127 @@ def test_claim_without_provider_trace_is_rejected():
         claim_to_relation_candidate(
             src, evidence(), subject_entity_id="entity:a", object_entity_id="entity:b"
         )
+
+
+# ==========================================================================
+# Ronda de correcciones: hallazgos del revisor independiente
+# ==========================================================================
+def test_external_provider_is_never_lost_when_produced_does_not_say_claim():
+    """H3 — la regresion concreta que el revisor demostro.
+
+    La traza externa declara `produced=["predicate_candidates"]`. Con la vieja
+    heuristica de subcadenas ("claim" en `produced`) el paso no se reconocia, el
+    adaptador caia al ultimo elemento y el candidato salia HEURISTIC, local y
+    SIN `V3_EXTERNAL_PROVIDER`: una salida de NVIDIA disfrazada de determinista.
+    """
+    src = visual_claim()
+    entry = src.producing_provider()
+    assert entry["provider"] == "external"
+    assert not any(p.startswith("claim") for p in entry["produced"])
+
+    candidate = claim_to_relation_candidate(
+        src, ocr_evidence(),
+        subject_entity_id="entity:daiki", object_entity_id="entity:torre",
+    )
+    assert candidate.extraction_method == ExtractionMethod.NVIDIA
+    assert "V3_EXTERNAL_PROVIDER" in candidate.validation_flags
+    assert candidate.model == "meta/llama-3.1-70b-instruct"
+
+
+def test_attribution_follows_produced_by_step_not_trace_order():
+    """H3 — el paso productor no es 'el ultimo de la lista'."""
+    src = claim()
+    src.produced_by_step = "anchor"          # paso local, no el de Ollama
+    src.validate()
+    candidate = claim_to_relation_candidate(
+        src, evidence(), subject_entity_id="entity:a", object_entity_id="entity:b"
+    )
+    assert candidate.extraction_method == ExtractionMethod.HEURISTIC
+    assert candidate.model is None
+
+
+def test_dangling_produced_by_step_is_rejected():
+    src = claim()
+    src.produced_by_step = "paso:inexistente"
+    with pytest.raises(V3AdapterError):
+        claim_to_relation_candidate(
+            src, evidence(), subject_entity_id="entity:a", object_entity_id="entity:b"
+        )
+
+
+@pytest.mark.parametrize(
+    "hint,flag",
+    [
+        ("VISUAL_INFERRED", "V3_VISUAL_INFERRED"),
+        ("CONFLICTED", "V3_CONFLICTED"),
+        ("UNKNOWN", "V3_UNKNOWN_EPISTEMIC"),
+    ],
+)
+def test_states_absent_from_v1_are_degraded_and_flagged(hint, flag):
+    """H1 — CONFLICTED y UNKNOWN tampoco existen en v1; no se pierden callando."""
+    src = claim()
+    src.epistemic_status_hint = hint
+    src.review_required = True
+    src.validate()
+    candidate = claim_to_relation_candidate(
+        src, evidence(), subject_entity_id="entity:a", object_entity_id="entity:b"
+    )
+    assert candidate.epistemic_status == EpistemicStatus.HYPOTHETICAL
+    assert flag in candidate.validation_flags
+
+
+def test_provisional_flag_comes_from_the_resolution_not_from_the_id_shape():
+    """H6 — antes se deducia de que el id empezase por 'provisional:'."""
+    res = object_resolution()
+    res.assigned_entity_id = "entity:sin-prefijo-alguno"
+    res.validate()
+    candidate = claim_with_resolutions_to_relation_candidate(
+        claim(), evidence(), subject_resolution(), res
+    )
+    assert candidate.object_id == "entity:sin-prefijo-alguno"
+    assert "V3_PROVISIONAL_OBJECT" in candidate.validation_flags
+
+
+def test_blank_literal_text_raises_the_adapters_own_error():
+    """H14 — el fallo es del adaptador; no debe escapar un error ajeno de v1."""
+    ev = evidence()
+    ev.literal_text = "   "
+    with pytest.raises(V3AdapterError):
+        claim_to_relation_candidate(
+            claim(), ev, subject_entity_id="entity:a", object_entity_id="entity:b"
+        )
+
+
+def test_abstained_guard_is_the_one_that_fires():
+    """H17 — antes lo paraba la ausencia de predicado, no la abstencion.
+
+    Se construye a proposito un claim abstenido CON predicado (invalido segun el
+    contrato, por eso `validate=False`): asi la unica barrera posible es la
+    comprobacion de `abstained`. Si se suprime, el test se pone rojo.
+    """
+    data = fixtures.claim_proposal_abstained()
+    data["predicate_candidates"] = [{"predicate": "MEMBER_OF", "confidence": 0.9}]
+    data["subject_mentions"] = ["mention:p12:0"]
+    data["object_mentions"] = ["mention:p12:2"]
+    src = ClaimProposal.from_dict(data, validate=False)
+    assert src.abstained is True and src.predicate_candidates
+    with pytest.raises(V3AdapterError, match="abstencion"):
+        claim_to_relation_candidate(
+            src, evidence(), subject_entity_id="entity:a", object_entity_id="entity:b"
+        )
+
+
+def test_direction_choice_is_deterministic_on_ties():
+    """H4 — con dos confianzas iguales la direccion ya no depende del orden."""
+    src = claim()
+    src.direction_candidates = [
+        {"direction": "SUBJECT_TO_OBJECT", "confidence": 0.5},
+        {"direction": "UNDIRECTED", "confidence": 0.5},
+    ]
+    src.validate()
+    assert src.best_direction() == "SUBJECT_TO_OBJECT"
+    for _ in range(5):
+        c = claim_to_relation_candidate(
+            src, evidence(), subject_entity_id="entity:a", object_entity_id="entity:b"
+        )
+        assert c.direction == Direction.SUBJECT_TO_OBJECT

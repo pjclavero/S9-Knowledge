@@ -49,7 +49,9 @@ canonical_json = schema_validator.canonical_json
 sha256_hash = schema_validator.sha256_hash
 compute_decision_hash = schema_validator.compute_decision_hash
 compute_plan_hash = schema_validator.compute_plan_hash
+compute_idempotency_key = schema_validator.compute_idempotency_key
 seal_plan = schema_validator.seal_plan
+producing_step = schema_validator.producing_step
 
 #: Version de contrato que emite esta rama del codigo.
 CONTRACT_VERSION = "1.0.0"
@@ -66,6 +68,14 @@ class Provider(str, Enum):
     LOCAL = "local"
     OLLAMA = "ollama"
     EXTERNAL = "external"
+
+
+def find_step(trace: list, step: str) -> dict:
+    """Entrada de una `provider_trace` por su `step`."""
+    for entry in trace:
+        if entry.get("step") == step:
+            return entry
+    raise V3ContractError(f"step {step!r} ausente de la provider_trace")
 
 
 def provider_step(

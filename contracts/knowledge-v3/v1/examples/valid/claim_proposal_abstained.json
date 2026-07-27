@@ -22,6 +22,7 @@
     "mention:p12:2"
   ],
   "predicate_candidates": [],
+  "produced_by_step": "extract.claims",
   "provider_trace": [
     {
       "model": null,

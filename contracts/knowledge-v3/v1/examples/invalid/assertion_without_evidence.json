@@ -1,5 +1,6 @@
 {
   "assertion_id": "assertion:0001",
+  "calendar_id": "calendar:umbra",
   "collection_id": "collection:campana-leyenda",
   "confidence": 0.79,
   "contract_id": "fact-assertion/v3-internal-v1",
@@ -10,12 +11,14 @@
     "episode:manual-001:p12"
   ],
   "epistemic_status": "ASSERTED",
+  "event_time": "1042-03-01T00:00:00Z",
   "evidence_fragment_ids": [],
   "game_profile": "generic",
   "negated": false,
   "object_entity_id": "entity:casa-del-ciervo",
   "ontology_version": "core-1.4.0",
   "predicate": "MEMBER_OF",
+  "produced_by_step": "engine.decide",
   "provider_trace": [
     {
       "model": null,
@@ -36,6 +39,7 @@
     "algorithm": "sha256",
     "value": "a900b2ece307794d62690e1ffbe35853112ebbdef8fe18061b62f896d38f23a2"
   },
+  "state": "ACTIVE",
   "status": "ASSERTED",
   "subject_entity_id": "entity:daiki",
   "superseded_by": null,

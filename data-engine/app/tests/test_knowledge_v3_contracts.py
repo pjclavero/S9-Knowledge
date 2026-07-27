@@ -55,8 +55,10 @@ CASES = {
     "source_asset_personal_audio": SourceAsset,
     "source_episode_text": SourceEpisode,
     "source_episode_audio": SourceEpisode,
+    "source_episode_table": SourceEpisode,
     "evidence_fragment_text": EvidenceFragment,
     "evidence_fragment_ocr": EvidenceFragment,
+    "evidence_fragment_htr": EvidenceFragment,
     "entity_mention": EntityMention,
     "claim_proposal": ClaimProposal,
     "claim_proposal_abstained": ClaimProposal,
@@ -65,6 +67,7 @@ CASES = {
     "entity_resolution_provisional": EntityResolution,
     "fact_assertion": FactAssertion,
     "fact_assertion_superseded": FactAssertion,
+    "fact_assertion_conflicted": FactAssertion,
     "graph_mutation_plan_approved": GraphMutationPlan,
     "graph_mutation_plan_not_approved": GraphMutationPlan,
     "game_profile_generic": GameProfile,
@@ -171,7 +174,9 @@ def test_unknown_field_is_rejected(name: str):
 
 
 @pytest.mark.parametrize(
-    "field", ["workspace", "contract_version", "source_hash", "provider_trace", "source_asset_id"]
+    "field",
+    ["workspace", "contract_version", "source_hash", "provider_trace",
+     "source_asset_id", "produced_by_step"],
 )
 @pytest.mark.parametrize("name", sorted(CASES), ids=str)
 def test_missing_envelope_field_is_rejected(name: str, field: str):
@@ -298,7 +303,11 @@ def test_plan_is_signed_locally_and_intact():
     assert plan.approved is True
     assert plan.signed_locally() is True
     assert plan.signature_is_intact() is True
-    assert plan.idempotency_keys() == ["idem:assertion:0001"]
+    # La clave declarada es EXACTAMENTE la derivada: no vale inventarsela.
+    assert plan.idempotency_keys() == plan.expected_idempotency_keys()
+    assert plan.idempotency_keys()[0].startswith("idem:sha256:")
+    # Verificable no es autenticado: sin signature/key_id no hay firma real.
+    assert plan.is_authenticated() is False
 
 
 def test_plan_sealing_is_idempotent():
@@ -358,3 +367,134 @@ def test_not_approved_plan_is_a_legitimate_document():
     plan = GraphMutationPlan.from_dict(doc("graph_mutation_plan_not_approved"))
     assert plan.approved is False
     assert plan.signature_is_intact() is True
+
+
+# ==========================================================================
+# Ronda de correcciones: hallazgos del revisor independiente
+# ==========================================================================
+def test_producing_provider_uses_the_declared_step():
+    """H3 — referencia explicita, no heuristica sobre `produced`."""
+    claim = ClaimProposal.from_dict(doc("claim_proposal_visual"))
+    entry = claim.producing_provider()
+    assert entry["step"] == claim.produced_by_step
+    assert entry["provider"] == "external"
+
+
+def test_best_direction_is_stable_with_tied_confidences():
+    """H4 — `max()` devolvia lo que hubiese llegado antes."""
+    claim = ClaimProposal.from_dict(doc("claim_proposal"))
+    claim.direction_candidates = [
+        {"direction": "SUBJECT_TO_OBJECT", "confidence": 0.5},
+        {"direction": "UNDIRECTED", "confidence": 0.5},
+    ]
+    claim.validate()
+    assert claim.best_direction() == "SUBJECT_TO_OBJECT"
+
+
+def test_unordered_candidates_are_rejected_by_the_model():
+    claim = ClaimProposal.from_dict(doc("claim_proposal"))
+    claim.direction_candidates = [
+        {"direction": "UNDIRECTED", "confidence": 0.5},
+        {"direction": "SUBJECT_TO_OBJECT", "confidence": 0.5},
+    ]
+    with pytest.raises(V3ContractError):
+        claim.validate()
+
+
+def test_assertion_exposes_both_temporal_axes():
+    """H2 — `state` y `status` conviven; ninguno sustituye al otro."""
+    a = FactAssertion.from_dict(doc("fact_assertion"))
+    assert (a.state, a.status) == ("ACTIVE", "ASSERTED")
+    assert a.event_time == "1042-03-01T00:00:00Z"
+    assert a.negated is False
+    b = FactAssertion.from_dict(doc("fact_assertion_superseded"))
+    assert (b.state, b.status) == ("ENDED", "SUPERSEDED")
+
+
+def test_conflicted_assertion_is_representable():
+    """H1 — el motor ya puede emitir un estado en conflicto."""
+    a = FactAssertion.from_dict(doc("fact_assertion_conflicted"))
+    assert a.epistemic_status == "CONFLICTED"
+
+
+@pytest.mark.parametrize("field", ["state", "event_time", "negated"])
+def test_assertion_new_fields_are_required_in_the_model(field):
+    """H2 y H5 — required de verdad, no opcionales con default."""
+    data = doc("fact_assertion")
+    data.pop(field)
+    with pytest.raises(V3ContractError):
+        FactAssertion.from_dict(data)
+
+
+def test_resolution_entity_type_is_required_in_the_model():
+    """H5 — puede valer null; lo que no puede es faltar."""
+    data = doc("entity_resolution_link")
+    data.pop("entity_type")
+    with pytest.raises(V3ContractError):
+        EntityResolution.from_dict(data)
+
+
+def test_resolution_entity_id_helper():
+    """H6 — la identidad la fija la resolucion, no una convencion de cadena."""
+    link = EntityResolution.from_dict(doc("entity_resolution_link"))
+    prov = EntityResolution.from_dict(doc("entity_resolution_provisional"))
+    assert link.entity_id() == "entity:daiki"
+    assert prov.entity_id() == "entity:prov:consejo-umbra"
+    assert prov.assigned_entity_id != prov.selected_entity_id
+
+
+def test_creating_without_assigned_id_is_rejected_in_the_model():
+    data = doc("entity_resolution_provisional")
+    data["assigned_entity_id"] = None
+    with pytest.raises(V3ContractError):
+        EntityResolution.from_dict(data)
+
+
+def test_plan_snapshot_is_required_in_the_model():
+    """H7 — ancla del estado sobre el que se calculo el plan."""
+    data = doc("graph_mutation_plan_approved")
+    assert data["snapshot_id"]
+    data.pop("snapshot_id")
+    with pytest.raises(V3ContractError):
+        GraphMutationPlan.from_dict(data)
+
+
+def test_plan_idempotency_keys_are_derived():
+    """H7 — declaradas == derivadas, o el plan no vale."""
+    plan = GraphMutationPlan.from_dict(doc("graph_mutation_plan_approved"))
+    assert plan.idempotency_keys() == plan.expected_idempotency_keys()
+
+
+def test_plan_is_verifiable_but_not_authenticated():
+    """H8 — hash correcto no es firma."""
+    plan = GraphMutationPlan.from_dict(doc("graph_mutation_plan_approved"))
+    assert plan.signature_is_intact() is True
+    assert plan.is_authenticated() is False
+    data = doc("graph_mutation_plan_approved")
+    data["local_approval"]["signature"] = "ed25519:" + "0" * 64
+    data["local_approval"]["key_id"] = "key:engine-local-1"
+    signed = GraphMutationPlan.from_dict(seal_plan(data))
+    assert signed.is_authenticated() is True
+
+
+def test_changing_approved_breaks_the_decision_hash_in_the_model():
+    """H9 — `approved` entra ahora en el hash de decision."""
+    data = doc("graph_mutation_plan_approved")
+    data["local_approval"]["approved"] = False
+    with pytest.raises(V3ContractError):
+        GraphMutationPlan.from_dict(data)
+
+
+def test_episode_speaker_turn_and_table_roundtrip():
+    """H12 y H16 — campos nuevos, mismo roundtrip exacto."""
+    audio = SourceEpisode.from_dict(doc("source_episode_audio"))
+    assert audio.speaker["speaker_id"] == "speaker:02" and audio.turn == 17
+    table = SourceEpisode.from_dict(doc("source_episode_table"))
+    assert table.table["header"] == ["Casa", "Sede", "Lema"]
+    assert SourceEpisode.from_json(table.to_json()) == table
+
+
+def test_htr_evidence_is_its_own_media_type():
+    """H11 — el manuscrito ya no tiene que disfrazarse de OCR."""
+    frag = EvidenceFragment.from_dict(doc("evidence_fragment_htr"))
+    assert frag.media_type == "HTR_TEXT"

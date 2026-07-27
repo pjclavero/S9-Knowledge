@@ -7,7 +7,7 @@
   "additionalProperties": false,
   "required": [
     "contract_id", "contract_version", "workspace", "source_asset_id", "source_hash",
-    "provider_trace", "episode_id", "asset_id", "sequence", "modality", "text",
+    "provider_trace", "produced_by_step", "episode_id", "asset_id", "sequence", "modality", "text",
     "page", "bbox", "time_start", "time_end", "previous_episode_id",
     "next_episode_id", "quality", "content_hash"
   ],
@@ -18,6 +18,10 @@
     "source_asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "source_hash": { "$ref": "_common-v3.schema.json#/$defs/hash" },
     "provider_trace": { "$ref": "_common-v3.schema.json#/$defs/provider_trace" },
+    "produced_by_step": {
+      "$ref": "_common-v3.schema.json#/$defs/stable_id",
+      "description": "Paso de `provider_trace` que produjo el CONTENIDO principal de este documento. Referencia explicita: la atribucion de proveedor no puede depender de heuristicas sobre `produced`, porque una traza mal adivinada convierte una salida externa en 'local' sin que nadie se entere."
+    },
 
     "episode_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
@@ -34,6 +38,27 @@
     "time_end": { "$ref": "_common-v3.schema.json#/$defs/seconds_or_null" },
     "previous_episode_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null" },
     "next_episode_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null" },
+    "speaker": {
+      "anyOf": [
+        { "$ref": "_common-v3.schema.json#/$defs/speaker" },
+        { "type": "null" }
+      ],
+      "description": "Opcional. Solo tiene sentido en modalidades con diarizacion (ASR_TEXT, SPEAKER_TURN, MESSAGE)."
+    },
+    "turn": {
+      "anyOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "null" }
+      ],
+      "description": "Indice del turno de habla dentro del asset. Distinto de `sequence`, que ordena TODOS los episodios."
+    },
+    "table": {
+      "anyOf": [
+        { "$ref": "_common-v3.schema.json#/$defs/table_data" },
+        { "type": "null" }
+      ],
+      "description": "Solo para modality=TABLE. Aplanar una tabla a texto pierde justamente lo que la hace una tabla."
+    },
     "quality": { "$ref": "_common-v3.schema.json#/$defs/quality" },
     "content_hash": {
       "$ref": "_common-v3.schema.json#/$defs/hash",

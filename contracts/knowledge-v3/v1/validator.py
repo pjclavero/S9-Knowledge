@@ -87,26 +87,68 @@ def sha256_hash(obj: Any) -> dict[str, str]:
 # --------------------------------------------------------------------------
 # Firma del GraphMutationPlan
 # --------------------------------------------------------------------------
-#: Campos que entran en el hash de decision. Cambiar el workspace, el source
-#: hash, las versiones, el perfil, las decisiones o las operaciones rompe la
-#: firma: es exactamente lo que el writer tiene que poder detectar.
+#: Campos de primer nivel que entran en el hash de decision. Cambiar el
+#: workspace, el source hash, el snapshot, las versiones, el perfil, la
+#: caducidad, las decisiones o las operaciones rompe la firma.
 DECISION_HASH_FIELDS = (
     "workspace",
     "source_asset_id",
     "source_hash",
+    "snapshot_id",
     "engine_version",
     "ontology_version",
     "game_profile",
     "collection_id",
+    "expires_at",
     "decisions",
     "mutation_operations",
 )
 
+#: Campos de `local_approval` que TAMBIEN entran. El writer los consume para
+#: decidir si aplica: si quedasen fuera del hash, cambiar `approved` de false a
+#: true no rompería nada.
+DECISION_HASH_APPROVAL_FIELDS = ("approved", "approved_by", "validator_chain")
+
+#: Campos que definen la IDENTIDAD LOGICA de una operacion. `operation_id` NO
+#: esta: la misma operacion calculada en dos planes distintos debe producir la
+#: misma clave de idempotencia, o reaplicar duplica.
+IDEMPOTENCY_KEY_FIELDS = (
+    "operation_type",
+    "decision_id",
+    "target_entity_id",
+    "assertion_id",
+    "payload",
+)
+
 
 def compute_decision_hash(plan: dict[str, Any]) -> dict[str, str]:
-    """Hash del cuerpo de decision del plan (ver DECISION_HASH_FIELDS)."""
-    body = {k: plan.get(k) for k in DECISION_HASH_FIELDS}
+    """Hash del cuerpo de decision del plan.
+
+    Cubre DECISION_HASH_FIELDS mas DECISION_HASH_APPROVAL_FIELDS de
+    `local_approval`. NO incluye `decision_hash` (seria circular).
+    """
+    approval = plan.get("local_approval")
+    body: dict[str, Any] = {k: plan.get(k) for k in DECISION_HASH_FIELDS}
+    body["local_approval"] = (
+        {k: approval.get(k) for k in DECISION_HASH_APPROVAL_FIELDS}
+        if isinstance(approval, dict)
+        else None
+    )
     return sha256_hash(body)
+
+
+def compute_idempotency_key(plan: dict[str, Any], operation: dict[str, Any]) -> str:
+    """Clave de idempotencia DERIVADA de la operacion, no inventada.
+
+    Se calcula sobre {workspace, snapshot_id} del plan mas la identidad logica
+    de la operacion. Deterministica y reproducible por el writer.
+    """
+    body = {
+        "workspace": plan.get("workspace"),
+        "snapshot_id": plan.get("snapshot_id"),
+        **{k: operation.get(k) for k in IDEMPOTENCY_KEY_FIELDS},
+    }
+    return "idem:sha256:" + sha256_hash(body)["value"]
 
 
 def compute_plan_hash(plan: dict[str, Any]) -> dict[str, str]:
@@ -119,13 +161,21 @@ def compute_plan_hash(plan: dict[str, Any]) -> dict[str, str]:
     return sha256_hash(body)
 
 
-def seal_plan(plan: dict[str, Any]) -> dict[str, Any]:
-    """Devuelve una COPIA del plan con `decision_hash` y `plan_hash` calculados.
+def seal_plan(plan: dict[str, Any], *, derive_keys: bool = True) -> dict[str, Any]:
+    """Devuelve una COPIA del plan con claves e hashes calculados.
 
-    No muta la entrada. El orden importa: primero la decision, despues el plan
-    completo (que ya incluye la decision sellada).
+    No muta la entrada. El orden importa: primero las claves de idempotencia,
+    luego la decision, y por ultimo el plan completo (que ya las incluye).
+
+    `derive_keys=False` sella sin recalcular las claves de idempotencia; sirve
+    para construir en los tests un plan con claves deliberadamente incorrectas
+    y comprobar que el validador lo rechaza.
     """
     sealed = deepcopy(plan)
+    if derive_keys:
+        for op in sealed.get("mutation_operations") or []:
+            if isinstance(op, dict):
+                op["idempotency_key"] = compute_idempotency_key(sealed, op)
     approval = sealed.get("local_approval")
     if isinstance(approval, dict):
         approval["decision_hash"] = compute_decision_hash(sealed)
@@ -186,6 +236,70 @@ def _find_sensitive(obj: Any, path: str = "") -> list[str]:
     return hits
 
 
+#: Mapa de las diez decisiones del dosier 11.7 al par (decision, reason_code)
+#: que las representa en el contrato. El contrato tiene CUATRO decisiones y un
+#: eje de razones: mantener diez valores de decision habria mezclado "que se
+#: decidio" con "por que", y el writer solo necesita lo primero.
+ENGINE_DECISION_MAP = {
+    "LOCAL_APPROVED": ("ACCEPT", "LOCAL_APPROVED"),
+    "LOCAL_APPROVED_WITH_WARNINGS": ("ACCEPT", "LOCAL_APPROVED_WITH_WARNINGS"),
+    "REVIEW_ENTITY": ("REVIEW", "REVIEW_ENTITY"),
+    "REVIEW_PREDICATE": ("REVIEW", "REVIEW_PREDICATE"),
+    "REVIEW_DIRECTION": ("REVIEW", "REVIEW_DIRECTION"),
+    "REVIEW_TEMPORALITY": ("REVIEW", "REVIEW_TEMPORALITY"),
+    "REVIEW_EVIDENCE": ("REVIEW", "REVIEW_EVIDENCE"),
+    "CONFLICT": ("REVIEW", "CONFLICT_WITH_EXISTING"),
+    "ABSTAIN": ("ABSTAIN", "INSUFFICIENT_EVIDENCE"),
+    "REJECT_INVALID": ("REJECT_INVALID", "ONTOLOGY_INCOMPATIBLE"),
+}
+
+#: Razones canonicas admisibles por decision. Cada decision del plan DEBE
+#: llevar al menos una: un `reason_codes` de texto libre convierte la
+#: trazabilidad del motor en prosa no agregable.
+CANONICAL_REASON_CODES = {
+    "ACCEPT": {"LOCAL_APPROVED", "LOCAL_APPROVED_WITH_WARNINGS"},
+    "REVIEW": {
+        "REVIEW_ENTITY", "REVIEW_PREDICATE", "REVIEW_DIRECTION",
+        "REVIEW_TEMPORALITY", "REVIEW_EVIDENCE", "CONFLICT_WITH_EXISTING",
+    },
+    "ABSTAIN": {"INSUFFICIENT_EVIDENCE", "AMBIGUOUS_SEMANTICS", "LOW_QUALITY_EPISODE"},
+    "REJECT_INVALID": {"ONTOLOGY_INCOMPATIBLE", "TYPE_INCOMPATIBLE", "DEMONSTRABLY_FALSE"},
+}
+
+
+#: Orden canonico de `direction` para desempatar. Sin un desempate TOTAL, dos
+#: candidatos con la misma confianza dejan la direccion elegida a merced del
+#: orden de llegada, y el pipeline deja de ser determinista.
+DIRECTION_ORDER = {"SUBJECT_TO_OBJECT": 0, "OBJECT_TO_SUBJECT": 1, "UNDIRECTED": 2}
+
+
+def predicate_sort_key(c: dict[str, Any]) -> tuple:
+    """Confianza descendente; empate por predicado alfabetico."""
+    return (-float(c["confidence"]), str(c["predicate"]))
+
+
+def direction_sort_key(c: dict[str, Any]) -> tuple:
+    """Confianza descendente; empate por el orden canonico del enum."""
+    return (-float(c["confidence"]), DIRECTION_ORDER.get(c["direction"], 99))
+
+
+def alternative_sort_key(a: dict[str, Any]) -> tuple:
+    """Confianza descendente; empate por predicado y despues por direccion."""
+    return (
+        -float(a["confidence"]),
+        str(a["predicate"]),
+        DIRECTION_ORDER.get(a["direction"], 99),
+    )
+
+
+def _check_total_order(items: list, key, label: str) -> None:
+    if list(items) != sorted(items, key=key):
+        raise ContractV3Error(
+            f"{label} no esta en el orden canonico (confianza descendente con "
+            "desempate determinista); sin orden total la eleccion no es reproducible"
+        )
+
+
 def _dupes(values: list[Any]) -> list[Any]:
     seen: set = set()
     out: list = []
@@ -220,6 +334,20 @@ def _check_provider_trace(doc: dict[str, Any]) -> None:
     dup = _dupes(steps)
     if dup:
         raise ContractV3Error(f"provider_trace con step duplicado: {sorted(set(dup))}")
+    produced_by = doc.get("produced_by_step")
+    if produced_by not in steps:
+        raise ContractV3Error(
+            f"produced_by_step={produced_by!r} no corresponde a ningun step de "
+            f"provider_trace {steps}: la atribucion de proveedor quedaria colgando"
+        )
+
+
+def producing_step(doc: dict[str, Any]) -> dict[str, Any]:
+    """Entrada de `provider_trace` senalada por `produced_by_step`."""
+    for entry in doc.get("provider_trace") or []:
+        if entry.get("step") == doc.get("produced_by_step"):
+            return entry
+    raise ContractV3Error("produced_by_step no resuelve a ningun paso de la traza")
 
 
 def _le(a, b) -> bool:
@@ -277,11 +405,9 @@ def _semantic_checks(doc: dict[str, Any]) -> None:  # noqa: C901 - un bloque por
 
     elif cid == "claim-proposal/v3-internal-v1":
         preds = doc["predicate_candidates"]
-        confs = [c["confidence"] for c in preds]
-        if confs != sorted(confs, reverse=True):
-            raise ContractV3Error(
-                "predicate_candidates debe ir ordenado por confianza descendente (determinismo)"
-            )
+        _check_total_order(preds, predicate_sort_key, "predicate_candidates")
+        _check_total_order(doc["direction_candidates"], direction_sort_key, "direction_candidates")
+        _check_total_order(doc["alternatives"], alternative_sort_key, "alternatives")
         if _dupes([c["predicate"] for c in preds]):
             raise ContractV3Error("predicate_candidates con predicado repetido")
         if _dupes([c["direction"] for c in doc["direction_candidates"]]):
@@ -302,6 +428,12 @@ def _semantic_checks(doc: dict[str, Any]) -> None:  # noqa: C901 - un bloque por
             raise ContractV3Error("LINK_EXISTING a una entidad que no estaba entre los candidatos")
         if action in ("CREATE_NEW", "CREATE_PROVISIONAL") and doc["selected_entity_id"] is not None:
             raise ContractV3Error(f"{action} no puede seleccionar una entidad existente")
+        if doc["assigned_entity_id"] is not None and doc["assigned_entity_id"] == doc["selected_entity_id"]:
+            raise ContractV3Error("assigned_entity_id no puede coincidir con selected_entity_id")
+        if doc["assigned_entity_id"] is not None and doc["assigned_entity_id"] in doc["candidate_entity_ids"]:
+            raise ContractV3Error(
+                "assigned_entity_id ya existe entre los candidatos: no se estaria creando nada"
+            )
         if action == "SPLIT":
             groups = doc.get("split_groups") or []
             flat = [m for g in groups for m in g]
@@ -320,6 +452,11 @@ def _semantic_checks(doc: dict[str, Any]) -> None:  # noqa: C901 - un bloque por
             raise ContractV3Error("superseded_by presente con status != SUPERSEDED")
         if doc["subject_entity_id"] == doc["object_entity_id"]:
             raise ContractV3Error("sujeto y objeto no pueden ser la misma entidad")
+        # `state` (eje temporal) y `valid_to` (vigencia) no pueden contradecirse.
+        if doc["state"] == "ACTIVE" and doc["valid_to"] is not None:
+            raise ContractV3Error("state=ACTIVE con valid_to cerrado")
+        if doc["state"] == "ENDED" and doc["valid_to"] is None:
+            raise ContractV3Error("state=ENDED sin valid_to: no se sabe cuando termino")
 
     elif cid == "graph-mutation-plan/v3-internal-v1":
         _check_plan(doc)
@@ -346,10 +483,36 @@ def _check_plan(doc: dict[str, Any]) -> None:
     dec_ids = [d["decision_id"] for d in decisions]
     if _dupes(dec_ids):
         raise ContractV3Error("decision_id duplicado")
+    for d in decisions:
+        allowed = CANONICAL_REASON_CODES[d["decision"]]
+        if not (set(d["reason_codes"]) & allowed):
+            raise ContractV3Error(
+                f"la decision {d['decision_id']} ({d['decision']}) no lleva ninguna "
+                f"razon canonica de {sorted(allowed)}: sin ella la decision del "
+                "dosier 11.7 no es reconstruible"
+            )
     if _dupes([o["operation_id"] for o in ops]):
         raise ContractV3Error("operation_id duplicado")
     if _dupes([o["idempotency_key"] for o in ops]):
         raise ContractV3Error("idempotency_key duplicada: el plan no seria idempotente")
+    for o in ops:
+        expected_key = compute_idempotency_key(doc, o)
+        if o["idempotency_key"] != expected_key:
+            raise ContractV3Error(
+                f"idempotency_key de {o['operation_id']} no deriva de la operacion "
+                "(workspace + snapshot + identidad logica): una clave inventada no "
+                "garantiza idempotencia entre planes"
+            )
+        creates = o["operation_type"] in ("CREATE_ENTITY", "CREATE_ASSERTION")
+        if not creates and (o["expected_version"] is None or o["expected_hash"] is None):
+            raise ContractV3Error(
+                f"{o['operation_id']} modifica algo existente sin expected_version/"
+                "expected_hash: no habria concurrencia optimista"
+            )
+        if creates and (o["expected_version"] is not None or o["expected_hash"] is not None):
+            raise ContractV3Error(
+                f"{o['operation_id']} crea algo nuevo pero declara estado previo esperado"
+            )
 
     by_id = {d["decision_id"]: d for d in decisions}
     for o in ops:

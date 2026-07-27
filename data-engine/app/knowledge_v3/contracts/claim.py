@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, ClassVar, Optional
 
-from .base import V3Document
+from .base import V3Document, producing_step
 
 
 class EpistemicStatusHint(str, Enum):
@@ -40,6 +40,7 @@ class ClaimProposal(V3Document):
     source_asset_id: str
     source_hash: dict
     provider_trace: list
+    produced_by_step: str
     claim_id: str
     episode_id: str
     subject_mentions: list
@@ -65,14 +66,22 @@ class ClaimProposal(V3Document):
         return self.predicate_candidates[0]["predicate"] if self.predicate_candidates else None
 
     def best_direction(self) -> str:
-        """Direccion mas probable; UNDIRECTED si el extractor no se moja."""
+        """Direccion elegida: la primera de la lista.
+
+        La lista esta obligada por contrato a ir en orden canonico (confianza
+        descendente, empate por el orden del enum), asi que tomar la primera es
+        determinista. `max()` NO lo era: con dos confianzas iguales devolvia la
+        que hubiese llegado antes.
+        """
         if not self.direction_candidates:
             return "UNDIRECTED"
-        return max(self.direction_candidates, key=lambda c: c["confidence"])["direction"]
+        return self.direction_candidates[0]["direction"]
 
-    def producing_provider(self) -> Optional[dict]:
-        """Ultima entrada de `provider_trace` que produjo el claim."""
-        for entry in reversed(self.provider_trace):
-            if any(p.startswith("claim") for p in entry.get("produced", [])):
-                return entry
-        return self.provider_trace[-1] if self.provider_trace else None
+    def producing_provider(self) -> dict:
+        """Entrada de `provider_trace` senalada por `produced_by_step`.
+
+        Referencia EXPLICITA, no heuristica sobre los nombres de `produced`:
+        adivinar el paso productor hacia que una salida externa acabase
+        etiquetada como local en cuanto la traza no dijese literalmente "claim".
+        """
+        return producing_step(self.to_dict())

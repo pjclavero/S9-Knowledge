@@ -22,6 +22,7 @@
     "allow_media_persistence": false,
     "retention_days": 90
   },
+  "produced_by_step": "ingest",
   "provider_trace": [
     {
       "model": null,

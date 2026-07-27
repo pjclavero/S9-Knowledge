@@ -7,10 +7,11 @@
   "additionalProperties": false,
   "required": [
     "contract_id", "contract_version", "workspace", "source_asset_id", "source_hash",
-    "provider_trace", "assertion_id", "subject_entity_id", "object_entity_id",
+    "provider_trace", "produced_by_step", "assertion_id", "subject_entity_id", "object_entity_id",
     "predicate", "direction", "valid_from", "valid_to", "recorded_at",
-    "epistemic_status", "confidence", "status", "collection_id", "game_profile",
-    "engine_version", "ontology_version", "evidence_fragment_ids", "episode_ids",
+    "epistemic_status", "confidence", "status", "state", "event_time",
+    "negated", "collection_id", "game_profile", "engine_version",
+    "ontology_version", "evidence_fragment_ids", "episode_ids",
     "supersedes", "superseded_by"
   ],
   "properties": {
@@ -20,6 +21,10 @@
     "source_asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "source_hash": { "$ref": "_common-v3.schema.json#/$defs/hash" },
     "provider_trace": { "$ref": "_common-v3.schema.json#/$defs/provider_trace" },
+    "produced_by_step": {
+      "$ref": "_common-v3.schema.json#/$defs/stable_id",
+      "description": "Paso de `provider_trace` que produjo el CONTENIDO principal de este documento. Referencia explicita: la atribucion de proveedor no puede depender de heuristicas sobre `produced`, porque una traza mal adivinada convierte una salida externa en 'local' sin que nadie se entere."
+    },
 
     "assertion_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "subject_entity_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
@@ -33,7 +38,17 @@
     "confidence": { "$ref": "_common-v3.schema.json#/$defs/confidence" },
     "status": {
       "type": "string",
+      "description": "Eje de CICLO DE VIDA en el ledger. Nada que ver con `state`, que es el eje temporal.",
       "enum": ["PROVISIONAL", "ASSERTED", "CONFIRMED", "LIMITED", "SUPERSEDED", "CONTRADICTED", "RETRACTED"]
+    },
+    "state": { "$ref": "_common-v3.schema.json#/$defs/assertion_state" },
+    "event_time": {
+      "$ref": "_common-v3.schema.json#/$defs/iso8601_utc_or_null",
+      "description": "Momento del HECHO narrado, distinto de valid_from/valid_to (vigencia) y de recorded_at (cuando lo supo el sistema)."
+    },
+    "calendar_id": {
+      "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null",
+      "description": "Calendario del mundo de juego en el que se expresan valid_from/valid_to/event_time."
     },
     "collection_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "game_profile": { "$ref": "_common-v3.schema.json#/$defs/game_profile" },
@@ -52,7 +67,10 @@
     },
     "supersedes": { "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null" },
     "superseded_by": { "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null" },
-    "negated": { "type": "boolean" },
+    "negated": {
+      "type": "boolean",
+      "description": "Obligatorio y explicito: la ausencia de negacion no puede quedar implicita en un contrato de hechos."
+    },
     "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" }
   },
   "allOf": [
@@ -63,6 +81,11 @@
         "properties": { "superseded_by": { "$ref": "_common-v3.schema.json#/$defs/stable_id" } },
         "required": ["superseded_by"]
       }
+    },
+    {
+      "$comment": "Un hecho planificado no puede estar ya terminado ni tener vigencia cerrada en el pasado del propio evento; la coherencia fina la comprueba el validador.",
+      "if": { "properties": { "state": { "const": "PLANNED" } }, "required": ["state"] },
+      "then": { "properties": { "status": { "not": { "const": "CONFIRMED" } } } }
     }
   ]
 }

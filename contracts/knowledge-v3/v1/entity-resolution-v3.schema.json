@@ -7,9 +7,9 @@
   "additionalProperties": false,
   "required": [
     "contract_id", "contract_version", "workspace", "source_asset_id", "source_hash",
-    "provider_trace", "resolution_id", "mention_ids", "candidate_entity_ids",
-    "selected_entity_id", "action", "confidence", "evidence", "reason_codes",
-    "game_profile"
+    "provider_trace", "produced_by_step", "resolution_id", "mention_ids", "candidate_entity_ids",
+    "selected_entity_id", "assigned_entity_id", "action", "entity_type",
+    "confidence", "evidence", "reason_codes", "game_profile"
   ],
   "properties": {
     "contract_id": { "const": "entity-resolution/v3-internal-v1" },
@@ -18,6 +18,10 @@
     "source_asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "source_hash": { "$ref": "_common-v3.schema.json#/$defs/hash" },
     "provider_trace": { "$ref": "_common-v3.schema.json#/$defs/provider_trace" },
+    "produced_by_step": {
+      "$ref": "_common-v3.schema.json#/$defs/stable_id",
+      "description": "Paso de `provider_trace` que produjo el CONTENIDO principal de este documento. Referencia explicita: la atribucion de proveedor no puede depender de heuristicas sobre `produced`, porque una traza mal adivinada convierte una salida externa en 'local' sin que nadie se entere."
+    },
 
     "resolution_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "mention_ids": {
@@ -29,12 +33,20 @@
       "type": "array",
       "items": { "$ref": "_common-v3.schema.json#/$defs/stable_id" }
     },
-    "selected_entity_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null" },
+    "selected_entity_id": {
+      "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null",
+      "description": "Entidad EXISTENTE con la que se enlaza. Null salvo en LINK_EXISTING."
+    },
+    "assigned_entity_id": {
+      "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null",
+      "description": "Identificador que el resolutor ASIGNA a la entidad nueva o provisional. Lo fija el resolutor, no una convencion de cadena aguas abajo: quien crea la identidad es quien la nombra."
+    },
     "action": {
       "type": "string",
       "enum": ["LINK_EXISTING", "CREATE_PROVISIONAL", "CREATE_NEW", "SPLIT", "REVIEW"]
     },
     "entity_type": {
+      "description": "Tipo resuelto, o null si la resolucion no se atreve a tipar. Obligatorio como CAMPO (puede ser null); no es opcional.",
       "anyOf": [
         { "$ref": "_common-v3.schema.json#/$defs/entity_type" },
         { "type": "null" }
@@ -65,6 +77,19 @@
     "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" }
   },
   "allOf": [
+    {
+      "$comment": "Crear entidad (nueva o provisional) exige declarar su identificador.",
+      "if": { "properties": { "action": { "enum": ["CREATE_NEW", "CREATE_PROVISIONAL"] } }, "required": ["action"] },
+      "then": {
+        "required": ["assigned_entity_id"],
+        "properties": { "assigned_entity_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" } }
+      }
+    },
+    {
+      "$comment": "Sin creacion no hay identificador asignado.",
+      "if": { "properties": { "action": { "enum": ["LINK_EXISTING", "SPLIT", "REVIEW"] } }, "required": ["action"] },
+      "then": { "properties": { "assigned_entity_id": { "type": "null" } } }
+    },
     {
       "$comment": "Enlazar con algo existente exige decir con que.",
       "if": { "properties": { "action": { "const": "LINK_EXISTING" } }, "required": ["action"] },

@@ -2,12 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://s9-knowledge/contracts/knowledge-v3/v1/graph-mutation-plan-v3.schema.json",
   "title": "graph-mutation-plan/v3-internal-v1",
-  "description": "UNICA entrada admisible del writer. Lo produce el motor local; ningun proveedor externo puede producirlo ni firmarlo. El writer no interpreta, no corrige, no consulta modelos: solo ejecuta un plan local valido, firmado, idempotente y con hash comprobable.",
+  "description": "UNICA entrada admisible del writer. VERIFICABLE, NO CONFIABLE: los hashes son sha256 sin clave, asi que detectan manipulacion accidental y desincronizacion, pero NO autentican al firmante — cualquiera que pueda reescribir el documento puede resellarlo. La garantia real de que solo el motor local firma la aporta la cadena de custodia (el plan no sale del proceso local) mas los campos reservados local_approval.signature/key_id, hoy sin usar. El writer no interpreta, no corrige, no consulta modelos: solo ejecuta un plan local valido, coherente e idempotente.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "contract_id", "contract_version", "workspace", "source_asset_id", "source_hash",
-    "provider_trace", "plan_id", "plan_hash", "engine_version", "ontology_version",
+    "provider_trace", "produced_by_step", "plan_id", "plan_hash", "snapshot_id", "engine_version", "ontology_version",
     "game_profile", "collection_id", "created_at", "expires_at", "decisions",
     "mutation_operations", "local_approval"
   ],
@@ -18,11 +18,19 @@
     "source_asset_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "source_hash": { "$ref": "_common-v3.schema.json#/$defs/hash" },
     "provider_trace": { "$ref": "_common-v3.schema.json#/$defs/provider_trace" },
+    "produced_by_step": {
+      "$ref": "_common-v3.schema.json#/$defs/stable_id",
+      "description": "Paso de `provider_trace` que produjo el CONTENIDO principal de este documento. Referencia explicita: la atribucion de proveedor no puede depender de heuristicas sobre `produced`, porque una traza mal adivinada convierte una salida externa en 'local' sin que nadie se entere."
+    },
 
     "plan_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
     "plan_hash": {
       "$ref": "_common-v3.schema.json#/$defs/hash",
       "description": "sha256 del JSON canonico del plan SIN este campo. Cualquier modificacion posterior (workspace, source_hash, operacion, decision) lo invalida."
+    },
+    "snapshot_id": {
+      "$ref": "_common-v3.schema.json#/$defs/stable_id",
+      "description": "Ancla del estado del grafo sobre el que se calculo el plan. Sin ella, `expected_state` es una afirmacion sobre un grafo que ya no se sabe cual era, y dos planes concurrentes no se pueden ordenar."
     },
     "engine_version": { "type": "string", "minLength": 1, "maxLength": 64 },
     "ontology_version": { "type": "string", "minLength": 1, "maxLength": 64 },
@@ -112,7 +120,7 @@
     "mutation_operation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["operation_id", "operation_type", "decision_id", "payload", "evidence_fragment_ids", "idempotency_key", "expected_state"],
+      "required": ["operation_id", "operation_type", "decision_id", "payload", "evidence_fragment_ids", "idempotency_key", "expected_state", "expected_version", "expected_hash"],
       "properties": {
         "operation_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
         "operation_type": {
@@ -133,8 +141,20 @@
           "items": { "$ref": "_common-v3.schema.json#/$defs/stable_id" }
         },
         "idempotency_key": {
-          "$ref": "_common-v3.schema.json#/$defs/stable_id",
-          "description": "Unica dentro del plan. Reaplicar el plan no puede duplicar nada."
+          "type": "string",
+          "pattern": "^idem:sha256:[0-9a-f]{64}$",
+          "description": "DERIVADA, no inventada: sha256 del JSON canonico de {workspace, snapshot_id, operation_type, decision_id, target_entity_id, assertion_id, payload}. `operation_id` queda FUERA a proposito, para que la misma operacion logica calculada en dos planes distintos produzca la MISMA clave y el segundo apply sea un no-op. El validador recalcula y compara."
+        },
+        "expected_version": {
+          "anyOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "null" }
+          ],
+          "description": "Version del nodo/arista destino esperada en el snapshot (concurrencia optimista). Null solo cuando la operacion crea algo que aun no existe."
+        },
+        "expected_hash": {
+          "$ref": "_common-v3.schema.json#/$defs/hash_or_null",
+          "description": "Hash del estado destino esperado en el snapshot. Null solo en creaciones."
         },
         "expected_state": {
           "type": "string",
@@ -144,9 +164,10 @@
     },
     "local_approval": {
       "type": "object",
-      "description": "Firma local. approved_by.provider es SIEMPRE 'local': un plan firmado por ollama o por un proveedor externo es invalido por contrato, no por politica.",
+      "description": "Aprobacion local. `approved_by.provider` es SIEMPRE 'local'; eso hace INVALIDO un plan que se declare firmado por ollama o por un externo, pero no impide que un atacante con acceso de escritura al documento se declare 'local' y reselle. Autenticar exige `signature`/`key_id`, hoy reservados y sin usar.",
       "additionalProperties": false,
       "required": ["approved", "decision_hash", "validator_chain", "created_at", "approved_by"],
+      "$comment": "signature y key_id quedan RESERVADOS para firma criptografica real. Mientras esten ausentes, el plan es verificable pero no autenticado, y asi debe describirse.",
       "properties": {
         "approved": { "type": "boolean" },
         "decision_hash": {
@@ -169,6 +190,20 @@
           }
         },
         "created_at": { "$ref": "_common-v3.schema.json#/$defs/iso8601_utc" },
+        "signature": {
+          "anyOf": [
+            { "type": "string", "minLength": 1, "maxLength": 1024 },
+            { "type": "null" }
+          ],
+          "description": "RESERVADO para firma criptografica (p.ej. Ed25519 sobre el decision_hash). Opcional hoy; el hueco se abre AHORA para no tener que romper el contrato congelado cuando exista clave."
+        },
+        "key_id": {
+          "anyOf": [
+            { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+            { "type": "null" }
+          ],
+          "description": "RESERVADO: identificador de la clave que produjo `signature`. Nunca la clave en si."
+        },
         "approved_by": {
           "type": "object",
           "additionalProperties": false,

@@ -34,6 +34,7 @@ class EvidenceFragment(V3Document):
     source_asset_id: str
     source_hash: dict
     provider_trace: list
+    produced_by_step: str
     fragment_id: str
     episode_id: str
     literal_text: str
