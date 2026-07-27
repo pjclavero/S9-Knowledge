@@ -226,9 +226,8 @@ payload = {
 }
 ```
 
-**Nota crítica para el rediseño:** el arnés **deriva las entidades del ground truth**. Es
-decir, **el extractor de entidades real nunca se ha medido**. Un motor nuevo que además
-extraiga entidades se enfrenta a un problema no evaluado hoy.
+**Nota crítica para el rediseño:** el arnés de relaciones **deriva las entidades del ground
+truth**, es decir, **le regala entidades perfectas al motor**. Ver §6.6.
 
 ### 6.4. Consumidores aguas abajo
 
@@ -236,6 +235,39 @@ extraiga entidades se enfrenta a un problema no evaluado hoy.
 - `relations/benchmark/` — el arnés (**único**, no crear otro).
 - `relations/consensus_adapter.py`, `ensemble.py`, `review_policy.py` — decisión y
   clasificación para revisión humana.
+
+### 6.6. El extractor de entidades: medido por separado, NUNCA en cadena
+
+Corrección importante respecto a una afirmación inicial de este informe: **el extractor de
+entidades SÍ se ha medido**, y con mejor metodología que los corpus de relaciones.
+
+- **Arnés propio:** `data-engine/app/cli/extractor_benchmark.py`
+- **Corpus propio, en el repositorio:** `tests/fixtures/benchmark/` — 7 fuentes (manual,
+  narrativa, notas, resolución, transcripción ASR, transcripción limpia, sesión), cada una
+  con `ground-truth.json` y `segments.classified.json`
+- **Ground truth con `annotation_pass=2, reviewed=true`** — **doble pase**, frente al pase
+  único de H1 y H2
+- **Resultados:** `docs/33`–`36`
+
+| Modo | P ent | R ent | F1 ent | Veredicto |
+|---|--:|--:|--:|---|
+| heurístico | 0.636 | 0.755 | 0.689 | FAIL |
+| llm | **0.810** | 0.655 | 0.718 | FAIL |
+| híbrido | 0.634 | **0.856** | **0.728** | FAIL |
+
+Umbrales: P ≥ 0.85 · R ≥ 0.70 · F1 ≥ 0.75. **Ningún modo los alcanza.**
+
+**Lo que de verdad no se ha medido nunca es la CADENA COMPLETA.** El arnés de relaciones
+sustituye la extracción real por entidades derivadas del ground truth. En consecuencia:
+
+> **El 0.2391 de predicado sobre material real es una COTA OPTIMISTA.** Se obtiene
+> suponiendo entidades perfectas. Con entidades reales a F1 0.69–0.73, el resultado de
+> extremo a extremo es necesariamente peor. Cuánto peor, **está sin medir**.
+
+**Es medible sin construir nada nuevo:** basta alimentar el arnés de relaciones con la
+salida real del extractor en lugar de con las entidades derivadas. Ambos arneses y ambos
+corpus ya existen. Debería ser de las primeras cosas que haga un rediseño, porque fija el
+verdadero punto de partida.
 
 ### 6.5. Invariantes innegociables del sistema
 
@@ -282,7 +314,10 @@ todo el motor v2 se fusionó a `main` sin cambiar el comportamiento de nada.
 2. **No entrenar nada con 54 relaciones.** Y no volver a usar el corpus de desarrollo como
    evidencia de generalización.
 3. **Atacar `pair_F1` y las simétricas**: sin par no hay relación posible.
-4. **Medir el extractor de entidades**, hoy no evaluado.
+4. **Medir la CADENA COMPLETA** (extracción real de entidades → relaciones), hoy nunca
+   evaluada. El extractor por separado ya está medido y **suspende** sus umbrales
+   (F1 0.69–0.73); las cifras de relaciones suponen entidades perfectas y por tanto son
+   optimistas.
 5. **Revisar los vetos en cascada**: hoy producen abstención del 100 % en material real.
 6. **No promocionar el camino de rechazo** hasta que la precisión de negación supere el
    0.4444 actual: ya está generando 4 rechazos falsos sobre material real.
