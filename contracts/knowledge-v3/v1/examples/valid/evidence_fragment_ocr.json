@@ -1,0 +1,43 @@
+{
+  "bbox": {
+    "height": 0.05,
+    "page": 13,
+    "width": 0.31,
+    "x": 0.12,
+    "y": 0.08
+  },
+  "confidence": 0.88,
+  "contract_id": "evidence-fragment/v3-internal-v1",
+  "contract_version": "1.0.0",
+  "end": 15,
+  "episode_id": "episode:manual-001:p13",
+  "fragment_id": "fragment:p13:ocr:0",
+  "frame_id": null,
+  "literal_text": "CASA DEL CIERVO",
+  "media_type": "OCR_TEXT",
+  "normalized_text": "casa del ciervo",
+  "page": 13,
+  "produced_by_step": "ocr",
+  "provider_trace": [
+    {
+      "model": null,
+      "name": "s9k.knowledge_v3",
+      "produced": [
+        "literal_text",
+        "bbox"
+      ],
+      "provider": "local",
+      "step": "ocr",
+      "version": "3.0.0"
+    }
+  ],
+  "source_asset_id": "asset:manual-001",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "a900b2ece307794d62690e1ffbe35853112ebbdef8fe18061b62f896d38f23a2"
+  },
+  "start": 0,
+  "time_end": null,
+  "time_start": null,
+  "workspace": "leyenda"
+}

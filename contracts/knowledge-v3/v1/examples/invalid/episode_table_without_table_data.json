@@ -1,0 +1,52 @@
+{
+  "asset_id": "asset:manual-001",
+  "bbox": {
+    "height": 0.4,
+    "page": 31,
+    "width": 0.8,
+    "x": 0.1,
+    "y": 0.2
+  },
+  "content_hash": {
+    "algorithm": "sha256",
+    "value": "c45e49df47599b8bb61f6d052f37eb11896b2200a45fd9284da56943d30c81db"
+  },
+  "contract_id": "source-episode/v3-internal-v1",
+  "contract_version": "1.0.0",
+  "episode_id": "episode:manual-001:p31:t0",
+  "modality": "TABLE",
+  "next_episode_id": null,
+  "page": 31,
+  "previous_episode_id": null,
+  "produced_by_step": "pdf.tables",
+  "provider_trace": [
+    {
+      "model": null,
+      "name": "s9k.knowledge_v3",
+      "produced": [
+        "table",
+        "content_hash"
+      ],
+      "provider": "local",
+      "step": "pdf.tables",
+      "version": "3.0.0"
+    }
+  ],
+  "quality": {
+    "flags": [],
+    "score": 0.83
+  },
+  "sequence": 31,
+  "source_asset_id": "asset:manual-001",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "a900b2ece307794d62690e1ffbe35853112ebbdef8fe18061b62f896d38f23a2"
+  },
+  "speaker": null,
+  "table": null,
+  "text": null,
+  "time_end": null,
+  "time_start": null,
+  "turn": null,
+  "workspace": "leyenda"
+}

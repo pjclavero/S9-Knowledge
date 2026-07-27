@@ -1,0 +1,61 @@
+{
+  "bbox": null,
+  "confidence": 0.91,
+  "contract_id": "entity-mention/v3-internal-v1",
+  "contract_version": "1.0.0",
+  "coreference_candidates": [
+    "mention:p12:0"
+  ],
+  "end": 5,
+  "episode_id": "episode:manual-001:p12",
+  "evidence_fragment_ids": [
+    "fragment:p12:0"
+  ],
+  "mention_id": "mention:p12:0",
+  "normalized_surface": "daiki",
+  "produced_by_step": "ner.llm",
+  "provider_trace": [
+    {
+      "model": null,
+      "name": "s9k.knowledge_v3",
+      "produced": [
+        "surface",
+        "start",
+        "end"
+      ],
+      "provider": "local",
+      "step": "ner.deterministic",
+      "version": "3.0.0"
+    },
+    {
+      "model": "qwen2.5:7b",
+      "name": "s9k.extractor.ollama",
+      "produced": [
+        "type_candidates"
+      ],
+      "provider": "ollama",
+      "step": "ner.llm",
+      "version": "3.0.0"
+    }
+  ],
+  "source_asset_id": "asset:manual-001",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "a900b2ece307794d62690e1ffbe35853112ebbdef8fe18061b62f896d38f23a2"
+  },
+  "start": 0,
+  "surface": "Daiki",
+  "time_end": null,
+  "time_start": null,
+  "type_candidates": [
+    {
+      "confidence": 0.91,
+      "type": "Character"
+    },
+    {
+      "confidence": 0.04,
+      "type": "Concept"
+    }
+  ],
+  "workspace": "leyenda"
+}

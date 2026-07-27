@@ -1,0 +1,82 @@
+{
+  "abstained": false,
+  "alternatives": [
+    {
+      "confidence": 0.21,
+      "direction": "UNDIRECTED",
+      "predicate": "ALLY_OF",
+      "reason_codes": [
+        "LEXICAL_AMBIGUITY"
+      ]
+    }
+  ],
+  "claim_id": "claim:p12:0",
+  "confidence": 0.62,
+  "contract_id": "claim-proposal/v3-internal-v1",
+  "contract_version": "1.0.0",
+  "direction_candidates": [
+    {
+      "confidence": 0.88,
+      "direction": "SUBJECT_TO_OBJECT"
+    }
+  ],
+  "episode_id": "episode:manual-001:p12",
+  "epistemic_cues": [
+    "jamas"
+  ],
+  "epistemic_status_hint": "ASSERTED",
+  "evidence_fragment_ids": [
+    "fragment:p12:0"
+  ],
+  "negated": true,
+  "object_mentions": [
+    "mention:p12:0"
+  ],
+  "predicate_candidates": [
+    {
+      "confidence": 0.62,
+      "predicate": "MEMBER_OF"
+    },
+    {
+      "confidence": 0.21,
+      "predicate": "ALLY_OF"
+    }
+  ],
+  "produced_by_step": "extract.claims",
+  "provider_trace": [
+    {
+      "model": null,
+      "name": "s9k.knowledge_v3",
+      "produced": [
+        "evidence_fragment_ids"
+      ],
+      "provider": "local",
+      "step": "anchor",
+      "version": "3.0.0"
+    },
+    {
+      "model": "qwen2.5:7b",
+      "name": "s9k.extractor.ollama",
+      "produced": [
+        "claim",
+        "predicate_candidates"
+      ],
+      "provider": "ollama",
+      "step": "extract.claims",
+      "version": "3.0.0"
+    }
+  ],
+  "qualifiers": [],
+  "relation_phrase": "jamas juro lealtad a",
+  "review_required": true,
+  "source_asset_id": "asset:manual-001",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "a900b2ece307794d62690e1ffbe35853112ebbdef8fe18061b62f896d38f23a2"
+  },
+  "subject_mentions": [
+    "mention:p12:0"
+  ],
+  "temporal_expressions": [],
+  "workspace": "leyenda"
+}

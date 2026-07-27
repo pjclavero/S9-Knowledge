@@ -1,0 +1,58 @@
+{
+  "asset_id": "asset:sesion-2026-05-11",
+  "bbox": null,
+  "content_hash": {
+    "algorithm": "sha256",
+    "value": "650410a810fbd42d581638ebc6a76394fb469c8166ae9aef64480baef47f6dd5"
+  },
+  "contract_id": "source-episode/v3-internal-v1",
+  "contract_version": "1.0.0",
+  "episode_id": "episode:sesion-2026-05-11:t0042",
+  "modality": "SPEAKER_TURN",
+  "next_episode_id": null,
+  "page": null,
+  "previous_episode_id": "episode:sesion-2026-05-11:t0041",
+  "produced_by_step": "asr",
+  "provider_trace": [
+    {
+      "model": null,
+      "name": "s9k.knowledge_v3",
+      "produced": [
+        "time_start",
+        "time_end"
+      ],
+      "provider": "local",
+      "step": "vad",
+      "version": "3.0.0"
+    },
+    {
+      "model": null,
+      "name": "s9k.knowledge_v3",
+      "produced": [
+        "text"
+      ],
+      "provider": "local",
+      "step": "asr",
+      "version": "3.0.0"
+    }
+  ],
+  "quality": {
+    "flags": [
+      "LOW_SNR"
+    ],
+    "score": 0.61
+  },
+  "sequence": 42,
+  "source_asset_id": "asset:sesion-2026-05-11",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "9cb4452782d2d14ccd1a1664e46bc3d96e12f93588e166dee4df965cfe2a1692"
+  },
+  "speaker": null,
+  "table": null,
+  "text": "el magistrado nunca juro lealtad al consejo",
+  "time_end": 1291.25,
+  "time_start": 1284.5,
+  "turn": 17,
+  "workspace": "leyenda"
+}

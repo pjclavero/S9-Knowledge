@@ -1,0 +1,46 @@
+{
+  "action": "LINK_EXISTING",
+  "assigned_entity_id": null,
+  "candidate_entity_ids": [
+    "entity:daiki",
+    "entity:daiqui"
+  ],
+  "confidence": 0.84,
+  "contract_id": "entity-resolution/v3-internal-v1",
+  "contract_version": "1.0.0",
+  "entity_type": "Character",
+  "evidence": [
+    "fragment:p12:0"
+  ],
+  "game_profile": "generic",
+  "mention_ids": [
+    "mention:p12:0",
+    "mention:p12:3"
+  ],
+  "produced_by_step": "resolve.identity",
+  "provider_trace": [
+    {
+      "model": null,
+      "name": "s9k.knowledge_v3",
+      "produced": [
+        "action",
+        "selected_entity_id"
+      ],
+      "provider": "local",
+      "step": "resolve.identity",
+      "version": "3.0.0"
+    }
+  ],
+  "reason_codes": [
+    "EXACT_ALIAS",
+    "TYPE_COMPATIBLE"
+  ],
+  "resolution_id": "resolution:daiki",
+  "selected_entity_id": "entity:desconocida",
+  "source_asset_id": "asset:manual-001",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "a900b2ece307794d62690e1ffbe35853112ebbdef8fe18061b62f896d38f23a2"
+  },
+  "workspace": "leyenda"
+}
