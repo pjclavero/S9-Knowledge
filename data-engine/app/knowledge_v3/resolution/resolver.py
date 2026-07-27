@@ -141,6 +141,38 @@ class EntityResolver:
             decision=decision,
         )
 
+    def ingest_decision(self, resolution: EntityResolution, *, surfaces: Sequence[str]) -> int:
+        """Incorpora al historial una decision tomada FUERA de este resolutor.
+
+        Es la puerta por la que entra una resolucion de revision humana o de un
+        bloque de integracion. Devuelve cuantas superficies se han indexado.
+
+        RECHAZA `SPLIT` (decision del organizador): la particion de un grupo de
+        menciones queda reservada al flujo de revision humana en integracion.
+        Ni este resolutor ni el extractor la emiten en esta ola, y aceptarla
+        aqui seria fingir que se sabe que hacer con ella — un `SPLIT` reparte
+        las menciones en varios grupos, y este historial indexa una identidad
+        por superficie, no varias.
+        """
+        if resolution.action == "SPLIT":
+            raise ResolutionInputError(
+                "SPLIT esta reservado al flujo de revision humana en integracion; "
+                "este resolutor no lo emite ni lo acepta"
+            )
+        entity_id = resolution.entity_id()
+        if entity_id is None:
+            return 0
+        return self.history.record(
+            workspace=resolution.workspace,
+            surfaces=surfaces,
+            entity_id=entity_id,
+            entity_type=resolution.entity_type,
+            action=resolution.action,
+            confidence=resolution.confidence,
+            resolution_id=resolution.resolution_id,
+            min_confidence=self.config.history_min_confidence,
+        )
+
     def resolve_all(
         self, requests: Iterable[ResolutionRequest]
     ) -> tuple[ResolutionOutcome, ...]:
@@ -359,6 +391,10 @@ def _trace_metadata(result: _cascade.CascadeResult, ctx: CascadeContext) -> dict
                     "reason_codes": list(c.reason_codes),
                     "type_conflict": c.type_conflict,
                     "from_history": c.from_history,
+                    # Confianza de la decision ORIGINAL cuando este candidato
+                    # solo se sostiene por el historial. Es lo que impide que un
+                    # eco de una duda se lea como una certeza (docs §10, H3).
+                    "inherited_confidence": c.inherited_confidence,
                 }
                 for c in result.candidates
             ],

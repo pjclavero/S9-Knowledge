@@ -160,6 +160,23 @@ class TestSimilitud:
         cfg = DEFAULT_CONFIG
         assert cfg.similarity_weight < cfg.link_min_score
 
+    def test_similitud_mas_contexto_si_puede_enlazar(self):
+        """"Nunca enlaza SOLA" no es "nunca enlaza": con el contexto, sí.
+
+        Cifras medidas: base 0.756 (similitud), 0.786 con el bonus de tipo —
+        `REVIEW` —, y 0.906 si la entidad ya está en el contexto del episodio.
+        Dos señales independientes valen más que una; ese es el diseño.
+        """
+        cat = InMemoryEntityCatalog(
+            [CatalogEntity("entity:kobayashi", WS, "Character", "Kobayashi Ryu")]
+        )
+        res = resolver(catalog=cat, glossary=NullGlossarySource())
+        sin_ctx = resolve(res, "Kobayashy Ryu")
+        con_ctx = resolve(res, "Kobayashy Ryu", context_entity_ids=("entity:kobayashi",))
+        assert sin_ctx.action == "REVIEW"
+        assert con_ctx.action == "LINK_EXISTING"
+        assert con_ctx.candidates[0].base_score < DEFAULT_CONFIG.link_min_score
+
     def test_null_similarity_es_ablacion_limpia(self):
         assert NullSimilarity().score("Daiki", "Daiki") == 0.0
 
@@ -392,12 +409,17 @@ class TestConfiguracion:
 # 8. Cascada y decision
 # ==========================================================================
 class TestCascada:
-    def test_exact_enlaza_y_cortocircuita(self):
+    def test_exact_enlaza(self):
         out = resolve(resolver(), "Daiki")
         assert out.action == "LINK_EXISTING"
         assert out.resolution.selected_entity_id == "entity:daiki"
-        assert out.steps_run == ("exact",), "un match exacto unico no debe seguir mirando"
         assert "EXACT_NAME" in out.resolution.reason_codes
+
+    def test_por_defecto_la_cascada_se_recorre_entera(self):
+        """El cortocircuito NO es el defecto: no es neutro (ver TestCortocircuito)."""
+        out = resolve(resolver(), "Daiki")
+        assert out.steps_run == ("exact", "history", "alias", "glossary", "similarity")
+        assert out.short_circuited is False
 
     def test_alias_enlaza(self):
         out = resolve(resolver(), "El Magistrado")
@@ -593,8 +615,15 @@ class TestHistorialEnCascada:
         assert second.resolution.selected_entity_id == first.resolution.assigned_entity_id
         assert "HISTORY_SESSION" in second.resolution.reason_codes
 
-    def test_el_historial_abarata_la_cascada(self):
-        res = resolver(catalog=InMemoryEntityCatalog(), glossary=NullGlossarySource())
+    def test_el_historial_abarata_la_cascada_solo_con_cortocircuito(self):
+        """El ahorro existe, pero hay que pedirlo: `short_circuit=True`.
+
+        Con la configuracion por defecto la cascada se recorre entera aunque el
+        historial ya sepa la respuesta. Es el precio de que el cortocircuito no
+        sea neutro (H4): se prefiere pagar coste a cambiar decisiones.
+        """
+        res = resolver(catalog=InMemoryEntityCatalog(), glossary=NullGlossarySource(),
+                       config=ResolutionConfig(short_circuit=True))
         first = resolve(res, "Ilya Petrovna", confidence=0.95, record_history=True)
         second = resolve(res, "Ilya Petrovna", mention_id="mention:2", confidence=0.95)
         assert "similarity" in first.steps_run
@@ -611,13 +640,21 @@ class TestHistorialEnCascada:
         assert second.resolution.selected_entity_id == first.resolution.assigned_entity_id
 
     def test_el_historial_no_pisa_un_match_exacto(self):
-        """La cascada corre `exact` ANTES que `history`, y por eso el orden importa."""
+        """Un historial rancio no gana al nombre canonico... pero tampoco se ignora.
+
+        `exact` (1.03 con bonus de tipo) sigue por delante de `history` (1.00),
+        asi que la identidad correcta encabeza el ranking. Ahora bien: 0.03 de
+        margen esta por debajo de `ambiguity_margin`, y eso es exactamente una
+        ambiguedad. La respuesta honesta es `REVIEW`, no elegir en silencio.
+        """
         h = ResolutionHistory()
         h.record(workspace=WS, surfaces=["Daiki"], entity_id="entity:kaede-a",
                  entity_type="Character", action="LINK_EXISTING", confidence=0.99,
                  resolution_id="resolution:viejo")
         out = resolve(resolver(history=h), "Daiki")
-        assert out.resolution.selected_entity_id == "entity:daiki"
+        assert out.candidates[0].entity_id == "entity:daiki"
+        assert out.action == "REVIEW"
+        assert "AMBIGUOUS_CANDIDATES" in out.resolution.reason_codes
 
     def test_el_historial_no_oculta_un_conflicto_de_tipos(self):
         h = ResolutionHistory()
@@ -794,13 +831,11 @@ class TestContratoEmitido:
 # 14. Ablaciones de configuracion
 # ==========================================================================
 class TestAblaciones:
-    def test_sin_cortocircuito_el_resultado_no_cambia(self):
-        """El cortocircuito es una optimizacion de COSTE, no de resultado."""
-        con = resolve(resolver(), "Daiki")
-        sin = resolve(resolver(config=ResolutionConfig(short_circuit=False)), "Daiki")
-        assert con.resolution.action == sin.resolution.action
-        assert con.resolution.selected_entity_id == sin.resolution.selected_entity_id
-        assert len(sin.steps_run) > len(con.steps_run)
+    def test_el_cortocircuito_ahorra_pasos_cuando_no_hay_rival(self):
+        con = resolve(resolver(config=ResolutionConfig(short_circuit=True)), "Daiki")
+        sin = resolve(resolver(), "Daiki")
+        assert con.resolution.action == sin.resolution.action == "LINK_EXISTING"
+        assert len(con.steps_run) < len(sin.steps_run)
 
     def test_umbral_de_enlace_mas_estricto_manda_a_revision(self):
         cfg = ResolutionConfig(link_min_score=0.999, review_min_score=0.5)
@@ -822,3 +857,148 @@ class TestAblaciones:
         cfg = ResolutionConfig(step_order=("history", "exact", "alias", "glossary", "similarity"))
         out = resolve(resolver(config=cfg), "Daiki")
         assert out.resolution.selected_entity_id == "entity:daiki"
+
+
+# ==========================================================================
+# 15. Cortocircuito — H4: NO es neutro, y se prueba que no lo es
+# ==========================================================================
+class TestCortocircuito:
+    """El cortocircuito cambia decisiones. Está desactivado por defecto y aquí
+    se documenta ejecutablemente en qué caso cambia y hacia dónde."""
+
+    def _con_rival_de_historial(self, short_circuit: bool):
+        h = ResolutionHistory()
+        h.record(workspace=WS, surfaces=["Kaede"], entity_id="entity:kaede-a",
+                 entity_type="Character", action="LINK_EXISTING", confidence=0.99,
+                 resolution_id="resolution:previa")
+        res = resolver(history=h, config=ResolutionConfig(short_circuit=short_circuit))
+        return resolve(res, "Kaede")
+
+    def test_cortar_convierte_una_ambiguedad_en_un_enlace(self):
+        """El caso concreto que obligó a desactivarlo por defecto.
+
+        Con corte, el historial (0.97) gana y la cascada nunca llega a `alias`,
+        donde esperaba `entity:kaede-b` a 0.95. Sin corte, esos 0.02 de margen
+        son una ambigüedad y la respuesta es `REVIEW`.
+        """
+        cortado = self._con_rival_de_historial(True)
+        entero = self._con_rival_de_historial(False)
+        assert cortado.action == "LINK_EXISTING"
+        assert entero.action == "REVIEW"
+        assert cortado.steps_run == ("exact", "history")
+        assert entero.steps_run == ("exact", "history", "alias", "glossary", "similarity")
+
+    def test_el_defecto_es_la_variante_conservadora(self):
+        assert DEFAULT_CONFIG.short_circuit is False
+        assert self._con_rival_de_historial(DEFAULT_CONFIG.short_circuit).action == "REVIEW"
+
+    def test_no_corta_cuando_ya_hay_dos_candidatos(self):
+        res = resolver(config=ResolutionConfig(short_circuit=True))
+        out = resolve(res, "Kaede")
+        assert out.short_circuited is False
+        assert out.action == "REVIEW"
+
+
+# ==========================================================================
+# 16. H3/H7 — confianza heredada y procedencia del historial
+# ==========================================================================
+class TestConfianzaHeredada:
+    def _dos_menciones_de_una_provisional(self):
+        res = resolver(catalog=InMemoryEntityCatalog(), glossary=NullGlossarySource())
+        primera = resolve(res, "Consejo Umbra", types=(("Faction", 0.45),),
+                          confidence=0.45, record_history=True)
+        segunda = resolve(res, "Consejo Umbra", mention_id="mention:2",
+                          types=(("Faction", 0.45),), confidence=0.45)
+        return primera, segunda
+
+    def test_una_duda_heredada_no_se_convierte_en_certeza(self):
+        """H3: sin esto, el eco de una provisional de 0.45 salía con 1.00."""
+        primera, segunda = self._dos_menciones_de_una_provisional()
+        assert primera.action == "CREATE_PROVISIONAL"
+        assert segunda.action == "LINK_EXISTING"
+        assert segunda.resolution.confidence == primera.resolution.confidence == 0.45
+        assert "INHERITED_CONFIDENCE" in segunda.resolution.reason_codes
+
+    def test_la_identidad_si_se_hereda_solo_la_certeza_no(self):
+        primera, segunda = self._dos_menciones_de_una_provisional()
+        assert segunda.resolution.selected_entity_id == primera.resolution.assigned_entity_id
+
+    def test_el_contrato_delata_el_enlace_por_historial(self):
+        """H7: `FROM_HISTORY` marca las identidades que el catálogo no conoce."""
+        _, segunda = self._dos_menciones_de_una_provisional()
+        assert "FROM_HISTORY" in segunda.resolution.reason_codes
+        assert "HISTORY_SESSION" in segunda.resolution.reason_codes
+        candidato = segunda.resolution.metadata["cascade"]["candidates"][0]
+        assert candidato["from_history"] is True
+        assert candidato["inherited_confidence"] == 0.45
+
+    def test_no_se_rebaja_lo_que_el_presente_sostiene_por_si_solo(self):
+        """Si el nombre exacto también coincide, no hay nada que heredar."""
+        h = ResolutionHistory()
+        h.record(workspace=WS, surfaces=["Daiki"], entity_id="entity:daiki",
+                 entity_type="Character", action="CREATE_PROVISIONAL", confidence=0.41,
+                 resolution_id="resolution:previa")
+        out = resolve(resolver(history=h), "Daiki")
+        assert out.action == "LINK_EXISTING"
+        assert out.resolution.confidence == 1.0
+        assert "INHERITED_CONFIDENCE" not in out.resolution.reason_codes
+
+
+# ==========================================================================
+# 17. H5 — colisión del identificador derivado
+# ==========================================================================
+class TestColisionDeIdDerivado:
+    def _resolutor_con_rivales_debiles(self):
+        # `similarity_min` bajo para que aparezcan candidatos flojos: hace falta
+        # una decisión de CREACIÓN que tenga candidatos, que es la única
+        # situación en la que el id derivado puede colisionar.
+        return resolver(config=ResolutionConfig(similarity_min=0.05))
+
+    def test_sin_colision_se_crea_normalmente(self):
+        out = resolve(self._resolutor_con_rivales_debiles(), "Kobayashi Ryu", confidence=0.99)
+        assert out.action == "CREATE_NEW"
+        assert out.resolution.candidate_entity_ids, "el caso debe tener candidatos"
+        assert out.resolution.assigned_entity_id not in out.resolution.candidate_entity_ids
+
+    def test_una_colision_degrada_a_revision_en_vez_de_emitir_invalido(self, monkeypatch):
+        """El validador rechazaría `assigned_entity_id` ya presente entre los
+        candidatos (no se estaría creando nada). Se degrada a `REVIEW`."""
+        from knowledge_v3.resolution import resolver as resolver_mod
+
+        monkeypatch.setattr(resolver_mod, "derive_entity_id", lambda **kw: "entity:daiki")
+        out = resolve(self._resolutor_con_rivales_debiles(), "Kobayashi Ryu", confidence=0.99)
+        assert out.action == "REVIEW"
+        assert "PROVISIONAL_ID_COLLISION" in out.resolution.reason_codes
+        assert out.resolution.assigned_entity_id is None
+        assert out.resolution.selected_entity_id is None
+        out.resolution.validate()
+
+
+# ==========================================================================
+# 18. SPLIT reservado a integración
+# ==========================================================================
+class TestSplitReservado:
+    def test_el_resolutor_rechaza_una_decision_split_que_le_llegue(self):
+        """Decisión del organizador: `SPLIT` lo emite la revisión humana en
+        integración. Este resolutor ni lo emite ni lo acepta."""
+        out = resolve(resolver(), "Daiki")
+        doc = EntityResolution.from_dict(
+            {
+                **out.resolution.to_dict(),
+                "action": "SPLIT",
+                "selected_entity_id": None,
+                "assigned_entity_id": None,
+                "mention_ids": ["mention:1", "mention:2"],
+                "split_groups": [["mention:1"], ["mention:2"]],
+            }
+        )
+        with pytest.raises(ResolutionInputError):
+            resolver().ingest_decision(doc, surfaces=["Daiki"])
+
+    def test_una_decision_externa_no_split_si_alimenta_el_historial(self):
+        res = resolver(catalog=InMemoryEntityCatalog(), glossary=NullGlossarySource())
+        primera = resolve(res, "Ilya Petrovna", confidence=0.95)
+        assert res.ingest_decision(primera.resolution, surfaces=["Ilya Petrovna"]) == 1
+        segunda = resolve(res, "Ilya Petrovna", mention_id="mention:2", confidence=0.95)
+        assert segunda.action == "LINK_EXISTING"
+        assert segunda.resolution.selected_entity_id == primera.resolution.assigned_entity_id

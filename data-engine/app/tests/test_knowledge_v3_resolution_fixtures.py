@@ -33,6 +33,7 @@ from knowledge_v3.resolution import (  # noqa: E402
     EntityCatalog,
     InMemoryEntityCatalog,
     InMemoryGlossarySource,
+    ResolutionHistory,
     normalize_surface,
 )
 
@@ -206,6 +207,26 @@ class LeakyCatalog(EntityCatalog):
         return self._entities
 
 
+class LeakyHistory(ResolutionHistory):
+    """Historial DEFECTUOSO: ignora el workspace al consultar.
+
+    Modela dos fallos realistas a la vez — una implementacion de `lookup` que
+    se olvida del argumento, y una entrada cuyo `workspace` no coincide con su
+    clave. El resolutor debe seguir sin enlazar entre bovedas: es la segunda
+    cerradura (`history_entry_allowed`) la que lo impide, no el indice.
+    """
+
+    def lookup(self, workspace: str, surface: str):
+        found = super().lookup(workspace, surface)
+        if found is not None:
+            return found
+        target = normalize_surface(surface)
+        for entry in self.entries():
+            if entry.normalized_surface == target:
+                return entry
+        return None
+
+
 __all__ = [
     "WORKSPACE",
     "OTHER_WORKSPACE",
@@ -219,5 +240,6 @@ __all__ = [
     "catalog",
     "glossary",
     "LeakyCatalog",
+    "LeakyHistory",
     "h",
 ]

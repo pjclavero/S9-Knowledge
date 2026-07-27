@@ -70,10 +70,13 @@ class ResolutionConfig:
     #: Distancia minima al segundo candidato para no considerarlo ambiguo.
     ambiguity_margin: float = 0.10
     #: Senal "fuerte" que permitiria enlazar PESE a un conflicto de tipos.
-    #: Por defecto es INALCANZABLE (> 1.0, y las puntuaciones viven en [0,1]):
-    #: un conflicto de tipos siempre acaba en REVIEW. El parametro existe para
-    #: poder EXPERIMENTAR con la regla y para que las pruebas de mutacion tengan
-    #: donde morder, no para relajarla en produccion.
+    #: Por defecto es INALCANZABLE, y ahora de verdad: se compara contra la
+    #: puntuacion RECORTADA a [0,1] (`ScoredCandidate.score`), que es la unica
+    #: acotada. Comparandola contra `raw_score` — cuyo techo real es 1.15, no
+    #: 1.0 — este 1.01 no acotaba nada y un candidato con bonus de contexto lo
+    #: superaba: agujero real encontrado por la revision independiente.
+    #: El parametro existe para EXPERIMENTAR con la regla y para que las
+    #: pruebas de mutacion tengan donde morder, no para relajarla en produccion.
     type_override_score: float = 1.01
 
     # -- Creacion -----------------------------------------------------------
@@ -93,7 +96,13 @@ class ResolutionConfig:
     derived_id_digest_chars: int = 16
 
     # -- Cortocircuito ------------------------------------------------------
-    short_circuit: bool = True
+    #: DESACTIVADO por defecto. No es neutro: al no ejecutar los pasos
+    #: restantes puede no descubrir un rival que habria activado la regla de
+    #: ambiguedad, convirtiendo un `REVIEW` en un `LINK_EXISTING`. Con estos
+    #: pesos no existe ningun corte demostrablemente neutro (ver
+    #: `_can_short_circuit`). Es una palanca de COSTE, no el comportamiento
+    #: recomendado.
+    short_circuit: bool = False
     #: Un generador corta la cascada si su mejor candidato llega aqui y es unico.
     short_circuit_score: float = 0.95
 

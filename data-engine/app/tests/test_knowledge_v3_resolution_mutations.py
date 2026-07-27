@@ -96,16 +96,20 @@ def check_aislamiento_del_glosario() -> None:
     assert out.resolution.selected_entity_id != "entity:casa-ciervo-tinieblas"
 
 
-def check_aislamiento_del_historial() -> None:
-    """Lo decidido en una boveda no condiciona a otra."""
-    history = ResolutionHistory()
+def check_aislamiento_del_historial(history=None) -> None:
+    """Lo decidido en una boveda no condiciona a otra.
+
+    Se prueba contra un historial DEFECTUOSO (`LeakyHistory`, cuyo `lookup`
+    ignora el workspace) porque la garantia no puede depender de que el indice
+    este bien tecleado: la sostiene `history_entry_allowed`, no la clave.
+    """
+    history = F.LeakyHistory() if history is None else history
     history.record(
         workspace=OTHER, surfaces=["Kobayashi Ryu"], entity_id="entity:intruso",
         entity_type="Character", action="LINK_EXISTING", confidence=0.99,
         resolution_id="resolution:x",
     )
-    res = EntityResolver(InMemoryEntityCatalog(), glossary=NullGlossarySource(),
-                         history=history)
+    res = EntityResolver(F.catalog(), glossary=NullGlossarySource(), history=history)
     out = res.resolve(ResolutionRequest.of(F.mention("mention:1", "Kobayashi Ryu")))
     assert "entity:intruso" not in out.resolution.candidate_entity_ids
     assert out.resolution.selected_entity_id is None
@@ -200,21 +204,45 @@ class TestMutacionWorkspace:
         with pytest.raises(AssertionError):
             check_aislamiento_del_glosario()
 
-    def test_historial_que_ignora_el_workspace_se_pone_rojo(self, monkeypatch):
-        original = ResolutionHistory.lookup
+    def test_un_historial_defectuoso_no_rompe_el_aislamiento(self):
+        """Linea base explicita: con `LeakyHistory` la garantia se sostiene."""
+        check_aislamiento_del_historial()
 
-        def leaky_lookup(self, workspace, surface):
-            found = original(self, workspace, surface)
-            if found is not None:
-                return found
-            for entry in self.entries():  # busca en TODAS las bovedas
-                if entry.normalized_surface == cascade_mod.normalize_surface(surface):
-                    return entry
-            return None
-
-        monkeypatch.setattr(ResolutionHistory, "lookup", leaky_lookup)
+    def test_sin_la_cerradura_del_historial_se_pone_rojo(self, monkeypatch):
+        """La mutacion canonica de H2: `history_entry_allowed` deja pasar todo."""
+        monkeypatch.setattr(
+            cascade_mod, "history_entry_allowed", lambda entry, ctx, catalog: True
+        )
         with pytest.raises(AssertionError):
             check_aislamiento_del_historial()
+
+    def test_sin_la_cerradura_el_intruso_llega_a_enlazarse(self, monkeypatch):
+        """Que rompe exactamente la mutacion: un LINK_EXISTING entre bovedas."""
+        monkeypatch.setattr(
+            cascade_mod, "history_entry_allowed", lambda entry, ctx, catalog: True
+        )
+        history = F.LeakyHistory()
+        history.record(
+            workspace=OTHER, surfaces=["Kobayashi Ryu"], entity_id="entity:intruso",
+            entity_type="Character", action="LINK_EXISTING", confidence=0.99,
+            resolution_id="resolution:x",
+        )
+        res = EntityResolver(F.catalog(), glossary=NullGlossarySource(), history=history)
+        out = res.resolve(ResolutionRequest.of(F.mention("mention:1", "Kobayashi Ryu")))
+        assert out.resolution.selected_entity_id == "entity:intruso"
+
+    def test_la_segunda_comprobacion_usa_el_catalogo(self):
+        """Una entrada con el workspace bien puesto pero que apunta a una
+        entidad de otra boveda tampoco pasa: la coteja `EntityCatalog.locate`."""
+        history = ResolutionHistory()
+        history.record(
+            workspace=WS, surfaces=["Kobayashi Ryu"], entity_id="entity:daiki-tinieblas",
+            entity_type="Character", action="LINK_EXISTING", confidence=0.99,
+            resolution_id="resolution:x",
+        )
+        res = EntityResolver(F.catalog(), glossary=NullGlossarySource(), history=history)
+        out = res.resolve(ResolutionRequest.of(F.mention("mention:1", "Kobayashi Ryu")))
+        assert "entity:daiki-tinieblas" not in out.resolution.candidate_entity_ids
 
     def test_la_mutacion_no_afecta_a_las_demas_reglas(self, monkeypatch):
         """Una mutacion de workspace no debe romper comprobaciones ajenas.
@@ -288,18 +316,44 @@ class TestMutacionTipos:
         assert out.resolution.action == "REVIEW"
 
     def test_ablacionar_el_paso_de_tipos_no_abre_la_puerta(self):
-        """`disabled_steps={'types'}` quita el bonus, NO el invariante."""
+        """`disabled_steps={'types'}` quita el bonus, NO el invariante.
+
+        REGRESION H1. Este test pasaba antes por OMISION: sin
+        `context_entity_ids` el candidato se quedaba en 1.00 y no alcanzaba el
+        umbral de anulacion. Con el bonus de contexto llegaba a 1.12 y, al
+        compararse contra la puntuacion SIN recortar, superaba el 1.01 que se
+        creia inalcanzable: `LINK_EXISTING` de una `Location` a una `Faction`,
+        ademas con el `entity_type` reetiquetado en silencio. Ahora la
+        comparacion usa la puntuacion recortada, que si esta acotada por 1.0.
+        """
         res = EntityResolver(
             F.catalog(), glossary=F.glossary(),
             config=ResolutionConfig(disabled_steps=frozenset({"types"})),
         )
         out = res.resolve(
             ResolutionRequest.of(
-                F.mention("mention:1", "Umbra", types=(("Location", 0.95),))
+                F.mention("mention:1", "Umbra", types=(("Location", 0.95),)),
+                context_entity_ids=("entity:umbra-faccion",),
             )
         )
+        assert out.candidates[0].raw_score > 1.0, "el caso debe saturar el techo"
         assert out.resolution.action == "REVIEW"
         assert "TYPE_CONFLICT" in out.resolution.reason_codes
+        assert out.resolution.selected_entity_id is None
+        assert out.resolution.entity_type == "Location", "sin reetiquetado silencioso"
+
+    def test_el_umbral_de_anulacion_se_compara_contra_una_magnitud_acotada(self):
+        """La cota solo es cota si lo que compara esta acotado (H1)."""
+        res = EntityResolver(F.catalog(), glossary=F.glossary())
+        out = res.resolve(
+            ResolutionRequest.of(
+                F.mention("mention:1", "Umbra", types=(("Location", 0.95),)),
+                context_entity_ids=("entity:umbra-faccion",),
+            )
+        )
+        assert all(c.score <= 1.0 for c in out.candidates)
+        assert ResolutionConfig().type_override_score > 1.0
+        assert out.resolution.action == "REVIEW"
 
 
 # ==========================================================================

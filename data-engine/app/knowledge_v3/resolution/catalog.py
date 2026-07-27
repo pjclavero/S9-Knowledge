@@ -94,6 +94,24 @@ class EntityCatalog(ABC):
                 return entity
         return None
 
+    def locate(self, entity_id: str) -> str | None:
+        """Workspace propietario de un identificador, o `None` si no consta.
+
+        Sirve para CONTRASTAR identidades que llegan por caminos que no pasan
+        por `entities()` — hoy, el historial de sesion. Distingue tres
+        respuestas y las tres importan:
+
+        - un workspace: el catalogo sabe de quien es; si no coincide con el que
+          se esta resolviendo, la identidad se descarta;
+        - `None`: el catalogo NO lo sabe. No es una contradiccion y no debe
+          tratarse como tal: una entidad provisional recien creada por el propio
+          resolutor no esta en el catalogo y es perfectamente legitima.
+
+        Por defecto devuelve `None` (implementacion honesta: "no me consta"). Las
+        implementaciones que puedan responder deben sobreescribirlo.
+        """
+        return None
+
 
 class InMemoryEntityCatalog(EntityCatalog):
     """Catalogo en memoria. Implementacion de referencia y base de los tests."""
@@ -121,6 +139,12 @@ class InMemoryEntityCatalog(EntityCatalog):
     def get(self, workspace: str, entity_id: str) -> CatalogEntity | None:
         return self._by_workspace.get(workspace, {}).get(entity_id)
 
+    def locate(self, entity_id: str) -> str | None:
+        for workspace in sorted(self._by_workspace):
+            if entity_id in self._by_workspace[workspace]:
+                return workspace
+        return None
+
     def workspaces(self) -> tuple[str, ...]:
         return tuple(sorted(self._by_workspace))
 
@@ -143,6 +167,11 @@ class Neo4jEntityCatalog(EntityCatalog):
     3. Si el driver no responde, se propaga el error: degradar en silencio a
        "no hay candidatos" convertiria una caida de Neo4j en una avalancha de
        entidades nuevas.
+    4. `locate()` deberia implementarse (una consulta por `entity_id` que
+       devuelva su workspace): es la segunda cerradura que impide que una
+       entidad de otra boveda entre por el historial. Si no se implementa, la
+       version por defecto responde "no me consta" y la cerradura se apoya solo
+       en el workspace declarado por la entrada — correcto, pero mas debil.
     """
 
     def __init__(self, driver: Any, *, database: str | None = None) -> None:
