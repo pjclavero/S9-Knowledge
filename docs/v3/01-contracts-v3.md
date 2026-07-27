@@ -18,9 +18,9 @@ que queda **congelado** antes de paralelizar la implementación.
 |---|---|
 | JSON Schema (10 ficheros: 9 contratos + `_common`) | `contracts/knowledge-v3/v1/*.schema.json` |
 | Validador compartido (schema + semántica + firma) | `contracts/knowledge-v3/v1/validator.py` |
-| Ejemplos generados (20 válidos / 74 inválidos) | `contracts/knowledge-v3/v1/examples/` |
+| Ejemplos generados (20 válidos / 76 inválidos) | `contracts/knowledge-v3/v1/examples/` |
 | Fixtures + generador de ejemplos | `contracts/knowledge-v3/v1/tests/v3_fixtures.py`, `generate_examples.py` |
-| Gate de contratos (519 tests) | `contracts/knowledge-v3/v1/tests/test_contracts_v3.py` |
+| Gate de contratos (526 tests) | `contracts/knowledge-v3/v1/tests/test_contracts_v3.py` |
 | Modelos Python | `data-engine/app/knowledge_v3/contracts/` |
 | Adaptador V3 → v1 | `data-engine/app/knowledge_v3/adapters/relation_candidate_v1.py` |
 | Tests de modelos (406) y de adaptador (32) | `data-engine/app/tests/test_knowledge_v3_contracts.py`, `test_knowledge_v3_adapter.py` |
@@ -123,6 +123,15 @@ perdida en silencio. El validador exige que `produced_by_step` exista en la traz
    misma operación lógica calculada en dos planes distintos lleve la **misma**
    clave y el segundo apply sea un no-op. El validador la recalcula y la compara.
 
+   **Límite explícito para el writer:** los campos que quedan **fuera** del
+   `decision_hash` — `created_at`, `plan_id`, `provider_trace` y `metadata` — son
+   informativos y de auditoría, y **el writer no debe consumirlos para ninguna
+   decisión de escritura**. Al no estar cubiertos por la firma, alterarlos no
+   rompe ningún hash: cualquier decisión que se apoyase en ellos sería
+   manipulable sin dejar rastro. La misma advertencia está en la descripción del
+   schema del plan, y hay tests que comprueban las dos cosas — que el aviso
+   sigue ahí y que esos campos efectivamente no entran en el hash.
+
 5. **Abstenerse y revisar son salidas de primera clase.** Un `ClaimProposal` puede
    declararse `abstained` (y entonces no puede llevar predicado ni confianza > 0);
    una `EntityResolution` puede ser `CREATE_PROVISIONAL` o `REVIEW` sin fijar
@@ -166,7 +175,15 @@ perdida en silencio. El validador exige que `produced_by_step` exista en la traz
     cadena, y el flag de provisionalidad se deducía del prefijo del id: dos
     invenciones aguas abajo de quien tomó la decisión.
 
-11. **Los ejemplos se generan.** 20 válidos y 74 inválidos salen de
+11. **La modalidad obliga a su forma.** `modality: TABLE` exige `table`
+    (`header`/`rows`) y `modality: SPEAKER_TURN` exige `speaker`, como
+    condicionales del propio schema — la misma disciplina que ya aplicaba a
+    `OCR_TEXT ⇒ bbox`. Una tabla sin filas y columnas es texto que perdió lo que
+    la hacía tabla; un turno de habla sin hablante no resuelve ninguna
+    correferencia de primera o segunda persona, que es justo para lo que existe.
+    Son condicionales: un episodio de texto no necesita ni tabla ni hablante.
+
+12. **Los ejemplos se generan.** 20 válidos y 76 inválidos salen de
     `v3_fixtures.py`; un test compara byte a byte lo generado con lo que hay en
     disco, y el gate de CI comprueba además que no haya ficheros generados sin
     rastrear. Un ejemplo no puede quedarse obsoleto en silencio.
@@ -231,10 +248,10 @@ evidencia con `literal_text` en blanco (error propio del adaptador, no un
 
 | Suite | Tests |
 |---|---|
-| `contracts/knowledge-v3/v1/tests/` (schemas, ejemplos, firma, determinismo) | **519** |
+| `contracts/knowledge-v3/v1/tests/` (schemas, ejemplos, firma, determinismo) | **526** |
 | `data-engine/.../test_knowledge_v3_contracts.py` (modelos: roundtrip + mutación) | **406** |
 | `data-engine/.../test_knowledge_v3_adapter.py` (adaptador contra el v1 real) | **32** |
-| **Total nuevo** | **957 / 957 en verde** |
+| **Total nuevo** | **964 / 964 en verde** |
 
 **Roundtrip:** `objeto → JSON → objeto idéntico` para los nueve contratos, y
 serialización estable byte a byte (repetida, y reconstruyendo desde un dict con las

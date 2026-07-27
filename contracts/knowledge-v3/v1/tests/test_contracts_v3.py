@@ -690,3 +690,54 @@ def test_every_plan_decision_needs_a_canonical_reason():
     plan = fixtures.graph_mutation_plan()
     plan["decisions"][0]["reason_codes"] = ["PORQUE_SI"]
     assert not V.is_valid(V.seal_plan(plan))
+
+
+def test_table_modality_requires_the_structured_table():
+    """Una tabla sin filas y columnas es texto que perdio lo que la hacia tabla."""
+    doc = fixtures.source_episode_table()
+    V.validate_document(doc)
+    doc["table"] = None
+    assert not V.is_valid(doc)
+    doc.pop("table")
+    assert not V.is_valid(doc)
+
+
+def test_speaker_turn_modality_requires_a_speaker():
+    """Un turno de habla sin hablante no resuelve ninguna correferencia."""
+    doc = fixtures.source_episode_audio()
+    doc["modality"] = "SPEAKER_TURN"
+    V.validate_document(doc)          # la fixture ya trae speaker
+    doc["speaker"] = None
+    assert not V.is_valid(doc)
+    doc.pop("speaker")
+    assert not V.is_valid(doc)
+
+
+def test_modality_conditionals_do_not_leak_to_other_modalities():
+    """La regla es condicional: un episodio de texto no necesita tabla ni hablante."""
+    doc = fixtures.source_episode()
+    assert doc["table"] is None and doc["speaker"] is None
+    V.validate_document(doc)
+
+
+def test_plan_declares_what_the_writer_must_not_consume():
+    """Los campos fuera del decision_hash no pueden fundamentar una escritura."""
+    schema = _load(CONTRACT_DIR / "graph-mutation-plan-v3.schema.json")
+    description = schema["description"]
+    assert "LIMITE EXPLICITO" in description
+    for field in ("created_at", "plan_id", "provider_trace", "metadata"):
+        assert field in description
+        # Y efectivamente ninguno entra en el hash de decision.
+        assert field not in V.DECISION_HASH_FIELDS
+
+
+def test_fields_outside_the_decision_hash_really_are_outside():
+    """Si alguno entrase en el hash, la advertencia del schema sobraria."""
+    plan = fixtures.graph_mutation_plan()
+    before = V.compute_decision_hash(plan)
+    plan["created_at"] = "2020-01-01T00:00:00Z"
+    plan["plan_id"] = "plan:otro"
+    plan["provider_trace"] = [fixtures.trace_local("otro.paso", ["nada"])]
+    plan["produced_by_step"] = "otro.paso"
+    plan["metadata"] = {"nota": "cambiada"}
+    assert V.compute_decision_hash(plan) == before

@@ -808,6 +808,11 @@ INVALID_BUILDERS: dict[str, Callable[[], dict[str, Any]]] = {
         source_episode, _set("previous_episode_id", EPISODE_ID)
     ),
     "episode_text_modality_without_text": lambda: _mut(source_episode, _set("text", None)),
+    "episode_table_without_table_data": lambda: _mut(source_episode_table, _set("table", None)),
+    "episode_speaker_turn_without_speaker": lambda: _mut(
+        source_episode_audio,
+        lambda d: d.update({"modality": "SPEAKER_TURN", "speaker": None}),
+    ),
     # -- evidencia --------------------------------------------------------
     "fragment_offsets_inverted": lambda: _mut(evidence_fragment, _set("start", 999)),
     "fragment_ocr_without_bbox": lambda: _mut(evidence_fragment_ocr, _set("bbox", None)),

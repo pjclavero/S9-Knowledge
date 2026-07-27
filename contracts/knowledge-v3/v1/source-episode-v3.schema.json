@@ -65,5 +65,23 @@
       "description": "Hash del contenido del episodio. Distinto de source_hash (que es el del asset origen)."
     },
     "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" }
-  }
+  },
+  "allOf": [
+    {
+      "$comment": "Una tabla sin representacion estructurada no es una tabla: es texto que perdio sus filas y columnas. Misma disciplina que OCR_TEXT => bbox.",
+      "if": { "properties": { "modality": { "const": "TABLE" } }, "required": ["modality"] },
+      "then": {
+        "required": ["table"],
+        "properties": { "table": { "$ref": "_common-v3.schema.json#/$defs/table_data" } }
+      }
+    },
+    {
+      "$comment": "Un turno de habla sin hablante no permite resolver correferencias de primera y segunda persona, que es justamente para lo que existe el turno.",
+      "if": { "properties": { "modality": { "const": "SPEAKER_TURN" } }, "required": ["modality"] },
+      "then": {
+        "required": ["speaker"],
+        "properties": { "speaker": { "$ref": "_common-v3.schema.json#/$defs/speaker" } }
+      }
+    }
+  ]
 }
