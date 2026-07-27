@@ -378,3 +378,101 @@ capa externa, todos invisibles a una suite completa en verde.
 Y la lección mayor: **medir en el corpus con el que se desarrolla no es medir**. Costó dos
 programas completos y un corpus reservado descubrir que la cifra de referencia estaba
 inflada en más de tres veces.
+
+---
+
+## 10. MEDICIÓN DE LA CADENA COMPLETA (extractor real → motor)
+
+Añadido el 2026-07-27. **Reproducido por el supervisor ejecutando el driver.** Es la
+medición que nunca se había hecho y la que fija el verdadero punto de partida.
+
+### 10.1. Extractor re-medido
+
+Mismo arnés y mismo corpus que `docs/34` (5 fuentes), modo `heuristic`:
+
+| | P ent | R ent | F1 ent |
+|---|--:|--:|--:|
+| `docs/34` (entonces) | 0.636 | 0.755 | 0.689 |
+| **Ahora** | 0.6390 | 0.7574 | **0.6924** |
+
+Reproduce lo publicado. La única divergencia es `asr_01` (+1 candidato), con hipótesis
+documentada: falta `state/glossary.db` (gitignored), y sin canonicalización no se deduplican
+`'Clan Escorpion'` / `'Clan Escorpión'`. Sobre el corpus de 7 fuentes: 0.7135 / 0.7948 /
+**0.7488**. **Sigue suspendiendo** los umbrales.
+
+`llm` e `hybrid` **NO EJECUTADOS** (exigen Ollama real). Es la laguna más importante que
+queda: `hybrid` medía F1 0.806 frente al 0.689 del heurístico.
+
+### 10.2. Ablación: entidades perfectas vs entidades reales
+
+`baseline1`, selector v2. **Mismo corpus, mismas métricas, misma función de matching**;
+lo único que cambia es de dónde salen las entidades.
+
+| Corpus | Métrica | A) perfectas (del GT) | B) reales, ids estrictos | C) reales, ids laxos |
+|---|---|--:|--:|--:|
+| B1 | pair_F1 · predicado · strict_F1 | 0.8113 · 0.8140 · 0.6604 | 0.0611 · 0.5714 · 0.0349 | 0.5429 · 0.3158 · 0.1714 |
+| H1 | pair_F1 · predicado · strict_F1 | 0.8478 · 0.5385 · 0.4565 | 0.2710 · 0.1905 · 0.0516 | 0.5231 · 0.1176 · 0.0615 |
+| **H2 (real)** | pair_F1 · predicado · strict_F1 | 0.7931 · **0.2391** · 0.1897 | 0.0333 · **0.0000** · 0.0000 | 0.1610 · **0.0526** · 0.0085 |
+
+En H2, `types_correct` pasa de 1.0000 a 0.25/0.11, y los falsos positivos de **18 a 184/165**.
+
+> **Sobre material real, la cadena completa extrae UNA relación de 52 con el predicado
+> correcto — cero con emparejamiento estricto de identificadores — entre unos 170 falsos
+> positivos.**
+
+El control (condición A) reproduce exactamente las cifras ya publicadas, lo que valida el
+driver: la caída no es un artefacto de la medición.
+
+### 10.3. Reparto de responsabilidad
+
+Descomposición multiplicativa exacta:
+
+```
+recall = alcanzabilidad(EXTRACTOR) × recall de pares entre alcanzables(MOTOR) × predicado(MOTOR)
+
+H2 perfectas :  1.000 × 0.885 × 0.2391 = 0.2115   (11 de 52)
+H2 reales    :  0.442 × 0.826 × 0.0526 = 0.0192   ( 1 de 52)
+```
+
+El **extractor aporta el factor mayor** (×0.44: sólo el 44 % de las relaciones son siquiera
+*alcanzables*, porque sus dos entidades no se extraen). Pero **el motor no es un espectador**:
+sobre entradas reales se degrada por su cuenta otro ×0.22.
+
+**Consecuencia para el rediseño: arreglar sólo uno de los dos no sirve.** Con extractor
+perfecto y motor actual la cadena queda en 0.087; con motor perfecto y extractor actual, en
+0.047. Ambos por debajo de lo aceptable.
+
+### 10.4. La política de identificadores, y por qué se publican dos cifras
+
+El ground truth referencia entidades por `id` y el extractor genera los suyos. Se midió con
+dos políticas: **estricta** (span idéntico al del GT) y **laxa** (máximo solape de
+caracteres). La elección mueve `pair_F1` de B1 entre **0.0611 y 0.5429** — un orden de
+magnitud. Por eso se publican ambas y **ninguna se presenta como "la" cifra**.
+
+> **Advertencia capital: las dos políticas usan el ground truth como oráculo de enlazado.**
+> La resolución de entidades real (`review/resolver.py`) no interviene. Es decir, **incluso
+> la cifra estricta sigue siendo una cota optimista.**
+
+### 10.5. Hallazgo colateral sobre el arnés
+
+El arnés emitió `APTO CON REVISIÓN DE CASOS CONFLICTIVOS` para una corrida con
+**`pair_F1 = 0.0611`** (7 aciertos contra 168 falsos positivos). Causa: **no existe ningún
+gate sobre `global_existence`**, y las tasas estructurales se calculan **sólo sobre los
+verdaderos positivos**. Un motor que no encuentra casi nada, pero acierta en lo poco que
+encuentra, obtiene un veredicto tranquilizador.
+
+Relacionado: el `types_correct = 1.0000` que aparece en todas las cifras anteriores era
+**tautológico** — el tipo lo ponía el propio ground truth.
+
+### 10.6. Lo que sigue sin medirse
+
+La cadena con `llm`/`hybrid`; la resolución de entidades real; la segmentación y
+clasificación reales (también regaladas por el arnés); los carriles `baseline2`,
+`full_offline` y `ensemble_offline` con entidades reales; y el determinismo en condiciones
+reales.
+
+### 10.7. Qué cambia esto respecto al resto del informe
+
+La sección §3 sigue siendo válida **como medición del motor aislado**. Pero la cifra que
+describe el sistema tal y como funcionaría de verdad **no es 0.2391: es ~0.05, y con
+estimación optimista**. Cualquier decisión de producto debe partir de esta segunda.
