@@ -45,7 +45,7 @@ ha tocado**.
 | Claims correctos (tp) | **0** | 5 | 6 |
 | Predicado top-1 / top-2 | 0 / 0 | 0.20 / 0.20 | 0.30 / 0.30 |
 | Dirección | 0 | 0.250 | 0.300 |
-| Trampas pisadas (de 4) | — | **0** | **3** |
+| Trampas pisadas (de 4) | 0 (no extrae) | **3** → **0** tras ronda 2 | **3** |
 | Alucinaciones | 0 | 0 | 0 |
 | Predicados fuera de ontología | 0 | 0 | 0 |
 | Latencia por episodio | — | 129 s | 49.8 s |
@@ -63,9 +63,12 @@ su recall está medido con una cuarta parte del corpus sin ver.
    local y remoto.
 3. **Ningún modelo da candidatos múltiples.** `top-2 = top-1` en ambos: es el
    prompt, no el modelo. La capacidad de desempate del motor nunca se ejercita.
-4. **El modelo grande extrae mejor y discrimina peor:** tipa perfecto y saca más
-   claims, pero pisa 3 de 4 negativos (contrafactual, ficción-dentro-de-ficción,
-   pregunta) donde el pequeño no pisaba ninguno. Es el modo de fallo de V2.
+4. **Los dos modelos pisaban las mismas 3 de 4 trampas** (contrafactual,
+   ficción-dentro-de-ficción, pregunta): no era cuestión de tamaño, era el prompt y
+   la capa local. El 0/4 del determinista es trivial — no pisa trampas porque no
+   extrae nada. La ronda 2 del prompt lo dejó en 0/4 con el mismo modelo pequeño, y
+   descubrió que las tres "pisadas" eran **abstenciones bien razonadas del modelo**
+   que el arnés contaba como claims: el modelo acertaba, sobraba el documento.
 5. **Determinista y semántico son complementarios**, y hoy se estorban: proponen la
    misma mención con dos identificadores y el emparejamiento uno a uno se la
    adjudica a uno solo, dejando los claims del otro sin argumentos alineados. Es la
