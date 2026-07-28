@@ -26,6 +26,7 @@ punto de entrada; cada bloque tiene su documento propio en `docs/v3/`.
 | Held-out independiente | `10-heldout.md` | Mergeado, **sin usar** |
 | Cadena extremo a extremo | `11-e2e.md` | Mergeado |
 | Extractor semántico episódico | `12-semantic-extractor.md` | En rama, midiendo |
+| Semántico conectado a la cadena + negaciones | `15-semantic-extractor-e2e-integration.md` | En rama `fix/v3-semantic-extractor-e2e` |
 
 Cada bloque pasó por editor, revisor independiente y correcciones. Seis de los
 nueve recibieron un NO CONFORME inicial: historia mutable en el ledger, cruce de
@@ -52,6 +53,48 @@ ha tocado**.
 
 C2 procesó 12 de 16 episodios: cuatro fallaron con `PROVIDER_UNAVAILABLE`, así que
 su recall está medido con una cuarta parte del corpus sin ver.
+
+> **Cuidado al leer esta tabla.** Son medidas del **banco aislado** (que llama
+> directo a `SemanticEpisodeExtractor`) con el prompt **1.1.0**. Hasta el bloque
+> 15 la cadena montaba los extractores *legacy*, así que estas cifras nunca
+> dijeron nada sobre `KnowledgePipeline`. La primera medida **por la cadena**, con
+> el prompt 1.2.0, está en `15-semantic-extractor-e2e-integration.md` §12.
+
+### Primera medida POR LA CADENA (bloque 15, prompt 1.2.0, `dev`)
+
+| | A · cadena `local_only` | D · cadena `local_plus_external` + Ollama |
+|---|---|---|
+| Menciones P / R / F1 | 0.905 / 0.745 / 0.817 | 0.476 / 0.765 / 0.586 |
+| Tipo de entidad correcto | 0.000 | **0.949** |
+| Claims extraídos → decisiones | 0 → 0 | **18 → 18** (no se pierde ninguno) |
+| Claims correctos (tp) | 0 | 0 (fp 18) — falla el emparejamiento, no la cadena |
+| Trampas pisadas | 0 / 4 | **0 / 4** |
+| ACCEPT / REVIEW / ABSTAIN / REJECT | 0/0/0/0 | 0 / 7 / 10 / 1 |
+| Planes aprobados | 0 | 0 |
+| Latencia · llamadas | 272 ms · 0 | 48 min · 58 |
+
+Lo que esto añade a lo que ya se sabía:
+
+(a) **A da exactamente lo mismo aislado y en cadena** — prueba de que el
+orquestador no añade ni quita nada.
+
+(b) En D **no se pierde un solo claim entre etapas** (18 extraídos, 18 decididos),
+pero el 0 ACCEPT **no** se explica por la política de "origen no confiable ⇒
+revisión humana": esa política explica **7 de 18 (39 %)**. Los otros **11 (61 %)**
+se pararon en ejes de calidad real —`SUBJECT_NOT_GROUNDED`,
+`OBJECT_NOT_GROUNDED`, `PREDICATE_NOT_IN_PROFILE`, `HALLUCINATED_MENTION`,
+`HALLUCINATED_QUOTE`, `UNKNOWN_ENTITY_TYPE`—, con el modelo llegando a inventarse
+el predicado `NEGATED_MEMBER_OF` en vez de usar `negated: true`. Levantar hoy la
+política daría 7 escrituras como mucho, no 18.
+
+(c) Los claims no puntúan porque `claim_key` devuelve `None` cuando un argumento
+pierde la adjudicación de su mención: eso explica el `tp=0 / fp=18` por completo y
+es la justificación medida del reconciliador, confirmada dentro de la cadena.
+
+(d) La caída de precisión de **menciones** (0.905 → 0.476) queda como **hipótesis
+pendiente**: la métrica no distingue "duplicados por la unión" de "falsos
+positivos del modelo" (dan cifras idénticas), y hay FP genuinos que ningún
+reconciliador arregla. Lo resuelve la corrida C1 aislada con prompt 1.2.0.
 
 ### Lecturas
 
@@ -90,6 +133,20 @@ su recall está medido con una cuarta parte del corpus sin ver.
   **nube**: el contenido sale de la máquina, y conviene decidirlo explícitamente por
   workspace antes de ingerir material sensible.
 
+- **El extractor de la cadena es el semántico, y no hay vuelta atrás.** Hasta el
+  bloque 15, `KnowledgePipeline` montaba los extractores **legacy** cuando la
+  configuración pedía Ollama o externo, así que las métricas C1/C2 de la tabla de
+  arriba —obtenidas con `semantic_bench`, que llama directo al extractor— no
+  decían nada sobre la cadena. Ahora los dos carriles son
+  `SemanticEpisodeExtractor` sobre su puerto, sin bandera para volver al legacy, y
+  `ExtractionPipeline.local_default()` sigue intacto como gate determinista.
+  Detalle en `15-semantic-extractor-e2e-integration.md`.
+- **Una relación negada es un hecho, no una duda.** `negation_kind` (SIMPLE,
+  NEVER, CESSATION, NOT_YET, SCOPE_AMBIGUOUS) viaja en `metadata` — sin tocar un
+  solo schema— y el motor lo usa para distinguir *contradicción* de *transición*:
+  una cesación con afirmación positiva vigente cierra su vigencia y la sucede; sin
+  afirmación previa, **no la inventa**.
+
 ## 4. Lo que falta, por orden
 
 1. **Prompt: candidatos múltiples y no-factividad.** Ataca los dos defectos
@@ -118,3 +175,18 @@ su recall está medido con una cuarta parte del corpus sin ver.
   verificación de despliegue pendiente.
 - `nvidia.env` no lo carga ninguna unidad systemd: la clave está inerte en
   producción.
+- **El camino de escritura de la negación tiene cobertura CERO en producción.**
+  `extraction/deterministic.py:643` (`review = bool(negated or ...)`, preexistente)
+  hace que TODO claim negado, de cualquier tipo y por cualquier carril, nazca con
+  `review_required=True` → `REVIEW` → plan con cero operaciones. La afirmación
+  negativa, la garantía de "sin arista positiva" y el `SUPERSEDE_ASSERTION` con
+  concurrencia optimista sólo se ejercitan con claims sintéticos de test. Decidir
+  si un negado que supera todas las verificaciones locales puede aprobarse es del
+  organizador; la línea NO se ha tocado.
+- **Límites léxicos de la negación, medidos**: 20 de 20 verbos de actitud fuera de
+  `SCOPE_VERBS` (`duda`, `niega`, `asegura`, `sostiene`, `opina`…) niegan
+  mecánicamente la relación (fail-closed peligroso); 8 de 8 cesaciones reales
+  fuera de `CESSATION_PHRASES` (`se marchó de`, `fue destituido de`, `perdió el
+  liderazgo de`) no se detectan (fail-open benigno).
+- El coste real de Ollama en esta ronda: 50,1 s/llamada y 181,7 s/episodio,
+  **×1,41** sobre los 129 s/episodio del bloque 12.

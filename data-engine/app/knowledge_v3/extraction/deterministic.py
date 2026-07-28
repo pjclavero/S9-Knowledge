@@ -548,11 +548,42 @@ class DeterministicExtractor(Extractor):
             return
 
         # --- lecturas del contexto: negacion, factividad, epistemicidad ---
-        negated = any(
-            tokens[i].norm in NEGATION_CUES
-            for i in range(max(sentence.first_token, first - NEGATION_WINDOW), first)
+        # La ventana sigue siendo estrecha (`NEGATION_WINDOW`), pero la lectura
+        # ya no es "hay un 'no' cerca": se clasifica el TIPO de negacion. Una
+        # cesacion ("ya no dirige", "dejo de servir") no lleva ninguna marca de
+        # `NEGATION_CUES` en la mitad de los casos, y un "no" pegado a un verbo
+        # de actitud ("no cree que...") no niega la relacion.
+        # El alcance se busca en TODA la frase antes de la relacion, no en la
+        # ventana corta: lo que descalifica la propuesta no es la distancia sino
+        # que la relacion cuelgue de la creencia de otro.
+        if _cues.scope_negation(
+            tokens,
+            lo=sentence.first_token,
+            hi=first,
+            negation_cues=NEGATION_CUES,
+        ):
+            abstain([_cues.CODE_NEGATION_SCOPE], [subject_id], [object_id])
+            return
+        negacion = _cues.classify_negation(
+            tokens,
+            lo=max(sentence.first_token, first - NEGATION_WINDOW),
+            hi=sentence.last_token + 1,
+            focus=first,
+            source_text=text,
+            clause_scoped=True,
+            # Se pasa el alias del MODULO, no el de `cues`: los tests de mutacion
+            # lo vacian aqui para demostrar que las marcas hacen falta, y leerlo
+            # por dentro de `cues` haria que la mutacion no se notase.
+            negation_cues=NEGATION_CUES,
         )
-        cues: list[str] = []
+        if negacion.kind == _cues.NEGATION_KIND_SCOPE_AMBIGUOUS:
+            # El texto niega algo, pero no se sabe que. Negar por defecto seria
+            # inventar; afirmar, tambien.
+            abstain([_cues.CODE_NEGATION_SCOPE], [subject_id], [object_id])
+            return
+        negated = negacion.negated
+        negation_kind = negacion.kind
+        cues: list[str] = list(negacion.cues)
         hint = "ASSERTED"
         for cue, mapped in EPISTEMIC_CUES:
             needle = phrase_tokens(cue)
@@ -577,6 +608,15 @@ class DeterministicExtractor(Extractor):
             # que proponer: solo constancia de que aqui habia algo.
             abstain(
                 [_cues.CODE_NON_FACTIVE, *verdict.reason_codes], [subject_id], [object_id]
+            )
+            return
+        if verdict.not_a_statement:
+            # Deseo, orden o prohibicion: el texto habla de la relacion pero no
+            # la afirma. Abstencion CON su rastro.
+            abstain(
+                [c for c in verdict.reason_codes if c in (_cues.CODE_DEONTIC, _cues.CODE_DESIRE)],
+                [subject_id],
+                [object_id],
             )
             return
         if _cues.CODE_CONDITIONAL in verdict.reason_codes:
@@ -643,6 +683,15 @@ class DeterministicExtractor(Extractor):
             metadata={
                 "rule_phrases": list(rule.phrases),
                 "quality_score": episode.quality.get("score"),
+                # Excepcion documentada: `negation_kind` no existe en el contrato
+                # congelado y viaja en `metadata`, igual que
+                # `temporal_resolution_required`.
+                **({"negation_kind": negation_kind} if negation_kind else {}),
+                **(
+                    {"temporal_resolution_required": True}
+                    if negation_kind == _cues.NEGATION_KIND_CESSATION
+                    else {}
+                ),
             },
         )
         emit(claim, out, self.info, episode.episode_id)

@@ -152,6 +152,14 @@ SYMMETRIC_PREDICATE = _f(AXIS_DIRECTION, Severity.INFO, None, "SYMMETRIC_PREDICA
 # -- negacion ---------------------------------------------------------------
 NEGATED_CLAIM = _f(AXIS_NEGATION, Severity.WARN, None, "NEGATED_CLAIM")
 NEGATION_NOT_ACCEPTED = _f(AXIS_NEGATION, Severity.REVIEW, "REVIEW_EVIDENCE", "NEGATION_NOT_ACCEPTED")
+#: El texto niega, pero no consta que niegue ESTA relacion ("no cree que...",
+#: doble negacion). Negar por defecto seria inventar; afirmar, tambien.
+NEGATION_SCOPE_AMBIGUOUS = _f(AXIS_NEGATION, Severity.REVIEW, "REVIEW_EVIDENCE", "NEGATION_SCOPE_AMBIGUOUS")
+#: "todavia no": negativo, pero NO cesacion. No cierra ninguna vigencia.
+NEGATION_NOT_YET = _f(AXIS_NEGATION, Severity.WARN, None, "NEGATION_NOT_YET")
+#: "nunca": negacion absoluta. Ligada al contexto temporal de la FUENTE; de aqui
+#: no sale ningun intervalo infinito.
+NEGATION_ABSOLUTE = _f(AXIS_NEGATION, Severity.WARN, None, "NEGATION_ABSOLUTE")
 
 # -- epistemicidad ----------------------------------------------------------
 EPISTEMIC_NOT_ASSERTED = _f(AXIS_EPISTEMIC, Severity.REVIEW, "REVIEW_EVIDENCE", "EPISTEMIC_NOT_ASSERTED")
@@ -166,6 +174,14 @@ TEMPORAL_INTERVAL_INVERTED = _f(AXIS_TEMPORAL, Severity.REVIEW, "REVIEW_TEMPORAL
 TEMPORAL_CALENDAR_UNKNOWN = _f(AXIS_TEMPORAL, Severity.REVIEW, "REVIEW_TEMPORALITY", "TEMPORAL_CALENDAR_UNKNOWN")
 TEMPORAL_FRAGMENT_UNKNOWN = _f(AXIS_TEMPORAL, Severity.REVIEW, "REVIEW_TEMPORALITY", "TEMPORAL_FRAGMENT_UNKNOWN")
 TEMPORAL_CALENDAR_MIXED = _f(AXIS_TEMPORAL, Severity.REVIEW, "REVIEW_TEMPORALITY", "TEMPORAL_CALENDAR_MIXED")
+#: Cesacion CON positiva vigente: transicion, no contradiccion. Se cierra la
+#: vigencia anterior y se sucede, conservando historia y evidencia.
+CESSATION_CLOSES_ASSERTION = _f(AXIS_TEMPORAL, Severity.WARN, None, "CESSATION_CLOSES_ASSERTION")
+#: Cesacion SIN positiva vigente: el sistema no inventa la relacion previa.
+CESSATION_WITHOUT_PRIOR = _f(AXIS_TEMPORAL, Severity.REVIEW, "REVIEW_TEMPORALITY", "CESSATION_WITHOUT_ACTIVE_ASSERTION")
+#: La positiva vigente existe pero el snapshot no la ancla (`state_hash` a None):
+#: sin concurrencia optimista no se cierra ninguna vigencia.
+CESSATION_TARGET_UNANCHORED = _f(AXIS_TEMPORAL, Severity.REVIEW, "REVIEW_TEMPORALITY", "CESSATION_TARGET_UNANCHORED")
 
 # -- contradiccion ----------------------------------------------------------
 # Contra el SNAPSHOT (lo que el grafo ya dice)...

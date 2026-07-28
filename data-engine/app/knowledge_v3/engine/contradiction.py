@@ -71,8 +71,17 @@ def check_contradictions(
     predicate: str,
     direction: str,
     negated: bool,
+    skip_assertion_ids: frozenset[str] = frozenset(),
 ) -> ContradictionOutcome:
-    """Contrasta una relacion candidata contra las afirmaciones vigentes."""
+    """Contrasta una relacion candidata contra las afirmaciones vigentes.
+
+    `skip_assertion_ids` deja fuera afirmaciones que OTRO eje ya esta tratando y
+    que no son un choque. Hoy tiene un solo uso: la positiva vigente que una
+    CESACION propone cerrar. "A lideraba B" y "A ya no lidera B" no se
+    contradicen —estan separadas en el tiempo—, y contarlas como conflicto
+    mandaria a revision toda evolucion temporal legitima del grafo. Se pasa por
+    ID, no por regla: cualquier OTRA afirmacion sigue entrando en el eje.
+    """
     out: list[F.Finding] = []
     conflicts: list[SnapshotAssertion] = []
     duplicate: Optional[SnapshotAssertion] = None
@@ -81,7 +90,7 @@ def check_contradictions(
     spec = index.spec(predicate)
 
     for existing in snapshot.assertions_for_pair(subject_entity_id, object_entity_id):
-        if not existing.blocks_new_claims():
+        if not existing.blocks_new_claims() or existing.assertion_id in skip_assertion_ids:
             continue
         existing_key = canonical_key(
             index,
@@ -126,7 +135,11 @@ def check_contradictions(
 
     if spec is not None and spec.functional and not negated:
         for existing in snapshot.assertions_for_subject(key[0], key[1]):
-            if not existing.blocks_new_claims() or existing.negated:
+            if (
+                not existing.blocks_new_claims()
+                or existing.negated
+                or existing.assertion_id in skip_assertion_ids
+            ):
                 continue
             existing_key = canonical_key(
                 index,

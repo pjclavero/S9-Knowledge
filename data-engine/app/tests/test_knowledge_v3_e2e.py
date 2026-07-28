@@ -631,7 +631,13 @@ class TestConjunta08ProveedorCorrupto:
             catalog_entities=entities,
         )
         codigos = {d["code"] for d in run.diagnostics}
-        assert "OLLAMA_INVALID_JSON" in codigos or "MODEL_PAYLOAD_MALFORMED" in codigos
+        # Codigo EXACTO del puerto agnostico. Una disyuncion que admitiese
+        # tambien `OLLAMA_INVALID_JSON` pasaria aunque la cadena volviese a
+        # montar el extractor legacy, que es justo lo que no puede ocurrir.
+        assert "PROVIDER_INVALID_JSON" in codigos, codigos
+        assert "OLLAMA_INVALID_JSON" not in codigos, (
+            "ese codigo es del extractor legacy: la cadena ya no lo monta"
+        )
 
     def test_la_respuesta_hostil_no_produce_ni_una_mencion(self, gold, entities):
         p = pipeline(
@@ -685,7 +691,9 @@ class TestConjunta08ProveedorCorrupto:
             catalog_entities=entities,
         )
         codigos = {d["code"] for d in run.diagnostics}
-        assert "EXTERNAL_PROVIDER_FAILED" in codigos
+        # Mismo hecho, codigo del puerto agnostico: el externo se cayo, se anota
+        # y la cadena sigue. `EXTERNAL_PROVIDER_FAILED` era del legacy.
+        assert "PROVIDER_UNAVAILABLE" in codigos, codigos
 
     def test_un_proveedor_corrupto_nunca_produce_un_plan_aprobado_de_mas(
         self, gold, entities

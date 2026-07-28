@@ -153,8 +153,11 @@ temporal por solape (`ANCHOR_OVERLAP`) es opcional y su defecto sigue siendo
 
 ## 3. Ejemplo REAL del prompt generado (version 1.0.0)
 
-> El prompt vigente es el **1.1.0**: esta seccion se conserva porque es la
-> version con la que se midio §5. El prompt actual, completo, esta en **§7.7**.
+> El prompt vigente es el **1.2.0** (negaciones: ver
+> `15-semantic-extractor-e2e-integration.md` §7). Esta seccion se conserva porque
+> es la version con la que se midio §5, y §7.7 recoge el 1.1.0. Dos prompts
+> distintos no producen medidas comparables, y por eso la version viaja en la
+> traza.
 
 Prompt tal cual se envio a qwen2.5:7b para `episode:leyenda-cronica:e01`
 (recortado solo en los predicados intermedios, marcados con `[…]`):

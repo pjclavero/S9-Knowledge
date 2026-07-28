@@ -54,7 +54,13 @@ from .base import (
 )
 from .cues import (
     CODE_NEGATION_MISMATCH,
+    CODE_NEGATION_NOT_IN_EVIDENCE,
+    CODE_NEGATION_SCOPE,
     CODE_NON_FACTIVE,
+    NEGATION_KINDS,
+    NEGATION_KIND_CESSATION,
+    NEGATION_KIND_SCOPE_AMBIGUOUS,
+    NEGATION_KIND_SIMPLE,
     ContextVerdict,
     analyze_context,
 )
@@ -604,13 +610,25 @@ def verify_semantic_quote_context(
     focus = next(
         (t.index for t in tokens if lo <= t.index < hi and t.start >= anchor.end), hi
     )
-    verdict = analyze_context(text, tokens, lo=lo, hi=hi, focus=focus)
+    # `source_text` es el texto del episodio con los offsets ABSOLUTOS de
+    # `tokens` (`text` puede ser una rodaja). Hace falta para ver la puntuacion,
+    # que no es un token y es la mitad de los limites de clausula.
+    verdict = analyze_context(
+        text,
+        tokens,
+        lo=lo,
+        hi=hi,
+        focus=focus,
+        source_text=index.text if index.has_text else None,
+        clause_scoped=True,
+    )
     if verdict.negated and not claimed_negated:
         return ContextVerdict(
             negated=True,
             hint=verdict.hint,
             cues=verdict.cues,
             reason_codes=(CODE_NEGATION_MISMATCH, *verdict.reason_codes),
+            negation_kind=verdict.negation_kind,
         )
     return verdict
 
@@ -913,6 +931,19 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
 
         hint = str(raw.get("epistemic_status") or "ASSERTED").strip().upper()
         negated = bool(raw.get("negated", False))
+        # `negation_kind` NO existe en el contrato congelado: viaja en
+        # `metadata`, igual que `temporal_resolution_required` y
+        # `untrusted_origin`. Lo que diga el modelo es una PISTA; manda la
+        # clasificacion local (`cues.classify_negation`).
+        kind_declarado = str(raw.get("negation_kind") or "").strip().upper()
+        if kind_declarado and kind_declarado not in NEGATION_KINDS:
+            out.diagnostics.append(
+                Diagnostic(
+                    "UNKNOWN_NEGATION_KIND", info.step, episode.episode_id, kind_declarado[:64]
+                )
+            )
+            kind_declarado = ""
+        negation_kind = ""
         reasons: list[str] = []
         if not preds:
             reasons.append("PREDICATE_NOT_IN_PROFILE" if descartados else "PREDICATE_MISSING")
@@ -927,8 +958,6 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
             if anchor.ambiguous:
                 reasons.append("AMBIGUOUS_ANCHOR")
             verdict = verify_semantic_quote_context(index, anchor, negated)
-            if CODE_NEGATION_MISMATCH in verdict.reason_codes:
-                reasons.append(CODE_NEGATION_MISMATCH)
             if verdict.non_factive:
                 # NO se emite NADA, ni siquiera una abstencion. Ver
                 # `_drop_non_factive`: donde el texto no afirma, no hay relacion
@@ -936,6 +965,32 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
                 # exactamente lo que las trampas del split existen para cazar.
                 _drop_non_factive(out, info, episode, verdict, relation_phrase)
                 continue
+            # --- NEGACION: manda la evidencia, no el modelo ----------------
+            # Tres reglas, y las tres son de una sola direccion:
+            #  1. si el texto niega y el modelo dijo que no, el modelo esta
+            #     afirmando lo contrario de la fuente -> abstencion;
+            #  2. si el modelo dice que niega y el texto no lo respalda, se
+            #     estaria INVENTANDO la negacion -> abstencion;
+            #  3. si el alcance es ambiguo ("no cree que X pertenezca a Y") o
+            #     hay doble negacion, no se niega mecanicamente -> abstencion.
+            if CODE_NEGATION_MISMATCH in verdict.reason_codes:
+                reasons.append(CODE_NEGATION_MISMATCH)
+            if CODE_NEGATION_SCOPE in verdict.reason_codes:
+                reasons.append(CODE_NEGATION_SCOPE)
+                negation_kind = NEGATION_KIND_SCOPE_AMBIGUOUS
+            elif verdict.negated:
+                negated = True
+                negation_kind = verdict.negation_kind or NEGATION_KIND_SIMPLE
+            elif negated:
+                reasons.append(CODE_NEGATION_NOT_IN_EVIDENCE)
+                negation_kind = kind_declarado
+            if verdict.not_a_statement:
+                # Deseo, orden o prohibicion: hay relacion mencionada, pero el
+                # texto no la afirma. Abstencion CON su rastro, no silencio.
+                reasons.extend(
+                    c for c in verdict.reason_codes
+                    if c not in (CODE_NEGATION_MISMATCH, CODE_NEGATION_SCOPE)
+                )
             if verdict.hint != "ASSERTED" and hint == "ASSERTED":
                 hint = verdict.hint
 
@@ -954,9 +1009,21 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
             "anchor_reason_codes": list(anchor.reason_codes) if anchor else [],
             # Los dos campos que el contrato congelado NO tiene. Excepcion
             # documentada: viajan en metadata y en ningun otro sitio.
-            "temporal_resolution_required": bool(temporal_pendiente),
+            "temporal_resolution_required": bool(
+                temporal_pendiente or negation_kind == NEGATION_KIND_CESSATION
+            ),
             "direction_unresolved": direccion_sin_resolver,
         }
+        if negation_kind:
+            # Tercer campo que el contrato congelado NO tiene. Misma excepcion
+            # documentada: viaja en metadata y en ningun otro sitio. El motor lo
+            # lee para saber QUE clase de negacion es; no lo reinterpreta del
+            # texto, que ya no tiene delante.
+            metadata["negation_kind"] = negation_kind
+        if kind_declarado and kind_declarado != negation_kind:
+            # Lo que el modelo DIJO se conserva aunque no se le haga caso: es la
+            # unica forma de medir despues si acierta.
+            metadata["negation_kind_model"] = kind_declarado
         if descartados:
             metadata["dropped_predicates"] = sorted(dict.fromkeys(descartados))[:8]
         if temporal_codes:
