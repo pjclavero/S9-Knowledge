@@ -1,0 +1,65 @@
+{
+  "benchmark_file": "source_asset",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:cirro-actas",
+      "byte_size": 1432,
+      "collection_id": "collection:cirro",
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "contract_id": "source-asset/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "copyright_class": "OWN",
+      "created_at": "2026-07-29T09:00:00Z",
+      "game_profile": "generic",
+      "ingested_at": "2026-07-29T09:05:00Z",
+      "language_hint": "es",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "title": "Actas del Consejo de los Vientos"
+      },
+      "mime_type": "text/markdown",
+      "original_location": "bench://negation/cirro-actas",
+      "original_name": "cirro-actas.bench",
+      "privacy_class": "PUBLIC",
+      "processing_policy": {
+        "allow_external_providers": false,
+        "allow_media_persistence": true,
+        "retention_days": null
+      },
+      "produced_by_step": "gold.asset",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "content_hash",
+            "original_name"
+          ],
+          "provider": "local",
+          "step": "gold.asset",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "source_kind": "MARKDOWN",
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "cirro-actas",
+  "split": "negation",
+  "world": "cirro"
+}

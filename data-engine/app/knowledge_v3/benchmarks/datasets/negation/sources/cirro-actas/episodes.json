@@ -1,0 +1,913 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "46d9dc4a5b5332f9eb511cc5c10af407abffca8f6fec471dd0eced70d27f7eb2"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-CESS-01",
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e02",
+      "page": null,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "Dagna Hoill ya no lidera el Consejo de los Vientos.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "9c6a0750019a5a819df25760c27f416233e12f02064798f3675d3e256fabccd7"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-CESS-02",
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e03",
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "Pol Arriaga dejo de pertenecer a la Compania del Arrecife el pasado equinoccio.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "b944712bf6be43bc40543866f5df8f517277e5c327694b2e54a85eeacdac50fa"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-CESS-03",
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e04",
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "La Cofradia de las Velas fue abandonada por Vera Luntz tras el tercer laudo.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "3da5af8b4b9603d1ae09330cf6fbf6b8a974d66ecd0ae6ea04ad3f84169a0aca"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e04",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-CESS-04",
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e05",
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e03",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 4,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "Ismael Corvo fue destituido de la presidencia de la Junta de Astilleros por unanimidad de la sala.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "37bd5951dad3cd13a1ddf88caa3b00d029a57a6e014c39b7835f55e1151c4bf1"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e05",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-CESS-05",
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e06",
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e04",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 5,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "Punto cuarto del orden del dia. Se leyo el informe de fletes, se aprobo sin enmiendas y se paso a la cuestion pendiente. Tanit Pereo ceso en su condicion de miembro de la Sociedad de Aerostatos con efecto inmediato, y asi se hara constar.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "d52d8f5364fb2c76991d65d1ee3d1cca2cad1ce2ea428ed94b91701a4c488361"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e06",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-CESS-06",
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e07",
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e05",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 6,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "El Muelle Alto salio del patrimonio de la Compania del Arrecife cuando se ejecuto la garantia.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "4ec487fe6b03446013916d9955673268ed11fde41e9338fb1abbd6dd59e0c1f6"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e07",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-CESS-07",
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e08",
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e06",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 7,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "Hugo Marlén y Selva Ondiz rompieron su alianza el mismo dia en que se sello el laudo.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "861497d6d707593ecce81b932ca3af53fccd755a3c8911dc74a3f07cafb2df84"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e08",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-NEGCESS-05",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e09",
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e07",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 8,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "Radi Oster no ceso en la direccion de la Cofradia de las Velas, pese al acta que circulo por el Muelle Alto.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "0b22718a183e9e6a38cca7de502c7947d318036b7ebae2ef7c7ae655f88bf3bb"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e09",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-NEGCESS-06",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e10",
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e08",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 9,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "No consta que Noa Quimper haya abandonado la Junta de Astilleros.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "51af0d128f48afc650414f90c8c155352f1748fe74b95d30be97959415275a6d"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e10",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-NEGCESS-07",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e11",
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e09",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 10,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "Dejar el Consejo de los Vientos, Vera Luntz no lo dejo.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "df70fb002974fca4a7dc304712b4cd2db61d725aef001b93a3358940e22642df"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e11",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-NEGCESS-08",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e12",
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e10",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 11,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "La Sociedad de Aerostatos no ha dejado de estar dirigida por Ismael Corvo en ningun momento de este ejercicio.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "42ee911cf43761312ac464620644afc37e807002eeb91d1031121bac1644ecab"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e12",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-SCOPE-01",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "SCOPE_EMBEDDED"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e13",
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e11",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 12,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "Pol Arriaga no cree que Tanit Pereo pertenezca a la Cofradia de las Velas.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "c17207cd9b6b5bb7b447366f813ec60f8bb815d79af99325603ad548038d41c6"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e13",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-SCOPE-02",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "SCOPE_EMBEDDED"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e14",
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e12",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 13,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "Nadie en la Torre Anemos ha afirmado que Hugo Marlén no dirija la Junta de Astilleros.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "d08abbb575e8b9fc7833b2cdcf15c31258b25ccb79e6e0808edadb86b22ac0a7"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e14",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-SCOPE-03",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "SCOPE_EMBEDDED"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e15",
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e13",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 14,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "Selva Ondiz nego que la Carta de Fletes sea propiedad del Consejo de los Vientos.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "49f9178efb950eb54c92ceb4196138d42b3e78e3dad0d1a91afe07127a170522"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e15",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-POS-03",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:cirro-actas:e16",
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e14",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 15,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "Vera Luntz y Radi Oster son rivales declarados desde el litigio del muelle.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:cirro-actas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "9088e4fe27beff685916803438f5395b3aeeab89d967ea08bdd905a6f5243c1c"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:cirro-actas:e16",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "negation_case_id": "NEG-POS-04",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": null,
+      "page": null,
+      "previous_episode_id": "episode:cirro-actas:e15",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 16,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "text": "La Compania del Arrecife esta dirigida por Noa Quimper.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "cirro-actas",
+  "split": "negation",
+  "world": "cirro"
+}

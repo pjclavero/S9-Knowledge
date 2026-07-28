@@ -1,0 +1,1554 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e01:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e01:f003"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-CESS-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Dagna Hoill ya no lidera el Consejo de los Vientos",
+          "case_id": "NEG-CESS-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:cirro:consejo-vientos",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:cirro:dagna-hoill",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "Cesacion canonica. Puede cerrar una afirmacion existente: revision siempre en esta fase.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:cirro-actas:e01:m002"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Dagna Hoill ya no lidera el Consejo de los Vientos",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e01:m001"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e02:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e02",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e02:f006"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-CESS-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "Pol Arriaga dejo de pertenecer a la Compania del Arrecife",
+          "case_id": "NEG-CESS-02",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:cirro:compania-arrecife",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:cirro:pol-arriaga",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "Cesacion con temporalidad relativa: requiere resolucion temporal antes de cerrar nada.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "fecha relativa ('el pasado equinoccio') sin ancla absoluta"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:cirro-actas:e02:m004"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Pol Arriaga dejo de pertenecer a la Compania del Arrecife",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e02:m003"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e03:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e03:f009"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-CESS-03:PRIMARY",
+        "negation": {
+          "anchor_quote": "La Cofradia de las Velas fue abandonada por Vera Luntz",
+          "case_id": "NEG-CESS-03",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:cirro:vera-luntz",
+          "expected_predicate": "HAS_MEMBER",
+          "expected_subject": "entity:cirro:cofradia-velas",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "La cesacion no siempre trae un 'no' delante: aqui la marca es el verbo.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "cesacion en pasiva SIN ninguna marca de negacion explicita"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "PASSIVE"
+        },
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:cirro-actas:e03:m006"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "HAS_MEMBER"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "La Cofradia de las Velas fue abandonada por Vera Luntz",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e03:m005"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e04:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e04",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e04:f012"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-CESS-04:PRIMARY",
+        "negation": {
+          "anchor_quote": "Ismael Corvo fue destituido de la presidencia de la Junta de Astilleros",
+          "case_id": "NEG-CESS-04",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:cirro:junta-astilleros",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:cirro:ismael-corvo",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "Cesacion nominalizada: 'la presidencia de X' hay que mapearla al predicado LEADS.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "'destituido de' como cesacion; el cargo aparece como sustantivo, no como verbo"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "PASSIVE"
+        },
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:cirro-actas:e04:m008"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Ismael Corvo fue destituido de la presidencia de la Junta de Astilleros",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e04:m007"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e05:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e05",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e05:f015"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-CESS-05:PRIMARY",
+        "negation": {
+          "anchor_quote": "Tanit Pereo ceso en su condicion de miembro de la Sociedad de Aerostatos",
+          "case_id": "NEG-CESS-05",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:cirro:sociedad-aerostatos",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:cirro:tanit-pereo",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "Cesacion enterrada en prosa administrativa larga.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "parrafo de acta con tres oraciones de tramite antes de la cesacion"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:cirro-actas:e05:m010"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Tanit Pereo ceso en su condicion de miembro de la Sociedad de Aerostatos",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e05:m009"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e06:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e06",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e06:f018"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-CESS-06:PRIMARY",
+        "negation": {
+          "anchor_quote": "El Muelle Alto salio del patrimonio de la Compania del Arrecife",
+          "case_id": "NEG-CESS-06",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:cirro:compania-arrecife",
+          "expected_predicate": "OWNED_BY",
+          "expected_subject": "entity:cirro:muelle-alto",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "Ni 'dejo de' ni 'ya no': la cesacion viaja en una metafora patrimonial.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "cesacion expresada como movimiento ('salio del patrimonio de')"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:cirro-actas:e06:m012"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "OWNED_BY"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "El Muelle Alto salio del patrimonio de la Compania del Arrecife",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e06:m011"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e07:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e07",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e07:f021"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-CESS-07:PRIMARY",
+        "negation": {
+          "anchor_quote": "Hugo Marlén y Selva Ondiz rompieron su alianza",
+          "case_id": "NEG-CESS-07",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": true,
+          "expected_object": "entity:cirro:selva-ondiz",
+          "expected_predicate": "ALLY_OF",
+          "expected_subject": "entity:cirro:hugo-marlen",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "Romper una alianza simetrica no es 'A deja de ser aliado de B' solamente.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "cesacion de un predicado SIMETRICO: cierra el hecho en los dos sentidos"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:cirro-actas:e07:m014"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "ALLY_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Hugo Marlén y Selva Ondiz rompieron su alianza",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e07:m013"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e08:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e08",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e08:f025"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-NEGCESS-05:PRIMARY",
+        "negation": {
+          "anchor_quote": "Radi Oster no ceso en la direccion de la Cofradia de las Velas",
+          "case_id": "NEG-NEGCESS-05",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:cirro:cofradia-velas",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:cirro:radi-oster",
+          "family": "NEGATED_CESSATION",
+          "forbidden_outcomes": [
+            "CESSATION",
+            "CLOSE_ASSERTION",
+            "NEGATIVE_EDGE"
+          ],
+          "negation_kind": "NEGATED_CESSATION",
+          "rationale": "Misma trampa que 'no dejo de', con otro verbo de cesacion.",
+          "reading": "CONTINUITY",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "'no ceso en' con el verbo de cese distinto de 'dejar de'"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:cirro-actas:e08:m016"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Radi Oster no ceso en la direccion de la Cofradia de las Velas",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e08:m015"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e09:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e09",
+      "epistemic_cues": [
+        "No consta que"
+      ],
+      "epistemic_status_hint": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e09:f028"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-NEGCESS-06:PRIMARY",
+        "negation": {
+          "anchor_quote": "No consta que Noa Quimper haya abandonado la Junta de Astilleros",
+          "case_id": "NEG-NEGCESS-06",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:cirro:junta-astilleros",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:cirro:noa-quimper",
+          "family": "NEGATED_CESSATION",
+          "forbidden_outcomes": [
+            "CESSATION",
+            "CLOSE_ASSERTION",
+            "NEGATIVE_EDGE",
+            "POSITIVE_EDGE"
+          ],
+          "negation_kind": "NEGATED_CESSATION",
+          "rationale": "Confundir 'no consta que se fuera' con 'sigue' es inventar evidencia. Ni cesacion ni continuidad: falta de dato.",
+          "reading": "NO_RECORD",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "'no consta que' NO afirma continuidad: afirma ausencia de registro",
+            "es la unica NEGATED_CESSATION cuya lectura no es continuidad"
+          ],
+          "verb_form": "SUBJUNTIVO_COMPUESTO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:cirro-actas:e09:m019"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "No consta que Noa Quimper haya abandonado la Junta de Astilleros",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e09:m018"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e10:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e10",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e10:f031"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-NEGCESS-07:PRIMARY",
+        "negation": {
+          "anchor_quote": "Dejar el Consejo de los Vientos, Vera Luntz no lo dejo",
+          "case_id": "NEG-NEGCESS-07",
+          "cue_position": "AFTER_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:cirro:consejo-vientos",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:cirro:vera-luntz",
+          "family": "NEGATED_CESSATION",
+          "forbidden_outcomes": [
+            "CESSATION",
+            "CLOSE_ASSERTION",
+            "NEGATIVE_EDGE"
+          ],
+          "negation_kind": "NEGATED_CESSATION",
+          "rationale": "Si la ventana de alcance mira solo hacia adelante desde la marca, aqui no encuentra ni el verbo ni el objeto.",
+          "reading": "CONTINUITY",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "el infinitivo de cesacion ABRE la frase y la negacion la CIERRA",
+            "el objeto aparece antes que el sujeto y antes que la marca"
+          ],
+          "verb_form": "INFINITIVO_ANTEPUESTO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:cirro-actas:e10:m021"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Dejar el Consejo de los Vientos, Vera Luntz no lo dejo",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e10:m020"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e11:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e11",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e11:f034"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-NEGCESS-08:PRIMARY",
+        "negation": {
+          "anchor_quote": "La Sociedad de Aerostatos no ha dejado de estar dirigida por Ismael Corvo en ningun momento de este ejercicio",
+          "case_id": "NEG-NEGCESS-08",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:cirro:ismael-corvo",
+          "expected_predicate": "LED_BY",
+          "expected_subject": "entity:cirro:sociedad-aerostatos",
+          "family": "NEGATED_CESSATION",
+          "forbidden_outcomes": [
+            "CESSATION",
+            "CLOSE_ASSERTION",
+            "NEGATIVE_EDGE"
+          ],
+          "negation_kind": "NEGATED_CESSATION",
+          "rationale": "Acumulacion maxima de marcas con lectura neta de continuidad. Es el caso que mas facilmente produce un cierre falso.",
+          "reading": "CONTINUITY",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "TRES elementos negativos: 'no', 'dejado de' y 'en ningun momento'",
+            "encima, en pasiva y con perfecto compuesto"
+          ],
+          "verb_form": "PERFECTO_COMPUESTO",
+          "voice": "PASSIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:cirro-actas:e11:m023"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LED_BY"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "La Sociedad de Aerostatos no ha dejado de estar dirigida por Ismael Corvo en ningun momento de este ejercicio",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e11:m022"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e12:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e12",
+      "epistemic_cues": [
+        "no cree que"
+      ],
+      "epistemic_status_hint": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e12:f038"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-SCOPE-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Pol Arriaga no cree que Tanit Pereo pertenezca a la Cofradia de las Velas",
+          "case_id": "NEG-SCOPE-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:cirro:cofradia-velas",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:cirro:tanit-pereo",
+          "family": "SCOPE_EMBEDDED",
+          "forbidden_outcomes": [
+            "NEGATIVE_EDGE"
+          ],
+          "negation_kind": "SCOPE_EMBEDDED",
+          "rationale": "El ejemplo textual de docs/v3/18: 'A no cree que B pertenezca a C'. La fuente no niega la pertenencia; reporta una incredulidad.",
+          "reading": "ATTITUDE_NOT_FACT",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "la negacion afecta al verbo de actitud, no a la relacion",
+            "hay un tercer personaje en la frase que NO participa en la relacion"
+          ],
+          "verb_form": "SUBJUNTIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "SCOPE_EMBEDDED"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:cirro-actas:e12:m025"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Pol Arriaga no cree que Tanit Pereo pertenezca a la Cofradia de las Velas",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e12:m024"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e13:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e13",
+      "epistemic_cues": [
+        "Nadie",
+        "ha afirmado que"
+      ],
+      "epistemic_status_hint": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e13:f042"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-SCOPE-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "Nadie en la Torre Anemos ha afirmado que Hugo Marlén no dirija la Junta de Astilleros",
+          "case_id": "NEG-SCOPE-02",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:cirro:junta-astilleros",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:cirro:hugo-marlen",
+          "family": "SCOPE_EMBEDDED",
+          "forbidden_outcomes": [
+            "NEGATIVE_EDGE",
+            "POSITIVE_EDGE"
+          ],
+          "negation_kind": "SCOPE_EMBEDDED",
+          "rationale": "Dos alcances anidados sobre el mismo hecho. Aqui abstenerse o revisar es lo unico honesto.",
+          "reading": "UNDETERMINED",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "una marca en la matriz y otra en la subordinada, en clausulas distintas",
+            "la lectura neta no es ni afirmativa ni negativa: es indeterminada"
+          ],
+          "verb_form": "SUBJUNTIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "SCOPE_EMBEDDED"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:cirro-actas:e13:m028"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Nadie en la Torre Anemos ha afirmado que Hugo Marlén no dirija la Junta de Astilleros",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e13:m027"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e14:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e14",
+      "epistemic_cues": [
+        "nego que"
+      ],
+      "epistemic_status_hint": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e14:f046"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-SCOPE-03:PRIMARY",
+        "negation": {
+          "anchor_quote": "Selva Ondiz nego que la Carta de Fletes sea propiedad del Consejo de los Vientos",
+          "case_id": "NEG-SCOPE-03",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:cirro:consejo-vientos",
+          "expected_predicate": "OWNED_BY",
+          "expected_subject": "entity:cirro:carta-fletes",
+          "family": "SCOPE_EMBEDDED",
+          "forbidden_outcomes": [],
+          "negation_kind": "SCOPE_EMBEDDED",
+          "rationale": "'X nego que P' si niega P, pero atribuido. La procedencia cambia el estatus epistemico, no la polaridad. Va a revision porque el alcance depende de resolver quien afirma.",
+          "reading": "ATTRIBUTED_DENIAL",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "negacion ATRIBUIDA a un hablante: quien niega no es la fuente, es un personaje",
+            "compara con NEG-SCOPE-01: alli la matriz negada NO niega el hecho; aqui SI"
+          ],
+          "verb_form": "SUBJUNTIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "SCOPE_EMBEDDED"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:cirro-actas:e14:m031"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "OWNED_BY"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Selva Ondiz nego que la Carta de Fletes sea propiedad del Consejo de los Vientos",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e14:m030"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e15:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e15",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e15:f049"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-POS-03:PRIMARY",
+        "negation": {
+          "anchor_quote": "Vera Luntz y Radi Oster son rivales declarados",
+          "case_id": "NEG-POS-03",
+          "cue_position": "NONE",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": false,
+          "expected_object": "entity:cirro:radi-oster",
+          "expected_predicate": "RIVAL_OF",
+          "expected_subject": "entity:cirro:vera-luntz",
+          "family": "POSITIVE_CONTROL",
+          "negation_kind": "NONE",
+          "rationale": "Control positivo sobre un predicado simetrico.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "predicado simetrico afirmativo: control de que la simetria no arrastra negacion"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:cirro-actas:e15:m034"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "RIVAL_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Vera Luntz y Radi Oster son rivales declarados",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e15:m033"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:cirro-actas:e16:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:cirro-actas:e16",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e16:f052"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "NEG-POS-04:PRIMARY",
+        "negation": {
+          "anchor_quote": "La Compania del Arrecife esta dirigida por Noa Quimper",
+          "case_id": "NEG-POS-04",
+          "cue_position": "NONE",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:cirro:noa-quimper",
+          "expected_predicate": "LED_BY",
+          "expected_subject": "entity:cirro:compania-arrecife",
+          "family": "POSITIVE_CONTROL",
+          "negation_kind": "NONE",
+          "rationale": "Par minimo con NEG-SIMPLE-02: una sola palabra separa el positivo del negativo.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "pasiva AFIRMATIVA, identica en forma a NEG-SIMPLE-02 salvo por el 'no'"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "PASSIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:cirro-actas:e16:m036"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LED_BY"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "La Compania del Arrecife esta dirigida por Noa Quimper",
+      "review_required": false,
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "subject_mentions": [
+        "mention:cirro-actas:e16:m035"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "cirro-actas",
+  "split": "negation",
+  "world": "cirro"
+}

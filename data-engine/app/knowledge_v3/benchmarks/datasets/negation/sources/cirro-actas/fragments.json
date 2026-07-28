@@ -1,0 +1,2402 @@
+{
+  "benchmark_file": "fragments",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:cirro-actas:e01",
+      "fragment_id": "fragment:cirro-actas:e01:f001",
+      "frame_id": null,
+      "literal_text": "Dagna Hoill",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Dagna Hoill",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 50,
+      "episode_id": "episode:cirro-actas:e01",
+      "fragment_id": "fragment:cirro-actas:e01:f002",
+      "frame_id": null,
+      "literal_text": "Consejo de los Vientos",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Consejo de los Vientos",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 28,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 50,
+      "episode_id": "episode:cirro-actas:e01",
+      "fragment_id": "fragment:cirro-actas:e01:f003",
+      "frame_id": null,
+      "literal_text": "Dagna Hoill ya no lidera el Consejo de los Vientos",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Dagna Hoill ya no lidera el Consejo de los Vientos",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:cirro-actas:e02",
+      "fragment_id": "fragment:cirro-actas:e02:f004",
+      "frame_id": null,
+      "literal_text": "Pol Arriaga",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Pol Arriaga",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 57,
+      "episode_id": "episode:cirro-actas:e02",
+      "fragment_id": "fragment:cirro-actas:e02:f005",
+      "frame_id": null,
+      "literal_text": "Compania del Arrecife",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Compania del Arrecife",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 36,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 57,
+      "episode_id": "episode:cirro-actas:e02",
+      "fragment_id": "fragment:cirro-actas:e02:f006",
+      "frame_id": null,
+      "literal_text": "Pol Arriaga dejo de pertenecer a la Compania del Arrecife",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Pol Arriaga dejo de pertenecer a la Compania del Arrecife",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 24,
+      "episode_id": "episode:cirro-actas:e03",
+      "fragment_id": "fragment:cirro-actas:e03:f007",
+      "frame_id": null,
+      "literal_text": "Cofradia de las Velas",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Cofradia de las Velas",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 3,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 54,
+      "episode_id": "episode:cirro-actas:e03",
+      "fragment_id": "fragment:cirro-actas:e03:f008",
+      "frame_id": null,
+      "literal_text": "Vera Luntz",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Vera Luntz",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 44,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 54,
+      "episode_id": "episode:cirro-actas:e03",
+      "fragment_id": "fragment:cirro-actas:e03:f009",
+      "frame_id": null,
+      "literal_text": "La Cofradia de las Velas fue abandonada por Vera Luntz",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "La Cofradia de las Velas fue abandonada por Vera Luntz",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 12,
+      "episode_id": "episode:cirro-actas:e04",
+      "fragment_id": "fragment:cirro-actas:e04:f010",
+      "frame_id": null,
+      "literal_text": "Ismael Corvo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Ismael Corvo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 71,
+      "episode_id": "episode:cirro-actas:e04",
+      "fragment_id": "fragment:cirro-actas:e04:f011",
+      "frame_id": null,
+      "literal_text": "Junta de Astilleros",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Junta de Astilleros",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 52,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 71,
+      "episode_id": "episode:cirro-actas:e04",
+      "fragment_id": "fragment:cirro-actas:e04:f012",
+      "frame_id": null,
+      "literal_text": "Ismael Corvo fue destituido de la presidencia de la Junta de Astilleros",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Ismael Corvo fue destituido de la presidencia de la Junta de Astilleros",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 132,
+      "episode_id": "episode:cirro-actas:e05",
+      "fragment_id": "fragment:cirro-actas:e05:f013",
+      "frame_id": null,
+      "literal_text": "Tanit Pereo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Tanit Pereo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 121,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 193,
+      "episode_id": "episode:cirro-actas:e05",
+      "fragment_id": "fragment:cirro-actas:e05:f014",
+      "frame_id": null,
+      "literal_text": "Sociedad de Aerostatos",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Sociedad de Aerostatos",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 171,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 193,
+      "episode_id": "episode:cirro-actas:e05",
+      "fragment_id": "fragment:cirro-actas:e05:f015",
+      "frame_id": null,
+      "literal_text": "Tanit Pereo ceso en su condicion de miembro de la Sociedad de Aerostatos",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Tanit Pereo ceso en su condicion de miembro de la Sociedad de Aerostatos",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 121,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 14,
+      "episode_id": "episode:cirro-actas:e06",
+      "fragment_id": "fragment:cirro-actas:e06:f016",
+      "frame_id": null,
+      "literal_text": "Muelle Alto",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Muelle Alto",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 3,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 63,
+      "episode_id": "episode:cirro-actas:e06",
+      "fragment_id": "fragment:cirro-actas:e06:f017",
+      "frame_id": null,
+      "literal_text": "Compania del Arrecife",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Compania del Arrecife",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 42,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 63,
+      "episode_id": "episode:cirro-actas:e06",
+      "fragment_id": "fragment:cirro-actas:e06:f018",
+      "frame_id": null,
+      "literal_text": "El Muelle Alto salio del patrimonio de la Compania del Arrecife",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "El Muelle Alto salio del patrimonio de la Compania del Arrecife",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:cirro-actas:e07",
+      "fragment_id": "fragment:cirro-actas:e07:f019",
+      "frame_id": null,
+      "literal_text": "Hugo Marlén",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Hugo Marlén",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 25,
+      "episode_id": "episode:cirro-actas:e07",
+      "fragment_id": "fragment:cirro-actas:e07:f020",
+      "frame_id": null,
+      "literal_text": "Selva Ondiz",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Selva Ondiz",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 14,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 46,
+      "episode_id": "episode:cirro-actas:e07",
+      "fragment_id": "fragment:cirro-actas:e07:f021",
+      "frame_id": null,
+      "literal_text": "Hugo Marlén y Selva Ondiz rompieron su alianza",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Hugo Marlén y Selva Ondiz rompieron su alianza",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 10,
+      "episode_id": "episode:cirro-actas:e08",
+      "fragment_id": "fragment:cirro-actas:e08:f022",
+      "frame_id": null,
+      "literal_text": "Radi Oster",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Radi Oster",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 62,
+      "episode_id": "episode:cirro-actas:e08",
+      "fragment_id": "fragment:cirro-actas:e08:f023",
+      "frame_id": null,
+      "literal_text": "Cofradia de las Velas",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Cofradia de las Velas",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 41,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 107,
+      "episode_id": "episode:cirro-actas:e08",
+      "fragment_id": "fragment:cirro-actas:e08:f024",
+      "frame_id": null,
+      "literal_text": "Muelle Alto",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Muelle Alto",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 96,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 62,
+      "episode_id": "episode:cirro-actas:e08",
+      "fragment_id": "fragment:cirro-actas:e08:f025",
+      "frame_id": null,
+      "literal_text": "Radi Oster no ceso en la direccion de la Cofradia de las Velas",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Radi Oster no ceso en la direccion de la Cofradia de las Velas",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 25,
+      "episode_id": "episode:cirro-actas:e09",
+      "fragment_id": "fragment:cirro-actas:e09:f026",
+      "frame_id": null,
+      "literal_text": "Noa Quimper",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Noa Quimper",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 14,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 64,
+      "episode_id": "episode:cirro-actas:e09",
+      "fragment_id": "fragment:cirro-actas:e09:f027",
+      "frame_id": null,
+      "literal_text": "Junta de Astilleros",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Junta de Astilleros",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 45,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 64,
+      "episode_id": "episode:cirro-actas:e09",
+      "fragment_id": "fragment:cirro-actas:e09:f028",
+      "frame_id": null,
+      "literal_text": "No consta que Noa Quimper haya abandonado la Junta de Astilleros",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "No consta que Noa Quimper haya abandonado la Junta de Astilleros",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 43,
+      "episode_id": "episode:cirro-actas:e10",
+      "fragment_id": "fragment:cirro-actas:e10:f029",
+      "frame_id": null,
+      "literal_text": "Vera Luntz",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Vera Luntz",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 33,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 31,
+      "episode_id": "episode:cirro-actas:e10",
+      "fragment_id": "fragment:cirro-actas:e10:f030",
+      "frame_id": null,
+      "literal_text": "Consejo de los Vientos",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Consejo de los Vientos",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 9,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 54,
+      "episode_id": "episode:cirro-actas:e10",
+      "fragment_id": "fragment:cirro-actas:e10:f031",
+      "frame_id": null,
+      "literal_text": "Dejar el Consejo de los Vientos, Vera Luntz no lo dejo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Dejar el Consejo de los Vientos, Vera Luntz no lo dejo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 25,
+      "episode_id": "episode:cirro-actas:e11",
+      "fragment_id": "fragment:cirro-actas:e11:f032",
+      "frame_id": null,
+      "literal_text": "Sociedad de Aerostatos",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Sociedad de Aerostatos",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 3,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 73,
+      "episode_id": "episode:cirro-actas:e11",
+      "fragment_id": "fragment:cirro-actas:e11:f033",
+      "frame_id": null,
+      "literal_text": "Ismael Corvo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Ismael Corvo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 61,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 109,
+      "episode_id": "episode:cirro-actas:e11",
+      "fragment_id": "fragment:cirro-actas:e11:f034",
+      "frame_id": null,
+      "literal_text": "La Sociedad de Aerostatos no ha dejado de estar dirigida por Ismael Corvo en ningun momento de este ejercicio",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "La Sociedad de Aerostatos no ha dejado de estar dirigida por Ismael Corvo en ningun momento de este ejercicio",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 35,
+      "episode_id": "episode:cirro-actas:e12",
+      "fragment_id": "fragment:cirro-actas:e12:f035",
+      "frame_id": null,
+      "literal_text": "Tanit Pereo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Tanit Pereo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 24,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 73,
+      "episode_id": "episode:cirro-actas:e12",
+      "fragment_id": "fragment:cirro-actas:e12:f036",
+      "frame_id": null,
+      "literal_text": "Cofradia de las Velas",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Cofradia de las Velas",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 52,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:cirro-actas:e12",
+      "fragment_id": "fragment:cirro-actas:e12:f037",
+      "frame_id": null,
+      "literal_text": "Pol Arriaga",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Pol Arriaga",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 73,
+      "episode_id": "episode:cirro-actas:e12",
+      "fragment_id": "fragment:cirro-actas:e12:f038",
+      "frame_id": null,
+      "literal_text": "Pol Arriaga no cree que Tanit Pereo pertenezca a la Cofradia de las Velas",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Pol Arriaga no cree que Tanit Pereo pertenezca a la Cofradia de las Velas",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 52,
+      "episode_id": "episode:cirro-actas:e13",
+      "fragment_id": "fragment:cirro-actas:e13:f039",
+      "frame_id": null,
+      "literal_text": "Hugo Marlén",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Hugo Marlén",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 41,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 85,
+      "episode_id": "episode:cirro-actas:e13",
+      "fragment_id": "fragment:cirro-actas:e13:f040",
+      "frame_id": null,
+      "literal_text": "Junta de Astilleros",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Junta de Astilleros",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 66,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 24,
+      "episode_id": "episode:cirro-actas:e13",
+      "fragment_id": "fragment:cirro-actas:e13:f041",
+      "frame_id": null,
+      "literal_text": "Torre Anemos",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Torre Anemos",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 12,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 85,
+      "episode_id": "episode:cirro-actas:e13",
+      "fragment_id": "fragment:cirro-actas:e13:f042",
+      "frame_id": null,
+      "literal_text": "Nadie en la Torre Anemos ha afirmado que Hugo Marlén no dirija la Junta de Astilleros",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Nadie en la Torre Anemos ha afirmado que Hugo Marlén no dirija la Junta de Astilleros",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 39,
+      "episode_id": "episode:cirro-actas:e14",
+      "fragment_id": "fragment:cirro-actas:e14:f043",
+      "frame_id": null,
+      "literal_text": "Carta de Fletes",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Carta de Fletes",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 24,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 80,
+      "episode_id": "episode:cirro-actas:e14",
+      "fragment_id": "fragment:cirro-actas:e14:f044",
+      "frame_id": null,
+      "literal_text": "Consejo de los Vientos",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Consejo de los Vientos",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 58,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:cirro-actas:e14",
+      "fragment_id": "fragment:cirro-actas:e14:f045",
+      "frame_id": null,
+      "literal_text": "Selva Ondiz",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Selva Ondiz",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 80,
+      "episode_id": "episode:cirro-actas:e14",
+      "fragment_id": "fragment:cirro-actas:e14:f046",
+      "frame_id": null,
+      "literal_text": "Selva Ondiz nego que la Carta de Fletes sea propiedad del Consejo de los Vientos",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Selva Ondiz nego que la Carta de Fletes sea propiedad del Consejo de los Vientos",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 10,
+      "episode_id": "episode:cirro-actas:e15",
+      "fragment_id": "fragment:cirro-actas:e15:f047",
+      "frame_id": null,
+      "literal_text": "Vera Luntz",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Vera Luntz",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 23,
+      "episode_id": "episode:cirro-actas:e15",
+      "fragment_id": "fragment:cirro-actas:e15:f048",
+      "frame_id": null,
+      "literal_text": "Radi Oster",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Radi Oster",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 13,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 46,
+      "episode_id": "episode:cirro-actas:e15",
+      "fragment_id": "fragment:cirro-actas:e15:f049",
+      "frame_id": null,
+      "literal_text": "Vera Luntz y Radi Oster son rivales declarados",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Vera Luntz y Radi Oster son rivales declarados",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 24,
+      "episode_id": "episode:cirro-actas:e16",
+      "fragment_id": "fragment:cirro-actas:e16:f050",
+      "frame_id": null,
+      "literal_text": "Compania del Arrecife",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Compania del Arrecife",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 3,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 54,
+      "episode_id": "episode:cirro-actas:e16",
+      "fragment_id": "fragment:cirro-actas:e16:f051",
+      "frame_id": null,
+      "literal_text": "Noa Quimper",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "Noa Quimper",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 43,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 54,
+      "episode_id": "episode:cirro-actas:e16",
+      "fragment_id": "fragment:cirro-actas:e16:f052",
+      "frame_id": null,
+      "literal_text": "La Compania del Arrecife esta dirigida por Noa Quimper",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "normalized_text": "La Compania del Arrecife esta dirigida por Noa Quimper",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "cirro-actas",
+  "split": "negation",
+  "world": "cirro"
+}

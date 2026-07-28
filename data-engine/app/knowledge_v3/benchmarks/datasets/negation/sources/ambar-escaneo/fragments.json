@@ -1,0 +1,1622 @@
+{
+  "benchmark_file": "fragments",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.115
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 10,
+      "episode_id": "episode:ambar-escaneo:e01",
+      "fragment_id": "fragment:ambar-escaneo:e01:f001",
+      "frame_id": null,
+      "literal_text": "Veli Ardún",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Veli Ardún",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.15
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 54,
+      "episode_id": "episode:ambar-escaneo:e01",
+      "fragment_id": "fragment:ambar-escaneo:e01:f002",
+      "frame_id": null,
+      "literal_text": "Corte de la Resina",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Corte de la Resina",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 36,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.185
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 54,
+      "episode_id": "episode:ambar-escaneo:e01",
+      "fragment_id": "fragment:ambar-escaneo:e01:f003",
+      "frame_id": null,
+      "literal_text": "Veli Ardún nunca fue rniembro de la Corte de la Resina",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Veli Ardún nunca fue rniembro de la Corte de la Resina",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.22
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 18,
+      "episode_id": "episode:ambar-escaneo:e02",
+      "fragment_id": "fragment:ambar-escaneo:e02:f004",
+      "frame_id": null,
+      "literal_text": "Anillo de Ámbar",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Anillo de Ámbar",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 3,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.255
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 53,
+      "episode_id": "episode:ambar-escaneo:e02",
+      "fragment_id": "fragment:ambar-escaneo:e02:f005",
+      "frame_id": null,
+      "literal_text": "Mesnada Ocre",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Mesnada Ocre",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 41,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.29
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 53,
+      "episode_id": "episode:ambar-escaneo:e02",
+      "fragment_id": "fragment:ambar-escaneo:e02:f006",
+      "frame_id": null,
+      "literal_text": "El Anillo de Ámbar jamas pertenecio a la Mesnada Ocre",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "El Anillo de Ámbar jamas pertenecio a la Mesnada Ocre",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.325
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 12,
+      "episode_id": "episode:ambar-escaneo:e03",
+      "fragment_id": "fragment:ambar-escaneo:e03:f007",
+      "frame_id": null,
+      "literal_text": "Jonás Trerne",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Jonás Trerne",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.36
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 52,
+      "episode_id": "episode:ambar-escaneo:e03",
+      "fragment_id": "fragment:ambar-escaneo:e03:f008",
+      "frame_id": null,
+      "literal_text": "Cofradia de1 Lacre",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Cofradia de1 Lacre",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 34,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.395
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 52,
+      "episode_id": "episode:ambar-escaneo:e03",
+      "fragment_id": "fragment:ambar-escaneo:e03:f009",
+      "frame_id": null,
+      "literal_text": "Jonás Trerne dejo de encabezar la Cofradia de1 Lacre",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Jonás Trerne dejo de encabezar la Cofradia de1 Lacre",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.43
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 49,
+      "episode_id": "episode:ambar-escaneo:e04",
+      "fragment_id": "fragment:ambar-escaneo:e04:f010",
+      "frame_id": null,
+      "literal_text": "Sabela Orín",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Sabela Orín",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 38,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.465
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 79,
+      "episode_id": "episode:ambar-escaneo:e04",
+      "fragment_id": "fragment:ambar-escaneo:e04:f011",
+      "frame_id": null,
+      "literal_text": "Cirilo Nadal",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Cirilo Nadal",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 67,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.5
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 21,
+      "episode_id": "episode:ambar-escaneo:e04",
+      "fragment_id": "fragment:ambar-escaneo:e04:f012",
+      "frame_id": null,
+      "literal_text": "Villa Savia",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Villa Savia",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 10,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.535
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 79,
+      "episode_id": "episode:ambar-escaneo:e04",
+      "fragment_id": "fragment:ambar-escaneo:e04:f013",
+      "frame_id": null,
+      "literal_text": "Sabela Orín no es hermana de Cirilo Nadal",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Sabela Orín no es hermana de Cirilo Nadal",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 38,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.57
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 50,
+      "episode_id": "episode:ambar-escaneo:e05",
+      "fragment_id": "fragment:ambar-escaneo:e05:f014",
+      "frame_id": null,
+      "literal_text": "0tilia Vasque",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "0tilia Vasque",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 37,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.605
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 79,
+      "episode_id": "episode:ambar-escaneo:e05",
+      "fragment_id": "fragment:ambar-escaneo:e05:f015",
+      "frame_id": null,
+      "literal_text": "Mesnada Ocre",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Mesnada Ocre",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 67,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.64
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 32,
+      "episode_id": "episode:ambar-escaneo:e05",
+      "fragment_id": "fragment:ambar-escaneo:e05:f016",
+      "frame_id": null,
+      "literal_text": "Corte de 1a Resina",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Corte de 1a Resina",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 14,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.675
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 79,
+      "episode_id": "episode:ambar-escaneo:e05",
+      "fragment_id": "fragment:ambar-escaneo:e05:f017",
+      "frame_id": null,
+      "literal_text": "0tilia Vasque ya no dirige la Mesnada Ocre",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "0tilia Vasque ya no dirige la Mesnada Ocre",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 37,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.71
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 46,
+      "episode_id": "episode:ambar-escaneo:e06",
+      "fragment_id": "fragment:ambar-escaneo:e06:f018",
+      "frame_id": null,
+      "literal_text": "Cirilo Nadal",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Cirilo Nadal",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 34,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.745
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 81,
+      "episode_id": "episode:ambar-escaneo:e06",
+      "fragment_id": "fragment:ambar-escaneo:e06:f019",
+      "frame_id": null,
+      "literal_text": "Cofradia del Lacre",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Cofradia del Lacre",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 63,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.08
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 81,
+      "episode_id": "episode:ambar-escaneo:e06",
+      "fragment_id": "fragment:ambar-escaneo:e06:f020",
+      "frame_id": null,
+      "literal_text": "Si el proximo lacre no confirma a Cirilo Nadal al frente de la Cofradia del Lacre",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Si el proximo lacre no confirma a Cirilo Nadal al frente de la Cofradia del Lacre",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.115
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 29,
+      "episode_id": "episode:ambar-escaneo:e07",
+      "fragment_id": "fragment:ambar-escaneo:e07:f021",
+      "frame_id": null,
+      "literal_text": "Sabela Orín",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Sabela Orín",
+      "page": 3,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 18,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.15
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 48,
+      "episode_id": "episode:ambar-escaneo:e07",
+      "fragment_id": "fragment:ambar-escaneo:e07:f022",
+      "frame_id": null,
+      "literal_text": "Mesnada Ocre",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Mesnada Ocre",
+      "page": 3,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 36,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.185
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 49,
+      "episode_id": "episode:ambar-escaneo:e07",
+      "fragment_id": "fragment:ambar-escaneo:e07:f023",
+      "frame_id": null,
+      "literal_text": "¿Sigue o no sigue Sabela Orín en la Mesnada Ocre?",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "¿Sigue o no sigue Sabela Orín en la Mesnada Ocre?",
+      "page": 3,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.22
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 17,
+      "episode_id": "episode:ambar-escaneo:e08",
+      "fragment_id": "fragment:ambar-escaneo:e08:f024",
+      "frame_id": null,
+      "literal_text": "Veli Ardún",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Veli Ardún",
+      "page": 3,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 7,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.255
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 54,
+      "episode_id": "episode:ambar-escaneo:e08",
+      "fragment_id": "fragment:ambar-escaneo:e08:f025",
+      "frame_id": null,
+      "literal_text": "Cofradia del Lacre",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Cofradia del Lacre",
+      "page": 3,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 36,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.29
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 14,
+      "episode_id": "episode:ambar-escaneo:e09",
+      "fragment_id": "fragment:ambar-escaneo:e09:f026",
+      "frame_id": null,
+      "literal_text": "Jonás Treme",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Jonás Treme",
+      "page": 3,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 3,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.325
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 58,
+      "episode_id": "episode:ambar-escaneo:e09",
+      "fragment_id": "fragment:ambar-escaneo:e09:f027",
+      "frame_id": null,
+      "literal_text": "Corte de la Resina",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Corte de la Resina",
+      "page": 3,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 40,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.36
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 87,
+      "episode_id": "episode:ambar-escaneo:e10",
+      "fragment_id": "fragment:ambar-escaneo:e10:f028",
+      "frame_id": null,
+      "literal_text": "Otilia Vasque",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Otilia Vasque",
+      "page": 4,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 74,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.395
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 114,
+      "episode_id": "episode:ambar-escaneo:e10",
+      "fragment_id": "fragment:ambar-escaneo:e10:f029",
+      "frame_id": null,
+      "literal_text": "Villa Savia",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Villa Savia",
+      "page": 4,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 103,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.43
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 28,
+      "episode_id": "episode:ambar-escaneo:e11",
+      "fragment_id": "fragment:ambar-escaneo:e11:f030",
+      "frame_id": null,
+      "literal_text": "Cirilo Nadal",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Cirilo Nadal",
+      "page": 4,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 16,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.465
+      },
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 47,
+      "episode_id": "episode:ambar-escaneo:e11",
+      "fragment_id": "fragment:ambar-escaneo:e11:f031",
+      "frame_id": null,
+      "literal_text": "Mesnada Ocre",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "normalized_text": "Mesnada Ocre",
+      "page": 4,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 35,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ambar-escaneo",
+  "split": "negation",
+  "world": "ambar"
+}

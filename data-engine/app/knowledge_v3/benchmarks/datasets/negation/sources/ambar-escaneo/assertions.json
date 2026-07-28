@@ -1,0 +1,151 @@
+{
+  "benchmark_file": "assertions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "assertion_id": "assertion:ambar:neg-never-05-1",
+      "calendar_id": "calendar:ambar",
+      "collection_id": "collection:ambar",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:ambar-escaneo:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e01:f003"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "gold_key": "entity:ambar:veli-ardun|MEMBER_OF|entity:ambar:corte-resina|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "NEG-NEVER-05",
+          "family": "NEVER",
+          "knowledge_horizon": "0214-12-31T00:00:00Z"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER",
+          "OCR_NOISE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:ambar:corte-resina",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "state": "UNKNOWN",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:ambar:veli-ardun",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": "0214-12-31T00:00:00Z",
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:ambar:neg-never-06-1",
+      "calendar_id": "calendar:ambar",
+      "collection_id": "collection:ambar",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:ambar-escaneo:e02"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e02:f006"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "gold_key": "entity:ambar:anillo-ambar|OWNED_BY|entity:ambar:mesnada-ocre|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "NEG-NEVER-06",
+          "family": "NEVER",
+          "knowledge_horizon": "0216-12-31T00:00:00Z"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:ambar:mesnada-ocre",
+      "ontology_version": "core-1.4.0",
+      "predicate": "OWNED_BY",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "state": "UNKNOWN",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:ambar:anillo-ambar",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": "0216-12-31T00:00:00Z",
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ambar-escaneo",
+  "split": "negation",
+  "world": "ambar"
+}

@@ -1,0 +1,2586 @@
+{
+  "benchmark_file": "fragments",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 119,
+      "episode_id": "episode:basalto-cronica:e01",
+      "fragment_id": "fragment:basalto-cronica:e01:f001",
+      "frame_id": null,
+      "literal_text": "Harun Vell",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Harun Vell",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 109,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 159,
+      "episode_id": "episode:basalto-cronica:e01",
+      "fragment_id": "fragment:basalto-cronica:e01:f002",
+      "frame_id": null,
+      "literal_text": "Orden de la Obsidiana",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Orden de la Obsidiana",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 138,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 68,
+      "episode_id": "episode:basalto-cronica:e01",
+      "fragment_id": "fragment:basalto-cronica:e01:f003",
+      "frame_id": null,
+      "literal_text": "Puerto Escoria",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Puerto Escoria",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 54,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 159,
+      "episode_id": "episode:basalto-cronica:e01",
+      "fragment_id": "fragment:basalto-cronica:e01:f004",
+      "frame_id": null,
+      "literal_text": "Harun Vell no pertenece a la Orden de la Obsidiana",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Harun Vell no pertenece a la Orden de la Obsidiana",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 109,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 27,
+      "episode_id": "episode:basalto-cronica:e02",
+      "fragment_id": "fragment:basalto-cronica:e02:f005",
+      "frame_id": null,
+      "literal_text": "Hermandad de la Fumarola",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Hermandad de la Fumarola",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 3,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 60,
+      "episode_id": "episode:basalto-cronica:e02",
+      "fragment_id": "fragment:basalto-cronica:e02:f006",
+      "frame_id": null,
+      "literal_text": "Sira Delantre",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Sira Delantre",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 47,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 60,
+      "episode_id": "episode:basalto-cronica:e02",
+      "fragment_id": "fragment:basalto-cronica:e02:f007",
+      "frame_id": null,
+      "literal_text": "La Hermandad de la Fumarola no es dirigida por Sira Delantre",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "La Hermandad de la Fumarola no es dirigida por Sira Delantre",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:basalto-cronica:e03",
+      "fragment_id": "fragment:basalto-cronica:e03:f008",
+      "frame_id": null,
+      "literal_text": "Nerea Tossa",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Nerea Tossa",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 35,
+      "episode_id": "episode:basalto-cronica:e03",
+      "fragment_id": "fragment:basalto-cronica:e03:f009",
+      "frame_id": null,
+      "literal_text": "Beltrán Osk",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Beltrán Osk",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 24,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 45,
+      "episode_id": "episode:basalto-cronica:e03",
+      "fragment_id": "fragment:basalto-cronica:e03:f010",
+      "frame_id": null,
+      "literal_text": "Nerea Tossa, hermana de Beltrán Osk, no lo es",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Nerea Tossa, hermana de Beltrán Osk, no lo es",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 23,
+      "episode_id": "episode:basalto-cronica:e04",
+      "fragment_id": "fragment:basalto-cronica:e04:f011",
+      "frame_id": null,
+      "literal_text": "Gremio de Fundidores",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Gremio de Fundidores",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 3,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 69,
+      "episode_id": "episode:basalto-cronica:e04",
+      "fragment_id": "fragment:basalto-cronica:e04:f012",
+      "frame_id": null,
+      "literal_text": "Mira Cauce",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Mira Cauce",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 59,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 95,
+      "episode_id": "episode:basalto-cronica:e04",
+      "fragment_id": "fragment:basalto-cronica:e04:f013",
+      "frame_id": null,
+      "literal_text": "El Gremio de Fundidores acaba de desmentir por escrito que Mira Cauce figure entre sus miembros",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "El Gremio de Fundidores acaba de desmentir por escrito que Mira Cauce figure entre sus miembros",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 210,
+      "episode_id": "episode:basalto-cronica:e05",
+      "fragment_id": "fragment:basalto-cronica:e05:f014",
+      "frame_id": null,
+      "literal_text": "Sello de Lava",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Sello de Lava",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 197,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 240,
+      "episode_id": "episode:basalto-cronica:e05",
+      "fragment_id": "fragment:basalto-cronica:e05:f015",
+      "frame_id": null,
+      "literal_text": "Teo Ravasi",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Teo Ravasi",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 230,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 240,
+      "episode_id": "episode:basalto-cronica:e05",
+      "fragment_id": "fragment:basalto-cronica:e05:f016",
+      "frame_id": null,
+      "literal_text": "el Sello de Lava no es propiedad de Teo Ravasi",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "el Sello de Lava no es propiedad de Teo Ravasi",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 194,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 44,
+      "episode_id": "episode:basalto-cronica:e06",
+      "fragment_id": "fragment:basalto-cronica:e06:f017",
+      "frame_id": null,
+      "literal_text": "Casa Verrant",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Casa Verrant",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 32,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 14,
+      "episode_id": "episode:basalto-cronica:e06",
+      "fragment_id": "fragment:basalto-cronica:e06:f018",
+      "frame_id": null,
+      "literal_text": "Isla Tenaza",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Isla Tenaza",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 3,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 44,
+      "episode_id": "episode:basalto-cronica:e06",
+      "fragment_id": "fragment:basalto-cronica:e06:f019",
+      "frame_id": null,
+      "literal_text": "En Isla Tenaza no tiene sede la Casa Verrant",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "En Isla Tenaza no tiene sede la Casa Verrant",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:basalto-cronica:e07",
+      "fragment_id": "fragment:basalto-cronica:e07:f020",
+      "frame_id": null,
+      "literal_text": "Ilde Varona",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Ilde Varona",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 53,
+      "episode_id": "episode:basalto-cronica:e07",
+      "fragment_id": "fragment:basalto-cronica:e07:f021",
+      "frame_id": null,
+      "literal_text": "Conclave de la Ceniza",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Conclave de la Ceniza",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 32,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 53,
+      "episode_id": "episode:basalto-cronica:e07",
+      "fragment_id": "fragment:basalto-cronica:e07:f022",
+      "frame_id": null,
+      "literal_text": "Ilde Varona nunca pertenecio al Conclave de la Ceniza",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Ilde Varona nunca pertenecio al Conclave de la Ceniza",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 24,
+      "episode_id": "episode:basalto-cronica:e08",
+      "fragment_id": "fragment:basalto-cronica:e08:f023",
+      "frame_id": null,
+      "literal_text": "Orden de la Obsidiana",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Orden de la Obsidiana",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 3,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 59,
+      "episode_id": "episode:basalto-cronica:e08",
+      "fragment_id": "fragment:basalto-cronica:e08:f024",
+      "frame_id": null,
+      "literal_text": "Kaspar Nune",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Kaspar Nune",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 48,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 59,
+      "episode_id": "episode:basalto-cronica:e08",
+      "fragment_id": "fragment:basalto-cronica:e08:f025",
+      "frame_id": null,
+      "literal_text": "La Orden de la Obsidiana jamas fue dirigida por Kaspar Nune",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "La Orden de la Obsidiana jamas fue dirigida por Kaspar Nune",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 83,
+      "episode_id": "episode:basalto-cronica:e09",
+      "fragment_id": "fragment:basalto-cronica:e09:f026",
+      "frame_id": null,
+      "literal_text": "Yunque Negro",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Yunque Negro",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 71,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 124,
+      "episode_id": "episode:basalto-cronica:e09",
+      "fragment_id": "fragment:basalto-cronica:e09:f027",
+      "frame_id": null,
+      "literal_text": "Gremio de Fundidores",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Gremio de Fundidores",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 104,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 124,
+      "episode_id": "episode:basalto-cronica:e09",
+      "fragment_id": "fragment:basalto-cronica:e09:f028",
+      "frame_id": null,
+      "literal_text": "En ningun momento de las cuatro generaciones que cubre esta cronica el Yunque Negro estuvo en manos del Gremio de Fundidores",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "En ningun momento de las cuatro generaciones que cubre esta cronica el Yunque Negro estuvo en manos del Gremio de Fundidores",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:basalto-cronica:e10",
+      "fragment_id": "fragment:basalto-cronica:e10:f029",
+      "frame_id": null,
+      "literal_text": "Runa Belisa",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Runa Belisa",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 25,
+      "episode_id": "episode:basalto-cronica:e10",
+      "fragment_id": "fragment:basalto-cronica:e10:f030",
+      "frame_id": null,
+      "literal_text": "Beltrán Osk",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Beltrán Osk",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 14,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 59,
+      "episode_id": "episode:basalto-cronica:e10",
+      "fragment_id": "fragment:basalto-cronica:e10:f031",
+      "frame_id": null,
+      "literal_text": "Runa Belisa y Beltrán Osk no fueron hermanos en ningun caso",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Runa Belisa y Beltrán Osk no fueron hermanos en ningun caso",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 13,
+      "episode_id": "episode:basalto-cronica:e11",
+      "fragment_id": "fragment:basalto-cronica:e11:f032",
+      "frame_id": null,
+      "literal_text": "Sira Delantre",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Sira Delantre",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 49,
+      "episode_id": "episode:basalto-cronica:e11",
+      "fragment_id": "fragment:basalto-cronica:e11:f033",
+      "frame_id": null,
+      "literal_text": "Casa Verrant",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Casa Verrant",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 37,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 49,
+      "episode_id": "episode:basalto-cronica:e11",
+      "fragment_id": "fragment:basalto-cronica:e11:f034",
+      "frame_id": null,
+      "literal_text": "Sira Delantre no dejo de servir a la Casa Verrant",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Sira Delantre no dejo de servir a la Casa Verrant",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 28,
+      "episode_id": "episode:basalto-cronica:e12",
+      "fragment_id": "fragment:basalto-cronica:e12:f035",
+      "frame_id": null,
+      "literal_text": "Olmo Quiral",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Olmo Quiral",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 17,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 56,
+      "episode_id": "episode:basalto-cronica:e12",
+      "fragment_id": "fragment:basalto-cronica:e12:f036",
+      "frame_id": null,
+      "literal_text": "Foso Humeante",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Foso Humeante",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 43,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 56,
+      "episode_id": "episode:basalto-cronica:e12",
+      "fragment_id": "fragment:basalto-cronica:e12:f037",
+      "frame_id": null,
+      "literal_text": "No es cierto que Olmo Quiral abandonase el Foso Humeante",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "No es cierto que Olmo Quiral abandonase el Foso Humeante",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 27,
+      "episode_id": "episode:basalto-cronica:e13",
+      "fragment_id": "fragment:basalto-cronica:e13:f038",
+      "frame_id": null,
+      "literal_text": "Hermandad de la Fumarola",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Hermandad de la Fumarola",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 3,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 61,
+      "episode_id": "episode:basalto-cronica:e13",
+      "fragment_id": "fragment:basalto-cronica:e13:f039",
+      "frame_id": null,
+      "literal_text": "Nerea Tossa",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Nerea Tossa",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 50,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 61,
+      "episode_id": "episode:basalto-cronica:e13",
+      "fragment_id": "fragment:basalto-cronica:e13:f040",
+      "frame_id": null,
+      "literal_text": "La Hermandad de la Fumarola no fue abandonada por Nerea Tossa",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "La Hermandad de la Fumarola no fue abandonada por Nerea Tossa",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:basalto-cronica:e14",
+      "fragment_id": "fragment:basalto-cronica:e14:f041",
+      "frame_id": null,
+      "literal_text": "Beltrán Osk",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Beltrán Osk",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 107,
+      "episode_id": "episode:basalto-cronica:e14",
+      "fragment_id": "fragment:basalto-cronica:e14:f042",
+      "frame_id": null,
+      "literal_text": "Conclave de la Ceniza",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Conclave de la Ceniza",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 86,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 107,
+      "episode_id": "episode:basalto-cronica:e14",
+      "fragment_id": "fragment:basalto-cronica:e14:f043",
+      "frame_id": null,
+      "literal_text": "no dejo de liderar el Conclave de la Ceniza",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "no dejo de liderar el Conclave de la Ceniza",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 64,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 26,
+      "episode_id": "episode:basalto-cronica:e15",
+      "fragment_id": "fragment:basalto-cronica:e15:f044",
+      "frame_id": null,
+      "literal_text": "Mira Cauce",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Mira Cauce",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 16,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 52,
+      "episode_id": "episode:basalto-cronica:e15",
+      "fragment_id": "fragment:basalto-cronica:e15:f045",
+      "frame_id": null,
+      "literal_text": "Ilde Varona",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Ilde Varona",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 41,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 52,
+      "episode_id": "episode:basalto-cronica:e15",
+      "fragment_id": "fragment:basalto-cronica:e15:f046",
+      "frame_id": null,
+      "literal_text": "No es falso que Mira Cauce sea aliada de Ilde Varona",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "No es falso que Mira Cauce sea aliada de Ilde Varona",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 39,
+      "episode_id": "episode:basalto-cronica:e16",
+      "fragment_id": "fragment:basalto-cronica:e16:f047",
+      "frame_id": null,
+      "literal_text": "Puerto Escoria",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Puerto Escoria",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 25,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 88,
+      "episode_id": "episode:basalto-cronica:e16",
+      "fragment_id": "fragment:basalto-cronica:e16:f048",
+      "frame_id": null,
+      "literal_text": "Gremio de Fundidores",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Gremio de Fundidores",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 68,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 88,
+      "episode_id": "episode:basalto-cronica:e16",
+      "fragment_id": "fragment:basalto-cronica:e16:f049",
+      "frame_id": null,
+      "literal_text": "Nadie puede negar que el Puerto Escoria no esta bajo el control del Gremio de Fundidores",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Nadie puede negar que el Puerto Escoria no esta bajo el control del Gremio de Fundidores",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 10,
+      "episode_id": "episode:basalto-cronica:e17",
+      "fragment_id": "fragment:basalto-cronica:e17:f050",
+      "frame_id": null,
+      "literal_text": "Teo Ravasi",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Teo Ravasi",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 41,
+      "episode_id": "episode:basalto-cronica:e17",
+      "fragment_id": "fragment:basalto-cronica:e17:f051",
+      "frame_id": null,
+      "literal_text": "Gremio de Fundidores",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Gremio de Fundidores",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 21,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 41,
+      "episode_id": "episode:basalto-cronica:e17",
+      "fragment_id": "fragment:basalto-cronica:e17:f052",
+      "frame_id": null,
+      "literal_text": "Teo Ravasi lidera el Gremio de Fundidores",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Teo Ravasi lidera el Gremio de Fundidores",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 72,
+      "episode_id": "episode:basalto-cronica:e18",
+      "fragment_id": "fragment:basalto-cronica:e18:f053",
+      "frame_id": null,
+      "literal_text": "Sira Delantre",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Sira Delantre",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 59,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 109,
+      "episode_id": "episode:basalto-cronica:e18",
+      "fragment_id": "fragment:basalto-cronica:e18:f054",
+      "frame_id": null,
+      "literal_text": "Orden de la Obsidiana",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Orden de la Obsidiana",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 88,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 10,
+      "episode_id": "episode:basalto-cronica:e18",
+      "fragment_id": "fragment:basalto-cronica:e18:f055",
+      "frame_id": null,
+      "literal_text": "Harun Vell",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Harun Vell",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 109,
+      "episode_id": "episode:basalto-cronica:e18",
+      "fragment_id": "fragment:basalto-cronica:e18:f056",
+      "frame_id": null,
+      "literal_text": "Sira Delantre pertenece a la Orden de la Obsidiana",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "normalized_text": "Sira Delantre pertenece a la Orden de la Obsidiana",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "start": 59,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "basalto-cronica",
+  "split": "negation",
+  "world": "basalto"
+}

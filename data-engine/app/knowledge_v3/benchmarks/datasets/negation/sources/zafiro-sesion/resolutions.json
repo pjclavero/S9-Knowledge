@@ -1,0 +1,1693 @@
+{
+  "benchmark_file": "resolutions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:brixa-omal"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e01:f001"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e01:m001"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e01:brixa-omal",
+      "selected_entity_id": "entity:zafiro:brixa-omal",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:sindicato-abisal"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:zafiro-sesion:e01:f002"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e01:m002"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e01:sindicato-abisal",
+      "selected_entity_id": "entity:zafiro:sindicato-abisal",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:circulo-sonda"
+      ],
+      "confidence": 0.8,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:zafiro-sesion:e02:f005"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e02:m004"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e02:circulo-sonda",
+      "selected_entity_id": "entity:zafiro:circulo-sonda",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:goran-ute"
+      ],
+      "confidence": 0.8,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e02:f004"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e02:m003"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e02:goran-ute",
+      "selected_entity_id": "entity:zafiro:goran-ute",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:flota-perlera"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:zafiro-sesion:e03:f008"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e03:m006"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e03:flota-perlera",
+      "selected_entity_id": "entity:zafiro:flota-perlera",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:paz-ontiveros"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e03:f007"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e03:m005"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e03:paz-ontiveros",
+      "selected_entity_id": "entity:zafiro:paz-ontiveros",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:tomas-esquil"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e03:f009"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e03:m007"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e03:tomas-esquil",
+      "selected_entity_id": "entity:zafiro:tomas-esquil",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:domo-tres"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:zafiro-sesion:e04:f012"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e04:m008"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e04:domo-tres",
+      "selected_entity_id": "entity:zafiro:domo-tres",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:fosa-clara"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:zafiro-sesion:e04:f013"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e04:m009"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e04:fosa-clara",
+      "selected_entity_id": "entity:zafiro:fosa-clara",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:escuela-corriente"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:zafiro-sesion:e05:f016"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e05:m011"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e05:escuela-corriente",
+      "selected_entity_id": "entity:zafiro:escuela-corriente",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:lira-fenn"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e05:f015"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e05:m010"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e05:lira-fenn",
+      "selected_entity_id": "entity:zafiro:lira-fenn",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:sindicato-abisal"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:zafiro-sesion:e06:f019"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e06:m013"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e06:sindicato-abisal",
+      "selected_entity_id": "entity:zafiro:sindicato-abisal",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:tomas-esquil"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e06:f018"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e06:m012"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e06:tomas-esquil",
+      "selected_entity_id": "entity:zafiro:tomas-esquil",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:kena-drovic"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e07:f021"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e07:m014"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e07:kena-drovic",
+      "selected_entity_id": "entity:zafiro:kena-drovic",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:sonda-madre"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Object",
+      "evidence": [
+        "fragment:zafiro-sesion:e07:f022"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e07:m015"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e07:sonda-madre",
+      "selected_entity_id": "entity:zafiro:sonda-madre",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:brixa-omal"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e08:f025"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e08:m017"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e08:brixa-omal",
+      "selected_entity_id": "entity:zafiro:brixa-omal",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:flota-perlera"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:zafiro-sesion:e08:f024"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e08:m016"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e08:flota-perlera",
+      "selected_entity_id": "entity:zafiro:flota-perlera",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:goran-ute"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e09:f028"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e09:m019"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e09:goran-ute",
+      "selected_entity_id": "entity:zafiro:goran-ute",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:paz-ontiveros"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e09:f027"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e09:m018"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e09:paz-ontiveros",
+      "selected_entity_id": "entity:zafiro:paz-ontiveros",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:andres-lupo"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e10:f032"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e10:m022"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e10:andres-lupo",
+      "selected_entity_id": "entity:zafiro:andres-lupo",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:domo-tres"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:zafiro-sesion:e10:f031"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e10:m021"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e10:domo-tres",
+      "selected_entity_id": "entity:zafiro:domo-tres",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:sonda-madre"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Object",
+      "evidence": [
+        "fragment:zafiro-sesion:e10:f030"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e10:m020"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e10:sonda-madre",
+      "selected_entity_id": "entity:zafiro:sonda-madre",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:kena-drovic"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e11:f035"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e11:m024"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e11:kena-drovic",
+      "selected_entity_id": "entity:zafiro:kena-drovic",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:lira-fenn"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e11:f034"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e11:m023"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e11:lira-fenn",
+      "selected_entity_id": "entity:zafiro:lira-fenn",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:domo-tres"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:zafiro-sesion:e12:f039"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e12:m027"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e12:domo-tres",
+      "selected_entity_id": "entity:zafiro:domo-tres",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:paz-ontiveros"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e12:f038"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e12:m026"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e12:paz-ontiveros",
+      "selected_entity_id": "entity:zafiro:paz-ontiveros",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:tomas-esquil"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e12:f037"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e12:m025"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e12:tomas-esquil",
+      "selected_entity_id": "entity:zafiro:tomas-esquil",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:escuela-corriente"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:zafiro-sesion:e13:f042"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e13:m029"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e13:escuela-corriente",
+      "selected_entity_id": "entity:zafiro:escuela-corriente",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:goran-ute"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e13:f041"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e13:m028"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e13:goran-ute",
+      "selected_entity_id": "entity:zafiro:goran-ute",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:brixa-omal"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e14:f044"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e14:m030"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e14:brixa-omal",
+      "selected_entity_id": "entity:zafiro:brixa-omal",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:kena-drovic"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:zafiro-sesion:e14:f045"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e14:m031"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e14:kena-drovic",
+      "selected_entity_id": "entity:zafiro:kena-drovic",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:sindicato-abisal"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:zafiro-sesion:e15:f047"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e15:m032"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e15:sindicato-abisal",
+      "selected_entity_id": "entity:zafiro:sindicato-abisal",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:zafiro:sonda-madre"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Object",
+      "evidence": [
+        "fragment:zafiro-sesion:e15:f048"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:zafiro-sesion:e15:m033"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:zafiro-sesion:e15:sonda-madre",
+      "selected_entity_id": "entity:zafiro:sonda-madre",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "zafiro-sesion",
+  "split": "negation",
+  "world": "zafiro"
+}

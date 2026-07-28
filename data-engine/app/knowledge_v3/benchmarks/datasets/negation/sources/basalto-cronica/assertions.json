@@ -1,0 +1,850 @@
+{
+  "benchmark_file": "assertions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "assertion_id": "assertion:basalto:neg-simple-01-1",
+      "calendar_id": "calendar:basalto",
+      "collection_id": "collection:basalto",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:basalto-cronica:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e01:f004"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "entity:basalto:harun-vell|MEMBER_OF|entity:basalto:orden-obsidiana|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "NEG-SIMPLE-01",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:basalto:orden-obsidiana",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:basalto:harun-vell",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:basalto:neg-simple-02-1",
+      "calendar_id": "calendar:basalto",
+      "collection_id": "collection:basalto",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:basalto-cronica:e02"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e02:f007"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "entity:basalto:hermandad-fumarola|LED_BY|entity:basalto:sira-delantre|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "NEG-SIMPLE-02",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:basalto:sira-delantre",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LED_BY",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:basalto:hermandad-fumarola",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:basalto:neg-simple-03-1",
+      "calendar_id": "calendar:basalto",
+      "collection_id": "collection:basalto",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:basalto-cronica:e03"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e03:f010"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "entity:basalto:beltran-osk|SIBLING_OF|entity:basalto:nerea-tossa|UNDIRECTED|True",
+        "negation": {
+          "case_id": "NEG-SIMPLE-03",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:basalto:beltran-osk",
+      "ontology_version": "core-1.4.0",
+      "predicate": "SIBLING_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:basalto:nerea-tossa",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:basalto:neg-simple-04-1",
+      "calendar_id": "calendar:basalto",
+      "collection_id": "collection:basalto",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:basalto-cronica:e04"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e04:f013"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "entity:basalto:gremio-fundidores|HAS_MEMBER|entity:basalto:mira-cauce|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "NEG-SIMPLE-04",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:basalto:mira-cauce",
+      "ontology_version": "core-1.4.0",
+      "predicate": "HAS_MEMBER",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:basalto:gremio-fundidores",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:basalto:neg-simple-05-1",
+      "calendar_id": "calendar:basalto",
+      "collection_id": "collection:basalto",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:basalto-cronica:e05"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e05:f016"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "entity:basalto:sello-lava|OWNED_BY|entity:basalto:teo-ravasi|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "NEG-SIMPLE-05",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:basalto:teo-ravasi",
+      "ontology_version": "core-1.4.0",
+      "predicate": "OWNED_BY",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:basalto:sello-lava",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:basalto:neg-simple-06-1",
+      "calendar_id": "calendar:basalto",
+      "collection_id": "collection:basalto",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:basalto-cronica:e06"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e06:f019"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "entity:basalto:casa-verrant|LOCATED_IN|entity:basalto:isla-tenaza|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "NEG-SIMPLE-06",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:basalto:isla-tenaza",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LOCATED_IN",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:basalto:casa-verrant",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:basalto:neg-never-01-1",
+      "calendar_id": "calendar:basalto",
+      "collection_id": "collection:basalto",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:basalto-cronica:e07"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e07:f022"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "entity:basalto:ilde-varona|MEMBER_OF|entity:basalto:conclave-ceniza|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "NEG-NEVER-01",
+          "family": "NEVER",
+          "knowledge_horizon": "1041-12-31T00:00:00Z"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:basalto:conclave-ceniza",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "state": "UNKNOWN",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:basalto:ilde-varona",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": "1041-12-31T00:00:00Z",
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:basalto:neg-never-02-1",
+      "calendar_id": "calendar:basalto",
+      "collection_id": "collection:basalto",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:basalto-cronica:e08"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e08:f025"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "entity:basalto:orden-obsidiana|LED_BY|entity:basalto:kaspar-nune|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "NEG-NEVER-02",
+          "family": "NEVER",
+          "knowledge_horizon": "1041-12-31T00:00:00Z"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:basalto:kaspar-nune",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LED_BY",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "state": "UNKNOWN",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:basalto:orden-obsidiana",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": "1041-12-31T00:00:00Z",
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:basalto:neg-never-03-1",
+      "calendar_id": "calendar:basalto",
+      "collection_id": "collection:basalto",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:basalto-cronica:e09"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e09:f028"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "entity:basalto:yunque-negro|OWNED_BY|entity:basalto:gremio-fundidores|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "NEG-NEVER-03",
+          "family": "NEVER",
+          "knowledge_horizon": "1041-12-31T00:00:00Z"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:basalto:gremio-fundidores",
+      "ontology_version": "core-1.4.0",
+      "predicate": "OWNED_BY",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "state": "UNKNOWN",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:basalto:yunque-negro",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": "1041-12-31T00:00:00Z",
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:basalto:neg-never-04-1",
+      "calendar_id": "calendar:basalto",
+      "collection_id": "collection:basalto",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:basalto-cronica:e10"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e10:f031"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "entity:basalto:beltran-osk|SIBLING_OF|entity:basalto:runa-belisa|UNDIRECTED|True",
+        "negation": {
+          "case_id": "NEG-NEVER-04",
+          "family": "NEVER",
+          "knowledge_horizon": "1041-12-31T00:00:00Z"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:basalto:beltran-osk",
+      "ontology_version": "core-1.4.0",
+      "predicate": "SIBLING_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "state": "UNKNOWN",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:basalto:runa-belisa",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": "1041-12-31T00:00:00Z",
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:basalto:neg-pos-01-1",
+      "calendar_id": "calendar:basalto",
+      "collection_id": "collection:basalto",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:basalto-cronica:e17"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e17:f052"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "entity:basalto:teo-ravasi|LEADS|entity:basalto:gremio-fundidores|SUBJECT_TO_OBJECT|False",
+        "negation": {
+          "case_id": "NEG-POS-01",
+          "family": "POSITIVE_CONTROL",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:basalto:gremio-fundidores",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LEADS",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:basalto:teo-ravasi",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:basalto:neg-pos-02-1",
+      "calendar_id": "calendar:basalto",
+      "collection_id": "collection:basalto",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:basalto-cronica:e18"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e18:f056"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "entity:basalto:sira-delantre|MEMBER_OF|entity:basalto:orden-obsidiana|SUBJECT_TO_OBJECT|False",
+        "negation": {
+          "case_id": "NEG-POS-02",
+          "family": "POSITIVE_CONTROL",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:basalto:orden-obsidiana",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:basalto:sira-delantre",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "basalto-cronica",
+  "split": "negation",
+  "world": "basalto"
+}

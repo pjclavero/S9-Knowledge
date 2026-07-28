@@ -1,0 +1,1554 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e01:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e01:f003"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-SIMPLE-07:PRIMARY",
+        "negation": {
+          "anchor_quote": "brixa omal no forma parte del sindicato abisal",
+          "case_id": "NEG-SIMPLE-07",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:zafiro:sindicato-abisal",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:zafiro:brixa-omal",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Contar marcas de negacion aqui da dos y la paridad diria 'afirmativo'. Es negativo: el primer 'no' responde a la pregunta anterior.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "ASR",
+          "traps": [
+            "ASR sin puntuacion ni mayusculas",
+            "el PRIMER 'no' es un marcador de discurso, no una negacion de la relacion",
+            "hay dos 'no' en el turno y solo uno cuenta"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "ASR_NOISE",
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:zafiro-sesion:e01:m002"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "brixa omal no forma parte del sindicato abisal",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e01:m001"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e02:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e02",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e02:f006"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-SIMPLE-08:PRIMARY",
+        "negation": {
+          "anchor_quote": "Goran Hute no es aliado del Circulo de la Zonda",
+          "case_id": "NEG-SIMPLE-08",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": true,
+          "expected_object": "entity:zafiro:circulo-sonda",
+          "expected_predicate": "ALLY_OF",
+          "expected_subject": "entity:zafiro:goran-ute",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "orthogonal_risk": "ENTITY_FUZZY",
+          "rationale": "El eje que mide este caso es la negacion, no la identidad. Si se revisa por duda de entidad, eso NO cuenta como fallo de la politica de negacion.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "ASR",
+          "traps": [
+            "ASR fonetico: 'Hute' por 'Ute' (hache muda) y 'Zonda' por 'Sonda' (seseo)",
+            "las dos entidades llegan degradadas a la vez"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "ASR_NOISE",
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:zafiro-sesion:e02:m004"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "ALLY_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Goran Hute no es aliado del Circulo de la Zonda",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e02:m003"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e03:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e03:f010"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-SIMPLE-09:PRIMARY",
+        "negation": {
+          "anchor_quote": "Paz Ontiveros no pertenece a la Flota Perlera",
+          "case_id": "NEG-SIMPLE-09",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:zafiro:flota-perlera",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:zafiro:paz-ontiveros",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "El alcance de la negacion tiene que pararse en el punto y coma. Si no, la pertenencia de Tomas sale negada tambien.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "DOS relaciones en el mismo episodio, una negada y otra afirmada",
+            "comparten objeto: la Flota Perlera aparece una sola vez en el texto",
+            "el segundo sujeto se recupera por una relativa ('quien si figura en su rol')"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:zafiro-sesion:e03:m006"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Paz Ontiveros no pertenece a la Flota Perlera",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e03:m005"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e03:c2",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e03:f011"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-SIMPLE-09:SECONDARY",
+        "negation": {
+          "anchor_quote": "quien si figura en su rol es Tomás Esquil",
+          "case_id": "NEG-SIMPLE-09",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:zafiro:flota-perlera",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:zafiro:tomas-esquil",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "El alcance de la negacion tiene que pararse en el punto y coma. Si no, la pertenencia de Tomas sale negada tambien.",
+          "role_in_case": "SECONDARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "DOS relaciones en el mismo episodio, una negada y otra afirmada",
+            "comparten objeto: la Flota Perlera aparece una sola vez en el texto",
+            "el segundo sujeto se recupera por una relativa ('quien si figura en su rol')"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:zafiro-sesion:e03:m006"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "quien si figura en su rol es Tomás Esquil",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e03:m007"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e04:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e04",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e04:f014"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-SIMPLE-10:PRIMARY",
+        "negation": {
+          "anchor_quote": "el Domo Tres, en la Fosa Clara, no se encuentra",
+          "case_id": "NEG-SIMPLE-10",
+          "cue_position": "AFTER_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:zafiro:fosa-clara",
+          "expected_predicate": "LOCATED_IN",
+          "expected_subject": "entity:zafiro:domo-tres",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Contencion espacial negada con la marca en posicion final.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "la marca va al final, despues de los dos argumentos",
+            "el inciso locativo parece afirmar la contencion espacial"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:zafiro-sesion:e04:m009"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LOCATED_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "el Domo Tres, en la Fosa Clara, no se encuentra",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e04:m008"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e05:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e05",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e05:f017"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-NOTYET-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Lira Fenn todavia no lidera la Escuela de la Corriente",
+          "case_id": "NEG-NOTYET-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:zafiro:escuela-corriente",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:zafiro:lira-fenn",
+          "family": "NOT_YET",
+          "forbidden_outcomes": [
+            "PERMANENT_NEGATIVE_EDGE"
+          ],
+          "negation_kind": "NOT_YET",
+          "rationale": "Un NOT_YET escrito como negacion permanente es falso a partir de la votacion. Por eso no es autoaprobable.",
+          "reading": "NEGATIVE_NOW_OPEN_LATER",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "'todavia no' implica que se espera que SI ocurra: la negacion tiene fecha de caducidad"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "NOT_YET"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:zafiro-sesion:e05:m011"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Lira Fenn todavia no lidera la Escuela de la Corriente",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e05:m010"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e06:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e06",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e06:f020"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-NOTYET-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "Aun no pertenece Tomás Esquil al Sindicato Abisal",
+          "case_id": "NEG-NOTYET-02",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:zafiro:sindicato-abisal",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:zafiro:tomas-esquil",
+          "family": "NOT_YET",
+          "forbidden_outcomes": [
+            "PERMANENT_NEGATIVE_EDGE"
+          ],
+          "negation_kind": "NOT_YET",
+          "rationale": "Mismo fenomeno con otra marca y orden verbo-sujeto.",
+          "reading": "NEGATIVE_NOW_OPEN_LATER",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "'aun no' antepuesto y sujeto pospuesto al verbo"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "NOT_YET"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:zafiro-sesion:e06:m013"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Aun no pertenece Tomás Esquil al Sindicato Abisal",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e06:m012"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e07:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e07",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e07:f023"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-NOTYET-03:PRIMARY",
+        "negation": {
+          "anchor_quote": "kena drovic no es todavia duena de la sonda madre",
+          "case_id": "NEG-NOTYET-03",
+          "cue_position": "BETWEEN_ARGUMENTS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:zafiro:sonda-madre",
+          "expected_predicate": "OWNS",
+          "expected_subject": "entity:zafiro:kena-drovic",
+          "family": "NOT_YET",
+          "forbidden_outcomes": [
+            "PERMANENT_NEGATIVE_EDGE"
+          ],
+          "negation_kind": "NOT_YET",
+          "rationale": "NOT_YET discontinuo sobre texto degradado.",
+          "reading": "NEGATIVE_NOW_OPEN_LATER",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "ASR",
+          "traps": [
+            "ASR sin tildes ni puntuacion y con 'duena' por 'dueña'",
+            "'no ... todavia' con las dos piezas separadas por el verbo",
+            "'del sindicato' es un sustantivo de rol truncado: NO se anota como mencion"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "ASR_NOISE",
+          "NEGATION_BATTERY",
+          "NOT_YET"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:zafiro-sesion:e07:m015"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "OWNS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "kena drovic no es todavia duena de la sonda madre",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e07:m014"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e08:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e08",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e08:f026"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-NOTYET-04:PRIMARY",
+        "negation": {
+          "anchor_quote": "La Flota Perlera no esta aun dirigida por Brixa Omal",
+          "case_id": "NEG-NOTYET-04",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:zafiro:brixa-omal",
+          "expected_predicate": "LED_BY",
+          "expected_subject": "entity:zafiro:flota-perlera",
+          "family": "NOT_YET",
+          "forbidden_outcomes": [
+            "PERMANENT_NEGATIVE_EDGE"
+          ],
+          "negation_kind": "NOT_YET",
+          "rationale": "NOT_YET + pasiva: dos transformaciones sobre la misma relacion.",
+          "reading": "NEGATIVE_NOW_OPEN_LATER",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "NOT_YET en pasiva, con 'aun' intercalado dentro de la perifrasis"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "PASSIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "NOT_YET"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:zafiro-sesion:e08:m017"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LED_BY"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "La Flota Perlera no esta aun dirigida por Brixa Omal",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e08:m016"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e09:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e09",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e09:f029"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-NOTYET-05:PRIMARY",
+        "negation": {
+          "anchor_quote": "Que Paz Ontiveros y Goran Ute sean aliados no ha ocurrido todavia",
+          "case_id": "NEG-NOTYET-05",
+          "cue_position": "AFTER_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": true,
+          "expected_object": "entity:zafiro:goran-ute",
+          "expected_predicate": "ALLY_OF",
+          "expected_subject": "entity:zafiro:paz-ontiveros",
+          "family": "NOT_YET",
+          "forbidden_outcomes": [
+            "PERMANENT_NEGATIVE_EDGE"
+          ],
+          "negation_kind": "NOT_YET",
+          "rationale": "NOT_YET con la relacion tematizada al principio y la negacion al final.",
+          "reading": "NEGATIVE_NOW_OPEN_LATER",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "la relacion va en una completiva antepuesta en subjuntivo",
+            "la marca esta al final, detras de los dos argumentos y del predicado",
+            "predicado simetrico"
+          ],
+          "verb_form": "SUBJUNTIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "NOT_YET"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:zafiro-sesion:e09:m019"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "ALLY_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Que Paz Ontiveros y Goran Ute sean aliados no ha ocurrido todavia",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e09:m018"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e10:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e10",
+      "epistemic_cues": [
+        "no admite que"
+      ],
+      "epistemic_status_hint": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e10:f033"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-SCOPE-04:PRIMARY",
+        "negation": {
+          "anchor_quote": "Andrés Lupo no admite que la Sonda Madre este en el Domo Tres",
+          "case_id": "NEG-SCOPE-04",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:zafiro:domo-tres",
+          "expected_predicate": "LOCATED_IN",
+          "expected_subject": "entity:zafiro:sonda-madre",
+          "family": "SCOPE_EMBEDDED",
+          "forbidden_outcomes": [
+            "NEGATIVE_EDGE"
+          ],
+          "negation_kind": "SCOPE_EMBEDDED",
+          "rationale": "Mismo alcance de subordinada, otro verbo y otros tipos de entidad.",
+          "reading": "ATTITUDE_NOT_FACT",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "verbo de actitud distinto de 'creer' y objeto no humano"
+          ],
+          "verb_form": "SUBJUNTIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "SCOPE_EMBEDDED"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:zafiro-sesion:e10:m021"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LOCATED_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Andrés Lupo no admite que la Sonda Madre este en el Domo Tres",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e10:m020"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e11:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e11",
+      "epistemic_cues": [
+        "Nadie sostiene que"
+      ],
+      "epistemic_status_hint": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e11:f036"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-SCOPE-05:PRIMARY",
+        "negation": {
+          "anchor_quote": "Nadie sostiene que Lira Fenn no sea hermana de Kena Drovic",
+          "case_id": "NEG-SCOPE-05",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": false,
+          "expected_object": "entity:zafiro:kena-drovic",
+          "expected_predicate": "SIBLING_OF",
+          "expected_subject": "entity:zafiro:lira-fenn",
+          "family": "SCOPE_EMBEDDED",
+          "forbidden_outcomes": [
+            "NEGATIVE_EDGE"
+          ],
+          "negation_kind": "SCOPE_EMBEDDED",
+          "rationale": "Parece una doble negacion cancelable, pero las marcas viven en clausulas distintas y no se cancelan: nadie afirma lo contrario no es lo mismo que si.",
+          "reading": "UNDETERMINED",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "marca negativa en la matriz ('Nadie') y otra en la subordinada ('no sea')",
+            "predicado simetrico bajo doble alcance"
+          ],
+          "verb_form": "SUBJUNTIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "SCOPE_EMBEDDED"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:zafiro-sesion:e11:m024"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "SIBLING_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Nadie sostiene que Lira Fenn no sea hermana de Kena Drovic",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e11:m023"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e12:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e12",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e12:f040"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-CESS-08:PRIMARY",
+        "negation": {
+          "anchor_quote": "Tomás Esquil ya no es rival de Paz Ontiveros",
+          "case_id": "NEG-CESS-08",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": true,
+          "expected_object": "entity:zafiro:paz-ontiveros",
+          "expected_predicate": "RIVAL_OF",
+          "expected_subject": "entity:zafiro:tomas-esquil",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "Cesacion simetrica: cerrar (A,B) tiene que cerrar tambien (B,A).",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "cesacion de un predicado simetrico con confirmacion posterior en otra clausula"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:zafiro-sesion:e12:m026"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "RIVAL_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Tomás Esquil ya no es rival de Paz Ontiveros",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e12:m025"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e13:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e13",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e13:f043"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-CESS-09:PRIMARY",
+        "negation": {
+          "anchor_quote": "goran ute abandono la escuela de la corriente",
+          "case_id": "NEG-CESS-09",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:zafiro:escuela-corriente",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:zafiro:goran-ute",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "Cesacion lexica sobre texto degradado y con ambiguedad de tiempo verbal.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "ASR",
+          "traps": [
+            "ASR sin tildes ni puntuacion: 'abandono' es ambiguo entre presente y pasado",
+            "cesacion SIN ninguna marca de negacion"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "ASR_NOISE",
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:zafiro-sesion:e13:m029"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "goran ute abandono la escuela de la corriente",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e13:m028"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e14:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e14",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e14:f046"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-POS-05:PRIMARY",
+        "negation": {
+          "anchor_quote": "Brixa Omal es hermana de Kena Drovic",
+          "case_id": "NEG-POS-05",
+          "cue_position": "NONE",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": false,
+          "expected_object": "entity:zafiro:kena-drovic",
+          "expected_predicate": "SIBLING_OF",
+          "expected_subject": "entity:zafiro:brixa-omal",
+          "family": "POSITIVE_CONTROL",
+          "negation_kind": "NONE",
+          "rationale": "Control positivo minimo, sin ninguna marca en el episodio.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:zafiro-sesion:e14:m031"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "SIBLING_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Brixa Omal es hermana de Kena Drovic",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e14:m030"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:zafiro-sesion:e15:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:zafiro-sesion:e15",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e15:f049"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "NEG-POS-06:PRIMARY",
+        "negation": {
+          "anchor_quote": "El Sindicato Abisal posee la Sonda Madre",
+          "case_id": "NEG-POS-06",
+          "cue_position": "NONE",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:zafiro:sonda-madre",
+          "expected_predicate": "OWNS",
+          "expected_subject": "entity:zafiro:sindicato-abisal",
+          "family": "POSITIVE_CONTROL",
+          "negation_kind": "NONE",
+          "rationale": "Control positivo que comparte objeto con un caso NOT_YET.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "mismo objeto que NEG-NOTYET-03, con otro sujeto y sin negacion"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:zafiro-sesion:e15:m033"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "OWNS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "El Sindicato Abisal posee la Sonda Madre",
+      "review_required": false,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "subject_mentions": [
+        "mention:zafiro-sesion:e15:m032"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "zafiro-sesion",
+  "split": "negation",
+  "world": "zafiro"
+}

@@ -1,0 +1,458 @@
+{
+  "benchmark_file": "manifest",
+  "catalog_files": [
+    "catalog/entities.json",
+    "catalog/game_profile_generic.json",
+    "catalog/game_profile_narrow.json"
+  ],
+  "dataset_version": "1.0.0",
+  "decision_counts": {
+    "ABSTAIN": 1,
+    "AUTO_APPROVE": 22,
+    "NO_DECISION": 4,
+    "REVIEW_NEGATION_CESSATION": 11,
+    "REVIEW_NEGATION_SCOPE": 22
+  },
+  "family_counts": {
+    "CESSATION": 10,
+    "DOUBLE_NEGATION": 2,
+    "NEGATED_CESSATION": 8,
+    "NEVER": 6,
+    "NOT_YET": 5,
+    "NO_CLAIM": 4,
+    "POSITIVE_CONTROL": 6,
+    "QUESTION_CONDITIONAL_RUMOR": 4,
+    "SCOPE_EMBEDDED": 5,
+    "SIMPLE": 10
+  },
+  "family_quota": {
+    "CESSATION": 10,
+    "DOUBLE_NEGATION": 2,
+    "NEGATED_CESSATION": 8,
+    "NEVER": 6,
+    "NOT_YET": 5,
+    "NO_CLAIM": 4,
+    "POSITIVE_CONTROL": 6,
+    "QUESTION_CONDITIONAL_RUMOR": 4,
+    "SCOPE_EMBEDDED": 5,
+    "SIMPLE": 10
+  },
+  "file_hashes": {
+    "negation/catalog/entities.json": "da14e41222fc26287c5a81b5768bb4996cef5c170c0aefb59a1e84d6c699a9a2",
+    "negation/catalog/game_profile_generic.json": "d6207a697d723eae55b727684a00b8a5d8f1899f9c85800c57642ad5520b3b51",
+    "negation/catalog/game_profile_narrow.json": "325ae301e0c6e3479bfcdb13bbb41a6aa4a1c85a3ef63f064ee5a0cba7c71041",
+    "negation/sources/ambar-escaneo/assertions.json": "986f2db0e51d44611620c5b2348eefdcbe88065f0750e1f2b506191cb1ac773e",
+    "negation/sources/ambar-escaneo/claims.json": "b8caf924600bbb39b46d7105cf94ead747beeff3a864bf3e79be4adb06fe1ac7",
+    "negation/sources/ambar-escaneo/episodes.json": "a39de2421b757bfbfe23a531de95ed14d4933bf4a98046a1c56d1383e17bd578",
+    "negation/sources/ambar-escaneo/fragments.json": "4adb7363c56db51add3cf21880bf4100235018a81b67d7624f4dc85ac5980eee",
+    "negation/sources/ambar-escaneo/mentions.json": "1253c5a6320ac89a50e95c45abe275c8aaa5115284e6534860a4a88b284340bc",
+    "negation/sources/ambar-escaneo/negatives.json": "8a52c3102a25f67a3522185e7997b865b74995b4055d775849cc39471b6911e8",
+    "negation/sources/ambar-escaneo/plans.json": "27cfc9f9e433fe7a6910d3fa71a2a820e8e8053e0d638269538b143b78534b4f",
+    "negation/sources/ambar-escaneo/reference_text.json": "eaa97f7c6ea710c60999a07a1c7185b8d20a5dcf8f5624a4dccbf4f3e347ce68",
+    "negation/sources/ambar-escaneo/resolutions.json": "ff0e9451c5a9eab1484983e5c3c1fba212e400357c075e854edf20a9b921a937",
+    "negation/sources/ambar-escaneo/source_asset.json": "8963cacb46df50ac423dd59e2aceb4242137198217826af6be8a37b5d0496d8a",
+    "negation/sources/basalto-cronica/assertions.json": "d70dad6b925b9810cbcec2918ae4591dcc61b4a52050c2de805558df1935927b",
+    "negation/sources/basalto-cronica/claims.json": "edc948aa613f0ec30ccaf9402069f315461ecbc8ae6e9d2234fae448a621e3c2",
+    "negation/sources/basalto-cronica/episodes.json": "1e3260271f27a66ebcb31421fd22c06c20cf2e434e16f989648b29b7d4b52ec6",
+    "negation/sources/basalto-cronica/fragments.json": "fbc47febec4d253131dc9bcda54b0ea238257f61b40f71a41d458c8b64a2921e",
+    "negation/sources/basalto-cronica/mentions.json": "7999e1b360ec901f22f3e3d44fdb5227ea21c41e75c1e55dc31fe1b45b0e284a",
+    "negation/sources/basalto-cronica/negatives.json": "c39af44ab000ea609261195eea49698567b7356b01b35fd0f0ca82b52efc5934",
+    "negation/sources/basalto-cronica/plans.json": "7148437b83e09b2f431a7e7abab84881a4f2afbc83b3afa7ea4b0e4b89822b90",
+    "negation/sources/basalto-cronica/reference_text.json": "a452a6b63560cd9bb05d208ab76cbcae111510471f29b016d4a20bb06f1bbea0",
+    "negation/sources/basalto-cronica/resolutions.json": "5b535daa6538819c13ccb2713b1e952cb4930a7d30507ea60440d34b3690b1bf",
+    "negation/sources/basalto-cronica/source_asset.json": "4fddffbadde76802b910d0522fa41536c7ebcdada74ca1b374152edf00be83ff",
+    "negation/sources/cirro-actas/assertions.json": "d81f60eda36bc354a00c7e14a2f4ac9c8c97ef31ee7f8964ed000bb56ef9000e",
+    "negation/sources/cirro-actas/claims.json": "a79bd0158338a40c27ad79e1b2c37d37a4ea8137ee38290312aa4539ab9910a7",
+    "negation/sources/cirro-actas/episodes.json": "230d67ea2dab5c164f464df9d286e65bd3d087dd608d7d4d0dd5c088697ae7b6",
+    "negation/sources/cirro-actas/fragments.json": "83e19396beb1fe62de349b95e05b6eabb044cde519493cd4dcc53017cd5ee9ff",
+    "negation/sources/cirro-actas/mentions.json": "c6f65eccf26d90c08ffb5cc13c941134e332d1c0e5813f95fce088491c099db2",
+    "negation/sources/cirro-actas/negatives.json": "8fd954b406f53c282261fa0000f38d8d1f2a782cab2964550847be6484176e91",
+    "negation/sources/cirro-actas/plans.json": "402666f2fa8658cc47eb08aa18e3c2c96d63f75f9820075662835455620d9149",
+    "negation/sources/cirro-actas/reference_text.json": "a3efc1fd937d64114170f00f9d90f4fa0ca3c09456b143b0b58235586b2508ad",
+    "negation/sources/cirro-actas/resolutions.json": "73e00b7bc08628104b5289349d7733a5a3c95f31cf393eea1965f5afb7674471",
+    "negation/sources/cirro-actas/source_asset.json": "3280b7cadb23f62694453a11b913108f53eef086632d6245deee7f0b1cf85fec",
+    "negation/sources/zafiro-sesion/assertions.json": "9281c27f6f02af67e5b41d0d1380fd050978ac62fdfa3a373749c160aedafd71",
+    "negation/sources/zafiro-sesion/claims.json": "8ed44f9872c659c93ba4dca6017a00f96b9b5c94d7d0115cf5f55396a14dca4e",
+    "negation/sources/zafiro-sesion/episodes.json": "acc067be5e0329d4f400c8cc22db9ab176bb7b961cf21fa21b815b4c71b03639",
+    "negation/sources/zafiro-sesion/fragments.json": "beea521f6d8072330587659814ca1e26e8bb8f2eb5e112396c0d76263e0d67ad",
+    "negation/sources/zafiro-sesion/mentions.json": "fdb123d07ef4db944477317383a00b83fbf35aa5fd781f0e6d0c5979f3526246",
+    "negation/sources/zafiro-sesion/negatives.json": "01caf79d35f9cd861d14c2632873744e249bbe5f7dc38ab8b304d8086ff0937a",
+    "negation/sources/zafiro-sesion/plans.json": "ae2c2bc5acbc04a8ae2e9045f30997c907a35cd1f530b129c6083887ed4c6447",
+    "negation/sources/zafiro-sesion/reference_text.json": "87f547e9b325a1536f3411b24b9529294f3a3f716eb728fece0cdedb665abbfb",
+    "negation/sources/zafiro-sesion/resolutions.json": "f83d513ed59ee11b24dbc56d951b45db32eb6ed66a3832c0ad26e84fe4968523",
+    "negation/sources/zafiro-sesion/source_asset.json": "c4c8e4699eb816894e96359f07bc8a936ae5c75924a60dc17e388df9da5fdf12"
+  },
+  "format_version": "1.0.0",
+  "independence": {
+    "escrito_por": "equipo independiente de la bateria de negaciones",
+    "leidos": [
+      "contracts/knowledge-v3/v1/ (schemas y validador congelados)",
+      "docs/v3/18-politica-de-aprobacion-de-negaciones.md",
+      "docs/v3/08-benchmarks.md",
+      "estructura (no contenido) de datasets/dev/"
+    ],
+    "no_leidos": [
+      "data-engine/app/knowledge_v3/extraction/cues.py",
+      "data-engine/app/knowledge_v3/extraction/deterministic.py",
+      "data-engine/app/knowledge_v3/extraction/payload.py",
+      "data-engine/app/knowledge_v3/extraction/semantic.py",
+      "data-engine/app/tests/test_knowledge_v3_semantic*.py",
+      "data-engine/app/tests/test_knowledge_v3_extraction*.py"
+    ],
+    "no_reutiliza_mundos_de": [
+      "leyenda",
+      "mareas",
+      "kestrel",
+      "ferrovia",
+      "micelio",
+      "liga"
+    ]
+  },
+  "negation_kinds": [
+    "NONE",
+    "SIMPLE",
+    "NEVER",
+    "CESSATION",
+    "NEGATED_CESSATION",
+    "NOT_YET",
+    "SCOPE_EMBEDDED",
+    "DOUBLE_NEGATION"
+  ],
+  "phenomena_index": {
+    "ABSTENTION": [
+      "NEG-ABST-01"
+    ],
+    "AMBIGUOUS_SCOPE": [
+      "NEG-ABST-01",
+      "NEG-COND-01",
+      "NEG-DOUBLE-01",
+      "NEG-DOUBLE-02",
+      "NEG-NEGCESS-01",
+      "NEG-NEGCESS-02",
+      "NEG-NEGCESS-03",
+      "NEG-NEGCESS-04",
+      "NEG-NEGCESS-05",
+      "NEG-NEGCESS-06",
+      "NEG-NEGCESS-07",
+      "NEG-NEGCESS-08",
+      "NEG-NOTYET-01",
+      "NEG-NOTYET-02",
+      "NEG-NOTYET-03",
+      "NEG-NOTYET-04",
+      "NEG-NOTYET-05",
+      "NEG-SCOPE-01",
+      "NEG-SCOPE-02",
+      "NEG-SCOPE-03",
+      "NEG-SCOPE-04",
+      "NEG-SCOPE-05"
+    ],
+    "ASR_NOISE": [
+      "NEG-CESS-09",
+      "NEG-NOTYET-03",
+      "NEG-SIMPLE-07",
+      "NEG-SIMPLE-08"
+    ],
+    "CESSATION": [
+      "NEG-CESS-01",
+      "NEG-CESS-02",
+      "NEG-CESS-03",
+      "NEG-CESS-04",
+      "NEG-CESS-05",
+      "NEG-CESS-06",
+      "NEG-CESS-07",
+      "NEG-CESS-08",
+      "NEG-CESS-09",
+      "NEG-CESS-10",
+      "NEG-RUMOR-02"
+    ],
+    "COUNTERFACTUAL": [
+      "NEG-NOCLAIM-02"
+    ],
+    "DOUBLE_NEGATION": [
+      "NEG-DOUBLE-01",
+      "NEG-DOUBLE-02"
+    ],
+    "FICTION_WITHIN_FICTION": [
+      "NEG-NOCLAIM-03"
+    ],
+    "IMPERATIVE": [
+      "NEG-NOCLAIM-04"
+    ],
+    "NEGATED_CESSATION": [
+      "NEG-NEGCESS-01",
+      "NEG-NEGCESS-02",
+      "NEG-NEGCESS-03",
+      "NEG-NEGCESS-04",
+      "NEG-NEGCESS-05",
+      "NEG-NEGCESS-06",
+      "NEG-NEGCESS-07",
+      "NEG-NEGCESS-08"
+    ],
+    "NEGATION_BATTERY": [
+      "NEG-ABST-01",
+      "NEG-CESS-01",
+      "NEG-CESS-02",
+      "NEG-CESS-03",
+      "NEG-CESS-04",
+      "NEG-CESS-05",
+      "NEG-CESS-06",
+      "NEG-CESS-07",
+      "NEG-CESS-08",
+      "NEG-CESS-09",
+      "NEG-CESS-10",
+      "NEG-COND-01",
+      "NEG-DOUBLE-01",
+      "NEG-DOUBLE-02",
+      "NEG-NEGCESS-01",
+      "NEG-NEGCESS-02",
+      "NEG-NEGCESS-03",
+      "NEG-NEGCESS-04",
+      "NEG-NEGCESS-05",
+      "NEG-NEGCESS-06",
+      "NEG-NEGCESS-07",
+      "NEG-NEGCESS-08",
+      "NEG-NEVER-01",
+      "NEG-NEVER-02",
+      "NEG-NEVER-03",
+      "NEG-NEVER-04",
+      "NEG-NEVER-05",
+      "NEG-NEVER-06",
+      "NEG-NOCLAIM-01",
+      "NEG-NOCLAIM-02",
+      "NEG-NOCLAIM-03",
+      "NEG-NOCLAIM-04",
+      "NEG-NOTYET-01",
+      "NEG-NOTYET-02",
+      "NEG-NOTYET-03",
+      "NEG-NOTYET-04",
+      "NEG-NOTYET-05",
+      "NEG-POS-01",
+      "NEG-POS-02",
+      "NEG-POS-03",
+      "NEG-POS-04",
+      "NEG-POS-05",
+      "NEG-POS-06",
+      "NEG-RUMOR-01",
+      "NEG-RUMOR-02",
+      "NEG-SCOPE-01",
+      "NEG-SCOPE-02",
+      "NEG-SCOPE-03",
+      "NEG-SCOPE-04",
+      "NEG-SCOPE-05",
+      "NEG-SIMPLE-01",
+      "NEG-SIMPLE-02",
+      "NEG-SIMPLE-03",
+      "NEG-SIMPLE-04",
+      "NEG-SIMPLE-05",
+      "NEG-SIMPLE-06",
+      "NEG-SIMPLE-07",
+      "NEG-SIMPLE-08",
+      "NEG-SIMPLE-09",
+      "NEG-SIMPLE-10"
+    ],
+    "NEVER": [
+      "NEG-NEVER-01",
+      "NEG-NEVER-02",
+      "NEG-NEVER-03",
+      "NEG-NEVER-04",
+      "NEG-NEVER-05",
+      "NEG-NEVER-06"
+    ],
+    "NOT_YET": [
+      "NEG-NOTYET-01",
+      "NEG-NOTYET-02",
+      "NEG-NOTYET-03",
+      "NEG-NOTYET-04",
+      "NEG-NOTYET-05"
+    ],
+    "NO_CLAIM": [
+      "NEG-NOCLAIM-01",
+      "NEG-NOCLAIM-02",
+      "NEG-NOCLAIM-03",
+      "NEG-NOCLAIM-04"
+    ],
+    "OCR_NOISE": [
+      "NEG-CESS-10",
+      "NEG-NEVER-05",
+      "NEG-RUMOR-02"
+    ],
+    "POSITIVE_CONTROL": [
+      "NEG-POS-01",
+      "NEG-POS-02",
+      "NEG-POS-03",
+      "NEG-POS-04",
+      "NEG-POS-05",
+      "NEG-POS-06"
+    ],
+    "QUESTION": [
+      "NEG-NOCLAIM-01"
+    ],
+    "QUESTION_CONDITIONAL_RUMOR": [
+      "NEG-ABST-01",
+      "NEG-COND-01",
+      "NEG-RUMOR-01",
+      "NEG-RUMOR-02"
+    ],
+    "SCOPE_EMBEDDED": [
+      "NEG-SCOPE-01",
+      "NEG-SCOPE-02",
+      "NEG-SCOPE-03",
+      "NEG-SCOPE-04",
+      "NEG-SCOPE-05"
+    ],
+    "SIMPLE": [
+      "NEG-ABST-01",
+      "NEG-COND-01",
+      "NEG-RUMOR-01",
+      "NEG-SIMPLE-01",
+      "NEG-SIMPLE-02",
+      "NEG-SIMPLE-03",
+      "NEG-SIMPLE-04",
+      "NEG-SIMPLE-05",
+      "NEG-SIMPLE-06",
+      "NEG-SIMPLE-07",
+      "NEG-SIMPLE-08",
+      "NEG-SIMPLE-09",
+      "NEG-SIMPLE-10"
+    ]
+  },
+  "purpose": "Bateria de casos de negacion en espanol para decidir si puede retirarse el freno universal que hoy manda toda negacion a revision humana (docs/v3/18). Gold, no medicion: este split NO se ejecuta contra ningun extractor ni motor en este bloque, y NO esta conectado a ningun flujo automatico.",
+  "sources": [
+    {
+      "collection_id": "collection:basalto",
+      "counts": {
+        "assertions": 12,
+        "cases": 18,
+        "claims": 18,
+        "decisions": 18,
+        "episodes": 18,
+        "fragments": 56,
+        "mentions": 38,
+        "negatives": 0,
+        "operations": 12,
+        "plans": 1,
+        "resolutions": 38
+      },
+      "description": "Cronica en prosa. Negacion simple, NEVER, negacion de cesacion y doble negacion.",
+      "families": [
+        "DOUBLE_NEGATION",
+        "NEGATED_CESSATION",
+        "NEVER",
+        "POSITIVE_CONTROL",
+        "SIMPLE"
+      ],
+      "modalities": [
+        "TEXT"
+      ],
+      "source_id": "basalto-cronica",
+      "source_kind": "MARKDOWN",
+      "title": "Cronica de las fraguas",
+      "world": "basalto"
+    },
+    {
+      "collection_id": "collection:cirro",
+      "counts": {
+        "assertions": 2,
+        "cases": 16,
+        "claims": 16,
+        "decisions": 16,
+        "episodes": 16,
+        "fragments": 52,
+        "mentions": 36,
+        "negatives": 0,
+        "operations": 2,
+        "plans": 1,
+        "resolutions": 36
+      },
+      "description": "Actas administrativas. Cesaciones, negaciones de cesacion y alcance en subordinadas.",
+      "families": [
+        "CESSATION",
+        "NEGATED_CESSATION",
+        "POSITIVE_CONTROL",
+        "SCOPE_EMBEDDED"
+      ],
+      "modalities": [
+        "TEXT"
+      ],
+      "source_id": "cirro-actas",
+      "source_kind": "MARKDOWN",
+      "title": "Actas del Consejo de los Vientos",
+      "world": "cirro"
+    },
+    {
+      "collection_id": "collection:zafiro",
+      "counts": {
+        "assertions": 7,
+        "cases": 15,
+        "claims": 16,
+        "decisions": 16,
+        "episodes": 15,
+        "fragments": 49,
+        "mentions": 33,
+        "negatives": 0,
+        "operations": 7,
+        "plans": 1,
+        "resolutions": 33
+      },
+      "description": "Turnos de habla transcritos por ASR. NOT_YET, alcance y ruido fonetico.",
+      "families": [
+        "CESSATION",
+        "NOT_YET",
+        "POSITIVE_CONTROL",
+        "SCOPE_EMBEDDED",
+        "SIMPLE"
+      ],
+      "modalities": [
+        "SPEAKER_TURN"
+      ],
+      "source_id": "zafiro-sesion",
+      "source_kind": "AUDIO",
+      "title": "Sesion grabada del Domo Tres",
+      "world": "zafiro"
+    },
+    {
+      "collection_id": "collection:ambar",
+      "counts": {
+        "assertions": 2,
+        "cases": 11,
+        "claims": 7,
+        "decisions": 7,
+        "episodes": 11,
+        "fragments": 31,
+        "mentions": 24,
+        "negatives": 4,
+        "operations": 2,
+        "plans": 1,
+        "resolutions": 24
+      },
+      "description": "Paginas escaneadas con OCR degradado. Rumores, condicionales y casos sin claim.",
+      "families": [
+        "CESSATION",
+        "NEVER",
+        "NO_CLAIM",
+        "QUESTION_CONDITIONAL_RUMOR"
+      ],
+      "modalities": [
+        "OCR_TEXT"
+      ],
+      "source_id": "ambar-escaneo",
+      "source_kind": "IMAGE",
+      "title": "Escaneo del archivo de Villa Savia",
+      "world": "ambar"
+    }
+  ],
+  "split": "negation",
+  "totals": {
+    "assertions": 23,
+    "cases": 60,
+    "claims": 57,
+    "decisions": 57,
+    "episodes": 60,
+    "fragments": 188,
+    "mentions": 131,
+    "negatives": 4,
+    "operations": 23,
+    "plans": 4,
+    "resolutions": 131
+  }
+}

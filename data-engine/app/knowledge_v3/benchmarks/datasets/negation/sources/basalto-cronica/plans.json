@@ -1,0 +1,696 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:basalto",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-07-29T09:15:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:basalto-cronica:e01:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:basalto-cronica:e01:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e01:f004"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:basalto:orden-obsidiana",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:basalto:harun-vell"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e02:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:basalto-cronica:e02:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e02:f007"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:basalto:sira-delantre",
+          "predicate": "LED_BY",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:basalto:hermandad-fumarola"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e03:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:basalto-cronica:e03:c1",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e03:f010"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:basalto:beltran-osk",
+          "predicate": "SIBLING_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:basalto:nerea-tossa"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e04:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:basalto-cronica:e04:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e04:f013"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:basalto:mira-cauce",
+          "predicate": "HAS_MEMBER",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:basalto:gremio-fundidores"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e05:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:basalto-cronica:e05:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e05:f016"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:basalto:teo-ravasi",
+          "predicate": "OWNED_BY",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:basalto:sello-lava"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e06:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:basalto-cronica:e06:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e06:f019"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:basalto:isla-tenaza",
+          "predicate": "LOCATED_IN",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:basalto:casa-verrant"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e07:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:basalto-cronica:e07:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e07:f022"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:basalto:conclave-ceniza",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:basalto:ilde-varona"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e08:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:basalto-cronica:e08:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e08:f025"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:basalto:kaspar-nune",
+          "predicate": "LED_BY",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:basalto:orden-obsidiana"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e09:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:basalto-cronica:e09:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e09:f028"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:basalto:gremio-fundidores",
+          "predicate": "OWNED_BY",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:basalto:yunque-negro"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e10:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:basalto-cronica:e10:c1",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e10:f031"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:basalto:beltran-osk",
+          "predicate": "SIBLING_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:basalto:runa-belisa"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e11:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:basalto-cronica:e11:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e11:f034"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:basalto:casa-verrant",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:basalto:sira-delantre"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e12:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:basalto-cronica:e12:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e12:f037"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:basalto:foso-humeante",
+          "predicate": "LOCATED_IN",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:basalto:olmo-quiral"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e13:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:basalto-cronica:e13:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e13:f040"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:basalto:nerea-tossa",
+          "predicate": "HAS_MEMBER",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:basalto:hermandad-fumarola"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e14:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:basalto-cronica:e14:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e14:f043"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:basalto:conclave-ceniza",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:basalto:beltran-osk"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e15:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:basalto-cronica:e15:c1",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e15:f046"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:basalto:ilde-varona",
+          "predicate": "ALLY_OF",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:basalto:mira-cauce"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e16:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:basalto-cronica:e16:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e16:f049"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:basalto:gremio-fundidores",
+          "predicate": "OWNED_BY",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:basalto:puerto-escoria"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e17:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:basalto-cronica:e17:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e17:f052"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:basalto:gremio-fundidores",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:basalto:teo-ravasi"
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e18:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:basalto-cronica:e18:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e18:f056"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:basalto:orden-obsidiana",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:basalto:sira-delantre"
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-07-30T09:15:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": false,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-07-29T09:15:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "73f7782565951a3602ce6ea945eb6cb380fd65d822b3752f51fd8d0723b4853c"
+        },
+        "key_id": null,
+        "signature": null,
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "ontology",
+            "version": "core-1.4.0"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:basalto:neg-simple-01-1",
+          "decision_id": "decision:claim:basalto-cronica:e01:c1",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e01:f004"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:4cdc021a516ff31f7fa98991a66924bc18b42f8c66f23c3056be006646dd4875",
+          "operation_id": "op:basalto-cronica:neg-simple-01-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:basalto:orden-obsidiana",
+            "predicate": "MEMBER_OF",
+            "subject_entity_id": "entity:basalto:harun-vell",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:basalto:neg-simple-02-1",
+          "decision_id": "decision:claim:basalto-cronica:e02:c1",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e02:f007"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:0eb9f6c8ee6cc341472e7162e7de6024ee5df67b906af6e67a7de72fcaf793e0",
+          "operation_id": "op:basalto-cronica:neg-simple-02-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:basalto:sira-delantre",
+            "predicate": "LED_BY",
+            "subject_entity_id": "entity:basalto:hermandad-fumarola",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:basalto:neg-simple-03-1",
+          "decision_id": "decision:claim:basalto-cronica:e03:c1",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e03:f010"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:6e9797d2732fded1e16b6cb6efe7f92984d4358a754e312b032248d91b7588fa",
+          "operation_id": "op:basalto-cronica:neg-simple-03-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "UNDIRECTED",
+            "negated": true,
+            "object_entity_id": "entity:basalto:beltran-osk",
+            "predicate": "SIBLING_OF",
+            "subject_entity_id": "entity:basalto:nerea-tossa",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:basalto:neg-simple-04-1",
+          "decision_id": "decision:claim:basalto-cronica:e04:c1",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e04:f013"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:08e0d80454bcbaa8e288868bdff7d364e77f8d2d5a6e5e7d95dd1edac4957004",
+          "operation_id": "op:basalto-cronica:neg-simple-04-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:basalto:mira-cauce",
+            "predicate": "HAS_MEMBER",
+            "subject_entity_id": "entity:basalto:gremio-fundidores",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:basalto:neg-simple-05-1",
+          "decision_id": "decision:claim:basalto-cronica:e05:c1",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e05:f016"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:9441f9abb6decfd9185a7d9070cf3cd38da8a252a41919173ad0b059fd6a8d2a",
+          "operation_id": "op:basalto-cronica:neg-simple-05-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:basalto:teo-ravasi",
+            "predicate": "OWNED_BY",
+            "subject_entity_id": "entity:basalto:sello-lava",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:basalto:neg-simple-06-1",
+          "decision_id": "decision:claim:basalto-cronica:e06:c1",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e06:f019"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:df3bd492e5cf35cf425d44aa34948f59f7de6c12efe06a3e589cc0c2993c3555",
+          "operation_id": "op:basalto-cronica:neg-simple-06-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:basalto:isla-tenaza",
+            "predicate": "LOCATED_IN",
+            "subject_entity_id": "entity:basalto:casa-verrant",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:basalto:neg-never-01-1",
+          "decision_id": "decision:claim:basalto-cronica:e07:c1",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e07:f022"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:dfb2d1ed50627ffcf4a73dea6d8ca6296974f081b693b1d873618e6f256a4557",
+          "operation_id": "op:basalto-cronica:neg-never-01-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:basalto:conclave-ceniza",
+            "predicate": "MEMBER_OF",
+            "subject_entity_id": "entity:basalto:ilde-varona",
+            "valid_from": null,
+            "valid_to": "1041-12-31T00:00:00Z"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:basalto:neg-never-02-1",
+          "decision_id": "decision:claim:basalto-cronica:e08:c1",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e08:f025"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:598b0aed6e3c6e849f91a4fd96079d7bd0abf2d2578bb12d5f09a947bfc6be87",
+          "operation_id": "op:basalto-cronica:neg-never-02-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:basalto:kaspar-nune",
+            "predicate": "LED_BY",
+            "subject_entity_id": "entity:basalto:orden-obsidiana",
+            "valid_from": null,
+            "valid_to": "1041-12-31T00:00:00Z"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:basalto:neg-never-03-1",
+          "decision_id": "decision:claim:basalto-cronica:e09:c1",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e09:f028"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:c8566aa3738cf50357bffcc30f7474a4d08c2ce95f9fa913c425abdcbb5e7958",
+          "operation_id": "op:basalto-cronica:neg-never-03-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:basalto:gremio-fundidores",
+            "predicate": "OWNED_BY",
+            "subject_entity_id": "entity:basalto:yunque-negro",
+            "valid_from": null,
+            "valid_to": "1041-12-31T00:00:00Z"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:basalto:neg-never-04-1",
+          "decision_id": "decision:claim:basalto-cronica:e10:c1",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e10:f031"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:930a15dcebe4892fd32f36655bfdf55c6ae7e3257ba49df9d4a42dc680818e16",
+          "operation_id": "op:basalto-cronica:neg-never-04-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "UNDIRECTED",
+            "negated": true,
+            "object_entity_id": "entity:basalto:beltran-osk",
+            "predicate": "SIBLING_OF",
+            "subject_entity_id": "entity:basalto:runa-belisa",
+            "valid_from": null,
+            "valid_to": "1041-12-31T00:00:00Z"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:basalto:neg-pos-01-1",
+          "decision_id": "decision:claim:basalto-cronica:e17:c1",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e17:f052"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:306050a5f5937c7f47e5a3693bc301ed03b022271b34bfa151c03937f6d27ab6",
+          "operation_id": "op:basalto-cronica:neg-pos-01-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": false,
+            "object_entity_id": "entity:basalto:gremio-fundidores",
+            "predicate": "LEADS",
+            "subject_entity_id": "entity:basalto:teo-ravasi",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:basalto:neg-pos-02-1",
+          "decision_id": "decision:claim:basalto-cronica:e18:c1",
+          "evidence_fragment_ids": [
+            "fragment:basalto-cronica:e18:f056"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:39b11cd0a744962f8b825f07d63b6ca74278cb8eec8f8130bb2b9b4fa6c4fd00",
+          "operation_id": "op:basalto-cronica:neg-pos-02-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": false,
+            "object_entity_id": "entity:basalto:orden-obsidiana",
+            "predicate": "MEMBER_OF",
+            "subject_entity_id": "entity:basalto:sira-delantre",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "c3870daddaa6d2a054043c770a43a02ca0f5e13620292ba3beafaf52b675b933"
+      },
+      "plan_id": "plan:basalto-cronica:0001",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:bench:basalto-cronica",
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "basalto-cronica",
+  "split": "negation",
+  "world": "basalto"
+}

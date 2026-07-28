@@ -1,0 +1,1024 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "b300adeafa9ef12ee7df4d2404453ac4e779e5ff09de670ddd0ae74715d70750"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-SIMPLE-01",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e02",
+      "page": null,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "Conviene dejarlo dicho de una vez, porque la copia de Puerto Escoria lo arrastra mal desde hace tres ciclos: Harun Vell no pertenece a la Orden de la Obsidiana.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "079f67f6d82ff3b37dbf39bf10b48eccdfc4610ec028ff9efbca82b6599c0ec2"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-SIMPLE-02",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e03",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "La Hermandad de la Fumarola no es dirigida por Sira Delantre, y el registro de mando de la temporada lo confirma.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "6b28628c520ac90b898ffbee0b9af2685f6949798387201ac15a585c25b7e568"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-SIMPLE-03",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e04",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "Nerea Tossa, hermana de Beltrán Osk, no lo es.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "94142f887a69eafc5bc7b3b018a8054aec99469bd9ba63281e87bf678fca79ba"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e04",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-SIMPLE-04",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e05",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e03",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 4,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "El Gremio de Fundidores acaba de desmentir por escrito que Mira Cauce figure entre sus miembros.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "7354679829ce1096fc049264b15f647870a56330c6f0039fca0ff0479242b581"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e05",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-SIMPLE-05",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e06",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e04",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 5,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "El censo de la temporada trae poco nuevo. Se confirma la reparacion del malecon, se anota el traslado de dos hornos y se corrige la grafia de tres apellidos. Entre las correcciones importa una: el Sello de Lava no es propiedad de Teo Ravasi, por mas que asi figurase en la copia anterior.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "bd8d629e2d5d5ea8f21e3b0795f972b999069aa7d396e07fefd9c60834cd688d"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e06",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-SIMPLE-06",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e07",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e05",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 6,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "En Isla Tenaza no tiene sede la Casa Verrant, aunque muchos lo den por hecho.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "5da5862bd8ec33ab4bb6b703f3609e43cdcc73f8ff736eed488bacad2399beee"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e07",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-NEVER-01",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e08",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e06",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 7,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "Ilde Varona nunca pertenecio al Conclave de la Ceniza. Esta cronica cubre desde la fundacion hasta el ciclo 41 y no dice nada de lo que venga despues.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "2872b0dbc5e11f0b6ebf9d3d99c56fc61e37ab0556fb9f2617cff8363bfe5231"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e08",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-NEVER-02",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e09",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e07",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 8,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "La Orden de la Obsidiana jamas fue dirigida por Kaspar Nune, ni siquiera durante el interregno del ciclo 38.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "5d9cca2f0279b9745369873a2ff464d9da55cf72ae8d2c23dfbbef48d574493d"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e09",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-NEVER-03",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e10",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e08",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 9,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "En ningun momento de las cuatro generaciones que cubre esta cronica el Yunque Negro estuvo en manos del Gremio de Fundidores.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "a71afc8b4ab23cc0f80c41cd0563b6daa97c16be6867d80b0b7c444cd6a074c4"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e10",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-NEVER-04",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e11",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e09",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 10,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "Runa Belisa y Beltrán Osk no fueron hermanos en ningun caso: los padrones los separan por dos linajes distintos.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "6db58f3453b87c9b5778f1617deb850d62c002f3cc60d4358b7c5ae6598d1a5a"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e11",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-NEGCESS-01",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e12",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e10",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 11,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "Sira Delantre no dejo de servir a la Casa Verrant cuando estallo el motin de los hornos; siguio en su puesto hasta el final de la temporada.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "56dd79f2c50190929d73c8fbaa8437706d3fdc878605080c9b66f14abc9a3b77"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e12",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-NEGCESS-02",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e13",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e11",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 12,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "No es cierto que Olmo Quiral abandonase el Foso Humeante.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "d57725c4756f51ff5d0f5bf6a1a886fa0f7e50e1802ddc0295fd94afb937139c"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e13",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-NEGCESS-03",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e14",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e12",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 13,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "La Hermandad de la Fumarola no fue abandonada por Nerea Tossa, por mucho que el panfleto lo repita.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "42e0ffa6ceeef16c3c25e76ea737c9fb92543a706c2fb4a7269be510b6a4452d"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e14",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-NEGCESS-04",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e15",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e13",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 14,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "Beltrán Osk dimitio de tres cargos menores aquel invierno, pero no dejo de liderar el Conclave de la Ceniza.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "36682e5db05cc47a4d7d6dcfe8b4e4887a86e8e0c280c878f609184322ad38d8"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e15",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-DOUBLE-01",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "DOUBLE_NEGATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e16",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e14",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 15,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "No es falso que Mira Cauce sea aliada de Ilde Varona.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "992f831cea8fac447330f742b34265adf8f9ba062b800cdebe4737a312a3a57f"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e16",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-DOUBLE-02",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "DOUBLE_NEGATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e17",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e15",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 16,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "Nadie puede negar que el Puerto Escoria no esta bajo el control del Gremio de Fundidores.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "8c46f08937cd3fb12efe2da7159ab0fc1215af513d5cf624576a592af656b708"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e17",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-POS-01",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:basalto-cronica:e18",
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e16",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 17,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "Teo Ravasi lidera el Gremio de Fundidores desde el ciclo 39.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:basalto-cronica",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "82f8e98b18c00c1caa1dc79936b14be98c151fbb4d7da407fab0e68ffacf51cd"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:basalto-cronica:e18",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "negation_case_id": "NEG-POS-02",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": null,
+      "page": null,
+      "previous_episode_id": "episode:basalto-cronica:e17",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 18,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "text": "Harun Vell no llego a tiempo al conclave de invierno, pero Sira Delantre pertenece a la Orden de la Obsidiana desde hace siete ciclos.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "basalto-cronica",
+  "split": "negation",
+  "world": "basalto"
+}

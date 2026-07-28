@@ -1,0 +1,959 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "e879d83e9fb5281ed7c52760b8e25007b1956aa2c86b64feb62c9c53995c4af1"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-SIMPLE-07",
+        "phenomena": [
+          "ASR_NOISE",
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:zafiro-sesion:e02",
+      "page": null,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s2"
+      },
+      "text": "no brixa omal no forma parte del sindicato abisal eso fue un error del acta anterior",
+      "time_end": 28.0,
+      "time_start": 0.0,
+      "turn": 1,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "023e0845ca445550b993b98dd4232da1c1c6121aad5cd790a97248d910ab1111"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-SIMPLE-08",
+        "phenomena": [
+          "ASR_NOISE",
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:zafiro-sesion:e03",
+      "page": null,
+      "previous_episode_id": "episode:zafiro-sesion:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s3"
+      },
+      "text": "Que quede claro en acta: Goran Hute no es aliado del Circulo de la Zonda.",
+      "time_end": 58.0,
+      "time_start": 30.0,
+      "turn": 2,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "d59d6fb36a8064e5f2e7b078572805cad96fc4bf0f92b23636e484ae1c3e799f"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-SIMPLE-09",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:zafiro-sesion:e04",
+      "page": null,
+      "previous_episode_id": "episode:zafiro-sesion:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s1"
+      },
+      "text": "Paz Ontiveros no pertenece a la Flota Perlera; quien si figura en su rol es Tomás Esquil.",
+      "time_end": 88.0,
+      "time_start": 60.0,
+      "turn": 3,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "cb331bb22816abec0c9415c4387ff9ea06f742b2306725fa7c2a11f979f8ca40"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e04",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-SIMPLE-10",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:zafiro-sesion:e05",
+      "page": null,
+      "previous_episode_id": "episode:zafiro-sesion:e03",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 4,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s2"
+      },
+      "text": "Lo repito porque en la sesion anterior se anoto al reves: el Domo Tres, en la Fosa Clara, no se encuentra.",
+      "time_end": 118.0,
+      "time_start": 90.0,
+      "turn": 4,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "c0518318b6ff1bf28271dae512158929a1f52409880e897ae4f125db9fb88056"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e05",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-NOTYET-01",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "NOT_YET"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:zafiro-sesion:e06",
+      "page": null,
+      "previous_episode_id": "episode:zafiro-sesion:e04",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 5,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s3"
+      },
+      "text": "Lira Fenn todavia no lidera la Escuela de la Corriente; la votacion es el mes que viene.",
+      "time_end": 148.0,
+      "time_start": 120.0,
+      "turn": 5,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "9454c33f0ac8b81bc625925cd171d3e1c47266d028f01691733e4fa246053b5f"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e06",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-NOTYET-02",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "NOT_YET"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:zafiro-sesion:e07",
+      "page": null,
+      "previous_episode_id": "episode:zafiro-sesion:e05",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 6,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s1"
+      },
+      "text": "Aun no pertenece Tomás Esquil al Sindicato Abisal.",
+      "time_end": 178.0,
+      "time_start": 150.0,
+      "turn": 6,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "d049cd49a90f476f3b1ef2e188aa4a840c6872843a2d505a65c3aba5611f1439"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e07",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-NOTYET-03",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "ASR_NOISE",
+          "NEGATION_BATTERY",
+          "NOT_YET"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:zafiro-sesion:e08",
+      "page": null,
+      "previous_episode_id": "episode:zafiro-sesion:e06",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 7,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s2"
+      },
+      "text": "kena drovic no es todavia duena de la sonda madre falta la firma del sindicato",
+      "time_end": 208.0,
+      "time_start": 180.0,
+      "turn": 7,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "2d9cda2a7493c79434be198332e69a8755f435a077c7f58e465ef4191c205ba3"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e08",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-NOTYET-04",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "NOT_YET"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:zafiro-sesion:e09",
+      "page": null,
+      "previous_episode_id": "episode:zafiro-sesion:e07",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 8,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s3"
+      },
+      "text": "La Flota Perlera no esta aun dirigida por Brixa Omal.",
+      "time_end": 238.0,
+      "time_start": 210.0,
+      "turn": 8,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "916a6462c69e61b81e4ed8ffb7e7e01105657d3fd09e801127737e69f9c1c290"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e09",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-NOTYET-05",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "NOT_YET"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:zafiro-sesion:e10",
+      "page": null,
+      "previous_episode_id": "episode:zafiro-sesion:e08",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 9,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s1"
+      },
+      "text": "Que Paz Ontiveros y Goran Ute sean aliados no ha ocurrido todavia.",
+      "time_end": 268.0,
+      "time_start": 240.0,
+      "turn": 9,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "c940af1d706377d11cc6144c273422f309b402acc68e8ceaff2cd58ae86801de"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e10",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-SCOPE-04",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "SCOPE_EMBEDDED"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:zafiro-sesion:e11",
+      "page": null,
+      "previous_episode_id": "episode:zafiro-sesion:e09",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 10,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s2"
+      },
+      "text": "Andrés Lupo no admite que la Sonda Madre este en el Domo Tres.",
+      "time_end": 298.0,
+      "time_start": 270.0,
+      "turn": 10,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "4f1d61571d6b2e5455ac154af4840c5116e9a52d71129048ee1f599b32c06ab4"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e11",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-SCOPE-05",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "SCOPE_EMBEDDED"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:zafiro-sesion:e12",
+      "page": null,
+      "previous_episode_id": "episode:zafiro-sesion:e10",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 11,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s3"
+      },
+      "text": "Nadie sostiene que Lira Fenn no sea hermana de Kena Drovic.",
+      "time_end": 328.0,
+      "time_start": 300.0,
+      "turn": 11,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "74bc65518a43f0091d51a6dae556e65619fba99d30113a6259a27230e6e33568"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e12",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-CESS-08",
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:zafiro-sesion:e13",
+      "page": null,
+      "previous_episode_id": "episode:zafiro-sesion:e11",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 12,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s1"
+      },
+      "text": "Tomás Esquil ya no es rival de Paz Ontiveros; hicieron las paces en el Domo Tres.",
+      "time_end": 358.0,
+      "time_start": 330.0,
+      "turn": 12,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "f7d65cff5b15d9ae34dbba0d0d2212f00b40735500b21b5137d4582ffec07636"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e13",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-CESS-09",
+        "phenomena": [
+          "ASR_NOISE",
+          "CESSATION",
+          "NEGATION_BATTERY"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:zafiro-sesion:e14",
+      "page": null,
+      "previous_episode_id": "episode:zafiro-sesion:e12",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 13,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s2"
+      },
+      "text": "goran ute abandono la escuela de la corriente el ciclo pasado",
+      "time_end": 388.0,
+      "time_start": 360.0,
+      "turn": 13,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "8cbb02238f25b24de7f19010340bb0bd0638a73d9f8e27d73da6aa1c363570b6"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e14",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-POS-05",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:zafiro-sesion:e15",
+      "page": null,
+      "previous_episode_id": "episode:zafiro-sesion:e13",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 14,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s3"
+      },
+      "text": "Brixa Omal es hermana de Kena Drovic.",
+      "time_end": 418.0,
+      "time_start": 390.0,
+      "turn": 14,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "7667f95754cc7131c5c0702a1fd8689d6109576d27185d8166eb5669d04b8d5d"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:zafiro-sesion:e15",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "negation_case_id": "NEG-POS-06",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": null,
+      "page": null,
+      "previous_episode_id": "episode:zafiro-sesion:e14",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 15,
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:zafiro:s1"
+      },
+      "text": "El Sindicato Abisal posee la Sonda Madre.",
+      "time_end": 448.0,
+      "time_start": 420.0,
+      "turn": 15,
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "zafiro-sesion",
+  "split": "negation",
+  "world": "zafiro"
+}
