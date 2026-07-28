@@ -20,9 +20,10 @@ Tres ejes, tres consecuencias distintas:
   dice `negated=False`, la propuesta esta afirmando lo contrario de la fuente.
   No se corrige: se ABSTIENE. Corregir seria decidir, y decidir es del motor;
 - **no-factividad** (condicional, interrogativa, "es falso que", "nadie cree
-  que", "afirmo falsamente", "salvo que"): el texto no esta afirmando el hecho,
-  lo esta suponiendo, preguntando o negando su verdad. Nunca puede salir
-  `ASSERTED` con `review_required=False`;
+  que", "afirmo falsamente", "salvo que", y el marco de FICCION DENTRO DE LA
+  FICCION: "en la farsa que...", "en el serial que..."): el texto no esta
+  afirmando el hecho, lo esta suponiendo, preguntando, representando o negando
+  su verdad. Nunca puede salir `ASSERTED` con `review_required=False`;
 - **epistemicidad** (rumor, hipotesis, intencion): degrada la pista epistemica y
   obliga a revision, pero el hecho sigue propuesto.
 """
@@ -87,6 +88,32 @@ CONDITIONAL_PHRASES: tuple[str, ...] = (
     "suponiendo que",
 )
 
+#: Marcos de FICCION DENTRO DE LA FICCION: el texto cuenta lo que pasa en una
+#: obra, farsa, serial, leyenda o relato que existe DENTRO del mundo narrado.
+#: Las entidades son reales; lo que se cuenta de ellas ahi, no. Medido en dev:
+#: es la trampa que un modelo grande pisa con mas naturalidad, porque la frase
+#: tiene sujeto, verbo y objeto perfectamente formados.
+FICTION_PHRASES: tuple[str, ...] = (
+    "en la farsa",
+    "en la obra",
+    "en la representacion",
+    "en la comedia",
+    "en el drama",
+    "en el serial",
+    "en el relato",
+    "en el cuento",
+    "en la cancion",
+    "en la balada",
+    "en el poema",
+    "en la novela",
+    "en la leyenda",
+    "en el mito",
+    "segun la leyenda",
+    "cuenta la leyenda",
+    "los titiriteros representaron",
+    "lo invento todo",
+)
+
 #: "si" solo cuenta como condicional SIN tilde y como palabra suelta: "si" y
 #: "si" (afirmacion) son la misma cadena una vez normalizada, y confundirlas
 #: convertiria cualquier "si" en una hipotesis.
@@ -101,6 +128,7 @@ CODE_NON_FACTIVE = "NON_FACTIVE_CONTEXT"
 CODE_FALSITY = "FALSITY_CONTEXT"
 CODE_CONDITIONAL = "CONDITIONAL_CONTEXT"
 CODE_INTERROGATIVE = "INTERROGATIVE_CONTEXT"
+CODE_FICTION = "FICTION_WITHIN_FICTION_CONTEXT"
 
 
 @dataclass(frozen=True)
@@ -116,7 +144,8 @@ class ContextVerdict:
     def non_factive(self) -> bool:
         """El texto no esta afirmando el hecho (lo supone, lo pregunta o lo niega)."""
         return bool(
-            {CODE_FALSITY, CODE_CONDITIONAL, CODE_INTERROGATIVE} & set(self.reason_codes)
+            {CODE_FALSITY, CODE_CONDITIONAL, CODE_INTERROGATIVE, CODE_FICTION}
+            & set(self.reason_codes)
         )
 
     @property
@@ -166,6 +195,12 @@ def analyze_context(
             if CODE_CONDITIONAL not in reasons:
                 reasons.append(CODE_CONDITIONAL)
 
+    for phrase in FICTION_PHRASES:
+        if _has_phrase(tokens, phrase, lo, hi):
+            cues.append(phrase)
+            if CODE_FICTION not in reasons:
+                reasons.append(CODE_FICTION)
+
     # "si" condicional: sin tilde y antes de lo afirmado.
     for i in range(lo, min(focus, hi)):
         if tokens[i].text.lower() == CONDITIONAL_SI:
@@ -186,7 +221,7 @@ def analyze_context(
 
     if CODE_CONDITIONAL in reasons and hint == "ASSERTED":
         hint = "HYPOTHETICAL"
-    if CODE_FALSITY in reasons or CODE_INTERROGATIVE in reasons:
+    if CODE_FALSITY in reasons or CODE_INTERROGATIVE in reasons or CODE_FICTION in reasons:
         hint = "UNKNOWN"
 
     return ContextVerdict(
@@ -210,12 +245,14 @@ def analyze_raw_text(text: str, *, focus_char: Optional[int] = None) -> ContextV
 __all__ = [
     "CODE_CONDITIONAL",
     "CODE_FALSITY",
+    "CODE_FICTION",
     "CODE_INTERROGATIVE",
     "CODE_NEGATION_MISMATCH",
     "CODE_NON_FACTIVE",
     "CONDITIONAL_PHRASES",
     "EPISTEMIC_CUES",
     "FALSITY_PHRASES",
+    "FICTION_PHRASES",
     "NEGATION_CUES",
     "NEGATION_WINDOW",
     "ContextVerdict",

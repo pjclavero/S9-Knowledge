@@ -165,15 +165,23 @@ class OllamaClient:
         *,
         system: Optional[str] = None,
         json_mode: bool = True,
+        num_predict: Optional[int] = None,
     ) -> OllamaResponse:
-        """Una generacion. Reintenta SOLO los fallos de transporte."""
+        """Una generacion. Reintenta SOLO los fallos de transporte.
+
+        `num_predict` se puede subir por llamada: la respuesta conjunta del
+        extractor semantico (menciones + claims + abstenciones) no cabe en los
+        1024 tokens del defecto, y una respuesta truncada llega como "JSON
+        invalido" cuando en realidad es un limite nuestro. Se sube donde hace
+        falta, no en la configuracion global.
+        """
         payload: dict[str, Any] = {
             "model": self.config.model,
             "prompt": prompt,
             "stream": False,
             "options": {
                 "temperature": self.config.temperature,
-                "num_predict": self.config.num_predict,
+                "num_predict": int(num_predict or self.config.num_predict),
             },
         }
         if json_mode:

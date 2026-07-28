@@ -17,7 +17,7 @@ proveedores) que el motor local querra usar. Fundirlas aqui la destruiria.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from .base import ExtractionContext, ExtractionOutput, Extractor
 from .coreference import CoreferenceExtractor
@@ -50,6 +50,37 @@ class ExtractionPipeline:
             extractors.append(TemporalExtractor())
         extractors.append(CoreferenceExtractor())
         return cls(tuple(extractors))
+
+    @classmethod
+    def production_local(cls, port: Any, *, with_temporal: bool = True) -> "ExtractionPipeline":
+        """Produccion local: determinista + semantico (LLM local) + tabla + tiempo + correferencia.
+
+        El determinista NO se sustituye: sigue siendo la via barata de alta
+        precision, y el semantico se suma con su propio origen y sus propios
+        ids. Las dos propuestas conviven como UNION; no hay reconciliador
+        todavia y fingirlo aqui esconderia justo lo que hay que medir.
+        """
+        from .semantic import SemanticEpisodeExtractor
+
+        extractors: list[Extractor] = [
+            DeterministicExtractor(),
+            TableExtractor(),
+            SemanticEpisodeExtractor(port),
+        ]
+        if with_temporal:
+            extractors.append(TemporalExtractor())
+        extractors.append(CoreferenceExtractor())
+        return cls(tuple(extractors))
+
+    @classmethod
+    def production_external(cls, port: Any, *, with_temporal: bool = True) -> "ExtractionPipeline":
+        """Produccion con proveedor externo: la MISMA cadena, otro adaptador.
+
+        Que sea literalmente el mismo codigo que `production_local` no es
+        pereza: es el resultado. Si hiciese falta un pipeline distinto para el
+        modelo externo, el puerto agnostico no lo seria.
+        """
+        return cls.production_local(port, with_temporal=with_temporal)
 
 
 __all__ = ["ExtractionPipeline"]

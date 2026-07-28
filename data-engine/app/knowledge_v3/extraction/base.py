@@ -55,7 +55,21 @@ from .text import (
 EXTRACTOR_VERSION = "3.0.0"
 
 #: Catalogo canonico de tipos (identico al del contrato; no se amplia aqui).
+#: Es el DEFECTO, no la unica verdad: un `GameProfile` puede restringirlo (nunca
+#: ampliarlo, eso lo prohibe el contrato). Ver `entity_types_of`.
 ALLOWED_ENTITY_TYPES = ("Character", "Location", "Faction", "Object", "Event", "Concept")
+
+
+def entity_types_of(profile: Optional[GameProfile]) -> tuple[str, ...]:
+    """Tipos de entidad permitidos por el perfil, o el catalogo canonico.
+
+    El perfil RESTRINGE: cualquier tipo que declare y no este en el catalogo se
+    ignora, porque el contrato congelado no lo admitiria despues y la propuesta
+    moriria en el validador con un error mucho menos claro.
+    """
+    declared = tuple(getattr(profile, "entity_types", ()) or ()) if profile is not None else ()
+    filtered = tuple(t for t in declared if t in ALLOWED_ENTITY_TYPES)
+    return filtered or ALLOWED_ENTITY_TYPES
 
 #: Estatus epistemicos admitidos en una propuesta.
 ALLOWED_EPISTEMIC = tuple(e.value for e in EpistemicStatusHint) + ("CONFLICTED", "UNKNOWN")
@@ -272,6 +286,7 @@ def build_mention(
     extra_trace: Sequence[dict] = (),
     metadata: Optional[dict] = None,
     mention_id: Optional[str] = None,
+    allowed_types: Sequence[str] = ALLOWED_ENTITY_TYPES,
 ) -> EntityMention:
     """Construye una `EntityMention` normalizada (sin validar todavia).
 
@@ -281,9 +296,10 @@ def build_mention(
     """
     types = []
     seen: set[str] = set()
+    permitidos = tuple(t for t in allowed_types if t in ALLOWED_ENTITY_TYPES) or ALLOWED_ENTITY_TYPES
     for cand in sorted(type_candidates, key=lambda c: (-float(c["confidence"]), str(c["type"]))):
         t = str(cand["type"])
-        if t not in ALLOWED_ENTITY_TYPES or t in seen:
+        if t not in permitidos or t in seen:
             continue
         seen.add(t)
         types.append({"type": t, "confidence": clamp(cand["confidence"])})
@@ -547,6 +563,7 @@ __all__ = [
     "build_mention",
     "clamp",
     "emit",
+    "entity_types_of",
     "is_number",
     "low_quality",
     "make_id",
