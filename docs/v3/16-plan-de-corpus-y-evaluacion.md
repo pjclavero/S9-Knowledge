@@ -90,8 +90,13 @@ Métricas: precisión y recall de negación, alcance correcto, `CESSATION`, `NEV
 `NOT_YET`, **relaciones positivas creadas por error** y cierres temporales
 correctos.
 
-Es la batería con mejor relación señal/coste de todo el plan: debería construirse
-la primera.
+Es la batería con mejor relación señal/coste de todo el plan y **va la primera**
+(paso 4 del orden). Se construye cuando el bloque de negaciones en curso haya
+entregado, no antes: hoy hay un implementador tocando esa misma área y un corpus
+escrito en paralelo se solaparía con sus fixtures.
+
+Anotación importante: los casos deben escribirse **sin mirar** la implementación de
+las guardas de no-factividad, o la batería medirá lo que el código ya sabe hacer.
 
 ## 6. Multimodal: el mismo contenido en varias modalidades
 
@@ -111,15 +116,20 @@ inventados, workspace incorrecto y claims sin evidencia.
 1. Conectar `SemanticEpisodeExtractor` a la cadena E2E ← *en curso*
 2. Corregir negaciones ← *en curso*
 3. Ejecutar la suite actual
-4. Ampliar el corpus de desarrollo
-5. Repetir A / C1 / C2 / D
-6. Implementar `ProposalReconciler`
-7. Repetir las pruebas conjuntas
-8. Construir el corpus de validación
-9. Congelar el sistema
-10. Ejecutar el held-out final, una vez
-11. Probar escritura contra un Neo4j aislado
-12. Decidir promoción
+4. **Batería de negaciones (§5)** — adelantada: 50-100 casos, casi sintética,
+   mide exactamente lo que se acaba de implementar. No hace falta esperar a tener
+   200 episodios anotados para saber si `ya no lidera` cierra la vigencia y si
+   `nunca lideró` se distingue de ella
+5. Ampliar el corpus de desarrollo (con gold por capas, §2.1)
+6. Repetir A / C1 / C2 / D sobre el subconjunto rápido (§2.2), corpus completo
+   solo en el hito
+7. Implementar `ProposalReconciler`
+8. Repetir las pruebas conjuntas
+9. Construir el corpus de validación
+10. Congelar el sistema
+11. Ejecutar el held-out final, una vez
+12. Probar escritura contra un Neo4j aislado
+13. Decidir promoción
 
 ## 9. Criterio para avanzar
 
