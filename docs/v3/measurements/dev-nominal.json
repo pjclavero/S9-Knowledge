@@ -15,26 +15,131 @@
     "status": "not_evaluated"
   },
   "engine": {
-    "reason": "la prediccion no trae decisiones del motor (ni sueltas ni en plan)",
-    "status": "not_evaluated"
-  },
-  "extractor": {
-    "claims": {
+    "abstention_agreement": {
+      "accuracy": null,
+      "correct": 0,
+      "total": 0
+    },
+    "abstention_rate": null,
+    "decision_accuracy": {
+      "accuracy": null,
+      "correct": 0,
+      "total": 0
+    },
+    "decision_accuracy_strict": {
+      "accuracy": 0.0,
+      "correct": 0,
+      "total": 21
+    },
+    "decision_coverage": 0.0,
+    "decisions_gold": 21,
+    "decisions_matched": 0,
+    "decisions_missing": 21,
+    "decisions_predicted": 5,
+    "decisions_unmatched_predicted": 5,
+    "direction": {
       "f1": null,
-      "fn": 20,
+      "fn": 0,
+      "fp": 0,
+      "precision": null,
+      "recall": null,
+      "tp": 0
+    },
+    "direction_strict": {
+      "f1": null,
+      "fn": 16,
       "fp": 0,
       "precision": null,
       "recall": 0.0,
       "tp": 0
     },
-    "claims_unevaluable": 0,
+    "epistemic": {
+      "f1": null,
+      "fn": 0,
+      "fp": 0,
+      "precision": null,
+      "recall": null,
+      "tp": 0
+    },
+    "epistemic_strict": {
+      "f1": 0.0,
+      "fn": 19,
+      "fp": 5,
+      "precision": 0.0,
+      "recall": 0.0,
+      "tp": 0
+    },
+    "evidence_validity": {
+      "accuracy": 1.0,
+      "correct": 5,
+      "total": 5
+    },
+    "false_approve_count": 0,
+    "false_approve_decision_ids": [],
+    "false_approve_rate": null,
+    "false_reject_count": 0,
+    "false_reject_rate": null,
+    "negation": {
+      "f1": null,
+      "fn": 0,
+      "fp": 0,
+      "precision": null,
+      "recall": null,
+      "tp": 0
+    },
+    "negation_strict": {
+      "f1": null,
+      "fn": 3,
+      "fp": 0,
+      "precision": null,
+      "recall": 0.0,
+      "tp": 0
+    },
+    "predicate": {
+      "f1": null,
+      "fn": 0,
+      "fp": 0,
+      "precision": null,
+      "recall": null,
+      "tp": 0
+    },
+    "predicate_strict": {
+      "f1": null,
+      "fn": 16,
+      "fp": 0,
+      "precision": null,
+      "recall": 0.0,
+      "tp": 0
+    },
+    "review_agreement": {
+      "accuracy": null,
+      "correct": 0,
+      "total": 0
+    },
+    "review_rate": null,
+    "status": "scored",
+    "temporal": {
+      "reason": "la prediccion no trae afirmaciones; el eje temporal no se puede medir",
+      "status": "not_evaluated"
+    }
+  },
+  "extractor": {
+    "claims": {
+      "f1": 0.0,
+      "fn": 20,
+      "fp": 5,
+      "precision": 0.0,
+      "recall": 0.0,
+      "tp": 0
+    },
+    "claims_unevaluable": 5,
     "coreference": {
-      "f1": 0.666667,
-      "fn": 2,
+      "f1": 0.571429,
+      "fn": 3,
       "fp": 0,
       "pairs_dropped_unaligned": 0,
       "precision": 1.0,
-      "recall": 0.5,
+      "recall": 0.4,
       "tp": 2,
       "universe": "menciones alineadas con el gold; las no alineadas no forman par"
     },
@@ -42,7 +147,7 @@
       "by_kind": {},
       "claim_ids": [],
       "false_candidate_claims": 0,
-      "false_candidate_rate": null,
+      "false_candidate_rate": 0.0,
       "negatives_in_split": 4,
       "status": "scored",
       "trap_hit_rate": 0.0,
@@ -52,22 +157,22 @@
       "unanchored_claims_in_trap_episodes": 0
     },
     "mentions": {
-      "f1": 0.817204,
-      "fn": 13,
-      "fp": 4,
-      "precision": 0.904762,
-      "recall": 0.745098,
-      "tp": 38
+      "f1": 0.644628,
+      "fn": 12,
+      "fp": 31,
+      "precision": 0.557143,
+      "recall": 0.764706,
+      "tp": 39
     },
     "status": "scored",
     "type_accuracy_matched": {
-      "accuracy": 0.973684,
-      "correct": 37,
-      "total": 38
+      "accuracy": 0.974359,
+      "correct": 38,
+      "total": 39
     },
     "type_accuracy_strict": {
-      "accuracy": 0.72549,
-      "correct": 37,
+      "accuracy": 0.745098,
+      "correct": 38,
       "total": 51
     }
   },
@@ -109,13 +214,13 @@
   },
   "prediction": {
     "assertions": 0,
-    "claims": 0,
-    "decisions": 0,
+    "claims": 5,
+    "decisions": 5,
     "episodes": 0,
     "fragments": 0,
-    "mentions": 42,
-    "plans": 0,
-    "resolutions": 40
+    "mentions": 70,
+    "plans": 3,
+    "resolutions": 68
   },
   "resolver": {
     "action_accuracy": {
@@ -132,18 +237,18 @@
       "mapping_size": 17,
       "strategy": "voraz por solape descendente; los ids del catalogo quedan fijados"
     },
-    "duplicate_clusters": 0,
-    "duplicate_rate": 0.0,
+    "duplicate_clusters": 1,
+    "duplicate_rate": 0.058824,
     "gold_entities_covered": 17,
     "identity_accuracy": {
       "accuracy": 0.72549,
       "correct": 37,
       "total": 51
     },
-    "mentions_unassigned_by_prediction": 14,
+    "mentions_unassigned_by_prediction": 13,
     "over_merge_rate": 0.0,
     "over_merged_clusters": 0,
-    "predicted_clusters": 17,
+    "predicted_clusters": 18,
     "resolution_coverage": 0.419355,
     "resolution_groups_gold": 31,
     "resolution_groups_matched": 13,
@@ -151,9 +256,9 @@
   },
   "resources": {
     "external_cost_usd": 0.0,
-    "latency_ms": 276.119,
-    "peak_rss_mb": 36.664,
-    "provider_calls": 0,
+    "latency_ms": 1238141.14,
+    "peak_rss_mb": 37.664,
+    "provider_calls": 33,
     "status": "reported_by_runner"
   },
   "run_id": "dev-nominal",
