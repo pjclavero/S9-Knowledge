@@ -63,8 +63,17 @@ class RoutingPolicy:
     external_min_input_units: float = 0.0
     allow_external_for: frozenset = frozenset()
     allow_private_content_external: bool = False
+    #: Plazos de PARED por tier, en segundos. Los aplica el router al
+    #: registrar (`ProviderRouter.register`), no son decorativos.
+    #:
+    #: El de Ollama es 300 y no 120 por una medida real, no por prudencia
+    #: generica: en la instalacion (VM102, `qwen2.5:7b`) una llamada **en frio**
+    #: tarda entre 89 y 166 s, casi todo `load_duration` del modelo. Con 120 s
+    #: la primera peticion tras un rato de inactividad moria por timeout,
+    #: gastaba un reintento y alimentaba el circuit breaker — para acabar
+    #: funcionando a la segunda, que es el sintoma mas confuso posible.
     timeout_seconds_by_tier: dict = field(
-        default_factory=lambda: {Tier.LOCAL: 600, Tier.OLLAMA: 120, Tier.EXTERNAL: 180}
+        default_factory=lambda: {Tier.LOCAL: 600, Tier.OLLAMA: 300, Tier.EXTERNAL: 180}
     )
     circuit_failure_threshold: int = 3
     circuit_cooldown_seconds: float = 60.0

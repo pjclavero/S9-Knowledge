@@ -73,6 +73,33 @@ class ProposalError(ValueError):
     """La salida del proveedor no puede convertirse en una propuesta valida."""
 
 
+class AmbiguousAnchorError(ProposalError):
+    """El texto aparece varias veces en el episodio: el anclaje no es unico."""
+
+
+class UnverifiedAttributionError(ProposalError):
+    """La atribucion no la derivo el router del resultado real."""
+
+
+#: Caracteres admisibles en un identificador de modelo. Lo que devuelve el
+#: proveedor NO se copia tal cual a `provider_trace`: es texto suyo.
+_MODEL_RE = re.compile(r"^[A-Za-z0-9._:/-]{1,128}$")
+
+
+def sanitize_model(model) -> "str | None":
+    """Identificador de modelo apto para `provider_trace`, o None.
+
+    El schema congelado admite `model` de hasta 128 caracteres. El proveedor
+    puede devolver lo que quiera —incluido texto inyectado o 4 KB de basura—,
+    asi que se valida charset y longitud y, si no encaja, se registra `None`:
+    mejor "no consta" que un campo de trazabilidad envenenado.
+    """
+    if model is None:
+        return None
+    text = str(model).strip()
+    return text if _MODEL_RE.match(text) else None
+
+
 def normalize_text(text: str) -> str:
     """Normalizacion determinista: NFKC, minusculas, espacios colapsados.
 
@@ -102,8 +129,11 @@ class LocalAnchor:
     def locate(self, literal: str) -> tuple:
         """`(start, end)` del texto literal dentro del episodio.
 
-        Lanza si no aparece: un fragmento que no esta en la fuente no es
-        evidencia de nada.
+        Lanza si no aparece —un fragmento que no esta en la fuente no es
+        evidencia de nada— y **tambien si aparece mas de una vez**: `find()`
+        devolvia siempre la primera ocurrencia, de modo que una mencion que el
+        proveedor situaba en la segunda quedaba anclada en la primera, con
+        offsets creibles y equivocados. Un anclaje ambiguo no es un anclaje.
         """
         idx = self.episode_text.find(literal)
         if idx < 0:
@@ -111,12 +141,30 @@ class LocalAnchor:
                 "el texto propuesto no aparece literalmente en el episodio: "
                 "propuesta descartada por no anclable"
             )
+        if self.episode_text.find(literal, idx + 1) >= 0:
+            raise AmbiguousAnchorError(
+                f"el texto propuesto aparece {self.episode_text.count(literal)} veces "
+                "en el episodio: elegir la primera en silencio produciria offsets "
+                "creibles y equivocados"
+            )
         return idx, idx + len(literal)
 
 
 @dataclass(frozen=True)
 class ProviderAttribution:
-    """Quien produjo el contenido. Va tal cual a `provider_trace`."""
+    """Quien produjo el contenido. Va tal cual a `provider_trace`.
+
+    `verified` distingue una atribucion DERIVADA del resultado real
+    (`ProviderOutcome.attribution()`) de una escrita a mano. Los mapeadores
+    exigen la primera: mientras el llamante pudiera teclear `tier=Tier.LOCAL`
+    junto a un resultado de NVIDIA, la veracidad de `provider_trace` era una
+    convencion, y el documento resultante **validaba contra el schema**. Un
+    externo etiquetado como local es precisamente lo que el contrato existe
+    para impedir.
+
+    Para pasos deterministas del propio motor existe `local()`, que fija el
+    tier y no admite otro.
+    """
 
     tier: Tier
     name: str
@@ -124,13 +172,41 @@ class ProviderAttribution:
     step: str
     model: Optional[str] = None
     params_hash: Optional[dict] = None
+    verified: bool = False
 
     def as_contract_provider(self) -> Provider:
         return self.tier.as_contract_provider()
 
+    @classmethod
+    def local(cls, name: str, version: str, step: str, **kw) -> "ProviderAttribution":
+        """Atribucion de un paso LOCAL determinista. El tier no es elegible."""
+        kw.pop("tier", None)
+        kw.pop("verified", None)
+        return cls(
+            tier=Tier.LOCAL,
+            name=name,
+            version=version,
+            step=step,
+            model=sanitize_model(kw.pop("model", None)),
+            verified=True,
+            **kw,
+        )
+
+
+def _require_verified(attribution: ProviderAttribution) -> None:
+    """Rechaza una atribucion que no derive del resultado real."""
+    if not getattr(attribution, "verified", False):
+        raise UnverifiedAttributionError(
+            "la atribucion no la derivo el router del resultado real: usa "
+            "`ProviderOutcome.attribution()` o `ProviderAttribution.local()`. "
+            "Escribir el tier a mano permite etiquetar como local una salida "
+            "externa, y el documento resultante validaria igual"
+        )
+
 
 def _trace(attribution: ProviderAttribution, local_produced: list, produced: list) -> list:
     """Traza de dos pasos: anclaje local + produccion del proveedor."""
+    _require_verified(attribution)
     return [
         provider_step(
             LOCAL_ANCHOR_STEP,
@@ -145,7 +221,7 @@ def _trace(attribution: ProviderAttribution, local_produced: list, produced: lis
             attribution.name,
             attribution.version,
             produced,
-            model=attribution.model,
+            model=sanitize_model(attribution.model),
             params_hash=attribution.params_hash,
         ),
     ]
@@ -262,6 +338,9 @@ def mentions_from_extraction(
             continue
         try:
             start, end = anchor.locate(surface)
+        except AmbiguousAnchorError:
+            codes.add("PROVIDER_MENTION_AMBIGUOUS_ANCHOR")
+            continue
         except ProposalError:
             codes.add("PROVIDER_MENTION_NOT_ANCHORABLE")
             continue

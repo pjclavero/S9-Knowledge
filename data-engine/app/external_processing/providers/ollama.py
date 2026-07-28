@@ -36,6 +36,7 @@ import urllib.request
 from typing import Any, Dict, List, Optional, Set
 
 from external_processing.capabilities import Capability
+from external_processing.http_safe import read_bounded, safe_urlopen
 from external_processing.errors import (
     InputTooLargeError,
     InvalidResponseError,
@@ -69,6 +70,12 @@ OLLAMA_BASE_CAPABILITIES: Set[Capability] = {
     Capability.EXTRACT_TEXT_ENTITIES,
     Capability.REVIEW_CANDIDATES,
 }
+
+#: Estados HTTP que NO tiene sentido reintentar. `501 Not Implemented` es el
+#: que devuelve de verdad el servidor de la instalacion cuando se le piden
+#: embeddings sin `--embeddings`: no es un fallo transitorio, es una capacidad
+#: que ese binario no sirve.
+PERMANENT_HTTP_STATUS: frozenset = frozenset({400, 404, 405, 422, 501})
 
 _TASK_TO_CAP: Dict[ExternalTaskType, Capability] = {
     ExternalTaskType.TEXT_EXTRACT: Capability.EXTRACT_TEXT_ENTITIES,
@@ -131,8 +138,11 @@ class OllamaProcessingProvider(ExternalProcessingProvider):
         self.max_retries = cfg["max_retries"] if max_retries is None else max_retries
         self.max_response_bytes = max_response_bytes
         self.max_prompt_chars = max_prompt_chars
-        # Inyeccion de transporte: los tests unitarios NO tocan la red.
-        self._urlopen = urlopen or urllib.request.urlopen
+        # Inyeccion de transporte: los tests unitarios NO tocan la red. El
+        # defecto RECHAZA redirects. Ollama es local y no lleva credenciales,
+        # pero un 302 seguido a ciegas sigue siendo inyeccion de respuesta y
+        # SSRF hacia la LAN, asi que la postura es la misma que con NVIDIA.
+        self._urlopen = urlopen or safe_urlopen
 
         caps = set(OLLAMA_BASE_CAPABILITIES)
         if embeddings or self.embedding_model:
@@ -157,14 +167,16 @@ class OllamaProcessingProvider(ExternalProcessingProvider):
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
+            # Plazo de PARED por intento: el timeout de socket no acota una
+            # respuesta que llega a goteo.
+            deadline = time.monotonic() + self.timeout_seconds
             try:
                 with self._urlopen(req, timeout=self.timeout_seconds) as resp:
-                    # Lectura ACOTADA: un byte mas del tope y se descarta.
-                    raw = resp.read(self.max_response_bytes + 1)
-                if len(raw) > self.max_response_bytes:
-                    raise InputTooLargeError(
-                        f"respuesta de Ollama por encima del tope "
-                        f"({self.max_response_bytes} bytes); descartada sin parsear"
+                    raw = read_bounded(
+                        resp,
+                        self.max_response_bytes,
+                        deadline=deadline,
+                        what="respuesta de Ollama",
                     )
                 try:
                     return json.loads(raw.decode("utf-8", errors="replace"))
@@ -175,8 +187,11 @@ class OllamaProcessingProvider(ExternalProcessingProvider):
 
             except urllib.error.HTTPError as exc:
                 status = getattr(exc, "code", 0)
-                if status in (400, 404, 422):
-                    # Modelo inexistente o peticion mal formada: permanente.
+                if status in PERMANENT_HTTP_STATUS:
+                    # Peticion mal formada, modelo inexistente o capacidad que
+                    # el servidor NO tiene compilada. Reintentar 3 veces un 501
+                    # y ademas alimentar el circuit breaker con el era gastar
+                    # tiempo para llegar a la misma respuesta.
                     raise UnsupportedCapabilityError(
                         f"HTTP {status}", self.provider_name
                     ) from exc
@@ -253,9 +268,15 @@ class OllamaProcessingProvider(ExternalProcessingProvider):
     def embed(self, texts: List[str], *, model: Optional[str] = None) -> Dict[str, Any]:
         """Embeddings via `/api/embed`.
 
-        Fail-closed: si el servidor no soporta embeddings responde 200 con
-        `{"error": ...}` — que aqui es un fallo explicito, nunca una lista
-        vacia silenciosa.
+        Fail-closed por DOS caminos, porque el servidor usa los dos:
+
+        * **`HTTP 501`** — es lo que devuelve de verdad la instalacion real
+          (192.168.1.157) cuando el binario no se arranco con `--embeddings`.
+          Lo traduce `_post` a `UnsupportedCapabilityError` permanente.
+        * **`200` con `{"error": ...}`** — algunas versiones responden asi.
+          Se traduce aqui, tambien a error permanente.
+
+        En ninguno de los dos casos se devuelve una lista vacia en silencio.
         """
         used = model or self.embedding_model or self.model
         response = self._post("/api/embed", {"model": used, "input": list(texts)})
@@ -318,8 +339,14 @@ class OllamaProcessingProvider(ExternalProcessingProvider):
         req = urllib.request.Request(url, method="GET")
         t0 = time.monotonic()
         try:
-            with self._urlopen(req, timeout=min(self.timeout_seconds, 15)) as resp:
-                raw = resp.read(self.max_response_bytes + 1)
+            budget = min(self.timeout_seconds, 15)
+            with self._urlopen(req, timeout=budget) as resp:
+                raw = read_bounded(
+                    resp,
+                    self.max_response_bytes,
+                    deadline=time.monotonic() + budget,
+                    what="respuesta de Ollama",
+                )
             latency_ms = int((time.monotonic() - t0) * 1000)
             data = json.loads(raw.decode("utf-8", errors="replace"))
             models = [m.get("name", "") for m in data.get("models", []) if m.get("name")]

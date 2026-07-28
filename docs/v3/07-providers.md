@@ -179,6 +179,14 @@ descarta con `PROVIDER_MENTION_NOT_ANCHORABLE`: es una alucinación, no una
 evidencia. Esto cierra de golpe «offsets falsos» y «fragment IDs inventados» del
 §10.
 
+**Y si aparece más de una vez, tampoco se ancla.** `find()` devolvía siempre la
+primera ocurrencia, de modo que una mención que el proveedor situaba en la
+segunda quedaba anclada en la primera —con offsets creíbles y equivocados, que
+es la peor clase de dato malo—. Ahora eso es `PROVIDER_MENTION_AMBIGUOUS_ANCHOR`
+y la propuesta cae. Desambiguar por contexto es trabajo del bloque extractor,
+que es quien tiene la ventana; esta capa se limita a no inventarse cuál de las
+dos era.
+
 `provider_trace` lleva siempre **dos pasos** y no miente en ninguno:
 
 ```json
@@ -193,6 +201,17 @@ evidencia. Esto cierra de golpe «offsets falsos» y «fragment IDs inventados»
 `produced_by_step` apunta **siempre al paso del proveedor**: quien produjo el
 contenido no se disimula. Un resultado de NVIDIA se declara `external`, no
 `local`.
+
+**Y ahora eso es una consecuencia, no una convención.** Antes el llamante
+escribía el `tier` a mano: nada impedía etiquetar como `local` una salida de
+NVIDIA, y el documento resultante **validaba contra el schema igualmente**. La
+única vía sancionada es ahora `ProviderOutcome.attribution(name=…)`, que deriva
+`tier`, `step` y `model` **del resultado real** y no admite que el llamante los
+elija; los mapeadores **rechazan** (`UnverifiedAttributionError`) cualquier
+atribución que no venga de ahí o de `ProviderAttribution.local()`. El `model` lo
+dicta el proveedor, así que se registra **saneado** (charset y longitud del
+schema): si no encaja, se anota `None` — mejor «no consta» que un campo de
+trazabilidad envenenado.
 
 Reglas de saneamiento aplicadas al mapear (todas con `reason_code`):
 
@@ -228,6 +247,55 @@ Reglas de saneamiento aplicadas al mapear (todas con `reason_code`):
 | Rutas privadas | `FAILED_VALIDATION` | ✓ |
 | Cruce de workspace / `source_hash` ajeno | `FAILED_VALIDATION` | ✓ |
 | Plan de mutación devuelto por el proveedor | `GUARD_REJECTED` | ✓ |
+| **Redirect 3xx** (fuga de `Authorization`) | **Rechazado**; la key no viaja | ✓ |
+| **`Retry-After` absurdo** | Acotado a 60 s | ✓ |
+| **Respuesta a goteo** (1 byte/0,2 s) | Plazo de **pared**, no de socket | ✓ |
+| **10 000 niveles de anidamiento** | `GuardError`, no `RecursionError` | ✓ |
+| **Ctrl-C / SystemExit** durante una llamada | Se propaga; cancelar cancela | ✓ |
+| **Anclaje ambiguo** (literal repetido) | Descartado, no anclado a la 1.ª | ✓ |
+
+### Endurecimiento del transporte (ronda de revisión)
+
+Cuatro defectos **demostrados en vivo** por el revisor independiente, no
+teóricos. Viven ahora en `external_processing/http_safe.py`, compartido por
+ambos proveedores.
+
+**Fuga de la API key por redirect (era ALTA).** `urllib.request.urlopen` sigue
+los 3xx automáticamente y **conserva la cabecera `Authorization` al cambiar de
+host**. Un servidor que responda `302` apuntando a otro dominio recibía la
+clave en claro; el mismo agujero permitía inyección de respuesta y SSRF hacia
+la LAN. La postura es **rechazar todo redirect**, no «limpiar la cabecera y
+seguir»: un endpoint de API que redirige no es un endpoint que conozcamos. Si
+NVIDIA mueve su endpoint algún día, se cambia la configuración, que para eso
+está. Hay un test que **reproduce el ataque con dos servidores HTTP reales** y
+comprueba que el atacante no recibe nada, y un test de control que demuestra
+que con el `urlopen` estándar la clave **sí** viajaba.
+
+**`Retry-After` sin tope (era ALTA).** Un `Retry-After: 99999999` dormía un
+hilo del dispatcher durante años, con su semáforo y su reserva de presupuesto
+retenidos. Ahora se acota a **60 s** (`MAX_RETRY_AFTER_SECONDS`). Por debajo del
+tope se obedece al proveedor: acotar no es ignorar.
+
+**Sin deadline de pared.** El `timeout` de `urlopen` es por operación de
+socket, no total: un servidor que gotea un byte cada 0,2 s cumple cualquier
+timeout individual y retiene el hilo indefinidamente. `read_bounded()` impone un
+plazo de pared que se comprueba en cada vuelta del bucle de lectura.
+
+**Lectura no acotada.** Leer y después mirar el tamaño ya es tarde: el proceso
+cargó la respuesta entera en memoria. Ahora se lee a trozos, sin pedir nunca más
+de lo que falta para pasarse del tope, y se aborta con un byte de exceso. Hay un
+doble de test (`UnboundedReadResponse`) que **estalla si alguien vuelve a
+llamar a `read()` sin límite**: sin él, un mutante que leyese la respuesta
+entera sobrevivía.
+
+### Orden de las guardas: lo barato y lo que no puede explotar, primero
+
+El router aplica una comprobación **estructural** (profundidad y cardinalidad)
+*antes* de llamar al `result_validator` compartido. No es cosmético: el
+validador serializa el resultado entero para escanear secretos, y una
+estructura de 10 000 niveles lo hacía reventar con `RecursionError` —un
+`RuntimeError` que nadie trataba como respuesta inválida— antes de que ninguna
+guarda llegase a mirarla.
 
 ### Inyección de instrucciones
 
@@ -258,7 +326,7 @@ intacto**.
 | `chat_json` en caliente | **8,6 – 10,6 s** para 43–46 tokens |
 | Cadena completa router → guardas → contratos | **10 122 ms**, 2 menciones ancladas y **validadas contra el schema congelado**, `codes=()` |
 | Determinismo (`temperature=0`, `seed=7`) | Dos llamadas idénticas → **salida byte a byte idéntica** |
-| Embeddings | ❌ **`"This server does not support embeddings. Start it with --embeddings"`** |
+| Embeddings | ❌ **No soportado.** El servidor responde **`HTTP 501`** (algunas versiones, `200` con `{"error": …}`); ambos caminos se tratan como **permanentes**, sin reintentos |
 
 **Tres hallazgos reales que conviene no maquillar:**
 
@@ -266,6 +334,11 @@ intacto**.
    declara por defecto** en el proveedor Ollama: declararla sería mentir. Se
    activa con `embeddings=True` o `S9K_OLLAMA_EMBEDDING_MODEL` cuando el
    servidor arranque con `--embeddings`.
+   La primera versión suponía que el fallo llegaba como `200` con
+   `{"error": …}`; el servidor real devuelve **`HTTP 501`**, que el código
+   trataba como transitorio y por tanto **reintentaba tres veces y alimentaba el
+   circuit breaker** para llegar a la misma respuesta. `501`, `405`, `404`,
+   `422` y `400` son ahora permanentes (`PERMANENT_HTTP_STATUS`).
 
 2. **El modelo devolvió los tipos de entidad en chino** (`组织/机构`, `地点`)
    con un prompt en español que pedía tipos libres. Con el prompt estricto del
@@ -307,6 +380,12 @@ Son **dos llamadas**: un `GET /models` (gratis) y un chat de ≤64 tokens.
 > `nvidia.env` **no lo carga ninguna unidad systemd**. Mientras eso no cambie,
 > la clave seguirá siendo inerte en producción aunque el adaptador ya funcione.
 
+**Consecuencia directa sobre la política:** el plazo del tier `OLLAMA` es de
+**300 s**, no de 120. Con 120 s la primera petición tras un rato de inactividad
+moría por timeout, gastaba un reintento y alimentaba el circuit breaker, para
+acabar funcionando a la segunda — el síntoma más confuso posible. El número
+sale de la medida, no de la prudencia genérica.
+
 ### Marcadores de humo
 
 | Marcador | Activación | Coste |
@@ -326,11 +405,22 @@ Son **dos llamadas**: un `GET /models` (gratis) y un chat de ≤64 tokens.
 | `test_knowledge_v3_providers_robustness.py` | 30 | **§10**: caído, timeout, JSON inválido, gigante, inyección, secretos, workspace |
 | `test_knowledge_v3_providers_ollama.py` | 30 + 3 live | Transporte simulado + humo real |
 | `test_knowledge_v3_providers_nvidia.py` | 27 + 2 live | Transporte simulado + humo de pago |
-| **Total** | **168 unitarios + 5 de humo** | |
+| `test_knowledge_v3_providers_hardening.py` | 69 | **Ronda de revisión H1–H13**: redirect, `Retry-After`, deadline, lectura acotada, `RecursionError`, claves normalizadas, atribución verificada, `501`, señales, timeouts, anclaje ambiguo |
+| **Total** | **237 unitarios + 5 de humo** | |
 
 `test_knowledge_v3_providers_support.py` no contiene tests: es utillaje
 compartido (dobles de transporte y fixtures). Vive junto a los tests y **no**
 en `conftest.py`, que no es propiedad de este bloque.
+
+Los dobles de transporte son **flujos con cursor**, no buffers: devolver
+siempre el mismo prefijo en cada `read(n)` es algo que ningún servidor real
+hace, y ocultaba si el código consume el flujo correctamente. `FakeTransport`
+devuelve tal cual cualquier doble que sepa `read()`, de modo que
+`UnboundedReadResponse` y `DrippingResponse` se enchufan sin envolver.
+
+Los tests de H1 levantan **dos servidores HTTP reales** en `127.0.0.1`: uno
+redirige al otro, que apunta las cabeceras que recibe. Es la única forma de
+demostrar que la clave no viaja, en lugar de asumirlo.
 
 ### Sobre los tests de mutación
 
@@ -344,7 +434,58 @@ casualidad.
 
 ---
 
-## 10. Límites de este bloque
+## 10. Trampas para quien consuma esta capa
+
+Tres cosas que **no son bugs pero muerden** si no se saben.
+
+### `approved` está prohibida como clave, y eso condiciona el prompt de REVIEW
+
+La guarda rechaza cualquier respuesta de proveedor que traiga la clave
+`approved` (y sus variantes normalizadas: `approvedBy`, `is_approved`,
+`Approved_By`…). Es deliberado —un proveedor que se declara aprobador viola §2—
+pero tiene un efecto que hay que conocer: **un veredicto legítimo
+`{"approved": false}` se pierde entero**, no se degrada. El proveedor no dice
+«no apruebo»; simplemente su respuesta es descartada.
+
+> **El prompt de `REVIEW` debe pedir `verdict: "ACCEPT" | "REJECT" | "REVIEW"`,
+> nunca `approved`.** El bloque que consuma la capacidad `REVIEW` tiene que
+> saberlo antes de escribir su prompt.
+
+### `route()` reserva presupuesto; `route()` + `run()` cobra dos veces
+
+`route()` **reserva** la llamada externa (`Budget.reserve()`) para que N hilos
+no gasten el mismo último crédito. `run()` llama a `route()` internamente. Por
+tanto:
+
+```python
+# MAL: cobra dos veces, y la primera reserva no se devuelve nunca
+decision = router.route(cap)          # reserva 1
+outcome  = router.run(cap, ...)       # reserva 2 (route() otra vez)
+
+# BIEN: run() enruta por dentro
+outcome = router.run(cap, ...)
+
+# BIEN: route() a solas, sólo para inspeccionar (nunca seguido de run())
+decision = router.route(cap)
+```
+
+`run()` sí devuelve la reserva (`refund()`) si la llamada no llega a
+consumirse. Una `route()` suelta seguida de `run()`, no: esa reserva queda
+gastada.
+
+### En el tier externo sólo se evalúa el primer candidato
+
+`route()` ordena los candidatos de cada tier por nombre y, **para el tier
+externo, aplica las comprobaciones de política y presupuesto sólo a
+`candidates[0]`**. Si ese primer proveedor no pasa el filtro, el tier entero se
+descarta aunque un segundo proveedor externo sí lo hubiera pasado. Hoy no
+importa —hay un único proveedor externo registrado— pero **deja de ser cierto
+en cuanto se registre un segundo**, y entonces habrá que iterar los candidatos
+en lugar de mirar el primero. Queda anotado aquí, no escondido en el código.
+
+---
+
+## 11. Límites de este bloque
 
 * **No arregla la calidad del extractor.** Lo que `qwen2.5:7b` proponga es
   problema del bloque extractor; aquí sólo se garantiza que lo que proponga

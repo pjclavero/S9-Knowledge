@@ -35,7 +35,7 @@ from knowledge_v3.providers.capability import (
     to_provider_capability,
     to_task_type,
 )
-from knowledge_v3.providers.guards import GuardError, guard_provider_result
+from knowledge_v3.providers.guards import GuardError, assert_size, guard_provider_result
 from knowledge_v3.providers.policy import (
     TIER_ORDER,
     Budget,
@@ -93,6 +93,34 @@ class ProviderOutcome:
         """Nombre del paso para `provider_trace`. Estable y enumerable."""
         return f"{self.capability.value.lower()}.{self.provider_name or 'none'}"
 
+    def attribution(self, *, name: str, version: str = "3.0.0"):
+        """`ProviderAttribution` DERIVADA de este resultado.
+
+        El llamante elige el nombre y la version del componente que mapea, y
+        **nada mas**: `tier`, `step` y `model` salen del resultado real. Es la
+        unica via sancionada para construir la traza de una propuesta.
+
+        Antes, el llamante escribia el tier a mano; nada impedia etiquetar como
+        `local` una salida de NVIDIA, y el documento validaba contra el schema
+        igualmente. La veracidad de `provider_trace` era una convencion; ahora
+        es una consecuencia.
+        """
+        from knowledge_v3.providers.proposals import ProviderAttribution, sanitize_model
+
+        if not self.ok or self.tier is None:
+            raise ValueError(
+                "no se puede atribuir una propuesta a partir de un resultado fallido"
+            )
+        return ProviderAttribution(
+            tier=self.tier,
+            name=name,
+            version=version,
+            step=self.attribution_step(),
+            # El modelo lo dicta el proveedor: se registra, pero saneado.
+            model=sanitize_model(self.model),
+            verified=True,
+        )
+
 
 class ProviderRouter:
     """Facade de proveedores V3."""
@@ -115,10 +143,15 @@ class ProviderRouter:
         *,
         cost_units: float = 1.0,
         default_model: Optional[str] = None,
+        apply_policy_timeout: bool = True,
     ) -> "ProviderRouter":
         entry = RegisteredProvider(
             provider=provider, tier=tier, cost_units=cost_units, default_model=default_model
         )
+        # `RoutingPolicy.timeout_seconds_by_tier` era codigo muerto: se
+        # declaraba y no lo leia nadie. O se aplica o sobra; se aplica.
+        if apply_policy_timeout and hasattr(provider, "timeout_seconds"):
+            provider.timeout_seconds = self.policy.timeout_for(tier)
         self._by_name[entry.name] = entry
         self._dispatchers[entry.name] = BurstDispatcher(
             provider,
@@ -304,6 +337,10 @@ class ProviderRouter:
         t0 = time.monotonic()
         try:
             done = dispatcher.dispatch_one(job)
+        except (KeyboardInterrupt, SystemExit):
+            # Cancelar de verdad tiene que seguir cancelando: convertir un
+            # Ctrl-C en "el proveedor fallo" dejaba el proceso vivo.
+            raise
         except BaseException as exc:  # noqa: BLE001
             # `BurstDispatcher.dispatch_one` solo protege de
             # `ExternalProcessingError`: un proveedor que lance cualquier otra
@@ -344,9 +381,27 @@ class ProviderRouter:
                 decision=decision,
             )
 
+        # 0) Cordura ESTRUCTURAL antes que nada. Va primero porque el
+        #    validador compartido serializa el resultado entero para escanear
+        #    secretos, y una estructura de 10 000 niveles lo hacia reventar con
+        #    `RecursionError` —un `RuntimeError` que nadie trataba como
+        #    respuesta invalida— antes de que ninguna guarda llegase a mirarla.
+        #    Lo barato y lo que no puede explotar, primero.
+        try:
+            assert_size(done.result)
+        except (GuardError, RecursionError) as exc:
+            return self._rejected(
+                decision, entry, job, done, latency_ms, "GUARD_REJECTED", exc
+            )
+
         # 1) Validador de resultados YA existente (hashes, rangos, workspace,
-        #    secretos). Es la primera puerta y no se salta nunca.
-        validated_job, vr = validate_result(done.transition_to(JobStatus.VALIDATING))
+        #    secretos). Segunda puerta, y no se salta nunca.
+        try:
+            validated_job, vr = validate_result(done.transition_to(JobStatus.VALIDATING))
+        except RecursionError as exc:
+            return self._rejected(
+                decision, entry, job, done, latency_ms, "GUARD_REJECTED", exc
+            )
         if not vr.valid:
             return ProviderOutcome(
                 capability=capability,
@@ -393,6 +448,26 @@ class ProviderRouter:
             reason_codes=decision.reason_codes + tuple(injection_codes),
             validation_warnings=tuple(vr.warnings),
             latency_ms=done.latency_ms if done.latency_ms is not None else latency_ms,
+            attempts=done.attempt,
+            decision=decision,
+        )
+
+    def _rejected(
+        self, decision, entry, job, done, latency_ms, code: str, exc: BaseException
+    ) -> ProviderOutcome:
+        """Resultado descartado por una guarda. Nunca entrega `result`."""
+        detalle = f"{type(exc).__name__}: {str(exc)[:280]}"
+        return ProviderOutcome(
+            capability=decision.capability,  # type: ignore[arg-type]
+            ok=False,
+            provider_name=entry.name,
+            tier=entry.tier,
+            model=job.model,
+            reason_codes=decision.reason_codes + (code,),
+            validation_errors=(detalle,),
+            latency_ms=done.latency_ms if done.latency_ms is not None else latency_ms,
+            error_code=code,
+            error_message=detalle,
             attempts=done.attempt,
             decision=decision,
         )

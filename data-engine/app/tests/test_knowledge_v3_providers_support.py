@@ -8,6 +8,7 @@ bloque y no debe tocarse.
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 from typing import Any, Optional
 
@@ -24,18 +25,74 @@ EPISODE_TEXT = (
 
 
 class FakeResponse:
-    """Doble de la respuesta de `urlopen`: context manager con `read(n)`."""
+    """Doble de la respuesta de `urlopen`: un FLUJO con cursor, no un buffer.
+
+    Devolver siempre el mismo prefijo en cada `read(n)` convertia al doble en
+    algo que ningun servidor real hace, y ocultaba si el codigo bajo prueba
+    consume el flujo correctamente.
+    """
 
     def __init__(self, payload: Any, *, raw: Optional[bytes] = None) -> None:
         if raw is not None:
             self._raw = raw
         else:
             self._raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        self._pos = 0
+        self.reads: list = []
 
     def read(self, amount: Optional[int] = None) -> bytes:
-        return self._raw if amount is None else self._raw[:amount]
+        self.reads.append(amount)
+        if amount is None:
+            chunk = self._raw[self._pos:]
+            self._pos = len(self._raw)
+            return chunk
+        chunk = self._raw[self._pos:self._pos + amount]
+        self._pos += len(chunk)
+        return chunk
 
     def __enter__(self) -> "FakeResponse":
+        return self
+
+    def __exit__(self, *exc) -> bool:
+        return False
+
+
+class UnboundedReadResponse(FakeResponse):
+    """Estalla si alguien llama a `read()` SIN limite.
+
+    Sirve para fijar la propiedad "se corta antes de cargar en memoria": si el
+    codigo vuelve a `resp.read()` a pelo, este doble lo delata en vez de
+    tragarselo. Sin el, un mutante que leyese la respuesta entera sobrevivia.
+    """
+
+    def read(self, amount: Optional[int] = None) -> bytes:
+        if amount is None:
+            raise AssertionError(
+                "se ha llamado a read() sin limite: la respuesta se estaria "
+                "cargando entera en memoria antes de comprobar su tamano"
+            )
+        return super().read(amount)
+
+
+class DrippingResponse:
+    """Servidor que gotea: un byte por lectura, eternamente.
+
+    Cada lectura individual cumple cualquier `timeout` de socket; sin plazo de
+    pared, la llamada no termina nunca.
+    """
+
+    def __init__(self, byte: bytes = b"x", delay: float = 0.0) -> None:
+        self._byte = byte
+        self._delay = delay
+        self.calls = 0
+
+    def read(self, amount: Optional[int] = None) -> bytes:
+        self.calls += 1
+        if self._delay:
+            time.sleep(self._delay)
+        return self._byte
+
+    def __enter__(self) -> "DrippingResponse":
         return self
 
     def __exit__(self, *exc) -> bool:
@@ -71,7 +128,9 @@ class FakeTransport:
         item = self.script[min(self.calls - 1, len(self.script) - 1)]
         if isinstance(item, BaseException):
             raise item
-        if isinstance(item, FakeResponse):
+        # Cualquier doble que sepa `read()` se devuelve tal cual; solo los
+        # payloads planos se envuelven.
+        if hasattr(item, "read"):
             return item
         return FakeResponse(item)
 
@@ -132,15 +191,46 @@ def make_anchor(text: str = EPISODE_TEXT, **overrides):
     return LocalAnchor(**kwargs)
 
 
-def make_attribution(**overrides):
-    from knowledge_v3.providers import ProviderAttribution, Tier
+def make_outcome(tier=None, provider_name="ollama", model="qwen2.5:7b", **overrides):
+    """`ProviderOutcome` sintetico y CORRECTO, como lo devolveria el router."""
+    from knowledge_v3.providers import ProviderOutcome, Tier, V3Capability
 
     kwargs = dict(
-        tier=Tier.OLLAMA,
-        name="s9k.extractor.ollama",
-        version="3.0.0",
-        step="extraction.ollama",
-        model="qwen2.5:7b",
+        capability=V3Capability.EXTRACTION,
+        ok=True,
+        provider_name=provider_name,
+        tier=tier or Tier.OLLAMA,
+        model=model,
+        result={"provider": provider_name, "model": model, "payload": {}},
     )
     kwargs.update(overrides)
-    return ProviderAttribution(**kwargs)
+    return ProviderOutcome(**kwargs)
+
+
+def make_attribution(**overrides):
+    """Atribucion VERIFICADA, por la unica via sancionada.
+
+    Deliberadamente no construye `ProviderAttribution` a mano: los mapeadores
+    rechazan las atribuciones sin verificar, y el utillaje de test no debe ser
+    la puerta trasera que las cuele.
+    """
+    from knowledge_v3.providers import ProviderAttribution, Tier
+
+    tier = overrides.pop("tier", Tier.OLLAMA)
+    step = overrides.pop("step", None)
+    model = overrides.pop("model", "qwen2.5:7b")
+    name = overrides.pop("name", "s9k.extractor.ollama")
+    version = overrides.pop("version", "3.0.0")
+
+    if tier is Tier.LOCAL:
+        attribution = ProviderAttribution.local(
+            name=name, version=version, step=step or "extraction.local", model=model
+        )
+    else:
+        outcome = make_outcome(tier=tier, provider_name=tier.value, model=model)
+        attribution = outcome.attribution(name=name, version=version)
+        if step is not None:
+            from dataclasses import replace
+
+            attribution = replace(attribution, step=step)
+    return attribution

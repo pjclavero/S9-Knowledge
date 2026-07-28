@@ -43,6 +43,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from external_processing.capabilities import Capability
+from external_processing.http_safe import (
+    MAX_RETRY_AFTER_SECONDS,
+    cap_retry_after,
+    read_bounded,
+    safe_urlopen,
+)
 from external_processing.errors import (
     AuthError,
     ContentBlockedError,
@@ -99,8 +105,9 @@ class NvidiaProcessingProvider(ExternalProcessingProvider):
         self._repo_root = Path(repo_root)
         self._max_response_bytes = max_response_bytes
         # Transporte inyectable: los tests unitarios NO tocan la red ni
-        # necesitan una API key real.
-        self._urlopen = urlopen or urllib.request.urlopen
+        # necesitan una API key real. El defecto RECHAZA redirects: seguirlos
+        # enviaria la cabecera Authorization al host que eligiese el servidor.
+        self._urlopen = urlopen or safe_urlopen
 
         cfg: Dict[str, Any] = {}
         try:
@@ -141,9 +148,17 @@ class NvidiaProcessingProvider(ExternalProcessingProvider):
             },
             method="POST",
         )
+        # Plazo de PARED, no por operacion de socket: un servidor que gotea un
+        # byte cada 0,2 s cumple cualquier timeout individual y retiene el hilo.
+        deadline = time.monotonic() + self.timeout_seconds
         try:
             with self._urlopen(req, timeout=self.timeout_seconds) as resp:
-                raw = resp.read(self._max_response_bytes + 1)
+                raw = read_bounded(
+                    resp,
+                    self._max_response_bytes,
+                    deadline=deadline,
+                    what="respuesta de NVIDIA",
+                )
         except urllib.error.HTTPError as exc:
             raise _map_http_error(exc) from None
         except (socket.timeout, TimeoutError):
@@ -152,10 +167,6 @@ class NvidiaProcessingProvider(ExternalProcessingProvider):
             reason = type(getattr(exc, "reason", exc)).__name__
             raise ProviderUnavailableError(f"NVIDIA inalcanzable ({reason})") from None
 
-        if len(raw) > self._max_response_bytes:
-            raise InputTooLargeError(
-                f"respuesta de NVIDIA por encima del tope ({self._max_response_bytes} bytes)"
-            )
         try:
             return json.loads(raw.decode("utf-8", errors="replace"))
         except json.JSONDecodeError as exc:
@@ -343,8 +354,14 @@ class NvidiaProcessingProvider(ExternalProcessingProvider):
             url, headers={"Authorization": f"Bearer {api_key}"}, method="GET"
         )
         try:
-            with self._urlopen(req, timeout=min(self.timeout_seconds, 30)) as resp:
-                raw = resp.read(self._max_response_bytes + 1)
+            budget = min(self.timeout_seconds, 30)
+            with self._urlopen(req, timeout=budget) as resp:
+                raw = read_bounded(
+                    resp,
+                    self._max_response_bytes,
+                    deadline=time.monotonic() + budget,
+                    what="respuesta de NVIDIA",
+                )
             data = json.loads(raw.decode("utf-8", errors="replace"))
             ids = [m.get("id", "") for m in data.get("data", []) if m.get("id")]
             return {
@@ -377,10 +394,17 @@ def _map_http_error(exc: urllib.error.HTTPError):
         return AuthError(f"NVIDIA rechazo la autenticacion (HTTP {status})")
     if status == 429:
         try:
-            retry_after = float(exc.headers.get("Retry-After", "0") or 0)
-        except (AttributeError, TypeError, ValueError):
-            retry_after = 0.0
-        return RateLimitError("NVIDIA: rate limit (HTTP 429)", retry_after=retry_after)
+            raw_retry = exc.headers.get("Retry-After", "0")
+        except AttributeError:
+            raw_retry = 0
+        # Un `Retry-After: 99999999` dormia el hilo durante anos con el
+        # semaforo y la reserva de presupuesto retenidos.
+        retry_after = cap_retry_after(raw_retry)
+        return RateLimitError(
+            f"NVIDIA: rate limit (HTTP 429), espera acotada a {retry_after:g}s "
+            f"(tope {MAX_RETRY_AFTER_SECONDS:g}s)",
+            retry_after=retry_after,
+        )
     if status in (400, 404, 422):
         return UnsupportedCapabilityError(f"HTTP {status}", "nvidia")
     if status == 413:

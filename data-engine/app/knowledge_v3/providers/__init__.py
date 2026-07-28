@@ -48,9 +48,12 @@ from knowledge_v3.providers.policy import (  # noqa: F401
 )
 from knowledge_v3.providers.proposals import (  # noqa: F401
     ALLOWED_ENTITY_TYPES,
+    AmbiguousAnchorError,
     LocalAnchor,
     ProposalError,
     ProviderAttribution,
+    UnverifiedAttributionError,
+    sanitize_model,
     claims_from_extraction,
     evidence_fragment_from_text,
     mentions_from_extraction,
@@ -65,6 +68,9 @@ from knowledge_v3.providers.router import (  # noqa: F401
 
 __all__ = [
     "ALLOWED_ENTITY_TYPES",
+    "AmbiguousAnchorError",
+    "UnverifiedAttributionError",
+    "sanitize_model",
     "Budget",
     "FORBIDDEN_CONTRACT_IDS",
     "FORBIDDEN_KEYS",

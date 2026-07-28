@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from typing import Any
 
 from knowledge_v3.contracts import (
@@ -46,6 +47,16 @@ FORBIDDEN_CONTRACT_IDS: frozenset[str] = frozenset(
 
 #: Claves cuya sola presencia en una respuesta de proveedor delata que el
 #: modelo esta intentando emitir una decision o una firma.
+#:
+#: La comparacion es NORMALIZADA (`_normalize_key`): `approved_by`,
+#: `approvedBy`, `Approved_By` y `approved by` son la misma clave. Sin eso,
+#: bastaba cambiar el estilo de mayusculas para esquivar la guarda.
+#:
+#: Aun asi, y conviene no prometer de mas: esto es **defensa en profundidad**,
+#: no una barrera completa. La barrera real es que `approved_by.provider` sea
+#: `const: "local"` en el schema congelado y que esta capa no sepa construir un
+#: plan. Una clave inventada que signifique "aprobado" y no este en esta lista
+#: pasara; simplemente no le servira de nada.
 FORBIDDEN_KEYS: frozenset[str] = frozenset(
     {
         "local_approval",
@@ -56,6 +67,13 @@ FORBIDDEN_KEYS: frozenset[str] = frozenset(
         "validator_chain",
         "idempotency_key",
         "approved",
+        # Variantes que significan lo mismo y llegaban a colarse.
+        "is_approved",
+        "auto_approved",
+        "approval",
+        "approval_status",
+        "signature",
+        "signed_by",
     }
 )
 
@@ -120,21 +138,36 @@ def assert_size(
     max_depth: int = DEFAULT_MAX_DEPTH,
     max_items: int = DEFAULT_MAX_ITEMS,
 ) -> None:
-    """Tamano, profundidad y cardinalidad. Lanza `GuardError` si se pasa."""
+    """Tamano, profundidad y cardinalidad. Lanza `GuardError` si se pasa.
+
+    **El orden importa.** La profundidad se comprueba ANTES de serializar: si
+    se serializaba primero, una estructura de 10 000 niveles hacia que
+    `json.dumps` lanzase `RecursionError` —que es un `RuntimeError`, no un
+    `GuardError`— y el error escapaba de `guard_provider_result` sin que nadie
+    lo tratase como respuesta invalida.
+    """
+    counts: list = []
+    try:
+        _walk_depth(result, 1, max_depth, counts)
+    except RecursionError as exc:
+        raise GuardError(
+            "estructura demasiado anidada para inspeccionarla siquiera: descartada"
+        ) from None
+    if counts and max(counts) > max_items:
+        raise GuardError(
+            f"coleccion de {max(counts)} elementos por encima del tope ({max_items})"
+        )
+
     try:
         raw = json.dumps(result, ensure_ascii=False)
     except (TypeError, ValueError) as exc:
         raise GuardError(f"resultado no serializable: {exc}") from exc
+    except RecursionError:
+        raise GuardError("resultado demasiado anidado para serializarlo") from None
     size = len(raw.encode("utf-8"))
     if size > max_bytes:
         raise GuardError(
             f"resultado de {size} bytes por encima del tope ({max_bytes}): descartado"
-        )
-    counts: list = []
-    _walk_depth(result, 1, max_depth, counts)
-    if counts and max(counts) > max_items:
-        raise GuardError(
-            f"coleccion de {max(counts)} elementos por encima del tope ({max_items})"
         )
 
 
@@ -155,6 +188,21 @@ def parse_strict_object(raw: Any) -> dict:
             )
         return parsed
     raise GuardError(f"se esperaba un objeto JSON y llego {type(raw).__name__}")
+
+
+def _normalize_key(key: Any) -> str:
+    """Clave canonica para comparar: NFKC, sin espacios, sin separadores.
+
+    `approvedBy`, `approved_by`, `Approved-By` y ` approved by ` colapsan todas
+    a `approvedby`.
+    """
+    text = unicodedata.normalize("NFKC", str(key)).strip().casefold()
+    return "".join(ch for ch in text if ch.isalnum())
+
+
+#: Version normalizada de `FORBIDDEN_KEYS`, calculada una sola vez.
+def _normalized_forbidden() -> set:
+    return {_normalize_key(k) for k in FORBIDDEN_KEYS}
 
 
 def _keys_deep(obj: Any, acc: set) -> None:
@@ -195,7 +243,8 @@ def assert_not_a_decision(result: Any) -> None:
             f"un proveedor no puede producir {sorted(forbidden_ids)}: "
             "solo el motor local decide (§2)"
         )
-    hits = sorted(keys & FORBIDDEN_KEYS)
+    forbidden = _normalized_forbidden()
+    hits = sorted(k for k in keys if _normalize_key(k) in forbidden)
     if hits:
         raise ForbiddenContractError(
             f"la respuesta del proveedor contiene campos de decision/firma {hits}: "
