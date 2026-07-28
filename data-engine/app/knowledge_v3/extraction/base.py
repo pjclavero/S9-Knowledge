@@ -215,8 +215,33 @@ def make_id(prefix: str, *parts: Any) -> str:
     return f"{prefix}:{digest}"
 
 
-def clamp(value: float, lo: float = 0.0, hi: float = 1.0) -> float:
-    return max(lo, min(hi, float(value)))
+def clamp(value: Any, lo: float = 0.0, hi: float = 1.0, *, default: float = 0.0) -> float:
+    """Confianza acotada a `[lo, hi]`, a prueba de basura.
+
+    Un modelo puede devolver `"alta"`, `null` o una lista donde deberia ir un
+    numero. Antes esto salia como `ValueError`/`TypeError` desde dentro del
+    constructor y tumbaba el lote ENTERO: un episodio mal contestado hacia caer
+    los demas, que estaban bien. Ahora se degrada a `default` y quien llama
+    decide si ademas lo diagnostica.
+    """
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return default
+    if num != num or num in (float("inf"), float("-inf")):  # NaN / infinitos
+        return default
+    return max(lo, min(hi, num))
+
+
+def is_number(value: Any) -> bool:
+    """`True` si el valor es un numero real utilizable como confianza."""
+    if isinstance(value, bool) or value is None:
+        return False
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return False
+    return num == num and num not in (float("inf"), float("-inf"))
 
 
 # --------------------------------------------------------------------------
@@ -522,6 +547,7 @@ __all__ = [
     "build_mention",
     "clamp",
     "emit",
+    "is_number",
     "low_quality",
     "make_id",
 ]

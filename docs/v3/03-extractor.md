@@ -27,7 +27,7 @@ un modelo. No ha hecho falta ningun campo que no existiera.
 
 | Invariante | Como se garantiza | Donde se prueba |
 |---|---|---|
-| **Anclaje real** | Nada sale sin un `EvidenceFragment` existente que lo sostenga. Las citas de los modelos se verifican contra el texto literal del fragmento | `TestAntiHallucination`, `TestTextAndAnchoring` |
+| **Anclaje real** | Nada sale sin un `EvidenceFragment` existente que lo sostenga. Las citas de los modelos se verifican contra el texto literal **y contra su contexto** | `TestAntiHallucination`, `TestTextAndAnchoring`, `TestQuoteInContext` |
 | **Traza veraz** | `provider_trace` + `produced_by_step` dicen quien produjo cada cosa. Una salida externa nunca se disfraza de local | `test_produced_by_step_apunta_al_paso_real`, `test_las_propuestas_externas_se_trazan_como_externas` |
 | **Abstencion legitima** | `abstained=True` + `confidence=0` es salida de primera clase, con codigos de razon estables en `metadata.abstention_reasons` | `test_abstencion_no_lleva_predicado_ni_confianza` |
 
@@ -97,15 +97,39 @@ Un claim solo sale si se cumplen **todas** estas condiciones:
 1. sujeto y objeto son menciones ancladas a fragmentos reales;
 2. la frase de relacion esta en la MISMA frase, entre sujeto y objeto;
 3. no hay coordinacion ni puntuacion debil entre los argumentos y la frase —
-   incluida la coordinacion **dentro** del sujeto ("Elara y Kael viven en
-   Valdor" no afirma nada de uno solo);
+   incluida la coordinacion **dentro** del sintagma ("Elara y Kael viven en
+   Valdor" no afirma nada de uno solo). Se busca en VENTANA
+   (`COORDINATION_WINDOW`) y con formas de varias palabras
+   (`COORDINATION_PHRASES`: "y tambien", "asi como", "ni siquiera", "junto a",
+   "o a"…), porque la coordinacion casi nunca es adyacente;
 4. la distancia sujeto/frase/objeto no supera `MAX_ARGUMENT_GAP` (2 tokens);
-5. si hay `GameProfile`: el predicado esta en el perfil y los tipos encajan con
+5. ningun argumento es un MODIFICADOR de otro nucleo: una mencion precedida de
+   "de", "del", "por", "segun"… ("el hermano **de** Kael vive en Valdor" no dice
+   donde vive Kael) — `SUBJECT_IS_MODIFIER` / `OBJECT_IS_MODIFIER`;
+6. no hay varias menciones candidatas a sujeto antes de la frase
+   (`MULTIPLE_SUBJECT_CANDIDATES`): elegir por proximidad es elegir a ciegas;
+7. el contexto es FACTIVO (§3.1.1);
+8. si hay `GameProfile`: el predicado esta en el perfil y los tipos encajan con
    su dominio/rango.
 
 Si algo falla, o no se emite nada, o se emite una **abstencion** con su codigo
 (`COORDINATED_SUBJECT`, `ARGUMENT_TOO_FAR`, `PREDICATE_NOT_IN_PROFILE`,
 `TYPE_INCOMPATIBLE_WITH_PROFILE`, `OBJECT_TYPE_MISMATCH`…).
+
+#### 3.1.1. Factividad (`cues.py`)
+
+Que una frase contenga "Kael vive en Valdor" no significa que lo afirme:
+
+| Contexto | Ejemplo | Salida |
+|---|---|---|
+| Falsedad | "Es falso que Kael vive en Valdor", "Nadie cree que…", "afirmo falsamente que…" | **abstencion** `NON_FACTIVE_CONTEXT` + `FALSITY_CONTEXT` |
+| Interrogativa | "¿Kael vive en Valdor?" | **abstencion** `INTERROGATIVE_CONTEXT` |
+| Condicional | "Si Kael vive en Valdor…", "salvo que…", "a menos que…" | claim con `HYPOTHETICAL` + `review_required=True` |
+| Negacion | "Kael no vive en Valdor", "Ni siquiera Kael vive en Valdor" | claim con `negated=True` + `review_required=True` |
+
+Lo negado **si** se propone: leer "no vive" y proponer `LIVES_IN` marcado como
+negado es leer bien el texto. Lo que no puede pasar es que salga como afirmacion
+plana.
 
 Ademas lee el contexto: negacion (`NEGATION_CUES` en los 3 tokens previos),
 epistemicidad (`se rumorea`, `quiza`, `planea`… → `RUMORED` / `HYPOTHETICAL` /
@@ -163,6 +187,17 @@ respuesta se verifica igual:
 - una superficie que no aparece literalmente en ningun fragmento se descarta
   (`HALLUCINATED_MENTION`);
 - una cita inexistente tumba la propuesta (`HALLUCINATED_QUOTE`);
+- **la cita es obligatoria** para afirmar (`CLAIM_WITHOUT_QUOTE`): dos menciones
+  ancladas no sostienen la relacion entre ellas;
+- **la cita se verifica EN CONTEXTO**: si el texto real que rodea al ancla niega
+  ("Kael **no** sirve a la Orden" citado como "sirve a la Orden"), condiciona,
+  pregunta o desmiente, el claim se abstiene (`NEGATION_CONTEXT_MISMATCH`,
+  `NON_FACTIVE_CONTEXT`). Si el contexto solo degrada la epistemicidad, manda el
+  texto sobre lo que dijera el modelo;
+- una cita presente en DOS fragmentos (`AMBIGUOUS_ANCHOR`) tampoco vale para
+  afirmar: puede estar afirmada en uno y negada en el otro;
+- los offsets se buscan **dentro del fragmento elegido**, nunca en el episodio
+  entero: un documento no puede decir que esta anclado en A con offsets de B;
 - un claim cuyos argumentos no son menciones ancladas se descarta
   (`SUBJECT_NOT_GROUNDED` / `OBJECT_NOT_GROUNDED`). **Nunca** se crea una mencion
   de apoyo para salvar un claim: seria fabricar la evidencia que faltaba;
@@ -211,10 +246,16 @@ meteria falsos positivos en un extractor cuyo objetivo declarado es la precision
 
 | Fichero | Tests | Contenido |
 |---|---|---|
-| `test_knowledge_v3_extraction.py` | 79 | texto/anclaje, lexico, cumplimiento de contratos, precision determinista sobre GOLD, anti-alucinacion, temporal, correferencia, tablas, externo/visual, pipeline, **mutaciones** |
+| `test_knowledge_v3_extraction.py` | 129 | texto/anclaje, lexico, cumplimiento de contratos, precision determinista sobre GOLD, anti-alucinacion, factividad, coordinacion y modificadores, temporal, correferencia, tablas, externo/visual, pipeline, **mutaciones**, **mini-corpus trampa** |
 | `test_knowledge_v3_extraction_ollama.py` | 23 + 2 humo | configuracion, cliente mockeado, parseo JSON, extractor Ollama; `@pytest.mark.live_ollama` (skip salvo `S9K_LIVE_OLLAMA=1`) |
 
-**102 tests, 0 fallos** (mas 2 de humo, saltados por defecto).
+**152 tests, 0 fallos** (mas 2 de humo, saltados por defecto).
+
+`TRAP_CORPUS` (17 frases construidas para engañar a un extractor lexico:
+coordinaciones no adyacentes, sujetos-modificador, condicionales,
+interrogativas, desmentidos y negaciones) se mide por **afirmaciones
+equivocadas: cero**. Callar o abstenerse cuenta como acierto; proponer algo
+negado o hipotetico solo cuenta si sale marcado y pidiendo revision.
 
 Las fixtures GOLD son seis episodios propios con verdad de campo escrita a mano
 (`GOLD_CLAIMS`). Sirven para fijar el **comportamiento**, no para estimar
@@ -226,7 +267,10 @@ nosotros en un objetivo de calidad seria repetir exactamente el error del PR
 Mutaciones incluidas (si al romper la regla la suite sigue verde, esa regla no
 sostenia nada): guarda de coordinacion, marcas de negacion, marcas epistemicas,
 verificacion de citas (al desactivarla, una entidad inventada entra en el
-sistema) y distancia maxima del pronombre.
+sistema), distancia maxima del pronombre, **guarda de misma-frase** (al
+relajarla, "Kael descanso. Vive en Valdor." produce un claim) y **exactitud de
+la contencion de citas** (una cita que se parece un 0.98 no es la cita:
+"Valdorr", "Valdar" y "no vive en Valdor" no anclan).
 
 La suite unitaria **no abre sockets**: hay un test que sustituye `urlopen` por
 una bomba y ejecuta el pipeline local completo.
@@ -260,6 +304,44 @@ Tres hallazgos honestos de esta medicion:
 3. **la salida no es estable entre ejecuciones** aun con `temperature=0`. La
    variacion no rompio nada porque el filtro anti-alucinacion es determinista y
    local: lo que no esta anclado, no entra.
+
+---
+
+## 6.bis. Ronda de revision independiente (NO CONFORME -> corregido)
+
+Una revision independiente demostro lo que ninguna de las pruebas propias veia:
+**un claim afirmado podia anclarse a evidencia que no decia lo que afirmaba**.
+Su mini-corpus trampa dejo la precision del determinista en 0.40. Lo corregido:
+
+| # | Hallazgo | Correccion |
+|---|---|---|
+| B1 | Un claim de modelo SIN cita se emitia sin verificar nada (`SERVES` inventado sobre dos menciones reales, `abstained=False`, 0 diagnosticos) | La cita es **obligatoria** para afirmar; sin ella, abstencion `CLAIM_WITHOUT_QUOTE` |
+| B2 | Cita parcial que invierte el sentido: "Kael **no** sirve a la Orden" citado como "sirve a la Orden" salia `SERVES, negated=False` | Verificacion **en contexto** (`cues.analyze_context` sobre el texto real que rodea al ancla); discrepancia -> abstencion `NEGATION_CONTEXT_MISMATCH` |
+| B3 | El reanclaje elegia `matches[0]` y podia anclar al fragmento negado; `AMBIGUOUS_ANCHOR` era decorativo | Un claim con `AMBIGUOUS_ANCHOR` se abstiene |
+| B4 | Contextos no factivos (condicional, interrogativa, "Es falso que", "Nadie cree que", "afirmo falsamente", "salvo que") salian `ASSERTED` con `review_required=False` | Guardas de factividad: falsedad e interrogativa -> abstencion; condicional -> `HYPOTHETICAL` + revision. Los 6 casos, con test |
+| B5 | La coordinacion se burlaba con un token intercalado ("Kael y tambien Mira") y el sujeto se tomaba por proximidad ("El hermano de Kael vive…" -> `LIVES_IN(Kael)`) | Coordinacion en ventana + formas de varias palabras; rechazo de sujeto/objeto **modificador**; abstencion con varias menciones candidatas. Los 8 casos, con test |
+| B6 | Dos mutantes sobrevivian a la suite: relajar la guarda de misma-frase y una contencion de citas difusa (>=0.9) | Un test por mutante (§5) |
+| A1 | `_locate` buscaba la cita en el episodio entero: offsets que caian en OTRO fragmento, en silencio | Busqueda acotada al rango del fragmento elegido; si no aparece ahi, se trata como reanclaje |
+| A2 | `"confidence": "alta"` escapaba como `ValueError` y tumbaba el lote entero | `clamp` a prueba de tipos + `except (ValueError, TypeError)` en los extractores -> abstencion del episodio, nunca del lote. Diagnostico `INVALID_CONFIDENCE` |
+| A3 | `confidence_cap` de Ollama sin acotar (`cap=1.0` emitia 0.99) | `min(cap, DEFAULT_CONFIDENCE_CAP)`, como ya hacia el externo |
+| A4 | La tabla **inventaba** el tipo de la celda (`Elara` -> `Location` porque la columna se llamaba "Ubicacion") y no consultaba `profile.allows` | El tipo solo se pone si lo **confirma** el lexico; con perfil cargado y tipos no confirmables, abstencion `TYPES_NOT_CONFIRMABLE`; sin perfil, `review_required=True` |
+
+Menores: el test de cobertura ahora **reporta** en vez de exigir; docstring de la
+guarda 4 corregido; cabecera de `ollama_client.py` con el timeout real (300 s);
+saneado de `name`/`version` del proveedor externo (charset, longitud y espacio
+reservado `s9k.extraction.*`, que un externo ya no puede usar para hacerse pasar
+por local); dos menciones de la misma superficie con tipos contradictorios ->
+`CONFLICTING_MENTION_TYPES`.
+
+Resultado sobre el mini-corpus trampa tras las correcciones: **0 afirmaciones
+equivocadas de 17 frases**. El coste, medido y aceptado: una lectura legitima
+("Segun Kael, Mira vive en Nara") ahora se abstiene. Es la direccion en la que
+este subsistema prefiere equivocarse.
+
+Comprobado ademas **en vivo** con `qwen2.5:7b`: sobre "Kael no sirve a la Orden
+del Alba", el modelo propuso un claim y el filtro lo rechazo
+(`OBJECT_NOT_GROUNDED`); sobre la frase afirmativa siguio emitiendo sus dos
+claims correctos (65-112 s).
 
 ---
 

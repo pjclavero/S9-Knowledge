@@ -24,6 +24,7 @@ Garantias que este modulo SI da, y que sus tests fijan:
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any, Optional, Protocol, Sequence, runtime_checkable
 
@@ -41,6 +42,32 @@ from .payload import DEFAULT_CONFIDENCE_CAP, PayloadError, check_payload_shape, 
 from .text import EvidenceIndex
 
 EXTERNAL_STEP = "extract.external"
+
+#: Espacio de nombres RESERVADO a los pasos locales del subsistema. Un
+#: proveedor externo no puede declararse dentro de el.
+RESERVED_NAME_PREFIX = "s9k.extraction."
+
+_PROVIDER_NAME_RE = re.compile(r"[^A-Za-z0-9 ._:/-]+")
+
+
+def sanitize_provider_name(value: Optional[str], *, max_length: int = 128) -> Optional[str]:
+    """Nombre de proveedor apto para una traza: charset acotado y sin suplantar."""
+    if not isinstance(value, str):
+        return None
+    cleaned = _PROVIDER_NAME_RE.sub("", value).strip()[:max_length]
+    if not cleaned:
+        return None
+    if cleaned.lower().startswith(RESERVED_NAME_PREFIX):
+        return "external." + cleaned[len(RESERVED_NAME_PREFIX):]
+    return cleaned
+
+
+def sanitize_provider_version(value: Optional[str], *, max_length: int = 64) -> Optional[str]:
+    if not isinstance(value, str):
+        return None
+    cleaned = _PROVIDER_NAME_RE.sub("", value).strip()[:max_length]
+    return cleaned or None
+
 
 #: Tope de confianza de una propuesta externa: por debajo del de Ollama a
 #: proposito. Un proveedor remoto no ha visto el corpus, no esta calibrado
@@ -128,13 +155,21 @@ class ExternalExtractor(Extractor):
         return self.port is not None
 
     def _info_for(self, response: ExternalExtractionResponse) -> ExtractorInfo:
-        """Traza VERAZ: el nombre y el modelo son los que declara el proveedor."""
+        """Traza VERAZ y SANEADA: el proveedor se identifica, pero no se disfraza.
+
+        Un proveedor externo declara su nombre y su version, y ambos acaban en la
+        `provider_trace`, que es un dato de procedencia que alguien leera para
+        decidir. Por eso se saneen: se acotan a un charset y a una longitud, y se
+        rechazan los nombres del espacio reservado `s9k.extraction.*`, que es el
+        de los pasos LOCALES. Un externo que se llamase `s9k.extraction.ollama`
+        seria indistinguible de un paso local en cualquier informe.
+        """
         return ExtractorInfo(
             step=EXTERNAL_STEP,
             provider=Provider.EXTERNAL,
-            name=response.provider_name or self.info.name,
-            version=response.provider_version or self.info.version,
-            model=response.model,
+            name=sanitize_provider_name(response.provider_name) or self.info.name,
+            version=sanitize_provider_version(response.provider_version) or self.info.version,
+            model=sanitize_provider_name(response.model, max_length=128),
         )
 
     def extract_episode(
@@ -188,16 +223,25 @@ class ExternalExtractor(Extractor):
                     episode.episode_id,
                 )
             return out
-        return out.extend(
-            normalize_payload(
-                response.payload,
-                ctx=ctx,
-                episode=episode,
-                info=info,
-                confidence_cap=self.confidence_cap,
-                force_review=True,
+        try:
+            return out.extend(
+                normalize_payload(
+                    response.payload,
+                    ctx=ctx,
+                    episode=episode,
+                    info=info,
+                    confidence_cap=self.confidence_cap,
+                    force_review=True,
+                )
             )
-        )
+        except (ValueError, TypeError) as exc:
+            out.diagnostics.append(
+                Diagnostic(
+                    "EXTERNAL_PAYLOAD_MALFORMED", info.step, episode.episode_id,
+                    f"{type(exc).__name__}",
+                )
+            )
+            return out
 
 
 __all__ = [
@@ -207,4 +251,7 @@ __all__ = [
     "ExternalExtractionResponse",
     "ExternalExtractor",
     "ExternalProposalPort",
+    "RESERVED_NAME_PREFIX",
+    "sanitize_provider_name",
+    "sanitize_provider_version",
 ]

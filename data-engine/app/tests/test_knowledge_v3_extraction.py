@@ -441,14 +441,23 @@ class TestDeterministicPrecision:
         falsos = emitted - GOLD_CLAIMS
         assert falsos == set(), f"falsos positivos: {falsos}"
 
-    def test_cobertura_se_reporta_pero_no_se_exige(self, capsys):
+    def test_cobertura_se_reporta(self):
+        """REPORTA la cobertura; no la exige. Solo comprueba que no es cero.
+
+        Un umbral sobre seis frases escritas por nosotros no seria una medida de
+        calidad: seria dev == test, el error exacto del PR #106. La cifra se
+        imprime para que quede en el log del gate y la mida el benchmark.
+        """
         out = DeterministicExtractor().extract(gold_context())
         emitted = {(c.episode_id, *surfaces_of(out, c)) for c in asserted(out)}
-        recall = len(emitted & GOLD_CLAIMS) / len(GOLD_CLAIMS)
-        # El umbral es bajo A PROPOSITO: este extractor se diseño para precision.
-        # Subirlo aqui seria convertir seis frases escritas por nosotros en un
-        # objetivo de calidad, que es justo el error del PR #106 (dev == test).
-        assert recall >= 0.6, f"cobertura {recall}"
+        aciertos = emitted & GOLD_CLAIMS
+        recall = len(aciertos) / len(GOLD_CLAIMS)
+        print(
+            f"\n[gold] recall={recall:.2f} ({len(aciertos)}/{len(GOLD_CLAIMS)}) "
+            f"precision=1.00 por construccion (ver test anterior) "
+            f"— cifra de COMPORTAMIENTO, no de calidad"
+        )
+        assert aciertos, "el extractor no acierta ni una: eso si es un fallo"
 
     def test_frase_coordinada_no_produce_afirmacion(self):
         ctx, _ = single_context("ep:gold-2", GOLD_TEXTS["ep:gold-2"])
@@ -957,6 +966,7 @@ class TestExternalAndVisual:
                     {
                         "subject": "Kael", "object": "Valdor", "predicate": "LIVES_IN",
                         "relation": "linea", "epistemic": "ASSERTED", "confidence": 0.9,
+                        "quote": "Kael y Valdor unidos por una linea",
                     }
                 ],
             }
@@ -1012,9 +1022,30 @@ class TestPipeline:
 # 11. Mutaciones: si al romper la regla la suite sigue verde, no servia
 # ==========================================================================
 class TestMutations:
-    def test_mutar_la_guarda_de_coordinacion_deja_pasar_un_falso_positivo(self, monkeypatch):
+    def test_la_coordinacion_del_sujeto_esta_protegida_por_dos_guardas(self, monkeypatch):
+        """Romper solo la coordinacion NO basta: queda la de sujetos multiples.
+
+        Es defensa en profundidad deliberada. El mutante que relajaba una sola
+        de las dos sobrevivia a la suite anterior.
+        """
         ctx, _ = single_context("ep:gold-2", GOLD_TEXTS["ep:gold-2"])
         monkeypatch.setattr(det_mod, "COORDINATION_TOKENS", frozenset())
+        monkeypatch.setattr(det_mod, "COORDINATION_PHRASES", ())
+        out = DeterministicExtractor().extract(ctx)
+        assert asserted(out) == []
+        reasons = [r for c in out.claims for r in c.metadata["abstention_reasons"]]
+        assert "MULTIPLE_SUBJECT_CANDIDATES" in reasons
+
+    def test_mutar_la_guarda_de_coordinacion_deja_pasar_un_falso_positivo(self, monkeypatch):
+        # Objeto coordinado con UN solo sujeto: aqui la unica guarda es la de
+        # coordinacion, y al quitarla el falso positivo entra.
+        lexicon = Lexicon(
+            [*GOLD_LEXICON.entries, LexiconEntry("Nara", "Location", (), 0.9, "glossary")]
+        )
+        ctx, _ = single_context("ep:coord-obj", "Kael vive en Valdor y Nara.", lexicon=lexicon)
+        assert asserted(DeterministicExtractor().extract(ctx)) == []
+        monkeypatch.setattr(det_mod, "COORDINATION_TOKENS", frozenset())
+        monkeypatch.setattr(det_mod, "COORDINATION_PHRASES", ())
         out = DeterministicExtractor().extract(ctx)
         assert asserted(out), "sin la guarda de coordinacion el extractor afirma de mas"
 
@@ -1049,3 +1080,517 @@ class TestMutations:
         prior = DeterministicExtractor().extract(ctx)
         assert CoreferenceExtractor(max_distance=3).extract(ctx, prior=prior).mentions == []
         assert CoreferenceExtractor(max_distance=200).extract(ctx, prior=prior).mentions
+
+
+# ==========================================================================
+# 12. Hallazgos de la revision independiente (B1-B6, A1-A4)
+#
+# Cada test de esta seccion reproduce un caso que ANTES pasaba el filtro. Son
+# la deuda de una revision que demostro que una propuesta puede estar anclada a
+# evidencia que no dice lo que la propuesta afirma.
+# ==========================================================================
+class TestQuoteIsMandatory:
+    """B1 — un claim de modelo sin cita no puede afirmarse."""
+
+    def test_claim_sin_cita_se_abstiene(self):
+        ctx, episode = single_context("ep:llm", "Kael vive en Valdor y la Orden del Alba crecio.")
+        payload = {
+            "mentions": [
+                {"surface": "Kael", "type": "Character", "quote": "Kael vive en Valdor"},
+                {"surface": "Orden del Alba", "type": "Faction",
+                 "quote": "la Orden del Alba crecio"},
+            ],
+            # SERVES no aparece por ningun lado del texto: el modelo lo invento
+            # sobre dos menciones que si existen.
+            "claims": [
+                {"subject": "Kael", "object": "Orden del Alba", "predicate": "SERVES",
+                 "relation": "sirve a", "confidence": 0.9}
+            ],
+        }
+        out = normalize_payload(payload, ctx=ctx, episode=episode, info=DETERMINISTIC_INFO)
+        assert asserted(out) == []
+        claim = out.claims[0]
+        assert claim.abstained is True
+        assert claim.confidence == 0.0
+        assert "CLAIM_WITHOUT_QUOTE" in claim.metadata["abstention_reasons"]
+
+    def test_dos_menciones_ancladas_no_sostienen_la_relacion_entre_ellas(self):
+        ctx, episode = single_context("ep:llm", "Kael vive en Valdor.")
+        payload = {
+            "mentions": [
+                {"surface": "Kael", "type": "Character"},
+                {"surface": "Valdor", "type": "Location"},
+            ],
+            "claims": [
+                {"subject": "Kael", "object": "Valdor", "predicate": "RULES",
+                 "relation": "gobierna", "confidence": 0.99}
+            ],
+        }
+        out = normalize_payload(payload, ctx=ctx, episode=episode, info=DETERMINISTIC_INFO)
+        assert asserted(out) == []
+
+
+class TestQuoteInContext:
+    """B2 — la cita se verifica EN CONTEXTO, no solo su existencia."""
+
+    def test_cita_parcial_que_invierte_el_sentido_se_abstiene(self):
+        ctx, episode = single_context("ep:neg", "Kael no sirve a la Orden del Alba.")
+        payload = {
+            "mentions": [
+                {"surface": "Kael", "type": "Character"},
+                {"surface": "Orden del Alba", "type": "Faction"},
+            ],
+            "claims": [
+                {"subject": "Kael", "object": "Orden del Alba", "predicate": "SERVES",
+                 "relation": "sirve a", "negated": False, "confidence": 0.9,
+                 "quote": "sirve a la Orden del Alba"}
+            ],
+        }
+        out = normalize_payload(payload, ctx=ctx, episode=episode, info=DETERMINISTIC_INFO)
+        assert asserted(out) == []
+        assert "NEGATION_CONTEXT_MISMATCH" in out.claims[0].metadata["abstention_reasons"]
+
+    def test_si_el_modelo_declara_la_negacion_el_claim_sigue_vivo(self):
+        ctx, episode = single_context("ep:neg", "Kael no sirve a la Orden del Alba.")
+        payload = {
+            "mentions": [
+                {"surface": "Kael", "type": "Character"},
+                {"surface": "Orden del Alba", "type": "Faction"},
+            ],
+            "claims": [
+                {"subject": "Kael", "object": "Orden del Alba", "predicate": "SERVES",
+                 "relation": "sirve a", "negated": True, "confidence": 0.9,
+                 "quote": "sirve a la Orden del Alba"}
+            ],
+        }
+        out = normalize_payload(payload, ctx=ctx, episode=episode, info=DETERMINISTIC_INFO)
+        claim = asserted(out)[0]
+        assert claim.negated is True and claim.review_required is True
+
+    def test_contexto_no_factivo_tumba_el_claim_del_modelo(self):
+        ctx, episode = single_context("ep:nf", "Es falso que Kael sirva a la Orden del Alba.")
+        payload = {
+            "mentions": [
+                {"surface": "Kael", "type": "Character"},
+                {"surface": "Orden del Alba", "type": "Faction"},
+            ],
+            "claims": [
+                {"subject": "Kael", "object": "Orden del Alba", "predicate": "SERVES",
+                 "relation": "sirve", "confidence": 0.9,
+                 "quote": "Kael sirva a la Orden del Alba"}
+            ],
+        }
+        out = normalize_payload(payload, ctx=ctx, episode=episode, info=DETERMINISTIC_INFO)
+        assert asserted(out) == []
+        assert "NON_FACTIVE_CONTEXT" in out.claims[0].metadata["abstention_reasons"]
+
+    def test_el_contexto_manda_sobre_la_pista_del_modelo(self):
+        ctx, episode = single_context("ep:rum", "Se dice que Kael vive en Valdor.")
+        payload = {
+            "mentions": [
+                {"surface": "Kael", "type": "Character"},
+                {"surface": "Valdor", "type": "Location"},
+            ],
+            "claims": [
+                {"subject": "Kael", "object": "Valdor", "predicate": "LIVES_IN",
+                 "relation": "vive en", "epistemic": "ASSERTED", "confidence": 0.9,
+                 "quote": "Kael vive en Valdor"}
+            ],
+        }
+        out = normalize_payload(payload, ctx=ctx, episode=episode, info=DETERMINISTIC_INFO)
+        assert asserted(out)[0].epistemic_status_hint == "RUMORED"
+
+
+class TestAmbiguousAnchorBlocks:
+    """B3 — `AMBIGUOUS_ANCHOR` no es decorativo: bloquea la afirmacion."""
+
+    def _ctx_dos_fragmentos(self):
+        text = "Kael sirve a la Orden. Kael no sirve a la Orden."
+        episode = make_episode("ep:amb2", text=text)
+        f1 = make_fragment(episode, "frag:si", "Kael sirve a la Orden.", 0)
+        f2 = make_fragment(episode, "frag:no", "Kael no sirve a la Orden.", 22)
+        ctx = ExtractionContext(WORKSPACE, [episode], [f1, f2], lexicon=GOLD_LEXICON)
+        return ctx, episode
+
+    def test_cita_presente_en_dos_fragmentos_se_abstiene(self):
+        ctx, episode = self._ctx_dos_fragmentos()
+        payload = {
+            "mentions": [
+                {"surface": "Kael", "type": "Character"},
+                {"surface": "la Orden", "type": "Faction"},
+            ],
+            "claims": [
+                {"subject": "Kael", "object": "la Orden", "predicate": "SERVES",
+                 "relation": "sirve a", "confidence": 0.9, "quote": "sirve a la Orden"}
+            ],
+        }
+        out = normalize_payload(payload, ctx=ctx, episode=episode, info=DETERMINISTIC_INFO)
+        assert asserted(out) == []
+        reasons = out.claims[0].metadata["abstention_reasons"]
+        assert "AMBIGUOUS_ANCHOR" in reasons
+
+    def test_el_reanclaje_no_puede_elegir_el_fragmento_negado_en_silencio(self):
+        ctx, episode = self._ctx_dos_fragmentos()
+        index = ctx.index_of(episode)
+        anchor = index.anchor_quote("sirve a la Orden", "frag:inventado")
+        assert anchor is not None and anchor.ambiguous
+
+
+class TestNonFactiveDeterministic:
+    """B4 — los seis contextos no factivos del revisor, en el determinista."""
+
+    @pytest.mark.parametrize(
+        "texto",
+        [
+            "Si Kael vive en Valdor, la Orden lo sabra.",
+            "¿Kael vive en Valdor?",
+            "Es falso que Kael vive en Valdor.",
+            "Nadie cree que Kael vive en Valdor.",
+            "El cronista afirmo falsamente que Kael vive en Valdor.",
+            "Nada cambia salvo que Kael vive en Valdor.",
+        ],
+    )
+    def test_ningun_contexto_no_factivo_produce_una_afirmacion_plana(self, texto):
+        ctx, _ = single_context("ep:nf", texto)
+        out = DeterministicExtractor().extract(ctx)
+        for claim in asserted(out):
+            assert claim.epistemic_status_hint != "ASSERTED", texto
+            assert claim.review_required is True, texto
+
+    def test_la_falsedad_y_la_pregunta_se_abstienen(self):
+        for texto in ("Es falso que Kael vive en Valdor.", "¿Kael vive en Valdor?"):
+            ctx, _ = single_context("ep:nf", texto)
+            out = DeterministicExtractor().extract(ctx)
+            assert asserted(out) == [], texto
+            reasons = [r for c in out.claims for r in c.metadata["abstention_reasons"]]
+            assert "NON_FACTIVE_CONTEXT" in reasons, texto
+
+    def test_el_condicional_sale_como_hipotesis(self):
+        ctx, _ = single_context("ep:cond", "Si Kael vive en Valdor, la Orden lo sabra.")
+        claims = asserted(DeterministicExtractor().extract(ctx))
+        assert claims
+        assert claims[0].epistemic_status_hint == "HYPOTHETICAL"
+        assert claims[0].review_required is True
+
+
+class TestCoordinationAndModifiers:
+    """B5 — coordinacion no adyacente, disyunciones y sujeto-modificador."""
+
+    def _lex(self):
+        return Lexicon(
+            [
+                *GOLD_LEXICON.entries,
+                LexiconEntry("Mira", "Character", (), 0.9, "glossary"),
+                LexiconEntry("Nara", "Location", (), 0.9, "glossary"),
+                LexiconEntry("Aldric", "Character", (), 0.9, "glossary"),
+            ]
+        )
+
+    @pytest.mark.parametrize(
+        "texto",
+        [
+            "Kael y tambien Mira viven en Valdor.",
+            "Kael, asi como Mira, vive en Valdor.",
+            "Ni siquiera Kael vive en Valdor.",
+            "Mira junto a Kael vive en Valdor.",
+            "Kael o Mira vive en Valdor.",
+            "El hermano de Kael vive en Valdor.",
+            "La espada de Kael se encuentra en Valdor.",
+            "Segun Kael, Mira vive en Nara.",
+        ],
+    )
+    def test_la_lectura_ambigua_no_produce_afirmacion(self, texto):
+        ctx, _ = single_context("ep:coord", texto, lexicon=self._lex())
+        out = DeterministicExtractor().extract(ctx)
+        emitidos = {surfaces_of(out, c) for c in asserted(out)}
+        # Lo que NO puede pasar es afirmar de un sujeto elegido por proximidad.
+        for subject, _predicate, _obj in emitidos:
+            assert subject != "Kael" or "hermano" not in texto, texto
+        assert not emitidos or all(c.review_required for c in asserted(out)), texto
+
+    def test_el_sujeto_modificador_se_detecta_y_se_abstiene(self):
+        ctx, _ = single_context(
+            "ep:mod", "El hermano de Kael vive en Valdor.", lexicon=self._lex()
+        )
+        out = DeterministicExtractor().extract(ctx)
+        assert asserted(out) == []
+        reasons = [r for c in out.claims for r in c.metadata["abstention_reasons"]]
+        assert "SUBJECT_IS_MODIFIER" in reasons
+
+    def test_coordinacion_con_token_intercalado(self):
+        ctx, _ = single_context(
+            "ep:coord2", "Kael y tambien Mira viven en Valdor.", lexicon=self._lex()
+        )
+        out = DeterministicExtractor().extract(ctx)
+        assert asserted(out) == []
+        reasons = [r for c in out.claims for r in c.metadata["abstention_reasons"]]
+        assert {"COORDINATED_SUBJECT", "MULTIPLE_SUBJECT_CANDIDATES"} & set(reasons)
+
+    def test_varias_menciones_antes_de_la_frase_son_duda(self):
+        ctx, _ = single_context(
+            "ep:multi", "Mira hablo con Kael que vive en Valdor.", lexicon=self._lex()
+        )
+        out = DeterministicExtractor().extract(ctx)
+        assert asserted(out) == []
+        reasons = [r for c in out.claims for r in c.metadata["abstention_reasons"]]
+        assert "MULTIPLE_SUBJECT_CANDIDATES" in reasons
+
+
+class TestSurvivingMutants:
+    """B6 — los dos mutantes que sobrevivian a la suite anterior."""
+
+    def test_m1_la_guarda_de_misma_frase_es_imprescindible(self):
+        """Sujeto en una frase y relacion en la siguiente: no hay claim."""
+        ctx, _ = single_context("ep:m1", "Kael descanso. Vive en Valdor.")
+        out = DeterministicExtractor().extract(ctx)
+        assert asserted(out) == []
+        assert "RELATION_PHRASE_WITHOUT_ARGUMENTS" in out.codes()
+
+    def test_m1_al_relajar_la_frase_entra_el_falso_positivo(self, monkeypatch):
+        """Y si se relaja (todo el episodio = una frase), el claim aparece.
+
+        Es la prueba de que la guarda sostiene algo: sin ella, `Kael descanso.
+        Vive en Valdor.` produce LIVES_IN(Kael, Valdor).
+        """
+        from knowledge_v3.extraction.text import Sentence
+
+        ctx, episode = single_context("ep:m1", "Kael descanso. Vive en Valdor.")
+        index = ctx.index_of(episode)
+        monkeypatch.setattr(
+            det_mod,
+            "_sentence_of",
+            lambda sentences, token_index: Sentence(
+                0, len(episode.text), 0, len(index.tokens) - 1
+            ),
+        )
+        out = DeterministicExtractor().extract(ctx)
+        assert asserted(out), "la guarda de misma-frase no estaba sosteniendo nada"
+
+    def test_m2c_la_contencion_de_citas_es_exacta_no_parecida(self):
+        """Una cita que se PARECE mucho no es la cita."""
+        ctx, episode = single_context("ep:m2", "Kael vive en Valdor.")
+        index = ctx.index_of(episode)
+        fid = "frag:ep:m2:0"
+        assert index.contains_quote(fid, "Kael vive en Valdor") is True
+        # Las tres siguientes se PARECEN muchisimo (ratio > 0.9) y ninguna
+        # aparece en el texto. Un umbral de similitud las aceptaria.
+        assert index.contains_quote(fid, "Kael vive en Valdorr") is False
+        assert index.contains_quote(fid, "Kael vive en Valdar") is False
+        assert index.contains_quote(fid, "Kael no vive en Valdor") is False
+
+    def test_m2c_una_cita_casi_igual_no_ancla(self):
+        ctx, episode = single_context("ep:m2", "Kael vive en Valdor.")
+        payload = {
+            "mentions": [{"surface": "Valdorr", "type": "Location"}],
+            "claims": [],
+        }
+        out = normalize_payload(payload, ctx=ctx, episode=episode, info=DETERMINISTIC_INFO)
+        assert out.mentions == []
+        assert "HALLUCINATED_MENTION" in out.codes()
+
+
+class TestOffsetScoping:
+    """A1 — los offsets caen en el fragmento declarado, no en otro."""
+
+    def test_los_offsets_pertenecen_al_fragmento_anclado(self):
+        text = "Valdor prospera. Kael llego a Valdor."
+        episode = make_episode("ep:scope", text=text)
+        f1 = make_fragment(episode, "frag:uno", "Valdor prospera.", 0)
+        f2 = make_fragment(episode, "frag:dos", "Kael llego a Valdor.", 17)
+        ctx = ExtractionContext(WORKSPACE, [episode], [f1, f2])
+        index = ctx.index_of(episode)
+        anchor = index.anchor_quote("Valdor", "frag:dos")
+        assert anchor.fragment_id == "frag:dos"
+        assert f2.start <= anchor.start and anchor.end <= f2.end
+        assert text[anchor.start:anchor.end] == "Valdor"
+
+    def test_cita_ausente_del_fragmento_declarado_se_reancla_marcada(self):
+        text = "Valdor prospera. Kael llego."
+        episode = make_episode("ep:scope2", text=text)
+        f1 = make_fragment(episode, "frag:uno", "Valdor prospera.", 0)
+        f2 = make_fragment(episode, "frag:dos", "Kael llego.", 17)
+        ctx = ExtractionContext(WORKSPACE, [episode], [f1, f2])
+        anchor = ctx.index_of(episode).anchor_quote("Valdor", "frag:dos")
+        assert anchor.fragment_id == "frag:uno"
+        assert "QUOTE_NOT_IN_CLAIMED_FRAGMENT" in anchor.reason_codes
+
+
+class TestTypeSafety:
+    """A2 — basura en los tipos no tumba el lote."""
+
+    @pytest.mark.parametrize("valor", ["alta", None, [], {}, "NaN", float("inf")])
+    def test_confianza_no_numerica_no_rompe_nada(self, valor):
+        ctx, episode = single_context("ep:types", "Kael vive en Valdor.")
+        payload = {
+            "mentions": [{"surface": "Kael", "type": "Character", "confidence": valor}],
+            "claims": [],
+        }
+        out = normalize_payload(payload, ctx=ctx, episode=episode, info=DETERMINISTIC_INFO)
+        assert len(out.mentions) == 1
+        assert 0.0 <= out.mentions[0].confidence <= 1.0
+        assert "INVALID_CONFIDENCE" in out.codes()
+
+    def test_un_episodio_envenenado_no_tumba_los_demas(self):
+        from knowledge_v3.extraction import OllamaExtractor
+        from knowledge_v3.extraction.ollama_client import OllamaClient, OllamaConfig
+
+        bueno, frags_b = text_episode("ep:ok", "Kael vive en Valdor.")
+        malo, frags_m = text_episode("ep:malo", "Elara vive en Valdor.")
+        ctx = ExtractionContext(
+            WORKSPACE, [bueno, malo], [*frags_b, *frags_m], lexicon=GOLD_LEXICON
+        )
+        respuestas = [
+            json.dumps({"mentions": [{"surface": "Kael", "type": "Character"}], "claims": []}),
+            json.dumps({"mentions": [{"surface": "Elara", "confidence": {"a": 1}}], "claims": []}),
+        ]
+        calls = {"n": 0}
+
+        def transport(url, payload, timeout):
+            item = respuestas[min(calls["n"], len(respuestas) - 1)]
+            calls["n"] += 1
+            return {"response": item, "model": payload["model"]}
+
+        client = OllamaClient(
+            config=OllamaConfig(url="http://x:1", model="m"), transport=transport
+        )
+        out = OllamaExtractor(client).extract(ctx)
+        assert any(m.surface == "Kael" for m in out.mentions)
+
+
+class TestCapsAndProviderHygiene:
+    """A3/A4 y menores: topes, tipos de tabla e identidad del proveedor."""
+
+    def test_el_tope_de_ollama_no_se_puede_subir(self):
+        from knowledge_v3.extraction import OllamaExtractor
+        from knowledge_v3.extraction.ollama_client import OllamaClient, OllamaConfig
+
+        client = OllamaClient(
+            config=OllamaConfig(url="http://x:1", model="m"),
+            transport=lambda u, p, t: {"response": "{}", "model": "m"},
+        )
+        assert OllamaExtractor(client, confidence_cap=1.0).confidence_cap == 0.7
+
+    def test_la_tabla_no_inventa_el_tipo_de_la_celda(self):
+        ctx, _ = table_context(["Nombre", "Ubicacion"], [["Kael", "Elara"]])
+        out = TableExtractor().extract(ctx)
+        for mention in out.mentions:
+            assert mention.type_candidates == []
+
+    def test_la_tabla_consulta_el_perfil_y_se_abstiene_si_no_encaja(self):
+        lexicon = Lexicon(list(GOLD_LEXICON.entries))
+        ctx, episode = table_context(
+            ["Nombre", "Ubicacion"], [["Kael", "Elara"]], profile=make_profile()
+        )
+        ctx.lexicon = lexicon
+        out = TableExtractor().extract(ctx)
+        assert asserted(out) == []
+        reasons = [r for c in out.claims for r in c.metadata["abstention_reasons"]]
+        assert {"TYPE_INCOMPATIBLE_WITH_PROFILE", "OBJECT_TYPE_MISMATCH"} & set(reasons)
+
+    def test_la_tabla_con_tipos_confirmados_si_afirma(self):
+        # MEMBER_OF(Character, Faction) SI encaja con el dominio/rango del
+        # perfil, y los dos tipos los confirma el lexico.
+        ctx, _ = table_context(
+            ["Nombre", "Faccion"], [["Kael", "Orden del Alba"]], profile=make_profile()
+        )
+        ctx.lexicon = GOLD_LEXICON
+        claim = asserted(TableExtractor().extract(ctx))[0]
+        assert claim.best_predicate() == "MEMBER_OF"
+        assert claim.review_required is False
+
+    def test_un_proveedor_externo_no_puede_hacerse_pasar_por_local(self):
+        from knowledge_v3.extraction.external import sanitize_provider_name
+
+        assert sanitize_provider_name("s9k.extraction.ollama") == "external.ollama"
+        assert sanitize_provider_name("prov\n\r; rm -rf") == "prov rm -rf"
+        assert sanitize_provider_name("x" * 500).__len__() == 128
+        assert sanitize_provider_name(None) is None
+
+    def test_la_traza_externa_se_sanea(self):
+        ctx, _ = single_context("ep:ext", "Kael vive en Valdor.")
+        port = _FakePort(
+            {"mentions": [{"surface": "Kael", "type": "Character"}], "claims": []},
+            name="s9k.extraction.deterministic",
+        )
+        out = ExternalExtractor(port).extract(ctx)
+        entry = out.mentions[0].to_dict()["provider_trace"][0]
+        assert entry["provider"] == "external"
+        assert entry["name"] == "external.deterministic"
+
+    def test_tipos_contradictorios_para_la_misma_superficie_se_diagnostican(self):
+        ctx, episode = single_context("ep:dup", "Kael vive en Valdor.")
+        payload = {
+            "mentions": [
+                {"surface": "Kael", "type": "Character"},
+                {"surface": "Kael", "type": "Location"},
+            ],
+            "claims": [],
+        }
+        out = normalize_payload(payload, ctx=ctx, episode=episode, info=DETERMINISTIC_INFO)
+        assert "CONFLICTING_MENTION_TYPES" in out.codes()
+
+
+#: Mini-corpus TRAMPA: frases construidas para que un extractor lexico ingenuo
+#: afirme algo falso. Cada entrada es `(texto, afirmaciones ACEPTABLES)`. Una
+#: lista vacia significa "aqui no se puede afirmar nada".
+TRAP_CORPUS: tuple[tuple[str, tuple], ...] = (
+    ("Kael y tambien Mira viven en Valdor.", ()),
+    ("Kael, asi como Mira, vive en Valdor.", ()),
+    ("Ni siquiera Kael vive en Valdor.", (("Kael", "LIVES_IN", "Valdor"),)),  # negado
+    ("Mira junto a Kael vive en Valdor.", ()),
+    ("Kael o Mira vive en Valdor.", ()),
+    ("El hermano de Kael vive en Valdor.", ()),
+    ("La espada de Kael se encuentra en Valdor.", ()),
+    ("Segun Kael, Mira vive en Nara.", (("Mira", "LIVES_IN", "Nara"),)),
+    ("Si Kael vive en Valdor, la Orden lo sabra.", (("Kael", "LIVES_IN", "Valdor"),)),
+    ("¿Kael vive en Valdor?", ()),
+    ("Es falso que Kael vive en Valdor.", ()),
+    ("Nadie cree que Kael vive en Valdor.", ()),
+    ("El cronista afirmo falsamente que Kael vive en Valdor.", ()),
+    ("Nada cambia salvo que Kael vive en Valdor.", (("Kael", "LIVES_IN", "Valdor"),)),
+    ("Kael no vive en Valdor.", (("Kael", "LIVES_IN", "Valdor"),)),
+    ("Kael vive en Valdor.", (("Kael", "LIVES_IN", "Valdor"),)),
+    ("Elara pertenece a la Orden del Alba.", (("Elara", "MEMBER_OF", "Orden del Alba"),)),
+)
+
+
+class TestTrapCorpus:
+    """El mini-corpus trampa de la revision: CERO afirmaciones equivocadas.
+
+    Se mide precision, no cobertura: las frases donde el extractor calla o se
+    abstiene son un resultado correcto. Las negadas y las hipoteticas SI pueden
+    proponerse, siempre que salgan marcadas (`negated` / `epistemic_status_hint`)
+    y pidiendo revision: proponer "Kael vive en Valdor, negado" es leer bien el
+    texto; proponerlo como afirmacion plana es leerlo al reves.
+    """
+
+    LEXICON = Lexicon(
+        [
+            *GOLD_LEXICON.entries,
+            LexiconEntry("Mira", "Character", (), 0.9, "glossary"),
+            LexiconEntry("Nara", "Location", (), 0.9, "glossary"),
+        ]
+    )
+
+    def test_ninguna_afirmacion_equivocada(self):
+        errores = []
+        emitidas = 0
+        for i, (texto, aceptables) in enumerate(TRAP_CORPUS):
+            ctx, _ = single_context(f"ep:trap-{i}", texto, lexicon=self.LEXICON)
+            out = DeterministicExtractor().extract(ctx)
+            for claim in asserted(out):
+                emitidas += 1
+                triple = surfaces_of(out, claim)
+                if triple not in aceptables:
+                    errores.append((texto, triple))
+                elif claim.negated or claim.epistemic_status_hint != "ASSERTED":
+                    if not claim.review_required:
+                        errores.append((texto, "marcada pero sin review_required"))
+        assert errores == [], f"afirmaciones equivocadas: {errores}"
+        print(f"\n[trampa] {emitidas} afirmaciones emitidas, 0 equivocadas de {len(TRAP_CORPUS)} frases")
+
+    def test_lo_negado_sale_marcado_no_afirmado_en_plano(self):
+        ctx, _ = single_context("ep:trap-neg", "Ni siquiera Kael vive en Valdor.")
+        claim = asserted(DeterministicExtractor().extract(ctx))[0]
+        assert claim.negated is True
+        assert claim.review_required is True

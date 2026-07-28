@@ -17,7 +17,17 @@ Reglas, en orden de importancia:
 3. **Un claim cuyos argumentos no son menciones ancladas se descarta o se
    convierte en abstencion.** Nunca se crea una mencion "de apoyo" para salvar
    un claim: eso seria fabricar la evidencia que faltaba.
-4. **La confianza del modelo se limita** (`confidence_cap`) y sus claims nacen
+4. **Todo claim afirmado necesita CITA, y la cita se comprueba en contexto.**
+   Que exista no basta: una cita parcial puede invertir el sentido del texto
+   ("Kael **no** sirve a la Orden" citado como "sirve a la Orden"). Antes de
+   aceptar `negated=False` se analiza el texto real que rodea al ancla
+   (`cues.analyze_context`); si el contexto niega, condiciona, pregunta o
+   desmiente, el claim se ABSTIENE. Sin cita no hay claim afirmado: sin ella no
+   hay nada que comprobar, y una propuesta que no se puede comprobar no es una
+   propuesta, es una invencion con formato correcto.
+5. **Un ancla ambigua (`AMBIGUOUS_ANCHOR`) tampoco vale para afirmar.** La misma
+   cita en dos fragmentos puede estar afirmada en uno y negada en el otro.
+6. **La confianza del modelo se limita** (`confidence_cap`) y sus claims nacen
    con `review_required=True`. Un LLM propone; no aprueba.
 """
 from __future__ import annotations
@@ -39,7 +49,14 @@ from .base import (
     build_mention,
     clamp,
     emit,
+    is_number,
     low_quality,
+)
+from .cues import (
+    CODE_NEGATION_MISMATCH,
+    CODE_NON_FACTIVE,
+    ContextVerdict,
+    analyze_context,
 )
 from .text import EvidenceIndex, normalize
 
@@ -98,12 +115,32 @@ class _Grounded:
     mention_id: str
     normalized_surface: str
     fragment_id: str
+    entity_type: Optional[str] = None
 
 
 def _anchor_or_none(index: EvidenceIndex, quote: str, claimed: Optional[str]):
     if not quote:
         return None
     return index.anchor_quote(quote, claimed if isinstance(claimed, str) else None)
+
+
+def verify_quote_context(index: EvidenceIndex, anchor, claimed_negated: bool) -> ContextVerdict:
+    """Comprueba que el contexto real del ancla no contradiga lo que se afirma.
+
+    Sin `negation_window`: al verificar la cita de un modelo se mira TODO el
+    contexto previo dentro de la frase. Aqui la prudencia gana a la precision,
+    porque el resultado de dudar es abstenerse, no equivocarse.
+    """
+    text, tokens, lo, hi, focus = index.context_window(anchor)
+    verdict = analyze_context(text, tokens, lo=lo, hi=hi, focus=focus)
+    if verdict.negated and not claimed_negated:
+        return ContextVerdict(
+            negated=True,
+            hint=verdict.hint,
+            cues=verdict.cues,
+            reason_codes=(CODE_NEGATION_MISMATCH, *verdict.reason_codes),
+        )
+    return verdict
 
 
 def normalize_payload(  # noqa: C901 - una comprobacion por regla anti-alucinacion
@@ -157,12 +194,19 @@ def normalize_payload(  # noqa: C901 - una comprobacion por regla anti-alucinaci
                 )
             )
             continue
+        raw_confidence = raw.get("confidence", 0.5)
+        if not is_number(raw_confidence):
+            out.diagnostics.append(
+                Diagnostic(
+                    "INVALID_CONFIDENCE", info.step, episode.episode_id,
+                    f"{surface!r}: {str(raw_confidence)[:32]!r} no es un numero",
+                )
+            )
+        confidence = min(clamp(raw_confidence, default=0.0), confidence_cap)
         raw_type = raw.get("type")
         types = []
         if isinstance(raw_type, str) and raw_type in ALLOWED_ENTITY_TYPES:
-            types.append(
-                {"type": raw_type, "confidence": min(clamp(raw.get("confidence", 0.5)), confidence_cap)}
-            )
+            types.append({"type": raw_type, "confidence": confidence})
         elif raw_type not in (None, "", "null"):
             out.diagnostics.append(
                 Diagnostic(
@@ -177,7 +221,7 @@ def normalize_payload(  # noqa: C901 - una comprobacion por regla anti-alucinaci
             end=anchor.end,
             evidence_fragment_ids=[anchor.fragment_id],
             type_candidates=types,
-            confidence=min(clamp(raw.get("confidence", 0.5)), confidence_cap),
+            confidence=confidence,
             basis=anchor.basis,
             metadata={
                 "model_proposed": True,
@@ -186,8 +230,21 @@ def normalize_payload(  # noqa: C901 - una comprobacion por regla anti-alucinaci
         )
         if emit(mention, out, info, episode.episode_id):
             key = normalize(surface)
+            previo = grounded.get(key)
+            if previo is not None and previo.entity_type != mention.best_type():
+                # La misma superficie tipada de dos formas distintas en el mismo
+                # episodio: el modelo se contradice. Se conserva la primera (el
+                # id es determinista) y se deja constancia; el motor local vera
+                # el conflicto en vez de heredarlo en silencio.
+                out.diagnostics.append(
+                    Diagnostic(
+                        "CONFLICTING_MENTION_TYPES", info.step, episode.episode_id,
+                        f"{surface!r}: {previo.entity_type} vs {mention.best_type()}",
+                    )
+                )
             grounded.setdefault(
-                key, _Grounded(mention.mention_id, key, anchor.fragment_id)
+                key,
+                _Grounded(mention.mention_id, key, anchor.fragment_id, mention.best_type()),
             )
 
     # --- claims ----------------------------------------------------------
@@ -234,6 +291,30 @@ def normalize_payload(  # noqa: C901 - una comprobacion por regla anti-alucinaci
             reasons.append("UNKNOWN_EPISTEMIC_STATUS")
             hint = "UNKNOWN"
         relation_phrase = str(raw.get("relation") or "")[:2000]
+        negated = bool(raw.get("negated", False))
+
+        # --- la cita es OBLIGATORIA para afirmar --------------------------
+        # Sin cita no hay nada que verificar: el claim se apoyaria solo en dos
+        # menciones que existen y en un predicado que el modelo se saco de
+        # donde fuera. Dos menciones ancladas no sostienen la relacion entre
+        # ellas.
+        if anchor is None:
+            reasons.append("CLAIM_WITHOUT_QUOTE")
+        else:
+            if anchor.ambiguous:
+                reasons.append("AMBIGUOUS_ANCHOR")
+            verdict = verify_quote_context(index, anchor, negated)
+            if CODE_NEGATION_MISMATCH in verdict.reason_codes:
+                reasons.append(CODE_NEGATION_MISMATCH)
+            if verdict.non_factive:
+                reasons.append(CODE_NON_FACTIVE)
+                reasons.extend(
+                    c for c in verdict.reason_codes if c != CODE_NEGATION_MISMATCH
+                )
+            elif verdict.hint != "ASSERTED" and hint == "ASSERTED":
+                # El contexto real dice rumor/hipotesis/intencion aunque el
+                # modelo dijera ASSERTED: manda el texto, no el modelo.
+                hint = verdict.hint
         if reasons:
             if not emit_abstentions:
                 out.diagnostics.append(
@@ -243,7 +324,7 @@ def normalize_payload(  # noqa: C901 - una comprobacion por regla anti-alucinaci
             claim = abstention_claim(
                 info=info,
                 episode=episode,
-                evidence_fragment_ids=fragments,
+                evidence_fragment_ids=fragments or [subj_hit.fragment_id],
                 reason_codes=reasons,
                 relation_phrase=relation_phrase,
                 subject_mentions=[subj_hit.mention_id],
@@ -262,7 +343,7 @@ def normalize_payload(  # noqa: C901 - una comprobacion por regla anti-alucinaci
             relation_phrase=relation_phrase,
             predicate_candidates=[{"predicate": predicate, "confidence": confidence}],
             direction_candidates=[{"direction": "SUBJECT_TO_OBJECT", "confidence": confidence}],
-            negated=bool(raw.get("negated", False)),
+            negated=negated,
             epistemic_cues=[str(c)[:256] for c in (raw.get("cues") or []) if str(c).strip()],
             epistemic_status_hint=hint,
             confidence=confidence,

@@ -65,12 +65,19 @@ SUBJECT_HEADERS: frozenset = frozenset(
 
 @dataclass(frozen=True)
 class ColumnRule:
-    """Encabezado de columna -> predicado, direccion y tipo esperado del objeto."""
+    """Encabezado de columna -> predicado, direccion y tipo ESPERADO del objeto.
+
+    `expected_object_type` es una EXPECTATIVA con la que contrastar, nunca un
+    tipo que se le pueda colgar a la celda. Que una columna se llame "Ubicacion"
+    no convierte su contenido en un `Location`: si en esa celda hay un nombre de
+    persona, tiparlo como lugar es inventar un dato y ademas hace pasar el
+    control de dominio/rango del perfil.
+    """
 
     predicate: str
     headers: tuple[str, ...]
     direction: str = "SUBJECT_TO_OBJECT"
-    object_type: Optional[str] = None
+    expected_object_type: Optional[str] = None
 
 
 #: Mapeo curado de encabezados. Corto a proposito: cada entrada es una apuesta
@@ -78,15 +85,15 @@ class ColumnRule:
 #: objeto lidera al sujeto, no al reves, y confundirlo invierte el grafo entero.
 COLUMN_RULES: tuple[ColumnRule, ...] = (
     ColumnRule("MEMBER_OF", ("faccion", "casa", "clan", "organizacion", "gremio", "orden"),
-               object_type="Faction"),
+               expected_object_type="Faction"),
     ColumnRule("LOCATED_IN", ("ubicacion", "lugar", "region", "ciudad", "residencia"),
-               object_type="Location"),
-    ColumnRule("CHILD_OF", ("padre", "madre", "progenitor"), object_type="Character"),
+               expected_object_type="Location"),
+    ColumnRule("CHILD_OF", ("padre", "madre", "progenitor"), expected_object_type="Character"),
     ColumnRule("LEADS", ("lider", "jefe", "capitan"), direction="OBJECT_TO_SUBJECT",
-               object_type="Character"),
+               expected_object_type="Character"),
     ColumnRule("ALLY_OF", ("aliado", "aliados", "alianza"),),
     ColumnRule("ENEMY_OF", ("enemigo", "enemigos", "rival"),),
-    ColumnRule("OWNS", ("objeto", "arma", "artefacto"), object_type="Object"),
+    ColumnRule("OWNS", ("objeto", "arma", "artefacto"), expected_object_type="Object"),
 )
 
 #: Separadores que delatan una celda multivalor.
@@ -98,6 +105,18 @@ def _column_rule(header: str) -> Optional[ColumnRule]:
     for rule in COLUMN_RULES:
         if key in rule.headers:
             return rule
+    return None
+
+
+def _confirmed_type(ctx: ExtractionContext, surface: str) -> Optional[str]:
+    """Tipo de una superficie SOLO si el lexico lo confirma. Nunca deducido."""
+    lexicon = ctx.lexicon
+    if lexicon is None:
+        return None
+    key = normalize(surface)
+    for entry in lexicon.entries:
+        if entry.normalized == key or key in {normalize(v) for v in entry.variants}:
+            return entry.entity_type
     return None
 
 
@@ -148,12 +167,17 @@ class TableExtractor(Extractor):
         cache: dict,
         row_i: int,
         cell: str,
-        entity_type: Optional[str],
         column: str,
     ) -> Optional[str]:
+        """Mencion de una celda. El tipo se CONFIRMA con el lexico o no se pone.
+
+        No se acepta el tipo esperado por la columna: seria el propio extractor
+        rellenando el dato que despues usa para validarse contra el perfil.
+        """
         key = (row_i, cell, column)
         if key in cache:
             return cache[key]
+        entity_type = _confirmed_type(ctx, cell)
         anchor = self._anchor_cell(index, row_i, cell)
         if anchor is None:
             out.diagnostics.append(
@@ -165,6 +189,8 @@ class TableExtractor(Extractor):
             cache[key] = None
             return None
         types = [{"type": entity_type, "confidence": 0.7}] if entity_type else []
+        # Nota: `types` vacio es una salida legitima. La celda queda sin tipar y
+        # el claim que la use tendra que pedir revision o abstenerse.
         mention = build_mention(
             info=self.info,
             episode=episode,
@@ -222,7 +248,7 @@ class TableExtractor(Extractor):
                 continue
             subject_cell = str(row[subject_col]).strip()
             subject_id = self._mention_for(
-                ctx, episode, index, out, cache, row_i, subject_cell, None, header[subject_col]
+                ctx, episode, index, out, cache, row_i, subject_cell, header[subject_col]
             )
             if subject_id is None:
                 continue
@@ -256,18 +282,43 @@ class TableExtractor(Extractor):
                         )
                     continue
                 object_id = self._mention_for(
-                    ctx, episode, index, out, cache, row_i, cell, rule.object_type, header[col_i]
+                    ctx, episode, index, out, cache, row_i, cell, header[col_i]
                 )
                 if object_id is None or object_id == subject_id:
                     continue
+                # Tipos CONFIRMADOS por el lexico (nunca los esperados por la
+                # columna) y contraste con el dominio/rango del perfil.
+                subject_type = _confirmed_type(ctx, subject_cell)
+                object_type = _confirmed_type(ctx, cell)
+                reasons: list[str] = []
                 if profile_predicates and rule.predicate not in profile_predicates:
+                    reasons.append("PREDICATE_NOT_IN_PROFILE")
+                if (
+                    rule.expected_object_type
+                    and object_type
+                    and object_type != rule.expected_object_type
+                ):
+                    # La columna esperaba un tipo y el lexico dice otro: la
+                    # tabla no dice lo que el encabezado promete.
+                    reasons.append("OBJECT_TYPE_MISMATCH")
+                if ctx.profile is not None and rule.predicate in profile_predicates:
+                    if subject_type and object_type:
+                        if not ctx.profile.allows(rule.predicate, subject_type, object_type):
+                            reasons.append("TYPE_INCOMPATIBLE_WITH_PROFILE")
+                    else:
+                        # Con perfil cargado, un claim cuyos tipos no se pueden
+                        # confirmar NO se puede validar contra dominio/rango.
+                        # Antes salia afirmado con un tipo inventado por la
+                        # columna, que es la peor de las dos opciones.
+                        reasons.append("TYPES_NOT_CONFIRMABLE")
+                if reasons:
                     if self.emit_abstentions:
                         emit(
                             abstention_claim(
                                 info=self.info,
                                 episode=episode,
                                 evidence_fragment_ids=frag_hint,
-                                reason_codes=["PREDICATE_NOT_IN_PROFILE"],
+                                reason_codes=reasons,
                                 relation_phrase=header[col_i],
                                 subject_mentions=[subject_id],
                                 object_mentions=[object_id],
@@ -286,14 +337,22 @@ class TableExtractor(Extractor):
                     relation_phrase=header[col_i],
                     predicate_candidates=[{"predicate": rule.predicate, "confidence": confidence}],
                     direction_candidates=[{"direction": rule.direction, "confidence": confidence}],
-                    epistemic_status_hint="ASSERTED",
+                    epistemic_status_hint="ASSERTED",  # sin perfil: ver review_required
                     confidence=confidence,
                     abstained=False,
-                    review_required=bool(low_quality(episode) or confidence < 0.6),
+                    # Sin tipos confirmados no hay forma de comprobar el
+                    # dominio/rango: el claim sale, pero pidiendo revision.
+                    review_required=bool(
+                        low_quality(episode)
+                        or confidence < 0.6
+                        or not (subject_type and object_type)
+                    ),
                     metadata={
                         "table_row": row_i,
                         "table_column": header[col_i],
                         "structured_source": True,
+                        "subject_type_confirmed": subject_type,
+                        "object_type_confirmed": object_type,
                     },
                 )
                 emit(claim, out, self.info, episode.episode_id)

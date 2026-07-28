@@ -245,7 +245,14 @@ class EvidenceIndex:
         ]
 
     def contains_quote(self, fragment_id: str, quote: str) -> bool:
-        """La cita aparece (normalizada) en el texto literal del fragmento."""
+        """La cita aparece (normalizada) en el texto literal del fragmento.
+
+        Contencion EXACTA de la cadena normalizada, nunca parecido. Un umbral de
+        similitud, por alto que sea, acepta citas que el texto no dice: "Kael
+        vive en Valdo" se parece un 0.98 a "Kael vive en Valdor" y no es lo
+        mismo. La normalizacion (minusculas, sin tildes) es lo unico que se
+        tolera, y viene del glosario V1.
+        """
         norm_frag = self._norm_cache.get(fragment_id)
         if norm_frag is None:
             return False
@@ -278,15 +285,18 @@ class EvidenceIndex:
                 reasons.append("QUOTE_NOT_IN_CLAIMED_FRAGMENT")
             else:
                 span = self._locate(quote, claimed_fragment_id)
-                if span is None:
-                    return None
-                start, end, basis = span
-                return Anchor(claimed_fragment_id, start, end, basis, tuple(reasons))
+                if span is not None:
+                    start, end, basis = span
+                    return Anchor(claimed_fragment_id, start, end, basis, tuple(reasons))
+                reasons.append("QUOTE_NOT_IN_CLAIMED_FRAGMENT")
 
         matches = [fid for fid in self.fragment_ids if self.contains_quote(fid, quote)]
         if not matches:
             return None
         if len(matches) > 1:
+            # AMBIGUOUS_ANCHOR NO es decorativo: quien lo reciba tiene que
+            # abstenerse. La misma cita en dos fragmentos puede estar afirmada
+            # en uno y negada en el otro, y elegir el primero es elegir a ciegas.
             reasons.append("AMBIGUOUS_ANCHOR")
         if claimed_fragment_id is not None:
             reasons.append("REANCHORED_BY_CONTENT")
@@ -297,6 +307,36 @@ class EvidenceIndex:
         start, end, basis = span
         return Anchor(chosen, start, end, basis, tuple(reasons))
 
+    def context_window(self, anchor: "Anchor") -> tuple[str, list[Token], int, int, int]:
+        """Texto REAL que rodea al ancla: `(texto, tokens, lo, hi, focus)`.
+
+        Es lo que permite comprobar el SENTIDO de una cita y no solo su
+        existencia: la frase del episodio donde cae el ancla (o el fragmento
+        entero si el episodio no tiene texto). `focus` es el primer token del
+        ancla, para poder mirar solo lo que viene ANTES cuando se busca una
+        negacion.
+        """
+        if self.has_text and anchor.basis == OFFSET_BASIS_EPISODE:
+            enclosing = [s for s in self.sentences if s.start <= anchor.start < s.end]
+            text = self.text or ""
+            if enclosing:
+                sentence = enclosing[0]
+                lo, hi = sentence.first_token, sentence.last_token + 1
+                window_text = text[sentence.start:sentence.end]
+            else:
+                lo, hi = 0, len(self.tokens)
+                window_text = text
+            focus = next(
+                (t.index for t in self.tokens if lo <= t.index < hi and t.start >= anchor.start),
+                hi,
+            )
+            return window_text, self.tokens, lo, hi, focus
+        frag = self.get(anchor.fragment_id)
+        literal = frag.literal_text if frag is not None else ""
+        tokens = tokenize(literal)
+        focus = next((t.index for t in tokens if t.start >= anchor.start), len(tokens))
+        return literal, tokens, 0, len(tokens), focus
+
     def anchor_span(self, start: int, end: int) -> Optional[Anchor]:
         """Ancla un span calculado LOCALMENTE sobre el texto del episodio."""
         covering = self.covering(start, end)
@@ -305,16 +345,30 @@ class EvidenceIndex:
         return Anchor(covering[0], start, end, OFFSET_BASIS_EPISODE, ())
 
     def _locate(self, quote: str, fragment_id: str) -> Optional[tuple[int, int, str]]:
-        """Offsets locales de la cita. Los calcula el motor, nunca el proveedor."""
-        if self.has_text:
-            idx = (self.text or "").find(quote)
-            if idx >= 0:
-                return idx, idx + len(quote), OFFSET_BASIS_EPISODE
-            span = self._token_span(self.tokens, quote)
-            if span is not None:
-                return span[0], span[1], OFFSET_BASIS_EPISODE
+        """Offsets locales de la cita DENTRO del fragmento elegido.
+
+        La busqueda esta acotada al rango `[frag.start, frag.end)` del fragmento
+        a proposito. Buscar en el episodio entero devolvia, en silencio, offsets
+        que caian en OTRO fragmento: el documento decia estar anclado en A y sus
+        offsets apuntaban a B. Si la cita no aparece en el fragmento elegido,
+        aqui no se resuelve: se devuelve None y el que llama decide (reanclar o
+        rechazar).
+        """
         frag = self.get(fragment_id)
         if frag is None:
+            return None
+        if self.has_text:
+            text = self.text or ""
+            window = text[frag.start:frag.end]
+            idx = window.find(quote)
+            if idx >= 0:
+                return frag.start + idx, frag.start + idx + len(quote), OFFSET_BASIS_EPISODE
+            window_tokens = [
+                t for t in self.tokens if t.start >= frag.start and t.end <= frag.end
+            ]
+            span = self._token_span(window_tokens, quote)
+            if span is not None:
+                return span[0], span[1], OFFSET_BASIS_EPISODE
             return None
         idx = frag.literal_text.find(quote)
         if idx >= 0:

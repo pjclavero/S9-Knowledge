@@ -10,10 +10,14 @@ Reglas de emision de un claim (todas obligatorias, no ponderadas):
 
 1. sujeto y objeto son menciones ANCLADAS a fragmentos reales;
 2. la frase de relacion esta en la MISMA frase, entre sujeto y objeto;
-3. no hay coordinacion ni puntuacion entre los argumentos y la frase ("Elara y
-   Kael viven en Valdor" es ambiguo: no se sabe de quien se afirma que vive);
-4. no hay otra mencion intercalada;
-5. si hay perfil, el predicado esta en el perfil y los tipos encajan.
+3. no hay coordinacion (ni adyacente ni en ventana) entre los argumentos y la
+   frase, ni dentro del sintagma de un argumento: "Elara y Kael viven en
+   Valdor" es ambiguo, no se sabe de quien se afirma que vive;
+4. los argumentos estan a menos de `MAX_ARGUMENT_GAP` tokens de la frase, no
+   son modificadores de otro nucleo ("el hermano **de** Kael") y no hay varias
+   menciones candidatas a sujeto;
+5. si hay perfil, el predicado esta en el perfil y los tipos encajan;
+6. el contexto es FACTIVO: ni condicional, ni interrogativo, ni desmentido.
 
 Si alguna falla, o bien no se emite nada, o bien se emite una **abstencion**
 explicita con su codigo de razon. Nunca se emite un predicado "a ver si suena".
@@ -41,6 +45,7 @@ from .base import (
     emit,
     low_quality,
 )
+from . import cues as _cues
 from .lexicon import Lexicon, LexiconMatch
 from .temporal import TEMPORAL_INFO, extract_temporal_expressions
 from .text import EvidenceIndex, Sentence, Token, find_phrase, phrase_tokens
@@ -102,34 +107,43 @@ RELATION_RULES: tuple[RelationRule, ...] = (
     RelationRule("FOUNDED", ("fundo", "fundo la", "fundo el"), confidence=0.7),
 )
 
-#: Marcas de negacion. Se buscan en los 3 tokens previos a la frase de relacion:
-#: mas lejos, la negacion suele afectar a otra cosa de la frase.
-NEGATION_CUES: tuple[str, ...] = ("no", "nunca", "jamas", "tampoco", "ni")
-NEGATION_WINDOW = 3
+#: Marcas de negacion y epistemicas: viven en `cues.py`, compartidas con la
+#: frontera de modelos. Se reexportan como globales del modulo para que las
+#: pruebas de mutacion puedan romperlas aqui, que es donde se usan.
+NEGATION_CUES: tuple[str, ...] = _cues.NEGATION_CUES
+NEGATION_WINDOW = _cues.NEGATION_WINDOW
+EPISTEMIC_CUES: tuple[tuple[str, str], ...] = _cues.EPISTEMIC_CUES
 
-#: Marcas epistemicas -> pista del contrato. Un extractor no sabe si algo es
-#: cierto; si sabe que el texto lo presenta como rumor, hipotesis o intencion.
-EPISTEMIC_CUES: tuple[tuple[str, str], ...] = (
-    ("se rumorea", "RUMORED"),
-    ("dicen que", "RUMORED"),
-    ("se dice que", "RUMORED"),
-    ("segun cuentan", "RUMORED"),
-    ("supuestamente", "RUMORED"),
-    ("al parecer", "RUMORED"),
-    ("quiza", "HYPOTHETICAL"),
-    ("quizas", "HYPOTHETICAL"),
-    ("tal vez", "HYPOTHETICAL"),
-    ("podria", "HYPOTHETICAL"),
-    ("si acaso", "HYPOTHETICAL"),
-    ("planea", "INTENDED"),
-    ("pretende", "INTENDED"),
-    ("tiene intencion de", "INTENDED"),
-    ("jurara", "INTENDED"),
+#: Coordinacion: si aparece entre un argumento y la frase de relacion, o dentro
+#: del sintagma del argumento, la lectura deja de ser inequivoca. Las formas de
+#: VARIAS palabras son imprescindibles: con solo `{y, o, e, u, ni}`, "Kael y
+#: tambien Mira vive en Valdor" burlaba la guarda porque entre la coordinacion y
+#: la mencion habia un token intercalado.
+COORDINATION_TOKENS: frozenset = frozenset({"y", "e", "o", "u", "ni"})
+COORDINATION_PHRASES: tuple[str, ...] = (
+    "y tambien",
+    "o tambien",
+    "asi como",
+    "ni siquiera",
+    "junto a",
+    "junto con",
+    "ademas de",
+    "al igual que",
+    "tanto como",
+    "o a",
+    "o de",
+    "y a",
 )
 
-#: Coordinacion y puntuacion debil: si aparecen entre un argumento y la frase de
-#: relacion, la lectura deja de ser inequivoca.
-COORDINATION_TOKENS: frozenset = frozenset({"y", "e", "o", "u", "ni"})
+#: Ventana (en tokens) donde se busca coordinacion alrededor de un argumento. No
+#: basta con mirar el token pegado: la coordinacion casi nunca es adyacente.
+COORDINATION_WINDOW = 4
+
+#: Preposiciones que convierten a la mencion siguiente en MODIFICADOR, no en el
+#: nucleo del sintagma: "El hermano **de** Kael vive en Valdor" no dice que Kael
+#: viva en Valdor. Es el error de tomar el sujeto por proximidad.
+MODIFIER_PREPOSITIONS: frozenset = frozenset({"de", "del", "por", "para", "segun", "sobre"})
+
 _WEAK_PUNCT = (",", ";", ":", "(", ")", "—", "–")
 
 #: Distancia maxima en tokens entre un argumento y la frase de relacion.
@@ -233,6 +247,51 @@ def _sentence_of(sentences: Sequence[Sentence], token_index: int) -> Optional[Se
 
 def _raw_between(text: str, start: int, end: int) -> str:
     return text[max(0, start):max(0, end)]
+
+
+def _coordination_between(tokens: Sequence[Token], lo: int, hi: int) -> bool:
+    """Coordinacion (simple o de varias palabras) en `[lo, hi)`."""
+    if lo >= hi:
+        return False
+    if any(tokens[i].norm in COORDINATION_TOKENS for i in range(lo, hi)):
+        return True
+    return any(
+        find_phrase(tokens, phrase_tokens(p), lo=max(0, lo - 1), hi=min(len(tokens), hi + 1))
+        for p in COORDINATION_PHRASES
+    )
+
+
+def _coordination_before(
+    tokens: Sequence[Token], first_token: int, sentence_first: int, in_sentence: Sequence
+) -> bool:
+    """Coordinacion en la ventana previa al argumento, con otra mencion detras."""
+    lo = max(sentence_first, first_token - COORDINATION_WINDOW)
+    if not _coordination_between(tokens, lo, first_token):
+        return False
+    return any(hit.last_token < first_token for hit, _ in in_sentence)
+
+
+def _coordination_after(
+    tokens: Sequence[Token], last_token: int, sentence_last: int, in_sentence: Sequence
+) -> bool:
+    """Coordinacion en la ventana posterior al argumento, con otra mencion delante."""
+    hi = min(sentence_last + 1, last_token + 1 + COORDINATION_WINDOW)
+    if not _coordination_between(tokens, last_token + 1, hi):
+        return False
+    return any(hit.first_token > last_token for hit, _ in in_sentence)
+
+
+def _is_modifier(tokens: Sequence[Token], first_token: int, sentence_first: int) -> bool:
+    """La mencion va precedida de preposicion: es modificador, no nucleo.
+
+    Aproximacion honesta y deliberadamente burda (no hay analisis sintactico):
+    "de Kael", "por Elara". Cuesta cobertura en construcciones legitimas, y esa
+    es la direccion en la que este extractor prefiere equivocarse.
+    """
+    prev = first_token - 1
+    if prev < sentence_first or prev < 0:
+        return False
+    return tokens[prev].norm in MODIFIER_PREPOSITIONS
 
 
 class DeterministicExtractor(Extractor):
@@ -423,28 +482,30 @@ class DeterministicExtractor(Extractor):
         gap_after = object_hit.first_token - last - 1
         if gap_before > MAX_ARGUMENT_GAP or gap_after > MAX_ARGUMENT_GAP:
             codes.append("ARGUMENT_TOO_FAR")
-        if any(tokens[i].norm in COORDINATION_TOKENS for i in range(subject_hit.last_token + 1, first)):
+        if _coordination_between(tokens, subject_hit.last_token + 1, first):
             codes.append("COORDINATED_SUBJECT")
-        if any(tokens[i].norm in COORDINATION_TOKENS for i in range(last + 1, object_hit.first_token)):
+        if _coordination_between(tokens, last + 1, object_hit.first_token):
             codes.append("COORDINATED_OBJECT")
-        # Sintagma coordinado ANTES del sujeto ("Elara y Kael viven en Valdor"):
-        # la coordinacion no esta entre el sujeto y el verbo, esta dentro del
-        # sujeto. Sin esta comprobacion el extractor se quedaria con el segundo
-        # coordinado y afirmaria de UNO lo que el texto afirma de DOS.
-        prev_idx = subject_hit.first_token - 1
-        if (
-            prev_idx >= sentence.first_token
-            and tokens[prev_idx].norm in COORDINATION_TOKENS
-            and any(hit.last_token == prev_idx - 1 for hit, _ in in_sentence)
-        ):
+        # Coordinacion DENTRO del sintagma del argumento ("Elara y Kael viven en
+        # Valdor", "Kael y tambien Mira vive..."): no esta entre el argumento y
+        # el verbo, esta dentro del argumento. Sin esta comprobacion el extractor
+        # se queda con el ultimo coordinado y afirma de UNO lo que el texto
+        # afirma de DOS. Se mira una VENTANA, no el token pegado: la
+        # coordinacion casi nunca es adyacente a la mencion.
+        if _coordination_before(tokens, subject_hit.first_token, sentence.first_token, in_sentence):
             codes.append("COORDINATED_SUBJECT")
-        next_idx = object_hit.last_token + 1
-        if (
-            next_idx <= sentence.last_token
-            and tokens[next_idx].norm in COORDINATION_TOKENS
-            and any(hit.first_token == next_idx + 1 for hit, _ in in_sentence)
-        ):
+        if _coordination_after(tokens, object_hit.last_token, sentence.last_token, in_sentence):
             codes.append("COORDINATED_OBJECT")
+        # Sujeto/objeto que en realidad son MODIFICADORES de otro nucleo:
+        # "El hermano de Kael vive en Valdor" no dice nada de donde vive Kael.
+        if _is_modifier(tokens, subject_hit.first_token, sentence.first_token):
+            codes.append("SUBJECT_IS_MODIFIER")
+        if _is_modifier(tokens, object_hit.first_token, sentence.first_token):
+            codes.append("OBJECT_IS_MODIFIER")
+        # Varias menciones antes de la frase: el sujeto se estaria eligiendo por
+        # proximidad. En la duda, abstencion.
+        if len(before) > 1:
+            codes.append("MULTIPLE_SUBJECT_CANDIDATES")
         left_raw = _raw_between(text, subject_hit.end, tokens[first].start)
         right_raw = _raw_between(text, tokens[last].end, object_hit.start)
         if any(p in left_raw or p in right_raw for p in _WEAK_PUNCT):
@@ -468,7 +529,7 @@ class DeterministicExtractor(Extractor):
             abstain(codes, [subject_id], [object_id])
             return
 
-        # --- lecturas del contexto: negacion, epistemicidad, tiempo -------
+        # --- lecturas del contexto: negacion, factividad, epistemicidad ---
         negated = any(
             tokens[i].norm in NEGATION_CUES
             for i in range(max(sentence.first_token, first - NEGATION_WINDOW), first)
@@ -481,6 +542,28 @@ class DeterministicExtractor(Extractor):
                 cues.append(cue)
                 if hint == "ASSERTED":
                     hint = mapped
+
+        # NO-FACTIVIDAD. Sin esta guarda, "Si Kael vive en Valdor...", "¿Kael
+        # vive en Valdor?" y "Es falso que Kael viva en Valdor" salian los tres
+        # como ASSERTED con review_required=False: el extractor afirmaba
+        # exactamente lo que el texto se negaba a afirmar.
+        verdict = _cues.analyze_context(
+            text[sentence.start:sentence.end],
+            tokens,
+            lo=sentence.first_token,
+            hi=sentence.last_token + 1,
+            focus=first,
+        )
+        if _cues.CODE_FALSITY in verdict.reason_codes or _cues.CODE_INTERROGATIVE in verdict.reason_codes:
+            # El texto niega la verdad del hecho o pregunta por el. No hay nada
+            # que proponer: solo constancia de que aqui habia algo.
+            abstain(
+                [_cues.CODE_NON_FACTIVE, *verdict.reason_codes], [subject_id], [object_id]
+            )
+            return
+        if _cues.CODE_CONDITIONAL in verdict.reason_codes:
+            hint = "HYPOTHETICAL"
+            cues.extend(c for c in verdict.cues if c not in cues)
         temporal = []
         extra_trace = []
         if self.attach_temporal:

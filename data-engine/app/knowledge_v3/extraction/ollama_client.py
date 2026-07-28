@@ -8,7 +8,7 @@ con `S9K_OLLAMA_URL`.
 
     S9K_OLLAMA_URL      http://192.168.1.157:11434   (servidor Ollama)
     S9K_OLLAMA_MODEL    qwen2.5:7b                   (unico modelo instalado)
-    S9K_OLLAMA_TIMEOUT  60                           (segundos)
+    S9K_OLLAMA_TIMEOUT  300                          (segundos; medido, ver DEFAULT_TIMEOUT)
     S9K_OLLAMA_RETRIES  1                            (reintentos de transporte)
     S9K_LIVE_OLLAMA     0                            (activa los tests de humo)
 

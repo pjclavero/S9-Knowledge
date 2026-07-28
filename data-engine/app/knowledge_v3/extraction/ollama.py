@@ -132,7 +132,9 @@ class OllamaExtractor(Extractor):
     ) -> None:
         self.client = client or OllamaClient(config=config)
         self.max_json_retries = max(0, int(max_json_retries))
-        self.confidence_cap = confidence_cap
+        # El tope NUNCA puede subir por parametro: `confidence_cap=1.0` dejaba
+        # salir un 0.99 de un LLM sin calibrar. El externo ya lo acotaba asi.
+        self.confidence_cap = min(confidence_cap, DEFAULT_CONFIDENCE_CAP)
         self.emit_abstention_on_failure = emit_abstention_on_failure
         self.info = ExtractorInfo(
             step=OLLAMA_STEP,
@@ -191,16 +193,25 @@ class OllamaExtractor(Extractor):
         if payload is None:
             self._abstain(out, episode, index, "OLLAMA_INVALID_JSON", last_error)
             return out
-        return out.extend(
-            normalize_payload(
-                payload,
-                ctx=ctx,
-                episode=episode,
-                info=self.info,
-                confidence_cap=self.confidence_cap,
-                force_review=True,
+        try:
+            return out.extend(
+                normalize_payload(
+                    payload,
+                    ctx=ctx,
+                    episode=episode,
+                    info=self.info,
+                    confidence_cap=self.confidence_cap,
+                    force_review=True,
+                )
             )
-        )
+        except (ValueError, TypeError) as exc:
+            # Un payload con tipos imposibles se lleva por delante SU episodio,
+            # no el lote entero: los demas episodios estaban bien.
+            self._abstain(
+                out, episode, index, "MODEL_PAYLOAD_MALFORMED",
+                f"{type(exc).__name__}: {exc}",
+            )
+            return out
 
 
 __all__ = [
