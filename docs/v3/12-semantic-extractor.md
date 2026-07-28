@@ -245,7 +245,37 @@ siguiente.
 
 ## 5. Medicion
 
-Ver `docs/v3/measurements/2026-07-28-semantic-extractor-dev.md`.
+Informe completo, con evidencia cruda y los gates evaluados uno a uno:
+**`docs/v3/measurements/2026-07-28-semantic-extractor-dev.md`**.
+
+Resumen sobre **dev** (16 episodios; C1 = qwen2.5:7b via Ollama, ejecucion REAL):
+
+| | A (determinista) | C1 (semantico 7B) | D (union) |
+|---|---|---|---|
+| menciones R / P | 0,745 / 0,905 | 0,471 / 0,632 | 0,765 / 0,488 |
+| tipo correcto (emparejadas) | 0,000 | **0,917** | 0,026 |
+| claims tp / recall | 0 / 0,000 | **5 / 0,250** | 0 / 0,000 |
+| predicado top-1 / top-2 (recall) | 0,000 / 0,000 | **0,200 / 0,200** | 0,000 |
+| direccion top-1 (recall) | 0,000 | 0,250 | 0,000 |
+| inventadas (menciones / claims) | 0 / 0 | **0 / 0** | 0 / 0 |
+| predicados fuera de ontologia | 0 | **0** | 0 |
+| latencia por episodio | — | **129 s** (max 242 s) | — |
+
+Tres resultados que hay que leer juntos:
+
+- el semantico **crea claims donde el determinista no puede crear ninguno**, sin
+  inventar nada y sin salirse de la ontologia;
+- **top-2 = top-1**: qwen2.5:7b devuelve un solo candidato, asi que la capacidad
+  clave del diseno se queda sin ejercitar (no por el diseno, por el modelo);
+- **D no es peor: es inevaluable**. Determinista y semantico proponen la misma
+  mencion con el mismo span y dos ids; el emparejamiento uno a uno se la
+  adjudica al determinista y los 11 claims semanticos se quedan sin argumentos
+  alineados. Es el argumento medido a favor del bloque de reconciliacion.
+
+**Veredicto: arquitectura valida, qwen2.5:7b no viable** (129 s por episodio de
+dos frases, corrompe sus propias citas literales, no reproducible a temperatura
+0). `C2` con `llama-3.3-70b` queda preparada y ejecutable con una orden: es la
+unica medicion que separa "limite del 7B" de "limite del diseno".
 
 ---
 

@@ -1,0 +1,1335 @@
+{
+ "051ec1b34b1d25cb51af1dfee4e30f14": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 88285,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "Yo nunca he trabajado para la Cofradía de Ámbar, por mucho que lo repitan en el muelle.",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 0.8,
+       "predicate": "LOCATED_IN"
+      }
+     ],
+     "relation_phrase": "por mucho que lo repitan en el muelle",
+     "subject_ref": "m1",
+     "temporal_expressions": [],
+     "temporal_resolution_required": false
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "Yo nunca he trabajado para la Cofradía de Ámbar, por mucho que lo repitan en el muelle.",
+     "local_ref": "m1",
+     "surface": "la Cofradía de Ámbar",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Yo nunca he trabajado para la Cofradía de Ámbar, por mucho que lo repitan en el muelle.",
+     "local_ref": "m2",
+     "surface": "el muelle",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Location"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "08b67c32875b888318feca29b70fff08": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 137094,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "Daiki Oharu ha negado en cada asamblea su pertenencia al Consejo de Umbra.",
+     "negated": true,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 0.9,
+       "predicate": "NEGATED_MEMBER_OF"
+      }
+     ],
+     "relation_phrase": "Daiki Oharu ha negado en cada asamblea su pertenencia al Consejo de Umbra.",
+     "subject_ref": "m1",
+     "temporal_expressions": [
+      "ha negado"
+     ],
+     "temporal_resolution_required": false
+    },
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "El magistrado repitió la negativa incluso ante los emisarios llegados de Umbra.",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 0.8,
+       "predicate": "LED_BY"
+      }
+     ],
+     "relation_phrase": "El magistrado repitió la negativa incluso ante los emisarios llegados de Umbra.",
+     "subject_ref": "m3",
+     "temporal_expressions": [
+      "repitió"
+     ],
+     "temporal_resolution_required": false
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "Daiki Oharu ha negado en cada asamblea su pertenencia al Consejo de Umbra.",
+     "local_ref": "m1",
+     "surface": "Daiki Oharu",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Daiki Oharu ha negado en cada asamblea su pertenencia al Consejo de Umbra.",
+     "local_ref": "m2",
+     "surface": "Consejo de Umbra",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "El magistrado repitió la negativa incluso ante los emisarios llegados de Umbra.",
+     "local_ref": "m3",
+     "surface": "magistrado",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "16451ba4dc272d9dc470d6a8eba5f2e9": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 138323,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [
+    {
+     "evidence_quote": "Si Torv Marrec dirigiera hoy la Cofradía de Ámbar, la flota no habría zarpado con la marea de invierno.",
+     "reason": "No hay evidencia clara sobre una relación entre Torv y la Cofradía en el presente"
+    }
+   ],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "OBJECT_TO_SUBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "El maestre de puerto, en cambio, planea entregar a Torv el bastón de la Cofradía de Ámbar en el próximo ciclo.",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 0.8,
+       "predicate": "LEADS"
+      }
+     ],
+     "relation_phrase": "planea entregar a Torv el bastón de la Cofradía de Ámbar en el próximo ciclo.",
+     "subject_ref": "m4",
+     "temporal_expressions": [
+      "el próximo ciclo"
+     ],
+     "temporal_resolution_required": false
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "Si Torv Marrec dirigiera hoy la Cofradía de Ámbar, ...",
+     "local_ref": "m1",
+     "surface": "Torv Marrec",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Si Torv Marrec dirigiera hoy la Cofradía de Ámbar, ...",
+     "local_ref": "m2",
+     "surface": "Cofradía de Ámbar",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "... en el próximo ciclo.",
+     "local_ref": "m3",
+     "surface": "Ciclo",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Concept"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "El maestre de puerto, en cambio, planea entregar a Torv ...",
+     "local_ref": "m4",
+     "surface": "maestre de puerto",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "1e2c958e1ce3e0b82d429c47276529e0": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 100793,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "El informe de tripulación del ciclo 2387 no incluye a Nadir Boone entre el personal del Consorcio Halcyon.",
+     "negated": true,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 0.9,
+       "predicate": "MEMBER_OF"
+      }
+     ],
+     "relation_phrase": "El informe de tripulación del ciclo 2387 no incluye a Nadir Boone entre el personal del Consorcio Halcyon.",
+     "subject_ref": "m1",
+     "temporal_expressions": [
+      "ciclo 2387"
+     ],
+     "temporal_resolution_required": false
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "El informe de tripulación del ciclo 2387 no incluye a Nadir Boone entre el personal del Consorcio Halcyon.",
+     "local_ref": "m1",
+     "surface": "Nadir Boone",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "El informe de tripulación del ciclo 2387 no incluye a Nadir Boone entre el personal del Consorcio Halcyon.",
+     "local_ref": "m2",
+     "surface": "Consorcio Halcyon",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "2274e14011ab518ccc513eb354e6ca8b": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 89600,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 0.9,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "El escriba V4ndreth firmo el acta junto a1 senescal de Vado A1to.",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 0.8,
+       "predicate": "ALLY_OF"
+      }
+     ],
+     "relation_phrase": "firma el acta junto a1 senescal de Vado Alto",
+     "subject_ref": "m1",
+     "temporal_expressions": [],
+     "temporal_resolution_required": false
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "El escriba V4ndreth firmo el acta junto a1 senescal de Vado A1to.",
+     "local_ref": "m1",
+     "surface": "El escriba V4ndreth",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "El escriba V4ndreth firmo el acta junto a1 senescal de Vado A1to.",
+     "local_ref": "m2",
+     "surface": "senescal de Vado Alto",
+     "type_candidates": [
+      {
+       "confidence": 0.9,
+       "type": "Character"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "30bc4593a857e2972eada5443e7349b9": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 127135,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [
+    {
+     "evidence_quote": "En el serial que emiten los turnos de noche, Halcyon vende la estación a una flota pirata; el guionista lo inventó todo.",
+     "reason": "No se establece ninguna relación entre las entidades mencionadas en esta frase y otras mencionadas en el texto."
+    }
+   ],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "el Núcleo Bruma pertenece al Consorcio Halcyon desde el traslado.",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 1.0,
+       "predicate": "MEMBER_OF"
+      }
+     ],
+     "relation_phrase": "el Núcleo Bruma pertenece al Consorcio Halcyon desde el traslado.",
+     "subject_ref": "m3",
+     "temporal_expressions": [
+      "desde el traslado"
+     ],
+     "temporal_resolution_required": true
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "Halcyon vende la estación a una flota pirata",
+     "local_ref": "m1",
+     "surface": "Halcyon",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "el Núcleo Bruma pertenece al Consorcio Halcyon desde el traslado",
+     "local_ref": "m2",
+     "surface": "Núcleo Bruma",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Location"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "el Núcleo Bruma pertenece al Consorcio Halcyon desde el traslado",
+     "local_ref": "m3",
+     "surface": "Consorcio Halcyon",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "350efaf5b9d6e1fdac6b42399cc690ef": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 108662,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "Vania Ostrow figura como jefa de operaciones del Consorcio Halcyon a bordo de la Estación Kestrel.",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 1.0,
+       "predicate": "LEADS"
+      }
+     ],
+     "relation_phrase": "figura como jefa de operaciones del",
+     "subject_ref": "m1",
+     "temporal_expressions": [],
+     "temporal_resolution_required": false
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "Vania Ostrow figura como jefa de operaciones del Consorcio Halcyon a bordo de la Estación Kestrel.",
+     "local_ref": "m1",
+     "surface": "Vania Ostrow",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Vania Ostrow figura como jefa de operaciones del Consorcio Halcyon a bordo de la Estación Kestrel.",
+     "local_ref": "m2",
+     "surface": "Consorcio Halcyon",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Vania Ostrow figura como jefa de operaciones del Consorcio Halcyon a bordo de la Estación Kestrel.",
+     "local_ref": "m3",
+     "surface": "Estación Kestrel",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Location"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "410850f076583a3ec189a19c91c2c766": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 82865,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "Mi hermana Sela lleva el taller de Amarra Vieja desde antes de la marea negra.",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 0.9,
+       "predicate": "LEADS"
+      }
+     ],
+     "relation_phrase": "Sela Marrec lleva el taller de Amarra Vieja desde antes de la marea negra.",
+     "subject_ref": "m1",
+     "temporal_expressions": [
+      "desde antes de la marea negra"
+     ],
+     "temporal_resolution_required": true
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "Mi hermana Sela",
+     "local_ref": "m1",
+     "surface": "Sela Marrec",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "lleva el taller de Amarra Vieja",
+     "local_ref": "m2",
+     "surface": "Amarra Vieja",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Location"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "5b5728279c43949f47910a150615972b": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 181141,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "Nadir Boone\nNadir Boone\tConsorcio Halcyon",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 1.0,
+       "predicate": "MEMBER_OF"
+      }
+     ],
+     "relation_phrase": "Nadir Boone Consorcio Halcyon",
+     "subject_ref": "m1"
+    },
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "Vania Ostrow\nVania Ostrow\tConsorcio Halcyon",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 1.0,
+       "predicate": "MEMBER_OF"
+      }
+     ],
+     "relation_phrase": "Vania Ostrow Consorcio Halcyon",
+     "subject_ref": "m3"
+    },
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "Ruta Simm\nRuta Simm\tCooperativa Vela",
+     "negated": false,
+     "object_ref": "m6",
+     "predicate_candidates": [
+      {
+       "confidence": 1.0,
+       "predicate": "LOCATED_IN"
+      }
+     ],
+     "relation_phrase": "Ruta Simm Cooperativa Vela",
+     "subject_ref": "m5"
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "Nadir Boone",
+     "local_ref": "m1",
+     "surface": "Nadir Boone",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Consorcio Halcyon",
+     "local_ref": "m2",
+     "surface": "Consorcio Halcyon",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Vania Ostrow",
+     "local_ref": "m3",
+     "surface": "Vania Ostrow",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Consorcio Halcyon",
+     "local_ref": "m4",
+     "surface": "Consorcio Halcyon",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Ruta Simm",
+     "local_ref": "m5",
+     "surface": "Ruta Simm",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Location"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Cooperativa Vela",
+     "local_ref": "m6",
+     "surface": "Cooperativa Vela",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "8828ebf5908d5cd10e1a6df2d6e08104": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 95279,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "Daiki Oliaru fue nornbrado magistrado de la Casa de1 Ciervo en el año 1O42.",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 0.9,
+       "predicate": "LEADS"
+      }
+     ],
+     "relation_phrase": "fue nornbrado magistrado de la Casa de1 Ciervo",
+     "subject_ref": "m1",
+     "temporal_expressions": [
+      "en el año 1O42"
+     ],
+     "temporal_resolution_required": false
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "Daiki Oliaru fue nornbrado magistrado de la Casa de1 Ciervo en el año 1O42.",
+     "local_ref": "m1",
+     "surface": "Daiki Oliaru",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Daiki Oliaru fue nornbrado magistrado de la Casa de1 Ciervo en el año 1O42.",
+     "local_ref": "m2",
+     "surface": "Casa de1 Ciervo",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "9ed9d40edf5973d473794e13c0a9c833": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 92203,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "el recinto de la Casa del Ciervo dentro de Vado Alto",
+     "negated": false,
+     "object_ref": "m3",
+     "predicate_candidates": [
+      {
+       "confidence": 1.0,
+       "predicate": "LOCATED_IN"
+      }
+     ],
+     "relation_phrase": "dentro de Vado Alto",
+     "subject_ref": "m2",
+     "temporal_expressions": [],
+     "temporal_resolution_required": false
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "Plano del vado",
+     "local_ref": "m1",
+     "surface": "Plano del vado",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Object"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "el recinto de la Casa del Ciervo",
+     "local_ref": "m2",
+     "surface": "recinto de la Casa del Ciervo",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Location"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "dentro de Vado Alto",
+     "local_ref": "m3",
+     "surface": "Vado Alto",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Location"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "ccd0b0165a9a40551a78a07c4f0e3abb": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 242187,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "Ilaria Vandreth dirigió la Casa del Ciervo desde el invierno de 1041 hasta la caúda de Vado Alto.",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 1.0,
+       "predicate": "LEADS"
+      }
+     ],
+     "relation_phrase": "Ilaria Vandreth dirigió la Casa del Ciervo desde el invierno de 1041 hasta la caúda de Vado Alto.",
+     "subject_ref": "m1",
+     "temporal_expressions": [
+      "el invierno de 1041",
+      "la caúda de Vado Alto"
+     ],
+     "temporal_resolution_required": false
+    },
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "el cargo recayó en Daiki Oharu, que lo conserva desde la primavera de 1042.",
+     "negated": false,
+     "object_ref": "m3",
+     "predicate_candidates": [
+      {
+       "confidence": 1.0,
+       "predicate": "LED_BY"
+      }
+     ],
+     "relation_phrase": "el cargo recayó en Daiki Oharu, que lo conserva desde la primavera de 1042.",
+     "subject_ref": "m2",
+     "temporal_expressions": [
+      "la primavera de 1042"
+     ],
+     "temporal_resolution_required": false
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "Ilaria Vandreth dirigió la Casa del Ciervo desde el invierno de 1041 hasta la caúda de Vado Alto.",
+     "local_ref": "m1",
+     "surface": "Ilaria Vandreth",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Ilaria Vandreth dirigió la Casa del Ciervo desde el invierno de 1041 hasta la caúda de Vado Alto.",
+     "local_ref": "m2",
+     "surface": "Casa del Ciervo",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "el cargo recayó en Daiki Oharu, que lo conserva desde la primavera de 1042.",
+     "local_ref": "m3",
+     "surface": "Daiki Oharu",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Ilaria Vandreth dirigió la Casa del Ciervo desde el invierno de 1041 hasta la caúda de Vado Alto.",
+     "local_ref": "m4",
+     "surface": "Vado Alto",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Location"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "e2e331c2f4469146fba69a1bddf712a9": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 123083,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [
+    {
+     "evidence_quote": "ninguna de las dos casas acepta ya el arbitraje del puerto.",
+     "reason": "No hay evidencia clara de una relación de propiedad o membresía entre las entidades mencionadas."
+    }
+   ],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "El Gremio de Faros y la Cofradía de Ámbar llevan enfrentados desde la marea negra;",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 0.9,
+       "predicate": "RIVAL_OF"
+      }
+     ],
+     "relation_phrase": "llevan enfrentados desde la marea negra",
+     "subject_ref": "m1",
+     "temporal_expressions": [
+      "llevan enfrentados desde la marea negra"
+     ],
+     "temporal_resolution_required": true
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "El Gremio de Faros y la Cofradía de Ámbar llevan enfrentados desde la marea negra;",
+     "local_ref": "m1",
+     "surface": "El Gremio de Faros",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "El Gremio de Faros y la Cofradía de Ámbar llevan enfrentados desde la marea negra;",
+     "local_ref": "m2",
+     "surface": "la Cofradía de Ámbar",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "ninguna de las dos casas acepta ya el arbitraje del puerto.",
+     "local_ref": "m3",
+     "surface": "puerto",
+     "type_candidates": [
+      {
+       "confidence": 0.8,
+       "type": "Location"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "f4d05ef43f1f3db2ab2a2f327b54a3ac": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 87383,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "el Gremio de Faros compró Amarra Vieja el invierno pasado",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 1.0,
+       "predicate": "OWNS"
+      }
+     ],
+     "relation_phrase": "el Gremio de Faros compró Amarra Vieja el invierno pasado",
+     "subject_ref": "m1",
+     "temporal_expressions": [
+      "el invierno pasado"
+     ],
+     "temporal_resolution_required": false
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "el Gremio de Faros compró Amarra Vieja el invierno pasado",
+     "local_ref": "m1",
+     "surface": "el Gremio de Faros",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "el Gremio de Faros compró Amarra Vieja el invierno pasado",
+     "local_ref": "m2",
+     "surface": "Amarra Vieja",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Location"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "f81bf5e1cbf265e8cfec17ecb69cc1b8": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 150462,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "Sela Marrec nació en Amarra Vieja, un barrio de Puerto Quilla, y allí conserva todavía su taller de ámbar.",
+     "negated": false,
+     "object_ref": "m3",
+     "predicate_candidates": [
+      {
+       "confidence": 1.0,
+       "predicate": "LOCATED_IN"
+      }
+     ],
+     "relation_phrase": "un barrio de Puerto Quilla",
+     "subject_ref": "m2",
+     "temporal_expressions": [],
+     "temporal_resolution_required": false
+    },
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "Sela Marrec nació en Amarra Vieja, un barrio de Puerto Quilla, y allí conserva todavía su taller de ámbar.",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 1.0,
+       "predicate": "LOCATED_IN"
+      }
+     ],
+     "relation_phrase": "nació en Amarra Vieja",
+     "subject_ref": "m1",
+     "temporal_expressions": [],
+     "temporal_resolution_required": false
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "Sela Marrec nació en Amarra Vieja, un barrio de Puerto Quilla, y allí conserva todavía su taller de ámbar.",
+     "local_ref": "m1",
+     "surface": "Sela Marrec",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Sela Marrec nació en Amarra Vieja, un barrio de Puerto Quilla, y allí conserva todavía su taller de ámbar.",
+     "local_ref": "m2",
+     "surface": "Amarra Vieja",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Location"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "Sela Marrec nació en Amarra Vieja, un barrio de Puerto Quilla, y allí conserva todavía su taller de ámbar.",
+     "local_ref": "m3",
+     "surface": "Puerto Quilla",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Location"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ },
+ "f97fec1f8b0cb9dda971da63baaadbea": {
+  "attempts": 1,
+  "json_retries": 0,
+  "latency_ms": 224718,
+  "model": "qwen2.5:7b",
+  "payload": {
+   "abstentions": [
+    {
+     "evidence_quote": "el rumor de que la Casa del Ciervo y el Consejo de Umbra firmaron un pacto secreto la noche de la última luna; nadie ha visto el documento.",
+     "reason": "El texto niega que se haya visto el documento, por lo que no podemos afirmar una relación con certeza."
+    }
+   ],
+   "claims": [
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "UNDIRECTED"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "Corre el rumor de que la Casa del Ciervo y el Consejo de Umbra firmaron un pacto secreto la noche de la última luna; nadie ha visto el documento.",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 0.9,
+       "predicate": "ALLY_OF"
+      }
+     ],
+     "relation_phrase": "la Casa del Ciervo y el Consejo de Umbra firmaron un pacto secreto",
+     "subject_ref": "m1",
+     "temporal_expressions": [
+      "la noche de la última luna"
+     ],
+     "temporal_resolution_required": true
+    },
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "SUBJECT_TO_OBJECT"
+      }
+     ],
+     "epistemic_status": "UNKNOWN",
+     "evidence_quote": "¿Llegó Ilaria Vandreth a jurar lealtad al Consejo de Umbra?",
+     "negated": false,
+     "object_ref": "m2",
+     "predicate_candidates": [
+      {
+       "confidence": 0.7,
+       "predicate": "ALLY_OF"
+      },
+      {
+       "confidence": 0.6,
+       "predicate": "MEMBER_OF"
+      }
+     ],
+     "relation_phrase": "¿Llegó Ilaria Vandreth a jurar lealtad al Consejo de Umbra?",
+     "subject_ref": "m3",
+     "temporal_expressions": [],
+     "temporal_resolution_required": false
+    },
+    {
+     "direction_candidates": [
+      {
+       "confidence": 1.0,
+       "direction": "OBJECT_TO_SUBJECT"
+      }
+     ],
+     "epistemic_status": "ASSERTED",
+     "evidence_quote": "...en la farsa que los titiriteros representaron en la plaza, el ciervo degollaba al búho.",
+     "negated": false,
+     "object_ref": "m1",
+     "predicate_candidates": [
+      {
+       "confidence": 0.8,
+       "predicate": "LOCATED_IN"
+      }
+     ],
+     "relation_phrase": "en la farsa que los titiriteros representaron en la plaza, el ciervo degollaba al búho",
+     "subject_ref": "m4",
+     "temporal_expressions": [],
+     "temporal_resolution_required": false
+    }
+   ],
+   "mentions": [
+    {
+     "evidence_quote": "Corre el rumor de que la Casa del Ciervo y el Consejo de Umbra firmaron un pacto secreto...",
+     "local_ref": "m1",
+     "surface": "Casa del Ciervo",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "...la Casa del Ciervo y el Consejo de Umbra firmaron un pacto secreto...",
+     "local_ref": "m2",
+     "surface": "Consejo de Umbra",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Faction"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "¿Llegó Ilaria Vandreth a jurar lealtad al Consejo de Umbra?",
+     "local_ref": "m3",
+     "surface": "Ilaria Vandreth",
+     "type_candidates": [
+      {
+       "confidence": 1.0,
+       "type": "Character"
+      }
+     ]
+    },
+    {
+     "evidence_quote": "...en la farsa que los titiriteros representaron en la plaza...",
+     "local_ref": "m4",
+     "surface": "titiriteros",
+     "type_candidates": [
+      {
+       "confidence": 0.8,
+       "type": "Faction"
+      }
+     ]
+    }
+   ]
+  },
+  "provider": "ollama",
+  "purpose": "extraction",
+  "usage": {}
+ }
+}
