@@ -73,13 +73,28 @@ su recall está medido con una cuarta parte del corpus sin ver.
 | Planes aprobados | 0 | 0 |
 | Latencia · llamadas | 272 ms · 0 | 48 min · 58 |
 
-Lo que esto añade a lo que ya se sabía: (a) A da **exactamente lo mismo** aislado
-y en cadena, que es la prueba de que el orquestador no añade ni quita nada; (b) en
-D **no se pierde un solo claim entre etapas** —18 extraídos, 18 decididos—, el
-corte está en la decisión (0 ACCEPT) por la política de "origen no confiable ⇒
-revisión humana"; (c) los claims no puntúan porque el emparejamiento uno a uno se
-rompe con la UNIÓN de los dos extractores, que es la justificación medida del
-reconciliador, ahora confirmada dentro de la cadena.
+Lo que esto añade a lo que ya se sabía:
+
+(a) **A da exactamente lo mismo aislado y en cadena** — prueba de que el
+orquestador no añade ni quita nada.
+
+(b) En D **no se pierde un solo claim entre etapas** (18 extraídos, 18 decididos),
+pero el 0 ACCEPT **no** se explica por la política de "origen no confiable ⇒
+revisión humana": esa política explica **7 de 18 (39 %)**. Los otros **11 (61 %)**
+se pararon en ejes de calidad real —`SUBJECT_NOT_GROUNDED`,
+`OBJECT_NOT_GROUNDED`, `PREDICATE_NOT_IN_PROFILE`, `HALLUCINATED_MENTION`,
+`HALLUCINATED_QUOTE`, `UNKNOWN_ENTITY_TYPE`—, con el modelo llegando a inventarse
+el predicado `NEGATED_MEMBER_OF` en vez de usar `negated: true`. Levantar hoy la
+política daría 7 escrituras como mucho, no 18.
+
+(c) Los claims no puntúan porque `claim_key` devuelve `None` cuando un argumento
+pierde la adjudicación de su mención: eso explica el `tp=0 / fp=18` por completo y
+es la justificación medida del reconciliador, confirmada dentro de la cadena.
+
+(d) La caída de precisión de **menciones** (0.905 → 0.476) queda como **hipótesis
+pendiente**: la métrica no distingue "duplicados por la unión" de "falsos
+positivos del modelo" (dan cifras idénticas), y hay FP genuinos que ningún
+reconciliador arregla. Lo resuelve la corrida C1 aislada con prompt 1.2.0.
 
 ### Lecturas
 
@@ -160,3 +175,18 @@ reconciliador, ahora confirmada dentro de la cadena.
   verificación de despliegue pendiente.
 - `nvidia.env` no lo carga ninguna unidad systemd: la clave está inerte en
   producción.
+- **El camino de escritura de la negación tiene cobertura CERO en producción.**
+  `extraction/deterministic.py:643` (`review = bool(negated or ...)`, preexistente)
+  hace que TODO claim negado, de cualquier tipo y por cualquier carril, nazca con
+  `review_required=True` → `REVIEW` → plan con cero operaciones. La afirmación
+  negativa, la garantía de "sin arista positiva" y el `SUPERSEDE_ASSERTION` con
+  concurrencia optimista sólo se ejercitan con claims sintéticos de test. Decidir
+  si un negado que supera todas las verificaciones locales puede aprobarse es del
+  organizador; la línea NO se ha tocado.
+- **Límites léxicos de la negación, medidos**: 20 de 20 verbos de actitud fuera de
+  `SCOPE_VERBS` (`duda`, `niega`, `asegura`, `sostiene`, `opina`…) niegan
+  mecánicamente la relación (fail-closed peligroso); 8 de 8 cesaciones reales
+  fuera de `CESSATION_PHRASES` (`se marchó de`, `fue destituido de`, `perdió el
+  liderazgo de`) no se detectan (fail-open benigno).
+- El coste real de Ollama en esta ronda: 50,1 s/llamada y 181,7 s/episodio,
+  **×1,41** sobre los 129 s/episodio del bloque 12.

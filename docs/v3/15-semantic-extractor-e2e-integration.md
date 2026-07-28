@@ -298,8 +298,14 @@ fecha de cierre es honesta; una fecha inventada, no.
 El **writer no se ha tocado**: `SUPERSEDE_ASSERTION` ya estaba soportado, con su
 `reason_code` obligatorio (R1) y su `expected_version`. Ejecuta; no interpreta.
 
-## 9. Pruebas (`tests/test_knowledge_v3_negation.py`, 45)
+## 9. Pruebas (`tests/test_knowledge_v3_negation.py`, 68)
 
+* **cesación negada (14)** — el defecto BLOQUEANTE del revisor independiente:
+  los 8 casos de la familia (`no dejó de`, `no cesó de`, `no dimitió de`, `no fue
+  expulsado de`, `no renunció a`, `no rompió su alianza`, `nunca dejó de`, `jamás
+  abandonó`), el caso con la marca DESPUÉS del foco (`…y no la abandona`), las 8
+  cesaciones reales como control positivo, y **dos tests de mutación** que quitan
+  cada mitad de la guarda y comprueban que la inversión vuelve;
 * **extractor (11)** — los diez casos del encargo sobre texto real: simple,
   nunca, ya no / dejó de / cesó / abandonó / rompió su alianza, todavía no, aún
   no, alcance complejo, negación en otra cláusula, doble negación, `ni`/`tampoco`
@@ -317,6 +323,55 @@ El **writer no se ha tocado**: `SUPERSEDE_ASSERTION` ya estaba soportado, con su
   afirmación previa: se comprueba que `negated`, el tipo, la evidencia, la
   temporalidad y la decisión sobreviven hasta el plan, y que **ninguna** negación
   produce una operación con `negated=false`.
+
+## 9.bis Cobertura CERO del camino de escritura de negación (declarado)
+
+Hay que decirlo sin rodeos, porque es la limitación más importante de la Parte 2:
+
+`extraction/deterministic.py:643` —línea **preexistente a este bloque**— dice:
+
+```python
+review = bool(negated or hint != "ASSERTED" or confidence < 0.6 or ...)
+```
+
+Es decir: **todo claim negado, de cualquier tipo y por cualquier carril, nace con
+`review_required=True`.** El carril semántico llega a la misma conclusión por otra
+vía (`force_review=True` para toda salida de modelo). Y un claim con
+`review_required` produce `EXTRACTOR_REQUESTED_REVIEW` → decisión `REVIEW` → el
+plan de escritura sale **con cero operaciones**.
+
+Consecuencia, medida y no supuesta:
+
+> Todo el camino de escritura de la negación —la `FactAssertion` negativa, la
+> garantía de "sin arista positiva", el `SUPERSEDE_ASSERTION` con
+> `expected_version`/`expected_hash`, la supersesión que conserva historia— se
+> ejercita **únicamente** con claims sintéticos de test construidos con
+> `review_required=False`. **En producción tiene cobertura cero.**
+
+Lo que las pruebas SÍ demuestran es que ese camino es correcto *si alguna vez se
+recorre*, y que nada de lo que hoy produce la cadena puede recorrerlo por
+accidente. Lo que **no** demuestran es que se recorra.
+
+**Esa línea no se toca en este bloque.** Decidir si un claim negado que supera
+todas las verificaciones locales puede aprobarse sin humano es una decisión de
+producto, no de implementación, y corresponde al organizador. Queda anotada en la
+deuda de `14-estado-y-decisiones.md`.
+
+## 9.ter Límites léxicos, con números
+
+`SCOPE_VERBS` y `CESSATION_PHRASES` son listas cerradas en español. Cubren el
+corpus, no el idioma, y los dos fallos tienen signos opuestos:
+
+| Límite | Medido | Signo del fallo |
+|---|---|---|
+| Verbos de actitud fuera de `SCOPE_VERBS` (`duda`, `niega`, `asegura`, `sostiene`, `opina`…) | **20 de 20** niegan mecánicamente la relación | **fail-CLOSED peligroso**: produce una negación que el texto no afirma |
+| Cesaciones reales fuera de `CESSATION_PHRASES` (`se marchó de`, `fue destituido de`, `perdió el liderazgo de`…) | **8 de 8** no se detectan | **fail-open benigno**: no se detecta la cesación, pero no se inventa ninguna negación |
+
+El primero es el que hay que vigilar: "el magistrado **duda que** Toturi pertenezca
+al clan" acaba hoy como negación simple. El segundo sólo pierde información.
+
+Ninguno se amplía en este bloque: alargar las listas a ojo sin corpus que lo mida
+es cómo se construye un sistema que parece funcionar. Queda anotado como deuda.
 
 ## 10. Métricas de negación en el banco
 
@@ -471,19 +526,29 @@ cadena: hasta este bloque, esa corrida montaba el legacy.
 
 Lecturas, sin maquillar:
 
-1. **El semántico aporta lo que el determinista no tiene y viceversa.** Tipo de
-   entidad pasa de 0.000 a **0.949** y el *recall* de menciones sube. A cambio, la
-   precisión de menciones se hunde (43 falsos positivos) porque la salida es la
-   **UNIÓN** de los dos extractores sin reconciliador: 42 menciones locales + 40
-   del modelo, muchas la misma entidad con dos identificadores.
+1. **El semántico aporta lo que el determinista no tiene.** Tipo de entidad pasa
+   de 0.000 a **0.949** y el *recall* de menciones sube (0.745 → 0.765). A cambio,
+   la precisión se hunde: **43 falsos positivos** frente a 4. De dónde salen esos
+   43 es la hipótesis pendiente del punto 3 — no está medido.
 2. **Los claims no puntúan, y no es porque se pierdan en la cadena.** 18 claims
    extraídos → **18 decisiones del motor**: no se cae ni uno entre etapas. Lo que
-   falla es el EMPAREJAMIENTO del arnés: es uno a uno sobre menciones, adjudica
-   cada mención a uno de los dos extractores y deja los claims del otro con
-   argumentos sin alinear. Es exactamente el defecto que `14-estado-y-decisiones.md`
-   §2.5 dejó anotado como justificación medida del `ProposalReconciler`, ahora
-   confirmado **dentro** de la cadena y no sólo en el banco.
-3. **Cero trampas pisadas** (0/4) y cero claims no anclados en los episodios
+   falla es el EMPAREJAMIENTO del arnés: `claim_key` devuelve `None` en cuanto uno
+   de los dos argumentos pierde la adjudicación de su mención, así que el claim no
+   puede emparejarse con ningún gold. Eso explica **por completo** el
+   `tp = 0 / fp = 18`, está demostrado, y es la justificación medida del
+   `ProposalReconciler` ahora confirmada **dentro** de la cadena.
+3. **La caída de precisión de MENCIONES (0.905 → 0.476) es HIPÓTESIS PENDIENTE,
+   no conclusión.** Es tentador atribuirla entera a "duplicados por la unión", y
+   sería ir más allá de lo medido: un experimento controlado del revisor
+   independiente muestra que *duplicados por unión* y *falsos positivos genuinos*
+   producen **métricas idénticas** (tp 10 / fp 10 / P 0.500 en ambos), así que la
+   métrica sola **no discrimina**. Y hay al menos un FP genuino que ningún
+   reconciliador arregla: el modelo emite `"emisarios"` —nombre común— tipado como
+   entidad. El experimento que sí discrimina es la corrida **C1 aislada** (sólo el
+   semántico, sin unión) con el prompt 1.2.0: si su precisión de menciones es alta,
+   los 43 fp son duplicados; si es igual de baja, son alucinaciones del modelo.
+   Está lanzada (§12.3.2) y **este documento se actualiza cuando termine**.
+4. **Cero trampas pisadas** (0/4) y cero claims no anclados en los episodios
    trampa: la capa local de no-factividad se sostiene con el prompt 1.2.0.
 
 ### 12.3.1 Dónde se detiene la cadena (D)
@@ -505,22 +570,46 @@ ledger              0
 ```
 
 **La cadena no pierde claims: los detiene, y en un sitio declarado.** Ninguna
-fuente se para (`fuentes_paradas: []`, frente a las 6 de `local_only`). El corte
-está en la DECISIÓN: **0 ACCEPT**, porque todo claim de LLM nace con
-`review_required=True` y el motor lo respeta. No es un fallo del extractor ni del
-motor; es la política de "origen no confiable ⇒ revisión humana" que
-`14-estado-y-decisiones.md` §4.3 ya tiene listada como lo siguiente a atacar.
-Ahora está **medida en la cadena**: 7 REVIEW + 10 ABSTAIN + 1 REJECT_INVALID, 5
-planes construidos y firmados, ninguno aprobado, ledger vacío.
+fuente se para (`fuentes_paradas: []`, frente a las 6 de `local_only`). Pero
+atribuir el **0 ACCEPT** a la política de "origen no confiable ⇒ revisión humana"
+sería una lectura cómoda y falsa. El desglose real de las 18 decisiones:
+
+| Parada | Nº | % | Qué la causó |
+|---|---:|---:|---|
+| **REVIEW** | 7 | **39 %** | la política: `review_required=True` en todo claim de LLM |
+| **ABSTAIN** | 10 | **56 %** | ejes de calidad REAL, antes de que la política importe |
+| **REJECT_INVALID** | 1 | 6 % | ídem |
+
+**En el 61 % de los casos el modelo falla antes de que la política importe.** Los
+diagnósticos de esta misma corrida lo dicen con nombre propio:
+`SUBJECT_NOT_GROUNDED`, `OBJECT_NOT_GROUNDED`, `PREDICATE_NOT_IN_PROFILE`,
+`HALLUCINATED_MENTION`, `HALLUCINATED_QUOTE`, `UNKNOWN_ENTITY_TYPE`. Y la caché de
+respuestas muestra al modelo **inventando el predicado `NEGATED_MEMBER_OF`** en
+lugar de usar el predicado de la ontología con `negated: true` — exactamente lo
+que la ontología cerrada existe para impedir, y que la frontera local tumba.
+
+Dicho de otro modo: levantar hoy la política de revisión no daría 18 escrituras,
+daría 7 como mucho. Los otros 11 no están esperando permiso, están mal.
+(7 REVIEW + 10 ABSTAIN + 1 REJECT, 5 planes construidos y firmados, ninguno
+aprobado, ledger vacío.)
 
 ### 12.3.2 C1 aislado (semántico solo) — en curso
 
 La pasada del banco aislado con el prompt 1.2.0
 (`semantic_bench --config C1 --config D`) seguía ejecutándose al cerrar este
-documento; a ~50 min por pasada contra este servidor, no cabía en la sesión. El
-comando está lanzado y su salida cae en
-`docs/v3/measurements/runs/bench-C1-D.json`, con caché en disco
-(`c1-cache.json`) para que repuntuar no obligue a repetir la tanda.
+documento. Su salida cae en `docs/v3/measurements/runs/bench-C1-D.json`, con caché
+en disco (`c1-cache.json`) para que repuntuar —o reanudar tras una interrupción—
+no obligue a repetir la tanda.
+
+**No es un extra: es el experimento que resuelve la hipótesis de §12.3.2 sobre la
+precisión de menciones.** C1 corre el semántico SOLO, sin unión con el
+determinista, así que su precisión de menciones separa "duplicados por la unión"
+de "falsos positivos del modelo", cosa que la métrica de D no puede hacer.
+
+Sobre el coste real, con los números medidos y no redondeados hacia arriba: **58
+llamadas en 48 min 28 s = 50,1 s por llamada, 181,7 s por episodio.** Frente a los
+129 s/episodio del bloque 12 son **×1,41**, no "el doble" ni "~4 min por llamada"
+como decía una versión anterior de este documento.
 
 Aviso para quien lea la tabla de `14-estado-y-decisiones.md` §2: **las cifras C1 y
 C2 de allí son del banco AISLADO con el prompt 1.1.0**. No son comparables con
@@ -561,7 +650,8 @@ Lo que sí está medido y demostrado:
 | Cesación que cierra vigencia | no existía | `SUPERSEDE_ASSERTION` anclado, historia intacta |
 | Cesación sin relación previa | — | no la inventa: `CESSATION_WITHOUT_ACTIVE_ASSERTION` |
 | Relaciones positivas creadas por error desde un negativo | posible | **imposible**: sin `PROJECT_RELATION` y con prueba E2E |
-| Pruebas de negación | 0 | **45** |
+| `no dejó de servir` cerraba la vigencia que el texto afirma | **sí** (defecto BLOQUEANTE) | **no** — abstención `REVIEW_NEGATION_SCOPE` |
+| Pruebas de negación | 0 | **68** |
 
 Las métricas de banco (`negation_metrics`) quedan añadidas y se leerán con
 contenido en cuanto el corpus tenga negaciones que el extractor de la cadena
