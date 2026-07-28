@@ -20,7 +20,10 @@ Reglas que este modulo hace cumplir por construccion:
 """
 from __future__ import annotations
 
+import hashlib as _hashlib
+import hmac as _hmac
 import re
+import secrets as _secrets
 import unicodedata
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -79,6 +82,32 @@ class AmbiguousAnchorError(ProposalError):
 
 class UnverifiedAttributionError(ProposalError):
     """La atribucion no la derivo el router del resultado real."""
+
+
+#: Sal privada del proceso. No se serializa, no se exporta y no es adivinable:
+#: es lo unico que permite distinguir un testigo emitido por esta capa de uno
+#: escrito a mano.
+_TOKEN_SALT = _secrets.token_bytes(32)
+
+#: Nombres que NO pueden ser el ultimo segmento del `step` de un paso local:
+#: `ProviderAttribution.local(step="extraction.nvidia")` seria exactamente la
+#: mentira que todo esto existe para impedir.
+_NON_LOCAL_STEP_SUFFIXES: frozenset = frozenset(
+    {"ollama", "nvidia", "external", "openai", "remote"}
+)
+
+
+def _attribution_token(tier: "Tier", step: str, model) -> str:
+    """Testigo LIGADO al contenido de la atribucion.
+
+    Ligarlo importa: un testigo suelto (`verified=True`, o un centinela
+    compartido) sobrevive a `dataclasses.replace(attr, tier=Tier.LOCAL)`, de
+    modo que bastaba tomar una atribucion legitima de NVIDIA y cambiarle el
+    tier para blanquearla. Al derivar el testigo de `(tier, step, model)`,
+    cualquier retoque posterior lo invalida.
+    """
+    material = f"{tier.value}|{step}|{model}".encode("utf-8")
+    return _hmac.new(_TOKEN_SALT, material, _hashlib.sha256).hexdigest()
 
 
 #: Caracteres admisibles en un identificador de modelo. Lo que devuelve el
@@ -172,35 +201,64 @@ class ProviderAttribution:
     step: str
     model: Optional[str] = None
     params_hash: Optional[dict] = None
-    verified: bool = False
+    #: Testigo ligado a `(tier, step, model)`. `None` = sin verificar. No es un
+    #: booleano a proposito: un booleano se pone a mano.
+    verified: Optional[str] = None
 
     def as_contract_provider(self) -> Provider:
         return self.tier.as_contract_provider()
 
+    def is_verified(self) -> bool:
+        """True solo si el testigo corresponde al contenido ACTUAL."""
+        if not isinstance(self.verified, str):
+            return False
+        return _hmac.compare_digest(
+            self.verified, _attribution_token(self.tier, self.step, self.model)
+        )
+
     @classmethod
-    def local(cls, name: str, version: str, step: str, **kw) -> "ProviderAttribution":
-        """Atribucion de un paso LOCAL determinista. El tier no es elegible."""
-        kw.pop("tier", None)
-        kw.pop("verified", None)
+    def _emit(cls, tier: Tier, name: str, version: str, step: str, model=None, **kw):
+        """Unico punto del modulo que emite un testigo valido."""
+        clean = sanitize_model(model)
         return cls(
-            tier=Tier.LOCAL,
+            tier=tier,
             name=name,
             version=version,
             step=step,
-            model=sanitize_model(kw.pop("model", None)),
-            verified=True,
+            model=clean,
+            verified=_attribution_token(tier, step, clean),
             **kw,
         )
+
+    @classmethod
+    def local(cls, name: str, version: str, step: str, **kw) -> "ProviderAttribution":
+        """Atribucion de un paso LOCAL determinista. El tier no es elegible.
+
+        El `step` se valida: un paso local no puede llamarse `…​.nvidia`. Sin
+        esa comprobacion, `local(step="extraction.nvidia")` producia una traza
+        que decia `provider: local` sobre un paso que cualquier lector humano
+        atribuiria al externo.
+        """
+        kw.pop("tier", None)
+        kw.pop("verified", None)
+        suffix = str(step).rsplit(".", 1)[-1].strip().casefold()
+        if suffix in _NON_LOCAL_STEP_SUFFIXES:
+            raise ProposalError(
+                f"un paso local no puede llamarse {step!r}: el sufijo {suffix!r} "
+                "designa a un proveedor y la traza resultante mentiria"
+            )
+        return cls._emit(Tier.LOCAL, name, version, step, model=kw.pop("model", None), **kw)
 
 
 def _require_verified(attribution: ProviderAttribution) -> None:
     """Rechaza una atribucion que no derive del resultado real."""
-    if not getattr(attribution, "verified", False):
+    if not getattr(attribution, "is_verified", lambda: False)():
         raise UnverifiedAttributionError(
             "la atribucion no la derivo el router del resultado real: usa "
             "`ProviderOutcome.attribution()` o `ProviderAttribution.local()`. "
-            "Escribir el tier a mano permite etiquetar como local una salida "
-            "externa, y el documento resultante validaria igual"
+            "Escribir el tier a mano —o retocarlo con dataclasses.replace— "
+            "permite etiquetar como local una salida externa, y el documento "
+            "resultante validaria igual"
         )
 
 

@@ -102,7 +102,14 @@ _INJECTION_PATTERNS = [
     ),
     (
         "INJECTION_TOOL_CALL",
-        re.compile(r"(?i)\b(exec|eval|os\.system|subprocess|__import__|DROP\s+TABLE|MERGE\s*\()"),
+        # El `\b` de CIERRE es imprescindible: sin el, `eval` casaba dentro de
+        # `eval_count` —un metadato que anade nuestro propio `execute()`— y
+        # marcaba como inyeccion el 100 % de las extracciones de Ollama. Una
+        # alarma que salta siempre no es una alarma.
+        re.compile(
+            r"(?i)(\b(exec|eval|subprocess|__import__)\b"
+            r"|\bos\.system\b|\bDROP\s+TABLE\b|\bMERGE\s*\()"
+        ),
     ),
     ("INJECTION_URL_EXFIL", re.compile(r"(?i)\b(https?|ftp)://[^\s\"']{4,}")),
 ]
@@ -265,14 +272,30 @@ def _values_of_key(obj: Any, key: str) -> list:
     return out
 
 
+def provider_payload(result: Any) -> Any:
+    """La parte de la respuesta que escribio EL PROVEEDOR.
+
+    El resto del dict —`provider`, `model`, `eval_count`, `prompt_eval_count`,
+    `total_duration_ns`…— lo construimos nosotros en `execute()`. Escanear
+    nuestro propio sobre en busca de inyecciones era buscar ataques en texto
+    que habiamos escrito nosotros, y producia falsos positivos garantizados.
+    """
+    if isinstance(result, dict) and "payload" in result:
+        return result["payload"]
+    return result
+
+
 def scan_injection(result: Any) -> list:
     """Devuelve los `reason_codes` de inyeccion detectados. NO lanza.
+
+    Se escanea SOLO lo que produjo el proveedor (`provider_payload`).
 
     Detectar no es obedecer y tampoco es censurar: el contenido sigue su curso
     hacia la revision humana con la etiqueta puesta.
     """
-    text = result if isinstance(result, str) else json.dumps(
-        result, ensure_ascii=False, default=str
+    target = provider_payload(result)
+    text = target if isinstance(target, str) else json.dumps(
+        target, ensure_ascii=False, default=str
     )
     return [code for code, pat in _INJECTION_PATTERNS if pat.search(text)]
 

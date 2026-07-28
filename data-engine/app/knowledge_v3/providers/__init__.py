@@ -36,6 +36,7 @@ from knowledge_v3.providers.guards import (  # noqa: F401
     assert_size,
     guard_provider_result,
     parse_strict_object,
+    provider_payload,
     scan_injection,
 )
 from knowledge_v3.providers.policy import (  # noqa: F401
@@ -100,6 +101,7 @@ __all__ = [
     "mentions_from_extraction",
     "normalize_text",
     "parse_strict_object",
+    "provider_payload",
     "scan_injection",
     "to_provider_capability",
     "to_task_type",

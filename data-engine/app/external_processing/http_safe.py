@@ -19,8 +19,16 @@ dia NVIDIA mueve su endpoint, se cambia la configuracion, que para eso existe.
 **2. Sin deadline de pared (MEDIA).**
 `timeout` de `urlopen` es por operacion de socket, no total. Un servidor que
 gotea un byte cada 0,2 s mantiene viva la llamada indefinidamente con
-`timeout=3`: cada lectura individual llega a tiempo. `read_bounded()` impone un
-plazo de pared que se comprueba en cada vuelta del bucle.
+`timeout=3`: cada lectura individual llega a tiempo.
+
+`read_bounded()` impone un plazo de pared, pero para que sea real hay que leer
+con **`read1()`**, no con `read()`. `read()` no vuelve hasta reunir los bytes
+pedidos o agotar el flujo: pedir 64 KiB a un servidor que gotea bloquea dentro
+de una sola vuelta del bucle, y el deadline —que solo se evalua entre vueltas—
+no llega a mirarse nunca. `read1()` devuelve lo que haya disponible tras una
+unica lectura del socket, de modo que el bucle gira de verdad y el plazo se
+comprueba de verdad. Esta fue la primera version de este arreglo, y estaba
+mal.
 
 **3. Lectura no acotada (MEDIA).**
 Leer y despues mirar el tamano ya es tarde: el proceso cargo la respuesta
@@ -125,7 +133,13 @@ def read_bounded(
         want = min(READ_CHUNK_BYTES, max_bytes + 1 - total)
         if want <= 0:
             break
-        chunk = resp.read(want)
+        # `read1` y no `read`: `read` no vuelve hasta reunir los `want` bytes,
+        # asi que un servidor a goteo bloquea DENTRO de esta vuelta y el
+        # deadline de abajo no se evalua jamas. `read1` devuelve lo disponible
+        # tras una sola lectura del socket. Si el objeto no lo implementa
+        # (dobles de test, ficheros), se cae a `read`.
+        reader = getattr(resp, "read1", None) or resp.read
+        chunk = reader(want)
         if not chunk:
             break
         chunks.append(chunk)
@@ -143,11 +157,35 @@ def cap_retry_after(value, *, maximum: float = MAX_RETRY_AFTER_SECONDS) -> float
 
     Un `Retry-After: 99999999` bloqueaba un hilo del dispatcher durante anos,
     con su semaforo y su reserva de presupuesto retenidos.
+
+    RFC 9110 admite **dos formas**: delta en segundos y HTTP-date. Tratar la
+    fecha como "no parseable -> 0" hacia reintentar de inmediato justo contra
+    el servidor que acababa de pedir calma.
     """
+    if value is None:
+        return 0.0
     try:
         seconds = float(value)
     except (TypeError, ValueError):
+        seconds = _retry_after_from_date(value)
+    if seconds is None or seconds != seconds:  # None o NaN
         return 0.0
-    if seconds != seconds or seconds in (float("inf"), float("-inf")):  # NaN / inf
-        return 0.0
+    if seconds in (float("inf"), float("-inf")):
+        return maximum if seconds > 0 else 0.0
     return max(0.0, min(seconds, maximum))
+
+
+def _retry_after_from_date(value) -> "float | None":
+    """Segundos que faltan hasta una fecha HTTP, o None si no lo es."""
+    from datetime import datetime, timezone
+    from email.utils import parsedate_to_datetime
+
+    try:
+        when = parsedate_to_datetime(str(value))
+    except (TypeError, ValueError, IndexError):
+        return None
+    if when is None:
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    return (when - datetime.now(timezone.utc)).total_seconds()

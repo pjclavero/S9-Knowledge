@@ -105,20 +105,16 @@ class ProviderOutcome:
         igualmente. La veracidad de `provider_trace` era una convencion; ahora
         es una consecuencia.
         """
-        from knowledge_v3.providers.proposals import ProviderAttribution, sanitize_model
+        from knowledge_v3.providers.proposals import ProviderAttribution
 
         if not self.ok or self.tier is None:
             raise ValueError(
                 "no se puede atribuir una propuesta a partir de un resultado fallido"
             )
-        return ProviderAttribution(
-            tier=self.tier,
-            name=name,
-            version=version,
-            step=self.attribution_step(),
-            # El modelo lo dicta el proveedor: se registra, pero saneado.
-            model=sanitize_model(self.model),
-            verified=True,
+        # `_emit` sanea el modelo (lo dicta el proveedor) y liga el testigo al
+        # contenido, de modo que retocar la atribucion despues la invalida.
+        return ProviderAttribution._emit(
+            self.tier, name, version, self.attribution_step(), model=self.model
         )
 
 
@@ -145,11 +141,25 @@ class ProviderRouter:
         default_model: Optional[str] = None,
         apply_policy_timeout: bool = True,
     ) -> "ProviderRouter":
+        """Registra un proveedor en un tier.
+
+        **Muta la instancia**: fija `provider.timeout_seconds` segun la
+        politica del tier salvo que se pase `apply_policy_timeout=False`. Usa
+        una instancia por router.
+        """
         entry = RegisteredProvider(
             provider=provider, tier=tier, cost_units=cost_units, default_model=default_model
         )
         # `RoutingPolicy.timeout_seconds_by_tier` era codigo muerto: se
         # declaraba y no lo leia nadie. O se aplica o sobra; se aplica.
+        #
+        # OJO, EFECTO LATERAL: esto MUTA la instancia recibida. Si el mismo
+        # objeto proveedor se registra en dos routers con politicas distintas,
+        # gana el ultimo, y el primero quedara usando un plazo que no eligio.
+        # No se clona a proposito —un proveedor puede tener conexiones o
+        # semaforos que no deben duplicarse—, asi que la regla es: **una
+        # instancia de proveedor por router**. Con `apply_policy_timeout=False`
+        # el objeto no se toca.
         if apply_policy_timeout and hasattr(provider, "timeout_seconds"):
             provider.timeout_seconds = self.policy.timeout_for(tier)
         self._by_name[entry.name] = entry

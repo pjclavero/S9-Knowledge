@@ -223,14 +223,13 @@ def make_attribution(**overrides):
     version = overrides.pop("version", "3.0.0")
 
     if tier is Tier.LOCAL:
-        attribution = ProviderAttribution.local(
-            name=name, version=version, step=step or "extraction.local", model=model
+        return ProviderAttribution.local(
+            name=name, version=version, step=step or "anchor.local", model=model
         )
-    else:
-        outcome = make_outcome(tier=tier, provider_name=tier.value, model=model)
-        attribution = outcome.attribution(name=name, version=version)
-        if step is not None:
-            from dataclasses import replace
 
-            attribution = replace(attribution, step=step)
-    return attribution
+    # El `step` NO se retoca despues con `dataclasses.replace`: eso invalida el
+    # testigo (y debe invalidarlo). Se consigue el paso deseado eligiendo el
+    # nombre del proveedor, que es de donde `attribution_step()` lo deriva.
+    provider_name = step.rsplit(".", 1)[-1] if step else tier.value
+    outcome = make_outcome(tier=tier, provider_name=provider_name, model=model)
+    return outcome.attribution(name=name, version=version)
