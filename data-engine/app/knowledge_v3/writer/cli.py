@@ -98,7 +98,12 @@ def main(
         ),
     )
     print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
-    return 0 if result.ok else 1
+    if not result.ok:
+        return 1
+    # Salio bien pero con codigos: p.ej. AUDIT_APPEND_FAILED, escritura aplicada
+    # sin linea de desenlace. Un runner desatendido no puede leer eso como exito
+    # limpio, asi que se distingue del 0.
+    return 2 if result.codes else 0
 
 
 if __name__ == "__main__":  # pragma: no cover

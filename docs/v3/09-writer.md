@@ -261,6 +261,13 @@ python -m knowledge_v3.writer.cli /ruta/plan.json \
 El `plan_hash` se teclea a mano. Si el plan cambió desde que se revisó, no
 coincide y no se escribe.
 
+**Códigos de salida de la CLI.** `0` = fue bien y sin nada que contar; `1` =
+rechazado o bloqueado (nada escrito); `2` = **se aplicó, pero con códigos** —
+hoy el caso real es `AUDIT_APPEND_FAILED`: el grafo se escribió y la línea de
+desenlace no llegó al registro. Un proceso desatendido (la unidad systemd de
+§6) no puede leer eso como éxito limpio: trátese `2` como incidencia que exige
+mirar el JSON y reconciliar la auditoría a mano.
+
 ### 5.3. Leer la auditoría
 
 ```bash
