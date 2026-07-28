@@ -246,10 +246,10 @@ meteria falsos positivos en un extractor cuyo objetivo declarado es la precision
 
 | Fichero | Tests | Contenido |
 |---|---|---|
-| `test_knowledge_v3_extraction.py` | 129 | texto/anclaje, lexico, cumplimiento de contratos, precision determinista sobre GOLD, anti-alucinacion, factividad, coordinacion y modificadores, temporal, correferencia, tablas, externo/visual, pipeline, **mutaciones**, **mini-corpus trampa** |
+| `test_knowledge_v3_extraction.py` | 144 | texto/anclaje, lexico, cumplimiento de contratos, precision determinista sobre GOLD, anti-alucinacion, factividad, coordinacion y modificadores, temporal, correferencia, tablas, externo/visual, pipeline, **mutaciones**, **mini-corpus trampa** |
 | `test_knowledge_v3_extraction_ollama.py` | 23 + 2 humo | configuracion, cliente mockeado, parseo JSON, extractor Ollama; `@pytest.mark.live_ollama` (skip salvo `S9K_LIVE_OLLAMA=1`) |
 
-**152 tests, 0 fallos** (mas 2 de humo, saltados por defecto).
+**167 tests, 0 fallos** (mas 2 de humo, saltados por defecto).
 
 `TRAP_CORPUS` (17 frases construidas para engañar a un extractor lexico:
 coordinaciones no adyacentes, sujetos-modificador, condicionales,
@@ -342,6 +342,17 @@ Comprobado ademas **en vivo** con `qwen2.5:7b`: sobre "Kael no sirve a la Orden
 del Alba", el modelo propuso un claim y el filtro lo rechazo
 (`OBJECT_NOT_GROUNDED`); sobre la frase afirmativa siguio emitiendo sus dos
 claims correctos (65-112 s).
+
+### Segunda ronda (CONFORME con observaciones)
+
+| # | Observacion | Correccion |
+|---|---|---|
+| O1 | `OBJECT_IS_MODIFIER` no distinguia el "de" que CIERRA el predicado ("es padre **de** Mira") del que introduce un modificador ajeno. Consecuencia: `PARENT_OF`, `CHILD_OF`, `SIBLING_OF`, `ALLY_OF` y `ENEMY_OF` estaban **inertes** para persona->persona | La comprobacion se ignora cuando la preposicion cae dentro de la frase de relacion emparejada. Los 6 casos afirman; "el hermano de Kael vive en Valdor" y "Kael vive en la casa de Mira" siguen absteniendose |
+| O2 | Una `confidence` mal tipada en un claim degradaba a 0.0 **en silencio** (las menciones si lo diagnosticaban) | `INVALID_CONFIDENCE` tambien a nivel de claim |
+| O3 | `{"surface": ["Kael"]}` acababa como la superficie `"['Kael']"` | `TEXT_FIELDS` se exigen `str`; si no lo son, la propuesta se rechaza con `NON_TEXT_FIELD`. No se convierte nada con `str()` |
+
+O1 era una perdida de cobertura silenciosa, no un falso positivo: el subsistema
+callaba en toda una familia de relaciones sin que ninguna prueba lo notara.
 
 ---
 

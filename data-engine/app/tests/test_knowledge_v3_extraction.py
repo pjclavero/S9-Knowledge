@@ -1594,3 +1594,107 @@ class TestTrapCorpus:
         claim = asserted(DeterministicExtractor().extract(ctx))[0]
         assert claim.negated is True
         assert claim.review_required is True
+
+
+# ==========================================================================
+# 13. Observaciones no bloqueantes de la revision (O1-O3)
+# ==========================================================================
+class TestPersonToPersonRelations:
+    """O1 — el "de" que cierra el predicado no convierte al objeto en modificador.
+
+    Sin esta excepcion, PARENT_OF / CHILD_OF / SIBLING_OF / ALLY_OF / ENEMY_OF
+    quedaban INERTES: "es padre de Mira" abstenia siempre porque el objeto iba
+    precedido de "de"... que era el final de la propia frase de relacion.
+    """
+
+    LEXICON = Lexicon(
+        [*GOLD_LEXICON.entries, LexiconEntry("Mira", "Character", (), 0.9, "glossary")]
+    )
+
+    @pytest.mark.parametrize(
+        "texto,predicado",
+        [
+            ("Kael es padre de Mira.", "PARENT_OF"),
+            ("Elara es madre de Mira.", "PARENT_OF"),
+            ("Kael es hijo de Mira.", "CHILD_OF"),
+            ("Elara es hermana de Mira.", "SIBLING_OF"),
+            ("Kael es aliado de Mira.", "ALLY_OF"),
+            ("Kael es enemigo de Mira.", "ENEMY_OF"),
+        ],
+    )
+    def test_las_relaciones_persona_persona_si_afirman(self, texto, predicado):
+        ctx, _ = single_context("ep:pp", texto, lexicon=self.LEXICON)
+        claims = asserted(DeterministicExtractor().extract(ctx))
+        assert claims, f"{texto} no produjo ningun claim"
+        assert claims[0].best_predicate() == predicado
+        assert claims[0].negated is False
+
+    def test_el_modificador_de_verdad_sigue_absteniendo(self):
+        ctx, _ = single_context(
+            "ep:mod2", "El hermano de Kael vive en Valdor.", lexicon=self.LEXICON
+        )
+        out = DeterministicExtractor().extract(ctx)
+        assert asserted(out) == []
+        reasons = [r for c in out.claims for r in c.metadata["abstention_reasons"]]
+        assert "SUBJECT_IS_MODIFIER" in reasons
+
+    def test_el_objeto_modificador_ajeno_a_la_frase_sigue_absteniendo(self):
+        ctx, _ = single_context(
+            "ep:mod3", "Kael vive en la casa de Mira.", lexicon=self.LEXICON
+        )
+        out = DeterministicExtractor().extract(ctx)
+        assert asserted(out) == []
+        reasons = [r for c in out.claims for r in c.metadata["abstention_reasons"]]
+        assert "OBJECT_IS_MODIFIER" in reasons
+
+
+class TestPayloadHygieneObservations:
+    """O2/O3 — confianza mal tipada en claims y campos de texto que no son texto."""
+
+    def _payload_base(self):
+        return {
+            "mentions": [
+                {"surface": "Kael", "type": "Character"},
+                {"surface": "Valdor", "type": "Location"},
+            ],
+            "claims": [
+                {
+                    "subject": "Kael", "object": "Valdor", "predicate": "LIVES_IN",
+                    "relation": "vive en", "quote": "Kael vive en Valdor",
+                }
+            ],
+        }
+
+    @pytest.mark.parametrize("valor", ["alta", None, [], {"a": 1}])
+    def test_o2_confianza_mal_tipada_en_un_claim_se_diagnostica(self, valor):
+        ctx, episode = single_context("ep:o2", "Kael vive en Valdor.")
+        payload = self._payload_base()
+        payload["claims"][0]["confidence"] = valor
+        out = normalize_payload(payload, ctx=ctx, episode=episode, info=DETERMINISTIC_INFO)
+        assert "INVALID_CONFIDENCE" in out.codes()
+        claim = asserted(out)[0]
+        assert claim.confidence == 0.0
+
+    def test_o3_una_superficie_que_no_es_texto_se_rechaza(self):
+        ctx, episode = single_context("ep:o3", "Kael vive en Valdor.")
+        payload = {"mentions": [{"surface": ["Kael"], "type": "Character"}], "claims": []}
+        out = normalize_payload(payload, ctx=ctx, episode=episode, info=DETERMINISTIC_INFO)
+        assert out.mentions == []
+        assert "NON_TEXT_FIELD" in out.codes()
+        # Lo que NO puede pasar: que la superficie acabe siendo "['Kael']".
+        assert all("[" not in m.surface for m in out.mentions)
+
+    def test_o3_un_claim_con_campos_no_textuales_se_rechaza(self):
+        ctx, episode = single_context("ep:o3", "Kael vive en Valdor.")
+        payload = self._payload_base()
+        payload["claims"][0]["subject"] = {"nombre": "Kael"}
+        out = normalize_payload(payload, ctx=ctx, episode=episode, info=DETERMINISTIC_INFO)
+        assert out.claims == []
+        assert "NON_TEXT_FIELD" in out.codes()
+
+    def test_o3_los_campos_de_texto_correctos_siguen_pasando(self):
+        ctx, episode = single_context("ep:o3", "Kael vive en Valdor.")
+        out = normalize_payload(
+            self._payload_base(), ctx=ctx, episode=episode, info=DETERMINISTIC_INFO
+        )
+        assert asserted(out)[0].best_predicate() == "LIVES_IN"

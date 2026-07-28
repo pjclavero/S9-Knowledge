@@ -281,15 +281,28 @@ def _coordination_after(
     return any(hit.first_token > last_token for hit, _ in in_sentence)
 
 
-def _is_modifier(tokens: Sequence[Token], first_token: int, sentence_first: int) -> bool:
+def _is_modifier(
+    tokens: Sequence[Token],
+    first_token: int,
+    sentence_first: int,
+    *,
+    after: Optional[int] = None,
+) -> bool:
     """La mencion va precedida de preposicion: es modificador, no nucleo.
 
     Aproximacion honesta y deliberadamente burda (no hay analisis sintactico):
     "de Kael", "por Elara". Cuesta cobertura en construcciones legitimas, y esa
     es la direccion en la que este extractor prefiere equivocarse.
+
+    `after` es el ultimo token de la frase de relacion emparejada. Si la
+    preposicion previa CAE DENTRO de esa frase, no es un modificador: es el
+    final del predicado ("es padre **de** Mira"). Sin esta excepcion, todas las
+    relaciones persona->persona quedaban inertes.
     """
     prev = first_token - 1
     if prev < sentence_first or prev < 0:
+        return False
+    if after is not None and prev <= after:
         return False
     return tokens[prev].norm in MODIFIER_PREPOSITIONS
 
@@ -500,7 +513,12 @@ class DeterministicExtractor(Extractor):
         # "El hermano de Kael vive en Valdor" no dice nada de donde vive Kael.
         if _is_modifier(tokens, subject_hit.first_token, sentence.first_token):
             codes.append("SUBJECT_IS_MODIFIER")
-        if _is_modifier(tokens, object_hit.first_token, sentence.first_token):
+        # El "de" que cierra la propia frase de relacion ("es padre **de**",
+        # "es aliado **de**") NO convierte al objeto en modificador: es parte
+        # del predicado. Sin esta excepcion, todas las relaciones
+        # persona->persona (PARENT_OF, CHILD_OF, SIBLING_OF, ALLY_OF, ENEMY_OF)
+        # quedaban inertes: se abstenian siempre.
+        if _is_modifier(tokens, object_hit.first_token, sentence.first_token, after=last):
             codes.append("OBJECT_IS_MODIFIER")
         # Varias menciones antes de la frase: el sujeto se estaria eligiendo por
         # proximidad. En la duda, abstencion.

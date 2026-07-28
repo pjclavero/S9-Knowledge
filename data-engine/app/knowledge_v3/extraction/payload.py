@@ -93,6 +93,12 @@ def normalize_predicate(raw: str) -> Optional[str]:
     return cleaned
 
 
+#: Campos que, si vienen, tienen que ser TEXTO. `str()` sobre cualquier otra
+#: cosa fabrica superficies que no existen: `["Kael"]` se convertia en la
+#: cadena `"['Kael']"`, que ya no es el nombre de nadie.
+TEXT_FIELDS = ("surface", "quote", "subject", "object", "relation", "predicate", "fragment_id")
+
+
 def check_payload_shape(payload: Any) -> dict:
     """Comprueba la forma minima del payload. Lanza `PayloadError` si no cuadra."""
     if not isinstance(payload, dict):
@@ -106,6 +112,15 @@ def check_payload_shape(payload: Any) -> dict:
     if not all(isinstance(x, dict) for x in claims):
         raise PayloadError("todos los claims deben ser objetos")
     return {"mentions": mentions, "claims": claims}
+
+
+def text_field_errors(item: dict) -> list[str]:
+    """Campos de texto que no son texto. No se convierten: se rechazan."""
+    return [
+        field
+        for field in TEXT_FIELDS
+        if field in item and item[field] is not None and not isinstance(item[field], str)
+    ]
 
 
 @dataclass
@@ -170,6 +185,15 @@ def normalize_payload(  # noqa: C901 - una comprobacion por regla anti-alucinaci
 
     # --- menciones -------------------------------------------------------
     for raw in shaped["mentions"][:MAX_MENTIONS_PER_EPISODE]:
+        malos = text_field_errors(raw)
+        if malos:
+            out.diagnostics.append(
+                Diagnostic(
+                    "NON_TEXT_FIELD", info.step, episode.episode_id,
+                    f"mencion con campos que no son texto: {malos}",
+                )
+            )
+            continue
         surface = str(raw.get("surface") or "").strip()
         if not surface:
             out.diagnostics.append(
@@ -249,6 +273,15 @@ def normalize_payload(  # noqa: C901 - una comprobacion por regla anti-alucinaci
 
     # --- claims ----------------------------------------------------------
     for raw in shaped["claims"][:MAX_CLAIMS_PER_EPISODE]:
+        malos = text_field_errors(raw)
+        if malos:
+            out.diagnostics.append(
+                Diagnostic(
+                    "NON_TEXT_FIELD", info.step, episode.episode_id,
+                    f"claim con campos que no son texto: {malos}",
+                )
+            )
+            continue
         subject = normalize(str(raw.get("subject") or ""))
         obj = normalize(str(raw.get("object") or ""))
         quote = str(raw.get("quote") or "").strip()
@@ -333,7 +366,19 @@ def normalize_payload(  # noqa: C901 - una comprobacion por regla anti-alucinaci
             )
             emit(claim, out, info, episode.episode_id)
             continue
-        confidence = min(clamp(raw.get("confidence", 0.5)), confidence_cap)
+        raw_claim_confidence = raw.get("confidence", 0.5)
+        if not is_number(raw_claim_confidence):
+            # Mismo trato que en las menciones: se degrada a 0 y se DICE. Una
+            # confianza que se cae en silencio deja un claim con 0.0 que parece
+            # una lectura del modelo y no lo es.
+            out.diagnostics.append(
+                Diagnostic(
+                    "INVALID_CONFIDENCE", info.step, episode.episode_id,
+                    f"claim {relation_phrase[:40]!r}: "
+                    f"{str(raw_claim_confidence)[:32]!r} no es un numero",
+                )
+            )
+        confidence = min(clamp(raw_claim_confidence, default=0.0), confidence_cap)
         claim = build_claim(
             info=info,
             episode=episode,
@@ -364,7 +409,9 @@ __all__ = [
     "MAX_CLAIMS_PER_EPISODE",
     "MAX_MENTIONS_PER_EPISODE",
     "PayloadError",
+    "TEXT_FIELDS",
     "check_payload_shape",
     "normalize_payload",
     "normalize_predicate",
+    "text_field_errors",
 ]
