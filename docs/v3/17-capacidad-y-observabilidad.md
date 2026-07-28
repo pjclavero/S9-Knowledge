@@ -119,6 +119,71 @@ servicios, cola creciente, reinicios ni errores. NVIDIA admite más concurrencia
 externa, pero normalización, resolución, motor, ledger y logs siguen siendo locales:
 el cuello no desaparece, se desplaza.
 
+## 5.bis Prueba de carga creciente y política de desvío
+
+**Prioridad declarada por el operador:** el tiempo de servidor no es una
+restricción — puede ocuparse una noche entera. Lo que se busca es el **límite
+operativo real bajo carga alta** y, a partir de él, **cuándo desviar trabajo a
+NVIDIA para no sobrecargar el homelab**.
+
+### El límite no es de la VM, es del host
+
+`qwen2.5:7b` corre en **VM102**, pero VM102 compite por la CPU, la RAM y el I/O del
+host `yggdrasil` con Nextcloud, Neo4j, MQTT, los servicios web y el resto de VMs. El
+codo que importa **no** es "S9-Knowledge va lento": es "Nextcloud tarda en responder"
+o "Neo4j sube de latencia". Por eso el criterio de saturación se mide en los
+**vecinos**, no en el propio pipeline.
+
+### Rampa
+
+Cola cargada con mucho más trabajo del que cabe, y concurrencia creciente por
+escalones estables (mínimo 20-30 minutos cada uno para que el sistema se asiente):
+
+```
+escalón 1 → 1 trabajo   · Ollama 1 inferencia
+escalón 2 → 2 trabajos
+escalón 3 → 3 trabajos
+escalón N → hasta que salte un criterio de parada o de degradación de vecinos
+```
+
+En cada escalón se registra, además de las métricas del §5: **tasa de llegada vs
+tasa de servicio** (episodios encolados por hora frente a procesados por hora),
+profundidad de cola, antigüedad del trabajo más viejo, latencia p50/p95/max por
+episodio, y el estado de los vecinos.
+
+El escalón bueno es el último en el que la cola **no crece de forma sostenida** y
+los vecinos siguen en su latencia de línea base. El siguiente escalón es el límite
+técnico; el anterior, el límite operativo recomendado.
+
+### De la medición a la política de desvío
+
+El resultado no es un número en un informe: es la **calibración de la política de
+tiers que ya existe** en `knowledge_v3/providers/policy.py` (`LOCAL < OLLAMA <
+EXTERNAL`, con presupuesto y umbral). Hay que salir con umbrales concretos y
+medibles en tiempo real para decidir cuándo un trabajo se manda fuera:
+
+| Señal | Fuente | Uso |
+|---|---|---|
+| Profundidad de cola y antigüedad del trabajo más viejo | aplicación | Desviar si la cola crece más rápido de lo que se vacía |
+| Latencia p95 por episodio en Ollama | aplicación | Desviar si se degrada respecto a la línea base |
+| RAM disponible y swap en VM102 | `pvestatd` | Desviar antes de entrar en swap, no después |
+| iowait y RAM disponible del **host** | Telegraf | Frenar la ingesta local aunque VM102 aguante |
+| Latencia de Neo4j / healthcheck de Nextcloud | healthchecks ligeros | Freno de emergencia: los vecinos mandan |
+
+La política debe ser **con histéresis** (umbral de desvío más alto que el de
+retorno) para no oscilar, y **fail-safe hacia lo local**: si el contenido está
+marcado como privado, no se desvía aunque el servidor esté saturado — se encola y se
+procesa más lento. La saturación nunca puede ser motivo para relajar la privacidad.
+
+### Lo que hay que responder al final
+
+1. ¿Cuántos episodios por hora sostenidos aguanta el homelab sin degradar vecinos?
+2. ¿En qué escalón aparece el primer síntoma, y en cuál de los vecinos?
+3. ¿El cuello es CPU, RAM, I/O, red o el propio proveedor?
+4. ¿Cuánta carga local evita realmente desviar a NVIDIA? (medir con y sin)
+5. ¿Con qué umbrales concretos debe activarse el desvío automático?
+6. ¿Cuánto trabajo cabe en una noche con la configuración segura?
+
 ## 6. Prueba prolongada
 
 Varias horas con la configuración estable, buscando: fugas de memoria, descarga del
