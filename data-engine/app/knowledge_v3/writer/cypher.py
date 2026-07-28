@@ -35,9 +35,12 @@ LABEL_ENTITY = "V3Entity"
 LABEL_ASSERTION = "V3Assertion"
 
 #: Etiquetas y tipos de relacion admisibles (lo unico interpolado en el texto).
-_SAFE_TOKEN = re.compile(r"^[A-Z][A-Za-z0-9_]{0,63}$")
+#: `\Z` y no `$`: en Python `$` casa tambien antes de un `\n` final, de modo que
+#: `"Character\n"` pasaria una validacion que aqui es la ultima defensa contra
+#: la interpolacion. Con `\Z` no hay final que valga.
+_SAFE_TOKEN = re.compile(r"^[A-Z][A-Za-z0-9_]{0,63}\Z")
 #: Nombres de propiedad admisibles.
-_SAFE_PROP = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+_SAFE_PROP = re.compile(r"^[a-z][a-z0-9_]{0,63}\Z")
 
 #: Propiedades que una operacion de cierre de vigencia puede tocar. Nada mas.
 #: Cualquier otra cosa seria una edicion encubierta del contenido ya escrito.

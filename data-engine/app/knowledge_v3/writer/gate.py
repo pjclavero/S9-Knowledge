@@ -35,7 +35,9 @@ ENV_WRITER_WORKSPACE = "S9K_WRITER_WORKSPACE"
 #: Limite de operaciones por plan si nadie configura otro.
 DEFAULT_MAX_OPERATIONS = 200
 
-_OPERATOR_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
+#: `\Z` y no `$`: en Python `$` tambien casa antes de un `\n` final, asi que
+#: `"pjc\n"` pasaria una validacion que la documentacion presenta como estricta.
+_OPERATOR_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}\Z")
 
 
 @dataclass
@@ -48,9 +50,14 @@ class OperatorRequest:
     #: Workspace declarado como argumento (la otra declaracion va en el entorno).
     workspace: Optional[str] = None
     #: Hash del plan que el operador dice estar autorizando (valor sha256 hex o
-    #: el bloque {algorithm, value} entero).
+    #: el bloque {algorithm, value} entero). SE TECLEA: jamas se lee del plan
+    #: que se esta autorizando, o la confirmacion no confirma nada.
     expected_plan_hash: Any = None
-    max_operations: int = DEFAULT_MAX_OPERATIONS
+    #: Limite de operaciones de ESTA peticion. `None` = «no opino», y entonces
+    #: manda el del writer. Un valor por defecto distinto de `None` haria
+    #: inaplicable el limite del writer, porque nunca sabria si el operador
+    #: pidio 200 o simplemente no dijo nada.
+    max_operations: Optional[int] = None
     #: Snapshot vigente que el operador declara (testigo externo, R2).
     current_snapshot_id: Optional[str] = None
     env: Optional[dict[str, str]] = None
@@ -139,9 +146,15 @@ def evaluate(
             actual=view.plan_hash_value,
         )
 
-    # 6. Limite de operaciones por plan.
+    # 6. Limite de operaciones por plan. `bool` se rechaza aparte: en Python es
+    #    un `int`, y `max_operations=True` colaria como limite de 1.
     limit = req.max_operations
-    if not isinstance(limit, int) or limit < 1 or len(view.mutation_operations) > limit:
+    if (
+        isinstance(limit, bool)
+        or not isinstance(limit, int)
+        or limit < 1
+        or len(view.mutation_operations) > limit
+    ):
         _reject(
             rejections,
             codes.GATE_OPERATION_LIMIT_EXCEEDED,

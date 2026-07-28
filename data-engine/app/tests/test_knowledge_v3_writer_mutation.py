@@ -183,19 +183,90 @@ def test_adelantar_el_reloj_caduca_el_plan():
     assert codes.PLAN_EXPIRED in admit(plan, ctx(clock=lambda: tarde)).codes
 
 
-def test_resellar_no_salva_un_plan_caducado():
-    """El ataque obvio: alargar la caducidad. Rompe el hash; resellarlo no basta
-    porque la caducidad se juzga contra el reloj, no contra la firma."""
+def test_alargar_la_caducidad_sin_llegar_al_presente_sigue_caducado():
+    """Un plan caducado sigue caducado aunque le alarguen la vida un rato: la
+    caducidad se juzga contra el reloj, no contra la firma.
+
+    Ojo con lo que este test NO dice: alargarla hasta DESPUES del reloj y
+    resellar SI funciona (`test_resellar_de_verdad_revive_un_plan_caducado`).
+    El resellado es una capacidad real de quien pueda escribir el documento, y
+    el limite esta dicho en §9 de la documentacion, no disimulado aqui."""
     plan = make_plan(expires_at="2026-07-27T11:00:00Z")
-    plan["expires_at"] = "2026-07-27T11:30:00Z"
+    plan["expires_at"] = "2026-07-27T11:30:00Z"  # el reloj marca las 12:00
     plan = seal_plan(plan)  # firma impecable, plan igualmente caducado
     result = admit(plan, ctx())
     assert result.codes == [codes.PLAN_EXPIRED]
 
 
-def test_resellar_no_convierte_un_plan_ajeno_en_propio():
-    plan = seal_plan(make_plan(workspace="otra-campana"))
-    assert codes.PLAN_WORKSPACE_MISMATCH in admit(plan, ctx()).codes
+def test_resellar_de_verdad_revive_un_plan_caducado():
+    """El limite real, demostrado en vez de descrito.
+
+    Los hashes son sha256 SIN clave: quien pueda reescribir el documento puede
+    volver a sellarlo, y entonces el plan es indistinguible de uno legitimo. La
+    unica defensa hoy es la cadena de custodia — el plan no sale del proceso
+    local — y los campos `signature`/`key_id`, reservados y sin usar."""
+    plan = make_plan(expires_at="2026-07-27T11:00:00Z")
+    assert admit(plan, ctx()).codes == [codes.PLAN_EXPIRED]
+    plan["expires_at"] = "2030-01-01T00:00:00Z"
+    plan = seal_plan(plan)
+    assert admit(plan, ctx()).admitted  # y esto NO es un fallo del writer
+
+
+def test_resellar_un_plan_de_otro_workspace_no_lo_hace_propio():
+    """Resellar recalcula hashes; no cambia el workspace, que sigue siendo el
+    del plan. Lo que este test descarta es que el resellado 'limpie' el
+    documento de la marca que lo delata."""
+    plan = make_plan(workspace="otra-campana")
+    plan["engine_version"] = "9.9.9"  # manipulacion adicional, para forzar el sello
+    plan = seal_plan(plan)
+    result = admit(plan, ctx())
+    assert codes.PLAN_WORKSPACE_MISMATCH in result.codes
+    assert codes.PLAN_CONTRACT_INVALID not in result.codes  # el sello es valido
+
+
+def test_un_plan_forjado_con_una_puerta_trasera_muere_en_la_confirmacion_del_hash():
+    """El ataque del revisor: anadir una operacion propia y resellar.
+
+    El plan resultante es VALIDO —los hashes cuadran, porque quien reescribe
+    puede resellar— y la admision lo admite. Lo que lo para es la condicion 5
+    del gate: el operador teclea el hash del plan que REVISO, y ese hash ya no
+    es el de este. De ahi que §5.4 de la documentacion no pueda leer el hash del
+    plan que se esta autorizando."""
+    legitimo = make_plan()
+    forjado = make_plan(
+        operations=[
+            op_create_entity("op:0001", "decision:0001", "entity:daiki"),
+            op_create_entity("op:0666", "decision:0001", "entity:PUERTA-TRASERA"),
+        ]
+    )
+    assert admit(forjado, ctx()).admitted  # sellado impecable: la admision pasa
+
+    driver = FakeDriver()
+    result = make_writer(driver).write(
+        forjado,
+        # El operador teclea el hash del plan que reviso, no el del que le dan.
+        apply_request(forjado, expected_plan_hash=legitimo["plan_hash"]["value"]),
+    )
+    assert result.outcome != OUTCOME_APPLIED
+    assert codes.GATE_PLAN_HASH_NOT_CONFIRMED in result.codes
+    assert driver.writes == []
+
+
+def test_leer_el_hash_del_plan_que_se_autoriza_anula_la_condicion_5():
+    """Lo mismo, con el antipatron: el ataque pasa. Documentado como aviso, no
+    como aprobacion — es la razon de existir de H1."""
+    forjado = make_plan(
+        operations=[
+            op_create_entity("op:0001", "decision:0001", "entity:daiki"),
+            op_create_entity("op:0666", "decision:0001", "entity:PUERTA-TRASERA"),
+        ]
+    )
+    driver = FakeDriver()
+    result = make_writer(driver).write(
+        forjado, apply_request(forjado, expected_plan_hash=forjado["plan_hash"]["value"])
+    )
+    assert result.outcome == OUTCOME_APPLIED
+    assert "entity:PUERTA-TRASERA" in result.created_ids
 
 
 def test_cada_manipulacion_del_cuerpo_sin_resellar_rompe_el_hash():

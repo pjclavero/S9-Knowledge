@@ -9,9 +9,13 @@ Append-only de verdad: se abre siempre en modo `"a"` y no hay ninguna funcion
 que reescriba, trunque ni borre. No es a prueba de un atacante con permiso de
 escritura sobre el fichero — no lo finge —; es a prueba del propio writer.
 
-Aqui SI aparecen `plan_id` y `created_at`: la auditoria DESCRIBE, no decide. La
-prohibicion del contrato es sobre decisiones de escritura, y este modulo no toma
-ninguna.
+Aqui SI aparecen los campos que el `SignedView` niega al resto del writer
+—`created_at`, `plan_id`, `provider_trace`, `metadata`— y aparecen de verdad, en
+el bloque `unsigned` de cada linea. Esa es justamente la justificacion del
+`SignedView`: describir sin decidir. Si la auditoria tampoco los conservara, el
+argumento seria «no los usamos» en vez de «los usamos solo para contar lo que
+paso», y se perderia la unica traza de que un plan venia con una
+`provider_trace` sospechosa.
 """
 from __future__ import annotations
 
@@ -27,7 +31,7 @@ class AuditRecord:
     """Una linea del registro. Todo lo necesario para reconstruir un intento."""
 
     timestamp: str
-    outcome: str  # APPLIED | SIMULATED | REJECTED | BLOCKED | ABORTED
+    outcome: str  # ATTEMPTED | APPLIED | SIMULATED | REJECTED | BLOCKED | ABORTED
     mode: str  # DRY_RUN | APPLY
     workspace: Optional[str]
     operator_id: Optional[str]
@@ -38,6 +42,9 @@ class AuditRecord:
     applied_operations: int = 0
     noop_operations: int = 0
     created_ids: list[str] = field(default_factory=list)
+    #: Los campos que el contrato deja fuera del `decision_hash`. Se guardan
+    #: para poder contar lo que paso, jamas para decidir nada.
+    unsigned: dict[str, Any] = field(default_factory=dict)
     detail: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -54,6 +61,7 @@ class AuditRecord:
             "applied_operations": self.applied_operations,
             "noop_operations": self.noop_operations,
             "created_ids": self.created_ids,
+            "unsigned": self.unsigned,
             "detail": self.detail,
         }
 

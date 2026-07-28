@@ -115,6 +115,13 @@ EXEC_DRIVER_FAILURE = "EXEC_DRIVER_FAILURE"
 #: Guardia interna: la consulta generada contenia una construccion destructiva.
 EXEC_DESTRUCTIVE_QUERY_BLOCKED = "EXEC_DESTRUCTIVE_QUERY_BLOCKED"
 
+# --- Auditoria ------------------------------------------------------------
+#: El sink se declaro disponible pero `append` fallo. No impide que lo ya
+#: aplicado este aplicado: avisa de que se aplico SIN dejar esa linea de rastro.
+AUDIT_APPEND_FAILED = "AUDIT_APPEND_FAILED"
+
+AUDIT_CODES = (AUDIT_APPEND_FAILED,)
+
 EXECUTION_CODES = (
     EXEC_VERSION_MISMATCH,
     EXEC_HASH_MISMATCH,
@@ -127,8 +134,12 @@ EXECUTION_CODES = (
     EXEC_DESTRUCTIVE_QUERY_BLOCKED,
 )
 
-ALL_CODES = ADMISSION_CODES + GATE_CODES + EXECUTION_CODES
+ALL_CODES = ADMISSION_CODES + GATE_CODES + AUDIT_CODES + EXECUTION_CODES
 
-__all__ = ["ADMISSION_CODES", "GATE_CODES", "EXECUTION_CODES", "ALL_CODES"] + [
-    c for c in ALL_CODES
-]
+__all__ = [
+    "ADMISSION_CODES",
+    "GATE_CODES",
+    "AUDIT_CODES",
+    "EXECUTION_CODES",
+    "ALL_CODES",
+] + [c for c in ALL_CODES]

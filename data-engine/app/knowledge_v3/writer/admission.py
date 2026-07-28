@@ -32,7 +32,8 @@ from .view import SignedView
 #: Version mayor de `contract_version` que este writer sabe ejecutar.
 SUPPORTED_CONTRACT_MAJOR = 1
 
-_ISO_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$")
+#: `\Z` y no `$`: `$` casa tambien antes de un `\n` final.
+_ISO_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z\Z")
 
 
 def utc_now() -> datetime:

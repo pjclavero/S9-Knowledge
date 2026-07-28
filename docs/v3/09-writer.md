@@ -63,8 +63,13 @@ rastro.
 Prohibirlo con una nota en la documentación es confiar en que alguien la lea.
 Aquí se prohíbe con la estructura: la admisión produce un `SignedView` que **no
 contiene esos cuatro campos**, y el gate y el ejecutor solo reciben el view. No
-es que no deban leerlos: es que no los tienen. El documento completo sí llega al
-registro de auditoría, donde describir es todo lo que se hace.
+es que no deban leerlos: es que no los tienen.
+
+Y para que ese argumento se sostenga, los cuatro campos **sí se conservan**, en
+el bloque `unsigned` de cada línea de auditoría. Si tampoco quedaran ahí, la
+justificación sería «no los usamos» en vez de «los usamos solo para contar lo
+que pasó», y se perdería la única traza de que un plan venía con una
+`provider_trace` sospechosa. Describir sin decidir exige seguir describiendo.
 
 ### 1.2. Un writer, un workspace (R3 del ledger)
 
@@ -100,8 +105,8 @@ que el gate se ocupa solo de lo que aporta el **operador**.
 | 2 | APPLY pedido explícitamente | `--apply` / `OperatorRequest(apply=True)` | `GATE_APPLY_NOT_REQUESTED` |
 | 3 | Hay operador | `--operator` | `GATE_OPERATOR_MISSING` |
 | 4 | El operador tiene forma admisible | `^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$` | `GATE_OPERATOR_INVALID` |
-| 5 | El operador confirma el hash del plan | `--expect-plan-hash <sha256>` | `GATE_PLAN_HASH_NOT_CONFIRMED` |
-| 6 | El plan cabe en el límite de operaciones | `--max-operations` (200 por defecto) | `GATE_OPERATION_LIMIT_EXCEEDED` |
+| 5 | El operador confirma el hash del plan **tecleado de fuera** | `--expect-plan-hash <sha256>` | `GATE_PLAN_HASH_NOT_CONFIRMED` |
+| 6 | El plan cabe en el límite de operaciones | `--max-operations` y/o el del writer; **manda el menor de los dos** | `GATE_OPERATION_LIMIT_EXCEEDED` |
 | 7 | El workspace está declarado dos veces | `S9K_WRITER_WORKSPACE` | `GATE_WORKSPACE_NOT_DECLARED` |
 | 8 | Las dos declaraciones coinciden | entorno == `--workspace` == writer | `GATE_WORKSPACE_DECLARATION_MISMATCH` |
 | 9 | Hay registro de auditoría utilizable | `--audit-log` escribible | `GATE_AUDIT_UNAVAILABLE` |
@@ -109,6 +114,29 @@ que el gate se ocupa solo de lo que aporta el **operador**.
 **Modo por defecto: dry-run.** Sin `--apply` no se abre siquiera el driver. La
 escritura real exige argumento explícito *y* variable de entorno: dos gestos
 independientes, uno en la línea de órdenes y otro en el entorno del proceso.
+
+**Sobre la condición 6.** El límite del writer es política del despliegue y el de
+la petición es del operador; ninguno puede relajar al otro, así que se aplica el
+**menor de los dos**. Por eso `OperatorRequest.max_operations` vale `None` por
+defecto y no 200: sin ese `None` el writer no podría distinguir «el operador pide
+200» de «el operador no ha dicho nada», y su propio límite sería decorativo.
+
+### 2.1. Lo que el listón V1 tenía y aquí no
+
+Tres condiciones de `evaluate_apply` no tienen equivalente V3. Se dicen en vez de
+dejar creer que la adaptación es una equivalencia:
+
+| Condición V1 | Por qué no está |
+|---|---|
+| `operator_id` atado a la autorización **del plan** (`auth.operator_id`) | El `GraphMutationPlan` congelado **no lleva identidad del aprobador humano**: `local_approval.approved_by` identifica el *motor*, no a la persona. Consecuencia real y no disimulada: **cualquier operador que pase el gate puede aplicar cualquier plan sellado**; el plan no dice para quién es. Atarlo exigiría un `1.1.0` de contratos o un canal de autorización fuera del plan. |
+| `production_env` explícito | Se juzgó redundante: `S9K_ALLOW_REAL_INGEST=1` ya es la afirmación «esto es un entorno donde se escribe de verdad», y dos banderas que significan lo mismo acaban puestas las dos por costumbre. Es una decisión, no un descuido. |
+| El segundo hash (`review_hash`) | En V1 el plan y la revisión eran documentos separados y hacían falta dos hashes. En V3 el `decision_hash` ya cubre decisiones, operaciones, aprobación y cadena de validadores: un segundo hash sobre lo mismo no añadiría nada. |
+
+**Divergencia de literal, dicha claramente:** el V1 exige
+`S9K_ALLOW_REAL_INGEST=true` y el V3 exige `=1`. Conviven en el repositorio y
+**no son intercambiables**: un `true` no habilita el writer V3 y un `1` no
+habilita la ingesta V1. Es incómodo a propósito — que un valor no active los dos
+caminos por accidente —, pero quien opere las dos rutas tiene que saberlo.
 
 ---
 
@@ -243,24 +271,52 @@ jq -r '[.timestamp, .outcome, .mode, .operator_id, (.rejections[0].code // "-")]
 Se registra **todo** intento: aceptado, rechazado, bloqueado o abortado. Un log
 que solo guarda los éxitos no es auditoría.
 
+Un APPLY deja **dos** líneas: `ATTEMPTED` antes de tocar el grafo y el desenlace
+después. La primera existe porque la condición 9 del gate comprueba que el sink
+*se declara* disponible, que es una promesa: si `append` falla igualmente, la
+escritura habría ocurrido sin una sola línea. Por eso la línea `ATTEMPTED` va
+antes, y **si no entra, no se escribe** (`GATE_AUDIT_UNAVAILABLE`). Si la que
+falla es la del desenlace, lo aplicado está aplicado y el resultado lo dice con
+`AUDIT_APPEND_FAILED`: el operador tiene que enterarse de que escribió sin dejar
+esa constancia.
+
 ### 5.4. Uso programático
+
+> **El `plan_hash` NUNCA se lee del plan que se está autorizando.** Se obtiene
+> del canal por el que el operador revisó el plan —la consola de revisión, el
+> mensaje que aprobó la ingesta, el informe del dry-run— y se teclea. Leerlo del
+> documento que se va a aplicar convierte la condición 5 en una tautología:
+> comprueba que el plan es igual a sí mismo, que siempre es cierto, incluso para
+> un plan al que alguien añadió operaciones y volvió a sellar. Es la única
+> condición del gate que ata lo que se aplica a lo que un humano revisó, y se
+> anula sola en cuanto el hash sale del propio plan.
 
 ```python
 from knowledge_v3.writer import GraphWriter, JsonlAppliedKeys, JsonlAuditSink, OperatorRequest
 
+# Tecleado desde el informe de revisión. NO de plan_doc["plan_hash"].
+HASH_REVISADO = "af2ee14ff3100e51b809706f531dbab051040d54f4f8e9aae82f48b483a7c428"
+
 writer = GraphWriter(
     workspace="leyenda",
-    driver=driver,                       # inyectado; el writer no lo crea
+    driver_factory=abrir_driver,         # se invoca DESPUÉS del gate
     audit=JsonlAuditSink("/var/lib/s9k/writer_audit.jsonl"),
     applied_keys=JsonlAppliedKeys("/var/lib/s9k/writer_applied_keys.jsonl"),
     max_operations=50,
 )
 result = writer.write(plan_doc, OperatorRequest(
     apply=True, operator_id="pjc", workspace="leyenda",
-    expected_plan_hash=plan_doc["plan_hash"]["value"],
+    expected_plan_hash=HASH_REVISADO,
     current_snapshot_id="snapshot:neo4j:2026-07-27T10:29:00Z",
 ))
+if result.codes:                          # APPLIED puede traer AUDIT_APPEND_FAILED
+    print("atención:", result.codes)
 ```
+
+`driver_factory` es una función sin argumentos que devuelve el driver. El writer
+la invoca **solo si el gate deja pasar el APPLY**: construir la conexión antes
+gastaría credenciales y una sesión en un intento que todavía puede bloquearse.
+Quien ya tenga un driver abierto puede seguir pasándolo por `driver=`.
 
 ---
 
@@ -274,7 +330,7 @@ Lo que falta, y a quién le toca:
 
 | Pendiente | Detalle |
 |---|---|
-| **Conexión real** | Una fábrica de driver que lea URI y credenciales del entorno del despliegue (nunca del repositorio) y se pase a `cli.main(driver_factory=...)` o a `GraphWriter(driver=...)`. Hoy la fábrica por defecto lanza `NotImplementedError` con el motivo. |
+| **Conexión real** | Una fábrica de driver que lea URI y credenciales del entorno del despliegue (nunca del repositorio) y se pase a `cli.main(driver_factory=...)` o a `GraphWriter(driver_factory=...)`. Hoy la fábrica por defecto lanza `NotImplementedError` con el motivo. Se invoca **después del gate**: un intento bloqueado no llega a pedir credenciales ni a abrir sesión. |
 | **Unidad systemd** | Un servicio o timer que garantice **un único proceso escritor por workspace** (R3). El writer comprueba el workspace, pero no toma un bloqueo entre procesos: dos writers simultáneos sobre el mismo workspace entrelazarían el ledger. Un `.service` con `RemainAfterExit=no` más un fichero de bloqueo (`flock`) es lo mínimo. |
 | **Rutas persistentes** | `--audit-log` y `--applied-keys` deben vivir en un volumen persistente y respaldado. Perder el fichero de claves aplicadas **rompe la idempotencia**: un replay volvería a escribir. |
 | **Índices y restricciones** | Restricciones de unicidad sobre `(:V3Entity {entity_id, workspace})` y `(:V3Assertion {assertion_id, workspace})`. El writer ya comprueba la ausencia antes de crear, pero una restricción del motor es la garantía real frente a concurrencia. |
@@ -287,12 +343,12 @@ Lo que falta, y a quién le toca:
 ## 7. Tabla de códigos de rechazo
 
 Los códigos son **estables**: entran en el registro de auditoría. Renombrar uno
-rompe el histórico.
+rompe el histórico. Son 32, en cuatro familias.
 
 La columna «alcance» dice la verdad sobre cada comprobación: **directo** = se
 llega a él con un documento realista; **defensivo** = el validador congelado o el
 JSON Schema lo cazan antes, y la comprobación del writer existe por si un día
-aflojan. Se dice en vez de fingir que las 31 son igual de alcanzables.
+aflojan. Se dice en vez de fingir que las 32 son igual de alcanzables.
 
 ### 7.1. Admisión (`PLAN_*`)
 
@@ -326,47 +382,66 @@ aflojan. Se dice en vez de fingir que las 31 son igual de alcanzables.
 | `GATE_WORKSPACE_DECLARATION_MISMATCH` | Las declaraciones del workspace no coinciden entre sí o con el writer. |
 | `GATE_AUDIT_UNAVAILABLE` | No hay registro de auditoría utilizable. Sin rastro no se escribe. |
 
-### 7.3. Ejecución (`EXEC_*`)
+### 7.3. Auditoría (`AUDIT_*`)
 
-| Código | Motivo |
-|---|---|
-| `EXEC_VERSION_MISMATCH` | La versión leída del destino no es la esperada. Aborta el plan entero. |
-| `EXEC_HASH_MISMATCH` | El `state_hash` leído del destino no es el esperado. |
-| `EXEC_TARGET_MISSING` | La operación apunta a algo que no existe. |
-| `EXEC_TARGET_ALREADY_EXISTS` | Una creación apunta a algo que ya existe (CREATE-only estricto). |
-| `EXEC_UNSUPPORTED_OPERATION` | Tipo de operación no soportado. |
-| `EXEC_UNSUPPORTED_PAYLOAD` | Payload inejecutable con seguridad: propiedad reservada, nombre inadmisible, etiqueta o predicado con forma sospechosa, valor no escalar. |
-| `EXEC_REASON_CODE_MISSING` | Cierre de vigencia sin `reason_code` válido (R1). |
-| `EXEC_DRIVER_FAILURE` | El driver falló, o se pidió APPLY sin driver inyectado. La transacción se revierte. |
-| `EXEC_DESTRUCTIVE_QUERY_BLOCKED` | Guardia interna: la consulta generada contenía una construcción destructiva. |
+| Código | Motivo | Alcance |
+|---|---|---|
+| `AUDIT_APPEND_FAILED` | El sink se declaró disponible y `append` falló igualmente. **No revierte nada**: avisa de que lo aplicado quedó aplicado sin esa línea de rastro. Si el que falla es el `ATTEMPTED`, no se escribe y el código es `GATE_AUDIT_UNAVAILABLE`. | directo |
+
+### 7.4. Ejecución (`EXEC_*`)
+
+| Código | Motivo | Alcance |
+|---|---|---|
+| `EXEC_VERSION_MISMATCH` | La versión leída del destino no es la esperada. Aborta el plan entero. | directo |
+| `EXEC_HASH_MISMATCH` | El `state_hash` leído del destino no es el esperado. | directo |
+| `EXEC_TARGET_MISSING` | La operación apunta a algo que no existe. | directo |
+| `EXEC_TARGET_ALREADY_EXISTS` | Una creación apunta a algo que ya existe (CREATE-only estricto). | directo |
+| `EXEC_UNSUPPORTED_OPERATION` | Tipo de operación no soportado. | defensivo (el `enum` del schema ya los limita a seis, y el writer soporta los seis) |
+| `EXEC_UNSUPPORTED_PAYLOAD` | Payload inejecutable con seguridad: propiedad reservada, nombre inadmisible, etiqueta o predicado con forma sospechosa, valor no escalar. | directo |
+| `EXEC_REASON_CODE_MISSING` | Cierre de vigencia sin `reason_code` válido (R1). | directo |
+| `EXEC_DRIVER_FAILURE` | El driver falló, se pidió APPLY sin driver, o la fábrica de driver no devolvió ninguno. La transacción se revierte. | directo |
+| `EXEC_DESTRUCTIVE_QUERY_BLOCKED` | Guardia interna: la consulta generada contenía una construcción destructiva. | **inalcanzable por los caminos públicos del writer** — ningún builder de `cypher.py` puede producir hoy una consulta destructiva, porque las etiquetas van validadas y los `SET` llevan lista blanca. Es la red para el próximo builder que alguien añada con prisa, y se prueba construyendo una `Query` destructiva a mano. |
 
 ---
 
 ## 8. Pruebas
 
-Dos suites, **112 tests**, con el driver de Neo4j **mockeado** en todos los
+Dos suites, **129 tests**, con el driver de Neo4j **mockeado** en todos los
 casos. Aquí no se abre una conexión, no se lee una credencial y no se escribe en
 ningún grafo real.
 
-**`test_knowledge_v3_writer.py` (82)** — admisión (cada condición en positivo y
+**`test_knowledge_v3_writer.py` (96)** — admisión (cada condición en positivo y
 negativo, incluidas las defensivas mediante `monkeypatch`), las nueve
 condiciones del gate, dry-run, ejecución, idempotencia, transaccionalidad,
-rollback, auditoría e higiene.
+rollback, auditoría e higiene. Incluye la tanda que salió de la revisión
+independiente: el límite efectivo como mínimo de los dos declarados, el sink que
+promete disponibilidad y falla, los documentos deformes que antes reventaban el
+camino de auditoría, el salto de línea final que colaba por cuatro regex, y la
+fábrica de driver que no se invoca si el gate bloquea.
 
-**`test_knowledge_v3_writer_mutation.py` (30)** — lo que se pone rojo si alguien
+**`test_knowledge_v3_writer_mutation.py` (33)** — lo que se pone rojo si alguien
 quita una comprobación: la tabla de las nueve condiciones del gate con su
-meta-test de cobertura, las manipulaciones del plan, y la triple demostración
-sobre los campos no firmados.
+meta-test de cobertura, las manipulaciones del plan, la triple demostración
+sobre los campos no firmados, y el plan forjado con una puerta trasera —parado
+por la condición 5, y aplicado si el hash se lee del propio plan.
 
 Lo que merece mención propia:
 
 - **`ExplodingDriver`** — un driver que estalla en cuanto alguien lo toca. Es la
   única forma honesta de demostrar que el dry-run no escribe: no que «no
   parezca» escribir, sino que no puede.
-- **Ataques del histórico** — extender `expires_at` sin resellar (rompe el
-  hash), extenderlo **y** resellar (firma impecable, sigue caducado), sustituir
-  la `provider_trace`, añadir una operación colada, plan de otro workspace,
-  snapshot desfasado. Todos rechazados con su código.
+- **Ataques del histórico** — sustituir la `provider_trace`, añadir una operación
+  colada, extender `expires_at`, todos **sin resellar**: mueren en el `plan_hash`.
+  Plan de otro workspace y snapshot desfasado: mueren en la admisión aunque el
+  sello sea impecable.
+- **Y el que sí funciona, probado como tal** — resellar. Alargar `expires_at`
+  hasta después del reloj y volver a sellar produce un plan que la admisión
+  acepta, y hay un test que lo demuestra en vez de insinuar lo contrario: los
+  hashes son sha256 sin clave, así que quien puede reescribir puede resellar
+  (§9). Lo que para un plan forjado con una operación añadida es la **condición
+  5 del gate**: el hash tecleado es el del plan que se revisó, y ya no coincide.
+  También está el test del antipatrón —leer el hash del propio plan— que
+  **aplica la puerta trasera**, para que quede escrito por qué §5.4 insiste.
 - **Campos no firmados, tres pruebas** — el `SignedView` no los contiene; los
   módulos que deciden no los nombran (escaneo del propio código fuente); y
   alterar los cuatro y volver a sellar produce **exactamente las mismas
@@ -376,7 +451,7 @@ Lo que merece mención propia:
 - **Meta-test de la tabla del gate** — si alguien añade una décima condición sin
   su fila de mutación, el test cae. Y si borra una condición del gate, cae la
   fila correspondiente.
-- **Meta-test de esta documentación** — los 31 códigos de §7 se comprueban contra
+- **Meta-test de esta documentación** — los 32 códigos de §7 se comprueban contra
   `codes.py`. Un código sin documentar pone la suite en rojo.
 
 ### 8.1. Sin corpus
@@ -394,6 +469,7 @@ no con porcentajes.
 | **Verificable, no autenticado** | Los hashes son sha256 **sin clave**. Detectan manipulación y desincronización, que es la clase de fallo que de verdad ocurre; **no** autentican al firmante. Quien pueda reescribir el documento puede volver a sellarlo. La garantía real hoy es la cadena de custodia: el plan no sale del proceso local. Los campos `local_approval.signature`/`key_id` están reservados y **sin usar**. El writer no lo suple ni finge lo contrario. |
 | **La idempotencia vive en un fichero** | Borrar `--applied-keys` permite reescribir. El almacén es persistente y append-only, pero no está firmado ni replicado. Hay un test que lo documenta. |
 | **La auditoría no resiste a quien tenga permiso de escritura** | Es append-only *por parte del writer*: no hay una sola función que reescriba, trunque o borre. Frente a un atacante con acceso al fichero, no pretende nada. |
+| **Cualquier operador puede aplicar cualquier plan sellado** | El contrato congelado no lleva identidad del aprobador humano, así que el gate solo puede exigir que HAYA un operador identificado, no que sea **el** operador de este plan. El V1 sí ataba `operator_id` a la autorización del plan. Ver §2.1. |
 | **Exclusión mutua entre procesos** | El writer comprueba el workspace, pero no toma un bloqueo. Dos writers simultáneos sobre el mismo workspace entrelazarían el ledger. R3 recae en el despliegue (§6). |
 | **`state_hash` no lo calcula el writer** | Lo lee para la concurrencia optimista y lo escribe si el plan lo trae. Quién lo mantiene al día es una decisión de integración pendiente. |
 | **El rollback no restaura lo que no leyó** | Un cierre de vigencia solo puede devolver `version` y `state_hash`. El documento lo declara en `unrecoverable`. |

@@ -38,6 +38,7 @@ from knowledge_v3.writer.writer import (  # noqa: E402
     MODE_DRY_RUN,
     OUTCOME_ABORTED,
     OUTCOME_APPLIED,
+    OUTCOME_ATTEMPTED,
     OUTCOME_BLOCKED,
     OUTCOME_REJECTED,
     OUTCOME_SIMULATED,
@@ -318,6 +319,14 @@ def apply_env(workspace: str = WORKSPACE) -> dict:
 
 
 def apply_request(plan: dict, **over) -> OperatorRequest:
+    """Peticion de APPLY para las pruebas.
+
+    OJO: lee el hash DEL PROPIO PLAN, que es exactamente lo que un operador no
+    debe hacer nunca — así la confirmacion no confirma nada. Aqui vale porque el
+    plan lo acaba de construir el test y no hay nada que confirmar; en operacion
+    real el hash se teclea desde el canal por el que se reviso el plan. Los tests
+    que prueban esa condicion pasan el hash a mano.
+    """
     base = dict(
         apply=True,
         operator_id="pjc",
@@ -1101,10 +1110,29 @@ def test_se_audita_el_intento_aceptado():
     plan = make_plan()
     sink = InMemoryAuditSink()
     make_writer(FakeDriver(), audit=sink).write(plan, apply_request(plan))
-    assert len(sink.records) == 1
-    assert sink.records[0]["outcome"] == OUTCOME_APPLIED
-    assert sink.records[0]["mode"] == MODE_APPLY
-    assert sink.records[0]["operator_id"] == "pjc"
+    # Dos lineas: la del intento (antes de tocar el grafo) y la del desenlace.
+    assert [r["outcome"] for r in sink.records] == [OUTCOME_ATTEMPTED, OUTCOME_APPLIED]
+    assert sink.records[-1]["mode"] == MODE_APPLY
+    assert sink.records[-1]["operator_id"] == "pjc"
+
+
+def test_el_intento_se_anota_antes_de_tocar_el_grafo():
+    """Si el proceso muere a mitad de la transaccion, la linea ATTEMPTED es lo
+    unico que dice que alguien lo intento. Por eso va primero."""
+    plan = make_plan()
+    sink = InMemoryAuditSink()
+    driver = FakeDriver(fail_at=1)
+    result = make_writer(driver, audit=sink).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_ABORTED
+    assert sink.records[0]["outcome"] == OUTCOME_ATTEMPTED
+    assert sink.records[0]["detail"] == {"operations": 1}
+
+
+def test_el_dry_run_no_anota_intento_porque_no_intenta_nada():
+    plan = make_plan()
+    sink = InMemoryAuditSink()
+    make_writer(ExplodingDriver(), audit=sink).write(plan, dry_request())
+    assert [r["outcome"] for r in sink.records] == [OUTCOME_SIMULATED]
 
 
 def test_se_audita_el_intento_rechazado_en_admision():
@@ -1127,7 +1155,7 @@ def test_se_audita_el_intento_abortado():
     plan = make_plan(operations=[op_link("op:0001", "decision:0001", "entity:x", "entity:y")])
     sink = InMemoryAuditSink()
     make_writer(FakeDriver(nodes={}), audit=sink).write(plan, apply_request(plan))
-    assert sink.records[0]["outcome"] == OUTCOME_ABORTED
+    assert sink.records[-1]["outcome"] == OUTCOME_ABORTED
 
 
 def test_se_audita_tambien_el_dry_run():
@@ -1147,9 +1175,14 @@ def test_el_registro_de_auditoria_es_append_only(tmp_path):
     writer.write(plan, apply_request(plan, env={}))
     writer.write(plan, apply_request(plan))
     lineas = path.read_text(encoding="utf-8").strip().splitlines()
-    assert len(lineas) == 3
+    assert len(lineas) == 4
     outcomes = [json.loads(l)["outcome"] for l in lineas]
-    assert outcomes == [OUTCOME_SIMULATED, OUTCOME_BLOCKED, OUTCOME_APPLIED]
+    assert outcomes == [
+        OUTCOME_SIMULATED,
+        OUTCOME_BLOCKED,
+        OUTCOME_ATTEMPTED,
+        OUTCOME_APPLIED,
+    ]
 
 
 def test_el_sink_real_se_declara_no_disponible_si_no_puede_escribir(tmp_path):
@@ -1157,6 +1190,240 @@ def test_el_sink_real_se_declara_no_disponible_si_no_puede_escribir(tmp_path):
     imposible.write_text("no soy un directorio", encoding="utf-8")
     sink = JsonlAuditSink(imposible / "sub" / "audit.jsonl")
     assert sink.available() is False
+
+
+# ==========================================================================
+# 7bis. Lo que el revisor independiente encontro
+# ==========================================================================
+class SinkQueMiente:
+    """Se declara disponible y luego falla al escribir.
+
+    La condicion 9 del gate comprueba disponibilidad, que es una PROMESA. Este
+    sink la rompe: es la unica forma de probar que el writer no se fia de ella.
+    """
+
+    def __init__(self, fallar_desde: int = 1):
+        self.fallar_desde = fallar_desde
+        self.intentos = 0
+        self.records: list = []
+
+    def available(self) -> bool:
+        return True
+
+    def append(self, record) -> None:
+        self.intentos += 1
+        if self.intentos >= self.fallar_desde:
+            raise OSError("disco lleno (simulado)")
+        self.records.append(record.to_dict())
+
+    def read_all(self) -> list:
+        return list(self.records)
+
+
+def test_el_limite_del_writer_aplica_aunque_la_peticion_no_opine():
+    """M1: con `max_operations` por defecto en la peticion, el limite del writer
+    era inaplicable y se colaban 60 operaciones con un writer de 50."""
+    ops = [
+        op_create_entity(f"op:{i:04d}", "decision:0001", f"entity:e{i}")
+        for i in range(10)
+    ]
+    plan = make_plan(operations=ops)
+    driver = FakeDriver()
+    writer = make_writer(driver, max_operations=3)
+    result = writer.write(
+        plan,
+        OperatorRequest(
+            apply=True,
+            operator_id="pjc",
+            workspace=WORKSPACE,
+            expected_plan_hash=plan["plan_hash"]["value"],
+            current_snapshot_id=SNAPSHOT,
+            env=apply_env(),
+        ),
+    )
+    assert result.outcome == OUTCOME_BLOCKED
+    assert codes.GATE_OPERATION_LIMIT_EXCEEDED in result.codes
+    assert driver.writes == []
+
+
+def test_manda_el_menor_de_los_dos_limites():
+    """Ninguno de los dos puede relajar al otro."""
+    ops = [
+        op_create_entity(f"op:{i:04d}", "decision:0001", f"entity:e{i}")
+        for i in range(5)
+    ]
+    plan = make_plan(operations=ops)
+    # Peticion generosa, writer estrecho.
+    r1 = make_writer(FakeDriver(), max_operations=3).write(
+        plan, apply_request(plan, max_operations=50)
+    )
+    assert codes.GATE_OPERATION_LIMIT_EXCEEDED in r1.codes
+    # Writer generoso, peticion estrecha.
+    r2 = make_writer(FakeDriver(), max_operations=50).write(
+        plan, apply_request(plan, max_operations=3)
+    )
+    assert codes.GATE_OPERATION_LIMIT_EXCEEDED in r2.codes
+    # Los dos holgados: pasa.
+    r3 = make_writer(FakeDriver(), max_operations=50).write(
+        plan, apply_request(plan, max_operations=10)
+    )
+    assert r3.outcome == OUTCOME_APPLIED, r3.codes
+
+
+def test_un_limite_booleano_no_cuela_como_limite_de_uno():
+    """B3: en Python `True` es un `int`, y `max_operations=True` valia 1."""
+    plan = make_plan()
+    result = make_writer(FakeDriver()).write(plan, apply_request(plan, max_operations=True))
+    assert result.outcome == OUTCOME_BLOCKED
+    assert codes.GATE_OPERATION_LIMIT_EXCEEDED in result.codes
+
+
+def test_si_no_se_puede_anotar_el_intento_no_se_escribe():
+    """M2: un sink que se declara disponible y luego falla dejaba una escritura
+    real sin una sola linea de rastro."""
+    plan = make_plan()
+    driver = FakeDriver()
+    result = make_writer(driver, audit=SinkQueMiente(fallar_desde=1)).write(
+        plan, apply_request(plan)
+    )
+    assert result.outcome == OUTCOME_BLOCKED
+    assert codes.GATE_AUDIT_UNAVAILABLE in result.codes
+    assert driver.writes == []
+
+
+def test_si_falla_la_linea_del_desenlace_el_operador_se_entera():
+    """El intento si quedo anotado, asi que se escribe; pero el resultado dice
+    que su linea final no esta."""
+    plan = make_plan()
+    driver = FakeDriver()
+    result = make_writer(driver, audit=SinkQueMiente(fallar_desde=2)).write(
+        plan, apply_request(plan)
+    )
+    assert result.outcome == OUTCOME_APPLIED
+    assert len(driver.writes) == 1
+    assert codes.AUDIT_APPEND_FAILED in result.codes
+
+
+def test_un_plan_hash_que_no_es_un_bloque_no_deja_el_intento_sin_linea():
+    """M3: `(plan_doc.get("plan_hash") or {}).get("value")` reventaba con
+    AttributeError, sin codigo y sin auditoria."""
+    plan = make_plan()
+    plan["plan_hash"] = "no-es-un-bloque"
+    sink = InMemoryAuditSink()
+    result = make_writer(FakeDriver(), audit=sink).write(
+        plan, apply_request(make_plan(), expected_plan_hash="d" * 64)
+    )
+    assert result.outcome == OUTCOME_REJECTED
+    assert codes.PLAN_CONTRACT_INVALID in result.codes
+    assert len(sink.records) == 1
+    assert sink.records[0]["plan_hash"] == "'no-es-un-bloque'"
+
+
+def test_ningun_documento_deforme_deja_un_intento_sin_auditar():
+    deformes = [
+        {},
+        {"contract_id": "graph-mutation-plan/v3-internal-v1", "plan_hash": []},
+        {"contract_id": "graph-mutation-plan/v3-internal-v1", "plan_id": ["a"]},
+        {"contract_id": "graph-mutation-plan/v3-internal-v1", "plan_hash": 7},
+        {"contract_id": None, "snapshot_id": {"raro": True}},
+    ]
+    for doc in deformes:
+        sink = InMemoryAuditSink()
+        result = make_writer(FakeDriver(), audit=sink).write(doc, apply_request(make_plan()))
+        assert result.outcome == OUTCOME_REJECTED
+        assert result.codes
+        assert len(sink.records) == 1
+
+
+def test_la_query_destructiva_muere_en_el_constructor():
+    """M5: quitar `assert_safe` de `Query.__post_init__` dejaba la suite verde.
+    Este test usa el camino publico —construir una Query— y lo pone rojo."""
+    from knowledge_v3.writer.cypher import Query
+
+    for destructiva in (
+        "MATCH (n) DETACH DELETE n",
+        "MERGE (n:V3Entity {entity_id: $id})",
+        "MATCH (n) SET n += $props",
+    ):
+        with pytest.raises(WriterAbort) as exc:
+            Query(destructiva, {})
+        assert exc.value.code == codes.EXEC_DESTRUCTIVE_QUERY_BLOCKED
+
+
+def test_un_salto_de_linea_final_no_cuela_por_ninguna_de_las_cuatro_regex():
+    """B1: `$` casa antes de un `\\n` final; con `\\Z` no."""
+    plan = make_plan()
+    r1 = make_writer(FakeDriver()).write(plan, apply_request(plan, operator_id="pjc\n"))
+    assert codes.GATE_OPERATOR_INVALID in r1.codes
+
+    op = op_create_entity("op:0001", "decision:0001", "entity:daiki")
+    op["payload"]["entity_type"] = "Character\n"
+    r2 = make_writer(FakeDriver()).write(
+        (p := make_plan(operations=[op])), apply_request(p)
+    )
+    assert codes.EXEC_UNSUPPORTED_PAYLOAD in r2.codes
+
+    sup = op_supersede("op:0001", "decision:0001", "assertion:vieja")
+    sup["payload"]["reason_code"] = "COPYRIGHT_TAKEDOWN\n"
+    plan3 = make_plan(operations=[sup])
+    driver = FakeDriver(nodes={("assertion", "assertion:vieja"):
+                               {"version": 2, "state_hash": HASH_B["value"]}})
+    r3 = make_writer(driver).write(plan3, apply_request(plan3))
+    assert codes.EXEC_REASON_CODE_MISSING in r3.codes
+
+
+def test_la_fabrica_de_driver_no_se_invoca_si_el_gate_bloquea():
+    """B2: la CLI construia el driver ANTES del gate, gastando credenciales y
+    una sesion en un intento que todavia podia bloquearse."""
+    llamadas = []
+
+    def fabrica():
+        llamadas.append(1)
+        return FakeDriver()
+
+    plan = make_plan()
+    writer = GraphWriter(
+        workspace=WORKSPACE,
+        driver_factory=fabrica,
+        audit=InMemoryAuditSink(),
+        applied_keys=InMemoryAppliedKeys(),
+        clock=clock_at(),
+    )
+    assert writer.write(plan, apply_request(plan, env={})).outcome == OUTCOME_BLOCKED
+    assert llamadas == []
+    assert writer.write(plan, apply_request(plan)).outcome == OUTCOME_APPLIED
+    assert llamadas == [1]
+
+
+def test_una_fabrica_que_falla_aborta_con_codigo():
+    def fabrica():
+        raise RuntimeError("no hay Neo4j al otro lado")
+
+    plan = make_plan()
+    writer = GraphWriter(
+        workspace=WORKSPACE,
+        driver_factory=fabrica,
+        audit=InMemoryAuditSink(),
+        applied_keys=InMemoryAppliedKeys(),
+        clock=clock_at(),
+    )
+    result = writer.write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_DRIVER_FAILURE in result.codes
+
+
+def test_la_auditoria_conserva_los_campos_que_el_writer_no_puede_usar():
+    """M4: la doc prometia que el documento informativo llegaba al registro.
+    Ahora llega de verdad: describir sin decidir exige conservarlos."""
+    plan = make_plan(metadata={"origen": "revision manual"})
+    plan = seal_plan(plan)
+    sink = InMemoryAuditSink()
+    make_writer(FakeDriver(), audit=sink).write(plan, apply_request(plan))
+    unsigned = sink.records[-1]["unsigned"]
+    assert unsigned["plan_id"] == plan["plan_id"]
+    assert unsigned["created_at"] == plan["created_at"]
+    assert unsigned["metadata"] == {"origen": "revision manual"}
+    assert unsigned["provider_trace"] == plan["provider_trace"]
 
 
 # ==========================================================================

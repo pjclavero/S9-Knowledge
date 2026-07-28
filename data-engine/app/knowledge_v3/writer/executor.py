@@ -30,7 +30,8 @@ from .errors import WriterAbort
 from .idempotency import AppliedKeyStore
 from .view import SignedView
 
-_REASON_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
+#: `\Z` y no `$`: `$` tambien casa antes de un `\n` final.
+_REASON_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}\Z")
 
 CREATING_TYPES = frozenset({"CREATE_ENTITY", "CREATE_ASSERTION"})
 RELATION_TYPES = frozenset({"LINK_EXISTING", "PROJECT_RELATION"})

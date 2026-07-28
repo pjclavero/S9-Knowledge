@@ -75,10 +75,12 @@ def main(
     args = build_parser().parse_args(argv)
     plan_doc = json.loads(Path(args.plan).read_text(encoding="utf-8"))
 
-    driver = driver_factory() if args.apply else None
+    # La FABRICA, no el driver: `GraphWriter` la invoca solo si el gate deja
+    # pasar el APPLY. Construir la conexion aqui gastaria credenciales y una
+    # sesion en un intento que aun puede bloquearse.
     writer = GraphWriter(
         workspace=args.workspace,
-        driver=driver,
+        driver_factory=driver_factory if args.apply else None,
         audit=JsonlAuditSink(args.audit_log),
         applied_keys=JsonlAppliedKeys(args.applied_keys),
         max_operations=args.max_operations,
