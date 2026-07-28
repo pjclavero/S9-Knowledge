@@ -747,3 +747,250 @@ class TestMutaciones:
         assert anchor_in_episode(index, "Kaelthorn") is None
         # Y con la cita real, entra.
         assert anchor_in_episode(index, "Elara") is not None
+
+
+# ==========================================================================
+# 11. Ronda de arreglo del prompt: candidatos multiples y trampas
+#
+# Las dos cosas que el experimento A/C1/C2 midio y que esta ronda ataca:
+#
+#   PROBLEMA 1  top-2 = top-1: los dos modelos devolvian UN solo candidato de
+#               predicado, asi que la capacidad de desempate del motor no se
+#               ejercitaba nunca. Aqui se fija lo unico que se puede fijar sin
+#               red: que el PROMPT lo exige y trae la forma en un ejemplo;
+#   PROBLEMA 2  contextos donde no se afirma nada (contrafactual, pregunta,
+#               ficcion dentro de ficcion) producian documentos de claim. Aqui
+#               se fija la capa LOCAL, que es la que de verdad cierra.
+# ==========================================================================
+from knowledge_v3.extraction.cues import (  # noqa: E402
+    CODE_CONDITIONAL,
+    CODE_FICTION,
+    CODE_INTERROGATIVE,
+    analyze_raw_text,
+)
+from knowledge_v3.extraction.ontology_prompt import (  # noqa: E402
+    FEW_SHOT_EXAMPLES,
+    SYSTEM_PROMPT,
+)
+from knowledge_v3.extraction.payload import semantic_context_window  # noqa: E402
+
+
+def _prompt() -> str:
+    ctx, episode = context()
+    return render_prompt(
+        compile_ontology(make_profile(), lexicon=GOLD_LEXICON), episode, ctx.index_of(episode)
+    )
+
+
+class TestPromptExigeCandidatos:
+    """PROBLEMA 1: pedir candidatos no bastaba; hay que EXIGIRLOS y ensenarlos."""
+
+    def test_la_regla_exige_al_menos_dos_candidatos(self):
+        assert "AL MENOS DOS" in SYSTEM_PROMPT
+        # ...y deja la puerta abierta al candidato unico cuando el texto es claro:
+        # exigir siempre dos obligaria a inventarse el segundo.
+        assert "inequivoco" in SYSTEM_PROMPT
+
+    def test_el_ejemplo_few_shot_muestra_la_forma_con_dos_candidatos(self):
+        bloque = FEW_SHOT_EXAMPLES.split("EJEMPLO 2")[0]
+        assert bloque.count('"predicate":') == 2
+        assert "MEMBER_OF" in bloque and "LEADS" in bloque
+        assert FEW_SHOT_EXAMPLES in _prompt()
+
+    def test_los_confundibles_se_piden_como_candidatos_no_solo_como_aviso(self):
+        render = compile_ontology(make_profile()).render()
+        # El aviso de siempre sigue estando (nadie confunde MEMBER_OF con LEADS
+        # por gusto), pero ahora dice QUE HACER con esa lista.
+        assert "no confundir con" in render
+        assert "CANDIDATOS ALTERNATIVOS" in render
+
+    def test_se_pide_la_direccion_alternativa_en_pasiva(self):
+        assert "voz pasiva" in SYSTEM_PROMPT or "pasiva" in SYSTEM_PROMPT
+        assert "OBJECT_TO_SUBJECT" in FEW_SHOT_EXAMPLES
+
+    def test_hay_un_ejemplo_NEGATIVO_de_que_no_extraer(self):
+        assert "EJEMPLO 4" in FEW_SHOT_EXAMPLES
+        for marca in ("balada", "Si Zenobia Trask mandara", "¿Juro"):
+            assert marca in FEW_SHOT_EXAMPLES
+        assert '"claims": []' in FEW_SHOT_EXAMPLES
+
+    def test_el_prompt_enumera_lo_que_no_se_extrae(self):
+        for marca in ("contrafactual", "interrogativo", "ficcion dentro de la ficcion"):
+            assert marca in SYSTEM_PROMPT
+
+    def test_el_ejemplo_no_puede_colarse_como_dato(self):
+        # Si el modelo copiase una entidad del ejemplo, el anclaje local la
+        # tumbaria: no esta en el texto del episodio. La red no depende del
+        # prompt, pero conviene tenerlo probado.
+        ctx, episode = context()
+        assert anchor_in_episode(ctx.index_of(episode), "Zenobia Trask") is None
+
+
+class TestNoFactividadCierraLocal:
+    """PROBLEMA 2: donde el texto no afirma, no se emite NINGUN documento.
+
+    Ni siquiera una abstencion. El dataset dice `must_not_produce: "CLAIM"` y una
+    `ClaimProposal` con `abstained=True` sigue siendo un claim del bundle: las
+    tres trampas pisadas en dev por qwen2.5:7b eran exactamente eso.
+    """
+
+    CONTRAFACTUAL = (
+        "Si Torv Marrec dirigiera hoy la Orden del Alba, la flota no habria zarpado."
+    )
+    PREGUNTA = "¿Llego Elara a jurar lealtad a la Orden del Alba?"
+    FICCION = (
+        "En la farsa que los titiriteros representaron, Elara entrega la Orden del Alba; "
+        "el juglar se lo invento todo."
+    )
+
+    def _run(self, texto: str, sujeto: str = "Elara"):
+        return run(
+            {
+                "mentions": [
+                    mention("m1", sujeto, quote=texto),
+                    mention("m2", "Orden del Alba", "Faction", quote=texto),
+                ],
+                "claims": [claim(evidence_quote=texto)],
+                "abstentions": [],
+            },
+            text=texto,
+        )
+
+    def test_un_contrafactual_no_produce_ningun_documento(self):
+        _ex, out = self._run(self.CONTRAFACTUAL, sujeto="Torv Marrec")
+        assert out.claims == []
+        assert CODE_CONDITIONAL in codes(out)
+        # Las ENTIDADES si existen: no se castiga al reconocedor por el contexto.
+        assert {m.surface for m in out.mentions} == {"Torv Marrec", "Orden del Alba"}
+
+    def test_una_pregunta_no_produce_ningun_documento(self):
+        _ex, out = self._run(self.PREGUNTA)
+        assert out.claims == []
+        assert CODE_INTERROGATIVE in codes(out)
+
+    def test_la_ficcion_dentro_de_la_ficcion_no_produce_ningun_documento(self):
+        _ex, out = self._run(self.FICCION)
+        assert out.claims == []
+        assert CODE_FICTION in codes(out)
+
+    def test_la_abstencion_del_modelo_pasa_por_la_misma_guarda(self):
+        _ex, out = run(
+            {
+                "mentions": [],
+                "claims": [],
+                "abstentions": [
+                    {"evidence_quote": self.FICCION, "reason": "FICTION_WITHIN_FICTION"}
+                ],
+            },
+            text=self.FICCION,
+        )
+        assert out.claims == []
+        assert CODE_FICTION in codes(out)
+
+    def test_una_abstencion_legitima_sigue_saliendo(self):
+        # La guarda es de NO-FACTIVIDAD, no una excusa para tirar abstenciones:
+        # sobre texto afirmado, la abstencion del modelo se emite igual.
+        _ex, out = run(
+            {
+                "mentions": [],
+                "claims": [],
+                "abstentions": [{"evidence_quote": TEXT, "reason": "NO_SE_LEERLO"}],
+            }
+        )
+        assert len(abstained(out)) == 1
+
+    def test_el_texto_afirmado_del_mismo_episodio_sobrevive(self):
+        # La guarda es por FRASE, no por episodio: si fuera por episodio, un
+        # solo contrafactual dejaria mudo todo el documento.
+        texto = self.CONTRAFACTUAL + " Elara pertenece a la Orden del Alba."
+        _ex, out = run(
+            {
+                "mentions": [
+                    mention("m1", "Elara", quote=texto),
+                    mention("m2", "Orden del Alba", "Faction", quote=texto),
+                ],
+                "claims": [claim(evidence_quote="Elara pertenece a la Orden del Alba.")],
+                "abstentions": [],
+            },
+            text=texto,
+        )
+        assert [c.best_predicate() for c in asserted(out)] == ["MEMBER_OF"]
+
+    def test_la_ventana_cubre_todas_las_frases_que_toca_la_cita(self):
+        texto = "Elara pertenece a la Orden del Alba. ¿Y Torv Marrec?"
+        ctx, episode = context(texto)
+        index = ctx.index_of(episode)
+        anchor = anchor_in_episode(index, texto)
+        ventana, _tokens, lo, hi = semantic_context_window(index, anchor)
+        assert "?" in ventana and hi > lo
+        # La ventana anterior (`context_window`) se quedaba en la primera frase
+        # y perdia justamente la marca que importa.
+        assert "?" not in index.context_window(anchor)[0]
+
+    def test_los_marcos_de_ficcion_son_no_factivos(self):
+        for texto in (
+            "En el serial que emiten de noche, Halcyon vende la estacion.",
+            "En la balada que cantan, el ciervo degollaba al buho.",
+            "Segun la leyenda, la Casa fundo Vado Alto.",
+        ):
+            assert analyze_raw_text(texto).non_factive, texto
+
+    def test_una_afirmacion_normal_no_se_marca_como_ficcion(self):
+        assert not analyze_raw_text(TEXT).non_factive
+
+
+class TestFormaNuevaConDobleDeC2:
+    """C2 (NVIDIA / llama-3.3-70b) NO se ejecuta aqui: es de pago y con cupo.
+
+    Lo que si se puede probar sin gastar una llamada es que el prompt NUEVO
+    llega intacto al carril externo y que la forma que esta ronda persigue —dos
+    candidatos de predicado y dos de direccion— sobrevive por los dos puertos
+    exactamente igual. Como relanzar C2 de verdad esta en
+    `docs/v3/12-semantic-extractor.md`.
+    """
+
+    PAYLOAD_DOS_CANDIDATOS = {
+        "mentions": BASE_MENTIONS,
+        "claims": [
+            claim(
+                predicate_candidates=[
+                    {"predicate": "MEMBER_OF", "confidence": 0.6},
+                    {"predicate": "LEADS", "confidence": 0.3},
+                ],
+                direction_candidates=[
+                    {"direction": "SUBJECT_TO_OBJECT", "confidence": 0.6},
+                    {"direction": "OBJECT_TO_SUBJECT", "confidence": 0.25},
+                ],
+            )
+        ],
+        "abstentions": [],
+    }
+
+    def _salida(self, puerto):
+        ctx, episode = context()
+        out = SemanticEpisodeExtractor(puerto).extract_episode(ctx, episode)
+        c = asserted(out)[0]
+        return (
+            [p["predicate"] for p in c.predicate_candidates],
+            [d["direction"] for d in c.direction_candidates],
+        )
+
+    def test_dos_candidatos_sobreviven_por_los_dos_puertos(self):
+        from knowledge_v3.extraction.provider_port import NvidiaProviderPort
+
+        local = self._salida(port_returning(self.PAYLOAD_DOS_CANDIDATOS))
+        externo = self._salida(
+            NvidiaProviderPort(client=FakeNvidiaClient(self.PAYLOAD_DOS_CANDIDATOS))
+        )
+        assert local == externo
+        assert local == (["MEMBER_OF", "LEADS"], ["SUBJECT_TO_OBJECT", "OBJECT_TO_SUBJECT"])
+
+    def test_el_prompt_nuevo_viaja_entero_al_carril_externo(self):
+        from knowledge_v3.extraction.provider_port import NvidiaProviderPort
+
+        cliente = FakeNvidiaClient({"mentions": [], "claims": [], "abstentions": []})
+        ctx, episode = context()
+        SemanticEpisodeExtractor(NvidiaProviderPort(client=cliente)).extract_episode(ctx, episode)
+        sistema, usuario = (m["content"] for m in cliente.calls[0]["messages"])
+        assert "AL MENOS DOS" in sistema
+        assert FEW_SHOT_EXAMPLES in usuario

@@ -546,6 +546,43 @@ def _reason_code(raw: Any, default: str = "MODEL_ABSTAINED") -> str:
     return code if code and _REASON_RE.match(code) else default
 
 
+def semantic_context_window(
+    index: EvidenceIndex, anchor: Anchor
+) -> tuple[str, Sequence[Any], int, int]:
+    """Contexto COMPLETO que rodea al ancla: `(texto, tokens, lo, hi)`.
+
+    `EvidenceIndex.context_window` devuelve la frase que contiene el INICIO del
+    ancla. Con las citas cortas del determinista eso basta. Con las citas de
+    frase entera del extractor semantico no: medido en dev, una cita que empieza
+    en la frase anterior se lleva por delante la marca que importa —el `¿…?` de
+    la pregunta, el `Si …` del contrafactual, el "en la farsa que…" del marco de
+    ficcion— porque queda FUERA de la ventana analizada.
+
+    Aqui la ventana son TODAS las frases que solapan el tramo citado. Es
+    estrictamente mas ancha que la anterior, y ensancharla solo puede producir
+    mas abstenciones, nunca mas afirmaciones.
+    """
+    if not (index.has_text and anchor.basis == OFFSET_BASIS_EPISODE):
+        text, tokens, lo, hi, _focus = index.context_window(anchor)
+        return text, tokens, lo, hi
+    texto = index.text or ""
+    solapadas = [s for s in index.sentences if s.start < anchor.end and anchor.start < s.end]
+    if not solapadas:
+        return texto, index.tokens, 0, len(index.tokens)
+    # El final se lleva hasta el arranque de la frase SIGUIENTE (o al final del
+    # texto). `Sentence.end` corta ANTES del signo de puntuacion que la cierra,
+    # asi que quedarse ahi tiraba el `?` de la interrogativa —justo la marca que
+    # se esta buscando— sin que se notara.
+    ultimo = index.sentences.index(solapadas[-1])
+    inicio = solapadas[0].start
+    fin = (
+        index.sentences[ultimo + 1].start
+        if ultimo + 1 < len(index.sentences)
+        else len(texto)
+    )
+    return texto[inicio:fin], index.tokens, solapadas[0].first_token, solapadas[-1].last_token + 1
+
+
 def verify_semantic_quote_context(
     index: EvidenceIndex, anchor: Anchor, claimed_negated: bool
 ) -> ContextVerdict:
@@ -559,8 +596,11 @@ def verify_semantic_quote_context(
     Orden" pasaba como afirmacion. Aqui el foco se lleva al FINAL del tramo
     citado: cualquier marca dentro de la propia cita cuenta. Es mas prudente, y
     el resultado de dudar sigue siendo abstenerse.
+
+    Y la ventana es la de `semantic_context_window`: todas las frases que el
+    tramo citado toca, no solo la primera.
     """
-    text, tokens, lo, hi, _focus = index.context_window(anchor)
+    text, tokens, lo, hi = semantic_context_window(index, anchor)
     focus = next(
         (t.index for t in tokens if lo <= t.index < hi and t.start >= anchor.end), hi
     )
@@ -573,6 +613,43 @@ def verify_semantic_quote_context(
             reason_codes=(CODE_NEGATION_MISMATCH, *verdict.reason_codes),
         )
     return verdict
+
+
+def _drop_non_factive(
+    out: ExtractionOutput,
+    info: ExtractorInfo,
+    episode: SourceEpisode,
+    verdict: ContextVerdict,
+    detail: str,
+) -> None:
+    """Contexto NO FACTIVO: no se emite ningun documento de claim. Solo traza.
+
+    Por que no una abstencion, que era lo que hacia antes. Una abstencion dice
+    "aqui hay una relacion que no se leer": es una propuesta con freno de mano, y
+    sigue siendo un documento de claim anclado a un tramo del episodio. Pero en
+    un contrafactual, en una pregunta o dentro de una farsa **no hay relacion
+    que registrar**, ni siquiera dudosa: el texto no la afirma. El dataset lo
+    dice con todas las letras (`must_not_produce: "CLAIM"`) y el arnes cuenta
+    como trampa pisada cualquier claim del bundle, este abstenido o no.
+
+    Medido en dev con qwen2.5:7b: las TRES trampas pisadas eran exactamente
+    esto —abstenciones bien razonadas sobre el contrafactual de Torv, la
+    pregunta a Ilaria y el serial de Halcyon—. El modelo acertaba; lo que
+    sobraba era el documento.
+
+    La traza no se pierde: sale como `Diagnostic` con el codigo del contexto
+    (`CONDITIONAL_CONTEXT`, `INTERROGATIVE_CONTEXT`, `FALSITY_CONTEXT`,
+    `FICTION_WITHIN_FICTION_CONTEXT`) y las marcas que lo dispararon.
+    """
+    codigos = [c for c in verdict.reason_codes if c != CODE_NEGATION_MISMATCH]
+    out.diagnostics.append(
+        Diagnostic(
+            codigos[0] if codigos else CODE_NON_FACTIVE,
+            info.step,
+            episode.episode_id,
+            f"no se emite nada: {'/'.join(codigos)} | cues={list(verdict.cues)} | {detail[:120]}",
+        )
+    )
 
 
 def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
@@ -853,9 +930,13 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
             if CODE_NEGATION_MISMATCH in verdict.reason_codes:
                 reasons.append(CODE_NEGATION_MISMATCH)
             if verdict.non_factive:
-                reasons.append(CODE_NON_FACTIVE)
-                reasons.extend(c for c in verdict.reason_codes if c != CODE_NEGATION_MISMATCH)
-            elif verdict.hint != "ASSERTED" and hint == "ASSERTED":
+                # NO se emite NADA, ni siquiera una abstencion. Ver
+                # `_drop_non_factive`: donde el texto no afirma, no hay relacion
+                # que registrar, y un documento de claim anclado ahi es
+                # exactamente lo que las trampas del split existen para cazar.
+                _drop_non_factive(out, info, episode, verdict, relation_phrase)
+                continue
+            if verdict.hint != "ASSERTED" and hint == "ASSERTED":
                 hint = verdict.hint
 
         # --- temporalidad ESCALONADA --------------------------------------
@@ -934,6 +1015,14 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
                 )
             )
             continue
+        # La MISMA guarda que en los claims, y por la misma razon: una
+        # abstencion del modelo sobre un contrafactual, una pregunta o una
+        # ficcion interna sigue siendo un documento de claim anclado ahi. Donde
+        # el texto no afirma, no se emite nada.
+        verdict = verify_semantic_quote_context(index, anchor, True)
+        if verdict.non_factive:
+            _drop_non_factive(out, info, episode, verdict, quote)
+            continue
         claim = abstention_claim(
             info=info,
             episode=episode,
@@ -960,6 +1049,7 @@ __all__ = [
     "UNRESOLVED_DIRECTION",
     "check_payload_shape",
     "check_semantic_shape",
+    "semantic_context_window",
     "normalize_payload",
     "normalize_predicate",
     "normalize_semantic_payload",
