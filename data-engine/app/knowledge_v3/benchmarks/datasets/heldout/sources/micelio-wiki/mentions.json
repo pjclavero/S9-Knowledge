@@ -1,0 +1,1059 @@
+{
+  "benchmark_file": "mentions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 23,
+      "episode_id": "episode:micelio-wiki:e01",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e01:f00"
+      ],
+      "mention_id": "mention:micelio-wiki:e01:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "hermandad del esporo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 3,
+      "surface": "Hermandad del Esporo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 72,
+      "episode_id": "episode:micelio-wiki:e01",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e01:f01"
+      ],
+      "mention_id": "mention:micelio-wiki:e01:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "cámara honda",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 60,
+      "surface": "Cámara Honda",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 105,
+      "episode_id": "episode:micelio-wiki:e01",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e01:f02"
+      ],
+      "mention_id": "mention:micelio-wiki:e01:m02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "cónclave lívido",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 90,
+      "surface": "Cónclave Lívido",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 140,
+      "episode_id": "episode:micelio-wiki:e01",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e01:f03"
+      ],
+      "mention_id": "mention:micelio-wiki:e01:m03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "cámara yesca",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 128,
+      "surface": "Cámara Yesca",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 173,
+      "episode_id": "episode:micelio-wiki:e01",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e01:f04"
+      ],
+      "mention_id": "mention:micelio-wiki:e01:m04",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "leire onraita",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 160,
+      "surface": "Leire Onraita",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 31,
+      "episode_id": "episode:micelio-wiki:e02",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e02:f00"
+      ],
+      "mention_id": "mention:micelio-wiki:e02:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "cámara honda",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 19,
+      "surface": "Cámara Honda",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 65,
+      "episode_id": "episode:micelio-wiki:e02",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e02:f01"
+      ],
+      "mention_id": "mention:micelio-wiki:e02:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "galería ocre",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 53,
+      "surface": "Galería Ocre",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 88,
+      "episode_id": "episode:micelio-wiki:e02",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e02:f02"
+      ],
+      "mention_id": "mention:micelio-wiki:e02:m02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "cónclave lívido",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 73,
+      "surface": "Cónclave Lívido",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 121,
+      "episode_id": "episode:micelio-wiki:e02",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e02:f03"
+      ],
+      "mention_id": "mention:micelio-wiki:e02:m03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "galería ocre",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 109,
+      "surface": "Galería Ocre",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 135,
+      "episode_id": "episode:micelio-wiki:e02",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e02:f04"
+      ],
+      "mention_id": "mention:micelio-wiki:e02:m04",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NOMINAL"
+      },
+      "normalized_surface": "la hermandad",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 123,
+      "surface": "la Hermandad",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 188,
+      "episode_id": "episode:micelio-wiki:e02",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e02:f05"
+      ],
+      "mention_id": "mention:micelio-wiki:e02:m05",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "sabel onraita",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 175,
+      "surface": "Sabel Onraita",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 218,
+      "episode_id": "episode:micelio-wiki:e02",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e02:f06"
+      ],
+      "mention_id": "mention:micelio-wiki:e02:m06",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "cónclave lívido",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 203,
+      "surface": "Cónclave Lívido",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 97,
+      "episode_id": "episode:micelio-wiki:e03",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e03:f00"
+      ],
+      "mention_id": "mention:micelio-wiki:e03:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "cónclave lívido",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 82,
+      "surface": "Cónclave Lívido",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 120,
+      "episode_id": "episode:micelio-wiki:e03",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e03:f01"
+      ],
+      "mention_id": "mention:micelio-wiki:e03:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "cámara honda",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 108,
+      "surface": "Cámara Honda",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [
+        "mention:micelio-wiki:e03:m05"
+      ],
+      "end": 149,
+      "episode_id": "episode:micelio-wiki:e03",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e03:f02"
+      ],
+      "mention_id": "mention:micelio-wiki:e03:m02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NOMINAL"
+      },
+      "normalized_surface": "la hermana de sabel onraita",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 122,
+      "surface": "La hermana de Sabel Onraita",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 149,
+      "episode_id": "episode:micelio-wiki:e03",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e03:f03"
+      ],
+      "mention_id": "mention:micelio-wiki:e03:m03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "sabel onraita",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 136,
+      "surface": "Sabel Onraita",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 180,
+      "episode_id": "episode:micelio-wiki:e03",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e03:f04"
+      ],
+      "mention_id": "mention:micelio-wiki:e03:m04",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "hermandad del esporo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 160,
+      "surface": "Hermandad del Esporo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [
+        "mention:micelio-wiki:e03:m02"
+      ],
+      "end": 210,
+      "episode_id": "episode:micelio-wiki:e03",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e03:f05"
+      ],
+      "mention_id": "mention:micelio-wiki:e03:m05",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "PRONOUN"
+      },
+      "normalized_surface": "ella",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 206,
+      "surface": "ella",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 241,
+      "episode_id": "episode:micelio-wiki:e03",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e03:f06"
+      ],
+      "mention_id": "mention:micelio-wiki:e03:m06",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "galería ocre",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "start": 229,
+      "surface": "Galería Ocre",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-wiki",
+  "split": "heldout",
+  "world": "micelio"
+}

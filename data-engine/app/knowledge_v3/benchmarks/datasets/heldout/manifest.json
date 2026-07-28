@@ -1,0 +1,453 @@
+{
+  "benchmark_file": "manifest",
+  "catalog_files": [
+    "catalog/entities.json",
+    "catalog/game_profile_generic.json",
+    "catalog/game_profile_narrow.json"
+  ],
+  "dataset_version": "1.0.0",
+  "file_hashes": {
+    "heldout/catalog/entities.json": "ed361a4a5a3cc07d50ebec6c023b4b873edf2f6b5f538152193794ea4e903851",
+    "heldout/catalog/game_profile_generic.json": "652615c5868330e19297b0703608ae03698c3bb3d46cbc06c39a450ddc73de46",
+    "heldout/catalog/game_profile_narrow.json": "aa4663eeef901be1f7ed452048ee3fce83765de8eb29f7b175c47c8919c39ea3",
+    "heldout/sources/ferrovia-cartas/assertions.json": "20393bb3f0ae9933e4674a64a8fb1dd352865e7c5a1aeba0b7b7b5ba1b7cd63a",
+    "heldout/sources/ferrovia-cartas/claims.json": "6d1b94b6e6e094b283ff94f4616dcde1ac3a59030b2c4831b802dc2586e6f47f",
+    "heldout/sources/ferrovia-cartas/episodes.json": "78fc8efda63215f8846c92cb8ef01b0f779cd0eeb1e778f3ea0b3a5022286e22",
+    "heldout/sources/ferrovia-cartas/fragments.json": "070e37b94d0ea813d4e6836d563f620dad6f1b033e5c115f843177a79c63ec75",
+    "heldout/sources/ferrovia-cartas/mentions.json": "e62fdda7d92b07c341d80091e2ac518487c6e3726026c34eb5a5dd139986325b",
+    "heldout/sources/ferrovia-cartas/negatives.json": "5f773ab7385083e411ce452d7d2fbe801a9b0a0c2d3cc037ba471d1f52def234",
+    "heldout/sources/ferrovia-cartas/plans.json": "1ec1efd303403c762129977cf626d7b6ecdd6c3f84eadfa2947d7ef0e677c0fc",
+    "heldout/sources/ferrovia-cartas/reference_text.json": "27e83c269525057f68e5f6ce42e409a1216b8f4bdd4dec131a4630a590ec004e",
+    "heldout/sources/ferrovia-cartas/resolutions.json": "d687ebcbdc34b16952cda6f5170bb1c54d4a5cf28f77f82b48d23f99c2763bbd",
+    "heldout/sources/ferrovia-cartas/source_asset.json": "08f8c4de7ef850029ba93e05e13ec2a93a978c2be20850b2698f459750f9cfb1",
+    "heldout/sources/ferrovia-memoria/assertions.json": "43f369d1c99bdc2b3ab5874ead1ff5809d6a764136f48cc4da7c76e2fd199545",
+    "heldout/sources/ferrovia-memoria/claims.json": "e0255fa4dfcecaefd0024d23252d9ce3ed0c05679acc39012402126cf472bdb9",
+    "heldout/sources/ferrovia-memoria/episodes.json": "4254530ade3119f2652c15e82e748f036de8256fd0468d60c72de1043875548b",
+    "heldout/sources/ferrovia-memoria/fragments.json": "d88dd6e858fc5c1ced4c68f27cbd57a5040264500dec407fba0d6a3f6744b64e",
+    "heldout/sources/ferrovia-memoria/mentions.json": "97fd499376abee83deff5e0932773d91110c0eff00f595ef863d479bf9f12d18",
+    "heldout/sources/ferrovia-memoria/negatives.json": "f4470d84650db5d3c1d7fc1d4a7ae6d88a71fbebaf3878d57d7ea14ce90fe991",
+    "heldout/sources/ferrovia-memoria/plans.json": "3a3d878629ec905b2f2e8977b8e36764cd6f9ca77e5891677d8fc51b1c45ec50",
+    "heldout/sources/ferrovia-memoria/reference_text.json": "d487ce8efc542c246d797e9593ee0d90b468e8f8f7ddfd07dc7a7095d40b1534",
+    "heldout/sources/ferrovia-memoria/resolutions.json": "69f1e5f4eb0f786da6ef9cb8be624fc9b65228bf3d29a1e885779b78b2fc9e1e",
+    "heldout/sources/ferrovia-memoria/source_asset.json": "a4339f77778fff60b079d3bafc5f02fdee267c5aed9b067053110b0b63a6e93a",
+    "heldout/sources/ferrovia-tabla/assertions.json": "16e4cb7c667f4b35915405b0235ed6f2be9e3e6cc71e0665ac7217de69cfbe7c",
+    "heldout/sources/ferrovia-tabla/claims.json": "3f657b0bfaea9a2102977a29f639bd9346ea40c6b52a58b5629ebe1837c7a231",
+    "heldout/sources/ferrovia-tabla/episodes.json": "64d508d3f49c47c05156db1ae2406f507cbaa859eef4d8d41d40248d4f69fd06",
+    "heldout/sources/ferrovia-tabla/fragments.json": "d46d85ae0e6193b1aab919edd0e8c615c11714b72f1c693591ee6d9dff499961",
+    "heldout/sources/ferrovia-tabla/mentions.json": "520b3d7d69719817987f8da74794575a75f24e101b27ff0d09b31e5dcf86218b",
+    "heldout/sources/ferrovia-tabla/negatives.json": "02218bb6217979351801bddf1e4ff7d7f5440f20e7dd732ee2c4aa5a3b04db3c",
+    "heldout/sources/ferrovia-tabla/plans.json": "84b75f27787ea024389da5ec0689d5fe5ec2159a20455a87dff43422fddbad6d",
+    "heldout/sources/ferrovia-tabla/reference_text.json": "acc199d63c09255a17119a8da89e58a9f816268a814698cba6f7a212aad8a33c",
+    "heldout/sources/ferrovia-tabla/resolutions.json": "9c726fccfa543800a80de76507dc99b121abe0279a4c1b461cb05fc2bb652e58",
+    "heldout/sources/ferrovia-tabla/source_asset.json": "115532c0c6f4821ffb274f6cc0e541469d18900a036a1f0c269bd8848829f1d9",
+    "heldout/sources/liga-audio-crudo/assertions.json": "0cb87f1d92c2f9d715b814a61e2bf2d9b11f12ef38c66c9c0d888263c706ddb2",
+    "heldout/sources/liga-audio-crudo/claims.json": "2dfeb09282e30aac971444a956afc20dfa83b06163d3a23196d044e5f110d866",
+    "heldout/sources/liga-audio-crudo/episodes.json": "ff2733d8ad2636d2b362be4df31d8cd6cb164a28be59f34e1d9d6130f098916c",
+    "heldout/sources/liga-audio-crudo/fragments.json": "ddfeb01656735b4d99ec061cf821dd202099aa25754d1c752627f265a0e735aa",
+    "heldout/sources/liga-audio-crudo/mentions.json": "f547265e2bf7f35c1353d6f256ea0e4754a33a6368b3466f1a4947737d9a780a",
+    "heldout/sources/liga-audio-crudo/negatives.json": "ed1c7becd91542988c1f3aeb258985fb0c2618fd6be964cbcd6a3cea1faa1d4c",
+    "heldout/sources/liga-audio-crudo/plans.json": "c4c3f8a4c20c9f2ac0e1c30dc2df0d0de05a805566f6670aa60f8f0d7d7264db",
+    "heldout/sources/liga-audio-crudo/reference_text.json": "3f177ace302b43490ccc2f495fb50a45d0fbb61bc7f42e4b99b66c9114ee12a1",
+    "heldout/sources/liga-audio-crudo/resolutions.json": "834aad6b42f6204ebb6ee5aafc916b26a9bbb3c96bf3806b0c5744b053534fed",
+    "heldout/sources/liga-audio-crudo/source_asset.json": "3497a1dc40b05b8f59aa17b67206c96966cb45e910b67920935e32b11f19558c",
+    "heldout/sources/liga-mesa/assertions.json": "7103d8722867e35e5af0b97fb262f708ad8d470e86300cd0b4d49fcd55c73f44",
+    "heldout/sources/liga-mesa/claims.json": "6ed04b2db9156b954b527f67f28e82c194be6e224cc54524be83a28dd5188164",
+    "heldout/sources/liga-mesa/episodes.json": "d869c6975a24a75e2620c9d8ea762ccf9788b66a2e2ac0b774a1aff4ce8e6cce",
+    "heldout/sources/liga-mesa/fragments.json": "6ac95f5d7fcceb2d739b8717728c0d4d5e090e21d42535f438ef11c96492b7d0",
+    "heldout/sources/liga-mesa/mentions.json": "954661d8c5b658fb262adc50cccfe4c1bb936107f5f4ffe784e81c76dea101bf",
+    "heldout/sources/liga-mesa/negatives.json": "699f1d12d23592cc47d217bfc1e6bc2136202de38bed35d4f6ca74cc3a68b30a",
+    "heldout/sources/liga-mesa/plans.json": "ca709dab584360f504e1c59706adf6897be3a1e06196a7bfc8d62ecd967bf62e",
+    "heldout/sources/liga-mesa/reference_text.json": "b208f7104852970a517590e06508d0e703686a1aaf0e3cbbbe914b66aea1292e",
+    "heldout/sources/liga-mesa/resolutions.json": "640ca195956ba86cfd7129f31ea14f2ec70e17042074a6c2f83c7e2946dc619c",
+    "heldout/sources/liga-mesa/source_asset.json": "0e23981f0d81121df43ac59d5912049ee62a553a2b7426f6d78f3046f133469f",
+    "heldout/sources/micelio-escaneo/assertions.json": "32504f77c4f7a4a632af04ec69cce9060672e24968dae8293f30ccd3b32b4e0c",
+    "heldout/sources/micelio-escaneo/claims.json": "f7e4f22c2d56fd71a4e143f920df8a2d9a7eb0689ee410df1b9c7b922e6ab57b",
+    "heldout/sources/micelio-escaneo/episodes.json": "77ca706e441965bc8cb5a02a41ca3975fd81eea3776915ff159707b60839cfd6",
+    "heldout/sources/micelio-escaneo/fragments.json": "18e1104327148720001275e80bb3138506b8bfab4777f5e24dd72488fbab8060",
+    "heldout/sources/micelio-escaneo/mentions.json": "623c02704e6bdb121ce41bf29d6fdc6d6e640c5c2594e439e4b15bea2d240d78",
+    "heldout/sources/micelio-escaneo/negatives.json": "e3d492036278248028198addab738906930a70d5e2813a932cfb5694c8aca5d7",
+    "heldout/sources/micelio-escaneo/plans.json": "ac0bdcf3ea648eb2cab09165c9b661a0e4988599d373043b263ae96321066101",
+    "heldout/sources/micelio-escaneo/reference_text.json": "dc7a7ef1dae967780aaa3bb6fa0c513f9fabdafc7be1e46b8b484a20bc485aec",
+    "heldout/sources/micelio-escaneo/resolutions.json": "de222a9870a8324fa7af5e66e7de61c8cafd860adbcc5906584c379f636849e5",
+    "heldout/sources/micelio-escaneo/source_asset.json": "269711028e158711dbca16a3190eb165e9c0ca9b008e82bd34155156de78f86c",
+    "heldout/sources/micelio-wiki/assertions.json": "4a8f93e151434a6e95bd49c34d5ffb7088190fad308337e473e1404c2324700b",
+    "heldout/sources/micelio-wiki/claims.json": "4192d79de454c08383ebe08dcba271cf42fa4804a1e45e26d96fe72b78a25526",
+    "heldout/sources/micelio-wiki/episodes.json": "5839034a53d13a3ce48ecbb2aaf5b81a9ac5c401d5cfe945103fdd325f5514e5",
+    "heldout/sources/micelio-wiki/fragments.json": "b7bd1f659c5d9ddf06759c4376cce13a38e382d665070d57c07f4baf26aaf8a7",
+    "heldout/sources/micelio-wiki/mentions.json": "9a7c35197224fa53c68426a41a21f39a56094c76b3ff5a7f2b5289235198e2a6",
+    "heldout/sources/micelio-wiki/negatives.json": "cf389cc8911102a63778b35fa1c3bc4e47ac4c0b49202816f6f54ba3bae1e869",
+    "heldout/sources/micelio-wiki/plans.json": "061763d4811ee6609e5ceec923121cd21c275c7d6d7179bcaa9ef4e671b02ad1",
+    "heldout/sources/micelio-wiki/reference_text.json": "4484da941e9068d447856087466fb31d4dd698d07866d7ee08039da60a49e574",
+    "heldout/sources/micelio-wiki/resolutions.json": "93a29d13323509c709e79c761176cfa4c426ce1d5469214d4bfd4afbad7a0810",
+    "heldout/sources/micelio-wiki/source_asset.json": "902c32e18427470fb1c0f7daba7df0f94bdd13ee2a0ce0e1f33b651a2bf50882"
+  },
+  "format_version": "1.0.0",
+  "independence": {
+    "authored_by": "equipo independiente held-out",
+    "double_pass": true,
+    "not_read": [
+      "data-engine/app/knowledge_v3/extraction/",
+      "data-engine/app/knowledge_v3/engine/",
+      "data-engine/app/knowledge_v3/resolution/"
+    ],
+    "read": [
+      "contracts/knowledge-v3/v1/ (schemas y validador congelados)",
+      "estructura de datasets/dev y benchmarks/loader.py",
+      "docs/v3/08-benchmarks.md (§2.1.1, §2.3, §2.4, §3.6, §7) y docs/v3/01-contracts-v3.md"
+    ]
+  },
+  "phenomena_index": {
+    "ABSTENTION": [
+      "micelio-escaneo"
+    ],
+    "ALTERNATIVE_READING": [
+      "ferrovia-cartas"
+    ],
+    "ASR_NOISE": [
+      "liga-audio-crudo"
+    ],
+    "CONFLICT": [
+      "ferrovia-cartas",
+      "ferrovia-memoria"
+    ],
+    "COORDINATION_MISPAIR": [
+      "ferrovia-memoria",
+      "liga-audio-crudo"
+    ],
+    "COREFERENCE": [
+      "ferrovia-memoria",
+      "liga-audio-crudo",
+      "liga-mesa",
+      "micelio-wiki"
+    ],
+    "COUNTERFACTUAL": [
+      "liga-mesa"
+    ],
+    "DENIED_RUMOR": [
+      "ferrovia-cartas"
+    ],
+    "DUPLICATE_ACROSS_SOURCES": [
+      "ferrovia-tabla",
+      "micelio-escaneo"
+    ],
+    "EVENT_LOCATION": [
+      "ferrovia-memoria"
+    ],
+    "FICTION_WITHIN_FICTION": [
+      "micelio-wiki"
+    ],
+    "HYPOTHETICAL": [
+      "liga-audio-crudo",
+      "micelio-wiki"
+    ],
+    "INVERSE_PREDICATE": [
+      "ferrovia-cartas",
+      "micelio-wiki"
+    ],
+    "MODIFIER_MISPAIR": [
+      "ferrovia-memoria",
+      "micelio-wiki"
+    ],
+    "NEGATION": [
+      "ferrovia-cartas",
+      "ferrovia-memoria",
+      "micelio-wiki"
+    ],
+    "NEGATION_AT_DISTANCE": [
+      "ferrovia-memoria"
+    ],
+    "NEW_ENTITY": [
+      "ferrovia-tabla"
+    ],
+    "OCR_NOISE": [
+      "micelio-escaneo"
+    ],
+    "ONTOLOGY_VIOLATION": [
+      "micelio-wiki"
+    ],
+    "PROVISIONAL_ENTITY": [
+      "micelio-escaneo"
+    ],
+    "QUESTION": [
+      "micelio-wiki"
+    ],
+    "RUMOR": [
+      "ferrovia-cartas",
+      "liga-mesa"
+    ],
+    "SPEAKER_COREFERENCE": [
+      "liga-mesa"
+    ],
+    "SUPERSESSION": [
+      "ferrovia-memoria"
+    ],
+    "SYMMETRIC": [
+      "ferrovia-cartas",
+      "ferrovia-memoria",
+      "liga-audio-crudo",
+      "liga-mesa",
+      "micelio-wiki"
+    ],
+    "TABLE": [
+      "ferrovia-tabla"
+    ],
+    "TEMPORALITY": [
+      "ferrovia-memoria",
+      "liga-mesa",
+      "micelio-wiki"
+    ],
+    "TRANSITIVE": [
+      "micelio-wiki"
+    ],
+    "VISUAL_INFERRED": [
+      "micelio-escaneo"
+    ]
+  },
+  "purpose": "Dataset gold HELD-OUT, preparado por el equipo independiente (dosier §9). Mundos, vocabulario y redaccion disjuntos de `dev`. Quien implementa los subsistemas NO lo usa para ajustar: una cifra de dev en la columna de held-out es exactamente el error que costo 0.81 -> 0.24 en el motor v2.",
+  "sources": [
+    {
+      "collection_id": "collection:ferrovia",
+      "counts": {
+        "assertions": 7,
+        "claims": 7,
+        "claims_extractor_gold": 7,
+        "decisions": 7,
+        "episodes": 3,
+        "fragments": 23,
+        "mentions": 16,
+        "negatives": 4,
+        "operations": 7,
+        "plans": 1,
+        "resolutions": 7
+      },
+      "description": "Relato narrativo: cadena de direcciones, negación a distancia, coordinación y sujeto-modificador.",
+      "modalities": [
+        "TEXT"
+      ],
+      "phenomena": [
+        "CONFLICT",
+        "COORDINATION_MISPAIR",
+        "COREFERENCE",
+        "EVENT_LOCATION",
+        "MODIFIER_MISPAIR",
+        "NEGATION",
+        "NEGATION_AT_DISTANCE",
+        "SUPERSESSION",
+        "SYMMETRIC",
+        "TEMPORALITY"
+      ],
+      "source_id": "ferrovia-memoria",
+      "source_kind": "MARKDOWN",
+      "title": "Memoria de la concesión del Norte",
+      "world": "ferrovia"
+    },
+    {
+      "collection_id": "collection:ferrovia",
+      "counts": {
+        "assertions": 3,
+        "claims": 3,
+        "claims_extractor_gold": 3,
+        "decisions": 3,
+        "episodes": 3,
+        "fragments": 16,
+        "mentions": 13,
+        "negatives": 1,
+        "operations": 3,
+        "plans": 1,
+        "resolutions": 7
+      },
+      "description": "Epistolar: rumor sin desmentir, rumor DESMENTIDO y el reverso del conflicto.",
+      "modalities": [
+        "TEXT"
+      ],
+      "phenomena": [
+        "ALTERNATIVE_READING",
+        "CONFLICT",
+        "DENIED_RUMOR",
+        "INVERSE_PREDICATE",
+        "NEGATION",
+        "RUMOR",
+        "SYMMETRIC"
+      ],
+      "source_id": "ferrovia-cartas",
+      "source_kind": "TEXT",
+      "title": "Correspondencia del taller de Portazgo",
+      "world": "ferrovia"
+    },
+    {
+      "collection_id": "collection:ferrovia",
+      "counts": {
+        "assertions": 2,
+        "claims": 4,
+        "claims_extractor_gold": 4,
+        "decisions": 4,
+        "episodes": 1,
+        "fragments": 12,
+        "mentions": 8,
+        "negatives": 0,
+        "operations": 5,
+        "plans": 1,
+        "resolutions": 6
+      },
+      "description": "Tabla: repite dos hechos ya conocidos (NO_OP) y trae un socio nuevo.",
+      "modalities": [
+        "TABLE"
+      ],
+      "phenomena": [
+        "DUPLICATE_ACROSS_SOURCES",
+        "NEW_ENTITY",
+        "TABLE"
+      ],
+      "source_id": "ferrovia-tabla",
+      "source_kind": "TABLE",
+      "title": "Libro de socios del taller (1902)",
+      "world": "ferrovia"
+    },
+    {
+      "collection_id": "collection:micelio",
+      "counts": {
+        "assertions": 9,
+        "claims": 10,
+        "claims_extractor_gold": 9,
+        "decisions": 10,
+        "episodes": 3,
+        "fragments": 28,
+        "mentions": 19,
+        "negatives": 3,
+        "operations": 9,
+        "plans": 1,
+        "resolutions": 7
+      },
+      "description": "Wiki con secciones e infobox: simétrica, inversa, hipotética, pregunta y ficción interna.",
+      "modalities": [
+        "TEXT"
+      ],
+      "phenomena": [
+        "COREFERENCE",
+        "FICTION_WITHIN_FICTION",
+        "HYPOTHETICAL",
+        "INVERSE_PREDICATE",
+        "MODIFIER_MISPAIR",
+        "NEGATION",
+        "ONTOLOGY_VIOLATION",
+        "QUESTION",
+        "SYMMETRIC",
+        "TEMPORALITY",
+        "TRANSITIVE"
+      ],
+      "source_id": "micelio-wiki",
+      "source_kind": "WEB",
+      "title": "Ficha de la Hermandad del Esporo",
+      "world": "micelio"
+    },
+    {
+      "collection_id": "collection:micelio",
+      "counts": {
+        "assertions": 0,
+        "claims": 3,
+        "claims_extractor_gold": 3,
+        "decisions": 3,
+        "episodes": 3,
+        "fragments": 9,
+        "mentions": 6,
+        "negatives": 0,
+        "operations": 1,
+        "plans": 1,
+        "resolutions": 6
+      },
+      "description": "Imagen escaneada: OCR degradado, firma ilegible (provisional) y un plano del que solo cabe inferir.",
+      "modalities": [
+        "DIAGRAM",
+        "OCR_TEXT"
+      ],
+      "phenomena": [
+        "ABSTENTION",
+        "DUPLICATE_ACROSS_SOURCES",
+        "OCR_NOISE",
+        "PROVISIONAL_ENTITY",
+        "VISUAL_INFERRED"
+      ],
+      "source_id": "micelio-escaneo",
+      "source_kind": "IMAGE",
+      "title": "Escaneo del acta de la Cámara Honda",
+      "world": "micelio"
+    },
+    {
+      "collection_id": "collection:liga",
+      "counts": {
+        "assertions": 5,
+        "claims": 5,
+        "claims_extractor_gold": 5,
+        "decisions": 5,
+        "episodes": 3,
+        "fragments": 16,
+        "mentions": 11,
+        "negatives": 1,
+        "operations": 5,
+        "plans": 1,
+        "resolutions": 5
+      },
+      "description": "Turnos de habla: el mismo 'Yo' designa a dos personas, contrafactual y rumor.",
+      "modalities": [
+        "SPEAKER_TURN"
+      ],
+      "phenomena": [
+        "COREFERENCE",
+        "COUNTERFACTUAL",
+        "RUMOR",
+        "SPEAKER_COREFERENCE",
+        "SYMMETRIC",
+        "TEMPORALITY"
+      ],
+      "source_id": "liga-mesa",
+      "source_kind": "AUDIO",
+      "title": "Mesa redonda de pretemporada",
+      "world": "liga"
+    },
+    {
+      "collection_id": "collection:liga",
+      "counts": {
+        "assertions": 4,
+        "claims": 4,
+        "claims_extractor_gold": 4,
+        "decisions": 4,
+        "episodes": 2,
+        "fragments": 11,
+        "mentions": 7,
+        "negatives": 2,
+        "operations": 4,
+        "plans": 1,
+        "resolutions": 4
+      },
+      "description": "ASR crudo: confusiones fonéticas, sin puntuación, coordinación y condicional.",
+      "modalities": [
+        "ASR_TEXT"
+      ],
+      "phenomena": [
+        "ASR_NOISE",
+        "COORDINATION_MISPAIR",
+        "COREFERENCE",
+        "HYPOTHETICAL",
+        "SYMMETRIC"
+      ],
+      "source_id": "liga-audio-crudo",
+      "source_kind": "AUDIO",
+      "title": "Corte de audio sin revisar",
+      "world": "liga"
+    }
+  ],
+  "split": "heldout",
+  "totals": {
+    "assertions": 30,
+    "claims": 36,
+    "claims_extractor_gold": 35,
+    "decisions": 36,
+    "episodes": 18,
+    "fragments": 115,
+    "mentions": 80,
+    "negatives": 11,
+    "operations": 34,
+    "plans": 7,
+    "resolutions": 42
+  }
+}

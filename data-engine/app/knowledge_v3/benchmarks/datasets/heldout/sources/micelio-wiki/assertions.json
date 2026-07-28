@@ -1,0 +1,584 @@
+{
+  "benchmark_file": "assertions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "assertion_id": "assertion:micelio:hermandad-in-honda",
+      "calendar_id": null,
+      "collection_id": "collection:micelio",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:micelio-wiki:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e01:f05"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "hermandad-in-honda",
+        "phenomena": []
+      },
+      "negated": false,
+      "object_entity_id": "entity:micelio:camara-honda",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LOCATED_IN",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:micelio:hermandad",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "assertion_id": "assertion:micelio:hermandad-rival-conclave",
+      "calendar_id": null,
+      "collection_id": "collection:micelio",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:micelio-wiki:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e01:f06"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "hermandad-rival-conclave",
+        "phenomena": [
+          "SYMMETRIC"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:micelio:conclave",
+      "ontology_version": "core-1.4.0",
+      "predicate": "RIVAL_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:micelio:hermandad",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "assertion_id": "assertion:micelio:hermandad-owns-yesca",
+      "calendar_id": null,
+      "collection_id": "collection:micelio",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:micelio-wiki:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e01:f07"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "hermandad-owns-yesca",
+        "phenomena": [
+          "INVERSE_PREDICATE"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:micelio:camara-yesca",
+      "ontology_version": "core-1.4.0",
+      "predicate": "OWNS",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:micelio:hermandad",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "assertion_id": "assertion:micelio:hermandad-has-leire",
+      "calendar_id": null,
+      "collection_id": "collection:micelio",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:micelio-wiki:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e01:f08"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "hermandad-has-leire",
+        "phenomena": [
+          "INVERSE_PREDICATE"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:micelio:leire",
+      "ontology_version": "core-1.4.0",
+      "predicate": "HAS_MEMBER",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:micelio:hermandad",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "assertion_id": "assertion:micelio:honda-in-ocre",
+      "calendar_id": null,
+      "collection_id": "collection:micelio",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:micelio-wiki:e02"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e02:f07"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "honda-in-ocre",
+        "phenomena": [
+          "TRANSITIVE"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:micelio:galeria-ocre",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LOCATED_IN",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:micelio:camara-honda",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "assertion_id": "assertion:micelio:conclave-in-ocre",
+      "calendar_id": null,
+      "collection_id": "collection:micelio",
+      "confidence": 0.5,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:micelio-wiki:e02"
+      ],
+      "epistemic_status": "HYPOTHETICAL",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e02:f08"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "conclave-in-ocre",
+        "phenomena": [
+          "HYPOTHETICAL"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:micelio:galeria-ocre",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LOCATED_IN",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "state": "HYPOTHETICAL",
+      "status": "PROVISIONAL",
+      "subject_entity_id": "entity:micelio:conclave",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "assertion_id": "assertion:micelio:leire-leads-hermandad",
+      "calendar_id": "calendar:micelio",
+      "collection_id": "collection:micelio",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:micelio-wiki:e03"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e03:f07"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "leire-leads-hermandad",
+        "phenomena": [
+          "TEMPORALITY"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:micelio:hermandad",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LEADS",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:micelio:leire",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "assertion_id": "assertion:micelio:leire-sibling-sabel",
+      "calendar_id": null,
+      "collection_id": "collection:micelio",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:micelio-wiki:e03"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e03:f08"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "leire-sibling-sabel",
+        "phenomena": [
+          "SYMMETRIC"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:micelio:sabel",
+      "ontology_version": "core-1.4.0",
+      "predicate": "SIBLING_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:micelio:leire",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "assertion_id": "assertion:micelio:leire-not-in-ocre",
+      "calendar_id": null,
+      "collection_id": "collection:micelio",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:micelio-wiki:e03"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e03:f09"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "leire-not-in-ocre",
+        "phenomena": [
+          "NEGATION"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:micelio:galeria-ocre",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LOCATED_IN",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:micelio:leire",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-wiki",
+  "split": "heldout",
+  "world": "micelio"
+}

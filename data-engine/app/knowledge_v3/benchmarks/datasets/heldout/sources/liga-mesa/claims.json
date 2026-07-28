@@ -1,0 +1,393 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:liga-mesa:e01:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:liga-mesa:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:liga-mesa:e01:f03"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "gold_key": "vero-member-aldabra",
+        "phenomena": [
+          "SPEAKER_COREFERENCE",
+          "TEMPORALITY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:liga-mesa:e01:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "dejé",
+      "review_required": false,
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "subject_mentions": [
+        "mention:liga-mesa:e01:m00"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:liga",
+          "fragment_id": null,
+          "kind": "RELATIVE",
+          "text": "en cuanto se firmó el traspaso",
+          "valid_from": null,
+          "valid_to": "2026-06-15T00:00:00Z"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:liga-mesa:e01:c01",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:liga-mesa:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:liga-mesa:e01:f04"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "gold_key": "vero-in-canchon",
+        "phenomena": [
+          "SPEAKER_COREFERENCE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:liga-mesa:e01:m02"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "LOCATED_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "entreno en",
+      "review_required": false,
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "subject_mentions": [
+        "mention:liga-mesa:e01:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:liga-mesa:e02:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:liga-mesa:e02",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:liga-mesa:e02:f04"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "gold_key": "hektor-member-rompiente",
+        "phenomena": [
+          "SPEAKER_COREFERENCE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:liga-mesa:e02:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "sigo en",
+      "review_required": false,
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "subject_mentions": [
+        "mention:liga-mesa:e02:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:liga-mesa:e02:c01",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:liga-mesa:e02",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:liga-mesa:e02:f05"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "gold_key": "rompiente-rival-aldabra",
+        "phenomena": [
+          "COREFERENCE",
+          "SYMMETRIC",
+          "TEMPORALITY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:liga-mesa:e02:m03"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "RIVAL_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "llevan tres temporadas enfrentados",
+      "review_required": false,
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "subject_mentions": [
+        "mention:liga-mesa:e02:m02"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:liga",
+          "fragment_id": null,
+          "kind": "DURATION",
+          "text": "tres temporadas",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:liga-mesa:e03:c00",
+      "confidence": 0.55,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.55,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:liga-mesa:e03",
+      "epistemic_cues": [
+        "Corre el rumor de que"
+      ],
+      "epistemic_status_hint": "RUMORED",
+      "evidence_fragment_ids": [
+        "fragment:liga-mesa:e03:f04"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "gold_key": "hektor-member-aldabra",
+        "phenomena": [
+          "RUMOR",
+          "TEMPORALITY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:liga-mesa:e03:m03"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.55,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "volverá al",
+      "review_required": false,
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "subject_mentions": [
+        "mention:liga-mesa:e03:m02"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:liga",
+          "fragment_id": null,
+          "kind": "RELATIVE",
+          "text": "la próxima temporada",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-mesa",
+  "split": "heldout",
+  "world": "liga"
+}

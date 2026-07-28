@@ -1,0 +1,245 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [
+        {
+          "confidence": 0.3,
+          "direction": "SUBJECT_TO_OBJECT",
+          "predicate": "OWNS",
+          "reason_codes": [
+            "AMBIGUOUS_SEMANTICS"
+          ]
+        }
+      ],
+      "claim_id": "claim:ferrovia-cartas:e01:c00",
+      "confidence": 0.62,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.62,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:ferrovia-cartas:e01",
+      "epistemic_cues": [
+        "Corre por los talleres que",
+        "Nadie ha visto el documento"
+      ],
+      "epistemic_status_hint": "RUMORED",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-cartas:e01:f05"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "gold_key": "trasandina-ally-norte",
+        "phenomena": [
+          "ALTERNATIVE_READING",
+          "RUMOR",
+          "SYMMETRIC"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:ferrovia-cartas:e01:m03"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.62,
+          "predicate": "ALLY_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "se han repartido",
+      "review_required": false,
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "subject_mentions": [
+        "mention:ferrovia-cartas:e01:m02"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:ferrovia-cartas:e03:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:ferrovia-cartas:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-cartas:e03:f05"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "gold_key": "iker-not-member-trasandina",
+        "phenomena": [
+          "CONFLICT",
+          "NEGATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:ferrovia-cartas:e03:m02"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "no figura como socio de",
+      "review_required": false,
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "subject_mentions": [
+        "mention:ferrovia-cartas:e03:m01"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [
+        {
+          "confidence": 0.4,
+          "direction": "OBJECT_TO_SUBJECT",
+          "predicate": "OWNS",
+          "reason_codes": [
+            "INVERSE_READING"
+          ]
+        }
+      ],
+      "claim_id": "claim:ferrovia-cartas:e03:c01",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:ferrovia-cartas:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-cartas:e03:f06"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "gold_key": "cierzo-owned-trasandina",
+        "phenomena": [
+          "ALTERNATIVE_READING",
+          "INVERSE_PREDICATE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:ferrovia-cartas:e03:m04"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "OWNED_BY"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "pertenece a",
+      "review_required": false,
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "subject_mentions": [
+        "mention:ferrovia-cartas:e03:m03"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-cartas",
+  "split": "heldout",
+  "world": "ferrovia"
+}

@@ -1,0 +1,22 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:ferrovia-memoria:e01",
+      "text": "Maren Ibarrola encabezó la Compañía del Norte desde el otoño de 1893 hasta el desprendimiento de Portazgo. Cedió la dirección en 1897 y desde entonces Iker Lasalde encabezó la Compañía. Desde el deshielo de 1901 la encabeza Nerea Lasalde."
+    },
+    {
+      "episode_id": "episode:ferrovia-memoria:e02",
+      "text": "El expediente de concesión no reconoció ninguna de las peticiones que Trasandina Unida presentó aquel invierno, ni siquiera la que firmaba el hermano de Nerea Lasalde para explotar el Túnel de Aizkorri."
+    },
+    {
+      "episode_id": "episode:ferrovia-memoria:e03",
+      "text": "Nerea Lasalde ingresó en la Compañía del Norte y también Iker Lasalde ingresó en Trasandina Unida. Los dos hermanos discutieron el reparto en la Estación de Portazgo."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-memoria",
+  "split": "heldout",
+  "world": "ferrovia"
+}

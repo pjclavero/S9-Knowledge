@@ -1,0 +1,22 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:ferrovia-cartas:e01",
+      "text": "Portazgo, 14 de marzo de 1899\nA la atención de Maren Ibarrola:\nCorre por los talleres que Trasandina Unida y la Compañía del Norte se han repartido la concesión del Túnel de Aizkorri. Nadie ha visto el documento."
+    },
+    {
+      "episode_id": "episode:ferrovia-cartas:e02",
+      "text": "Portazgo, 2 de abril de 1899\nSe dijo en la cantina que la locomotora Cierzo era propiedad de la Compañía del Norte; el libro de inventario lo desmiente sin dejar lugar a dudas."
+    },
+    {
+      "episode_id": "episode:ferrovia-cartas:e03",
+      "text": "Portazgo, 9 de mayo de 1899\nDejo constancia de que Iker Lasalde no figura como socio de Trasandina Unida en ninguno de los tres libros que he revisado. La locomotora Cierzo, en cambio, pertenece a Trasandina Unida desde el reparto."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-cartas",
+  "split": "heldout",
+  "world": "ferrovia"
+}

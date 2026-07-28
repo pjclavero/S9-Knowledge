@@ -1,0 +1,319 @@
+{
+  "benchmark_file": "resolutions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:micelio:camara-honda"
+      ],
+      "confidence": 0.72,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:micelio-escaneo:e01:f00"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:micelio-escaneo:e01:m00"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "OCR_DEGRADED_SURFACE",
+        "ALIAS_KNOWN_DEGRADATION"
+      ],
+      "resolution_id": "resolution:micelio-escaneo:camara-honda",
+      "selected_entity_id": "entity:micelio:camara-honda",
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "workspace": "bench-heldout"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:micelio:leire"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:micelio-escaneo:e01:f01"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:micelio-escaneo:e01:m01"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:micelio-escaneo:leire",
+      "selected_entity_id": "entity:micelio:leire",
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "workspace": "bench-heldout"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:micelio:hermandad"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:micelio-escaneo:e01:f02"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:micelio-escaneo:e01:m02"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:micelio-escaneo:hermandad",
+      "selected_entity_id": "entity:micelio:hermandad",
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "workspace": "bench-heldout"
+    },
+    {
+      "action": "CREATE_PROVISIONAL",
+      "assigned_entity_id": "entity:prov:micelio:0nra1ta",
+      "candidate_entity_ids": [
+        "entity:micelio:sabel",
+        "entity:micelio:leire"
+      ],
+      "confidence": 0.3,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": null,
+      "evidence": [
+        "fragment:micelio-escaneo:e02:f00"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:micelio-escaneo:e02:m00"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "OCR_DEGRADED_SURFACE",
+        "AMBIGUOUS_CANDIDATES"
+      ],
+      "resolution_id": "resolution:micelio-escaneo:rubrica-provisional",
+      "selected_entity_id": null,
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "workspace": "bench-heldout"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:micelio:camara-yesca"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:micelio-escaneo:e03:f00"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:micelio-escaneo:e03:m00"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:micelio-escaneo:camara-yesca",
+      "selected_entity_id": "entity:micelio:camara-yesca",
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "workspace": "bench-heldout"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:micelio:galeria-ocre"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:micelio-escaneo:e03:f01"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:micelio-escaneo:e03:m01"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:micelio-escaneo:galeria-ocre",
+      "selected_entity_id": "entity:micelio:galeria-ocre",
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-escaneo",
+  "split": "heldout",
+  "world": "micelio"
+}

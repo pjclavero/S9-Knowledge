@@ -1,0 +1,222 @@
+{
+  "benchmark_file": "resolutions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:liga:irune"
+      ],
+      "confidence": 0.8,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:liga-audio-crudo:e01:f00",
+        "fragment:liga-audio-crudo:e02:f01"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:liga-audio-crudo:e01:m00",
+        "mention:liga-audio-crudo:e02:m01"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "ASR_PHONETIC_SURFACE",
+        "ALIAS_KNOWN_DEGRADATION"
+      ],
+      "resolution_id": "resolution:liga-audio-crudo:irune",
+      "selected_entity_id": "entity:liga:irune",
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "workspace": "bench-heldout"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:liga:farol"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:liga-audio-crudo:e01:f01",
+        "fragment:liga-audio-crudo:e02:f00",
+        "fragment:liga-audio-crudo:e02:f02"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:liga-audio-crudo:e01:m01",
+        "mention:liga-audio-crudo:e02:m00",
+        "mention:liga-audio-crudo:e02:m02"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS",
+        "COREFERENCE_CHAIN"
+      ],
+      "resolution_id": "resolution:liga-audio-crudo:farol",
+      "selected_entity_id": "entity:liga:farol",
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "workspace": "bench-heldout"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:liga:lorea"
+      ],
+      "confidence": 0.68,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:liga-audio-crudo:e01:f02"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:liga-audio-crudo:e01:m02"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "ASR_PHONETIC_SURFACE"
+      ],
+      "resolution_id": "resolution:liga-audio-crudo:lorea",
+      "selected_entity_id": "entity:liga:lorea",
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "workspace": "bench-heldout"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:liga:aldabra"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:liga-audio-crudo:e01:f03"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:liga-audio-crudo:e01:m03"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:liga-audio-crudo:aldabra",
+      "selected_entity_id": "entity:liga:aldabra",
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-audio-crudo",
+  "split": "heldout",
+  "world": "liga"
+}

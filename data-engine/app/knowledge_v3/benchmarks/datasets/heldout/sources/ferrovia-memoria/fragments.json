@@ -1,0 +1,1068 @@
+{
+  "benchmark_file": "fragments",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 14,
+      "episode_id": "episode:ferrovia-memoria:e01",
+      "fragment_id": "fragment:ferrovia-memoria:e01:f00",
+      "frame_id": null,
+      "literal_text": "Maren Ibarrola",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "maren ibarrola",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 45,
+      "episode_id": "episode:ferrovia-memoria:e01",
+      "fragment_id": "fragment:ferrovia-memoria:e01:f01",
+      "frame_id": null,
+      "literal_text": "Compañía del Norte",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "compañía del norte",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 27,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 105,
+      "episode_id": "episode:ferrovia-memoria:e01",
+      "fragment_id": "fragment:ferrovia-memoria:e01:f02",
+      "frame_id": null,
+      "literal_text": "Portazgo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "portazgo",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 97,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 163,
+      "episode_id": "episode:ferrovia-memoria:e01",
+      "fragment_id": "fragment:ferrovia-memoria:e01:f03",
+      "frame_id": null,
+      "literal_text": "Iker Lasalde",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "iker lasalde",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 151,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 184,
+      "episode_id": "episode:ferrovia-memoria:e01",
+      "fragment_id": "fragment:ferrovia-memoria:e01:f04",
+      "frame_id": null,
+      "literal_text": "la Compañía",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "la compañía",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 173,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 214,
+      "episode_id": "episode:ferrovia-memoria:e01",
+      "fragment_id": "fragment:ferrovia-memoria:e01:f05",
+      "frame_id": null,
+      "literal_text": "la",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "la",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 212,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 237,
+      "episode_id": "episode:ferrovia-memoria:e01",
+      "fragment_id": "fragment:ferrovia-memoria:e01:f06",
+      "frame_id": null,
+      "literal_text": "Nerea Lasalde",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "nerea lasalde",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 224,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 23,
+      "episode_id": "episode:ferrovia-memoria:e01",
+      "fragment_id": "fragment:ferrovia-memoria:e01:f07",
+      "frame_id": null,
+      "literal_text": "encabezó",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "encabezó",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 15,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 172,
+      "episode_id": "episode:ferrovia-memoria:e01",
+      "fragment_id": "fragment:ferrovia-memoria:e01:f08",
+      "frame_id": null,
+      "literal_text": "encabezó",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "encabezó",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 164,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 223,
+      "episode_id": "episode:ferrovia-memoria:e01",
+      "fragment_id": "fragment:ferrovia-memoria:e01:f09",
+      "frame_id": null,
+      "literal_text": "encabeza",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "encabeza",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 215,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 86,
+      "episode_id": "episode:ferrovia-memoria:e02",
+      "fragment_id": "fragment:ferrovia-memoria:e02:f00",
+      "frame_id": null,
+      "literal_text": "Trasandina Unida",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "trasandina unida",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 70,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 166,
+      "episode_id": "episode:ferrovia-memoria:e02",
+      "fragment_id": "fragment:ferrovia-memoria:e02:f01",
+      "frame_id": null,
+      "literal_text": "el hermano de Nerea Lasalde",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "el hermano de nerea lasalde",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 139,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 166,
+      "episode_id": "episode:ferrovia-memoria:e02",
+      "fragment_id": "fragment:ferrovia-memoria:e02:f02",
+      "frame_id": null,
+      "literal_text": "Nerea Lasalde",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "nerea lasalde",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 153,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 201,
+      "episode_id": "episode:ferrovia-memoria:e02",
+      "fragment_id": "fragment:ferrovia-memoria:e02:f03",
+      "frame_id": null,
+      "literal_text": "Túnel de Aizkorri",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "túnel de aizkorri",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 184,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 180,
+      "episode_id": "episode:ferrovia-memoria:e02",
+      "fragment_id": "fragment:ferrovia-memoria:e02:f04",
+      "frame_id": null,
+      "literal_text": "para explotar",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "para explotar",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 167,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 13,
+      "episode_id": "episode:ferrovia-memoria:e03",
+      "fragment_id": "fragment:ferrovia-memoria:e03:f00",
+      "frame_id": null,
+      "literal_text": "Nerea Lasalde",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "nerea lasalde",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 46,
+      "episode_id": "episode:ferrovia-memoria:e03",
+      "fragment_id": "fragment:ferrovia-memoria:e03:f01",
+      "frame_id": null,
+      "literal_text": "Compañía del Norte",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "compañía del norte",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 28,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 69,
+      "episode_id": "episode:ferrovia-memoria:e03",
+      "fragment_id": "fragment:ferrovia-memoria:e03:f02",
+      "frame_id": null,
+      "literal_text": "Iker Lasalde",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "iker lasalde",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 57,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 97,
+      "episode_id": "episode:ferrovia-memoria:e03",
+      "fragment_id": "fragment:ferrovia-memoria:e03:f03",
+      "frame_id": null,
+      "literal_text": "Trasandina Unida",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "trasandina unida",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 81,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 165,
+      "episode_id": "episode:ferrovia-memoria:e03",
+      "fragment_id": "fragment:ferrovia-memoria:e03:f04",
+      "frame_id": null,
+      "literal_text": "Estación de Portazgo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "estación de portazgo",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 145,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 24,
+      "episode_id": "episode:ferrovia-memoria:e03",
+      "fragment_id": "fragment:ferrovia-memoria:e03:f05",
+      "frame_id": null,
+      "literal_text": "ingresó en",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "ingresó en",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 14,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 80,
+      "episode_id": "episode:ferrovia-memoria:e03",
+      "fragment_id": "fragment:ferrovia-memoria:e03:f06",
+      "frame_id": null,
+      "literal_text": "ingresó en",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "ingresó en",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 70,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 115,
+      "episode_id": "episode:ferrovia-memoria:e03",
+      "fragment_id": "fragment:ferrovia-memoria:e03:f07",
+      "frame_id": null,
+      "literal_text": "Los dos hermanos",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "los dos hermanos",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "start": 99,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-memoria",
+  "split": "heldout",
+  "world": "ferrovia"
+}

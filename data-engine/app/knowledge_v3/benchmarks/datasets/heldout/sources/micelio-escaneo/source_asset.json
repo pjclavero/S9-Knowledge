@@ -1,0 +1,67 @@
+{
+  "benchmark_file": "source_asset",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:micelio-escaneo",
+      "byte_size": 41230,
+      "collection_id": "collection:micelio",
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "contract_id": "source-asset/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "copyright_class": "OWN",
+      "created_at": "2026-03-18T00:00:00Z",
+      "game_profile": "generic",
+      "ingested_at": "2026-07-21T09:30:00Z",
+      "language_hint": "es",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "description": "Imagen escaneada: OCR degradado, firma ilegible (provisional) y un plano del que solo cabe inferir.",
+        "title": "Escaneo del acta de la Cámara Honda"
+      },
+      "mime_type": "image/png",
+      "original_location": "benchmarks/heldout/micelio-escaneo/acta-camara-honda.png",
+      "original_name": "acta-camara-honda.png",
+      "privacy_class": "INTERNAL",
+      "processing_policy": {
+        "allow_external_providers": true,
+        "allow_media_persistence": true,
+        "retention_days": 365
+      },
+      "produced_by_step": "gold.ingest",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type"
+          ],
+          "provider": "local",
+          "step": "gold.ingest",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "source_kind": "IMAGE",
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-escaneo",
+  "split": "heldout",
+  "world": "micelio"
+}

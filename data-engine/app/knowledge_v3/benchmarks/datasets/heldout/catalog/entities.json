@@ -1,0 +1,292 @@
+{
+  "benchmark_file": "entities",
+  "dataset_version": "1.0.0",
+  "entities": [
+    {
+      "aliases": [
+        "Maren",
+        "Maren Ibarrola",
+        "Ibarrola"
+      ],
+      "entity_id": "entity:ferrovia:maren",
+      "name": "Maren Ibarrola",
+      "note": "Primera de la cadena de direccion de la Compañía del Norte (1893-1897).",
+      "type": "Character",
+      "world": "ferrovia"
+    },
+    {
+      "aliases": [
+        "Iker",
+        "Iker Lasalde",
+        "el hermano de Nerea Lasalde"
+      ],
+      "entity_id": "entity:ferrovia:iker",
+      "name": "Iker Lasalde",
+      "note": "Hermano de Nerea. Su pertenencia a Trasandina Unida la afirma la memoria y la niega la carta del 9 de mayo: conflicto registrado en los dos signos.",
+      "type": "Character",
+      "world": "ferrovia"
+    },
+    {
+      "aliases": [
+        "Nerea",
+        "Nerea Lasalde"
+      ],
+      "entity_id": "entity:ferrovia:nerea",
+      "name": "Nerea Lasalde",
+      "note": "Hermana de Iker. 'Lasalde' a secas NO desambigua y no se usa como superficie.",
+      "type": "Character",
+      "world": "ferrovia"
+    },
+    {
+      "aliases": [
+        "Txomin Ereña"
+      ],
+      "entity_id": "entity:ferrovia:txomin",
+      "expected_action": "CREATE_NEW",
+      "name": "Txomin Ereña",
+      "note": "Solo aparece en la tabla. El gold espera CREATE_NEW, no un enlace forzado.",
+      "type": "Character",
+      "world": "ferrovia"
+    },
+    {
+      "aliases": [
+        "Compañía del Norte",
+        "la Compañía"
+      ],
+      "entity_id": "entity:ferrovia:norte",
+      "name": "Compañía del Norte",
+      "note": "",
+      "type": "Faction",
+      "world": "ferrovia"
+    },
+    {
+      "aliases": [
+        "Trasandina Unida",
+        "la Trasandina"
+      ],
+      "entity_id": "entity:ferrovia:trasandina",
+      "name": "Trasandina Unida",
+      "note": "",
+      "type": "Faction",
+      "world": "ferrovia"
+    },
+    {
+      "aliases": [
+        "Túnel de Aizkorri"
+      ],
+      "entity_id": "entity:ferrovia:aizkorri",
+      "name": "Túnel de Aizkorri",
+      "note": "",
+      "type": "Location",
+      "world": "ferrovia"
+    },
+    {
+      "aliases": [
+        "Estación de Portazgo",
+        "Portazgo"
+      ],
+      "entity_id": "entity:ferrovia:portazgo",
+      "name": "Estación de Portazgo",
+      "note": "El encabezado de las cartas ('Portazgo, 14 de marzo...') es lugar de emision, no mencion util.",
+      "type": "Location",
+      "world": "ferrovia"
+    },
+    {
+      "aliases": [
+        "Locomotora Cierzo",
+        "locomotora Cierzo",
+        "Cierzo"
+      ],
+      "entity_id": "entity:ferrovia:cierzo",
+      "name": "Locomotora Cierzo",
+      "note": "Su propiedad es objeto de un rumor DESMENTIDO en la carta del 2 de abril.",
+      "type": "Object",
+      "world": "ferrovia"
+    },
+    {
+      "aliases": [
+        "Sabel",
+        "Sabel Onraita"
+      ],
+      "entity_id": "entity:micelio:sabel",
+      "name": "Sabel Onraita",
+      "note": "Hermana de Leire. Aparece en dos trampas: una pregunta y un sujeto-modificador.",
+      "type": "Character",
+      "world": "micelio"
+    },
+    {
+      "aliases": [
+        "Leire",
+        "Leire Onraita",
+        "La hermana de Sabel Onraita"
+      ],
+      "entity_id": "entity:micelio:leire",
+      "name": "Leire Onraita",
+      "note": "Dirige la Hermandad. Es quien manda, no Sabel: el modificador enganya.",
+      "type": "Character",
+      "world": "micelio"
+    },
+    {
+      "aliases": [
+        "Hermandad del Esporo",
+        "la Hermandad"
+      ],
+      "entity_id": "entity:micelio:hermandad",
+      "name": "Hermandad del Esporo",
+      "note": "",
+      "type": "Faction",
+      "world": "micelio"
+    },
+    {
+      "aliases": [
+        "Cónclave Lívido",
+        "el Cónclave"
+      ],
+      "entity_id": "entity:micelio:conclave",
+      "name": "Cónclave Lívido",
+      "note": "",
+      "type": "Faction",
+      "world": "micelio"
+    },
+    {
+      "aliases": [
+        "Cámara Honda",
+        "Cárnara Honda"
+      ],
+      "entity_id": "entity:micelio:camara-honda",
+      "name": "Cámara Honda",
+      "note": "'Cárnara Honda' es degradacion de OCR (m -> rn), no otro lugar.",
+      "type": "Location",
+      "world": "micelio"
+    },
+    {
+      "aliases": [
+        "Galería Ocre"
+      ],
+      "entity_id": "entity:micelio:galeria-ocre",
+      "name": "Galería Ocre",
+      "note": "",
+      "type": "Location",
+      "world": "micelio"
+    },
+    {
+      "aliases": [
+        "Cámara Yesca"
+      ],
+      "entity_id": "entity:micelio:camara-yesca",
+      "name": "Cámara Yesca",
+      "note": "Su ubicacion solo se infiere de un plano: VISUAL_INFERRED, con revision.",
+      "type": "Location",
+      "world": "micelio"
+    },
+    {
+      "aliases": [
+        "0nra1ta"
+      ],
+      "entity_id": "entity:prov:micelio:0nra1ta",
+      "expected_action": "CREATE_PROVISIONAL",
+      "name": "0nra1ta",
+      "note": "Entidad PROVISIONAL. Se parece a Onraita, pero hay DOS Onraita en el mundo (Sabel y Leire) y la superficie viene degradada por OCR (O->0, i->1): fundirla seria elegir hermana a cara o cruz.",
+      "provisional": true,
+      "type": null,
+      "world": "micelio"
+    },
+    {
+      "aliases": [
+        "Vero",
+        "Vero Anchorena"
+      ],
+      "entity_id": "entity:liga:vero",
+      "name": "Vero Anchorena",
+      "note": "Primera persona en el turno 0 y en el turno 2 de la mesa.",
+      "type": "Character",
+      "world": "liga"
+    },
+    {
+      "aliases": [
+        "Hektor",
+        "Hektor Zuloaga"
+      ],
+      "entity_id": "entity:liga:hektor",
+      "name": "Hektor Zuloaga",
+      "note": "Primera persona en el turno 1: el mismo 'Yo' que en el turno 0 designa a otra persona.",
+      "type": "Character",
+      "world": "liga"
+    },
+    {
+      "aliases": [
+        "Irune Basterra",
+        "irune basterra"
+      ],
+      "entity_id": "entity:liga:irune",
+      "name": "Irune Basterra",
+      "note": "Aparece solo en el audio crudo, en minusculas y sin puntuacion.",
+      "type": "Character",
+      "world": "liga"
+    },
+    {
+      "aliases": [
+        "Lorea Basterra",
+        "lorea"
+      ],
+      "entity_id": "entity:liga:lorea",
+      "name": "Lorea Basterra",
+      "note": "Hermana de Irune. El ASR se come la hache de 'hermana'.",
+      "type": "Character",
+      "world": "liga"
+    },
+    {
+      "aliases": [
+        "Club Rompiente",
+        "el Rompiente",
+        "Nuestro club"
+      ],
+      "entity_id": "entity:liga:rompiente",
+      "name": "Club Rompiente",
+      "note": "",
+      "type": "Faction",
+      "world": "liga"
+    },
+    {
+      "aliases": [
+        "Club Aldabra",
+        "el Aldabra",
+        "Aldabra",
+        "club aldabra"
+      ],
+      "entity_id": "entity:liga:aldabra",
+      "name": "Club Aldabra",
+      "note": "",
+      "type": "Faction",
+      "world": "liga"
+    },
+    {
+      "aliases": [
+        "Club Farol",
+        "club farol",
+        "el equipo"
+      ],
+      "entity_id": "entity:liga:farol",
+      "name": "Club Farol",
+      "note": "",
+      "type": "Faction",
+      "world": "liga"
+    },
+    {
+      "aliases": [
+        "Canchón del Este"
+      ],
+      "entity_id": "entity:liga:canchon",
+      "name": "Canchón del Este",
+      "note": "",
+      "type": "Location",
+      "world": "liga"
+    }
+  ],
+  "split": "heldout",
+  "worlds": {
+    "ferrovia": "Via estrecha de montana: companias concesionarias, tuneles y talleres (siglo XIX).",
+    "liga": "Liga urbana de pelota: clubes, canchones y traspasos (deporte contemporaneo).",
+    "micelio": "Galerias de esporas: hermandades de cultivo, camaras y conclaves (biopunk subterraneo)."
+  }
+}

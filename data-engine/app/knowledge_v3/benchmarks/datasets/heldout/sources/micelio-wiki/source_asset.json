@@ -1,0 +1,67 @@
+{
+  "benchmark_file": "source_asset",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:micelio-wiki",
+      "byte_size": 980,
+      "collection_id": "collection:micelio",
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "contract_id": "source-asset/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "copyright_class": "OWN",
+      "created_at": "2026-02-02T00:00:00Z",
+      "game_profile": "generic",
+      "ingested_at": "2026-07-21T09:20:00Z",
+      "language_hint": "es",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "description": "Wiki con secciones e infobox: simétrica, inversa, hipotética, pregunta y ficción interna.",
+        "title": "Ficha de la Hermandad del Esporo"
+      },
+      "mime_type": "text/html",
+      "original_location": "benchmarks/heldout/micelio-wiki/hermandad-del-esporo.html",
+      "original_name": "hermandad-del-esporo.html",
+      "privacy_class": "INTERNAL",
+      "processing_policy": {
+        "allow_external_providers": true,
+        "allow_media_persistence": true,
+        "retention_days": 365
+      },
+      "produced_by_step": "gold.ingest",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type"
+          ],
+          "provider": "local",
+          "step": "gold.ingest",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "source_kind": "WEB",
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-wiki",
+  "split": "heldout",
+  "world": "micelio"
+}

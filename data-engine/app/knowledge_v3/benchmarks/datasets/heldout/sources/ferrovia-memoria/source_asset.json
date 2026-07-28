@@ -1,0 +1,67 @@
+{
+  "benchmark_file": "source_asset",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:ferrovia-memoria",
+      "byte_size": 742,
+      "collection_id": "collection:ferrovia",
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "contract_id": "source-asset/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "copyright_class": "OWN",
+      "created_at": "1912-03-04T00:00:00Z",
+      "game_profile": "generic",
+      "ingested_at": "2026-07-21T09:00:00Z",
+      "language_hint": "es",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "description": "Relato narrativo: cadena de direcciones, negación a distancia, coordinación y sujeto-modificador.",
+        "title": "Memoria de la concesión del Norte"
+      },
+      "mime_type": "text/markdown",
+      "original_location": "benchmarks/heldout/ferrovia-memoria/memoria-concesion-norte.md",
+      "original_name": "memoria-concesion-norte.md",
+      "privacy_class": "INTERNAL",
+      "processing_policy": {
+        "allow_external_providers": true,
+        "allow_media_persistence": true,
+        "retention_days": 365
+      },
+      "produced_by_step": "gold.ingest",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type"
+          ],
+          "provider": "local",
+          "step": "gold.ingest",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "source_kind": "MARKDOWN",
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-memoria",
+  "split": "heldout",
+  "world": "ferrovia"
+}
