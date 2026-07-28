@@ -21,7 +21,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from ..contracts import Provider, SourceEpisode
 from .base import (
@@ -33,7 +33,7 @@ from .base import (
     abstention_claim,
     emit,
 )
-from .text import EvidenceIndex, Token, find_phrase, phrase_tokens
+from .text import EvidenceIndex, Token, find_phrase, normalize, phrase_tokens
 
 TEMPORAL_STEP = "extract.temporal"
 
@@ -131,18 +131,47 @@ def _calendar_for(
     return None
 
 
+#: Modos de anclaje de una expresion temporal.
+#:
+#: `contained` es el de siempre y el DEFECTO: la expresion tiene que caber
+#: entera dentro de un fragmento. `overlap` admite que la cruce, y existe
+#: porque en el corpus real los fragmentos son tramos cortos: "desde el
+#: invierno de 1041 hasta la caida de Vado Alto" no cabe en ninguno y se perdia
+#: entera, que es justo la expresion que mas informacion temporal lleva. El
+#: defecto no cambia: el camino determinista sigue midiendo lo que medía.
+ANCHOR_CONTAINED = "contained"
+ANCHOR_OVERLAP = "overlap"
+
+
+def _anchor_expression(index: EvidenceIndex, start: int, end: int, mode: str):
+    if mode == ANCHOR_CONTAINED:
+        return index.anchor_span(start, end)
+    solapados = [f for f in index.fragments if f.start < end and start < f.end]
+    if not solapados:
+        return None
+    return index.anchor_span(start, end) or _FakeAnchor(solapados[0].fragment_id)
+
+
+@dataclass(frozen=True)
+class _FakeAnchor:
+    """Anclaje minimo por solape: solo se usa su `fragment_id`."""
+
+    fragment_id: str
+
+
 def extract_temporal_expressions(
     index: EvidenceIndex,
     *,
     calendars: Sequence[dict] = (),
     lo: Optional[int] = None,
     hi: Optional[int] = None,
+    anchor_mode: str = ANCHOR_CONTAINED,
 ) -> list[TemporalMatch]:
     """Expresiones temporales del episodio (o del rango de offsets `[lo, hi)`).
 
-    Solo devuelve expresiones ANCLADAS: si el fragmento que las contiene no
-    existe, la expresion no sale. El rango permite acotar a una frase, que es
-    como la usa el extractor determinista al construir un claim.
+    Solo devuelve expresiones ANCLADAS: si no hay ningun fragmento real detras,
+    la expresion no sale. El rango permite acotar a una frase, que es como la
+    usa el extractor determinista al construir un claim.
     """
     text = index.text or ""
     if not text:
@@ -156,7 +185,7 @@ def extract_temporal_expressions(
             start, end = m.start(), m.end()
             if any(start < t_end and t_start < end for t_start, t_end in taken):
                 continue  # ya cubierto por un patron mas especifico
-            anchor = index.anchor_span(start, end)
+            anchor = _anchor_expression(index, start, end, anchor_mode)
             if anchor is None:
                 continue
             covered = [t for t in index.tokens if t.start >= start and t.end <= end]
@@ -179,6 +208,154 @@ def extract_temporal_expressions(
                 )
             )
     return sorted(out, key=lambda t: (t.start, t.end))
+
+
+# --------------------------------------------------------------------------
+# Resolucion ESCALONADA (usada por el extractor semantico)
+# --------------------------------------------------------------------------
+#: Estados de la resolucion temporal local.
+TEMPORAL_RESOLVED = "RESOLVED"
+TEMPORAL_AMBIGUOUS = "AMBIGUOUS"
+TEMPORAL_NONE = "NONE"
+
+#: Tipos de expresion que el sistema local sabe resolver SIN preguntar a nadie:
+#: una fecha, un intervalo con sus dos extremos o una duracion explicita se leen
+#: del texto y ya esta. `RELATIVE` no esta aqui a proposito: "entonces", "antes"
+#: o "mas tarde" no dicen cuando sin un ancla que este en otra frase.
+LOCALLY_RESOLVABLE_KINDS = ("POINT", "INTERVAL", "DURATION")
+
+#: Marcas de ESTADO. No fijan una fecha, pero resuelven la pregunta que importa
+#: ("¿sigue vigente?") sin gastar una llamada. Se recogen como pistas, nunca
+#: como decision: cerrar una vigencia es del ledger.
+STATE_CUES: tuple[tuple[str, str], ...] = (
+    ("ya no", "STATE_ENDED_CUE"),
+    ("dejo de", "STATE_ENDED_CUE"),
+    ("hasta", "STATE_ENDED_CUE"),
+    ("todavia", "STATE_ACTIVE_CUE"),
+    ("aun", "STATE_ACTIVE_CUE"),
+    ("sigue", "STATE_ACTIVE_CUE"),
+    ("conserva", "STATE_ACTIVE_CUE"),
+    ("desde", "STATE_STARTED_CUE"),
+)
+
+
+@dataclass(frozen=True)
+class TemporalResolution:
+    """Resultado de la fase LOCAL de la resolucion temporal escalonada.
+
+    `status` decide si hace falta gastar una segunda llamada al modelo:
+    `RESOLVED` y `NONE` no la gastan; `AMBIGUOUS` si. Esa es toda la ganancia
+    de rendimiento del escalonado, y es medible.
+    """
+
+    status: str
+    expressions: tuple[TemporalMatch, ...] = ()
+    cues: tuple[str, ...] = ()
+    reason_codes: tuple[str, ...] = ()
+
+    @property
+    def needs_model(self) -> bool:
+        return self.status == TEMPORAL_AMBIGUOUS
+
+    def to_contract(self) -> list[dict]:
+        return [m.to_contract() for m in self.expressions]
+
+
+def _state_cues(text: str) -> tuple[str, ...]:
+    lowered = normalize(text or "")
+    return tuple(
+        dict.fromkeys(code for needle, code in STATE_CUES if needle in lowered)
+    )
+
+
+def resolve_locally(
+    index: EvidenceIndex,
+    *,
+    lo: Optional[int] = None,
+    hi: Optional[int] = None,
+    calendars: Sequence[dict] = (),
+) -> TemporalResolution:
+    """Fase (a) del escalonado: lo EXPLICITO se resuelve aqui y gratis.
+
+    Devuelve `NONE` si el tramo no habla de tiempo, `RESOLVED` si toda la
+    temporalidad que hay es explicita (fecha, intervalo, duracion o marca de
+    estado) y `AMBIGUOUS` solo cuando queda algo relativo sin ancla. Preguntarle
+    al modelo por TODOS los claims, como hacia el camino anterior, era pagar una
+    llamada por episodio para reconfirmar fechas que ya estaban escritas.
+    """
+    matches = tuple(
+        extract_temporal_expressions(
+            index, calendars=calendars, lo=lo, hi=hi, anchor_mode=ANCHOR_OVERLAP
+        )
+    )
+    texto = (index.text or "")[lo or 0:hi if hi is not None else len(index.text or "")]
+    cues = _state_cues(texto)
+    if not matches and not cues:
+        return TemporalResolution(TEMPORAL_NONE)
+    relativas = tuple(m for m in matches if m.kind not in LOCALLY_RESOLVABLE_KINDS)
+    if relativas and not any(m.kind in LOCALLY_RESOLVABLE_KINDS for m in matches):
+        return TemporalResolution(
+            TEMPORAL_AMBIGUOUS,
+            expressions=matches,
+            cues=cues,
+            reason_codes=("TEMPORAL_RELATIVE_WITHOUT_ANCHOR",),
+        )
+    return TemporalResolution(TEMPORAL_RESOLVED, expressions=matches, cues=cues)
+
+
+def validate_model_expressions(
+    raw: Sequence[Any],
+    index: EvidenceIndex,
+    *,
+    calendars: Sequence[dict] = (),
+) -> tuple[list[dict], list[str]]:
+    """Fase (c): valida LOCALMENTE lo que el modelo diga del tiempo.
+
+    Misma regla que para las menciones: el modelo aporta TEXTO, y ese texto
+    tiene que aparecer literalmente en un fragmento real. Una fecha que el
+    modelo "recuerda" y el texto no dice es una alucinacion con formato de
+    fecha, que es la peor clase: parece un dato duro.
+
+    Devuelve `(expresiones_validas, codigos)`. Nunca levanta: el que llama
+    decide si se abstiene.
+    """
+    # Import diferido: el anclaje por episodio vive en la frontera de modelos
+    # (`payload`), que es quien lo necesita. Traerlo arriba acoplaria un
+    # extractor local a esa frontera sin ninguna ganancia.
+    from .payload import anchor_in_episode
+
+    validas: list[dict] = []
+    codigos: list[str] = []
+    for item in raw or ():
+        texto = item.get("text") if isinstance(item, dict) else item
+        if not isinstance(texto, str) or not texto.strip():
+            codigos.append("TEMPORAL_EXPRESSION_NOT_TEXT")
+            continue
+        anchor = anchor_in_episode(index, texto.strip())
+        if anchor is None:
+            codigos.append("HALLUCINATED_TEMPORAL_EXPRESSION")
+            continue
+        local = extract_temporal_expressions(
+            index,
+            calendars=calendars,
+            lo=anchor.start,
+            hi=anchor.end,
+            anchor_mode=ANCHOR_OVERLAP,
+        )
+        if local:
+            validas.append(local[0].to_contract())
+            continue
+        kind = item.get("kind") if isinstance(item, dict) else None
+        if kind not in ("POINT", "INTERVAL", "DURATION", "RELATIVE", "UNKNOWN"):
+            kind = "UNKNOWN"
+        # Sin patron local que la reconozca, la expresion existe en el texto
+        # pero no se sabe leer: entra como UNKNOWN y SIN `valid_from`. Nunca se
+        # copia una fecha que el modelo haya calculado por su cuenta.
+        validas.append(
+            {"text": texto.strip()[:512], "kind": kind, "fragment_id": anchor.fragment_id}
+        )
+        codigos.append("TEMPORAL_EXPRESSION_UNPARSED")
+    return validas, sorted(dict.fromkeys(codigos))
 
 
 class TemporalExtractor(Extractor):
@@ -234,10 +411,18 @@ class TemporalExtractor(Extractor):
 
 __all__ = [
     "CALENDAR_LOOKAHEAD_TOKENS",
+    "LOCALLY_RESOLVABLE_KINDS",
+    "STATE_CUES",
+    "TEMPORAL_AMBIGUOUS",
     "TEMPORAL_INFO",
+    "TEMPORAL_NONE",
     "TEMPORAL_PATTERNS",
+    "TEMPORAL_RESOLVED",
     "TEMPORAL_STEP",
     "TemporalExtractor",
     "TemporalMatch",
+    "TemporalResolution",
     "extract_temporal_expressions",
+    "resolve_locally",
+    "validate_model_expressions",
 ]
