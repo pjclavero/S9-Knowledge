@@ -1,0 +1,65 @@
+{
+  "benchmark_file": "source_asset",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:basalto-cronica",
+      "byte_size": 2018,
+      "collection_id": "collection:basalto",
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "contract_id": "source-asset/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "copyright_class": "OWN",
+      "created_at": "2026-07-29T09:00:00Z",
+      "game_profile": "generic",
+      "ingested_at": "2026-07-29T09:05:00Z",
+      "language_hint": "es",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "title": "Cronica de las fraguas"
+      },
+      "mime_type": "text/markdown",
+      "original_location": "bench://negation/basalto-cronica",
+      "original_name": "basalto-cronica.bench",
+      "privacy_class": "PUBLIC",
+      "processing_policy": {
+        "allow_external_providers": false,
+        "allow_media_persistence": true,
+        "retention_days": null
+      },
+      "produced_by_step": "gold.asset",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "content_hash",
+            "original_name"
+          ],
+          "provider": "local",
+          "step": "gold.asset",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "source_kind": "MARKDOWN",
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "basalto-cronica",
+  "split": "negation",
+  "world": "basalto"
+}

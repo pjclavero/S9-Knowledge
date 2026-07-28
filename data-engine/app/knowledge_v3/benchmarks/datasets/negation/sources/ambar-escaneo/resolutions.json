@@ -1,0 +1,1234 @@
+{
+  "benchmark_file": "resolutions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:corte-resina"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:ambar-escaneo:e01:f002"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e01:m002"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e01:corte-resina",
+      "selected_entity_id": "entity:ambar:corte-resina",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:veli-ardun"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:ambar-escaneo:e01:f001"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e01:m001"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e01:veli-ardun",
+      "selected_entity_id": "entity:ambar:veli-ardun",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:anillo-ambar"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Object",
+      "evidence": [
+        "fragment:ambar-escaneo:e02:f004"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e02:m003"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e02:anillo-ambar",
+      "selected_entity_id": "entity:ambar:anillo-ambar",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:mesnada-ocre"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:ambar-escaneo:e02:f005"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e02:m004"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e02:mesnada-ocre",
+      "selected_entity_id": "entity:ambar:mesnada-ocre",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:cofradia-lacre"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:ambar-escaneo:e03:f008"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e03:m006"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e03:cofradia-lacre",
+      "selected_entity_id": "entity:ambar:cofradia-lacre",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:jonas-treme"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:ambar-escaneo:e03:f007"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e03:m005"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e03:jonas-treme",
+      "selected_entity_id": "entity:ambar:jonas-treme",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:cirilo-nadal"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:ambar-escaneo:e04:f011"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e04:m008"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e04:cirilo-nadal",
+      "selected_entity_id": "entity:ambar:cirilo-nadal",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:sabela-orin"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:ambar-escaneo:e04:f010"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e04:m007"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e04:sabela-orin",
+      "selected_entity_id": "entity:ambar:sabela-orin",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:villa-savia"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:ambar-escaneo:e04:f012"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e04:m009"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e04:villa-savia",
+      "selected_entity_id": "entity:ambar:villa-savia",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:corte-resina"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:ambar-escaneo:e05:f016"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e05:m012"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e05:corte-resina",
+      "selected_entity_id": "entity:ambar:corte-resina",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:mesnada-ocre"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:ambar-escaneo:e05:f015"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e05:m011"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e05:mesnada-ocre",
+      "selected_entity_id": "entity:ambar:mesnada-ocre",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:otilia-vasque"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:ambar-escaneo:e05:f014"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e05:m010"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e05:otilia-vasque",
+      "selected_entity_id": "entity:ambar:otilia-vasque",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:cirilo-nadal"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:ambar-escaneo:e06:f018"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e06:m013"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e06:cirilo-nadal",
+      "selected_entity_id": "entity:ambar:cirilo-nadal",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:cofradia-lacre"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:ambar-escaneo:e06:f019"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e06:m014"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e06:cofradia-lacre",
+      "selected_entity_id": "entity:ambar:cofradia-lacre",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:mesnada-ocre"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:ambar-escaneo:e07:f022"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e07:m016"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e07:mesnada-ocre",
+      "selected_entity_id": "entity:ambar:mesnada-ocre",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:sabela-orin"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:ambar-escaneo:e07:f021"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e07:m015"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e07:sabela-orin",
+      "selected_entity_id": "entity:ambar:sabela-orin",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:cofradia-lacre"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:ambar-escaneo:e08:f025"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e08:m018"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e08:cofradia-lacre",
+      "selected_entity_id": "entity:ambar:cofradia-lacre",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:veli-ardun"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:ambar-escaneo:e08:f024"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e08:m017"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e08:veli-ardun",
+      "selected_entity_id": "entity:ambar:veli-ardun",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:corte-resina"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:ambar-escaneo:e09:f027"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e09:m020"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e09:corte-resina",
+      "selected_entity_id": "entity:ambar:corte-resina",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:jonas-treme"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:ambar-escaneo:e09:f026"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e09:m019"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e09:jonas-treme",
+      "selected_entity_id": "entity:ambar:jonas-treme",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:otilia-vasque"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:ambar-escaneo:e10:f028"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e10:m021"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e10:otilia-vasque",
+      "selected_entity_id": "entity:ambar:otilia-vasque",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:villa-savia"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:ambar-escaneo:e10:f029"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e10:m022"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e10:villa-savia",
+      "selected_entity_id": "entity:ambar:villa-savia",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:cirilo-nadal"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:ambar-escaneo:e11:f030"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e11:m023"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e11:cirilo-nadal",
+      "selected_entity_id": "entity:ambar:cirilo-nadal",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:ambar:mesnada-ocre"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:ambar-escaneo:e11:f031"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:ambar-escaneo:e11:m024"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:ambar-escaneo:e11:mesnada-ocre",
+      "selected_entity_id": "entity:ambar:mesnada-ocre",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ambar-escaneo",
+  "split": "negation",
+  "world": "ambar"
+}

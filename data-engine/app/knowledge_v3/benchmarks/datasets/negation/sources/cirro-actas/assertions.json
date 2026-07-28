@@ -1,0 +1,150 @@
+{
+  "benchmark_file": "assertions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "assertion_id": "assertion:cirro:neg-pos-03-1",
+      "calendar_id": "calendar:cirro",
+      "collection_id": "collection:cirro",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:cirro-actas:e15"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e15:f049"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "entity:cirro:radi-oster|RIVAL_OF|entity:cirro:vera-luntz|UNDIRECTED|False",
+        "negation": {
+          "case_id": "NEG-POS-03",
+          "family": "POSITIVE_CONTROL",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:cirro:radi-oster",
+      "ontology_version": "core-1.4.0",
+      "predicate": "RIVAL_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:cirro:vera-luntz",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:cirro:neg-pos-04-1",
+      "calendar_id": "calendar:cirro",
+      "collection_id": "collection:cirro",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:cirro-actas:e16"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:cirro-actas:e16:f052"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        },
+        "gold_key": "entity:cirro:compania-arrecife|LED_BY|entity:cirro:noa-quimper|SUBJECT_TO_OBJECT|False",
+        "negation": {
+          "case_id": "NEG-POS-04",
+          "family": "POSITIVE_CONTROL",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:cirro:noa-quimper",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LED_BY",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:cirro:compania-arrecife",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "cirro-actas",
+  "split": "negation",
+  "world": "cirro"
+}

@@ -1,0 +1,65 @@
+{
+  "benchmark_file": "source_asset",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:zafiro-sesion",
+      "byte_size": 1032,
+      "collection_id": "collection:zafiro",
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "contract_id": "source-asset/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "copyright_class": "OWN",
+      "created_at": "2026-07-29T09:00:00Z",
+      "game_profile": "generic",
+      "ingested_at": "2026-07-29T09:05:00Z",
+      "language_hint": "es",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "title": "Sesion grabada del Domo Tres"
+      },
+      "mime_type": "audio/ogg",
+      "original_location": "bench://negation/zafiro-sesion",
+      "original_name": "zafiro-sesion.bench",
+      "privacy_class": "PUBLIC",
+      "processing_policy": {
+        "allow_external_providers": false,
+        "allow_media_persistence": true,
+        "retention_days": null
+      },
+      "produced_by_step": "gold.asset",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "content_hash",
+            "original_name"
+          ],
+          "provider": "local",
+          "step": "gold.asset",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "source_kind": "AUDIO",
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "zafiro-sesion",
+  "split": "negation",
+  "world": "zafiro"
+}

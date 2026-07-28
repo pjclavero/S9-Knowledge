@@ -1,0 +1,502 @@
+{
+  "benchmark_file": "assertions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "assertion_id": "assertion:zafiro:neg-simple-07-1",
+      "calendar_id": "calendar:zafiro",
+      "collection_id": "collection:zafiro",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:zafiro-sesion:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e01:f003"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "entity:zafiro:brixa-omal|MEMBER_OF|entity:zafiro:sindicato-abisal|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "NEG-SIMPLE-07",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "ASR_NOISE",
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:zafiro:sindicato-abisal",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:zafiro:brixa-omal",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:zafiro:neg-simple-08-1",
+      "calendar_id": "calendar:zafiro",
+      "collection_id": "collection:zafiro",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:zafiro-sesion:e02"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e02:f006"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "entity:zafiro:circulo-sonda|ALLY_OF|entity:zafiro:goran-ute|UNDIRECTED|True",
+        "negation": {
+          "case_id": "NEG-SIMPLE-08",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "ASR_NOISE",
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:zafiro:circulo-sonda",
+      "ontology_version": "core-1.4.0",
+      "predicate": "ALLY_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:zafiro:goran-ute",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:zafiro:neg-simple-09-1",
+      "calendar_id": "calendar:zafiro",
+      "collection_id": "collection:zafiro",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:zafiro-sesion:e03"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e03:f010"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "entity:zafiro:paz-ontiveros|MEMBER_OF|entity:zafiro:flota-perlera|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "NEG-SIMPLE-09",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:zafiro:flota-perlera",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:zafiro:paz-ontiveros",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:zafiro:neg-simple-09-2",
+      "calendar_id": "calendar:zafiro",
+      "collection_id": "collection:zafiro",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:zafiro-sesion:e03"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e03:f011"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "entity:zafiro:tomas-esquil|MEMBER_OF|entity:zafiro:flota-perlera|SUBJECT_TO_OBJECT|False",
+        "negation": {
+          "case_id": "NEG-SIMPLE-09",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:zafiro:flota-perlera",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:zafiro:tomas-esquil",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:zafiro:neg-simple-10-1",
+      "calendar_id": "calendar:zafiro",
+      "collection_id": "collection:zafiro",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:zafiro-sesion:e04"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e04:f014"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "entity:zafiro:domo-tres|LOCATED_IN|entity:zafiro:fosa-clara|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "NEG-SIMPLE-10",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:zafiro:fosa-clara",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LOCATED_IN",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:zafiro:domo-tres",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:zafiro:neg-pos-05-1",
+      "calendar_id": "calendar:zafiro",
+      "collection_id": "collection:zafiro",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:zafiro-sesion:e14"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e14:f046"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "entity:zafiro:brixa-omal|SIBLING_OF|entity:zafiro:kena-drovic|UNDIRECTED|False",
+        "negation": {
+          "case_id": "NEG-POS-05",
+          "family": "POSITIVE_CONTROL",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:zafiro:kena-drovic",
+      "ontology_version": "core-1.4.0",
+      "predicate": "SIBLING_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:zafiro:brixa-omal",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "assertion_id": "assertion:zafiro:neg-pos-06-1",
+      "calendar_id": "calendar:zafiro",
+      "collection_id": "collection:zafiro",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:zafiro-sesion:e15"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-07-29T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:zafiro-sesion:e15:f049"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "zafiro-sesion",
+          "split": "negation",
+          "world": "zafiro"
+        },
+        "gold_key": "entity:zafiro:sindicato-abisal|OWNS|entity:zafiro:sonda-madre|SUBJECT_TO_OBJECT|False",
+        "negation": {
+          "case_id": "NEG-POS-06",
+          "family": "POSITIVE_CONTROL",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:zafiro:sonda-madre",
+      "ontology_version": "core-1.4.0",
+      "predicate": "OWNS",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-29T09:10:00Z",
+      "source_asset_id": "asset:zafiro-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "29ad0aa4c6b4b3b624b14a933466592b63a83e21a596cdb64121686fc423c8be"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:zafiro:sindicato-abisal",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "zafiro-sesion",
+  "split": "negation",
+  "world": "zafiro"
+}

@@ -1,0 +1,70 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:zafiro-sesion:e01",
+      "text": "No, Brixa Omal no forma parte del Sindicato Abisal. Eso fue un error del acta anterior."
+    },
+    {
+      "episode_id": "episode:zafiro-sesion:e02",
+      "text": "Que quede claro en acta: Goran Ute no es aliado del Circulo de la Sonda."
+    },
+    {
+      "episode_id": "episode:zafiro-sesion:e03",
+      "text": "Paz Ontiveros no pertenece a la Flota Perlera; quien si figura en su rol es Tomás Esquil."
+    },
+    {
+      "episode_id": "episode:zafiro-sesion:e04",
+      "text": "Lo repito porque en la sesion anterior se anoto al reves: el Domo Tres, en la Fosa Clara, no se encuentra."
+    },
+    {
+      "episode_id": "episode:zafiro-sesion:e05",
+      "text": "Lira Fenn todavia no lidera la Escuela de la Corriente; la votacion es el mes que viene."
+    },
+    {
+      "episode_id": "episode:zafiro-sesion:e06",
+      "text": "Aun no pertenece Tomás Esquil al Sindicato Abisal."
+    },
+    {
+      "episode_id": "episode:zafiro-sesion:e07",
+      "text": "Kena Drovic no es todavia dueña de la Sonda Madre; falta la firma del sindicato."
+    },
+    {
+      "episode_id": "episode:zafiro-sesion:e08",
+      "text": "La Flota Perlera no esta aun dirigida por Brixa Omal."
+    },
+    {
+      "episode_id": "episode:zafiro-sesion:e09",
+      "text": "Que Paz Ontiveros y Goran Ute sean aliados no ha ocurrido todavia."
+    },
+    {
+      "episode_id": "episode:zafiro-sesion:e10",
+      "text": "Andrés Lupo no admite que la Sonda Madre este en el Domo Tres."
+    },
+    {
+      "episode_id": "episode:zafiro-sesion:e11",
+      "text": "Nadie sostiene que Lira Fenn no sea hermana de Kena Drovic."
+    },
+    {
+      "episode_id": "episode:zafiro-sesion:e12",
+      "text": "Tomás Esquil ya no es rival de Paz Ontiveros; hicieron las paces en el Domo Tres."
+    },
+    {
+      "episode_id": "episode:zafiro-sesion:e13",
+      "text": "Goran Ute abandonó la Escuela de la Corriente el ciclo pasado."
+    },
+    {
+      "episode_id": "episode:zafiro-sesion:e14",
+      "text": "Brixa Omal es hermana de Kena Drovic."
+    },
+    {
+      "episode_id": "episode:zafiro-sesion:e15",
+      "text": "El Sindicato Abisal posee la Sonda Madre."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "zafiro-sesion",
+  "split": "negation",
+  "world": "zafiro"
+}

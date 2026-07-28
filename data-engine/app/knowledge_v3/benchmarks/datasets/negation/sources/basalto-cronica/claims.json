@@ -1,0 +1,1735 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e01:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e01:f004"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-SIMPLE-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Harun Vell no pertenece a la Orden de la Obsidiana",
+          "case_id": "NEG-SIMPLE-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:basalto:orden-obsidiana",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:basalto:harun-vell",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Negacion simple canonica: una marca, una clausula, alcance cerrado.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "marca de negacion tras dos puntos, al final de un periodo largo"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:basalto-cronica:e01:m002"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Harun Vell no pertenece a la Orden de la Obsidiana",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e01:m001"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e02:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e02",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e02:f007"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-SIMPLE-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "La Hermandad de la Fumarola no es dirigida por Sira Delantre",
+          "case_id": "NEG-SIMPLE-02",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:basalto:sira-delantre",
+          "expected_predicate": "LED_BY",
+          "expected_subject": "entity:basalto:hermandad-fumarola",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "La voz pasiva invierte el orden superficial; el predicado inverso (LED_BY) lo absorbe.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "pasiva perifrastica: el sujeto sintactico es la faccion, no la persona"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "PASSIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:basalto-cronica:e02:m005"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LED_BY"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "La Hermandad de la Fumarola no es dirigida por Sira Delantre",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e02:m004"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e03:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e03:f010"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-SIMPLE-03:PRIMARY",
+        "negation": {
+          "anchor_quote": "Nerea Tossa, hermana de Beltrán Osk, no lo es",
+          "case_id": "NEG-SIMPLE-03",
+          "cue_position": "AFTER_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": true,
+          "expected_object": "entity:basalto:beltran-osk",
+          "expected_predicate": "SIBLING_OF",
+          "expected_subject": "entity:basalto:nerea-tossa",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Topicalizacion con negacion final: leer solo hasta el inciso da la relacion invertida.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "la marca de negacion va DESPUES del foco",
+            "el predicado aparece en un inciso afirmativo y se niega con un pronombre atono"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:basalto-cronica:e03:m007"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "SIBLING_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Nerea Tossa, hermana de Beltrán Osk, no lo es",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e03:m006"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e04:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e04",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e04:f013"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-SIMPLE-04:PRIMARY",
+        "negation": {
+          "anchor_quote": "El Gremio de Fundidores acaba de desmentir por escrito que Mira Cauce figure entre sus miembros",
+          "case_id": "NEG-SIMPLE-04",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:basalto:mira-cauce",
+          "expected_predicate": "HAS_MEMBER",
+          "expected_subject": "entity:basalto:gremio-fundidores",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "'Desmentir que P' niega P de forma factiva. Un detector basado en la palabra 'no' se lo pierde entero.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "negacion LEXICA: no aparece la palabra 'no'",
+            "perifrasis 'acaba de' + subjuntivo en la subordinada"
+          ],
+          "verb_form": "PERIFRASIS_MAS_SUBJUNTIVO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:basalto-cronica:e04:m009"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "HAS_MEMBER"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "El Gremio de Fundidores acaba de desmentir por escrito que Mira Cauce figure entre sus miembros",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e04:m008"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e05:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e05",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e05:f016"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-SIMPLE-05:PRIMARY",
+        "negation": {
+          "anchor_quote": "el Sello de Lava no es propiedad de Teo Ravasi",
+          "case_id": "NEG-SIMPLE-05",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:basalto:teo-ravasi",
+          "expected_predicate": "OWNED_BY",
+          "expected_subject": "entity:basalto:sello-lava",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Longitud y ruido administrativo alrededor de la unica relacion que importa.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "parrafo largo con tres oraciones afirmativas antes de la negacion",
+            "coletilla concesiva posterior ('por mas que asi figurase') que reafirma lo contrario"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:basalto-cronica:e05:m011"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "OWNED_BY"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "el Sello de Lava no es propiedad de Teo Ravasi",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e05:m010"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e06:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e06",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e06:f019"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-SIMPLE-06:PRIMARY",
+        "negation": {
+          "anchor_quote": "En Isla Tenaza no tiene sede la Casa Verrant",
+          "case_id": "NEG-SIMPLE-06",
+          "cue_position": "BETWEEN_ARGUMENTS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:basalto:isla-tenaza",
+          "expected_predicate": "LOCATED_IN",
+          "expected_subject": "entity:basalto:casa-verrant",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Si el mapeo sujeto/objeto se hace por orden de aparicion, este caso lo rompe.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "orden invertido: el objeto abre la oracion y el sujeto la cierra",
+            "la marca queda ENTRE los dos argumentos"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:basalto-cronica:e06:m013"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LOCATED_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "En Isla Tenaza no tiene sede la Casa Verrant",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e06:m012"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e07:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e07",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e07:f022"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-NEVER-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Ilde Varona nunca pertenecio al Conclave de la Ceniza",
+          "case_id": "NEG-NEVER-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:basalto:conclave-ceniza",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:basalto:ilde-varona",
+          "family": "NEVER",
+          "knowledge_horizon": "1041-12-31T00:00:00Z",
+          "negation_kind": "NEVER",
+          "rationale": "NEVER con horizonte explicito: la afirmacion se cierra en el ciclo 41. Sin ese anclaje, el 'nunca' se convertiria en una afirmacion sobre el futuro.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "la fuente declara su propio horizonte de conocimiento en la frase siguiente"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:basalto-cronica:e07:m015"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Ilde Varona nunca pertenecio al Conclave de la Ceniza",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e07:m014"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e08:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e08",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e08:f025"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-NEVER-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "La Orden de la Obsidiana jamas fue dirigida por Kaspar Nune",
+          "case_id": "NEG-NEVER-02",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:basalto:kaspar-nune",
+          "expected_predicate": "LED_BY",
+          "expected_subject": "entity:basalto:orden-obsidiana",
+          "family": "NEVER",
+          "knowledge_horizon": "1041-12-31T00:00:00Z",
+          "negation_kind": "NEVER",
+          "rationale": "Misma familia, otra marca lexica y otra voz.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "'jamas' en vez de 'nunca'",
+            "pasiva + refuerzo concesivo 'ni siquiera'"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "PASSIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:basalto-cronica:e08:m017"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LED_BY"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "La Orden de la Obsidiana jamas fue dirigida por Kaspar Nune",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e08:m016"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e09:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e09",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e09:f028"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-NEVER-03:PRIMARY",
+        "negation": {
+          "anchor_quote": "En ningun momento de las cuatro generaciones que cubre esta cronica el Yunque Negro estuvo en manos del Gremio de Fundidores",
+          "case_id": "NEG-NEVER-03",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:basalto:gremio-fundidores",
+          "expected_predicate": "OWNED_BY",
+          "expected_subject": "entity:basalto:yunque-negro",
+          "family": "NEVER",
+          "knowledge_horizon": "1041-12-31T00:00:00Z",
+          "negation_kind": "NEVER",
+          "rationale": "NEVER expresado como cuantificacion temporal negativa antepuesta.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "la marca es una locucion ('en ningun momento'), no un adverbio simple",
+            "veintiun caracteres de adverbial antepuesto antes del sujeto"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:basalto-cronica:e09:m019"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "OWNED_BY"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "En ningun momento de las cuatro generaciones que cubre esta cronica el Yunque Negro estuvo en manos del Gremio de Fundidores",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e09:m018"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e10:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e10",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e10:f031"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-NEVER-04:PRIMARY",
+        "negation": {
+          "anchor_quote": "Runa Belisa y Beltrán Osk no fueron hermanos en ningun caso",
+          "case_id": "NEG-NEVER-04",
+          "cue_position": "BETWEEN_ARGUMENTS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": true,
+          "expected_object": "entity:basalto:beltran-osk",
+          "expected_predicate": "SIBLING_OF",
+          "expected_subject": "entity:basalto:runa-belisa",
+          "family": "NEVER",
+          "knowledge_horizon": "1041-12-31T00:00:00Z",
+          "negation_kind": "NEVER",
+          "rationale": "Concordancia negativa del espanol: dos marcas refuerzan, no cancelan. Es la trampa espejo de la doble negacion real.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "predicado SIMETRICO negado: (A,B) y (B,A) son el mismo hecho negativo",
+            "doble marca ('no' + 'en ningun caso') que NO se cancela: es refuerzo"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:basalto-cronica:e10:m021"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "SIBLING_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Runa Belisa y Beltrán Osk no fueron hermanos en ningun caso",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e10:m020"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e11:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e11",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e11:f034"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-NEGCESS-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Sira Delantre no dejo de servir a la Casa Verrant",
+          "case_id": "NEG-NEGCESS-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:basalto:casa-verrant",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:basalto:sira-delantre",
+          "family": "NEGATED_CESSATION",
+          "forbidden_outcomes": [
+            "CESSATION",
+            "CLOSE_ASSERTION",
+            "NEGATIVE_EDGE"
+          ],
+          "negation_kind": "NEGATED_CESSATION",
+          "rationale": "El caso que define el bloque: 'no dejo de X' NUNCA puede convertirse en 'dejo de X'. Aqui la lectura es continuidad, no cesacion ni arista negativa.",
+          "reading": "CONTINUITY",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "'no dejo de' contiene literalmente la marca de cesacion 'dejo de'"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:basalto-cronica:e11:m023"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Sira Delantre no dejo de servir a la Casa Verrant",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e11:m022"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e12:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e12",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e12:f037"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-NEGCESS-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "No es cierto que Olmo Quiral abandonase el Foso Humeante",
+          "case_id": "NEG-NEGCESS-02",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:basalto:foso-humeante",
+          "expected_predicate": "LOCATED_IN",
+          "expected_subject": "entity:basalto:olmo-quiral",
+          "family": "NEGATED_CESSATION",
+          "forbidden_outcomes": [
+            "CESSATION",
+            "CLOSE_ASSERTION",
+            "NEGATIVE_EDGE"
+          ],
+          "negation_kind": "NEGATED_CESSATION",
+          "rationale": "Negacion de una cesacion con la marca a dos clausulas de distancia del verbo de cese.",
+          "reading": "CONTINUITY",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "la negacion esta en la matriz y la cesacion en la subordinada",
+            "subjuntivo imperfecto ('abandonase')"
+          ],
+          "verb_form": "SUBJUNTIVO_IMPERFECTO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:basalto-cronica:e12:m025"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LOCATED_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "No es cierto que Olmo Quiral abandonase el Foso Humeante",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e12:m024"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e13:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e13",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e13:f040"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-NEGCESS-03:PRIMARY",
+        "negation": {
+          "anchor_quote": "La Hermandad de la Fumarola no fue abandonada por Nerea Tossa",
+          "case_id": "NEG-NEGCESS-03",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:basalto:nerea-tossa",
+          "expected_predicate": "HAS_MEMBER",
+          "expected_subject": "entity:basalto:hermandad-fumarola",
+          "family": "NEGATED_CESSATION",
+          "forbidden_outcomes": [
+            "CESSATION",
+            "CLOSE_ASSERTION",
+            "NEGATIVE_EDGE"
+          ],
+          "negation_kind": "NEGATED_CESSATION",
+          "rationale": "Pasiva + cesacion negada: dos transformaciones a la vez sobre la misma relacion.",
+          "reading": "CONTINUITY",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "cesacion en pasiva ('fue abandonada por') bajo negacion"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "PASSIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:basalto-cronica:e13:m027"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "HAS_MEMBER"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "La Hermandad de la Fumarola no fue abandonada por Nerea Tossa",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e13:m026"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e14:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e14",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e14:f043"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-NEGCESS-04:PRIMARY",
+        "negation": {
+          "anchor_quote": "no dejo de liderar el Conclave de la Ceniza",
+          "case_id": "NEG-NEGCESS-04",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:basalto:conclave-ceniza",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:basalto:beltran-osk",
+          "family": "NEGATED_CESSATION",
+          "forbidden_outcomes": [
+            "CESSATION",
+            "CLOSE_ASSERTION",
+            "NEGATIVE_EDGE"
+          ],
+          "negation_kind": "NEGATED_CESSATION",
+          "rationale": "Dos cesaciones en la misma frase, una verdadera y otra negada, con el mismo sujeto. Cerrar la relacion equivocada es el fallo caro.",
+          "reading": "CONTINUITY",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "una cesacion REAL ('dimitio de tres cargos') en la clausula anterior",
+            "la cesacion real y la negada comparten sujeto"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:basalto-cronica:e14:m029"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "no dejo de liderar el Conclave de la Ceniza",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e14:m028"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e15:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e15",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e15:f046"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-DOUBLE-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "No es falso que Mira Cauce sea aliada de Ilde Varona",
+          "case_id": "NEG-DOUBLE-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": false,
+          "expected_object": "entity:basalto:ilde-varona",
+          "expected_predicate": "ALLY_OF",
+          "expected_subject": "entity:basalto:mira-cauce",
+          "family": "DOUBLE_NEGATION",
+          "forbidden_outcomes": [
+            "NEGATIVE_EDGE"
+          ],
+          "negation_kind": "DOUBLE_NEGATION",
+          "rationale": "'No es falso que P' equivale a P. Emitir una arista negativa aqui es invertir el hecho.",
+          "reading": "NET_POSITIVE",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "dos negaciones que SI se cancelan: la lectura neta es afirmativa"
+          ],
+          "verb_form": "SUBJUNTIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "DOUBLE_NEGATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:basalto-cronica:e15:m031"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "ALLY_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "No es falso que Mira Cauce sea aliada de Ilde Varona",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e15:m030"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e16:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e16",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e16:f049"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-DOUBLE-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "Nadie puede negar que el Puerto Escoria no esta bajo el control del Gremio de Fundidores",
+          "case_id": "NEG-DOUBLE-02",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:basalto:gremio-fundidores",
+          "expected_predicate": "OWNED_BY",
+          "expected_subject": "entity:basalto:puerto-escoria",
+          "family": "DOUBLE_NEGATION",
+          "forbidden_outcomes": [
+            "POSITIVE_EDGE"
+          ],
+          "negation_kind": "DOUBLE_NEGATION",
+          "rationale": "Un sistema que resuelva la doble negacion contando marcas modulo dos acierta DOUBLE-01 y falla este. Van en pareja a proposito.",
+          "reading": "NET_NEGATIVE",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "TRES marcas ('Nadie', 'negar', 'no') y la lectura neta sigue siendo NEGATIVA",
+            "es el reverso exacto de NEG-DOUBLE-01: contar marcas y aplicar paridad falla aqui"
+          ],
+          "verb_form": "INFINITIVO_MAS_INDICATIVO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "DOUBLE_NEGATION",
+          "NEGATION_BATTERY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:basalto-cronica:e16:m033"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "OWNED_BY"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Nadie puede negar que el Puerto Escoria no esta bajo el control del Gremio de Fundidores",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e16:m032"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e17:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e17",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e17:f052"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-POS-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Teo Ravasi lidera el Gremio de Fundidores",
+          "case_id": "NEG-POS-01",
+          "cue_position": "NONE",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:basalto:gremio-fundidores",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:basalto:teo-ravasi",
+          "family": "POSITIVE_CONTROL",
+          "negation_kind": "NONE",
+          "rationale": "Control positivo limpio: si la politica de negacion lo toca, contamina el camino positivo.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:basalto-cronica:e17:m035"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Teo Ravasi lidera el Gremio de Fundidores",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e17:m034"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:basalto-cronica:e18:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:basalto-cronica:e18",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:basalto-cronica:e18:f056"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "basalto-cronica",
+          "split": "negation",
+          "world": "basalto"
+        },
+        "gold_key": "NEG-POS-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "Sira Delantre pertenece a la Orden de la Obsidiana",
+          "case_id": "NEG-POS-02",
+          "cue_position": "NONE",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:basalto:orden-obsidiana",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:basalto:sira-delantre",
+          "family": "POSITIVE_CONTROL",
+          "negation_kind": "NONE",
+          "rationale": "Negacion en una clausula ajena. Si el alcance se calcula por episodio y no por clausula, esta relacion positiva sale negada.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "hay una marca de negacion en el episodio que NO afecta a la relacion anotada",
+            "'conclave de invierno' en minuscula NO es el Conclave de la Ceniza"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "POSITIVE_CONTROL"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:basalto-cronica:e18:m037"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Sira Delantre pertenece a la Orden de la Obsidiana",
+      "review_required": false,
+      "source_asset_id": "asset:basalto-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cee963d7b164549a9b3280b326857cd8e8e9098ab0a33f92573a49df9f316671"
+      },
+      "subject_mentions": [
+        "mention:basalto-cronica:e18:m036"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "basalto-cronica",
+  "split": "negation",
+  "world": "basalto"
+}

@@ -1,0 +1,1498 @@
+{
+  "benchmark_file": "mentions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.08
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 10,
+      "episode_id": "episode:ambar-escaneo:e01",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e01:f001"
+      ],
+      "mention_id": "mention:ambar-escaneo:e01:m001",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": true
+      },
+      "normalized_surface": "Veli Ardun",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 0,
+      "surface": "Veli Ardún",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.115
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 54,
+      "episode_id": "episode:ambar-escaneo:e01",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e01:f002"
+      ],
+      "mention_id": "mention:ambar-escaneo:e01:m002",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Corte de la Resina",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 36,
+      "surface": "Corte de la Resina",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.15
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 18,
+      "episode_id": "episode:ambar-escaneo:e02",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e02:f004"
+      ],
+      "mention_id": "mention:ambar-escaneo:e02:m003",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": true
+      },
+      "normalized_surface": "Anillo de Ambar",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 3,
+      "surface": "Anillo de Ámbar",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Object"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.185
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 53,
+      "episode_id": "episode:ambar-escaneo:e02",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e02:f005"
+      ],
+      "mention_id": "mention:ambar-escaneo:e02:m004",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Mesnada Ocre",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 41,
+      "surface": "Mesnada Ocre",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.22
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 12,
+      "episode_id": "episode:ambar-escaneo:e03",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e03:f007"
+      ],
+      "mention_id": "mention:ambar-escaneo:e03:m005",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": true
+      },
+      "normalized_surface": "Jonas Treme",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 0,
+      "surface": "Jonás Trerne",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.255
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 52,
+      "episode_id": "episode:ambar-escaneo:e03",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e03:f008"
+      ],
+      "mention_id": "mention:ambar-escaneo:e03:m006",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": true
+      },
+      "normalized_surface": "Cofradia del Lacre",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 34,
+      "surface": "Cofradia de1 Lacre",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.29
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 49,
+      "episode_id": "episode:ambar-escaneo:e04",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e04:f010"
+      ],
+      "mention_id": "mention:ambar-escaneo:e04:m007",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": true
+      },
+      "normalized_surface": "Sabela Orin",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 38,
+      "surface": "Sabela Orín",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.325
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 79,
+      "episode_id": "episode:ambar-escaneo:e04",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e04:f011"
+      ],
+      "mention_id": "mention:ambar-escaneo:e04:m008",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Cirilo Nadal",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 67,
+      "surface": "Cirilo Nadal",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.36
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 21,
+      "episode_id": "episode:ambar-escaneo:e04",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e04:f012"
+      ],
+      "mention_id": "mention:ambar-escaneo:e04:m009",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Villa Savia",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 10,
+      "surface": "Villa Savia",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.395
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 50,
+      "episode_id": "episode:ambar-escaneo:e05",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e05:f014"
+      ],
+      "mention_id": "mention:ambar-escaneo:e05:m010",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": true
+      },
+      "normalized_surface": "Otilia Vasque",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 37,
+      "surface": "0tilia Vasque",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.43
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 79,
+      "episode_id": "episode:ambar-escaneo:e05",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e05:f015"
+      ],
+      "mention_id": "mention:ambar-escaneo:e05:m011",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Mesnada Ocre",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 67,
+      "surface": "Mesnada Ocre",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.465
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 32,
+      "episode_id": "episode:ambar-escaneo:e05",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e05:f016"
+      ],
+      "mention_id": "mention:ambar-escaneo:e05:m012",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": true
+      },
+      "normalized_surface": "Corte de la Resina",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 14,
+      "surface": "Corte de 1a Resina",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.5
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 46,
+      "episode_id": "episode:ambar-escaneo:e06",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e06:f018"
+      ],
+      "mention_id": "mention:ambar-escaneo:e06:m013",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Cirilo Nadal",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 34,
+      "surface": "Cirilo Nadal",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.535
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 81,
+      "episode_id": "episode:ambar-escaneo:e06",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e06:f019"
+      ],
+      "mention_id": "mention:ambar-escaneo:e06:m014",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Cofradia del Lacre",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 63,
+      "surface": "Cofradia del Lacre",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.57
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 29,
+      "episode_id": "episode:ambar-escaneo:e07",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e07:f021"
+      ],
+      "mention_id": "mention:ambar-escaneo:e07:m015",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": true
+      },
+      "normalized_surface": "Sabela Orin",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 18,
+      "surface": "Sabela Orín",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.605
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 48,
+      "episode_id": "episode:ambar-escaneo:e07",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e07:f022"
+      ],
+      "mention_id": "mention:ambar-escaneo:e07:m016",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Mesnada Ocre",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 36,
+      "surface": "Mesnada Ocre",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.64
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 17,
+      "episode_id": "episode:ambar-escaneo:e08",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e08:f024"
+      ],
+      "mention_id": "mention:ambar-escaneo:e08:m017",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": true
+      },
+      "normalized_surface": "Veli Ardun",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 7,
+      "surface": "Veli Ardún",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.675
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 54,
+      "episode_id": "episode:ambar-escaneo:e08",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e08:f025"
+      ],
+      "mention_id": "mention:ambar-escaneo:e08:m018",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Cofradia del Lacre",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 36,
+      "surface": "Cofradia del Lacre",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.71
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 14,
+      "episode_id": "episode:ambar-escaneo:e09",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e09:f026"
+      ],
+      "mention_id": "mention:ambar-escaneo:e09:m019",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": true
+      },
+      "normalized_surface": "Jonas Treme",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 3,
+      "surface": "Jonás Treme",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.745
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 58,
+      "episode_id": "episode:ambar-escaneo:e09",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e09:f027"
+      ],
+      "mention_id": "mention:ambar-escaneo:e09:m020",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Corte de la Resina",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 40,
+      "surface": "Corte de la Resina",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.08
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 87,
+      "episode_id": "episode:ambar-escaneo:e10",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e10:f028"
+      ],
+      "mention_id": "mention:ambar-escaneo:e10:m021",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Otilia Vasque",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 74,
+      "surface": "Otilia Vasque",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.115
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 114,
+      "episode_id": "episode:ambar-escaneo:e10",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e10:f029"
+      ],
+      "mention_id": "mention:ambar-escaneo:e10:m022",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Villa Savia",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 103,
+      "surface": "Villa Savia",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.15
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 28,
+      "episode_id": "episode:ambar-escaneo:e11",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e11:f030"
+      ],
+      "mention_id": "mention:ambar-escaneo:e11:m023",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Cirilo Nadal",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 16,
+      "surface": "Cirilo Nadal",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-negation"
+    },
+    {
+      "bbox": {
+        "height": 0.03,
+        "page": null,
+        "width": 0.84,
+        "x": 0.08,
+        "y": 0.185
+      },
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 47,
+      "episode_id": "episode:ambar-escaneo:e11",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e11:f031"
+      ],
+      "mention_id": "mention:ambar-escaneo:e11:m024",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Mesnada Ocre",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "start": 35,
+      "surface": "Mesnada Ocre",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ambar-escaneo",
+  "split": "negation",
+  "world": "ambar"
+}

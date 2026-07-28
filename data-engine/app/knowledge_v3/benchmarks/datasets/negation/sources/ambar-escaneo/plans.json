@@ -1,0 +1,266 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:ambar",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-07-29T09:15:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:ambar-escaneo:e01:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:ambar-escaneo:e01:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:ambar-escaneo:e01:f003"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:ambar:corte-resina",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:ambar:veli-ardun"
+        },
+        {
+          "claim_id": "claim:ambar-escaneo:e02:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:ambar-escaneo:e02:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:ambar-escaneo:e02:f006"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:ambar:mesnada-ocre",
+          "predicate": "OWNED_BY",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:ambar:anillo-ambar"
+        },
+        {
+          "claim_id": "claim:ambar-escaneo:e03:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:ambar-escaneo:e03:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:ambar-escaneo:e03:f009"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:ambar:cofradia-lacre",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:ambar:jonas-treme"
+        },
+        {
+          "claim_id": "claim:ambar-escaneo:e04:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:ambar-escaneo:e04:c1",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "RUMORED",
+          "evidence_fragment_ids": [
+            "fragment:ambar-escaneo:e04:f013"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:ambar:cirilo-nadal",
+          "predicate": "SIBLING_OF",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:ambar:sabela-orin"
+        },
+        {
+          "claim_id": "claim:ambar-escaneo:e05:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:ambar-escaneo:e05:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "RUMORED",
+          "evidence_fragment_ids": [
+            "fragment:ambar-escaneo:e05:f017"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:ambar:mesnada-ocre",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:ambar:otilia-vasque"
+        },
+        {
+          "claim_id": "claim:ambar-escaneo:e06:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:ambar-escaneo:e06:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "HYPOTHETICAL",
+          "evidence_fragment_ids": [
+            "fragment:ambar-escaneo:e06:f020"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:ambar:cofradia-lacre",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:ambar:cirilo-nadal"
+        },
+        {
+          "claim_id": "claim:ambar-escaneo:e07:c1",
+          "confidence": 0.5,
+          "decision": "ABSTAIN",
+          "decision_id": "decision:claim:ambar-escaneo:e07:c1",
+          "direction": null,
+          "epistemic_status": "UNKNOWN",
+          "evidence_fragment_ids": [
+            "fragment:ambar-escaneo:e07:f023"
+          ],
+          "negated": false,
+          "object_entity_id": null,
+          "predicate": null,
+          "reason_codes": [
+            "AMBIGUOUS_SEMANTICS"
+          ],
+          "subject_entity_id": null
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-07-30T09:15:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": false,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-07-29T09:15:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "7daa051396f891b7dd32f5376b37447cd9672d145ab6d4ec0819991e4e7c35de"
+        },
+        "key_id": null,
+        "signature": null,
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "ontology",
+            "version": "core-1.4.0"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:ambar:neg-never-05-1",
+          "decision_id": "decision:claim:ambar-escaneo:e01:c1",
+          "evidence_fragment_ids": [
+            "fragment:ambar-escaneo:e01:f003"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:c8d6225a01347cdcd260b4b3dd326a6d7f7f636601e0f8eac97ae820cc81f47c",
+          "operation_id": "op:ambar-escaneo:neg-never-05-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:ambar:corte-resina",
+            "predicate": "MEMBER_OF",
+            "subject_entity_id": "entity:ambar:veli-ardun",
+            "valid_from": null,
+            "valid_to": "0214-12-31T00:00:00Z"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:ambar:neg-never-06-1",
+          "decision_id": "decision:claim:ambar-escaneo:e02:c1",
+          "evidence_fragment_ids": [
+            "fragment:ambar-escaneo:e02:f006"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:8d384dbfdfa722790f266a35fc83614ddbeec4481ed3ebca85d3aa2e133c1b2d",
+          "operation_id": "op:ambar-escaneo:neg-never-06-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:ambar:mesnada-ocre",
+            "predicate": "OWNED_BY",
+            "subject_entity_id": "entity:ambar:anillo-ambar",
+            "valid_from": null,
+            "valid_to": "0216-12-31T00:00:00Z"
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "b5f3d2c8d9ec91e379b595da4516eb34dbb235c227a5ad38e856ae480caec1f0"
+      },
+      "plan_id": "plan:ambar-escaneo:0001",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:bench:ambar-escaneo",
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ambar-escaneo",
+  "split": "negation",
+  "world": "ambar"
+}

@@ -1,0 +1,646 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:ambar-escaneo",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "4b8a9d57a4053866ea2a5188bac7cf169ad35c9617b61bb3e82da6c35b3aef43"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ambar-escaneo:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "negation_case_id": "NEG-NEVER-05",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER",
+          "OCR_NOISE"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": "episode:ambar-escaneo:e02",
+      "page": 1,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "text": "Veli Ardún nunca fue rniembro de la Corte de la Resina, segun e1 padron cerrado en 1as visperas del ano 214.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:ambar-escaneo",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "8ab5d9cf12987b394e6ccb8c0b5ccf7d4dd10b9a461b5d1bef018c486775694f"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ambar-escaneo:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "negation_case_id": "NEG-NEVER-06",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": "episode:ambar-escaneo:e03",
+      "page": 1,
+      "previous_episode_id": "episode:ambar-escaneo:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "text": "El Anillo de Ámbar jamas pertenecio a la Mesnada Ocre.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:ambar-escaneo",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "a8073e7eaadca2ded83046da5c6dbd8b83d22e58984ca0a2799ed8a3b8901915"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ambar-escaneo:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "negation_case_id": "NEG-CESS-10",
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY",
+          "OCR_NOISE"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": "episode:ambar-escaneo:e04",
+      "page": 1,
+      "previous_episode_id": "episode:ambar-escaneo:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "text": "Jonás Trerne dejo de encabezar la Cofradia de1 Lacre en el invierno de 216.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:ambar-escaneo",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "b8f4d85ab1625e797706624cc0fa1af6610ef7feefbc478a6c5f54b0a19f8422"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ambar-escaneo:e04",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "negation_case_id": "NEG-RUMOR-01",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "QUESTION_CONDITIONAL_RUMOR",
+          "SIMPLE"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": "episode:ambar-escaneo:e05",
+      "page": 2,
+      "previous_episode_id": "episode:ambar-escaneo:e03",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 4,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "text": "Corre por Villa Savia el rumor de que Sabela Orín no es hermana de Cirilo Nadal.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:ambar-escaneo",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "612083b4a9dad51fde65d1c96dbf9fb426910ebe43b3af5bec371e21e21fe525"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ambar-escaneo:e05",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "negation_case_id": "NEG-RUMOR-02",
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY",
+          "OCR_NOISE",
+          "QUESTION_CONDITIONAL_RUMOR"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": "episode:ambar-escaneo:e06",
+      "page": 2,
+      "previous_episode_id": "episode:ambar-escaneo:e04",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 5,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "text": "Se dice en la Corte de 1a Resina que 0tilia Vasque ya no dirige la Mesnada Ocre.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:ambar-escaneo",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "2b3e3a6e9085c17be562ae8188ce178447ea0817f122fb38c651ece0fbe7e9b9"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ambar-escaneo:e06",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "negation_case_id": "NEG-COND-01",
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "QUESTION_CONDITIONAL_RUMOR",
+          "SIMPLE"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": "episode:ambar-escaneo:e07",
+      "page": 2,
+      "previous_episode_id": "episode:ambar-escaneo:e05",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 6,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "text": "Si el proximo lacre no confirma a Cirilo Nadal al frente de la Cofradia del Lacre, habra que convocar otra vez a las casas.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:ambar-escaneo",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "13fe6088986ec7b191c19ac5153510a9faf7b7d104f307318a93422853d15bda"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ambar-escaneo:e07",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "negation_case_id": "NEG-ABST-01",
+        "phenomena": [
+          "ABSTENTION",
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "QUESTION_CONDITIONAL_RUMOR",
+          "SIMPLE"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": "episode:ambar-escaneo:e08",
+      "page": 3,
+      "previous_episode_id": "episode:ambar-escaneo:e06",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 7,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "text": "¿Sigue o no sigue Sabela Orín en la Mesnada Ocre? El escribano no lo anoto.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:ambar-escaneo",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "ccc10f66b1b127bfec7d6f811a585b71f53cd99303d973e28f075a2932195ede"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ambar-escaneo:e08",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "negation_case_id": "NEG-NOCLAIM-01",
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NO_CLAIM",
+          "QUESTION"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": "episode:ambar-escaneo:e09",
+      "page": 3,
+      "previous_episode_id": "episode:ambar-escaneo:e07",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 8,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "text": "¿Acaso Veli Ardún no pertenece a la Cofradia del Lacre?",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:ambar-escaneo",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "0e5e9413d06133541c259a47b2e5c780dae6d0d6cd60d18f7c32892be8f8dcf5"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ambar-escaneo:e09",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "negation_case_id": "NEG-NOCLAIM-02",
+        "phenomena": [
+          "COUNTERFACTUAL",
+          "NEGATION_BATTERY",
+          "NO_CLAIM"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": "episode:ambar-escaneo:e10",
+      "page": 3,
+      "previous_episode_id": "episode:ambar-escaneo:e08",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 9,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "text": "Si Jonás Treme no hubiera abandonado la Corte de la Resina, hoy la sala tendria otro dueno.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:ambar-escaneo",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "32f3906823e5b85c720a9b7cda3042b9df3b7d2c4ebdd71312630af816e21093"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ambar-escaneo:e10",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "negation_case_id": "NEG-NOCLAIM-03",
+        "phenomena": [
+          "FICTION_WITHIN_FICTION",
+          "NEGATION_BATTERY",
+          "NO_CLAIM"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": "episode:ambar-escaneo:e11",
+      "page": 4,
+      "previous_episode_id": "episode:ambar-escaneo:e09",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 10,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "text": "En el entremes que representaron los comicos, el falso legado declamaba: «Otilia Vasque no es duena de Villa Savia».",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    },
+    {
+      "asset_id": "asset:ambar-escaneo",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "890ed5782e124356d6ba20f318ede4816d6292aaddcd3c3d07fcb59b5bedea0a"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ambar-escaneo:e11",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "negation_case_id": "NEG-NOCLAIM-04",
+        "phenomena": [
+          "IMPERATIVE",
+          "NEGATION_BATTERY",
+          "NO_CLAIM"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": null,
+      "page": 4,
+      "previous_episode_id": "episode:ambar-escaneo:e10",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 11,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "text": "No inscribais a Cirilo Nadal en la Mesnada Ocre hasta que llegue la cedula.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ambar-escaneo",
+  "split": "negation",
+  "world": "ambar"
+}

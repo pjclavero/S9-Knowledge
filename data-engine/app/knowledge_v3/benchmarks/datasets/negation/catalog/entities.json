@@ -1,0 +1,529 @@
+{
+  "benchmark_file": "catalog/entities",
+  "dataset_version": "1.0.0",
+  "entities": [
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:harun-vell",
+      "name": "Harun Vell",
+      "note": "forjador",
+      "type": "Character",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:sira-delantre",
+      "name": "Sira Delantre",
+      "note": "capataz",
+      "type": "Character",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:olmo-quiral",
+      "name": "Olmo Quiral",
+      "note": "vigia",
+      "type": "Character",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:nerea-tossa",
+      "name": "Nerea Tossa",
+      "note": "cartografa",
+      "type": "Character",
+      "world": "basalto"
+    },
+    {
+      "aliases": [
+        "Beltrán Osk"
+      ],
+      "entity_id": "entity:basalto:beltran-osk",
+      "name": "Beltran Osk",
+      "note": "consejero",
+      "type": "Character",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:mira-cauce",
+      "name": "Mira Cauce",
+      "note": "sopladora",
+      "type": "Character",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:teo-ravasi",
+      "name": "Teo Ravasi",
+      "note": "maestre",
+      "type": "Character",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:ilde-varona",
+      "name": "Ilde Varona",
+      "note": "escriba",
+      "type": "Character",
+      "world": "basalto"
+    },
+    {
+      "aliases": [
+        "Kaspar Nuñe"
+      ],
+      "entity_id": "entity:basalto:kaspar-nune",
+      "name": "Kaspar Nune",
+      "note": "herrero",
+      "type": "Character",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:runa-belisa",
+      "name": "Runa Belisa",
+      "note": "arriera",
+      "type": "Character",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:orden-obsidiana",
+      "name": "Orden de la Obsidiana",
+      "note": "orden militar",
+      "type": "Faction",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:gremio-fundidores",
+      "name": "Gremio de Fundidores",
+      "note": "gremio",
+      "type": "Faction",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:casa-verrant",
+      "name": "Casa Verrant",
+      "note": "casa mercante",
+      "type": "Faction",
+      "world": "basalto"
+    },
+    {
+      "aliases": [
+        "Cónclave de la Ceniza"
+      ],
+      "entity_id": "entity:basalto:conclave-ceniza",
+      "name": "Conclave de la Ceniza",
+      "note": "asamblea",
+      "type": "Faction",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:hermandad-fumarola",
+      "name": "Hermandad de la Fumarola",
+      "note": "hermandad",
+      "type": "Faction",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:puerto-escoria",
+      "name": "Puerto Escoria",
+      "note": "puerto",
+      "type": "Location",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:isla-tenaza",
+      "name": "Isla Tenaza",
+      "note": "isla",
+      "type": "Location",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:foso-humeante",
+      "name": "Foso Humeante",
+      "note": "foso",
+      "type": "Location",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:yunque-negro",
+      "name": "Yunque Negro",
+      "note": "reliquia",
+      "type": "Object",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:basalto:sello-lava",
+      "name": "Sello de Lava",
+      "note": "sello",
+      "type": "Object",
+      "world": "basalto"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:cirro:dagna-hoill",
+      "name": "Dagna Hoill",
+      "note": "presidenta",
+      "type": "Character",
+      "world": "cirro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:cirro:pol-arriaga",
+      "name": "Pol Arriaga",
+      "note": "fletador",
+      "type": "Character",
+      "world": "cirro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:cirro:vera-luntz",
+      "name": "Vera Luntz",
+      "note": "velera",
+      "type": "Character",
+      "world": "cirro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:cirro:ismael-corvo",
+      "name": "Ismael Corvo",
+      "note": "astillero",
+      "type": "Character",
+      "world": "cirro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:cirro:tanit-pereo",
+      "name": "Tanit Pereo",
+      "note": "aerostera",
+      "type": "Character",
+      "world": "cirro"
+    },
+    {
+      "aliases": [
+        "Hugo Marlén"
+      ],
+      "entity_id": "entity:cirro:hugo-marlen",
+      "name": "Hugo Marlen",
+      "note": "piloto",
+      "type": "Character",
+      "world": "cirro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:cirro:selva-ondiz",
+      "name": "Selva Ondiz",
+      "note": "corredora",
+      "type": "Character",
+      "world": "cirro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:cirro:radi-oster",
+      "name": "Radi Oster",
+      "note": "directora",
+      "type": "Character",
+      "world": "cirro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:cirro:noa-quimper",
+      "name": "Noa Quimper",
+      "note": "armadora",
+      "type": "Character",
+      "world": "cirro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:cirro:consejo-vientos",
+      "name": "Consejo de los Vientos",
+      "note": "consejo",
+      "type": "Faction",
+      "world": "cirro"
+    },
+    {
+      "aliases": [
+        "Compañía del Arrecife"
+      ],
+      "entity_id": "entity:cirro:compania-arrecife",
+      "name": "Compania del Arrecife",
+      "note": "compania",
+      "type": "Faction",
+      "world": "cirro"
+    },
+    {
+      "aliases": [
+        "Cofradía de las Velas"
+      ],
+      "entity_id": "entity:cirro:cofradia-velas",
+      "name": "Cofradia de las Velas",
+      "note": "cofradia",
+      "type": "Faction",
+      "world": "cirro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:cirro:junta-astilleros",
+      "name": "Junta de Astilleros",
+      "note": "junta",
+      "type": "Faction",
+      "world": "cirro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:cirro:sociedad-aerostatos",
+      "name": "Sociedad de Aerostatos",
+      "note": "sociedad",
+      "type": "Faction",
+      "world": "cirro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:cirro:torre-anemos",
+      "name": "Torre Anemos",
+      "note": "torre",
+      "type": "Location",
+      "world": "cirro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:cirro:muelle-alto",
+      "name": "Muelle Alto",
+      "note": "muelle",
+      "type": "Location",
+      "world": "cirro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:cirro:carta-fletes",
+      "name": "Carta de Fletes",
+      "note": "documento",
+      "type": "Object",
+      "world": "cirro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:zafiro:brixa-omal",
+      "name": "Brixa Omal",
+      "note": "buzo",
+      "type": "Character",
+      "world": "zafiro"
+    },
+    {
+      "aliases": [
+        "Andrés Lupo"
+      ],
+      "entity_id": "entity:zafiro:andres-lupo",
+      "name": "Andres Lupo",
+      "note": "tecnico",
+      "type": "Character",
+      "world": "zafiro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:zafiro:kena-drovic",
+      "name": "Kena Drovic",
+      "note": "sondista",
+      "type": "Character",
+      "world": "zafiro"
+    },
+    {
+      "aliases": [
+        "Tomás Esquil"
+      ],
+      "entity_id": "entity:zafiro:tomas-esquil",
+      "name": "Tomas Esquil",
+      "note": "perlero",
+      "type": "Character",
+      "world": "zafiro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:zafiro:lira-fenn",
+      "name": "Lira Fenn",
+      "note": "instructora",
+      "type": "Character",
+      "world": "zafiro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:zafiro:goran-ute",
+      "name": "Goran Ute",
+      "note": "capataz",
+      "type": "Character",
+      "world": "zafiro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:zafiro:paz-ontiveros",
+      "name": "Paz Ontiveros",
+      "note": "delegada",
+      "type": "Character",
+      "world": "zafiro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:zafiro:sindicato-abisal",
+      "name": "Sindicato Abisal",
+      "note": "sindicato",
+      "type": "Faction",
+      "world": "zafiro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:zafiro:escuela-corriente",
+      "name": "Escuela de la Corriente",
+      "note": "escuela",
+      "type": "Faction",
+      "world": "zafiro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:zafiro:flota-perlera",
+      "name": "Flota Perlera",
+      "note": "flota",
+      "type": "Faction",
+      "world": "zafiro"
+    },
+    {
+      "aliases": [
+        "Círculo de la Sonda"
+      ],
+      "entity_id": "entity:zafiro:circulo-sonda",
+      "name": "Circulo de la Sonda",
+      "note": "circulo",
+      "type": "Faction",
+      "world": "zafiro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:zafiro:domo-tres",
+      "name": "Domo Tres",
+      "note": "domo",
+      "type": "Location",
+      "world": "zafiro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:zafiro:fosa-clara",
+      "name": "Fosa Clara",
+      "note": "fosa",
+      "type": "Location",
+      "world": "zafiro"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:zafiro:sonda-madre",
+      "name": "Sonda Madre",
+      "note": "sonda",
+      "type": "Object",
+      "world": "zafiro"
+    },
+    {
+      "aliases": [
+        "Veli Ardún"
+      ],
+      "entity_id": "entity:ambar:veli-ardun",
+      "name": "Veli Ardun",
+      "note": "legado",
+      "type": "Character",
+      "world": "ambar"
+    },
+    {
+      "aliases": [
+        "Jonás Treme"
+      ],
+      "entity_id": "entity:ambar:jonas-treme",
+      "name": "Jonas Treme",
+      "note": "canciller",
+      "type": "Character",
+      "world": "ambar"
+    },
+    {
+      "aliases": [
+        "Sabela Orín"
+      ],
+      "entity_id": "entity:ambar:sabela-orin",
+      "name": "Sabela Orin",
+      "note": "dama",
+      "type": "Character",
+      "world": "ambar"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:ambar:cirilo-nadal",
+      "name": "Cirilo Nadal",
+      "note": "escudero",
+      "type": "Character",
+      "world": "ambar"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:ambar:otilia-vasque",
+      "name": "Otilia Vasque",
+      "note": "condestable",
+      "type": "Character",
+      "world": "ambar"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:ambar:corte-resina",
+      "name": "Corte de la Resina",
+      "note": "corte",
+      "type": "Faction",
+      "world": "ambar"
+    },
+    {
+      "aliases": [
+        "Cofradía del Lacre"
+      ],
+      "entity_id": "entity:ambar:cofradia-lacre",
+      "name": "Cofradia del Lacre",
+      "note": "cofradia",
+      "type": "Faction",
+      "world": "ambar"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:ambar:mesnada-ocre",
+      "name": "Mesnada Ocre",
+      "note": "mesnada",
+      "type": "Faction",
+      "world": "ambar"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:ambar:villa-savia",
+      "name": "Villa Savia",
+      "note": "villa",
+      "type": "Location",
+      "world": "ambar"
+    },
+    {
+      "aliases": [
+        "Anillo de Ámbar"
+      ],
+      "entity_id": "entity:ambar:anillo-ambar",
+      "name": "Anillo de Ambar",
+      "note": "joya",
+      "type": "Object",
+      "world": "ambar"
+    }
+  ],
+  "split": "negation",
+  "worlds": [
+    "ambar",
+    "basalto",
+    "cirro",
+    "zafiro"
+  ]
+}
