@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
 """Extractor EXTERNO: SOLO el punto de enganche. Aqui no hay transporte.
 
+DEPRECADO (2026-07-28) como extractor de la cadena. `ExternalExtractor` ya no se
+instancia: el carril externo lo cubre `SemanticEpisodeExtractor` sobre un
+`ProviderPort` (NVIDIA). Lo que SIGUE vivo y compartido de este modulo son sus
+constantes de frontera —`EXTERNAL_CONFIDENCE_CAP`, `RESERVED_NAME_PREFIX`,
+`sanitize_provider_name`—, que el extractor semantico reutiliza para no
+duplicar la politica de traza ni el tope de confianza del carril externo.
+
 El subsistema de proveedores (rama `feat/v3-provider-routing`) es quien habla
 con NVIDIA o con quien sea: enrutado, cuotas, coste, reintentos, redaccion de
 credenciales y politica de privacidad. Este modulo define la frontera y nada

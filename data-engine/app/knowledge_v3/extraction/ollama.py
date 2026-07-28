@@ -1,6 +1,14 @@
 # -*- coding: utf-8 -*-
 """Extractor OLLAMA: propone menciones y claims; nunca decide nada.
 
+DEPRECADO (2026-07-28). La cadena V3 ya NO lo instancia: el carril Ollama lo
+cubre `SemanticEpisodeExtractor` sobre `OllamaProviderPort` (ver
+`pipeline/pipeline.py::_build_extraction_pipeline` y
+`docs/v3/15-semantic-extractor-e2e-integration.md`). Se conserva como historico
+y como termino de comparacion del banco; no hay bandera que lo devuelva a la
+cadena. Lo que le falta y por eso salio: no recibe la ontologia del perfil, un
+solo candidato de predicado, `SUBJECT_TO_OBJECT` cableado en `payload.py`.
+
 Cadena completa: prompt con salida JSON estricta -> parseo tolerante SOLO a la
 sintaxis -> normalizacion anti-alucinacion (`payload.normalize_payload`) ->
 documentos validados.

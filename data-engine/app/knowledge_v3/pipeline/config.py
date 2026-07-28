@@ -50,9 +50,13 @@ class PipelineConfig:
     # -- proveedores --------------------------------------------------------
     #: Uno de LOCAL_ONLY / EXTERNAL_ONLY / LOCAL_PLUS_EXTERNAL / NO_OLLAMA.
     providers: str = NO_OLLAMA
-    #: `OllamaClient` ya construido (con su `transport`). Sin el, no hay Ollama.
+    #: `OllamaClient` ya construido (con su `transport`) o un `ProviderPort` ya
+    #: hecho. El orquestador lo envuelve en `OllamaProviderPort` y se lo entrega
+    #: al extractor SEMANTICO. Sin el, no hay carril Ollama.
     ollama_client: Any = None
-    #: `ExternalProposalPort`. Sin el, no hay extractor externo.
+    #: `ProviderPort` del carril externo (`NvidiaProviderPort` en produccion, un
+    #: doble guionizado en pruebas). Antes era un `ExternalProposalPort`: ese
+    #: puerto solo servia al extractor LEGACY, que la cadena V3 ya no monta.
     external_port: Any = None
     #: `VisualProvider` para IMAGE/HANDWRITING/MAP/DIAGRAM. Sin el, esos
     #: adaptadores son stubs declarados y no producen evidencia.
@@ -148,6 +152,9 @@ class PipelineConfig:
             "ollama_active": self.wants_ollama,
             "external_bound": self.external_port is not None,
             "external_active": self.wants_external,
+            #: Que extractor cubre el carril de proveedor. Va al informe porque
+            #: dos corridas con extractores distintos NO son comparables.
+            "provider_extractor": "semantic",
             "visual_provider_bound": self.visual_provider is not None,
             "with_temporal": self.with_temporal,
             "with_coreference": self.with_coreference,

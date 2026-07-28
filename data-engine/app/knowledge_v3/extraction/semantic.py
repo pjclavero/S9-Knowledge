@@ -48,6 +48,7 @@ from .base import (
     emit,
     entity_types_of,
 )
+from .external import EXTERNAL_CONFIDENCE_CAP
 from .ontology_prompt import (
     SYSTEM_PROMPT,
     TEMPORAL_SYSTEM_PROMPT,
@@ -78,6 +79,16 @@ from .temporal import (
 from .text import Anchor, EvidenceIndex
 
 SEMANTIC_STEP = "extract.semantic"
+
+#: Nombre del paso cuando el puerto es LOCAL (Ollama o mock). Vive dentro del
+#: espacio reservado `s9k.extraction.*`, que es el de lo local.
+SEMANTIC_NAME = "s9k.extraction.semantic"
+
+#: Nombre del paso cuando el puerto es EXTERNO. NO puede vivir en el espacio
+#: reservado: un informe que leyese `s9k.extraction.semantic` con
+#: `provider: external` no podria distinguir una propuesta local de una remota,
+#: y esa distincion es justo la que la traza existe para conservar.
+EXTERNAL_SEMANTIC_NAME = "external.semantic"
 
 #: Tope de tokens de la respuesta. La forma conjunta es mas larga que la del
 #: camino anterior: con 1024 el modelo se quedaba a medias y el JSON llegaba
@@ -119,9 +130,15 @@ class SemanticEpisodeExtractor(Extractor):
         max_chars: int = 6000,
     ) -> None:
         self.port = port
+        provider = getattr(port, "provider", Provider.LOCAL)
         # El tope NUNCA sube por parametro (misma regla que el camino Ollama):
-        # un LLM sin calibrar no puede firmar un 0.99.
-        self.confidence_cap = min(float(confidence_cap), DEFAULT_CONFIDENCE_CAP)
+        # un LLM sin calibrar no puede firmar un 0.99. Y si el puerto es EXTERNO
+        # baja otro escalon (0.6): un proveedor remoto no ha visto el corpus, no
+        # esta calibrado contra el y su salida no se puede reproducir en local.
+        cap = min(float(confidence_cap), DEFAULT_CONFIDENCE_CAP)
+        if provider is Provider.EXTERNAL:
+            cap = min(cap, EXTERNAL_CONFIDENCE_CAP)
+        self.confidence_cap = cap
         self.max_tokens = int(max_tokens)
         self.temporal_second_pass = bool(temporal_second_pass)
         self.emit_abstention_on_failure = bool(emit_abstention_on_failure)
@@ -130,8 +147,8 @@ class SemanticEpisodeExtractor(Extractor):
         self._ontology_cache: dict[int, OntologySpec] = {}
         self.info = ExtractorInfo(
             step=SEMANTIC_STEP,
-            provider=getattr(port, "provider", Provider.LOCAL),
-            name="s9k.extraction.semantic",
+            provider=provider,
+            name=EXTERNAL_SEMANTIC_NAME if provider is Provider.EXTERNAL else SEMANTIC_NAME,
             model=getattr(port, "model", None),
         )
 
@@ -371,6 +388,8 @@ class SemanticEpisodeExtractor(Extractor):
 
 __all__ = [
     "DEFAULT_MAX_TOKENS",
+    "EXTERNAL_SEMANTIC_NAME",
+    "SEMANTIC_NAME",
     "SEMANTIC_STEP",
     "EpisodeRun",
     "SemanticEpisodeExtractor",

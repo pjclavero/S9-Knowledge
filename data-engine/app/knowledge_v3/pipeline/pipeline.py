@@ -49,9 +49,9 @@ from ..engine.snapshot import GraphSnapshot, SnapshotEntity
 from ..extraction.base import ExtractionContext, ExtractionOutput
 from ..extraction.coreference import CoreferenceExtractor
 from ..extraction.deterministic import DeterministicExtractor
-from ..extraction.external import ExternalExtractor
-from ..extraction.ollama import OllamaExtractor
 from ..extraction.pipeline import ExtractionPipeline
+from ..extraction.provider_port import OllamaProviderPort
+from ..extraction.semantic import SemanticEpisodeExtractor
 from ..extraction.table import TableExtractor
 from ..extraction.temporal import TemporalExtractor
 from ..ledger.assertions import TemporalLedger
@@ -254,26 +254,72 @@ class KnowledgePipeline:
         self._extraction = self._build_extraction_pipeline()
 
     # -- montaje de la extraccion ------------------------------------------
+    @staticmethod
+    def _ollama_port(candidate: Any):
+        """`OllamaClient` -> `OllamaProviderPort`. Un puerto ya hecho pasa tal cual.
+
+        Construir el puerto es lo UNICO que el orquestador hace con un proveedor:
+        no compila prompts, no normaliza payloads y no valida candidatos. Todo
+        eso vive en `extraction/`.
+        """
+        if candidate is None or hasattr(candidate, "complete_json"):
+            return candidate
+        return OllamaProviderPort(client=candidate)
+
+    @staticmethod
+    def _external_port(candidate: Any):
+        """El carril externo exige un `ProviderPort` (NVIDIA, o un doble de test).
+
+        Antes admitia un `ExternalProposalPort` (`propose()`), que era la puerta
+        del extractor LEGACY. Ese extractor ya no se monta: un objeto que no sepa
+        `complete_json` es un error de configuracion, no un modo degradado.
+        """
+        if candidate is None or hasattr(candidate, "complete_json"):
+            return candidate
+        raise PipelineError(
+            "config",
+            f"external_port debe ser un ProviderPort (con `complete_json`); "
+            f"{type(candidate).__name__} no lo es. El extractor externo legacy "
+            "ya no se monta en la cadena V3",
+        )
+
     def _build_extraction_pipeline(self) -> ExtractionPipeline:
         """Los extractores que la configuracion pidio, en orden estable.
 
-        El orden importa y es el del subsistema (`ExtractionPipeline.
-        local_default`): la correferencia va la ultima porque necesita ver las
-        menciones anteriores. Los proveedores van despues de lo local por la
-        misma razon, y porque asi el determinista fija el anclaje antes de que
-        nadie proponga nada.
+        Orden y por que:
+
+            DeterministicExtractor   ancla primero: fija las menciones baratas y
+                                     de alta precision sobre las que todo cuelga
+            TableExtractor           lo estructural, tambien determinista
+            SemanticEpisodeExtractor(puerto Ollama)    -> si Ollama esta activo
+            SemanticEpisodeExtractor(puerto externo)   -> si el externo lo esta
+            TemporalExtractor        despues de los modelos: recoge tambien lo
+                                     que ellos hayan anclado
+            CoreferenceExtractor     el ultimo SIEMPRE: necesita ver todas las
+                                     menciones anteriores
+
+        Cada extractor local se monta UNA sola vez: no se anida ningun pipeline
+        dentro de otro. El carril de proveedor es el extractor SEMANTICO (el
+        medido en `docs/v3/12-semantic-extractor.md`), no el legacy: los
+        extractores `OllamaExtractor` / `ExternalExtractor` siguen en el repo como
+        histórico y comparación, y la cadena V3 no los instancia. No hay bandera
+        para volver a ellos.
         """
         cfg = self.config
         extractors: list = []
         if cfg.wants_local_extractors:
             extractors.append(DeterministicExtractor())
             extractors.append(TableExtractor())
-            if cfg.with_temporal:
-                extractors.append(TemporalExtractor())
         if cfg.wants_ollama:
-            extractors.append(OllamaExtractor(client=cfg.ollama_client))
+            extractors.append(
+                SemanticEpisodeExtractor(self._ollama_port(cfg.ollama_client))
+            )
         if cfg.wants_external:
-            extractors.append(ExternalExtractor(port=cfg.external_port))
+            extractors.append(
+                SemanticEpisodeExtractor(self._external_port(cfg.external_port))
+            )
+        if cfg.wants_local_extractors and cfg.with_temporal:
+            extractors.append(TemporalExtractor())
         if cfg.wants_local_extractors and cfg.with_coreference:
             extractors.append(CoreferenceExtractor())
         if not extractors:
