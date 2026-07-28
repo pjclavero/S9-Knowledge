@@ -87,9 +87,12 @@ def test_todos_los_documentos_llevan_la_marca_de_benchmark(gold):
 
 
 def test_el_arnes_no_cablea_el_nombre_del_split():
-    assert available_splits() == [SPLIT]
+    # Los splits se descubren del disco: dev es uno mas de la lista, no el unico.
+    splits = available_splits()
+    assert SPLIT in splits
+    assert splits == sorted(splits)
     with pytest.raises((DatasetError, FileNotFoundError)):
-        load_gold("heldout")
+        load_gold("split-que-no-existe")
 
 
 # --------------------------------------------------------------------------
