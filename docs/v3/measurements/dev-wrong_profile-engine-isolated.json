@@ -1,0 +1,305 @@
+{
+  "ablation": {
+    "claim_source": "real",
+    "description": "Perfil DELIBERADAMENTE incompleto ('bench-narrow'): faltan LEADS, RIVAL_OF y SIBLING_OF. Se espera abstencion o revision, no un predicado parecido inventado.",
+    "entity_source": "real",
+    "extra": {},
+    "glossary": "with_glossary",
+    "label": "wrong_profile",
+    "profile_id": "bench-narrow",
+    "providers": "local_plus_external"
+  },
+  "benchmark_format_version": "1.0.0",
+  "e2e": {
+    "approved_plans": 4,
+    "dangling_provenance": 0,
+    "duplicate_fact_rate": 0.0,
+    "facts": {
+      "f1": 0.545455,
+      "fn": 10,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 0.375,
+      "tp": 6
+    },
+    "false_approved_plan_rate": 0.25,
+    "false_approved_plans": 1,
+    "gold_facts": 16,
+    "predicted_facts": 6,
+    "provenance_completeness": {
+      "accuracy": 1.0,
+      "correct": 6,
+      "total": 6
+    },
+    "status": "scored",
+    "unevaluable_predicted_assertions": 0
+  },
+  "engine": {
+    "abstention_agreement": {
+      "accuracy": 1.0,
+      "correct": 1,
+      "total": 1
+    },
+    "abstention_rate": 0.047619,
+    "decision_accuracy": {
+      "accuracy": 0.428571,
+      "correct": 9,
+      "total": 21
+    },
+    "decision_accuracy_strict": {
+      "accuracy": 0.428571,
+      "correct": 9,
+      "total": 21
+    },
+    "decision_coverage": 1.0,
+    "decisions_gold": 21,
+    "decisions_matched": 21,
+    "decisions_missing": 0,
+    "decisions_predicted": 21,
+    "decisions_unmatched_predicted": 0,
+    "direction": {
+      "f1": 0.592593,
+      "fn": 8,
+      "fp": 3,
+      "precision": 0.727273,
+      "recall": 0.5,
+      "tp": 8
+    },
+    "direction_strict": {
+      "f1": 0.592593,
+      "fn": 8,
+      "fp": 3,
+      "precision": 0.727273,
+      "recall": 0.5,
+      "tp": 8
+    },
+    "epistemic": {
+      "f1": 0.9,
+      "fn": 1,
+      "fp": 3,
+      "precision": 0.857143,
+      "recall": 0.947368,
+      "tp": 18
+    },
+    "epistemic_strict": {
+      "f1": 0.9,
+      "fn": 1,
+      "fp": 3,
+      "precision": 0.857143,
+      "recall": 0.947368,
+      "tp": 18
+    },
+    "evidence_validity": {
+      "accuracy": 1.0,
+      "correct": 21,
+      "total": 21
+    },
+    "false_approve_count": 1,
+    "false_approve_decision_ids": [
+      "decision:claim:kestrel-informe:e02:c00"
+    ],
+    "false_approve_rate": 0.166667,
+    "false_reject_count": 8,
+    "false_reject_rate": 0.5,
+    "negation": {
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "tp": 3
+    },
+    "negation_strict": {
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "tp": 3
+    },
+    "predicate": {
+      "f1": 0.592593,
+      "fn": 8,
+      "fp": 3,
+      "precision": 0.727273,
+      "recall": 0.5,
+      "tp": 8
+    },
+    "predicate_strict": {
+      "f1": 0.592593,
+      "fn": 8,
+      "fp": 3,
+      "precision": 0.727273,
+      "recall": 0.5,
+      "tp": 8
+    },
+    "review_agreement": {
+      "accuracy": 0.4,
+      "correct": 2,
+      "total": 5
+    },
+    "review_rate": 0.238095,
+    "status": "scored",
+    "temporal": {
+      "assertions_matched": 6,
+      "per_field_accuracy": {
+        "event_time": 1.0,
+        "state": 0.0,
+        "valid_from": 1.0,
+        "valid_to": 1.0
+      },
+      "status": "scored",
+      "supersession_recall": {
+        "accuracy": 0.0,
+        "correct": 0,
+        "total": 1
+      },
+      "temporal_tuple_accuracy": {
+        "accuracy": 0.0,
+        "correct": 0,
+        "total": 6
+      }
+    }
+  },
+  "extractor": {
+    "claims": {
+      "f1": 0.04878,
+      "fn": 19,
+      "fp": 20,
+      "precision": 0.047619,
+      "recall": 0.05,
+      "tp": 1
+    },
+    "claims_unevaluable": 20,
+    "coreference": {
+      "f1": 0.666667,
+      "fn": 2,
+      "fp": 0,
+      "pairs_dropped_unaligned": 0,
+      "precision": 1.0,
+      "recall": 0.5,
+      "tp": 2,
+      "universe": "menciones alineadas con el gold; las no alineadas no forman par"
+    },
+    "false_candidates": {
+      "by_kind": {},
+      "claim_ids": [],
+      "false_candidate_claims": 0,
+      "false_candidate_rate": 0.0,
+      "negatives_in_split": 4,
+      "status": "scored",
+      "trap_hit_rate": 0.0,
+      "trap_ids_hit": [],
+      "traps_hit": 0,
+      "traps_total": 4,
+      "unanchored_claims_in_trap_episodes": 0
+    },
+    "mentions": {
+      "f1": 0.817204,
+      "fn": 13,
+      "fp": 4,
+      "precision": 0.904762,
+      "recall": 0.745098,
+      "tp": 38
+    },
+    "status": "scored",
+    "type_accuracy_matched": {
+      "accuracy": 0.973684,
+      "correct": 37,
+      "total": 38
+    },
+    "type_accuracy_strict": {
+      "accuracy": 0.72549,
+      "correct": 37,
+      "total": 51
+    }
+  },
+  "gold": {
+    "assertions": 16,
+    "claims": 21,
+    "claims_extractor_gold": 20,
+    "dataset_version": "1.0.0",
+    "decisions": 21,
+    "entities": 20,
+    "episodes": 16,
+    "fragments": 72,
+    "mentions": 51,
+    "negatives": 4,
+    "plans": 6,
+    "resolutions": 31,
+    "sources": 6,
+    "split": "dev",
+    "worlds": [
+      "kestrel",
+      "leyenda",
+      "mareas"
+    ]
+  },
+  "match_config": {
+    "claim_key_extra": [],
+    "fact_key_includes_validity": false,
+    "overlap_threshold": 0.5,
+    "span_mode": "exact",
+    "symmetric_predicates": [
+      "ALLY_OF",
+      "RIVAL_OF",
+      "SIBLING_OF"
+    ]
+  },
+  "normalizer": {
+    "reason": "la prediccion no trae episodios",
+    "status": "not_evaluated"
+  },
+  "prediction": {
+    "assertions": 6,
+    "claims": 21,
+    "decisions": 21,
+    "episodes": 0,
+    "fragments": 0,
+    "mentions": 42,
+    "plans": 5,
+    "resolutions": 31
+  },
+  "resolver": {
+    "action_accuracy": {
+      "accuracy": null,
+      "correct": 0,
+      "total": 0
+    },
+    "action_accuracy_strict": {
+      "accuracy": 0.0,
+      "correct": 0,
+      "total": 31
+    },
+    "cluster_alignment": {
+      "mapping_size": 0,
+      "strategy": "voraz por solape descendente; los ids del catalogo quedan fijados"
+    },
+    "duplicate_clusters": 0,
+    "duplicate_rate": null,
+    "gold_entities_covered": 0,
+    "identity_accuracy": {
+      "accuracy": 0.0,
+      "correct": 0,
+      "total": 51
+    },
+    "mentions_unassigned_by_prediction": 51,
+    "over_merge_rate": null,
+    "over_merged_clusters": 0,
+    "predicted_clusters": 0,
+    "resolution_coverage": 0.0,
+    "resolution_groups_gold": 31,
+    "resolution_groups_matched": 0,
+    "status": "scored"
+  },
+  "resources": {
+    "external_cost_usd": 0.0,
+    "latency_ms": 643.386,
+    "peak_rss_mb": 35.367,
+    "provider_calls": 0,
+    "status": "reported_by_runner"
+  },
+  "run_id": "dev-wrong_profile",
+  "split": "dev",
+  "subsystem": "e2e"
+}
