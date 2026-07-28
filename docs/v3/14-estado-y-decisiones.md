@@ -91,10 +91,31 @@ política daría 7 escrituras como mucho, no 18.
 pierde la adjudicación de su mención: eso explica el `tp=0 / fp=18` por completo y
 es la justificación medida del reconciliador, confirmada dentro de la cadena.
 
-(d) La caída de precisión de **menciones** (0.905 → 0.476) queda como **hipótesis
-pendiente**: la métrica no distingue "duplicados por la unión" de "falsos
-positivos del modelo" (dan cifras idénticas), y hay FP genuinos que ningún
-reconciliador arregla. Lo resuelve la corrida C1 aislada con prompt 1.2.0.
+(d) La caída de precisión de **menciones** (0.905 → 0.476) está **resuelta** por la
+corrida C1 aislada, y no era una sola causa: de los 43 fp, **15 son falsos
+positivos genuinos del modelo** (medidos sin ninguna unión, P 0.625) y **~24 los
+añade la unión**. El reconciliador sigue justificado, pero no basta.
+
+### C1 aislado con prompt 1.2.0 (16/16 JSON válido, 182,4 s/episodio)
+
+| | A · determinista | **C1 · semántico solo** | D · unión |
+|---|---|---|---|
+| Menciones P / R / F1 | 0.905 / 0.745 / 0.817 | 0.625 / 0.490 / 0.549 | 0.476 / 0.765 / 0.586 |
+| Claims tp / fp / fn | 0 / 0 / 20 | **8** / 10 / 12 | **0** / 18 / 20 |
+| Claims F1 | — | **0.421** | **0.000** |
+| Predicado top-1 / top-2 | 0 / 0 | 0.05 / **0.10** | 0 / 0 |
+| Trampas pisadas | 0/4 | 0/4 | 0/4 |
+
+Dos resultados nuevos:
+
+1. **La unión destruye los claims, probado con control.** C1 y D llevan los MISMOS
+   18 claims del modelo; lo único que cambia es unirlos con el determinista, y el
+   resultado pasa de tp 8 a tp 0. Es la justificación definitiva del
+   `ProposalReconciler`.
+2. **Por primera vez el modelo da candidatos múltiples**: `top-2` (0.10) duplica a
+   `top-1` (0.05). Con el prompt 1.1.0, `top-2 == top-1` siempre y el desempate del
+   motor no se ejercitaba nunca. Sigue siendo un valor bajo, pero el mecanismo está
+   vivo.
 
 ### Lecturas
 

@@ -400,7 +400,10 @@ export PYTHONPATH=data-engine/app
 
 # banco AISLADO (llama directo al extractor)
 python3 -m knowledge_v3.extraction.semantic_bench --config A
-python3 -m knowledge_v3.extraction.semantic_bench --config C1 --config D \
+# OJO: `D` es la UNION de A y C1, asi que el banco EXIGE las tres etiquetas en la
+# misma invocacion; con `--config C1 --config D` aborta con "D necesita A y C1 ya
+# ejecutados" despues de haber gastado la tanda entera contra el modelo.
+python3 -m knowledge_v3.extraction.semantic_bench --config A --config C1 --config D \
         --cache docs/v3/measurements/runs/c1-cache.json
 
 # CADENA (por el orquestador)
@@ -537,17 +540,11 @@ Lecturas, sin maquillar:
    puede emparejarse con ningún gold. Eso explica **por completo** el
    `tp = 0 / fp = 18`, está demostrado, y es la justificación medida del
    `ProposalReconciler` ahora confirmada **dentro** de la cadena.
-3. **La caída de precisión de MENCIONES (0.905 → 0.476) es HIPÓTESIS PENDIENTE,
-   no conclusión.** Es tentador atribuirla entera a "duplicados por la unión", y
-   sería ir más allá de lo medido: un experimento controlado del revisor
-   independiente muestra que *duplicados por unión* y *falsos positivos genuinos*
-   producen **métricas idénticas** (tp 10 / fp 10 / P 0.500 en ambos), así que la
-   métrica sola **no discrimina**. Y hay al menos un FP genuino que ningún
-   reconciliador arregla: el modelo emite `"emisarios"` —nombre común— tipado como
-   entidad. El experimento que sí discrimina es la corrida **C1 aislada** (sólo el
-   semántico, sin unión) con el prompt 1.2.0: si su precisión de menciones es alta,
-   los 43 fp son duplicados; si es igual de baja, son alucinaciones del modelo.
-   Está lanzada (§12.3.2) y **este documento se actualiza cuando termine**.
+3. **La caída de precisión de MENCIONES: RESUELTA, y no era una sola causa.**
+   Se dejó como hipótesis pendiente porque la métrica de D no discrimina
+   —*duplicados por unión* y *falsos positivos genuinos* dan cifras idénticas—.
+   La corrida C1 aislada (§12.3.2) lo resuelve: **las dos causas son reales y
+   ahora están cuantificadas**. Ver §12.4.
 4. **Cero trampas pisadas** (0/4) y cero claims no anclados en los episodios
    trampa: la capa local de no-factividad se sostiene con el prompt 1.2.0.
 
@@ -593,45 +590,83 @@ daría 7 como mucho. Los otros 11 no están esperando permiso, están mal.
 (7 REVIEW + 10 ABSTAIN + 1 REJECT, 5 planes construidos y firmados, ninguno
 aprobado, ledger vacío.)
 
-### 12.3.2 C1 aislado (semántico solo) — en curso
+### 12.3.2 C1 · semántico SOLO, aislado, prompt 1.2.0
 
-La pasada del banco aislado con el prompt 1.2.0
-(`semantic_bench --config C1 --config D`) seguía ejecutándose al cerrar este
-documento. Su salida cae en `docs/v3/measurements/runs/bench-C1-D.json`, con caché
-en disco (`c1-cache.json`) para que repuntuar —o reanudar tras una interrupción—
-no obligue a repetir la tanda.
+Contra el mismo servidor: **16/16 episodios con JSON válido**, 16 llamadas,
+**182,4 s por episodio** de media. (Frente a los 129 s/episodio del bloque 12 son
+**×1,41**, no "el doble" ni "~4 min por llamada" como decía una versión anterior
+de este documento.)
 
-**No es un extra: es el experimento que resuelve la hipótesis de §12.3.2 sobre la
-precisión de menciones.** C1 corre el semántico SOLO, sin unión con el
-determinista, así que su precisión de menciones separa "duplicados por la unión"
-de "falsos positivos del modelo", cosa que la métrica de D no puede hacer.
+| | A · determinista | **C1 · semántico solo** | D · unión |
+|---|---|---|---|
+| Menciones P / R / F1 | 0.905 / 0.745 / 0.817 | **0.625** / 0.490 / 0.549 | 0.476 / 0.765 / 0.586 |
+| Menciones tp / fp / fn | 38 / **4** / 13 | 25 / **15** / 26 | 39 / **43** / 12 |
+| Superficies alucinadas | 0 | **0** | 0 |
+| Tipo de entidad correcto | 0.000 | 0.440 | 0.026 |
+| **Claims P / R / F1** | — / 0.000 / — | **0.444 / 0.400 / 0.421** | 0.000 / 0.000 / **0.000** |
+| Claims tp / fp / fn | 0 / 0 / 20 | **8** / 10 / 12 | **0** / 18 / 20 |
+| Predicado top-1 / **top-2** | 0.00 / 0.00 | 0.05 / **0.10** | 0.00 / 0.00 |
+| Dirección top-1 | 0.00 | 0.15 | 0.00 |
+| Evidencia anclada | — | **1.00** | 1.00 |
+| Predicados fuera de ontología | 0 | **0** | 0 |
+| Trampas pisadas | 0 / 4 | **0 / 4** | 0 / 4 |
+| Abstenciones | 0 | 10 de 18 | 10 de 18 |
 
-Sobre el coste real, con los números medidos y no redondeados hacia arriba: **58
-llamadas en 48 min 28 s = 50,1 s por llamada, 181,7 s por episodio.** Frente a los
-129 s/episodio del bloque 12 son **×1,41**, no "el doble" ni "~4 min por llamada"
-como decía una versión anterior de este documento.
+Tres cosas que sólo se ven con C1 aislado:
 
-Aviso para quien lea la tabla de `14-estado-y-decisiones.md` §2: **las cifras C1 y
-C2 de allí son del banco AISLADO con el prompt 1.1.0**. No son comparables con
-las de aquí (cadena, prompt 1.2.0), y por eso la versión del prompt viaja en la
-traza.
+**(a) La unión DESTRUYE los claims, y ahora está probado con un control.** C1 y D
+llevan **exactamente los mismos 18 claims del modelo** (8 activos + 10
+abstenciones): lo único que cambia entre las dos columnas es que D los une con la
+salida del determinista. Y el resultado pasa de **tp 8 / F1 0.421** a **tp 0 / F1
+0.000**. No es una hipótesis sobre el emparejamiento: es el mismo material medido
+con y sin unión. `claim_key` devuelve `None` en cuanto uno de los dos argumentos
+pierde la adjudicación de su mención, y con ella se cae el claim entero.
+
+**(b) Los 43 falsos positivos de menciones tienen DOS orígenes, no uno.**
+
+| Origen | Nº | Cómo se sabe |
+|---|---:|---|
+| Falsos positivos **genuinos del modelo** | **15** | medidos en C1, **sin ninguna unión** (P 0.625) |
+| Del determinista | 4 | medidos en A |
+| **Añadidos por la UNIÓN** (duplicación / desadjudicación) | **~24** | 43 − (15 + 4) |
+
+Atribuirlos todos al reconciliador ausente habría sido cómodo y falso: **15 son
+del modelo y ningún reconciliador los arregla** — entre ellos `"emisarios"`,
+nombre común emitido como entidad. Y atribuirlos todos al modelo también: la unión
+añade más de la mitad. El reconciliador sigue justificado, pero **no basta**.
+
+**(c) Por primera vez el modelo da candidatos MÚLTIPLES.** `top-2 = 0.10` frente a
+`top-1 = 0.05`: el doble. En el bloque 12, con el prompt 1.1.0, `top-2 == top-1`
+en los dos modelos y la capacidad de desempate del motor **no se ejercitaba
+nunca**. Con el prompt 1.2.0 sí. Sigue siendo un valor bajo en términos absolutos
+—0.10 de *recall* de predicado sobre el gold entero es malo—, pero el mecanismo
+por fin está vivo, que era la condición para poder mejorarlo.
+
+Aviso de comparabilidad: **`bench D` y `cadena D` no son la misma corrida.** El
+banco construye el léxico con `Lexicon.from_profile` y la cadena con
+`workspace_lexicon`, así que el determinista ancla distinto y la adjudicación de
+menciones cambia (se ve en `tipo de entidad`: 0.026 en el banco, 0.949 en la
+cadena, con tp idéntico). Las columnas A/C1/D de la tabla de arriba **sí** son
+comparables entre sí: salen de la misma corrida y del mismo léxico.
 
 ### 12.4 Negación
 
-Medido en la cadena D (Ollama real, 16 episodios, 18 claims):
+Medido con Ollama real (16 episodios), en la cadena y en el banco aislado:
 
-| Métrica de negación | D · cadena |
-|---|---:|
-| Negativos en el gold | 3 |
-| Claims negados propuestos | 0 |
-| Convertidos en abstención | 0 |
-| **Relaciones positivas creadas por error desde un negativo** | **0** |
-| Cierres temporales propuestos | 0 |
-| Afirmaciones negativas escritas | 0 |
+| Métrica de negación | D · cadena | C1 · aislado |
+|---|---:|---:|
+| Negativos en el gold | 3 | 3 |
+| Claims negados propuestos | 0 | 0 |
+| Convertidos en abstención | 0 | **2** |
+| **Relaciones positivas creadas por error desde un negativo** | **0** | **0** |
+| Cierres temporales propuestos | 0 | 0 |
+| Afirmaciones negativas escritas | 0 | 0 |
 
 **Cero de tres**: el modelo no propuso ninguno de los tres negativos del gold, y
 tampoco los propuso en positivo — que es el error caro y el que este bloque existe
-para impedir. El corpus `dev` no tiene ninguna cesación, así que ese camino no se
+para impedir. Las **2 abstenciones** de la columna aislada son la frontera local
+haciendo su trabajo: el modelo dijo algo sobre una relación negada que la evidencia
+no respaldaba como él la contaba, y en vez de afirmarla o negarla se abstuvo. El corpus `dev` no tiene ninguna cesación, así que ese camino no se
 ejercita por aquí en absoluto; sí se ejercita, y se fija, en las 45 pruebas
 (incluidas 17 E2E por `KnowledgePipeline` con texto que sí niega). Que la métrica
 de corpus salga a cero es una limitación **del corpus**, no del detector, y decirlo
