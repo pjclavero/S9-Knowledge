@@ -126,6 +126,38 @@ restricción — puede ocuparse una noche entera. Lo que se busca es el **límit
 operativo real bajo carga alta** y, a partir de él, **cuándo desviar trabajo a
 NVIDIA para no sobrecargar el homelab**.
 
+### Vigilar ROLES, no máquinas
+
+**Corrección de diseño del operador (2026-07-29).** No hay que vigilar "la RAM de
+VM102 y VM105": hay que vigilar **la RAM de donde esté el LLM y donde esté el
+motor**. Hoy están en VM102 y VM105, pero en otro despliegue pueden estar juntos en
+una sola máquina, repartidos de otro modo, o el LLM ser remoto y el motor local.
+
+Consecuencia práctica: **ni la política de desvío ni los umbrales pueden cablear
+IPs o VMIDs**. Se definen por rol y el despliegue declara el mapeo:
+
+| Rol | Qué hace | Qué se vigila |
+|---|---|---|
+| `llm_host` | Ejecuta la inferencia local | RAM disponible, swap, carga/descarga de modelo |
+| `engine_host` | Normalización, extracción, resolución, motor, ledger | RAM, CPU, cola, latencia por etapa |
+| `graph_host` | Neo4j y el writer | Latencia de consulta, disponibilidad |
+| `hypervisor` | Anfitrión de todo lo anterior | RAM disponible, swap-out, iowait — **el techo real** |
+
+Casos que el diseño debe soportar sin cambiar código:
+
+- **Todo junto en una máquina**: `llm_host == engine_host == graph_host`. Entonces
+  la competencia por RAM es directa y los umbrales tienen que ser mucho más
+  conservadores: una inferencia grande puede ahogar al motor y al grafo a la vez.
+- **LLM remoto** (NVIDIA o un servidor propio en otra máquina): `llm_host` deja de
+  contar para la RAM local y el cuello pasa a red y cuota.
+- **Motor y grafo juntos, LLM aparte** (el caso actual): el acoplamiento es solo por
+  el hipervisor.
+
+La configuración de despliegue debe declarar explícitamente qué rol vive dónde, y
+las señales de desvío se evalúan **contra el rol**, no contra una dirección fija.
+Documentarlo así evita que la política medida en este homelab quede inservible en el
+siguiente.
+
 ### El límite no es de la VM, es del host
 
 `qwen2.5:7b` corre en **VM102**, pero VM102 compite por la CPU, la RAM y el I/O del

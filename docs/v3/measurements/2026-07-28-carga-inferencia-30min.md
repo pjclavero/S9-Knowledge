@@ -86,3 +86,35 @@ decir, prácticamente toda su asignación.
 - Acceso a VM102.
 - Los datos crudos están en `baseline.csv` del entorno de trabajo; conviene
   moverlos a `docs/v3/measurements/runs/` si se quieren conservar en el repo.
+
+---
+
+## Adenda 2026-07-29 — efecto de apagar VM108
+
+El operador apagó **VM108 `s9-arena`** (16384 MB asignados), no relevante mientras
+dure este trabajo, pero **es un tope con el que hay que contar**: cuando vuelva a
+estar en marcha, el margen desaparece otra vez.
+
+Medición inmediata en el host, con las tandas de inferencia todavía corriendo:
+
+| Métrica | Antes (VM108 encendida) | Después | Δ |
+|---|--:|--:|--:|
+| RAM disponible | 6.168 MB | **11.421 MB** | **+5.253 MB (+85 %)** |
+| Swap usada | 4.377 MB | **2.673 MB** | **−1.704 MB** |
+| RAM asignada a VMs | 41.9 GB | **25.5 GB** | −16.4 GB |
+| Overcommit | 1.35× | **0.82×** | sale del overcommit |
+| idle CPU | — | 94 % | — |
+
+El sistema **devolvió swap por sí solo** (−1,7 GB) al desaparecer la presión: la
+señal de que los 4,4 GB anteriores eran páginas expulsadas por falta de margen, no
+basura acumulada.
+
+**Con VM108 apagada el homelab ya no está en overcommit** (25,5 GB asignados sobre
+31 GB físicos) y hay 11,4 GB disponibles. Ese es el margen con el que se puede
+buscar el codo real subiendo la concurrencia.
+
+**Lo que hay que recordar al configurar producción:** el límite operativo que se mida
+esta noche es el de *este* reparto de máquinas. Con VM108 encendida, el mismo trabajo
+parte de 6 GB de margen y no de 11,4 GB — es decir, el umbral de desvío a la nube
+tendría que activarse mucho antes. La política debe leer el margen **en tiempo real**
+del rol `hypervisor`, no asumir el que se midió una noche concreta.
