@@ -127,6 +127,70 @@ class TestClasificacionDeNegacion:
         assert v.negated is False
         assert v.kind == C.NEGATION_KIND_SCOPE_AMBIGUOUS
 
+    # -- CESACION NEGADA: la inversion semantica mas cara -------------------
+    #
+    # "Kaelen NO dejo de servir a la Orden" AFIRMA la relacion. Leerlo como una
+    # cesacion propondria CERRAR la vigencia de la relacion que el texto afirma,
+    # y el motor lo aceptaba: ACCEPT + SUPERSEDE_ASSERTION con `expected_version`
+    # y `expected_hash`. Lo encontro el revisor independiente sobre eed8470.
+    #
+    # Causa raiz: la guarda de doble negacion contaba solo `NEGATION_CUES`, y las
+    # frases de cesacion no son marcas de negacion, asi que "no" + "dejo de"
+    # sumaba UNA sola marca y caia en CESSATION.
+    CESACION_NEGADA = [
+        ("Kaelen no dejó de servir a la Orden", "servir"),
+        ("Kaelen no cesó de servir a la Orden", "servir"),
+        ("Kaelen no dimitió de la Orden", "Orden"),
+        ("Kaelen no fue expulsado de la Orden", "Orden"),
+        ("Kaelen no renunció a la Orden", "Orden"),
+        ("Kaelen no rompió su alianza con la Orden", "alianza"),
+        ("Kaelen nunca dejó de servir a la Orden", "servir"),
+        ("Kaelen jamás abandonó la Orden", "Orden"),
+    ]
+
+    @pytest.mark.parametrize("texto,foco", CESACION_NEGADA)
+    def test_una_cesacion_NEGADA_no_es_una_cesacion(self, texto, foco):
+        v = verdict(texto, focus_word=foco)
+        assert v.kind != C.NEGATION_KIND_CESSATION, texto
+        assert v.negated is False, texto
+        assert v.kind == C.NEGATION_KIND_SCOPE_AMBIGUOUS, texto
+        assert C.CODE_NEGATION_SCOPE in v.reason_codes, texto
+
+    def test_la_marca_puede_ir_DESPUES_del_foco_de_la_relacion(self):
+        """"Elara pertenece a la Orden y no la abandona" AFIRMA la pertenencia.
+
+        La ventana de negacion normal mira antes del foco, y aqui la marca esta
+        despues: sin una ventana propia de la frase de cesacion, esto se leia
+        como cesacion y cerraba la vigencia de lo que el texto afirma.
+        """
+        v = verdict("Elara pertenece a la Orden y no la abandona.", focus_word="pertenece")
+        assert v.kind == C.NEGATION_KIND_SCOPE_AMBIGUOUS
+        assert v.negated is False
+
+    @pytest.mark.parametrize(
+        "texto,foco",
+        [
+            ("Kaelen dejó de servir a la Orden", "servir"),
+            ("Kaelen cesó de servir a la Orden", "servir"),
+            ("Kaelen dimitió de la Orden", "Orden"),
+            ("Kaelen fue expulsado de la Orden", "Orden"),
+            ("Kaelen renunció a la Orden", "Orden"),
+            ("Kaelen rompió su alianza con la Orden", "alianza"),
+            ("Kaelen abandonó la Orden", "Orden"),
+            ("Kaelen ya no pertenece a la Orden", "pertenece"),
+        ],
+    )
+    def test_la_cesacion_REAL_sigue_detectandose(self, texto, foco):
+        """El arreglo no puede apagar la deteccion: control positivo de las 8."""
+        v = verdict(texto, focus_word=foco)
+        assert v.negated is True, texto
+        assert v.kind == C.NEGATION_KIND_CESSATION, texto
+
+    def test_ya_no_no_se_cuenta_dos_veces_como_doble_negacion(self):
+        """`ya no` lleva su propio `no`: contarlo aparte lo volveria ambiguo."""
+        v = verdict("Kaelen ya no pertenece a la Orden", focus_word="pertenece")
+        assert v.kind == C.NEGATION_KIND_CESSATION
+
     def test_una_frase_sin_marcas_no_niega_nada(self):
         v = verdict("Toturi pertenece al clan Escorpion", focus_word="pertenece")
         assert v.negated is False and v.kind == ""
@@ -148,6 +212,41 @@ class TestClasificacionDeNegacion:
         assert C.CODE_DEONTIC in v2.reason_codes
         assert v2.not_a_statement
         assert not v2.non_factive, "una prohibicion se ABSTIENE, no se borra"
+
+
+class TestMutacionesCesacionNegada:
+    """Quitar la guarda TIENE que reproducir la inversion. Si no, no protege.
+
+    Un test que pasa igual con y sin la regla no esta probando la regla.
+    """
+
+    def test_sin_contar_las_frases_de_cesacion_vuelve_la_inversion(self, monkeypatch):
+        """Muta el recuento: sin cesaciones independientes, `no dejo de` niega."""
+        monkeypatch.setattr(C, "independent_cessations", lambda *a, **k: [])
+        monkeypatch.setattr(C, "negated_cessation", lambda *a, **k: None)
+        v = verdict("Kaelen no dejó de servir a la Orden", focus_word="servir")
+        assert v.kind == C.NEGATION_KIND_CESSATION, (
+            "la guarda de doble negacion ya no depende de las frases de cesacion: "
+            "el arreglo del defecto BLOQUEANTE se ha perdido"
+        )
+        assert v.negated is True
+
+    def test_sin_ventana_propia_vuelve_la_inversion_por_la_marca_posterior(
+        self, monkeypatch
+    ):
+        """Muta la ventana a 0: la marca de despues del foco deja de verse."""
+        monkeypatch.setattr(C, "CESSATION_NEGATION_WINDOW", 0)
+        v = verdict("Elara pertenece a la Orden y no la abandona.", focus_word="pertenece")
+        assert v.kind == C.NEGATION_KIND_CESSATION
+        assert v.negated is True
+
+    def test_con_la_guarda_puesta_ninguno_de_los_dos_es_cesacion(self):
+        """Control: sin mutar, los dos casos anteriores NO son cesacion."""
+        for texto, foco in (
+            ("Kaelen no dejó de servir a la Orden", "servir"),
+            ("Elara pertenece a la Orden y no la abandona.", "pertenece"),
+        ):
+            assert verdict(texto, focus_word=foco).kind == C.NEGATION_KIND_SCOPE_AMBIGUOUS
 
 
 # ===========================================================================
@@ -466,6 +565,9 @@ CASOS_E2E = {
     "pregunta": "¿Daiki Oharu no pertenece a la Casa del Ciervo?",
     "alcance": "El magistrado no cree que Daiki Oharu pertenece a la Casa del Ciervo.",
     "deseo": "Ojalá Daiki Oharu pertenece a la Casa del Ciervo.",
+    # El caso del revisor: la marca de negacion va DESPUES de la relacion y niega
+    # la cesacion, no la pertenencia. El texto AFIRMA que sigue perteneciendo.
+    "cesacion_negada": "Daiki Oharu pertenece a la Casa del Ciervo y no la abandona.",
 }
 
 
@@ -553,6 +655,49 @@ class TestE2ENegacion:
 
     def test_el_alcance_ambiguo_deja_su_rastro(self, gold, entities):
         _p, run = _run_e2e(gold, entities, "alcance")
+        razones = {
+            r for c in run.claims for r in (c.metadata or {}).get("abstention_reasons", [])
+        }
+        assert C.CODE_NEGATION_SCOPE in razones
+
+    def test_una_cesacion_NEGADA_no_cierra_la_vigencia_de_lo_que_el_texto_afirma(
+        self, gold, entities
+    ):
+        """Defecto BLOQUEANTE del revisor, cerrado de punta a punta.
+
+        Con una afirmacion positiva VIGENTE en el snapshot, el texto "pertenece a
+        la Casa del Ciervo y no la abandona" no puede acabar proponiendo cerrar
+        esa misma vigencia. Antes lo hacia: la clasificaba como CESSATION y el
+        motor emitia `SUPERSEDE_ASSERTION` con `expected_version` y `expected_hash`.
+        """
+        from knowledge_v3.engine.snapshot import SnapshotAssertion
+
+        previa = SnapshotAssertion(
+            assertion_id="assertion:previa",
+            subject_entity_id="entity:leyenda:daiki",
+            object_entity_id="entity:leyenda:casa-ciervo",
+            predicate="MEMBER_OF",
+            direction="SUBJECT_TO_OBJECT",
+            negated=False,
+            status="ASSERTED",
+            state="ACTIVE",
+            version=1,
+            state_hash=sha256_hash({"assertion": "assertion:previa"}),
+        )
+        _p, run = _run_e2e(gold, entities, "cesacion_negada", assertions=[previa])
+
+        assert not any(d.negation_kind == "CESSATION" for d in run.decisions)
+        assert all(d.supersedes is None for d in run.decisions)
+        for plan in (run.plan, run.review_plan):
+            if plan is None:
+                continue
+            assert not any(
+                op["operation_type"] == "SUPERSEDE_ASSERTION"
+                for op in plan.mutation_operations
+            ), "se propuso cerrar la vigencia de la relacion que el texto AFIRMA"
+
+    def test_una_cesacion_negada_deja_su_rastro_de_alcance(self, gold, entities):
+        _p, run = _run_e2e(gold, entities, "cesacion_negada")
         razones = {
             r for c in run.claims for r in (c.metadata or {}).get("abstention_reasons", [])
         }

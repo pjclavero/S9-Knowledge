@@ -631,13 +631,13 @@ class TestConjunta08ProveedorCorrupto:
             catalog_entities=entities,
         )
         codigos = {d["code"] for d in run.diagnostics}
-        # `PROVIDER_INVALID_JSON` es el codigo del puerto agnostico; el antiguo
-        # `OLLAMA_INVALID_JSON` era del extractor legacy, que ya no se monta.
-        assert {
-            "PROVIDER_INVALID_JSON",
-            "OLLAMA_INVALID_JSON",
-            "MODEL_PAYLOAD_MALFORMED",
-        } & codigos, codigos
+        # Codigo EXACTO del puerto agnostico. Una disyuncion que admitiese
+        # tambien `OLLAMA_INVALID_JSON` pasaria aunque la cadena volviese a
+        # montar el extractor legacy, que es justo lo que no puede ocurrir.
+        assert "PROVIDER_INVALID_JSON" in codigos, codigos
+        assert "OLLAMA_INVALID_JSON" not in codigos, (
+            "ese codigo es del extractor legacy: la cadena ya no lo monta"
+        )
 
     def test_la_respuesta_hostil_no_produce_ni_una_mencion(self, gold, entities):
         p = pipeline(

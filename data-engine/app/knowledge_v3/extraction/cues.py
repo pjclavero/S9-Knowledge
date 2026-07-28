@@ -313,6 +313,70 @@ def _first_phrase(
     return None
 
 
+#: Tokens de margen para decidir que una marca de negacion niega A LA FRASE DE
+#: CESACION y no a otra cosa. Con 3 caben "no dejo de" y "y no la abandona".
+CESSATION_NEGATION_WINDOW = 3
+
+
+def cessation_matches(
+    tokens: Sequence[Token], lo: int, hi: int
+) -> list[tuple[str, int, int]]:
+    """`(frase, primer_token, ultimo_token)` de cada cesacion, en orden de texto."""
+    encontradas: list[tuple[str, int, int]] = []
+    for phrase in CESSATION_PHRASES:
+        needle = phrase_tokens(phrase)
+        if not needle:
+            continue
+        for first, last in find_phrase(tokens, needle, lo=lo, hi=hi):
+            encontradas.append((phrase, first, last))
+    return sorted(encontradas, key=lambda m: (m[1], m[2]))
+
+
+def negated_cessation(
+    tokens: Sequence[Token],
+    matches: Sequence[tuple[str, int, int]],
+    marcas_negacion: Sequence[str],
+    lo: int,
+) -> Optional[str]:
+    """Cesacion NEGADA: `no dejo de servir` AFIRMA la relacion, no la cierra.
+
+    Es la inversion semantica mas cara que este modulo puede cometer: leer "no
+    dejo de servir a la Orden" como una cesacion propondria CERRAR la vigencia de
+    la relacion que el texto esta afirmando. Y no hace falta que el `no` este
+    pegado: "Elara pertenece a la Orden y no la abandona" tiene la marca dos
+    tokens antes de la frase de cesacion.
+
+    Se mira ANTES de la frase de cesacion y con ventana propia, no con el `focus`
+    de la relacion: en el ejemplo de arriba la marca esta DESPUES del foco, asi
+    que la ventana de negacion normal no la ve.
+    """
+    for phrase, first, _last in matches:
+        ventana = range(max(lo, first - CESSATION_NEGATION_WINDOW), first)
+        for i in ventana:
+            if tokens[i].norm in marcas_negacion:
+                return f"{tokens[i].text} {phrase}"
+    return None
+
+
+def independent_cessations(
+    tokens: Sequence[Token],
+    matches: Sequence[tuple[str, int, int]],
+    marcas_negacion: Sequence[str],
+) -> list[tuple[str, int, int]]:
+    """Cesaciones que APORTAN una negacion propia al recuento.
+
+    `ya no` NO aporta: su `no` ya se conto como marca suelta, y contarlo dos
+    veces convertiria cualquier `ya no` en una doble negacion. `dejo de`,
+    `abandono` o `dimitio de` si aportan: niegan la relacion sin llevar ninguna
+    marca de `NEGATION_CUES` dentro.
+    """
+    return [
+        m
+        for m in matches
+        if not any(tokens[i].norm in marcas_negacion for i in range(m[1], m[2] + 1))
+    ]
+
+
 def scope_negation(
     tokens: Sequence[Token],
     *,
@@ -423,18 +487,37 @@ def classify_negation(
         for i in range(inicio, focus)
         if tokens[i].norm in marcas_negacion and tokens[i].norm not in ("ni", "tampoco")
     ]
-    if len(marcas) >= 2:
+    cesaciones = cessation_matches(tokens, inicio, hi)
+
+    # 2a. CESACION NEGADA. Va antes que el recuento porque su marca puede estar
+    # DESPUES del foco ("...y no la abandona") y ahi `marcas` no la ve.
+    negada = negated_cessation(tokens, cesaciones, marcas_negacion, inicio)
+    if negada is not None:
         return NegationVerdict(
-            False, NEGATION_KIND_SCOPE_AMBIGUOUS, tuple(marcas), (CODE_NEGATION_SCOPE,)
+            False, NEGATION_KIND_SCOPE_AMBIGUOUS, (negada,), (CODE_NEGATION_SCOPE,)
+        )
+
+    # 2b. Recuento. Las frases de cesacion son NEGADORES: "nunca dejo de servir"
+    # lleva dos ("nunca" + "dejo de") y no es una cesacion, es una afirmacion
+    # reforzada. Sin contarlas, `no` + `dejo de` sumaba UNA sola marca y caia en
+    # CESSATION, que es exactamente la inversion que este bloque corrige.
+    independientes = independent_cessations(tokens, cesaciones, marcas_negacion)
+    if len(marcas) + len(independientes) >= 2:
+        return NegationVerdict(
+            False,
+            NEGATION_KIND_SCOPE_AMBIGUOUS,
+            tuple([*marcas, *(m[0] for m in independientes)]),
+            (CODE_NEGATION_SCOPE,),
         )
 
     encontrada = _first_phrase(tokens, NOT_YET_PHRASES, inicio, hi)
     if encontrada:
         return NegationVerdict(True, NEGATION_KIND_NOT_YET, (encontrada,), ())
 
-    encontrada = _first_phrase(tokens, CESSATION_PHRASES, inicio, hi)
-    if encontrada:
-        return NegationVerdict(True, NEGATION_KIND_CESSATION, (encontrada,), ())
+    if cesaciones:
+        return NegationVerdict(
+            True, NEGATION_KIND_CESSATION, (cesaciones[0][0],), ()
+        )
 
     nunca = [tokens[i].norm for i in range(inicio, focus) if tokens[i].norm in NEVER_CUES]
     if nunca:
