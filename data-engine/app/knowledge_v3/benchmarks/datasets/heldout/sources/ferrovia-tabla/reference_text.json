@@ -1,0 +1,14 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:ferrovia-tabla:e01",
+      "text": "Socio\tCompañía\tTurno\tAlta\nIker Lasalde\tTrasandina Unida\tnoche\t1898\nTxomin Ereña\tCompañía del Norte\tdía\t1902\nMaren Ibarrola\tCompañía del Norte\tdía\t1893\nNerea Lasalde\tCompañía del Norte\tnoche\t1901"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-tabla",
+  "split": "heldout",
+  "world": "ferrovia"
+}

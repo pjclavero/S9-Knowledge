@@ -532,7 +532,7 @@ def test_cli_describe_el_dataset(capsys):
 
 def test_cli_lista_splits_y_ablaciones(capsys):
     assert cli_main(["splits"]) == 0
-    assert capsys.readouterr().out.strip() == "dev"
+    assert "dev" in capsys.readouterr().out.split()
     assert cli_main(["ablations"]) == 0
     assert "local_only" in capsys.readouterr().out
 

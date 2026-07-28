@@ -1,0 +1,22 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:liga-mesa:e01",
+      "text": "Yo dejé el Club Aldabra en cuanto se firmó el traspaso; ahora entreno en el Canchón del Este."
+    },
+    {
+      "episode_id": "episode:liga-mesa:e02",
+      "text": "Yo sigo en el Club Rompiente. Nuestro club y el Aldabra llevan tres temporadas enfrentados."
+    },
+    {
+      "episode_id": "episode:liga-mesa:e03",
+      "text": "Si el Rompiente hubiera pagado la cláusula, yo estaría hoy en su plantilla. Corre el rumor de que Hektor Zuloaga volverá al Aldabra la próxima temporada."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-mesa",
+  "split": "heldout",
+  "world": "liga"
+}

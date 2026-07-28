@@ -1,0 +1,27 @@
+{
+  "benchmark_file": "negatives",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "end": 114,
+      "episode_id": "episode:ferrovia-cartas:e02",
+      "forbidden_object_mentions": [],
+      "forbidden_predicates": [
+        "OWNED_BY",
+        "OWNS"
+      ],
+      "forbidden_subject_mentions": [],
+      "kind": "DENIED_RUMOR",
+      "literal_text": "la locomotora Cierzo era propiedad de la Compañía del Norte",
+      "must_not_produce": "CLAIM",
+      "negative_id": "negative:ferrovia-cartas:rumor-desmentido-cierzo",
+      "rationale": "El rumor se desmiente en la misma frase que lo enuncia. Un rumor vivo produce claim RUMORED; uno refutado en su propia fuente, ninguno.",
+      "split": "heldout",
+      "start": 55
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-cartas",
+  "split": "heldout",
+  "world": "ferrovia"
+}

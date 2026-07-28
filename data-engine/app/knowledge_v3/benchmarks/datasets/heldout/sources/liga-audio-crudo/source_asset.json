@@ -1,0 +1,67 @@
+{
+  "benchmark_file": "source_asset",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:liga-audio-crudo",
+      "byte_size": 51120,
+      "collection_id": "collection:liga",
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "contract_id": "source-asset/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "copyright_class": "OWN",
+      "created_at": "2026-07-05T00:00:00Z",
+      "game_profile": "generic",
+      "ingested_at": "2026-07-21T09:50:00Z",
+      "language_hint": "es",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "description": "ASR crudo: confusiones fonéticas, sin puntuación, coordinación y condicional.",
+        "title": "Corte de audio sin revisar"
+      },
+      "mime_type": "audio/ogg",
+      "original_location": "benchmarks/heldout/liga-audio-crudo/corte-sin-revisar.ogg",
+      "original_name": "corte-sin-revisar.ogg",
+      "privacy_class": "INTERNAL",
+      "processing_policy": {
+        "allow_external_providers": true,
+        "allow_media_persistence": true,
+        "retention_days": 365
+      },
+      "produced_by_step": "gold.ingest",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type"
+          ],
+          "provider": "local",
+          "step": "gold.ingest",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "source_kind": "AUDIO",
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-audio-crudo",
+  "split": "heldout",
+  "world": "liga"
+}

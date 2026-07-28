@@ -1,0 +1,171 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:micelio",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-07-27T18:30:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:micelio-escaneo:e01:c00",
+          "confidence": 0.8,
+          "decision": "ACCEPT",
+          "decision_id": "decision:micelio-escaneo:d1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:micelio-escaneo:e01:f03"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:micelio:hermandad",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "LOCAL_APPROVED_WITH_WARNINGS"
+          ],
+          "subject_entity_id": "entity:micelio:leire"
+        },
+        {
+          "claim_id": "claim:micelio-escaneo:e02:c00",
+          "confidence": 0.2,
+          "decision": "ABSTAIN",
+          "decision_id": "decision:micelio-escaneo:d2",
+          "direction": null,
+          "evidence_fragment_ids": [
+            "fragment:micelio-escaneo:e02:f01"
+          ],
+          "object_entity_id": null,
+          "predicate": null,
+          "reason_codes": [
+            "INSUFFICIENT_EVIDENCE",
+            "LOW_QUALITY_EPISODE"
+          ],
+          "subject_entity_id": null
+        },
+        {
+          "claim_id": "claim:micelio-escaneo:e03:c00",
+          "confidence": 0.55,
+          "decision": "REVIEW",
+          "decision_id": "decision:micelio-escaneo:d3",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "VISUAL_INFERRED",
+          "evidence_fragment_ids": [
+            "fragment:micelio-escaneo:e03:f02"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:micelio:galeria-ocre",
+          "predicate": "LOCATED_IN",
+          "reason_codes": [
+            "REVIEW_EVIDENCE",
+            "REVIEW_ENTITY"
+          ],
+          "subject_entity_id": "entity:micelio:camara-yesca"
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-07-28T18:30:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": false,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-07-27T18:30:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "f4c519225a8f1de65d4294e72b7ef04e9cdf1ea950cf13fd0a35009f61e8af8a"
+        },
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "reason_codes": [
+              "REVIEW_PENDING"
+            ],
+            "result": "SKIPPED",
+            "validator": "ontology",
+            "version": "core-1.4.0"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:micelio:leire-leads-hermandad",
+          "decision_id": "decision:micelio-escaneo:d1",
+          "evidence_fragment_ids": [
+            "fragment:micelio-escaneo:e01:f03"
+          ],
+          "expected_hash": null,
+          "expected_state": "NO_OP",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:48d3ee727f739d67c6cd7ed43a72294817bc115de565a241432b13c7660350b9",
+          "operation_id": "op:micelio-escaneo:d1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:micelio:hermandad",
+            "predicate": "LEADS",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:micelio:leire",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "cb2950dfcd17d47c7b13ce59091bea6608e078257bec488a9ecd07bbee006123"
+      },
+      "plan_id": "plan:micelio-escaneo:p1",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:heldout:micelio-escaneo",
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-escaneo",
+  "split": "heldout",
+  "world": "micelio"
+}

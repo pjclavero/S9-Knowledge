@@ -1,0 +1,450 @@
+{
+  "benchmark_file": "mentions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 38,
+      "episode_id": "episode:ferrovia-tabla:e01",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-tabla:e01:f00"
+      ],
+      "mention_id": "mention:ferrovia-tabla:e01:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-tabla",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "mention_kind": "CELL"
+      },
+      "normalized_surface": "iker lasalde",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-tabla",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "start": 26,
+      "surface": "Iker Lasalde",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 55,
+      "episode_id": "episode:ferrovia-tabla:e01",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-tabla:e01:f01"
+      ],
+      "mention_id": "mention:ferrovia-tabla:e01:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-tabla",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "mention_kind": "CELL"
+      },
+      "normalized_surface": "trasandina unida",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-tabla",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "start": 39,
+      "surface": "Trasandina Unida",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 79,
+      "episode_id": "episode:ferrovia-tabla:e01",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-tabla:e01:f02"
+      ],
+      "mention_id": "mention:ferrovia-tabla:e01:m02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-tabla",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "mention_kind": "CELL"
+      },
+      "normalized_surface": "txomin ereña",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-tabla",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "start": 67,
+      "surface": "Txomin Ereña",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 98,
+      "episode_id": "episode:ferrovia-tabla:e01",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-tabla:e01:f03"
+      ],
+      "mention_id": "mention:ferrovia-tabla:e01:m03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-tabla",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "mention_kind": "CELL"
+      },
+      "normalized_surface": "compañía del norte",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-tabla",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "start": 80,
+      "surface": "Compañía del Norte",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 122,
+      "episode_id": "episode:ferrovia-tabla:e01",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-tabla:e01:f04"
+      ],
+      "mention_id": "mention:ferrovia-tabla:e01:m04",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-tabla",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "mention_kind": "CELL"
+      },
+      "normalized_surface": "maren ibarrola",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-tabla",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "start": 108,
+      "surface": "Maren Ibarrola",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 141,
+      "episode_id": "episode:ferrovia-tabla:e01",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-tabla:e01:f05"
+      ],
+      "mention_id": "mention:ferrovia-tabla:e01:m05",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-tabla",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "mention_kind": "CELL"
+      },
+      "normalized_surface": "compañía del norte",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-tabla",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "start": 123,
+      "surface": "Compañía del Norte",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 164,
+      "episode_id": "episode:ferrovia-tabla:e01",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-tabla:e01:f06"
+      ],
+      "mention_id": "mention:ferrovia-tabla:e01:m06",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-tabla",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "mention_kind": "CELL"
+      },
+      "normalized_surface": "nerea lasalde",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-tabla",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "start": 151,
+      "surface": "Nerea Lasalde",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 183,
+      "episode_id": "episode:ferrovia-tabla:e01",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-tabla:e01:f07"
+      ],
+      "mention_id": "mention:ferrovia-tabla:e01:m07",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-tabla",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "mention_kind": "CELL"
+      },
+      "normalized_surface": "compañía del norte",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-tabla",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "start": 165,
+      "surface": "Compañía del Norte",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-tabla",
+  "split": "heldout",
+  "world": "ferrovia"
+}

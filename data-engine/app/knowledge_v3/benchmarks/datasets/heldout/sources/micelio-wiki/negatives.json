@@ -1,0 +1,66 @@
+{
+  "benchmark_file": "negatives",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "end": 219,
+      "episode_id": "episode:micelio-wiki:e02",
+      "forbidden_object_mentions": [],
+      "forbidden_predicates": [
+        "LEADS",
+        "MEMBER_OF"
+      ],
+      "forbidden_subject_mentions": [],
+      "kind": "QUESTION",
+      "literal_text": "¿Llegó Sabel Onraita a presidir el Cónclave Lívido?",
+      "must_not_produce": "CLAIM",
+      "negative_id": "negative:micelio-wiki:pregunta-sabel-conclave",
+      "rationale": "Una pregunta nombra a las dos entidades y no afirma nada de ellas.",
+      "split": "heldout",
+      "start": 168
+    },
+    {
+      "end": 120,
+      "episode_id": "episode:micelio-wiki:e03",
+      "forbidden_object_mentions": [],
+      "forbidden_predicates": [
+        "LOCATED_IN",
+        "OWNS",
+        "RIVAL_OF"
+      ],
+      "forbidden_subject_mentions": [],
+      "kind": "FICTION_WITHIN_FICTION",
+      "literal_text": "el Cónclave Lívido devora la Cámara Honda",
+      "must_not_produce": "CLAIM",
+      "negative_id": "negative:micelio-wiki:ficcion-conclave-devora",
+      "rationale": "Lo que pasa dentro de la pantomima no pasa en el mundo.",
+      "split": "heldout",
+      "start": 79
+    },
+    {
+      "end": 180,
+      "episode_id": "episode:micelio-wiki:e03",
+      "forbidden_object_mentions": [
+        "mention:micelio-wiki:e03:m04"
+      ],
+      "forbidden_predicates": [
+        "LEADS",
+        "MEMBER_OF"
+      ],
+      "forbidden_subject_mentions": [
+        "mention:micelio-wiki:e03:m03"
+      ],
+      "kind": "MODIFIER_MISPAIR",
+      "literal_text": "La hermana de Sabel Onraita dirige la Hermandad del Esporo",
+      "must_not_produce": "CLAIM_FOR_PAIR",
+      "negative_id": "negative:micelio-wiki:modificador-sabel-hermandad",
+      "rationale": "Quien dirige es la hermana (Leire), no Sabel. Sabel solo aparece dentro del modificador del sujeto.",
+      "split": "heldout",
+      "start": 122
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-wiki",
+  "split": "heldout",
+  "world": "micelio"
+}

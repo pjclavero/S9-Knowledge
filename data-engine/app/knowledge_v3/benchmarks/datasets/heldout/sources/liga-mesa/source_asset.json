@@ -1,0 +1,67 @@
+{
+  "benchmark_file": "source_asset",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:liga-mesa",
+      "byte_size": 98442,
+      "collection_id": "collection:liga",
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "contract_id": "source-asset/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "copyright_class": "OWN",
+      "created_at": "2026-06-30T00:00:00Z",
+      "game_profile": "generic",
+      "ingested_at": "2026-07-21T09:40:00Z",
+      "language_hint": "es",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "description": "Turnos de habla: el mismo 'Yo' designa a dos personas, contrafactual y rumor.",
+        "title": "Mesa redonda de pretemporada"
+      },
+      "mime_type": "audio/ogg",
+      "original_location": "benchmarks/heldout/liga-mesa/mesa-pretemporada.ogg",
+      "original_name": "mesa-pretemporada.ogg",
+      "privacy_class": "INTERNAL",
+      "processing_policy": {
+        "allow_external_providers": true,
+        "allow_media_persistence": true,
+        "retention_days": 365
+      },
+      "produced_by_step": "gold.ingest",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type"
+          ],
+          "provider": "local",
+          "step": "gold.ingest",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "source_kind": "AUDIO",
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-mesa",
+  "split": "heldout",
+  "world": "liga"
+}

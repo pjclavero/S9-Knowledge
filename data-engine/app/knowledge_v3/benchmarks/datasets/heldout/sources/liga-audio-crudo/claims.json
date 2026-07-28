@@ -1,0 +1,307 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:liga-audio-crudo:e01:c00",
+      "confidence": 0.78,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.78,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:liga-audio-crudo:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e01:f04"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "gold_key": "irune-member-farol",
+        "phenomena": [
+          "ASR_NOISE",
+          "COORDINATION_MISPAIR"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:liga-audio-crudo:e01:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.78,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "ficho por",
+      "review_required": false,
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "subject_mentions": [
+        "mention:liga-audio-crudo:e01:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:liga-audio-crudo:e01:c01",
+      "confidence": 0.7,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.7,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:liga-audio-crudo:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e01:f05"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "gold_key": "lorea-member-aldabra",
+        "phenomena": [
+          "ASR_NOISE",
+          "COORDINATION_MISPAIR"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:liga-audio-crudo:e01:m03"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.7,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "lorea por el club aldabra",
+      "review_required": false,
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "subject_mentions": [
+        "mention:liga-audio-crudo:e01:m02"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:liga-audio-crudo:e01:c02",
+      "confidence": 0.7,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.7,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:liga-audio-crudo:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e01:f06"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "gold_key": "irune-sibling-lorea",
+        "phenomena": [
+          "ASR_NOISE",
+          "SYMMETRIC"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:liga-audio-crudo:e01:m02"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.7,
+          "predicate": "SIBLING_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "su ermana",
+      "review_required": false,
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "subject_mentions": [
+        "mention:liga-audio-crudo:e01:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:liga-audio-crudo:e02:c00",
+      "confidence": 0.55,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.55,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:liga-audio-crudo:e02",
+      "epistemic_cues": [
+        "si",
+        "asciende"
+      ],
+      "epistemic_status_hint": "HYPOTHETICAL",
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e02:f03"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "gold_key": "irune-leads-farol",
+        "phenomena": [
+          "ASR_NOISE",
+          "COREFERENCE",
+          "HYPOTHETICAL"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:liga-audio-crudo:e02:m02"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.55,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "dirigiria",
+      "review_required": false,
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "subject_mentions": [
+        "mention:liga-audio-crudo:e02:m01"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:liga",
+          "fragment_id": null,
+          "kind": "RELATIVE",
+          "text": "el año que biene",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-audio-crudo",
+  "split": "heldout",
+  "world": "liga"
+}

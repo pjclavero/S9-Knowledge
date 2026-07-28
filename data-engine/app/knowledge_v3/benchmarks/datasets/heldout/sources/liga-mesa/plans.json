@@ -1,0 +1,308 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:liga",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-07-27T18:30:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:liga-mesa:e01:c00",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:liga-mesa:d1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:liga-mesa:e01:f03"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:liga:aldabra",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:liga:vero"
+        },
+        {
+          "claim_id": "claim:liga-mesa:e01:c01",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:liga-mesa:d2",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:liga-mesa:e01:f04"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:liga:canchon",
+          "predicate": "LOCATED_IN",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:liga:vero"
+        },
+        {
+          "claim_id": "claim:liga-mesa:e02:c00",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:liga-mesa:d3",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:liga-mesa:e02:f04"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:liga:rompiente",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:liga:hektor"
+        },
+        {
+          "claim_id": "claim:liga-mesa:e02:c01",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:liga-mesa:d4",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:liga-mesa:e02:f05"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:liga:aldabra",
+          "predicate": "RIVAL_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:liga:rompiente"
+        },
+        {
+          "claim_id": "claim:liga-mesa:e03:c00",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:liga-mesa:d5",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "RUMORED",
+          "evidence_fragment_ids": [
+            "fragment:liga-mesa:e03:f04"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:liga:aldabra",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:liga:hektor"
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-07-28T18:30:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": true,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-07-27T18:30:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "c5acec5559f10ed05ab771c107c4adc51471b414bbf535435c27daaf844f021e"
+        },
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "ontology",
+            "version": "core-1.4.0"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:liga:vero-member-aldabra",
+          "decision_id": "decision:liga-mesa:d1",
+          "evidence_fragment_ids": [
+            "fragment:liga-mesa:e01:f03"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:ee3b6bf174dba101d62ce05af4f039ccd950096eb98364a9c81b5f526c7995dd",
+          "operation_id": "op:liga-mesa:d1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:liga:aldabra",
+            "predicate": "MEMBER_OF",
+            "state": "ENDED",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:liga:vero",
+            "valid_from": null,
+            "valid_to": "2026-06-15T00:00:00Z"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:liga:vero-in-canchon",
+          "decision_id": "decision:liga-mesa:d2",
+          "evidence_fragment_ids": [
+            "fragment:liga-mesa:e01:f04"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:e2deddaa917b2743138128ce5769ac40c8eb6847f06197c45b9c7565054bdb4b",
+          "operation_id": "op:liga-mesa:d2",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:liga:canchon",
+            "predicate": "LOCATED_IN",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:liga:vero",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:liga:hektor-member-rompiente",
+          "decision_id": "decision:liga-mesa:d3",
+          "evidence_fragment_ids": [
+            "fragment:liga-mesa:e02:f04"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:99ab0cf785aa7ce1aa3da42541010d57c56bc4319523fc9724faa1901beebfd1",
+          "operation_id": "op:liga-mesa:d3",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:liga:rompiente",
+            "predicate": "MEMBER_OF",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:liga:hektor",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:liga:rompiente-rival-aldabra",
+          "decision_id": "decision:liga-mesa:d4",
+          "evidence_fragment_ids": [
+            "fragment:liga-mesa:e02:f05"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:b0c3d927ec6c8ab12c3399d0176a455d264b66037210e1cc3e65ef8e69b13e05",
+          "operation_id": "op:liga-mesa:d4",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "UNDIRECTED",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:liga:aldabra",
+            "predicate": "RIVAL_OF",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:liga:rompiente",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:liga:hektor-member-aldabra",
+          "decision_id": "decision:liga-mesa:d5",
+          "evidence_fragment_ids": [
+            "fragment:liga-mesa:e03:f04"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:1a13e73f38e5829935d797e87d38d573747e9b7c9480b056fc6106752d887b03",
+          "operation_id": "op:liga-mesa:d5",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "RUMORED",
+            "negated": false,
+            "object_entity_id": "entity:liga:aldabra",
+            "predicate": "MEMBER_OF",
+            "state": "PLANNED",
+            "status": "PROVISIONAL",
+            "subject_entity_id": "entity:liga:hektor",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "28c0f107b086b8c07b89438f67d9496232c0bc70c18fb255c0f5dcf32b693add"
+      },
+      "plan_id": "plan:liga-mesa:p1",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:heldout:liga-mesa",
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-mesa",
+  "split": "heldout",
+  "world": "liga"
+}

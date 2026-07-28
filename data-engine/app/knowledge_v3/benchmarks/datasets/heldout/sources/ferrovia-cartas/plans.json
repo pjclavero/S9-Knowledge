@@ -1,0 +1,220 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:ferrovia",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-07-27T18:30:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:ferrovia-cartas:e01:c00",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:ferrovia-cartas:d1",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "RUMORED",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-cartas:e01:f05"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:ferrovia:norte",
+          "predicate": "ALLY_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:ferrovia:trasandina"
+        },
+        {
+          "claim_id": "claim:ferrovia-cartas:e03:c00",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:ferrovia-cartas:d2",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "CONFLICTED",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-cartas:e03:f05"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:ferrovia:trasandina",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED_WITH_WARNINGS"
+          ],
+          "subject_entity_id": "entity:ferrovia:iker"
+        },
+        {
+          "claim_id": "claim:ferrovia-cartas:e03:c01",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:ferrovia-cartas:d3",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-cartas:e03:f06"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:ferrovia:trasandina",
+          "predicate": "OWNED_BY",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:ferrovia:cierzo"
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-07-28T18:30:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": true,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-07-27T18:30:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "b81a009f70e5a7ee6c49972e7812abcb92e79632ac436c79c788eaaece1c1ea9"
+        },
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "ontology",
+            "version": "core-1.4.0"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:ferrovia:trasandina-ally-norte",
+          "decision_id": "decision:ferrovia-cartas:d1",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-cartas:e01:f05"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:1dcccc2efad8967c1f6084fe6eb606a23dae0c9c6e641def1489b3438a6db0f1",
+          "operation_id": "op:ferrovia-cartas:d1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "UNDIRECTED",
+            "epistemic_status": "RUMORED",
+            "negated": false,
+            "object_entity_id": "entity:ferrovia:norte",
+            "predicate": "ALLY_OF",
+            "state": "ACTIVE",
+            "status": "PROVISIONAL",
+            "subject_entity_id": "entity:ferrovia:trasandina",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:ferrovia:iker-not-member-trasandina",
+          "decision_id": "decision:ferrovia-cartas:d2",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-cartas:e03:f05"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:d06c36cb4501f3df046dc58d028da680cd5f8504871f32af89a1a5e5afe5a198",
+          "operation_id": "op:ferrovia-cartas:d2",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "CONFLICTED",
+            "negated": true,
+            "object_entity_id": "entity:ferrovia:trasandina",
+            "predicate": "MEMBER_OF",
+            "state": "ACTIVE",
+            "status": "CONTRADICTED",
+            "subject_entity_id": "entity:ferrovia:iker",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:ferrovia:cierzo-owned-trasandina",
+          "decision_id": "decision:ferrovia-cartas:d3",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-cartas:e03:f06"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:33a8cd37623ed5895a72425a82e7e8f1826208d80b691d8247e0a0d02252cd98",
+          "operation_id": "op:ferrovia-cartas:d3",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:ferrovia:trasandina",
+            "predicate": "OWNED_BY",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:ferrovia:cierzo",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "969a4012328de61cb3cb8010e8084856304596c6a53ee2d0e13ba39266aa9d8e"
+      },
+      "plan_id": "plan:ferrovia-cartas:p1",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:heldout:ferrovia-cartas",
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-cartas",
+  "split": "heldout",
+  "world": "ferrovia"
+}

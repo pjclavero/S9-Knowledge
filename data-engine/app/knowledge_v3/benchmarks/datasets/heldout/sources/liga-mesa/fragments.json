@@ -1,0 +1,746 @@
+{
+  "benchmark_file": "fragments",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 2,
+      "episode_id": "episode:liga-mesa:e01",
+      "fragment_id": "fragment:liga-mesa:e01:f00",
+      "frame_id": null,
+      "literal_text": "Yo",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "yo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 0,
+      "time_end": 9.0,
+      "time_start": 0.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 23,
+      "episode_id": "episode:liga-mesa:e01",
+      "fragment_id": "fragment:liga-mesa:e01:f01",
+      "frame_id": null,
+      "literal_text": "Club Aldabra",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "club aldabra",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 11,
+      "time_end": 9.0,
+      "time_start": 0.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 92,
+      "episode_id": "episode:liga-mesa:e01",
+      "fragment_id": "fragment:liga-mesa:e01:f02",
+      "frame_id": null,
+      "literal_text": "Canchón del Este",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "canchón del este",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 76,
+      "time_end": 9.0,
+      "time_start": 0.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 7,
+      "episode_id": "episode:liga-mesa:e01",
+      "fragment_id": "fragment:liga-mesa:e01:f03",
+      "frame_id": null,
+      "literal_text": "dejé",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "dejé",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 3,
+      "time_end": 9.0,
+      "time_start": 0.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 72,
+      "episode_id": "episode:liga-mesa:e01",
+      "fragment_id": "fragment:liga-mesa:e01:f04",
+      "frame_id": null,
+      "literal_text": "entreno en",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "entreno en",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 62,
+      "time_end": 9.0,
+      "time_start": 0.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 2,
+      "episode_id": "episode:liga-mesa:e02",
+      "fragment_id": "fragment:liga-mesa:e02:f00",
+      "frame_id": null,
+      "literal_text": "Yo",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "yo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 0,
+      "time_end": 18.0,
+      "time_start": 9.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 28,
+      "episode_id": "episode:liga-mesa:e02",
+      "fragment_id": "fragment:liga-mesa:e02:f01",
+      "frame_id": null,
+      "literal_text": "Club Rompiente",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "club rompiente",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 14,
+      "time_end": 18.0,
+      "time_start": 9.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 42,
+      "episode_id": "episode:liga-mesa:e02",
+      "fragment_id": "fragment:liga-mesa:e02:f02",
+      "frame_id": null,
+      "literal_text": "Nuestro club",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "nuestro club",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 30,
+      "time_end": 18.0,
+      "time_start": 9.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 55,
+      "episode_id": "episode:liga-mesa:e02",
+      "fragment_id": "fragment:liga-mesa:e02:f03",
+      "frame_id": null,
+      "literal_text": "el Aldabra",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "el aldabra",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 45,
+      "time_end": 18.0,
+      "time_start": 9.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 10,
+      "episode_id": "episode:liga-mesa:e02",
+      "fragment_id": "fragment:liga-mesa:e02:f04",
+      "frame_id": null,
+      "literal_text": "sigo en",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "sigo en",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 3,
+      "time_end": 18.0,
+      "time_start": 9.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 90,
+      "episode_id": "episode:liga-mesa:e02",
+      "fragment_id": "fragment:liga-mesa:e02:f05",
+      "frame_id": null,
+      "literal_text": "llevan tres temporadas enfrentados",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "llevan tres temporadas enfrentados",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 56,
+      "time_end": 18.0,
+      "time_start": 9.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 15,
+      "episode_id": "episode:liga-mesa:e03",
+      "fragment_id": "fragment:liga-mesa:e03:f00",
+      "frame_id": null,
+      "literal_text": "el Rompiente",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "el rompiente",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 3,
+      "time_end": 28.0,
+      "time_start": 18.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 46,
+      "episode_id": "episode:liga-mesa:e03",
+      "fragment_id": "fragment:liga-mesa:e03:f01",
+      "frame_id": null,
+      "literal_text": "yo",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "yo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 44,
+      "time_end": 28.0,
+      "time_start": 18.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 112,
+      "episode_id": "episode:liga-mesa:e03",
+      "fragment_id": "fragment:liga-mesa:e03:f02",
+      "frame_id": null,
+      "literal_text": "Hektor Zuloaga",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "hektor zuloaga",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 98,
+      "time_end": 28.0,
+      "time_start": 18.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 131,
+      "episode_id": "episode:liga-mesa:e03",
+      "fragment_id": "fragment:liga-mesa:e03:f03",
+      "frame_id": null,
+      "literal_text": "Aldabra",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "aldabra",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 124,
+      "time_end": 28.0,
+      "time_start": 18.0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 123,
+      "episode_id": "episode:liga-mesa:e03",
+      "fragment_id": "fragment:liga-mesa:e03:f04",
+      "frame_id": null,
+      "literal_text": "volverá al",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        }
+      },
+      "normalized_text": "volverá al",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "start": 113,
+      "time_end": 28.0,
+      "time_start": 18.0,
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-mesa",
+  "split": "heldout",
+  "world": "liga"
+}

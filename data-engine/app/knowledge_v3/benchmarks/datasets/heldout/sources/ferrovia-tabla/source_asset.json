@@ -1,0 +1,67 @@
+{
+  "benchmark_file": "source_asset",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:ferrovia-tabla",
+      "byte_size": 214,
+      "collection_id": "collection:ferrovia",
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "contract_id": "source-asset/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "copyright_class": "OWN",
+      "created_at": "1902-01-11T00:00:00Z",
+      "game_profile": "generic",
+      "ingested_at": "2026-07-21T09:10:00Z",
+      "language_hint": "es",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-tabla",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "description": "Tabla: repite dos hechos ya conocidos (NO_OP) y trae un socio nuevo.",
+        "title": "Libro de socios del taller (1902)"
+      },
+      "mime_type": "text/csv",
+      "original_location": "benchmarks/heldout/ferrovia-tabla/libro-socios-1902.csv",
+      "original_name": "libro-socios-1902.csv",
+      "privacy_class": "INTERNAL",
+      "processing_policy": {
+        "allow_external_providers": true,
+        "allow_media_persistence": true,
+        "retention_days": 365
+      },
+      "produced_by_step": "gold.ingest",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type"
+          ],
+          "provider": "local",
+          "step": "gold.ingest",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-tabla",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "source_kind": "TABLE",
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-tabla",
+  "split": "heldout",
+  "world": "ferrovia"
+}

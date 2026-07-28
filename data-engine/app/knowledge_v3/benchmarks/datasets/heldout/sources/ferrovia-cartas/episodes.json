@@ -1,0 +1,183 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:ferrovia-cartas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "63c469b30120768012e1d64dd8324f8b104f7f2e9b876a733c763cb85e6f2cb3"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ferrovia-cartas:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "phenomena": [
+          "RUMOR",
+          "SYMMETRIC"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:ferrovia-cartas:e02",
+      "page": 1,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.97
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Portazgo, 14 de marzo de 1899\nA la atención de Maren Ibarrola:\nCorre por los talleres que Trasandina Unida y la Compañía del Norte se han repartido la concesión del Túnel de Aizkorri. Nadie ha visto el documento.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "asset_id": "asset:ferrovia-cartas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "e75756be1a8fa2a4cc00516a550834e5fa81d3046dea3c80180068cc7b3005e9"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ferrovia-cartas:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "phenomena": [
+          "DENIED_RUMOR"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:ferrovia-cartas:e03",
+      "page": 1,
+      "previous_episode_id": "episode:ferrovia-cartas:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.97
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Portazgo, 2 de abril de 1899\nSe dijo en la cantina que la locomotora Cierzo era propiedad de la Compañía del Norte; el libro de inventario lo desmiente sin dejar lugar a dudas.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "asset_id": "asset:ferrovia-cartas",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "835d865ae90b56310128fbb7ba2714773a4bfd9d54572beaac305f14debaefa7"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ferrovia-cartas:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "phenomena": [
+          "CONFLICT",
+          "NEGATION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": null,
+      "page": 2,
+      "previous_episode_id": "episode:ferrovia-cartas:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.97
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Portazgo, 9 de mayo de 1899\nDejo constancia de que Iker Lasalde no figura como socio de Trasandina Unida en ninguno de los tres libros que he revisado. La locomotora Cierzo, en cambio, pertenece a Trasandina Unida desde el reparto.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-cartas",
+  "split": "heldout",
+  "world": "ferrovia"
+}

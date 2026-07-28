@@ -1,0 +1,22 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:micelio-wiki:e01",
+      "text": "== Hermandad del Esporo ==\nTipo: hermandad de cultivo\nSede: Cámara Honda\nRival declarada: Cónclave Lívido\nCultivo en propiedad: Cámara Yesca\nMiembro destacada: Leire Onraita"
+    },
+    {
+      "episode_id": "episode:micelio-wiki:e02",
+      "text": "== Geografía ==\nLa Cámara Honda se abre dentro de la Galería Ocre. Si el Cónclave Lívido llegara a ocupar la Galería Ocre, la Hermandad tendría que mudar sus cultivos. ¿Llegó Sabel Onraita a presidir el Cónclave Lívido?"
+    },
+    {
+      "episode_id": "episode:micelio-wiki:e03",
+      "text": "== Cultura ==\nEn la pantomima que los cultivadores representan cada solsticio, el Cónclave Lívido devora la Cámara Honda. La hermana de Sabel Onraita dirige la Hermandad del Esporo desde la última siembra; ella no ha vuelto a la Galería Ocre."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-wiki",
+  "split": "heldout",
+  "world": "micelio"
+}

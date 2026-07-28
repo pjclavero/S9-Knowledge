@@ -1,0 +1,22 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:micelio-escaneo:e01",
+      "text": "El acta de la Cámara Honda confirma que Leire Onraita dirige la Hermandad del Esporo desde la última siembra."
+    },
+    {
+      "episode_id": "episode:micelio-escaneo:e02",
+      "text": "La rúbrica pertenece a Onraita, según el margen del acta."
+    },
+    {
+      "episode_id": "episode:micelio-escaneo:e03",
+      "text": "Plano de galerías: la Cámara Yesca dibujada dentro del contorno de la Galería Ocre."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-escaneo",
+  "split": "heldout",
+  "world": "micelio"
+}

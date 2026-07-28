@@ -1,0 +1,722 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:micelio-wiki:e01:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:micelio-wiki:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e01:f05"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "hermandad-in-honda",
+        "phenomena": [],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:micelio-wiki:e01:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "LOCATED_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Sede:",
+      "review_required": false,
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "subject_mentions": [
+        "mention:micelio-wiki:e01:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:micelio-wiki:e01:c01",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:micelio-wiki:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e01:f06"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "hermandad-rival-conclave",
+        "phenomena": [
+          "SYMMETRIC"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:micelio-wiki:e01:m02"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "RIVAL_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Rival declarada:",
+      "review_required": false,
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "subject_mentions": [
+        "mention:micelio-wiki:e01:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:micelio-wiki:e01:c02",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:micelio-wiki:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e01:f07"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "hermandad-owns-yesca",
+        "phenomena": [
+          "INVERSE_PREDICATE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:micelio-wiki:e01:m03"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "OWNS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Cultivo en propiedad:",
+      "review_required": false,
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "subject_mentions": [
+        "mention:micelio-wiki:e01:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:micelio-wiki:e01:c03",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:micelio-wiki:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e01:f08"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "hermandad-has-leire",
+        "phenomena": [
+          "INVERSE_PREDICATE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:micelio-wiki:e01:m04"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "HAS_MEMBER"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Miembro destacada:",
+      "review_required": false,
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "subject_mentions": [
+        "mention:micelio-wiki:e01:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:micelio-wiki:e02:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:micelio-wiki:e02",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e02:f07"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "honda-in-ocre",
+        "phenomena": [
+          "TRANSITIVE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:micelio-wiki:e02:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "LOCATED_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "se abre dentro de",
+      "review_required": false,
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "subject_mentions": [
+        "mention:micelio-wiki:e02:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:micelio-wiki:e02:c01",
+      "confidence": 0.6,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.6,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:micelio-wiki:e02",
+      "epistemic_cues": [
+        "Si",
+        "tendría que"
+      ],
+      "epistemic_status_hint": "HYPOTHETICAL",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e02:f08"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "conclave-in-ocre",
+        "phenomena": [
+          "HYPOTHETICAL"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:micelio-wiki:e02:m03"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.6,
+          "predicate": "LOCATED_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "llegara a ocupar",
+      "review_required": false,
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "subject_mentions": [
+        "mention:micelio-wiki:e02:m02"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:micelio-wiki:e02:c02",
+      "confidence": 0.4,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.4,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:micelio-wiki:e02",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e02:f08"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "conclave-leads-ocre-INVALID",
+        "phenomena": [
+          "ONTOLOGY_VIOLATION"
+        ],
+        "role": "ENGINE_ONLY"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:micelio-wiki:e02:m03"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.4,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "llegara a ocupar",
+      "review_required": false,
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "subject_mentions": [
+        "mention:micelio-wiki:e02:m02"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:micelio-wiki:e03:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:micelio-wiki:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e03:f07"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "leire-leads-hermandad",
+        "phenomena": [
+          "MODIFIER_MISPAIR",
+          "TEMPORALITY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:micelio-wiki:e03:m04"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "dirige",
+      "review_required": false,
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "subject_mentions": [
+        "mention:micelio-wiki:e03:m02"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:micelio",
+          "fragment_id": null,
+          "kind": "RELATIVE",
+          "text": "desde la última siembra",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:micelio-wiki:e03:c01",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:micelio-wiki:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e03:f08"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "leire-sibling-sabel",
+        "phenomena": [
+          "SYMMETRIC"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:micelio-wiki:e03:m03"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "SIBLING_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "La hermana de",
+      "review_required": false,
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "subject_mentions": [
+        "mention:micelio-wiki:e03:m02"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:micelio-wiki:e03:c02",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:micelio-wiki:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:micelio-wiki:e03:f09"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "leire-not-in-ocre",
+        "phenomena": [
+          "COREFERENCE",
+          "NEGATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:micelio-wiki:e03:m06"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "LOCATED_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "no ha vuelto a",
+      "review_required": false,
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "subject_mentions": [
+        "mention:micelio-wiki:e03:m05"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-wiki",
+  "split": "heldout",
+  "world": "micelio"
+}

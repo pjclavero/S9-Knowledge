@@ -1,0 +1,487 @@
+{
+  "benchmark_file": "game_profile",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "aliases": [
+        {
+          "canonical": "Maren Ibarrola",
+          "variants": [
+            "Maren",
+            "Maren Ibarrola",
+            "Ibarrola"
+          ]
+        },
+        {
+          "canonical": "Iker Lasalde",
+          "variants": [
+            "Iker",
+            "Iker Lasalde",
+            "el hermano de Nerea Lasalde"
+          ]
+        },
+        {
+          "canonical": "Nerea Lasalde",
+          "variants": [
+            "Nerea",
+            "Nerea Lasalde"
+          ]
+        },
+        {
+          "canonical": "Txomin Ereña",
+          "variants": [
+            "Txomin Ereña"
+          ]
+        },
+        {
+          "canonical": "Compañía del Norte",
+          "variants": [
+            "Compañía del Norte",
+            "la Compañía"
+          ]
+        },
+        {
+          "canonical": "Trasandina Unida",
+          "variants": [
+            "Trasandina Unida",
+            "la Trasandina"
+          ]
+        },
+        {
+          "canonical": "Túnel de Aizkorri",
+          "variants": [
+            "Túnel de Aizkorri"
+          ]
+        },
+        {
+          "canonical": "Estación de Portazgo",
+          "variants": [
+            "Estación de Portazgo",
+            "Portazgo"
+          ]
+        },
+        {
+          "canonical": "Locomotora Cierzo",
+          "variants": [
+            "Locomotora Cierzo",
+            "locomotora Cierzo",
+            "Cierzo"
+          ]
+        },
+        {
+          "canonical": "Sabel Onraita",
+          "variants": [
+            "Sabel",
+            "Sabel Onraita"
+          ]
+        },
+        {
+          "canonical": "Leire Onraita",
+          "variants": [
+            "Leire",
+            "Leire Onraita",
+            "La hermana de Sabel Onraita"
+          ]
+        },
+        {
+          "canonical": "Hermandad del Esporo",
+          "variants": [
+            "Hermandad del Esporo",
+            "la Hermandad"
+          ]
+        },
+        {
+          "canonical": "Cónclave Lívido",
+          "variants": [
+            "Cónclave Lívido",
+            "el Cónclave"
+          ]
+        },
+        {
+          "canonical": "Cámara Honda",
+          "variants": [
+            "Cámara Honda",
+            "Cárnara Honda"
+          ]
+        },
+        {
+          "canonical": "Galería Ocre",
+          "variants": [
+            "Galería Ocre"
+          ]
+        },
+        {
+          "canonical": "Cámara Yesca",
+          "variants": [
+            "Cámara Yesca"
+          ]
+        },
+        {
+          "canonical": "0nra1ta",
+          "variants": [
+            "0nra1ta"
+          ]
+        },
+        {
+          "canonical": "Vero Anchorena",
+          "variants": [
+            "Vero",
+            "Vero Anchorena"
+          ]
+        },
+        {
+          "canonical": "Hektor Zuloaga",
+          "variants": [
+            "Hektor",
+            "Hektor Zuloaga"
+          ]
+        },
+        {
+          "canonical": "Irune Basterra",
+          "variants": [
+            "Irune Basterra",
+            "irune basterra"
+          ]
+        },
+        {
+          "canonical": "Lorea Basterra",
+          "variants": [
+            "Lorea Basterra",
+            "lorea"
+          ]
+        },
+        {
+          "canonical": "Club Rompiente",
+          "variants": [
+            "Club Rompiente",
+            "el Rompiente",
+            "Nuestro club"
+          ]
+        },
+        {
+          "canonical": "Club Aldabra",
+          "variants": [
+            "Club Aldabra",
+            "el Aldabra",
+            "Aldabra",
+            "club aldabra"
+          ]
+        },
+        {
+          "canonical": "Club Farol",
+          "variants": [
+            "Club Farol",
+            "club farol",
+            "el equipo"
+          ]
+        },
+        {
+          "canonical": "Canchón del Este",
+          "variants": [
+            "Canchón del Este"
+          ]
+        }
+      ],
+      "ambiguous_terms": [
+        "la Compañía",
+        "la Trasandina",
+        "la Hermandad",
+        "el Cónclave",
+        "Nuestro club",
+        "el equipo",
+        "Lasalde",
+        "Onraita",
+        "Basterra"
+      ],
+      "calendars": [
+        {
+          "calendar_id": "calendar:ferrovia",
+          "epoch_label": "Cuenta de concesiones",
+          "units": [
+            "temporada",
+            "invierno"
+          ]
+        },
+        {
+          "calendar_id": "calendar:micelio",
+          "epoch_label": "Ciclo de siembra",
+          "units": [
+            "siembra",
+            "solsticio"
+          ]
+        },
+        {
+          "calendar_id": "calendar:liga",
+          "epoch_label": "Calendario de liga",
+          "units": [
+            "temporada",
+            "jornada"
+          ]
+        }
+      ],
+      "contract_id": "game-profile/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "core_ontology_version": "core-1.4.0",
+      "entity_types": [
+        "Character",
+        "Location",
+        "Faction",
+        "Object",
+        "Event",
+        "Concept"
+      ],
+      "evaluation_examples": [
+        {
+          "example_id": "example:coordinacion",
+          "expected": "dos MEMBER_OF cruzados NO: A con la primera, B con la segunda",
+          "text": "A entro en la primera compania y tambien B entro en la segunda."
+        },
+        {
+          "example_id": "example:modificador",
+          "expected": "el sujeto es el hermano, no A",
+          "text": "El hermano de A firmo el arriendo."
+        }
+      ],
+      "factions": [
+        "Compañía del Norte",
+        "Trasandina Unida",
+        "Hermandad del Esporo",
+        "Cónclave Lívido",
+        "Club Rompiente",
+        "Club Aldabra",
+        "Club Farol"
+      ],
+      "identity_rules": [
+        {
+          "description": "Aparecer dentro del modificador de un sujeto no convierte a nadie en ese sujeto.",
+          "kind": "NEVER_MERGE_IF",
+          "reason_code": "MODIFIER_ONLY_MATCH",
+          "rule_id": "rule:modificador-no-es-sujeto"
+        },
+        {
+          "description": "Superficie degradada compatible con dos entidades del catalogo: provisional y revision.",
+          "kind": "REQUIRE_REVIEW_IF",
+          "reason_code": "OCR_DEGRADED_SURFACE",
+          "rule_id": "rule:ocr-ambiguo-revisa"
+        },
+        {
+          "description": "Confusion fonetica de ASR: se enlaza solo si el alias esta declarado.",
+          "kind": "REQUIRE_REVIEW_IF",
+          "reason_code": "ASR_PHONETIC_SURFACE",
+          "rule_id": "rule:asr-fonetico-revisa"
+        }
+      ],
+      "learned_adapter": {
+        "adapter_id": "adapter:none",
+        "enabled": false
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "role": "perfil correcto del split held-out",
+          "split": "heldout"
+        }
+      },
+      "predicates": [
+        {
+          "domain": [
+            "Character"
+          ],
+          "functional": false,
+          "inverse_of": "HAS_MEMBER",
+          "predicate": "MEMBER_OF",
+          "range": [
+            "Faction"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": "MEMBER_OF",
+          "predicate": "HAS_MEMBER",
+          "range": [
+            "Character"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character"
+          ],
+          "functional": true,
+          "inverse_of": "LED_BY",
+          "predicate": "LEADS",
+          "range": [
+            "Faction"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": "LEADS",
+          "predicate": "LED_BY",
+          "range": [
+            "Character"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character",
+            "Object",
+            "Location",
+            "Event",
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": null,
+          "predicate": "LOCATED_IN",
+          "range": [
+            "Location"
+          ],
+          "symmetric": false,
+          "transitive": true
+        },
+        {
+          "domain": [
+            "Character",
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": null,
+          "predicate": "ALLY_OF",
+          "range": [
+            "Character",
+            "Faction"
+          ],
+          "symmetric": true,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character",
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": null,
+          "predicate": "RIVAL_OF",
+          "range": [
+            "Character",
+            "Faction"
+          ],
+          "symmetric": true,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character"
+          ],
+          "functional": false,
+          "inverse_of": null,
+          "predicate": "SIBLING_OF",
+          "range": [
+            "Character"
+          ],
+          "symmetric": true,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character",
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": "OWNED_BY",
+          "predicate": "OWNS",
+          "range": [
+            "Object",
+            "Location"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Object",
+            "Location"
+          ],
+          "functional": false,
+          "inverse_of": "OWNS",
+          "predicate": "OWNED_BY",
+          "range": [
+            "Character",
+            "Faction"
+          ],
+          "symmetric": false,
+          "transitive": false
+        }
+      ],
+      "produced_by_step": "gold.profile",
+      "profile_id": "generic",
+      "profile_version": "1.0.0",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicates",
+            "entity_types"
+          ],
+          "provider": "local",
+          "step": "gold.profile",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "profile:heldout:generic",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "d73cd690ceeea0455c822a9002de837bdc5547ff841114bd7b0213f80226c6d0"
+      },
+      "source_priorities": [
+        {
+          "priority": 80,
+          "source_kind": "MARKDOWN"
+        },
+        {
+          "priority": 75,
+          "source_kind": "TEXT"
+        },
+        {
+          "priority": 70,
+          "source_kind": "TABLE"
+        },
+        {
+          "priority": 60,
+          "source_kind": "WEB"
+        },
+        {
+          "priority": 45,
+          "source_kind": "AUDIO"
+        },
+        {
+          "priority": 30,
+          "source_kind": "IMAGE"
+        }
+      ],
+      "titles": [
+        "ingeniera jefa",
+        "concesionario",
+        "cultivadora mayor",
+        "entrenador"
+      ],
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "split": "heldout"
+}

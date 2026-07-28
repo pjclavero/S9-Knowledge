@@ -1,0 +1,396 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:ferrovia",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-07-27T18:30:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:ferrovia-memoria:e01:c00",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:ferrovia-memoria:d1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-memoria:e01:f07"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:ferrovia:norte",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:ferrovia:maren"
+        },
+        {
+          "claim_id": "claim:ferrovia-memoria:e01:c01",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:ferrovia-memoria:d2",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-memoria:e01:f08"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:ferrovia:norte",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:ferrovia:iker"
+        },
+        {
+          "claim_id": "claim:ferrovia-memoria:e01:c02",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:ferrovia-memoria:d3",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-memoria:e01:f09"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:ferrovia:norte",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:ferrovia:nerea"
+        },
+        {
+          "claim_id": "claim:ferrovia-memoria:e02:c00",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:ferrovia-memoria:d4",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-memoria:e02:f04"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:ferrovia:aizkorri",
+          "predicate": "OWNS",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:ferrovia:iker"
+        },
+        {
+          "claim_id": "claim:ferrovia-memoria:e03:c00",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:ferrovia-memoria:d5",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-memoria:e03:f05"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:ferrovia:norte",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:ferrovia:nerea"
+        },
+        {
+          "claim_id": "claim:ferrovia-memoria:e03:c01",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:ferrovia-memoria:d6",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "CONFLICTED",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-memoria:e03:f06"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:ferrovia:trasandina",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED_WITH_WARNINGS"
+          ],
+          "subject_entity_id": "entity:ferrovia:iker"
+        },
+        {
+          "claim_id": "claim:ferrovia-memoria:e03:c02",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:ferrovia-memoria:d7",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-memoria:e03:f07"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:ferrovia:iker",
+          "predicate": "SIBLING_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:ferrovia:nerea"
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-07-28T18:30:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": true,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-07-27T18:30:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "517d4c7097175dfd5414d8c5348e5251f1429192170cf92357047b0fbf08084a"
+        },
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "ontology",
+            "version": "core-1.4.0"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:ferrovia:maren-leads-norte",
+          "decision_id": "decision:ferrovia-memoria:d1",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-memoria:e01:f07"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:660ad315819da6261c90c06d3c9801e20d93a6442e75a10b6c509ab299ea018f",
+          "operation_id": "op:ferrovia-memoria:d1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:ferrovia:norte",
+            "predicate": "LEADS",
+            "state": "ENDED",
+            "status": "SUPERSEDED",
+            "subject_entity_id": "entity:ferrovia:maren",
+            "valid_from": "1893-10-01T00:00:00Z",
+            "valid_to": "1897-06-01T00:00:00Z"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:ferrovia:iker-leads-norte",
+          "decision_id": "decision:ferrovia-memoria:d2",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-memoria:e01:f08"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:fe30bdf676c1de879018a7f029e709998d45d0a8b0917db8ecd4c33153c9b75c",
+          "operation_id": "op:ferrovia-memoria:d2",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:ferrovia:norte",
+            "predicate": "LEADS",
+            "state": "ENDED",
+            "status": "SUPERSEDED",
+            "subject_entity_id": "entity:ferrovia:iker",
+            "valid_from": "1897-06-01T00:00:00Z",
+            "valid_to": "1901-04-01T00:00:00Z"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:ferrovia:nerea-leads-norte",
+          "decision_id": "decision:ferrovia-memoria:d3",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-memoria:e01:f09"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:c12a309cda95c04cfac4dd8c350b7b494cc6aa53b97a58d0f7ee273385d6466b",
+          "operation_id": "op:ferrovia-memoria:d3",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:ferrovia:norte",
+            "predicate": "LEADS",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:ferrovia:nerea",
+            "valid_from": "1901-04-01T00:00:00Z",
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:ferrovia:iker-not-owns-aizkorri",
+          "decision_id": "decision:ferrovia-memoria:d4",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-memoria:e02:f04"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:75edb2ee998cbda841c40c6bd49afa9942b284a874837e3e294d351a5fe23852",
+          "operation_id": "op:ferrovia-memoria:d4",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": true,
+            "object_entity_id": "entity:ferrovia:aizkorri",
+            "predicate": "OWNS",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:ferrovia:iker",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:ferrovia:nerea-member-norte",
+          "decision_id": "decision:ferrovia-memoria:d5",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-memoria:e03:f05"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:3efa8c66e1d07d643bbf3f1a09272511bfed168ee13ce8947ae771e35a265402",
+          "operation_id": "op:ferrovia-memoria:d5",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:ferrovia:norte",
+            "predicate": "MEMBER_OF",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:ferrovia:nerea",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:ferrovia:iker-member-trasandina",
+          "decision_id": "decision:ferrovia-memoria:d6",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-memoria:e03:f06"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:57d2d64402be4ea5daacc304ab8daeea9d6d25e15512b73169c9ff22e95f95f4",
+          "operation_id": "op:ferrovia-memoria:d6",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "CONFLICTED",
+            "negated": false,
+            "object_entity_id": "entity:ferrovia:trasandina",
+            "predicate": "MEMBER_OF",
+            "state": "ACTIVE",
+            "status": "CONTRADICTED",
+            "subject_entity_id": "entity:ferrovia:iker",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:ferrovia:nerea-sibling-iker",
+          "decision_id": "decision:ferrovia-memoria:d7",
+          "evidence_fragment_ids": [
+            "fragment:ferrovia-memoria:e03:f07"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:24db01c4e3c1f67dae5c0966fd49a769c3f525ddef7977f62df6728cc7ff3fc6",
+          "operation_id": "op:ferrovia-memoria:d7",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "UNDIRECTED",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:ferrovia:iker",
+            "predicate": "SIBLING_OF",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:ferrovia:nerea",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "5fe40d9a680a25b43858cf0bb8e3d57134e1a017672399021f6dd09c573164d7"
+      },
+      "plan_id": "plan:ferrovia-memoria:p1",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:heldout:ferrovia-memoria",
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-memoria",
+  "split": "heldout",
+  "world": "ferrovia"
+}

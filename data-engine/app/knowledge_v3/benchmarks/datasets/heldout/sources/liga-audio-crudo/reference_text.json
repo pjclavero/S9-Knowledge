@@ -1,0 +1,18 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:liga-audio-crudo:e01",
+      "text": "Irune Basterra fichó por el Club Farol y también su hermana Lorea por el Club Aldabra esta temporada."
+    },
+    {
+      "episode_id": "episode:liga-audio-crudo:e02",
+      "text": "Si el Club Farol asciende, Irune Basterra dirigiría el equipo el año que viene."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-audio-crudo",
+  "split": "heldout",
+  "world": "liga"
+}

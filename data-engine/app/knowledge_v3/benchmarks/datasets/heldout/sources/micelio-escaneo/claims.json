@@ -1,0 +1,210 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:micelio-escaneo:e01:c00",
+      "confidence": 0.8,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.8,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:micelio-escaneo:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:micelio-escaneo:e01:f03"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "leire-leads-hermandad",
+        "phenomena": [
+          "DUPLICATE_ACROSS_SOURCES",
+          "OCR_NOISE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:micelio-escaneo:e01:m02"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.8,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "dirige",
+      "review_required": false,
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "subject_mentions": [
+        "mention:micelio-escaneo:e01:m01"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": true,
+      "alternatives": [],
+      "claim_id": "claim:micelio-escaneo:e02:c00",
+      "confidence": 0,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [],
+      "episode_id": "episode:micelio-escaneo:e02",
+      "epistemic_cues": [
+        "superficie degradada"
+      ],
+      "epistemic_status_hint": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "fragment:micelio-escaneo:e02:f01"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "rubrica-abstencion",
+        "phenomena": [
+          "ABSTENTION",
+          "OCR_NOISE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [],
+      "predicate_candidates": [],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "pertenece a",
+      "review_required": true,
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "subject_mentions": [],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:micelio-escaneo:e03:c00",
+      "confidence": 0.55,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.55,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:micelio-escaneo:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "VISUAL_INFERRED",
+      "evidence_fragment_ids": [
+        "fragment:micelio-escaneo:e03:f02"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "gold_key": "yesca-in-ocre-visual",
+        "phenomena": [
+          "VISUAL_INFERRED"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:micelio-escaneo:e03:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.55,
+          "predicate": "LOCATED_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "dibujada dentro del contorno de",
+      "review_required": true,
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "subject_mentions": [
+        "mention:micelio-escaneo:e03:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-escaneo",
+  "split": "heldout",
+  "world": "micelio"
+}
