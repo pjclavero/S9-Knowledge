@@ -1,0 +1,267 @@
+{
+  "ablation": {
+    "claim_source": "real",
+    "description": "Local y externo combinados.",
+    "entity_source": "real",
+    "extra": {},
+    "glossary": "with_glossary",
+    "label": "local_plus_external",
+    "profile_id": "generic",
+    "providers": "local_plus_external"
+  },
+  "benchmark_format_version": "1.0.0",
+  "e2e": {
+    "reason": "la prediccion no trae afirmaciones",
+    "status": "not_evaluated"
+  },
+  "engine": {
+    "abstention_agreement": {
+      "accuracy": null,
+      "correct": 0,
+      "total": 0
+    },
+    "abstention_rate": null,
+    "decision_accuracy": {
+      "accuracy": null,
+      "correct": 0,
+      "total": 0
+    },
+    "decision_accuracy_strict": {
+      "accuracy": 0.0,
+      "correct": 0,
+      "total": 21
+    },
+    "decision_coverage": 0.0,
+    "decisions_gold": 21,
+    "decisions_matched": 0,
+    "decisions_missing": 21,
+    "decisions_predicted": 18,
+    "decisions_unmatched_predicted": 18,
+    "direction": {
+      "f1": null,
+      "fn": 0,
+      "fp": 0,
+      "precision": null,
+      "recall": null,
+      "tp": 0
+    },
+    "direction_strict": {
+      "f1": 0.0,
+      "fn": 16,
+      "fp": 7,
+      "precision": 0.0,
+      "recall": 0.0,
+      "tp": 0
+    },
+    "epistemic": {
+      "f1": null,
+      "fn": 0,
+      "fp": 0,
+      "precision": null,
+      "recall": null,
+      "tp": 0
+    },
+    "epistemic_strict": {
+      "f1": 0.0,
+      "fn": 19,
+      "fp": 18,
+      "precision": 0.0,
+      "recall": 0.0,
+      "tp": 0
+    },
+    "evidence_validity": {
+      "accuracy": 1.0,
+      "correct": 18,
+      "total": 18
+    },
+    "false_approve_count": 0,
+    "false_approve_decision_ids": [],
+    "false_approve_rate": null,
+    "false_reject_count": 0,
+    "false_reject_rate": null,
+    "negation": {
+      "f1": null,
+      "fn": 0,
+      "fp": 0,
+      "precision": null,
+      "recall": null,
+      "tp": 0
+    },
+    "negation_strict": {
+      "f1": null,
+      "fn": 3,
+      "fp": 0,
+      "precision": null,
+      "recall": 0.0,
+      "tp": 0
+    },
+    "predicate": {
+      "f1": null,
+      "fn": 0,
+      "fp": 0,
+      "precision": null,
+      "recall": null,
+      "tp": 0
+    },
+    "predicate_strict": {
+      "f1": 0.0,
+      "fn": 16,
+      "fp": 7,
+      "precision": 0.0,
+      "recall": 0.0,
+      "tp": 0
+    },
+    "review_agreement": {
+      "accuracy": null,
+      "correct": 0,
+      "total": 0
+    },
+    "review_rate": null,
+    "status": "scored",
+    "temporal": {
+      "reason": "la prediccion no trae afirmaciones; el eje temporal no se puede medir",
+      "status": "not_evaluated"
+    }
+  },
+  "extractor": {
+    "claims": {
+      "f1": 0.0,
+      "fn": 20,
+      "fp": 18,
+      "precision": 0.0,
+      "recall": 0.0,
+      "tp": 0
+    },
+    "claims_unevaluable": 15,
+    "coreference": {
+      "f1": 0.666667,
+      "fn": 2,
+      "fp": 0,
+      "pairs_dropped_unaligned": 0,
+      "precision": 1.0,
+      "recall": 0.5,
+      "tp": 2,
+      "universe": "menciones alineadas con el gold; las no alineadas no forman par"
+    },
+    "false_candidates": {
+      "by_kind": {},
+      "claim_ids": [],
+      "false_candidate_claims": 0,
+      "false_candidate_rate": 0.0,
+      "negatives_in_split": 4,
+      "status": "scored",
+      "trap_hit_rate": 0.0,
+      "trap_ids_hit": [],
+      "traps_hit": 0,
+      "traps_total": 4,
+      "unanchored_claims_in_trap_episodes": 0
+    },
+    "mentions": {
+      "f1": 0.586466,
+      "fn": 12,
+      "fp": 43,
+      "precision": 0.47561,
+      "recall": 0.764706,
+      "tp": 39
+    },
+    "status": "scored",
+    "type_accuracy_matched": {
+      "accuracy": 0.948718,
+      "correct": 37,
+      "total": 39
+    },
+    "type_accuracy_strict": {
+      "accuracy": 0.72549,
+      "correct": 37,
+      "total": 51
+    }
+  },
+  "gold": {
+    "assertions": 16,
+    "claims": 21,
+    "claims_extractor_gold": 20,
+    "dataset_version": "1.0.0",
+    "decisions": 21,
+    "entities": 20,
+    "episodes": 16,
+    "fragments": 72,
+    "mentions": 51,
+    "negatives": 4,
+    "plans": 6,
+    "resolutions": 31,
+    "sources": 6,
+    "split": "dev",
+    "worlds": [
+      "kestrel",
+      "leyenda",
+      "mareas"
+    ]
+  },
+  "match_config": {
+    "claim_key_extra": [],
+    "fact_key_includes_validity": false,
+    "overlap_threshold": 0.5,
+    "span_mode": "exact",
+    "symmetric_predicates": [
+      "ALLY_OF",
+      "RIVAL_OF",
+      "SIBLING_OF"
+    ]
+  },
+  "normalizer": {
+    "reason": "la prediccion no trae episodios",
+    "status": "not_evaluated"
+  },
+  "prediction": {
+    "assertions": 0,
+    "claims": 18,
+    "decisions": 18,
+    "episodes": 0,
+    "fragments": 0,
+    "mentions": 82,
+    "plans": 5,
+    "resolutions": 80
+  },
+  "resolver": {
+    "action_accuracy": {
+      "accuracy": 0.923077,
+      "correct": 12,
+      "total": 13
+    },
+    "action_accuracy_strict": {
+      "accuracy": 0.387097,
+      "correct": 12,
+      "total": 31
+    },
+    "cluster_alignment": {
+      "mapping_size": 17,
+      "strategy": "voraz por solape descendente; los ids del catalogo quedan fijados"
+    },
+    "duplicate_clusters": 0,
+    "duplicate_rate": 0.0,
+    "gold_entities_covered": 17,
+    "identity_accuracy": {
+      "accuracy": 0.745098,
+      "correct": 38,
+      "total": 51
+    },
+    "mentions_unassigned_by_prediction": 13,
+    "over_merge_rate": 0.0,
+    "over_merged_clusters": 0,
+    "predicted_clusters": 17,
+    "resolution_coverage": 0.419355,
+    "resolution_groups_gold": 31,
+    "resolution_groups_matched": 13,
+    "status": "scored"
+  },
+  "resources": {
+    "external_cost_usd": 0.0,
+    "latency_ms": 2907796.259,
+    "peak_rss_mb": 39.133,
+    "provider_calls": 58,
+    "status": "reported_by_runner"
+  },
+  "run_id": "dev-local_plus_external-chain",
+  "split": "dev",
+  "subsystem": "e2e"
+}

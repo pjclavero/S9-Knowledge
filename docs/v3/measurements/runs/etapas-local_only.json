@@ -1,0 +1,96 @@
+{
+ "ablation": "local_only",
+ "config": {
+  "workspace": "bench-dev",
+  "collection_id": "collection:dev",
+  "profile_id": "generic",
+  "ablation": "local_only",
+  "providers": "local_only",
+  "ollama_bound": false,
+  "ollama_active": false,
+  "external_bound": false,
+  "external_active": false,
+  "provider_extractor": "semantic",
+  "visual_provider_bound": false,
+  "with_temporal": true,
+  "with_coreference": true,
+  "glossary": "with_glossary",
+  "entity_source": "real",
+  "claim_source": "real",
+  "record_approved": true,
+  "with_writer": true,
+  "writer_mode": "DRY_RUN",
+  "now": "2026-07-27T12:00:00Z"
+ },
+ "etapas": {
+  "episodios": 16,
+  "fragmentos": 72,
+  "menciones": 42,
+  "claims_extraidos": 0,
+  "claims_activos": 0,
+  "claims_abstenidos": 0,
+  "resoluciones": 40,
+  "decisiones_del_motor": 0,
+  "ACCEPT": 0,
+  "REVIEW": 0,
+  "ABSTAIN": 0,
+  "REJECT_INVALID": 0,
+  "afirmaciones": 0,
+  "planes": 0,
+  "planes_aprobados": 0,
+  "entradas_de_ledger": 0
+ },
+ "fuentes_paradas": [
+  {
+   "source": "kestrel-informe",
+   "stage": "engine",
+   "reason": "el extractor no propuso ningun claim para esta fuente"
+  },
+  {
+   "source": "kestrel-tripulacion",
+   "stage": "engine",
+   "reason": "el extractor no propuso ningun claim para esta fuente"
+  },
+  {
+   "source": "leyenda-cronica",
+   "stage": "engine",
+   "reason": "el extractor no propuso ningun claim para esta fuente"
+  },
+  {
+   "source": "leyenda-escaneo",
+   "stage": "engine",
+   "reason": "el extractor no propuso ningun claim para esta fuente"
+  },
+  {
+   "source": "mareas-cuaderno",
+   "stage": "engine",
+   "reason": "el extractor no propuso ningun claim para esta fuente"
+  },
+  {
+   "source": "mareas-sesion",
+   "stage": "engine",
+   "reason": "el extractor no propuso ningun claim para esta fuente"
+  }
+ ],
+ "negacion": {
+  "claims_negados": 0,
+  "tipos": {
+   "SIMPLE": 0,
+   "NEVER": 0,
+   "CESSATION": 0,
+   "NOT_YET": 0,
+   "SCOPE_AMBIGUOUS": 0
+  },
+  "decisiones_negadas": 0,
+  "cierres_de_vigencia_propuestos": 0,
+  "afirmaciones_negativas": 0
+ },
+ "latency_ms": 332.1,
+ "provider_calls": 0,
+ "diagnosticos": [
+  "FIRST_PERSON_WITHOUT_SPEAKER",
+  "PIPELINE_ENTERED_AT_EPISODES",
+  "PIPELINE_STOPPED",
+  "TABLE_COLUMN_NOT_MAPPED"
+ ]
+}

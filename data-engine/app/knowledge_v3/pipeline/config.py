@@ -152,8 +152,8 @@ class PipelineConfig:
             "ollama_active": self.wants_ollama,
             "external_bound": self.external_port is not None,
             "external_active": self.wants_external,
-            #: Que extractor cubre el carril de proveedor. Va al informe porque
-            #: dos corridas con extractores distintos NO son comparables.
+            # Que extractor cubre el carril de proveedor. Va al informe porque
+            # dos corridas con extractores distintos NO son comparables.
             "provider_extractor": "semantic",
             "visual_provider_bound": self.visual_provider is not None,
             "with_temporal": self.with_temporal,

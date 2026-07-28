@@ -1,0 +1,73 @@
+{
+ "ablation": "local_plus_external",
+ "config": {
+  "workspace": "bench-dev",
+  "collection_id": "collection:dev",
+  "profile_id": "generic",
+  "ablation": "local_plus_external",
+  "providers": "local_plus_external",
+  "ollama_bound": true,
+  "ollama_active": true,
+  "external_bound": false,
+  "external_active": false,
+  "provider_extractor": "semantic",
+  "visual_provider_bound": false,
+  "with_temporal": true,
+  "with_coreference": true,
+  "glossary": "with_glossary",
+  "entity_source": "real",
+  "claim_source": "real",
+  "record_approved": true,
+  "with_writer": true,
+  "writer_mode": "DRY_RUN",
+  "now": "2026-07-27T12:00:00Z"
+ },
+ "etapas": {
+  "episodios": 16,
+  "fragmentos": 72,
+  "menciones": 82,
+  "claims_extraidos": 18,
+  "claims_activos": 8,
+  "claims_abstenidos": 10,
+  "resoluciones": 80,
+  "decisiones_del_motor": 18,
+  "ACCEPT": 0,
+  "REVIEW": 7,
+  "ABSTAIN": 10,
+  "REJECT_INVALID": 1,
+  "afirmaciones": 0,
+  "planes": 5,
+  "planes_aprobados": 0,
+  "entradas_de_ledger": 0
+ },
+ "fuentes_paradas": [],
+ "negacion": {
+  "claims_negados": 0,
+  "tipos": {
+   "SIMPLE": 0,
+   "NEVER": 0,
+   "CESSATION": 0,
+   "NOT_YET": 0,
+   "SCOPE_AMBIGUOUS": 0
+  },
+  "decisiones_negadas": 0,
+  "cierres_de_vigencia_propuestos": 0,
+  "afirmaciones_negativas": 0
+ },
+ "latency_ms": 2907796.3,
+ "provider_calls": 58,
+ "diagnosticos": [
+  "CONDITIONAL_CONTEXT",
+  "FIRST_PERSON_WITHOUT_SPEAKER",
+  "HALLUCINATED_MENTION",
+  "HALLUCINATED_QUOTE",
+  "INTERROGATIVE_CONTEXT",
+  "LEDGER_SKIPPED_PLAN_NOT_APPROVED",
+  "OBJECT_NOT_GROUNDED",
+  "PIPELINE_ENTERED_AT_EPISODES",
+  "PREDICATE_NOT_IN_PROFILE",
+  "SUBJECT_NOT_GROUNDED",
+  "TABLE_COLUMN_NOT_MAPPED",
+  "UNKNOWN_ENTITY_TYPE"
+ ]
+}

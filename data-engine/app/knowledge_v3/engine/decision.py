@@ -43,6 +43,7 @@ from .contradiction import (
 )
 from .evidence import EvidenceIndex, evidence_confidence, verify_evidence
 from .identity import ResolutionIndex, Role, resolve_identity
+from .negation import NegationOutcome, resolve_negation
 from .ontology import ProfileIndex, canonical_key, resolve_direction, resolve_predicate
 from .snapshot import GraphSnapshot, SnapshotAssertion
 from .temporal import TemporalOutcome, resolve_temporality
@@ -75,6 +76,12 @@ class ClaimDecision:
     #: Aceptada, pero otro claim del MISMO lote ya escribe exactamente esto.
     #: No es un rechazo: es que la escritura ya esta cubierta.
     duplicate_in_batch: bool = False
+    #: Tipo de negacion leido de `metadata.negation_kind` (vacio si no niega).
+    negation_kind: str = ""
+    #: Afirmacion POSITIVA vigente que una CESACION propone cerrar. No es un
+    #: conflicto: es una transicion, y el plan la materializa con un
+    #: `SUPERSEDE_ASSERTION` ademas de la afirmacion negativa.
+    supersedes: Optional[SnapshotAssertion] = None
 
     @property
     def decision_id(self) -> str:
@@ -160,14 +167,6 @@ def _epistemic_findings(claim: ClaimProposal, config: EngineConfig) -> list[F.Fi
     if hint == "UNKNOWN":
         return [F.EPISTEMIC_UNKNOWN("el extractor no supo situar la afirmacion")]
     return [F.EPISTEMIC_NOT_ASSERTED(f"estatus {hint}: no es una afirmacion del mundo")]
-
-
-def _negation_findings(claim: ClaimProposal, config: EngineConfig) -> list[F.Finding]:
-    if not claim.negated:
-        return []
-    if not config.accept_negated:
-        return [F.NEGATION_NOT_ACCEPTED("la configuracion no acepta hechos negados")]
-    return [F.NEGATED_CLAIM(f"cues: {claim.epistemic_cues or 'ninguna'}")]
 
 
 def _enforce_invariants(
@@ -262,7 +261,24 @@ def decide_claim(
         direction_confidence = direction_outcome.confidence
 
     # 6. negacion  7. epistemicidad
-    findings.extend(_negation_findings(claim, config))
+    #
+    # La negacion ya no es un booleano: `engine/negation.py` distingue SIMPLE,
+    # NEVER, CESSATION, NOT_YET y el alcance ambiguo, y en la cesacion busca la
+    # positiva vigente que se cerraria. Se resuelve ANTES de la contradiccion
+    # porque una cesacion NO es una contradiccion con lo que cierra: es una
+    # transicion, y tratarla como choque mandaria a revision toda evolucion
+    # temporal legitima del grafo.
+    negation = resolve_negation(
+        claim,
+        index=profile,
+        snapshot=snapshot,
+        subject_entity_id=identity.subject.entity_id,
+        object_entity_id=identity.object.entity_id,
+        predicate=predicate_outcome.predicate,
+        direction=direction,
+        config=config,
+    )
+    findings.extend(negation.findings)
     findings.extend(_epistemic_findings(claim, config))
 
     # 8. temporalidad
@@ -280,6 +296,13 @@ def decide_claim(
             predicate_outcome.predicate,
             direction,
             claim.negated,
+            # La afirmacion que la cesacion cierra queda FUERA del eje: separadas
+            # en el tiempo, la positiva y la negativa no se contradicen. Lo que
+            # NO queda fuera es ninguna otra: una cesacion sigue pudiendo chocar
+            # con el resto del grafo.
+            skip_assertion_ids=(
+                frozenset({negation.closes.assertion_id}) if negation.closes else frozenset()
+            ),
         )
         findings.extend(contradictions.findings)
 
@@ -331,6 +354,8 @@ def decide_claim(
         temporal=temporal,
         conflicts=contradictions.conflicts,
         duplicate_of=contradictions.duplicate_of,
+        negation_kind=negation.kind,
+        supersedes=negation.closes,
     )
 
 

@@ -39,7 +39,7 @@ from .text import EvidenceIndex
 
 #: Version del compilador de ontologia. Va en la traza: dos ejecuciones con
 #: prompts distintos no son comparables, y hay que poder verlo en el informe.
-ONTOLOGY_PROMPT_VERSION = "1.1.0"
+ONTOLOGY_PROMPT_VERSION = "1.2.0"
 
 #: Definiciones del nucleo comun. Son ONTOLOGICAS (que significa el predicado),
 #: no instrucciones de estilo: describen la relacion, no como contestar.
@@ -306,9 +306,25 @@ SYSTEM_PROMPT = (
     "o UNRESOLVED si el texto no lo deja claro. Si la frase esta en voz pasiva, o el "
     "predicado tiene inverso, o el orden de los argumentos podria leerse al reves, "
     "anade TAMBIEN la direccion alternativa como segundo candidato.\n"
-    "6. Si el texto niega, condiciona, pregunta o atribuye a un rumor, dilo en "
-    "'negated' y en 'epistemic_status'. No conviertas un desmentido en un hecho.\n"
-    "7. NO EXTRAIGAS COMO CLAIM lo que el texto no afirma. Nada de esto es un hecho "
+    "6. UNA RELACION NEGADA ES UN CLAIM VALIDO. 'A no pertenece a B' NO es lo mismo "
+    "que 'no se sabe si A pertenece a B': es informacion, y hay que extraerla. NO "
+    "omitas una relacion por estar negada. Marca 'negated': true y di de que tipo es "
+    "en 'negation_kind':\n"
+    "   - SIMPLE     'A no pertenece a B';\n"
+    "   - NEVER      'A nunca perteneció a B' (negacion absoluta; NO inventes por eso "
+    "un intervalo temporal infinito: ciñete a lo que diga la fuente);\n"
+    "   - CESSATION  'A ya no lidera B', 'dejó de servir a B', 'abandonó B', 'rompió "
+    "su alianza con B'. Hubo relacion y termina. Pon ademas "
+    "'temporal_resolution_required': true;\n"
+    "   - NOT_YET    'A todavía no lidera B'. NO es cesacion: no demuestra que antes "
+    "lo hiciera. No lo conviertas en CESSATION.\n"
+    "   Y si la negacion afecta a OTRO verbo y no a la relacion ('el magistrado no "
+    "cree que A pertenezca a B', 'A no llegó a tiempo, pero B pertenece a C'), NO "
+    "niegues la relacion: o la dejas positiva si el texto la afirma en su propia "
+    "clausula, o la pones en 'abstentions'.\n"
+    "7. Un rumor sin confirmar es 'epistemic_status': RUMORED, no ASSERTED, y no lleva "
+    "'negated'.\n"
+    "8. NO EXTRAIGAS COMO CLAIM lo que el texto no afirma. Nada de esto es un hecho "
     "del mundo, por muy bien formada que este la frase:\n"
     "   - condicional o contrafactual: 'Si X dirigiera...', 'de haber sido...', "
     "'a menos que...';\n"
@@ -318,13 +334,18 @@ SYSTEM_PROMPT = (
     "   - rumor desmentido o afirmacion que el propio texto contradice "
     "('el guionista lo invento todo', 'es falso que...', 'nadie ha visto el "
     "documento');\n"
-    "   - lo que alguien dice y el texto niega o pone en duda.\n"
+    "   - lo que alguien dice y el texto niega o pone en duda;\n"
+    "   - DESEO, ORDEN o PROHIBICION: 'ojalá A sirviera a B', 'A no debe pertenecer "
+    "a B', 'queda prohibido que A lidere B'. Que algo se quiera o se prohiba no dice "
+    "que ocurra ni que no ocurra.\n"
     "   Las ENTIDADES de esas frases si existen y se listan en 'mentions'. La "
     "relacion, no. Ponla en 'abstentions' con su cita y su razon, o no la pongas.\n"
-    "8. No decides nada: no apruebas, no fusionas entidades, no cierras vigencias. "
+    "   Cuidado: esto NO contradice la regla 6. Una negacion SI es un hecho ('A no "
+    "pertenece a B' ocurre en el mundo); una pregunta, un deseo o una hipotesis, no.\n"
+    "9. No decides nada: no apruebas, no fusionas entidades, no cierras vigencias. "
     "Propones. Otro sistema verifica cada cita contra el texto real y descarta lo "
     "que no aparezca.\n"
-    "9. 'confidence' es tu confianza real entre 0 y 1. No copies los numeros del "
+    "10. 'confidence' es tu confianza real entre 0 y 1. No copies los numeros del "
     "ejemplo. Los candidatos van ordenados de mayor a menor confianza."
 )
 
@@ -344,7 +365,7 @@ RESPONSE_SCHEMA = """{
      "direction_candidates": [{"direction": "SUBJECT_TO_OBJECT", "confidence": 0.0},
                               {"direction": "OBJECT_TO_SUBJECT", "confidence": 0.0}],
      "evidence_quote": "frase literal completa que sostiene la relacion",
-     "negated": false, "epistemic_status": "ASSERTED",
+     "negated": false, "negation_kind": null, "epistemic_status": "ASSERTED",
      "temporal_expressions": ["texto literal de tiempo, si lo hay"],
      "temporal_resolution_required": false}
   ],
@@ -405,7 +426,35 @@ EJEMPLO 4 — NEGATIVO: aqui NO hay claim, por mucho que la frase parezca uno.
   "abstentions": [
     {"evidence_quote": "En la balada que cantan en las tabernas, Zenobia Trask entrega Puerto Nix a la Hermandad del Yunque",
      "reason": "FICTION_WITHIN_FICTION"}]
-  ni el condicional ni la pregunta producen nada: no se afirman."""
+  ni el condicional ni la pregunta producen nada: no se afirman.
+
+EJEMPLO 5 — NEGACION SIMPLE: hay claim, y va marcado.
+  texto de ejemplo: "Zenobia Trask no pertenece a la Hermandad del Yunque."
+  claim:
+  {"subject_ref": "m1", "object_ref": "m2",
+   "relation_phrase": "no pertenece a la Hermandad del Yunque",
+   "predicate_candidates": [{"predicate": "MEMBER_OF", "confidence": 0.75}],
+   "direction_candidates": [{"direction": "SUBJECT_TO_OBJECT", "confidence": 0.8}],
+   "evidence_quote": "Zenobia Trask no pertenece a la Hermandad del Yunque.",
+   "negated": true, "negation_kind": "SIMPLE", "epistemic_status": "ASSERTED",
+   "temporal_expressions": [], "temporal_resolution_required": false}
+  el predicado es el de la relacion NEGADA (MEMBER_OF), no otro. Omitir este
+  claim seria perder informacion: "no pertenece" no es lo mismo que "no consta".
+
+EJEMPLO 6 — CESACION: hubo relacion y termina.
+  texto de ejemplo: "Zenobia Trask ya no lidera la Hermandad del Yunque."
+  {"negated": true, "negation_kind": "CESSATION",
+   "predicate_candidates": [{"predicate": "LEADS", "confidence": 0.8}],
+   "temporal_resolution_required": true}
+  "ya no", "dejó de", "abandonó", "rompió su alianza" son cesacion. "todavía no"
+  NO lo es: eso es NOT_YET, y no demuestra que antes lo hiciera.
+
+EJEMPLO 7 — la negacion es de OTRA cosa: la relacion sigue positiva.
+  texto de ejemplo: "Zenobia Trask no llegó a tiempo, pero Puerto Nix pertenece a
+  la Hermandad del Yunque."
+  el claim de Puerto Nix va con "negated": false. El "no" niega la llegada, no la
+  pertenencia. Y en "el magistrado no cree que Zenobia Trask lidere la Hermandad
+  del Yunque" lo negado es la creencia: eso va a "abstentions"."""
 
 #: Limite del texto que se manda. No es un adorno: recortar mas abajo perderia
 #: la frase que sostiene la cita, y el claim se caeria en la verificacion local
@@ -438,7 +487,8 @@ def render_prompt(
         "TAREA:\n"
         "1. Lista TODAS las entidades mencionadas en el texto, esten o no en la lista "
         "de conocidas. Cada una con su superficie literal y su cita.\n"
-        "2. Lista las relaciones entre esas entidades que el texto AFIRME, usando "
+        "2. Lista las relaciones entre esas entidades que el texto AFIRME —incluidas "
+        "las que AFIRME EN NEGATIVO, con 'negated': true y su 'negation_kind'—, usando "
         "solo predicados de la ontologia y citando la frase completa. Para cada una, "
         "DOS candidatos de predicado salvo que la lectura sea inequivoca, y la "
         "direccion alternativa si la frase admite leerse al reves.\n"

@@ -119,7 +119,10 @@ def assertion_for(
         ontology_version=context.ontology_version,
         evidence_fragment_ids=list(decision.evidence_fragment_ids),
         episode_ids=[decision.episode_id],
-        supersedes=None,
+        # CESACION: la afirmacion negativa SUCEDE a la positiva vigente. No la
+        # borra ni la reescribe: el ledger conserva la anterior con su evidencia
+        # y la marca `SUPERSEDED`. Para cualquier otro caso, `None`.
+        supersedes=decision.supersedes.assertion_id if decision.supersedes else None,
         superseded_by=None,
         calendar_id=temporal.calendar_id if temporal else None,
     )
@@ -154,6 +157,20 @@ PAYLOAD_FIELDS = (
 )
 
 
+def _cessation_valid_to(decision: ClaimDecision) -> Optional[str]:
+    """Instante en que se cierra la vigencia anterior, si el texto lo fecha.
+
+    Se prefiere `valid_from` de la cesacion —"desde la primavera de 1042 ya no
+    lidera" cierra en la primavera de 1042— y, si no lo hay, `event_time`. Sin
+    ninguno de los dos, `None`: una vigencia sin fecha de cierre es honesta; una
+    fecha inventada, no.
+    """
+    temporal = decision.temporal
+    if temporal is None:
+        return None
+    return temporal.valid_from or temporal.event_time
+
+
 def _operations(
     context: PlanContext, decision: ClaimDecision, assertion: FactAssertion, config: EngineConfig
 ) -> list[dict]:
@@ -174,7 +191,44 @@ def _operations(
             "expected_hash": None,
         }
     ]
+    if decision.supersedes is not None:
+        # Cierre de la vigencia anterior. Va con `expected_version` y
+        # `expected_hash` de la afirmacion del snapshot: si otro proceso la
+        # cambio entre el snapshot y el apply, el writer rechaza la operacion.
+        # El writer EJECUTA; no interpreta que es una cesacion ni por que.
+        previa = decision.supersedes
+        ops.append(
+            {
+                "operation_id": f"op:{decision.claim_id}:supersede",
+                "operation_type": "SUPERSEDE_ASSERTION",
+                "decision_id": decision.decision_id,
+                "target_entity_id": None,
+                "assertion_id": previa.assertion_id,
+                "payload": {
+                    "superseded_by": assertion.assertion_id,
+                    "status": "SUPERSEDED",
+                    # `valid_to` sale de la temporalidad del claim de cesacion.
+                    # Si el texto no la fecha, sale `None` y el cierre queda sin
+                    # fecha: inventarla seria escribir una vigencia que nadie
+                    # cerro.
+                    "valid_to": _cessation_valid_to(decision),
+                    # R1 del writer: una vigencia no se cierra sin motivo. El
+                    # writer lo transporta al grafo; no lo interpreta.
+                    "reason_code": "CESSATION_ASSERTED",
+                },
+                "evidence_fragment_ids": list(decision.evidence_fragment_ids),
+                "idempotency_key": "",
+                "expected_state": "WOULD_UPDATE",
+                "expected_version": previa.version,
+                "expected_hash": previa.state_hash,
+            }
+        )
     if not config.emit_projection:
+        return ops
+    if decision.negated:
+        # Un hecho NEGATIVO no tiene arista positiva que proyectar. La
+        # afirmacion queda en el ledger con `negated=true`; el grafo no aprende
+        # una relacion que el texto niega.
         return ops
     node = context.snapshot.entity(decision.subject_entity_id)
     if node is None:  # pragma: no cover - la identidad ya exigio que exista

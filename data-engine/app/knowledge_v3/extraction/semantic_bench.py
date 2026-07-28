@@ -364,6 +364,8 @@ def block_metrics(
     def _ratio(num: int, den: int) -> Optional[float]:
         return round(num / den, 4) if den else None
 
+    negacion = negation_metrics(gold_claims, gold_by_id, pred, activos, pred_by_id, match)
+
     return {
         "mentions": {
             "gold": len(gold.mentions),
@@ -408,6 +410,82 @@ def block_metrics(
             "evidence_anchored_rate": _ratio(claims_anclados, len(pred.claims)),
             "claims_with_invented_arguments": inventados,
         },
+        "negation": negacion,
+    }
+
+
+def negation_metrics(
+    gold_claims: Sequence[dict],
+    gold_by_id: dict,
+    pred: PredictionBundle,
+    activos: Sequence[dict],
+    pred_by_id: dict,
+    match: Any,
+) -> dict[str, Any]:
+    """Metricas de NEGACION. Cinco numeros, y el cuarto es el que importa.
+
+    * `gold_negated`          negativos que hay en el gold;
+    * `predicted_negated`     negativos propuestos como claim afirmado;
+    * `correct_negated`       emparejados con un gold negativo y marcados;
+    * `negated_as_abstention` negativos del gold que salieron como ABSTENCION.
+      No es un acierto, pero tampoco un error grave: se vio algo y no se afirmo
+      lo contrario;
+    * `positive_created_for_negated_gold` **el error caro**: un gold negativo
+      propuesto como relacion POSITIVA. Es exactamente lo que este bloque existe
+      para que no ocurra;
+    * `cessation_*`           cuantas cesaciones se detectaron y cuantas piden
+      resolucion temporal, que es lo que el motor necesita para cerrar vigencias.
+
+    `negation_kind` vive en `metadata` (excepcion documentada al contrato
+    congelado), asi que se lee de ahi y de ningun otro sitio.
+    """
+    gold_neg = [c for c in gold_claims if c.get("negated")]
+    emparejados = {g: p for g, p in match.pairs}
+    correctos = 0
+    positivos_erroneos = 0
+    for gid in (c["claim_id"] for c in gold_neg):
+        pid = emparejados.get(gid)
+        if pid is None:
+            continue
+        if pred_by_id[pid].get("negated"):
+            correctos += 1
+        else:
+            positivos_erroneos += 1
+
+    abstenidos_neg = 0
+    for claim in pred.claims:
+        if not claim.get("abstained"):
+            continue
+        razones = set((claim.get("metadata") or {}).get("abstention_reasons") or ())
+        if razones & {
+            "NEGATION_CONTEXT_MISMATCH",
+            "NEGATION_NOT_IN_EVIDENCE",
+            "REVIEW_NEGATION_SCOPE",
+        }:
+            abstenidos_neg += 1
+
+    kinds: dict[str, int] = {}
+    for claim in activos:
+        kind = (claim.get("metadata") or {}).get("negation_kind")
+        if kind:
+            kinds[kind] = kinds.get(kind, 0) + 1
+    cesaciones = kinds.get("CESSATION", 0)
+    cesaciones_con_temporal = sum(
+        1
+        for c in activos
+        if (c.get("metadata") or {}).get("negation_kind") == "CESSATION"
+        and (c.get("metadata") or {}).get("temporal_resolution_required")
+    )
+
+    return {
+        "gold_negated": len(gold_neg),
+        "predicted_negated": sum(1 for c in activos if c.get("negated")),
+        "correct_negated": correctos,
+        "negated_as_abstention": abstenidos_neg,
+        "positive_created_for_negated_gold": positivos_erroneos,
+        "kinds": dict(sorted(kinds.items())),
+        "cessation_detected": cesaciones,
+        "cessation_with_temporal_flag": cesaciones_con_temporal,
     }
 
 
@@ -495,6 +573,7 @@ __all__ = [
     "RunResult",
     "block_metrics",
     "build_context",
+    "negation_metrics",
     "make_port",
     "run_config",
     "score",

@@ -26,6 +26,7 @@ punto de entrada; cada bloque tiene su documento propio en `docs/v3/`.
 | Held-out independiente | `10-heldout.md` | Mergeado, **sin usar** |
 | Cadena extremo a extremo | `11-e2e.md` | Mergeado |
 | Extractor semántico episódico | `12-semantic-extractor.md` | En rama, midiendo |
+| Semántico conectado a la cadena + negaciones | `15-semantic-extractor-e2e-integration.md` | En rama `fix/v3-semantic-extractor-e2e` |
 
 Cada bloque pasó por editor, revisor independiente y correcciones. Seis de los
 nueve recibieron un NO CONFORME inicial: historia mutable en el ledger, cruce de
@@ -52,6 +53,33 @@ ha tocado**.
 
 C2 procesó 12 de 16 episodios: cuatro fallaron con `PROVIDER_UNAVAILABLE`, así que
 su recall está medido con una cuarta parte del corpus sin ver.
+
+> **Cuidado al leer esta tabla.** Son medidas del **banco aislado** (que llama
+> directo a `SemanticEpisodeExtractor`) con el prompt **1.1.0**. Hasta el bloque
+> 15 la cadena montaba los extractores *legacy*, así que estas cifras nunca
+> dijeron nada sobre `KnowledgePipeline`. La primera medida **por la cadena**, con
+> el prompt 1.2.0, está en `15-semantic-extractor-e2e-integration.md` §12.
+
+### Primera medida POR LA CADENA (bloque 15, prompt 1.2.0, `dev`)
+
+| | A · cadena `local_only` | D · cadena `local_plus_external` + Ollama |
+|---|---|---|
+| Menciones P / R / F1 | 0.905 / 0.745 / 0.817 | 0.476 / 0.765 / 0.586 |
+| Tipo de entidad correcto | 0.000 | **0.949** |
+| Claims extraídos → decisiones | 0 → 0 | **18 → 18** (no se pierde ninguno) |
+| Claims correctos (tp) | 0 | 0 (fp 18) — falla el emparejamiento, no la cadena |
+| Trampas pisadas | 0 / 4 | **0 / 4** |
+| ACCEPT / REVIEW / ABSTAIN / REJECT | 0/0/0/0 | 0 / 7 / 10 / 1 |
+| Planes aprobados | 0 | 0 |
+| Latencia · llamadas | 272 ms · 0 | 48 min · 58 |
+
+Lo que esto añade a lo que ya se sabía: (a) A da **exactamente lo mismo** aislado
+y en cadena, que es la prueba de que el orquestador no añade ni quita nada; (b) en
+D **no se pierde un solo claim entre etapas** —18 extraídos, 18 decididos—, el
+corte está en la decisión (0 ACCEPT) por la política de "origen no confiable ⇒
+revisión humana"; (c) los claims no puntúan porque el emparejamiento uno a uno se
+rompe con la UNIÓN de los dos extractores, que es la justificación medida del
+reconciliador, ahora confirmada dentro de la cadena.
 
 ### Lecturas
 
@@ -89,6 +117,20 @@ su recall está medido con una cuarta parte del corpus sin ver.
 - **Modelo local:** `qwen2.5:7b` es el techo del hardware disponible. NVIDIA es
   **nube**: el contenido sale de la máquina, y conviene decidirlo explícitamente por
   workspace antes de ingerir material sensible.
+
+- **El extractor de la cadena es el semántico, y no hay vuelta atrás.** Hasta el
+  bloque 15, `KnowledgePipeline` montaba los extractores **legacy** cuando la
+  configuración pedía Ollama o externo, así que las métricas C1/C2 de la tabla de
+  arriba —obtenidas con `semantic_bench`, que llama directo al extractor— no
+  decían nada sobre la cadena. Ahora los dos carriles son
+  `SemanticEpisodeExtractor` sobre su puerto, sin bandera para volver al legacy, y
+  `ExtractionPipeline.local_default()` sigue intacto como gate determinista.
+  Detalle en `15-semantic-extractor-e2e-integration.md`.
+- **Una relación negada es un hecho, no una duda.** `negation_kind` (SIMPLE,
+  NEVER, CESSATION, NOT_YET, SCOPE_AMBIGUOUS) viaja en `metadata` — sin tocar un
+  solo schema— y el motor lo usa para distinguir *contradicción* de *transición*:
+  una cesación con afirmación positiva vigente cierra su vigencia y la sucede; sin
+  afirmación previa, **no la inventa**.
 
 ## 4. Lo que falta, por orden
 
