@@ -1,0 +1,376 @@
+{
+  "benchmark_file": "mentions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": {
+        "height": 0.05,
+        "page": 1,
+        "width": 0.7,
+        "x": 0.08,
+        "y": 0.12
+      },
+      "confidence": 0.71,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 12,
+      "episode_id": "episode:leyenda-escaneo:e01",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-escaneo:e01:f00"
+      ],
+      "mention_id": "mention:leyenda-escaneo:e01:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "daiki oharu",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 0,
+      "surface": "Daiki Oliaru",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": {
+        "height": 0.05,
+        "page": 1,
+        "width": 0.7,
+        "x": 0.08,
+        "y": 0.12
+      },
+      "confidence": 0.69,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 59,
+      "episode_id": "episode:leyenda-escaneo:e01",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-escaneo:e01:f01"
+      ],
+      "mention_id": "mention:leyenda-escaneo:e01:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "casa del ciervo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 44,
+      "surface": "Casa de1 Ciervo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": {
+        "height": 0.05,
+        "page": 1,
+        "width": 0.66,
+        "x": 0.08,
+        "y": 0.31
+      },
+      "confidence": 0.38,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 19,
+      "episode_id": "episode:leyenda-escaneo:e02",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-escaneo:e02:f00"
+      ],
+      "mention_id": "mention:leyenda-escaneo:e02:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "v4ndreth",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 11,
+      "surface": "V4ndreth",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": {
+        "height": 0.05,
+        "page": 1,
+        "width": 0.66,
+        "x": 0.08,
+        "y": 0.31
+      },
+      "confidence": 0.61,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 64,
+      "episode_id": "episode:leyenda-escaneo:e02",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-escaneo:e02:f01"
+      ],
+      "mention_id": "mention:leyenda-escaneo:e02:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "vado alto",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 55,
+      "surface": "Vado A1to",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": {
+        "height": 0.3,
+        "page": 2,
+        "width": 0.55,
+        "x": 0.15,
+        "y": 0.55
+      },
+      "confidence": 0.6,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 48,
+      "episode_id": "episode:leyenda-escaneo:e03",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-escaneo:e03:f00"
+      ],
+      "mention_id": "mention:leyenda-escaneo:e03:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "casa del ciervo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 33,
+      "surface": "Casa del Ciervo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": {
+        "height": 0.3,
+        "page": 2,
+        "width": 0.55,
+        "x": 0.15,
+        "y": 0.55
+      },
+      "confidence": 0.6,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 68,
+      "episode_id": "episode:leyenda-escaneo:e03",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-escaneo:e03:f01"
+      ],
+      "mention_id": "mention:leyenda-escaneo:e03:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "vado alto",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 59,
+      "surface": "Vado Alto",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-escaneo",
+  "split": "dev",
+  "world": "leyenda"
+}

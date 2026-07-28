@@ -1,0 +1,232 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:kestrel-tripulacion:e01:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:kestrel-tripulacion:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:kestrel-tripulacion:e01:f06"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "gold_key": "nadir-member-halcyon",
+        "phenomena": [
+          "CONFLICT",
+          "TABLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:kestrel-tripulacion:e01:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Nadir Boone\tConsorcio Halcyon",
+      "review_required": false,
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "subject_mentions": [
+        "mention:kestrel-tripulacion:e01:m00"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:kestrel",
+          "fragment_id": null,
+          "kind": "POINT",
+          "text": "2387",
+          "valid_from": "2387-01-01T00:00:00Z",
+          "valid_to": null
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:kestrel-tripulacion:e01:c01",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:kestrel-tripulacion:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:kestrel-tripulacion:e01:f07"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "gold_key": "vania-member-halcyon-dup",
+        "phenomena": [
+          "DUPLICATE_ACROSS_SOURCES",
+          "TABLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:kestrel-tripulacion:e01:m03"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Vania Ostrow\tConsorcio Halcyon",
+      "review_required": false,
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "subject_mentions": [
+        "mention:kestrel-tripulacion:e01:m02"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-dev"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:kestrel-tripulacion:e01:c02",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:kestrel-tripulacion:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:kestrel-tripulacion:e01:f08"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "gold_key": "ruta-member-vela",
+        "phenomena": [
+          "NEW_ENTITY",
+          "TABLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:kestrel-tripulacion:e01:m05"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Ruta Simm\tCooperativa Vela",
+      "review_required": false,
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "subject_mentions": [
+        "mention:kestrel-tripulacion:e01:m04"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "kestrel-tripulacion",
+  "split": "dev",
+  "world": "kestrel"
+}

@@ -1,0 +1,14 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:kestrel-tripulacion:e01",
+      "text": "Tripulante\tAfiliación\tPuesto\tCiclo\nNadir Boone\tConsorcio Halcyon\tSensores\t2387\nVania Ostrow\tConsorcio Halcyon\tOperaciones\t2387\nRuta Simm\tCooperativa Vela\tCarga\t2387"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "kestrel-tripulacion",
+  "split": "dev",
+  "world": "kestrel"
+}

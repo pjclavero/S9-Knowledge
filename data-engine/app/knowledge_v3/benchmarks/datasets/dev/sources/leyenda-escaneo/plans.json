@@ -1,0 +1,166 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:leyenda",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-07-27T12:30:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:leyenda-escaneo:e01:c00",
+          "confidence": 0.68,
+          "decision": "ACCEPT",
+          "decision_id": "decision:escaneo-0001",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:leyenda-escaneo:e01:f02"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:leyenda:casa-ciervo",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "LOCAL_APPROVED_WITH_WARNINGS",
+            "OCR_DEGRADED_SURFACE",
+            "ALREADY_KNOWN"
+          ],
+          "subject_entity_id": "entity:leyenda:daiki"
+        },
+        {
+          "claim_id": "claim:leyenda-escaneo:e02:c00",
+          "confidence": 0,
+          "decision": "ABSTAIN",
+          "decision_id": "decision:escaneo-0002",
+          "direction": null,
+          "evidence_fragment_ids": [
+            "fragment:leyenda-escaneo:e02:f02"
+          ],
+          "object_entity_id": null,
+          "predicate": null,
+          "reason_codes": [
+            "INSUFFICIENT_EVIDENCE",
+            "LOW_QUALITY_EPISODE"
+          ],
+          "subject_entity_id": null
+        },
+        {
+          "claim_id": "claim:leyenda-escaneo:e03:c00",
+          "confidence": 0.42,
+          "decision": "REVIEW",
+          "decision_id": "decision:escaneo-0003",
+          "direction": null,
+          "epistemic_status": "VISUAL_INFERRED",
+          "evidence_fragment_ids": [
+            "fragment:leyenda-escaneo:e03:f02"
+          ],
+          "negated": false,
+          "object_entity_id": null,
+          "predicate": null,
+          "reason_codes": [
+            "REVIEW_EVIDENCE",
+            "VISUAL_INFERRED"
+          ],
+          "subject_entity_id": null
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-07-28T12:30:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": false,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-07-27T12:30:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "d4c4d607a7f69a459281352b8f149839b4eb44ae13e257bbb9b462f97d09161f"
+        },
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "reason_codes": [
+              "VISUAL_INFERRED"
+            ],
+            "result": "FAIL",
+            "validator": "visual",
+            "version": "3.0.0-bench"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:leyenda:daiki-leads-casa",
+          "decision_id": "decision:escaneo-0001",
+          "evidence_fragment_ids": [
+            "fragment:leyenda-escaneo:e01:f02"
+          ],
+          "expected_hash": null,
+          "expected_state": "NO_OP",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:0a7fd965a9993c59dbdaf4bdeebd1455576fb496cb6d66a7e167da3ff2c0c7e2",
+          "operation_id": "op:escaneo-0001",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "object_entity_id": "entity:leyenda:casa-ciervo",
+            "predicate": "LEADS",
+            "subject_entity_id": "entity:leyenda:daiki"
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "ee0241a52f1c4c2a4fac270181224a10d357c7a88fe85b37a9180cdf36b19d3e"
+      },
+      "plan_id": "plan:leyenda-escaneo:0001",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:bench:leyenda-escaneo",
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-escaneo",
+  "split": "dev",
+  "world": "leyenda"
+}

@@ -1,0 +1,236 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:mareas-sesion:e01:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:mareas-sesion:e01",
+      "epistemic_cues": [
+        "nunca"
+      ],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:mareas-sesion:e01:f02"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "gold_key": "sela-not-member-cofradia",
+        "phenomena": [
+          "NEGATION",
+          "SPEAKER_COREFERENCE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:mareas-sesion:e01:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "nunca he trabajado para la Cofradía de Ámbar",
+      "review_required": false,
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "subject_mentions": [
+        "mention:mareas-sesion:e01:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-dev"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:mareas-sesion:e02:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:mareas-sesion:e02",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:mareas-sesion:e02:f03"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "gold_key": "torv-sibling-sela",
+        "phenomena": [
+          "SPEAKER_COREFERENCE",
+          "SYMMETRIC"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:mareas-sesion:e02:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "SIBLING_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Mi hermana Sela",
+      "review_required": false,
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "subject_mentions": [
+        "mention:mareas-sesion:e02:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-dev"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:mareas-sesion:e03:c00",
+      "confidence": 0.45,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.45,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:mareas-sesion:e03",
+      "epistemic_cues": [
+        "Dicen los estibadores que",
+        "no he visto la escritura"
+      ],
+      "epistemic_status_hint": "RUMORED",
+      "evidence_fragment_ids": [
+        "fragment:mareas-sesion:e03:f03"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "gold_key": "gremio-owns-amarra-rumor",
+        "phenomena": [
+          "RUMOR"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:mareas-sesion:e03:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.45,
+          "predicate": "OWNS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "el Gremio de Faros compró Amarra Vieja el invierno pasado",
+      "review_required": true,
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "subject_mentions": [
+        "mention:mareas-sesion:e03:m00"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:mareas",
+          "fragment_id": null,
+          "kind": "RELATIVE",
+          "text": "el invierno pasado",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "mareas-sesion",
+  "split": "dev",
+  "world": "mareas"
+}

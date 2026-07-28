@@ -1,0 +1,67 @@
+{
+  "benchmark_file": "source_asset",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:mareas-sesion",
+      "byte_size": 14882301,
+      "collection_id": "collection:mareas",
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "contract_id": "source-asset/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "copyright_class": "OWN",
+      "created_at": "2026-04-05T19:00:00Z",
+      "game_profile": "generic",
+      "ingested_at": "2026-07-20T09:20:00Z",
+      "language_hint": "es",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "description": "Turnos de habla con diarizacion: el 'yo' cambia de referente segun quien hable.",
+        "title": "Transcripción de sesión en Puerto Quilla"
+      },
+      "mime_type": "audio/ogg",
+      "original_location": "benchmarks/dev/mareas-sesion/sesion-puerto-quilla.ogg",
+      "original_name": "sesion-puerto-quilla.ogg",
+      "privacy_class": "PERSONAL_DATA",
+      "processing_policy": {
+        "allow_external_providers": false,
+        "allow_media_persistence": true,
+        "retention_days": 365
+      },
+      "produced_by_step": "gold.ingest",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type"
+          ],
+          "provider": "local",
+          "step": "gold.ingest",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "source_kind": "AUDIO",
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "mareas-sesion",
+  "split": "dev",
+  "world": "mareas"
+}

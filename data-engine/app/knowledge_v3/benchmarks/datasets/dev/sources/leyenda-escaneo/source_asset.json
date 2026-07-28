@@ -1,0 +1,67 @@
+{
+  "benchmark_file": "source_asset",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:leyenda-escaneo",
+      "byte_size": 3112004,
+      "collection_id": "collection:leyenda",
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "contract_id": "source-asset/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "copyright_class": "UNKNOWN",
+      "created_at": "1042-04-02T00:00:00Z",
+      "game_profile": "generic",
+      "ingested_at": "2026-07-20T09:25:00Z",
+      "language_hint": "es",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "description": "Imagen escaneada: OCR degradado y un plano del que solo cabe inferir.",
+        "title": "Escaneo del acta de Vado Alto"
+      },
+      "mime_type": "image/png",
+      "original_location": "benchmarks/dev/leyenda-escaneo/acta-vado-alto.png",
+      "original_name": "acta-vado-alto.png",
+      "privacy_class": "INTERNAL",
+      "processing_policy": {
+        "allow_external_providers": true,
+        "allow_media_persistence": true,
+        "retention_days": 365
+      },
+      "produced_by_step": "gold.ingest",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type"
+          ],
+          "provider": "local",
+          "step": "gold.ingest",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "source_kind": "IMAGE",
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-escaneo",
+  "split": "dev",
+  "world": "leyenda"
+}

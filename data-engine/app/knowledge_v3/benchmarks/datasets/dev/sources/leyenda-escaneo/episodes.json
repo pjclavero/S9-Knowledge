@@ -1,0 +1,206 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:leyenda-escaneo",
+      "bbox": {
+        "height": 0.05,
+        "page": 1,
+        "width": 0.7,
+        "x": 0.08,
+        "y": 0.12
+      },
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "217a322a4ff843cf6675c1442a29e9b812b1cf648afab178a8f7b3b0039931e2"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:leyenda-escaneo:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "phenomena": [
+          "OCR_NOISE"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": "episode:leyenda-escaneo:e02",
+      "page": 1,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.ocr",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.ocr",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "OCR_DEGRADED"
+        ],
+        "score": 0.62
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Daiki Oliaru fue nornbrado magistrado de la Casa de1 Ciervo en el año 1O42.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "asset_id": "asset:leyenda-escaneo",
+      "bbox": {
+        "height": 0.05,
+        "page": 1,
+        "width": 0.66,
+        "x": 0.08,
+        "y": 0.31
+      },
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "c2e962ff65ca7d9af850fee07bbbc22cd7f5810428e0d88029db481783216426"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:leyenda-escaneo:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "phenomena": [
+          "ABSTENTION",
+          "OCR_NOISE",
+          "PROVISIONAL_ENTITY"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": "episode:leyenda-escaneo:e03",
+      "page": 1,
+      "previous_episode_id": "episode:leyenda-escaneo:e01",
+      "produced_by_step": "gold.ocr",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.ocr",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "OCR_DEGRADED",
+          "LOW_CONTRAST"
+        ],
+        "score": 0.44
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "El escriba V4ndreth firmo el acta junto a1 senescal de Vado A1to.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "asset_id": "asset:leyenda-escaneo",
+      "bbox": {
+        "height": 0.3,
+        "page": 2,
+        "width": 0.55,
+        "x": 0.15,
+        "y": 0.55
+      },
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "4b245cd7ce06f42a4d6e1912ccd5b02773347634aac9211a132f27ad9899bcad"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:leyenda-escaneo:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "phenomena": [
+          "VISUAL_INFERRED"
+        ]
+      },
+      "modality": "DIAGRAM",
+      "next_episode_id": null,
+      "page": 2,
+      "previous_episode_id": "episode:leyenda-escaneo:e02",
+      "produced_by_step": "gold.layout",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.layout",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.55
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Plano del vado: el recinto de la Casa del Ciervo dentro de Vado Alto.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-escaneo",
+  "split": "dev",
+  "world": "leyenda"
+}

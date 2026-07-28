@@ -1,0 +1,22 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:leyenda-cronica:e01",
+      "text": "Ilaria Vandreth dirigió la Casa del Ciervo desde el invierno de 1041 hasta la caída de Vado Alto. Cuando entregó el bastón de mando, el cargo recayó en Daiki Oharu, que lo conserva desde la primavera de 1042."
+    },
+    {
+      "episode_id": "episode:leyenda-cronica:e02",
+      "text": "Daiki Oharu ha negado en cada asamblea su pertenencia al Consejo de Umbra. El magistrado repitió la negativa incluso ante los emisarios llegados de Umbra."
+    },
+    {
+      "episode_id": "episode:leyenda-cronica:e03",
+      "text": "Corre el rumor de que la Casa del Ciervo y el Consejo de Umbra firmaron un pacto secreto la noche de la última luna; nadie ha visto el documento. En la farsa que los titiriteros representaron en la plaza, el ciervo degollaba al búho. ¿Llegó Ilaria Vandreth a jurar lealtad al Consejo de Umbra?"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-cronica",
+  "split": "dev",
+  "world": "leyenda"
+}

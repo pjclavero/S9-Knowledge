@@ -1,0 +1,204 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:kestrel",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-07-27T12:30:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:kestrel-tripulacion:e01:c00",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:tabla-0001",
+          "direction": null,
+          "epistemic_status": "CONFLICTED",
+          "evidence_fragment_ids": [
+            "fragment:kestrel-tripulacion:e01:f06"
+          ],
+          "negated": false,
+          "object_entity_id": null,
+          "predicate": null,
+          "reason_codes": [
+            "CONFLICT_WITH_EXISTING",
+            "SOURCE_DISAGREEMENT"
+          ],
+          "subject_entity_id": null
+        },
+        {
+          "claim_id": "claim:kestrel-tripulacion:e01:c01",
+          "confidence": 0.95,
+          "decision": "ACCEPT",
+          "decision_id": "decision:tabla-0002",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:kestrel-tripulacion:e01:f07"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:kestrel:halcyon",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED",
+            "ALREADY_KNOWN"
+          ],
+          "subject_entity_id": "entity:kestrel:vania"
+        },
+        {
+          "claim_id": "claim:kestrel-tripulacion:e01:c02",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:tabla-0003",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:kestrel-tripulacion:e01:f08"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:kestrel:vela",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED",
+            "TABLE_ROW_SUPPORT"
+          ],
+          "subject_entity_id": "entity:kestrel:ruta-simm"
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-07-28T12:30:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": false,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-07-27T12:30:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "9cb59a450369f18cd981b9bf115e2bf6dd61869f3e9918a6bc33fd681b1c0625"
+        },
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "reason_codes": [
+              "CONFLICT_WITH_EXISTING"
+            ],
+            "result": "FAIL",
+            "validator": "conflict",
+            "version": "3.0.0-bench"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:kestrel:vania-member-halcyon",
+          "decision_id": "decision:tabla-0002",
+          "evidence_fragment_ids": [
+            "fragment:kestrel-tripulacion:e01:f07"
+          ],
+          "expected_hash": null,
+          "expected_state": "NO_OP",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:3de70ccb7b8136571fc9565c9a3fd069cb4173b8270caa866af7e886b1663293",
+          "operation_id": "op:tabla-0001",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "object_entity_id": "entity:kestrel:halcyon",
+            "predicate": "MEMBER_OF",
+            "subject_entity_id": "entity:kestrel:vania"
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": null,
+          "decision_id": "decision:tabla-0003",
+          "evidence_fragment_ids": [
+            "fragment:kestrel-tripulacion:e01:f08"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:40c1b84155f756ebc1c1c6571ef2128cc614c4576f44c3641aa49d6dfa9b5199",
+          "operation_id": "op:tabla-0002",
+          "operation_type": "CREATE_ENTITY",
+          "payload": {
+            "entity_type": "Character",
+            "name": "Ruta Simm"
+          },
+          "target_entity_id": "entity:kestrel:ruta-simm"
+        },
+        {
+          "assertion_id": "assertion:kestrel:ruta-member-vela",
+          "decision_id": "decision:tabla-0003",
+          "evidence_fragment_ids": [
+            "fragment:kestrel-tripulacion:e01:f08"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:9588e37cc8a08d8db0f2083b2253e81d4086491aa32adceff6631963a2c0df3b",
+          "operation_id": "op:tabla-0003",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "object_entity_id": "entity:kestrel:vela",
+            "predicate": "MEMBER_OF",
+            "subject_entity_id": "entity:kestrel:ruta-simm"
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "e55056f7cf851e70e1388cdee04870f3ac917209a0891bfb9d652795f1411d6d"
+      },
+      "plan_id": "plan:kestrel-tripulacion:0001",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:bench:kestrel-tripulacion",
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "kestrel-tripulacion",
+  "split": "dev",
+  "world": "kestrel"
+}

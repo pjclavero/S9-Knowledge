@@ -1,0 +1,25 @@
+{
+  "benchmark_file": "negatives",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "end": 89,
+      "episode_id": "episode:kestrel-informe:e03",
+      "forbidden_predicates": [
+        "OWNED_BY",
+        "OWNS"
+      ],
+      "kind": "FICTION_WITHIN_FICTION",
+      "literal_text": "En el serial que emiten los turnos de noche, Halcyon vende la estación a una flota pirata",
+      "must_not_produce": "CLAIM",
+      "negative_id": "negative:kestrel-informe:serial-nocturno",
+      "rationale": "Ficcion emitida dentro del mundo. Las entidades son reales; la transaccion, no. El propio texto lo desmiente en la frase siguiente.",
+      "split": "dev",
+      "start": 0
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "kestrel-informe",
+  "split": "dev",
+  "world": "kestrel"
+}

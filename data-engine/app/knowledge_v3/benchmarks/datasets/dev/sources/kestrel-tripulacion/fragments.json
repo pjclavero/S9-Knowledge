@@ -1,0 +1,424 @@
+{
+  "benchmark_file": "fragments",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 46,
+      "episode_id": "episode:kestrel-tripulacion:e01",
+      "fragment_id": "fragment:kestrel-tripulacion:e01:f00",
+      "frame_id": null,
+      "literal_text": "Nadir Boone",
+      "media_type": "TABLE",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "normalized_text": "nadir boone",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "start": 35,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 64,
+      "episode_id": "episode:kestrel-tripulacion:e01",
+      "fragment_id": "fragment:kestrel-tripulacion:e01:f01",
+      "frame_id": null,
+      "literal_text": "Consorcio Halcyon",
+      "media_type": "TABLE",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "normalized_text": "consorcio halcyon",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "start": 47,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 91,
+      "episode_id": "episode:kestrel-tripulacion:e01",
+      "fragment_id": "fragment:kestrel-tripulacion:e01:f02",
+      "frame_id": null,
+      "literal_text": "Vania Ostrow",
+      "media_type": "TABLE",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "normalized_text": "vania ostrow",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "start": 79,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 109,
+      "episode_id": "episode:kestrel-tripulacion:e01",
+      "fragment_id": "fragment:kestrel-tripulacion:e01:f03",
+      "frame_id": null,
+      "literal_text": "Consorcio Halcyon",
+      "media_type": "TABLE",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "normalized_text": "consorcio halcyon",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "start": 92,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 136,
+      "episode_id": "episode:kestrel-tripulacion:e01",
+      "fragment_id": "fragment:kestrel-tripulacion:e01:f04",
+      "frame_id": null,
+      "literal_text": "Ruta Simm",
+      "media_type": "TABLE",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "normalized_text": "ruta simm",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "start": 127,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 153,
+      "episode_id": "episode:kestrel-tripulacion:e01",
+      "fragment_id": "fragment:kestrel-tripulacion:e01:f05",
+      "frame_id": null,
+      "literal_text": "Cooperativa Vela",
+      "media_type": "TABLE",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "normalized_text": "cooperativa vela",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "start": 137,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 64,
+      "episode_id": "episode:kestrel-tripulacion:e01",
+      "fragment_id": "fragment:kestrel-tripulacion:e01:f06",
+      "frame_id": null,
+      "literal_text": "Nadir Boone\tConsorcio Halcyon",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "normalized_text": "nadir boone consorcio halcyon",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "start": 35,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 109,
+      "episode_id": "episode:kestrel-tripulacion:e01",
+      "fragment_id": "fragment:kestrel-tripulacion:e01:f07",
+      "frame_id": null,
+      "literal_text": "Vania Ostrow\tConsorcio Halcyon",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "normalized_text": "vania ostrow consorcio halcyon",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "start": 79,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 153,
+      "episode_id": "episode:kestrel-tripulacion:e01",
+      "fragment_id": "fragment:kestrel-tripulacion:e01:f08",
+      "frame_id": null,
+      "literal_text": "Ruta Simm\tCooperativa Vela",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "normalized_text": "ruta simm cooperativa vela",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "start": 127,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "kestrel-tripulacion",
+  "split": "dev",
+  "world": "kestrel"
+}

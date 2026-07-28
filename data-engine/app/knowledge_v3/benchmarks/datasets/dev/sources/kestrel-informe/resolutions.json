@@ -1,0 +1,276 @@
+{
+  "benchmark_file": "resolutions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:kestrel:vania"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:kestrel-informe:e01:f00"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:kestrel-informe:e01:m00"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:kestrel-informe:vania",
+      "selected_entity_id": "entity:kestrel:vania",
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "workspace": "bench-dev"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:kestrel:halcyon",
+        "entity:kestrel:vela"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:kestrel-informe:e01:f01",
+        "fragment:kestrel-informe:e02:f01",
+        "fragment:kestrel-informe:e03:f00",
+        "fragment:kestrel-informe:e03:f03"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:kestrel-informe:e01:m01",
+        "mention:kestrel-informe:e02:m01",
+        "mention:kestrel-informe:e03:m00",
+        "mention:kestrel-informe:e03:m03"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS",
+        "SHORT_FORM_ALIAS"
+      ],
+      "resolution_id": "resolution:kestrel-informe:halcyon",
+      "selected_entity_id": "entity:kestrel:halcyon",
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "workspace": "bench-dev"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:kestrel:estacion"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:kestrel-informe:e01:f02",
+        "fragment:kestrel-informe:e03:f01"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:kestrel-informe:e01:m02",
+        "mention:kestrel-informe:e03:m01"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS",
+        "COREFERENCE_RESOLVED"
+      ],
+      "resolution_id": "resolution:kestrel-informe:estacion",
+      "selected_entity_id": "entity:kestrel:estacion",
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "workspace": "bench-dev"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:kestrel:nadir"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:kestrel-informe:e02:f00"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:kestrel-informe:e02:m00"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:kestrel-informe:nadir",
+      "selected_entity_id": "entity:kestrel:nadir",
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "workspace": "bench-dev"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:kestrel:nucleo-bruma"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Object",
+      "evidence": [
+        "fragment:kestrel-informe:e03:f02"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:kestrel-informe:e03:m02"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:kestrel-informe:nucleo-bruma",
+      "selected_entity_id": "entity:kestrel:nucleo-bruma",
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "kestrel-informe",
+  "split": "dev",
+  "world": "kestrel"
+}

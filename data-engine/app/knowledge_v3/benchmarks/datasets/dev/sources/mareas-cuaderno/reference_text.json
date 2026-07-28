@@ -1,0 +1,22 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:mareas-cuaderno:e01",
+      "text": "El Gremio de Faros y la Cofradía de Ámbar llevan enfrentados desde la marea negra; ninguna de las dos casas acepta ya el arbitraje del puerto."
+    },
+    {
+      "episode_id": "episode:mareas-cuaderno:e02",
+      "text": "Sela Marrec nació en Amarra Vieja, un barrio de Puerto Quilla, y allí conserva todavía su taller de ámbar."
+    },
+    {
+      "episode_id": "episode:mareas-cuaderno:e03",
+      "text": "Si Torv Marrec dirigiera hoy la Cofradía de Ámbar, la flota no habría zarpado con la marea de invierno. El maestre de puerto, en cambio, planea entregar a Torv el bastón de la Cofradía de Ámbar en el próximo ciclo."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "mareas-cuaderno",
+  "split": "dev",
+  "world": "mareas"
+}

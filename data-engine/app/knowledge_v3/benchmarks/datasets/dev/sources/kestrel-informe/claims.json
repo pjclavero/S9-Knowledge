@@ -1,0 +1,370 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:kestrel-informe:e01:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:kestrel-informe:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:kestrel-informe:e01:f03"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "gold_key": "vania-member-halcyon",
+        "phenomena": [],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:kestrel-informe:e01:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "figura como jefa de operaciones del Consorcio Halcyon",
+      "review_required": false,
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "subject_mentions": [
+        "mention:kestrel-informe:e01:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-dev"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:kestrel-informe:e01:c01",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:kestrel-informe:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:kestrel-informe:e01:f04"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "gold_key": "vania-in-kestrel",
+        "phenomena": [],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:kestrel-informe:e01:m02"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "LOCATED_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "a bordo de la Estación Kestrel",
+      "review_required": false,
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "subject_mentions": [
+        "mention:kestrel-informe:e01:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-dev"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:kestrel-informe:e02:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:kestrel-informe:e02",
+      "epistemic_cues": [
+        "no incluye"
+      ],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:kestrel-informe:e02:f02"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "gold_key": "nadir-not-member-halcyon",
+        "phenomena": [
+          "CONFLICT",
+          "NEGATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:kestrel-informe:e02:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "no incluye a Nadir Boone entre el personal del Consorcio Halcyon",
+      "review_required": false,
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "subject_mentions": [
+        "mention:kestrel-informe:e02:m00"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:kestrel",
+          "fragment_id": null,
+          "kind": "POINT",
+          "text": "del ciclo 2387",
+          "valid_from": "2387-01-01T00:00:00Z",
+          "valid_to": null
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:kestrel-informe:e03:c00",
+      "confidence": 0.48,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.48,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:kestrel-informe:e03",
+      "epistemic_cues": [
+        "Se rumorea"
+      ],
+      "epistemic_status_hint": "RUMORED",
+      "evidence_fragment_ids": [
+        "fragment:kestrel-informe:e03:f04"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "gold_key": "nucleo-owned-by-halcyon",
+        "phenomena": [
+          "RUMOR"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:kestrel-informe:e03:m03"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.48,
+          "predicate": "OWNED_BY"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "pertenece al Consorcio Halcyon desde el traslado",
+      "review_required": true,
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "subject_mentions": [
+        "mention:kestrel-informe:e03:m02"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-dev"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:kestrel-informe:e03:c01",
+      "confidence": 0.31,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.31,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:kestrel-informe:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:kestrel-informe:e03:f05"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-informe",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "gold_key": "nucleo-member-halcyon-invalido",
+        "phenomena": [
+          "ONTOLOGY_VIOLATION"
+        ],
+        "role": "ENGINE_ONLY"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:kestrel-informe:e03:m03"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.31,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "pertenece al Consorcio Halcyon",
+      "review_required": false,
+      "source_asset_id": "asset:kestrel-informe",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "a0254dcd5a8e8bf61ff2edb944db4fdef9f63d0b76916dffca190513ecefbe65"
+      },
+      "subject_mentions": [
+        "mention:kestrel-informe:e03:m02"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "kestrel-informe",
+  "split": "dev",
+  "world": "kestrel"
+}
