@@ -312,8 +312,7 @@ def decide_claim(
     if spec is not None and spec.functional:
         material_temporal.append("relacion funcional exclusiva")
     if predicate_outcome.predicate and (
-        predicate_outcome.predicate == "SUCCEEDED_BY"
-        or predicate_outcome.predicate == "SUCCEEDS"
+        predicate_outcome.predicate in ("SUCCEEDED_BY", "SUCCEEDS", "SUCCEEDED", "SUCCESSOR_OF")
         or predicate_outcome.predicate.startswith("SUCCEEDED_")
         or predicate_outcome.predicate.endswith("_SUCCESSOR_OF")
     ):
