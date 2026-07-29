@@ -1,4 +1,4 @@
-# Encargo a equipo externo — Interfaz de revisión y multimodalidad real
+# Encargo a equipo externo — Interfaz de revisión, multimodalidad y writer real
 
 Fecha: 2026-07-29 · Repositorio: `pjclavero/S9-Knowledge` · Rama base:
 `feat/knowledge-v3-redesign`
@@ -37,14 +37,17 @@ entrega entera.
 
 La cadena funciona de punta a punta y tiene 4.539 tests en verde. El extractor
 semántico está conectado, el reconciliador integrado, el motor decide y el writer
-tiene su puerta de operador. **Pero el sistema todavía no es usable**, por dos
-motivos que son precisamente estos dos encargos:
+tiene su puerta de operador. **Pero el sistema todavía no es usable ni está
+verificado donde importa**, y eso es exactamente lo que cubren estos tres encargos:
 
 1. El motor manda a revisión humana la mayor parte de lo que extrae, y **no existe
    ninguna interfaz para revisarlo**. Hoy la cola de revisión es un concepto, no un
-   sitio.
+   sitio. (Parte A)
 2. La multimodalidad —PDF escaneado, fotos, manuscritos, audio, vídeo— **está
    construida como interfaces y stubs**, y nunca se ha recorrido con material real.
+   (Parte B)
+3. El writer, la única puerta de escritura al grafo, **nunca ha hablado con un Neo4j
+   de verdad**: sus 129 tests corren contra un driver simulado. (Parte C)
 
 ### Reglas duras (romper una invalida la entrega)
 
@@ -56,8 +59,9 @@ motivos que son precisamente estos dos encargos:
    que os parezca mal etiquetado: reportadlo.
 4. **No uséis los splits `heldout` ni `negation`.** Existen en el repo y son
    activos de un solo uso; mirarlos los inutiliza.
-5. **Nada escribe en Neo4j** salvo lo que se indique explícitamente en la parte B.
-   El writer se usa en dry-run con driver simulado.
+5. **Nada escribe en el Neo4j de producción, nunca.** La parte C escribe, pero
+   exclusivamente contra una instancia efímera que levantáis y destruís vosotros.
+   En A y B el writer se usa en dry-run con driver simulado.
 6. **No modifiquéis otros subsistemas.** Si encontráis un defecto en `engine/`,
    `resolution/`, `extraction/`, `reconcile/` o `writer/`, **no lo parcheéis**:
    documentadlo con fichero y línea. Esos módulos han pasado revisiones
