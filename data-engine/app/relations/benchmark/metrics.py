@@ -91,18 +91,75 @@ def predicted_predicate_distribution(predictions: list[dict]) -> dict:
     return dict(sorted(dist.items()))
 
 
+#: Texto UNICO (reutilizado por el informe y el CLI) que explica el SESGO DE BASE
+#: de todas las tasas estructurales. Ver `structural_quality`.
+STRUCTURAL_BASIS_NOTE = (
+    "SESGO DE BASE: todas las tasas estructurales (predicate/direction/types/"
+    "negation/temporal/epistemic/evidence/offsets/workspace/decision) se calculan "
+    "SOLO sobre los TP de existencia, es decir, sobre las relaciones que el motor "
+    "SI encontro. Un motor que encuentra poquisimo pero acierta en lo poco que "
+    "encuentra produce tasas estructurales ALTAS con una deteccion pesima. Para "
+    "leerlas sin enganarse hay que mirarlas junto a `global_existence` (y a "
+    "`tp_coverage_of_ground_truth`): cada tasa trae ademas su "
+    "`rate_over_ground_truth` = ok / relaciones del ground truth, que NO tiene "
+    "este sesgo."
+)
+
+#: `types_correct` NO mide al motor: los tipos de entidad que el pipeline recibe
+#: los DERIVA el propio arnes del ground truth (`runner.derive_entities`, campos
+#: `<role>_type` de las relaciones del GT), y el candidato los propaga tal cual.
+#: Comparar esos tipos contra el GT es comparar el GT consigo mismo.
+TYPES_CORRECT_TAUTOLOGY_NOTE = (
+    "TAUTOLOGICA: NO es un logro del motor. Las entidades de ENTRADA del pipeline "
+    "las deriva el propio arnes desde el ground truth "
+    "(`benchmark.runner.derive_entities` copia `subject_type`/`object_type` de las "
+    "relaciones del GT) y el candidato las propaga sin decidir nada; comparar esos "
+    "tipos contra el GT es comparar el ground truth consigo mismo. Por eso vale "
+    "1.0000 en TODAS las cifras historicas. NO citar como resultado de calidad: "
+    "solo se pondria por debajo de 1.0 si el pipeline CORROMPIESE los tipos que se "
+    "le entregan."
+)
+
+
 def structural_quality(match: MatchResult) -> dict:
     """Tasas de calidad estructural sobre los TP (par correcto).
 
     Cada tasa es correctos/total_TP. Ademas subgrupos condicionados (negacion,
     temporalidad, rumor) para los gates.
+
+    VISIBILIDAD DEL SESGO (B2-V2E): el denominador de TODAS estas tasas son los TP,
+    no el ground truth. Eso premia al motor que detecta poco y acierta en lo poco
+    que detecta (la corrida que motivo este bloque sacaba tasas estructurales
+    respetables con `pair_F1 = 0.0611`). Para que ningun lector pueda confundirse:
+
+      * cada tasa publica `n` / `basis` (la base REAL: `true_positives`),
+      * cada tasa publica ademas `rate_over_ground_truth` (ok / relaciones del GT),
+        que SI se hunde cuando la deteccion se hunde,
+      * el bloque `measurement_basis` publica TP/FP/FN, el total de ground truth y
+        `tp_coverage_of_ground_truth`,
+      * `types_correct` se marca como TAUTOLOGICA (ver
+        `TYPES_CORRECT_TAUTOLOGY_NOTE`).
     """
     tp = match.true_positives
     n = len(tp)
+    n_fp = int(getattr(match, "fp", 0) or 0)
+    n_fn = int(getattr(match, "fn", 0) or 0)
+    gt_total = n + n_fn
 
     def rate(flag: str) -> dict:
         ok = sum(1 for m in tp if m["flags"][flag])
-        return {"ok": ok, "total": n, "rate": round(ok / n, 4) if n else 0.0}
+        return {
+            "ok": ok,
+            "total": n,
+            "rate": round(ok / n, 4) if n else 0.0,
+            # --- Visibilidad del denominador (B2-V2E) -------------------------
+            # `total` YA era el nº de TP, pero nada lo decia: se explicita el `n` y
+            # la BASE, y se anade la misma cifra referida al ground truth completo.
+            "n": n,
+            "basis": "true_positives",
+            "ground_truth_total": gt_total,
+            "rate_over_ground_truth": round(ok / gt_total, 4) if gt_total else 0.0,
+        }
 
     # Subgrupos para gates.
     negated_gt = [m for m in tp if bool(m["gt"]["negated"])]
@@ -139,11 +196,30 @@ def structural_quality(match: MatchResult) -> dict:
         "measurable": bool(k_pred),
     }
 
+    # `types_correct` se publica MARCADA: el motor no la decide (ver nota).
+    types_rate = rate("types_correct")
+    types_rate["tautological"] = True
+    types_rate["tautology_note"] = TYPES_CORRECT_TAUTOLOGY_NOTE
+
     return {
+        "measurement_basis": {
+            "true_positives": n,
+            "false_positives": n_fp,
+            "false_negatives": n_fn,
+            "ground_truth_total": gt_total,
+            "predictions_total": n + n_fp,
+            # Cobertura del ground truth por los TP: es el RECALL de existencia, y
+            # es exactamente la fraccion del corpus que las tasas de abajo
+            # describen. Con 0.13 (la corrida que motivo el bloque) las tasas
+            # estructurales hablan del 13% del corpus, no del corpus.
+            "tp_coverage_of_ground_truth": round(n / gt_total, 4) if gt_total else 0.0,
+            "note": STRUCTURAL_BASIS_NOTE,
+            "tautological_metrics": {"types_correct": TYPES_CORRECT_TAUTOLOGY_NOTE},
+        },
         "predicate_correct": rate("predicate_correct"),
         "direction_correct": rate("direction_correct"),
         "direction_orientation_ok": rate("direction_orientation_ok"),
-        "types_correct": rate("types_correct"),
+        "types_correct": types_rate,
         "negation_correct": rate("negation_correct"),
         "temporal_correct": rate("temporal_correct"),
         "epistemic_correct": rate("epistemic_correct"),
@@ -610,6 +686,8 @@ def provider_cost(results: list[dict], source_summaries: list[dict]) -> dict:
 
 
 __all__ = [
+    "STRUCTURAL_BASIS_NOTE",
+    "TYPES_CORRECT_TAUTOLOGY_NOTE",
     "global_metrics",
     "strict_metrics",
     "per_predicate_metrics",

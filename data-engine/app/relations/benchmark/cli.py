@@ -204,15 +204,31 @@ def render_markdown(report: dict, *, all_modes: Optional[dict] = None) -> str:
     A("## Calidad estructural (sobre los TP de existencia)")
     A("")
     sq = m["structural_quality"]
-    A("| Atributo | Correctos / Total | Tasa |")
-    A("|---|---|---|")
+    basis = sq.get("measurement_basis") or {}
+    # B2-V2E: el denominador se declara ANTES de la tabla. Estas tasas se calculan
+    # sobre los TP; sin esta advertencia un motor que encuentra poco y acierta en lo
+    # poco que encuentra parece bueno.
+    A(f"> **Base de TODAS estas tasas: los {basis.get('true_positives', '?')} TP de "
+      f"existencia**, no las {basis.get('ground_truth_total', '?')} relaciones del "
+      f"ground truth (cobertura = "
+      f"{_fmt_pct(basis.get('tp_coverage_of_ground_truth', 0.0))}). "
+      f"{basis.get('note', '')}")
+    A("")
+    A("| Atributo | Correctos / TP (n) | Tasa sobre TP | Tasa sobre ground truth |")
+    A("|---|---|---|---|")
     for key in ("predicate_correct", "direction_correct", "direction_orientation_ok",
                 "types_correct", "negation_correct", "temporal_correct",
                 "epistemic_correct", "evidence_correct", "offsets_correct",
                 "workspace_correct", "decision_correct"):
         d = sq[key]
-        A(f"| {key} | {d['ok']}/{d['total']} | {_fmt_pct(d['rate'])} |")
+        etiqueta = key + (" (TAUTOLOGICA)" if d.get("tautological") else "")
+        A(f"| {etiqueta} | {d['ok']}/{d['total']} | {_fmt_pct(d['rate'])} | "
+          f"{_fmt_pct(d.get('rate_over_ground_truth', 0.0))} |")
     A("")
+    for nombre, nota in sorted((basis.get("tautological_metrics") or {}).items()):
+        A(f"- `{nombre}`: {nota}")
+    if basis.get("tautological_metrics"):
+        A("")
 
     A("## Metricas operativas (contadores REALES del pipeline)")
     A("")
@@ -290,6 +306,7 @@ def render_markdown(report: dict, *, all_modes: Optional[dict] = None) -> str:
     A("| Gate | Estado | Valor | Umbral | Tipo |")
     A("|---|---|---|---|---|")
     for name in ("determinism", "workspace_contamination", "provider_transport",
+                 "global_existence",
                  "simple_relations", "evidence", "offsets", "negation",
                  "negation_precision", "temporality", "rumors",
                  "predicate_structural"):
@@ -302,8 +319,25 @@ def render_markdown(report: dict, *, all_modes: Optional[dict] = None) -> str:
         thr_s = _fmt_pct(thr) if isinstance(thr, (int, float)) else "-"
         hard = ("DURO" if gate.get("hard")
                 else ("INFORMATIVA" if gate.get("informative") else "calidad"))
+        if name == "global_existence":
+            hard = "DETECCION (GOBIERNA EL DICTAMEN)"
         A(f"| {name} | **{gate['status']}** | {val_s} | {thr_s} | {hard} |")
     A("")
+    det_gate = report["gates"].get("global_existence") or {}
+    if det_gate:
+        comps = det_gate.get("components") or {}
+        detalle = ", ".join(
+            f"{k}={c['value']:.4f} (suelo {c['threshold']:.2f}, {c['status']})"
+            for k, c in sorted(comps.items())) or "no evaluado"
+        d = det_gate.get("detail") or {}
+        A(f"- `global_existence` es el gate de DETECCION: {detalle}; "
+          f"TP={d.get('tp', '?')}, FP={d.get('fp', '?')}, FN={d.get('fn', '?')}. "
+          "**SI gobierna el dictamen**: en FAIL el dictamen es `NO APTO` y en "
+          "PARTIAL no puede ser mejor que `APTO CON REVISION HUMANA TOTAL`. "
+          "Existe porque el banco emitia dictamenes tranquilizadores con la "
+          "deteccion hundida (`pair_F1=0.0611`, TP=7/FP=168/FN=47); los suelos y su "
+          "justificacion estan en `report.DETECTION_FLOORS`.")
+        A("")
     negp = report["gates"].get("negation_precision") or {}
     if negp:
         det_np = negp.get("detail") or {}

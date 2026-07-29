@@ -34,6 +34,66 @@ VERDICTS = (
 #: este bloque, y esta metrica nace en ROJO (0.44 medido). Ver `evaluate_gates`.
 NEGATION_PRECISION_FLOOR = 0.80
 
+#: Suelos de DETECCION de relaciones (gate `global_existence`, B2-V2E).
+#:
+#: POR QUE EXISTE
+#: --------------
+#: Hasta este bloque NO habia ningun gate sobre `global_existence`: el arnes
+#: media P/R/F1 de existencia, los publicaba... y el dictamen no los miraba. Una
+#: corrida de la cadena completa (extractor real -> motor) con
+#: `pair_F1 = 0.0611` (TP=7, FP=168, FN=47) obtuvo "APTO CON REVISION DE CASOS
+#: CONFLICTIVOS": 7 aciertos contra 168 falsos positivos y un dictamen
+#: tranquilizador. Un banco cuyo dictamen NO PUEDE empeorar cuando el motor no
+#: encuentra nada esta roto. A diferencia de `negation_precision` (informativa a
+#: proposito), este gate SI GOBIERNA el dictamen: ver `decide_verdict`.
+#:
+#: POR QUE ESTOS NUMEROS (y no otros)
+#: ----------------------------------
+#: Evidencia historica EN EL REPOSITORIO, siempre sobre el corpus B1 congelado
+#: (ground_truth sha256 15973d18...cc5c) y con el pipeline REAL:
+#:
+#:   * Bloque 0 (`artifacts/relation-v2e/baseline/benchmark-v{1,2}.json`),
+#:     Bloque 1 (`artifacts/relation-v2e/blocks/b01/*.json`): 8 corridas
+#:     (baseline1/ensemble_offline x selector v1/v2) ->
+#:     P=0.8269  R=0.7963  F1=0.8113  (TP=43, FP=9, FN=11) en TODAS.
+#:   * Comparativa PR#95 (`docs/relation-engine-external-analysis-dossier.md`,
+#:     tabla del motor propio: base / V1 / V4_default) -> pair_F1 0.811,
+#:     pair_recall 0.796 en las tres.
+#:   * Programa relation-v2 (B2, B3, B5, B6, B7): `pair_F1 = 0.8113` invariante
+#:     en las ~20 configuraciones medidas.
+#:
+#: Es decir: TODA medicion sana conocida vale F1 0.811 / P 0.827 / R 0.796. Los
+#: suelos se fijan MUY por debajo de ese valor, no pegados a el:
+#:
+#:   * `f1 = 0.60`        -> 74% del valor observado: tolera una caida RELATIVA del
+#:     26% (margen absoluto 0.21) antes de ponerse amarillo. No puede reprobar una
+#:     corrida sana, y reprueba la patologia medida (0.0611) por un factor de 10.
+#:     Coincide ademas con el suelo que el banco ya aplica a sus dimensiones mas
+#:     dificiles (`temporality` y `rumors` = 0.60): no introduce una vara nueva
+#:     mas dura que las existentes.
+#:   * `precision = 0.50` -> el producto del banco son PROPUESTAS para revision
+#:     humana; por debajo de 1 de cada 2 propuestas correctas, el revisor descarta
+#:     mas de lo que acepta y la revision cuesta mas que el resultado. Margen
+#:     frente a lo observado (0.8269): 40% relativo. La patologia media 0.0400.
+#:   * `recall = 0.50`    -> por debajo de la mitad del ground truth, las tasas
+#:     ESTRUCTURALES (que se calculan sobre los TP) describen una minoria del
+#:     corpus y dejan de ser representativas: es el sesgo que
+#:     `measurement_basis` hace visible. Margen frente a lo observado (0.7963):
+#:     37% relativo. La patologia media 0.1296.
+#:
+#: No se elige un suelo mas alto (p.ej. 0.75, "casi lo observado") a proposito:
+#: con n=54 y dev==test, un suelo pegado al valor medido convertiria cualquier
+#: fluctuacion legitima en un rojo y presionaria para ajustar al corpus. El gate
+#: existe para detectar COLAPSOS de deteccion, no para arbitrar decimas.
+#:
+#: Va APARTE de `THRESHOLDS` (que esta congelado y verificado por test): este
+#: bloque es ADITIVO y NO baja ningun umbral existente.
+DETECTION_FLOORS = {
+    "f1": 0.60,
+    "precision": 0.50,
+    "recall": 0.50,
+}
+
 THRESHOLDS = {
     "simple_relations_recall": 0.80,
     "evidence": 0.80,
@@ -53,9 +113,70 @@ def _status(value: float, threshold: float, *, partial: float = 0.6) -> str:
     return "FAIL"
 
 
+_STATUS_ORDER = {"FAIL": 0, "PARTIAL": 1, "PASS": 2, "NOT_EVALUATED": 3}
+
+
+def detection_gate(global_existence: Optional[dict]) -> dict:
+    """Gate de DETECCION de relaciones sobre `metrics.global_existence`.
+
+    Evalua los TRES componentes (`f1`, `precision`, `recall`) contra
+    `DETECTION_FLOORS` y toma el PEOR estado: un motor puede hundirse por
+    inundacion de falsos positivos (precision) o por ceguera (recall) sin que el
+    F1 solo lo cuente igual de claro, y ambos casos deben poder poner el gate en
+    rojo.
+
+    `NOT_EVALUATED` solo ocurre si el llamante no aporta las metricas globales.
+    `build_report` SIEMPRE las aporta (se calculan del emparejamiento REAL), asi
+    que en el camino de producto el gate se evalua SIEMPRE; hay un test que lo
+    fija. Un `NOT_EVALUATED` se declara en `verdict_scope`, nunca se silencia.
+    """
+    if not global_existence:
+        return {
+            "status": "NOT_EVALUATED",
+            "hard": False,
+            "governs_verdict": True,
+            "value": None,
+            "threshold": DETECTION_FLOORS["f1"],
+            "thresholds": dict(DETECTION_FLOORS),
+            "components": {},
+            "reasons": ["no se aportaron las metricas de existencia "
+                        "(`metrics.global_existence`): la DETECCION no se ha medido"],
+            "detail": {},
+        }
+
+    componentes: dict[str, dict] = {}
+    for nombre, suelo in DETECTION_FLOORS.items():
+        valor = float(global_existence.get(nombre, 0.0) or 0.0)
+        componentes[nombre] = {
+            "value": valor,
+            "threshold": suelo,
+            "status": _status(valor, suelo),
+        }
+    peor = min((c["status"] for c in componentes.values()),
+               key=lambda s: _STATUS_ORDER[s])
+    motivos = [
+        f"{nombre} = {c['value']:.4f} < {c['threshold']:.2f} ({c['status']})"
+        for nombre, c in sorted(componentes.items())
+        if c["status"] != "PASS"
+    ]
+    return {
+        "status": peor,
+        "hard": False,
+        # A DIFERENCIA de `negation_precision`: este gate SI gobierna el dictamen.
+        "governs_verdict": True,
+        "value": float(global_existence.get("f1", 0.0) or 0.0),
+        "threshold": DETECTION_FLOORS["f1"],
+        "thresholds": dict(DETECTION_FLOORS),
+        "components": componentes,
+        "reasons": motivos,
+        "detail": dict(global_existence),
+    }
+
+
 def evaluate_gates(match, struct: dict, contamination: dict, determinism: dict,
                    provider_transport: Optional[dict] = None,
-                   operational: Optional[dict] = None) -> dict:
+                   operational: Optional[dict] = None,
+                   global_existence: Optional[dict] = None) -> dict:
     """Evalua los gates por separado. Devuelve dict gate -> {status, value, ...}.
 
     `provider_transport` (B2) solo se pasa en modos con proveedor: son las
@@ -148,6 +269,18 @@ def evaluate_gates(match, struct: dict, contamination: dict, determinism: dict,
         "hard": True,
         "detail": contamination,
     }
+
+    # --- Gate de DETECCION (B2-V2E): el que faltaba ---------------------------
+    # Se deriva de las metricas globales de existencia. Si el llamante no las pasa
+    # se calculan del emparejamiento; solo queda NOT_EVALUATED cuando no hay ni una
+    # cosa ni la otra (llamadas sinteticas de test), y eso se DECLARA.
+    det_metrics = global_existence
+    if det_metrics is None and all(hasattr(match, a) for a in ("tp", "fp", "fn")):
+        # Solo si el `match` es realmente un MatchResult. Hay llamantes (tests de
+        # transporte) que pasan `match={}` como relleno: con ellos NO se inventa una
+        # deteccion perfecta ni se revienta; queda NOT_EVALUATED y se declara.
+        det_metrics = _metrics.global_metrics(match)
+    gates["global_existence"] = detection_gate(det_metrics)
 
     # --- Gates de CALIDAD ---
     simple = sub["simple_relations"]["evidence_correct"]["rate"]
@@ -260,10 +393,43 @@ def decide_verdict(gates: dict) -> tuple[str, str]:
                   + ". El dictamen se emite sobre las llamadas que SI midieron "
                     "al modelo]")
 
+    # --- DETECCION (B2-V2E): este gate SI gobierna el dictamen ----------------
+    # El dictamen se emite sobre lo que el motor PROPONE. Si la deteccion se ha
+    # hundido, las tasas estructurales (calculadas sobre los TP) describen un
+    # punado de aciertos y NO autorizan a tranquilizar a nadie.
+    #   * FAIL    -> NO APTO. No es "revisable con esfuerzo": con F1 0.06 el 96%
+    #                de lo propuesto es ruido; no hay nada que revisar. Es el unico
+    #                gate de CALIDAD que puede llegar a NO APTO, y se declara.
+    #   * PARTIAL -> el dictamen NO puede ser mejor que "revision humana total":
+    #                se prohiben "modo sombra" y "casos conflictivos".
+    det = gates.get("global_existence")
+    det_status = (det or {}).get("status")
+    det_motivos = "; ".join((det or {}).get("reasons") or []) or "sin desglose"
+    if det_status == "FAIL":
+        d = (det or {}).get("detail") or {}
+        return ("NO APTO",
+                "gate de DETECCION 'global_existence' en FAIL "
+                f"({det_motivos}; TP={d.get('tp')}, FP={d.get('fp')}, "
+                f"FN={d.get('fn')}). El motor no esta encontrando las relaciones "
+                "del corpus: las tasas estructurales se calculan SOLO sobre los "
+                "TP, asi que no describen al pipeline sino al punado de aciertos "
+                "que quedan. NO se emite un dictamen tranquilizador sobre una "
+                "deteccion colapsada.")
+    if det_status == "NOT_EVALUATED":
+        aviso += (" [DETECCION NO EVALUADA: no se aportaron las metricas de "
+                  "existencia; el dictamen NO cubre si el motor encuentra las "
+                  "relaciones]")
+
     quality = ["simple_relations", "evidence", "offsets", "negation",
                "temporality", "rumors", "predicate_structural"]
     passed = [g for g in quality if gates[g]["status"] == "PASS"]
     failed = [g for g in quality if gates[g]["status"] == "FAIL"]
+
+    if det_status == "PARTIAL":
+        aviso += (f" [DETECCION DEGRADADA: {det_motivos}. El dictamen se limita a "
+                  "'revision humana total': el motor encuentra (o propone) lo "
+                  "bastante mal como para que ninguna tasa estructural pueda "
+                  "avalarlo]")
 
     # La calidad estructural del predicado (heuristica) y la direccion suelen ser
     # bajas: el pipeline es un PROPOSITOR en sombra, no un extractor autonomo.
@@ -271,17 +437,29 @@ def decide_verdict(gates: dict) -> tuple[str, str]:
     predicate_ok = gates["predicate_structural"]["status"] == "PASS"
 
     if not failed and predicate_ok and evidence_ok:
-        return ("APTO PARA CONTINUAR EN MODO SOMBRA",
-                "sin gates de calidad en FAIL y predicado/evidencia solidos" + aviso)
-    if evidence_ok and not predicate_ok:
+        resultado = ("APTO PARA CONTINUAR EN MODO SOMBRA",
+                     "sin gates de calidad en FAIL y predicado/evidencia solidos" + aviso)
+    elif evidence_ok and not predicate_ok:
+        resultado = ("APTO CON REVISION HUMANA TOTAL",
+                     "evidencia/offsets fiables pero el predicado heuristico es debil: "
+                     "toda relacion requiere revision humana antes de considerarse" + aviso)
+    elif len(failed) <= 2 and evidence_ok:
+        resultado = ("APTO CON REVISION DE CASOS CONFLICTIVOS",
+                     f"gates en FAIL acotados a casos dificiles: {failed}" + aviso)
+    else:
+        resultado = ("APTO CON REVISION HUMANA TOTAL",
+                     f"multiples gates de calidad en FAIL ({failed}); revision humana "
+                     "total" + aviso)
+
+    # TECHO por deteccion degradada (PARTIAL): el dictamen no puede ser mejor que
+    # "revision humana total". El aviso ya viaja en la justificacion.
+    if det_status == "PARTIAL" and resultado[0] in (
+            "APTO PARA CONTINUAR EN MODO SOMBRA",
+            "APTO CON REVISION DE CASOS CONFLICTIVOS"):
         return ("APTO CON REVISION HUMANA TOTAL",
-                "evidencia/offsets fiables pero el predicado heuristico es debil: "
-                "toda relacion requiere revision humana antes de considerarse" + aviso)
-    if len(failed) <= 2 and evidence_ok:
-        return ("APTO CON REVISION DE CASOS CONFLICTIVOS",
-                f"gates en FAIL acotados a casos dificiles: {failed}" + aviso)
-    return ("APTO CON REVISION HUMANA TOTAL",
-            f"multiples gates de calidad en FAIL ({failed}); revision humana total" + aviso)
+                f"dictamen LIMITADO por el gate de DETECCION en PARTIAL "
+                f"(sin el, habria sido '{resultado[0]}'): " + resultado[1])
+    return resultado
 
 
 def _verdict_scope(gates: dict) -> str:
@@ -315,6 +493,16 @@ def _verdict_scope(gates: dict) -> str:
                     if gates[n]["status"] == "NOT_EVALUATED"]
     if no_evaluados:
         partes.append("gates duros no evaluados: " + ", ".join(no_evaluados))
+    # B2-V2E: `verdict_scope` declara lo que el dictamen NO CUBRE. Una deteccion
+    # DEGRADADA (PARTIAL) si esta cubierta -- se ha medido, y el dictamen ya queda
+    # limitado por ella en `decide_verdict`, que ademas lo dice en la justificacion,
+    # asi que no se duplica aqui. Lo que si es un agujero de alcance es no haberla
+    # medido: eso se declara. Si la clave no existe (dicts de gates construidos a
+    # mano por llamantes antiguos) no se inventa nada.
+    det = gates.get("global_existence")
+    if det is not None and det.get("status") == "NOT_EVALUATED":
+        partes.append("deteccion de relaciones NO MEDIDA (gate 'global_existence' "
+                      "sin metricas de existencia)")
     if partes:
         return "PARCIAL (" + " | ".join(partes) + ")"
     return "COMPLETO"
@@ -503,7 +691,10 @@ def build_report(corpus, run: BenchmarkRun, *, check_determinism: bool = True) -
     gates = evaluate_gates(
         match, struct, contamination, determinism,
         provider_transport=transport if _is_provider_mode(run.mode) else None,
-        operational=operational)
+        operational=operational,
+        # B2-V2E: el gate de DETECCION se alimenta de las MISMAS metricas que se
+        # publican en `metrics.global_existence`; no hay dos cifras.
+        global_existence=glob)
     verdict, justification = decide_verdict(gates)
 
     false_positives = [
@@ -585,6 +776,8 @@ def build_report(corpus, run: BenchmarkRun, *, check_determinism: bool = True) -
 __all__ = [
     "VERDICTS",
     "THRESHOLDS",
+    "DETECTION_FLOORS",
+    "detection_gate",
     "evaluate_gates",
     "decide_verdict",
     "determinism_report",
