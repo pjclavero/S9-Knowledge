@@ -10,76 +10,47 @@ la evolución del conocimiento de cada personaje a lo largo de la campaña.
 
 ## Estado actual (RC5.1 — 2026-07-18)
 
-> **Producción (VM105):** release `deploy-v0.3.0-rc5.1` (`47bc314`, = `main`), visor
+> **Producción (VM105):** release `deploy-v0.3.0-rc5.1` (`47bc314`), visor
 > `s9-knowledge-viewer.service` active/running. **Login propio del visor** (Basic Auth
 > retirada del proxy). Neo4j **199 nodos / 140 relaciones**. 1 administrador, 1 job,
 > **0 ingestas** (ingesta real bloqueada por doble guard). Healthcheck con **timer horario**
 > activo. Despliegue por releases inmutables + deploy-tools versionados.
 >
 > El estado autoritativo y verificable está en [`docs/project-status.yaml`](docs/project-status.yaml)
-> y se narra en [`docs/02-current-state.md`](docs/02-current-state.md). External AI (NVIDIA) en
+> y se narra en [`docs/02-current-state.md`](docs/archivados/02-current-state.md). External AI (NVIDIA) en
 > modo sombra; burst orchestrator B1 implementado (B2/B3 pendientes).
 
-### Listo y operativo
+### Línea principal del repositorio: V3
 
-- `data-engine` funcional: motor de extracción PDF/texto/audio → pipeline de revisión → Neo4j.
-- Schema RPG **v1.5.0** (27 tipos de nodo, 113 relaciones, etiquetas ES).
-- Prompt RPG **v1.4.0** (transcripción + libro + conocimiento de personaje).
-- Writer Neo4j con trazabilidad, metadatos temporales, sesiones, imágenes y estado de revisión.
-- Cola de trabajos `job_store.py` (SQLite) con worker.
-- Modelo de acceso `access_store.py` (usuario-personaje + permisos).
-- Transcripción de audio con faster-whisper (`medium`); glosario L5A + normalizador determinista.
-- **Benchmark de transcripción** (docs/40): faster-whisper medium APTA CON REVISIÓN DE SEGMENTOS CONFLICTIVOS vs YouTube-ASR (91% auto-aceptable; conflictos = nombres propios).
-- **Visor web desplegado** (FastAPI/uvicorn, puerto 8088, `s9-knowledge-viewer.service`):
-  - `/graph` — grafo interactivo con vis.js.
-  - `/jobs` — panel de cola de trabajos.
-  - `/reviews` — panel de revisión de candidatos: lista de fuentes con badges de origen,
-    contadores (aprobados/pendientes/rechazados), detalle por fuente con metadatos del
-    paquete (origin, producer, model, confidence), cola de revisión enriquecida con
-    motivo de decisión y confianza, e informe de calidad (`quality_report.json/.md`)
-    cuando lo genera el pipeline.
-- Pipeline de revisión completo: segment → classify → extract → validate → resolve →
-  decide → approved_payload. CLI `data_review.py`.
+Desde el merge de la PR #110, `main` contiene como línea vigente el subsistema
+`knowledge_v3`. V3 no está desplegada en VM105: el bloque anterior describe
+producción y sigue siendo independiente del estado del repositorio.
 
-### Bloqueado (ingesta real en Neo4j)
+La línea V3 incluye:
 
-Los extractores **LLM e híbrido ya existen y han sido evaluados** con el benchmark real
-(run `20260714-094125`, 2026-07-14 — ver
-[docs/34](docs/34-extractor-quality-benchmark-results.md)): F1 entidades hybrid 0.728 /
-llm 0.718 (precisión llm 0.810, recall hybrid 0.856), relaciones F1 ≈ 0 y precisión de
-autoaprobación 0.85. **Todavía no alcanzan los umbrales necesarios** (F1 entidades ≥ 0.75,
-P ≥ 0.85, autoaprobación ≥ 0.95).
+- contratos congelados bajo el tag `v3-contracts-frozen-1.0.0`;
+- extracción determinista y semántica episódica, seguida de reconciliación de
+  propuestas antes de entrar en el motor;
+- motor local como autoridad de decisión, con política graduada de negaciones y
+  temporalidad implementada tras flags que permanecen **OFF** hasta medirla en sombra;
+- ledger temporal bitemporal y writer Neo4j con dry-run y gate explícito del operador;
+- evidencia multimodal tipada como `OCR_TEXT`, `TRANSCRIBED_TEXT` o
+  `VISUAL_INFERRED`; esta última nunca se autoaprueba;
+- transcripción manuscrita integrada en el carril `OCR_TEXT`.
 
-Por tanto, **la ingesta real de candidatos aprobados en Neo4j continúa bloqueada** (dictamen
-Prioridad 2: PARCIAL — REQUIERE CORRECCIONES). `ingest_approved.py` exige `--dry-run`; la
-escritura real aborta sin `S9K_ALLOW_REAL_INGEST=true` y autorización explícita. No ingerir
-sin revisión humana.
+Los Lotes 1, 2, 2b, 3 y 6 del plan técnico ya están completados y mergeados
+(PRs #111–#114). Los Lotes 4 y 5 requieren decisiones de producto; la activación
+de las políticas graduadas requiere medición en sombra; el despliegue V3 sigue
+pendiente. El plan vigente es
+[`docs/v3/32-plan-consolidado-extractor-y-nucleo.md`](docs/v3/32-plan-consolidado-extractor-y-nucleo.md).
 
-> **Actualización Prioridad 2.1 (2026-07-14, docs/36 y docs/37):** el modo **hybrid** supera los
-> umbrales de calidad de **entidades** (confirmatorio de 7 fuentes: F1 0.846, P 0.878, R 0.823).
-> Las **relaciones** siguen por debajo del umbral (F1 0.163) y quedan **excluidas de autoaprobación**.
-> Existe un modo de **revisión humana total impuesto por código** (`S9K_REVIEW_POLICY=full_human_review`):
-> todo candidato va a `needs_review`, 0 autoaprobados, y `ingest-approved` exige procedencia de
-> revisión humana (`reviewed_by`/`reviewed_at`) o rechaza el payload sin escribir. La primera ingesta
-> de **entidades** está **PREPARADA (no ejecutada)** bajo revisión total; la ingesta automática sigue bloqueada.
+### Legacy v1/v2
 
-> Nota histórica: el extractor **heurístico** produce falsos positivos conocidos
-> (`Llevás`/`Todo`/`Como` como Character); por eso el modo recomendado es LLM/híbrido con
-> revisión humana total, no heurístico puro.
-
-### Preparado pero no completado
-
-- Export/import externo de paquetes de revisión: diseño y estructura preparados;
-  pendiente de completar (ver `docs/22-installation-and-replicability.md` cuando
-  esté disponible).
-- Replicabilidad del entorno: `.env.example` y documentación de despliegue en
-  `docs/08-deployment-vm105.md`; no existe script de setup automatizado aún.
-- Gestión de usuarios y filtros de visibilidad en la UI: implementados en
-  `access_store.py` pero no aplicados en el visor.
-- Aplicación de filtros de visibilidad por personaje en API/UI: modelo en
-  `access_store.py`, aún no aplicado en el visor (login y roles sí operativos).
-
-Detalle completo en [project dossier and checklist.md](docs/project%20dossier%20and%20checklist.md)
+El pipeline RPG v1/v2, sus benchmarks de extractor, el review/ingest anterior y
+la documentación narrativa asociada se conservan como **legacy** y como contexto
+de la release RC5.1 que continúa en producción. No son el camino de desarrollo
+actual. Los documentos históricos están indexados en
+[`docs/archivados/INDEX.md`](docs/archivados/INDEX.md).
 
 ## Arquitectura (resumen)
 
@@ -87,17 +58,15 @@ Detalle completo en [project dossier and checklist.md](docs/project%20dossier%20
 Fuentes (PDF, texto, audio, YouTube, web, notas)
       │
       ▼
- data-engine  ── Whisper (audio) ── Extractor hybrid (heurístico + LLM Ollama) + revisión NVIDIA en sombra
+ data-engine  ── OCR / transcripción ── Extractor V3 determinista + semántico
       │
-      ▼  pipeline de revisión (segment/classify/extract/validate/resolve/decide)
+      ▼  reconciliador ── motor local ── ledger temporal
       │
-      ├── approved_payload.json  ──(dry-run)──► Neo4j (escritura real: bloqueada)
-      │
-      └── Visor web (FastAPI, puerto 8088)
-            ├── /graph  — grafo vis.js
-            ├── /jobs   — cola de trabajos
-            └── /reviews — panel de revisión de candidatos
+      └── plan de escritura ── gate del operador ──► Neo4j
 ```
+
+La arquitectura desplegada en producción sigue siendo la de RC5.1, no este
+flujo V3.
 
 ## Estructura del repositorio
 
@@ -117,7 +86,8 @@ s9-knowledge-repo/
 └── examples/          · ejemplos
 ```
 
-Ver [`docs/04-repository-structure.md`](docs/04-repository-structure.md).
+Ver [`docs/04-repository-structure.md`](docs/archivados/04-repository-structure.md)
+para la fotografía legacy y [`docs/v3/`](docs/v3/) para la línea vigente.
 
 ## Puesta en marcha (referencia)
 
@@ -127,7 +97,8 @@ datos SQLite de runtime, `.env` con secretos ni archivos fuente pesados (PDF/aud
 
 1. Copia `.env.example` a `.env` y rellena los valores reales.
 2. El motor de datos (`data-engine/`) requiere Python 3.11+, Neo4j y Ollama.
-   Instalación en `docs/08-deployment-vm105.md`.
+   Instalación legacy en
+   [`docs/08-deployment-vm105.md`](docs/archivados/08-deployment-vm105.md).
 3. El visor (`viewer/`) requiere Python 3.11+ y se sirve con uvicorn.
    Servicio systemd: `s9-knowledge-viewer.service`.
 
@@ -138,8 +109,11 @@ datos SQLite de runtime, `.env` con secretos ni archivos fuente pesados (PDF/aud
 - Neo4j y Ollama no se exponen a Internet.
 - Acceso externo via `https://knowledge.seccionnueve.duckdns.org` (HTTPS, nginx VM104).
   La autenticación es del propio visor (login con sesiones/CSRF); Basic Auth retirada del proxy.
-- Ver `docs/07-users-permissions.md` para el modelo de permisos.
-- Ver `docs/21-external-access-and-security.md` para acceso externo y hardening.
+- Ver [`docs/07-users-permissions.md`](docs/archivados/07-users-permissions.md)
+  para el modelo legacy de permisos.
+- Ver
+  [`docs/21-external-access-and-security.md`](docs/archivados/21-external-access-and-security.md)
+  para acceso externo y hardening de la release desplegada.
 
 ## Licencia
 

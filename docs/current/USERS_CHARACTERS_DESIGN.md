@@ -1,5 +1,8 @@
 # Diseño: Usuarios y Personajes Multi-Campaña
 
+> **Documento de la era v1/v2 (legacy); la línea vigente es V3, ver
+> [`docs/v3/`](../v3/).**
+
 **Versión:** 1.0  
 **Fecha:** 2026-07-09  
 **Estado:** Diseño de referencia  

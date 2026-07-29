@@ -8,14 +8,14 @@
 # Actualizado tras el despliegue de RC5.1 (2026-07-18).
 
 project_version: "0.3.0-rc5.1"
-main_commit: "47bc3147fdab6b642ab72ffe0cf84133e3a57b2e"
+main_commit: "c9eccc5da3b300fb5dab6392a9b6e4a6a7f236f9"
 
 production_tag: "deploy-v0.3.0-rc5.1"
 production_commit: "47bc3147fdab6b642ab72ffe0cf84133e3a57b2e"
 production_release_id: "deploy--20260718-133409"
 
-# Recuento real de la suite (pytest --collect-only, main 47bc314).
-# Preferir "suite verde" en prosa; este número es orientativo y cambia.
+# Recuento de la suite en la release de producción 47bc314.
+# Preferir "suite verde" en prosa; este número es histórico y orientativo.
 tests_collected: 912
 ci_status: "green"
 

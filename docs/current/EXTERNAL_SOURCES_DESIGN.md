@@ -1,5 +1,8 @@
 # Diseño de Fuentes Externas — Pipeline de Grafo de Conocimiento RPG
 
+> **Documento de la era v1/v2 (legacy); la línea vigente es V3, ver
+> [`docs/v3/`](../v3/).**
+
 **Versión:** 1.0 — 2026-07-11
 **Proyecto:** `/opt/knowledge-services/property-graph`
 **Servidor:** VM105 (192.168.1.205)

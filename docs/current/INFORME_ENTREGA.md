@@ -1,5 +1,8 @@
 # Informe de entrega — Actualización del grafo RPG + fuentes externas + conocimiento por personaje
 
+> **Documento de la era v1/v2 (legacy); la línea vigente es V3, ver
+> [`docs/v3/`](../v3/).**
+
 - Fecha: 2026-07-10/11
 - VM: 192.168.1.205 (`common`), proyecto `/opt/knowledge-services/property-graph`
 - Modelo LLM: qwen2.5:7b (Ollama en 192.168.1.157)
