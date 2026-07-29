@@ -68,9 +68,23 @@ class TemporalOutcome:
 
 
 def resolve_temporality(
-    claim: ClaimProposal, index: ProfileIndex, known_fragment_ids: frozenset[str]
+    claim: ClaimProposal,
+    index: ProfileIndex,
+    known_fragment_ids: frozenset[str],
+    *,
+    material_reasons: tuple[str, ...] = (),
+    graduated_policy: bool = False,
 ) -> TemporalOutcome:
-    """Mapea las expresiones temporales de un claim al eje temporal del ledger."""
+    """Mapea las expresiones temporales de un claim al eje temporal del ledger.
+
+    Una relativa sin anclaje no es material por si sola. El llamador aporta
+    razones estructurales ya resueltas por el motor: cesacion, contradiccion,
+    estado sucesivo o exclusividad funcional. Si alguna concurre se revisa; si
+    no, solo falta el limite exacto y se conserva como WARN. Las cronologias
+    internamente incompatibles ya producen sus hallazgos REVIEW antes de llegar
+    a esta clasificacion. Ante una razon desconocida, el contrato de esta
+    funcion es deliberadamente estricto: cualquier valor no vacio es material.
+    """
     out: list[F.Finding] = []
     expressions = list(claim.temporal_expressions)
 
@@ -122,11 +136,25 @@ def resolve_temporality(
     if not valid_from and not valid_to:
         # Expresiones sin anclar: se sabe QUE hay tiempo, no CUAL.
         if "RELATIVE" in kinds:
-            out.append(
-                F.TEMPORAL_UNRESOLVED_RELATIVE(
-                    "expresion relativa sin anclaje absoluto: no se resuelve localmente"
+            if not graduated_policy:
+                out.append(
+                    F.TEMPORAL_UNRESOLVED_RELATIVE(
+                        "expresion relativa sin anclaje absoluto: no se resuelve localmente"
+                    )
                 )
-            )
+            elif material_reasons:
+                out.append(
+                    F.TEMPORAL_SCOPE_MATERIAL(
+                        "expresion relativa sin anclaje cambia la decision: "
+                        + ", ".join(material_reasons)
+                    )
+                )
+            else:
+                out.append(
+                    F.TEMPORAL_BOUND_UNKNOWN(
+                        "relacion segura; falta el limite absoluto de la expresion relativa"
+                    )
+                )
         else:
             out.append(F.TEMPORAL_UNSPECIFIED(f"expresiones {sorted(kinds)} sin anclaje"))
         state = EPISTEMIC_STATE.get(claim.epistemic_status_hint, STATE_UNKNOWN)

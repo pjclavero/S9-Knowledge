@@ -313,7 +313,11 @@ class KnowledgePipeline:
         cfg = self.config
         extractors: list = []
         if cfg.wants_local_extractors:
-            extractors.append(DeterministicExtractor())
+            extractors.append(
+                DeterministicExtractor(
+                    negation_policy_at_engine=cfg.negation_policy_at_engine
+                )
+            )
             extractors.append(TableExtractor())
         if cfg.wants_ollama:
             extractors.append(

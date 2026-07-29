@@ -414,6 +414,17 @@ def negativo(kind: str, **over):
 
 
 class TestMotorNegacion:
+    def test_los_flags_nuevos_son_opt_in(self):
+        from knowledge_v3.engine import EngineConfig
+        from knowledge_v3.pipeline import PipelineConfig
+
+        engine = EngineConfig()
+        assert engine.graduated_negation_policy is False
+        assert engine.graduated_temporal_policy is False
+        # PipelineConfig exige identidad de corrida; el default del campo se
+        # comprueba en la definicion para no fabricar un perfil aqui.
+        assert PipelineConfig.__dataclass_fields__["negation_policy_at_engine"].default is False
+
     def test_tipo_desconocido_va_a_revision_y_no_es_escribible(self):
         with pytest.warns(RuntimeWarning, match="negation_kind"):
             result = run([negativo("CESATION")], snap=snapshot())
@@ -439,6 +450,30 @@ class TestMotorNegacion:
         assert decision.negated is True
         assert "NEGATED_CLAIM" in codes(decision)
         assert result.assertions and result.assertions[0].negated is True
+
+    def test_never_solo_autoaprueba_con_horizonte_en_politica_graduada(self):
+        from knowledge_v3.engine import EngineConfig
+
+        config = EngineConfig(graduated_negation_policy=True)
+        missing = run([negativo("NEVER")], snap=snapshot(), config=config)
+        assert missing.decisions[0].decision == "REVIEW"
+        anchored = run(
+            [
+                negativo(
+                    "NEVER",
+                    temporal_expressions=[
+                        {
+                            "text": "hasta 1042",
+                            "kind": "INTERVAL",
+                            "valid_to": "1042-12-31T23:59:59Z",
+                        }
+                    ],
+                )
+            ],
+            snap=snapshot(),
+            config=config,
+        )
+        assert anchored.decisions[0].decision == "ACCEPT"
 
     def test_una_afirmacion_negativa_NO_materializa_arista_positiva(self):
         from knowledge_v3.engine.config import EngineConfig, DEFAULT_CONFIG
@@ -610,8 +645,8 @@ CASOS_E2E = {
 }
 
 
-def _run_e2e(gold, entities, caso: str, *, assertions=()):
-    config = base_config(gold)
+def _run_e2e(gold, entities, caso: str, *, assertions=(), **config_overrides):
+    config = base_config(gold, **config_overrides)
     pipe = KnowledgePipeline(config)
     episode, fragment = _documents(gold, f"episode:negacion:{caso}", CASOS_E2E[caso])
     case = SourceCase(
@@ -667,6 +702,75 @@ class TestE2ENegacion:
         _p, run = _run_e2e(gold, entities, "cesacion")
         claim_ = _activos(run)[0]
         assert claim_.metadata.get("temporal_resolution_required") is True
+
+    def test_politica_graduada_simple_limpia_llega_a_plan_escribible(
+        self, gold, entities
+    ):
+        from knowledge_v3.engine import EngineConfig
+
+        _p, run = _run_e2e(
+            gold,
+            entities,
+            "negativo",
+            negation_policy_at_engine=True,
+            engine_config=EngineConfig(graduated_negation_policy=True),
+        )
+        claim_ = _activos(run)[0]
+        decision = next(d for d in run.decisions if d.claim_id == claim_.claim_id)
+        assert claim_.review_required is False
+        assert decision.decision == "ACCEPT"
+        assert decision.negation_kind == "SIMPLE"
+        assert run.plan is not None
+        assert any(
+            operation["operation_type"] == "CREATE_ASSERTION"
+            and operation["payload"]["negated"] is True
+            for operation in run.plan.mutation_operations
+        )
+
+    def test_politica_graduada_cesacion_revisa_y_registra_plan_sombra(
+        self, gold, entities
+    ):
+        from knowledge_v3.engine import EngineConfig
+        from knowledge_v3.engine.snapshot import SnapshotAssertion
+
+        previous = SnapshotAssertion(
+            assertion_id="assertion:sombra",
+            subject_entity_id="entity:leyenda:daiki",
+            object_entity_id="entity:leyenda:casa-ciervo",
+            predicate="MEMBER_OF",
+            direction="SUBJECT_TO_OBJECT",
+            negated=False,
+            status="ASSERTED",
+            state="ACTIVE",
+            version=1,
+            state_hash=sha256_hash({"assertion": "assertion:sombra"}),
+        )
+        _p, run = _run_e2e(
+            gold,
+            entities,
+            "cesacion",
+            assertions=[previous],
+            negation_policy_at_engine=True,
+            engine_config=EngineConfig(graduated_negation_policy=True),
+        )
+        decision = next(d for d in run.decisions if d.negation_kind == "CESSATION")
+        assert decision.decision == "REVIEW"
+        assert decision.supersedes == previous
+        assert "CESSATION_SHADOW_PLAN" in codes(decision)
+        shadow = next(f.detail for f in decision.findings if f.code == "CESSATION_SHADOW_PLAN")
+        assert "assertion:sombra" in shadow
+        assert run.plan is None
+        assert run.review_plan is not None
+
+    def test_flags_de_politica_apagados_conservan_el_freno_del_extractor(
+        self, gold, entities
+    ):
+        _p, run = _run_e2e(gold, entities, "negativo")
+        claim_ = _activos(run)[0]
+        decision = next(d for d in run.decisions if d.claim_id == claim_.claim_id)
+        assert claim_.review_required is True
+        assert decision.decision == "REVIEW"
+        assert "EXTRACTOR_REQUESTED_REVIEW" in codes(decision)
 
     def test_ninguna_negacion_genera_una_relacion_positiva_en_el_plan(
         self, gold, entities

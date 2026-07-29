@@ -634,6 +634,51 @@ def test_an_unanchored_relative_expression_is_a_warning_not_a_date():
     assert result.assertions[0].event_time is None
 
 
+def test_graduated_temporal_policy_marks_only_the_unknown_bound_as_warn():
+    result = run(
+        [claim(temporal_expressions=[{"text": "durante el reinado anterior", "kind": "RELATIVE"}])],
+        config=EngineConfig(graduated_temporal_policy=True),
+    )
+    decision = only(result)
+    assert decision.decision == "ACCEPT"
+    assert "TEMPORAL_BOUND_UNKNOWN" in codes(decision)
+
+
+def test_an_unanchored_relative_expression_is_material_on_a_contradiction():
+    relative_negative = claim(
+        negated=True,
+        metadata={"negation_kind": "SIMPLE"},
+        temporal_expressions=[{"text": "durante el reinado anterior", "kind": "RELATIVE"}],
+    )
+    decision = only(
+        run(
+            [relative_negative],
+            snap=snapshot([vigente()]),
+            config=EngineConfig(graduated_temporal_policy=True),
+        )
+    )
+    assert decision.decision == "REVIEW"
+    assert "CONTRADICTS_VIGENTE_ASSERTION" in codes(decision)
+    assert "TEMPORAL_SCOPE_MATERIAL" in codes(decision)
+
+
+def test_an_unanchored_relative_expression_is_material_on_a_cessation():
+    cessation = claim(
+        negated=True,
+        metadata={"negation_kind": "CESSATION"},
+        temporal_expressions=[{"text": "durante el reinado anterior", "kind": "RELATIVE"}],
+    )
+    decision = only(
+        run(
+            [cessation],
+            snap=snapshot(),
+            config=EngineConfig(graduated_temporal_policy=True),
+        )
+    )
+    assert decision.decision == "REVIEW"
+    assert "TEMPORAL_SCOPE_MATERIAL" in codes(decision)
+
+
 def test_a_temporal_expression_citing_an_unknown_fragment_goes_to_review():
     decision = only(
         run(

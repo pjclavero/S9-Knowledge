@@ -99,6 +99,27 @@ class NegationOutcome:
         return self.kind == NEGATION_KIND_CESSATION
 
 
+def _cessation_outcome(
+    findings: list[F.Finding],
+    closes: Optional[SnapshotAssertion],
+    config: EngineConfig,
+) -> NegationOutcome:
+    """Cierra la evaluacion de cesacion y aplica la fase sombra graduada."""
+    if config.graduated_negation_policy:
+        hypothetical = (
+            f"cerraria {closes.assertion_id} y escribiria la afirmacion negativa"
+            if closes
+            else "no cerraria ninguna afirmacion; no hay un objetivo seguro"
+        )
+        findings.append(F.CESSATION_SHADOW_PLAN(f"modo sombra: {hypothetical}"))
+        findings.append(
+            F.NEGATION_POLICY_REVIEW(
+                "CESSATION permanece en revision durante la fase de medicion sombra"
+            )
+        )
+    return NegationOutcome(NEGATION_KIND_CESSATION, tuple(findings), closes)
+
+
 def find_active_positive(
     index: ProfileIndex,
     snapshot: GraphSnapshot,
@@ -181,6 +202,8 @@ def resolve_negation(
                 "vigencia"
             )
         )
+        if config.graduated_negation_policy:
+            out.append(F.NEGATION_POLICY_REVIEW("NOT_YET siempre requiere revision"))
         return NegationOutcome(kind, tuple(out), None)
 
     if kind == NEGATION_KIND_NEVER:
@@ -190,6 +213,17 @@ def resolve_negation(
                 "deriva ningun intervalo"
             )
         )
+        raw_metadata = claim.metadata or {}
+        negation_metadata = raw_metadata.get("negation") or {}
+        has_horizon = bool(negation_metadata.get("knowledge_horizon")) or any(
+            expression.get("valid_to") for expression in claim.temporal_expressions
+        )
+        if config.graduated_negation_policy and not has_horizon:
+            out.append(
+                F.NEGATION_POLICY_REVIEW(
+                    "NEVER sin horizonte de conocimiento: no se extiende al futuro"
+                )
+            )
         return NegationOutcome(kind, tuple(out), None)
 
     if kind != NEGATION_KIND_CESSATION:
@@ -203,7 +237,7 @@ def resolve_negation(
                 "afirmacion previa"
             )
         )
-        return NegationOutcome(kind, tuple(out), None)
+        return _cessation_outcome(out, None, config)
 
     previas = find_active_positive(
         index, snapshot, subject_entity_id, object_entity_id, predicate, direction
@@ -219,7 +253,7 @@ def resolve_negation(
                 "snapshot: no se inventa la relacion anterior"
             )
         )
-        return NegationOutcome(kind, tuple(out), None)
+        return _cessation_outcome(out, None, config)
 
     if len(previas) > 1:
         assertion_ids = ", ".join(previous.assertion_id for previous in previas)
@@ -229,7 +263,7 @@ def resolve_negation(
                 f"{assertion_ids}; no se elige cual cerrar"
             )
         )
-        return NegationOutcome(kind, tuple(out), None)
+        return _cessation_outcome(out, None, config)
 
     previa = previas[0]
     if previa.state_hash is None:
@@ -243,7 +277,7 @@ def resolve_negation(
                 "puede cerrar su vigencia con concurrencia optimista"
             )
         )
-        return NegationOutcome(kind, tuple(out), None)
+        return _cessation_outcome(out, None, config)
 
     out.append(
         F.CESSATION_CLOSES_ASSERTION(
@@ -251,7 +285,7 @@ def resolve_negation(
             "vigencia y sucederla, conservando historia y evidencia"
         )
     )
-    return NegationOutcome(kind, tuple(out), previa)
+    return _cessation_outcome(out, previa, config)
 
 
 __all__ = [

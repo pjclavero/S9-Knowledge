@@ -68,6 +68,9 @@ class PipelineConfig:
     with_temporal: bool = True
     with_coreference: bool = True
     with_reconciliation: bool = True
+    #: Si se activa, el determinista deja de marcar revision por el mero hecho
+    #: de negar: la decision graduada corresponde a `EngineConfig`.
+    negation_policy_at_engine: bool = False
     reconciler_config: ReconcilerConfig = DEFAULT_RECONCILER_CONFIG
     #: `None` = corrida SIN glosario (ablacion `without_glossary`).
     lexicon: Optional[Lexicon] = None

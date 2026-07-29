@@ -281,11 +281,10 @@ def decide_claim(
     findings.extend(negation.findings)
     findings.extend(_epistemic_findings(claim, config))
 
-    # 8. temporalidad
-    temporal = resolve_temporality(claim, profile, frozenset(evidence.fragments))
-    findings.extend(temporal.findings)
-
-    # 9-11. contradiccion contra el grafo vigente
+    # 8-11. contradiccion contra el grafo vigente y temporalidad. La
+    # temporalidad se materializa despues porque una relativa sin anclaje solo
+    # exige REVIEW cuando interviene en una cesacion, conflicto, estado
+    # sucesivo o relacion funcional.
     contradictions = ContradictionOutcome((), None, ())
     if predicate_outcome.predicate and direction and identity.subject.entity_id and identity.object.entity_id:
         contradictions = check_contradictions(
@@ -304,7 +303,36 @@ def decide_claim(
                 frozenset({negation.closes.assertion_id}) if negation.closes else frozenset()
             ),
         )
-        findings.extend(contradictions.findings)
+
+    material_temporal: list[str] = []
+    if negation.is_cessation:
+        material_temporal.append("cesacion")
+    if contradictions.has_conflict:
+        material_temporal.append("contradiccion con snapshot")
+    if spec is not None and spec.functional:
+        material_temporal.append("relacion funcional exclusiva")
+    if predicate_outcome.predicate and (
+        predicate_outcome.predicate in ("SUCCEEDED_BY", "SUCCEEDS", "SUCCEEDED", "SUCCESSOR_OF")
+        or predicate_outcome.predicate.startswith("SUCCEEDED_")
+        or predicate_outcome.predicate.endswith("_SUCCESSOR_OF")
+    ):
+        material_temporal.append("estado sucesivo")
+    if config.graduated_temporal_policy:
+        temporal = resolve_temporality(
+            claim,
+            profile,
+            frozenset(evidence.fragments),
+            material_reasons=tuple(material_temporal),
+            graduated_policy=True,
+        )
+    else:
+        # Misma llamada historica, incluida su superficie para dobles/mutantes.
+        temporal = resolve_temporality(claim, profile, frozenset(evidence.fragments))
+    findings.extend(temporal.findings)
+    # Conserva el orden historico observable de findings: temporalidad antes
+    # que contradiccion, aunque esta ultima se calcule primero para clasificar
+    # materialidad sin una segunda consulta al snapshot.
+    findings.extend(contradictions.findings)
 
     # Autoridad: quien propuso, y que opinan las senales no locales.
     findings.extend(_authority_findings(claim))

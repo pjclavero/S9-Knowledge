@@ -318,10 +318,12 @@ class DeterministicExtractor(Extractor):
         rules: Sequence[RelationRule] = RELATION_RULES,
         emit_abstentions: bool = True,
         attach_temporal: bool = True,
+        negation_policy_at_engine: bool = False,
     ) -> None:
         self.rules = tuple(rules)
         self.emit_abstentions = emit_abstentions
         self.attach_temporal = attach_temporal
+        self.negation_policy_at_engine = negation_policy_at_engine
 
     def supports(self, episode: SourceEpisode) -> bool:
         return bool(episode.text)
@@ -641,7 +643,7 @@ class DeterministicExtractor(Extractor):
         if hint != "ASSERTED":
             confidence = clamp(confidence * 0.8)
         review = bool(
-            negated
+            (negated and not self.negation_policy_at_engine)
             or hint != "ASSERTED"
             or confidence < 0.6
             or low_quality(episode)
