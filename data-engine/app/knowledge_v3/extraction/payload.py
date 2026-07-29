@@ -784,6 +784,7 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
                 # `untrusted_origin` no existe como campo del contrato congelado
                 # y no se anade: viaja en metadata, que es el unico bloque
                 # abierto de la familia v3-internal-v1.
+                "metadata_block_version": "1",
                 "untrusted_origin": True,
                 "anchor_reason_codes": list(anchor.reason_codes),
             },
@@ -864,9 +865,8 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
         )
 
         # --- predicados: CANDIDATOS filtrados contra la ontologia ---------
-        preds: list[dict] = []
+        pred_confidences: dict[str, float] = {}
         descartados: list[str] = []
-        vistos: set[str] = set()
         for cand in raw.get("predicate_candidates") or []:
             if not isinstance(cand, dict):
                 continue
@@ -877,24 +877,25 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
             if allowed_predicates and normalizado not in allowed_predicates:
                 descartados.append(normalizado)
                 continue
-            if normalizado in vistos:
-                continue
-            vistos.add(normalizado)
             bruta = cand.get("confidence", 0.5)
-            if not is_number(bruta):
+            if not is_number(bruta) or not 0.0 <= float(bruta) <= 1.0:
                 out.diagnostics.append(
                     Diagnostic(
                         "INVALID_CONFIDENCE", info.step, episode.episode_id,
-                        f"claim {relation_phrase[:40]!r}: {str(bruta)[:32]!r} no es un numero",
+                        f"predicate {normalizado}: {str(bruta)[:32]!r} fuera de [0,1]",
                     )
                 )
-            preds.append(
-                {
-                    "predicate": normalizado,
-                    "confidence": min(clamp(bruta, default=0.0), confidence_cap),
-                }
+                continue
+            confidence = min(float(bruta), confidence_cap)
+            pred_confidences[normalizado] = max(
+                confidence, pred_confidences.get(normalizado, 0.0)
             )
-        preds = preds[:MAX_PREDICATE_CANDIDATES]
+        preds = [
+            {"predicate": name, "confidence": confidence}
+            for name, confidence in sorted(
+                pred_confidences.items(), key=lambda item: (-item[1], item[0])
+            )[:MAX_PREDICATE_CANDIDATES]
+        ]
         if descartados:
             out.diagnostics.append(
                 Diagnostic(
@@ -904,9 +905,8 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
             )
 
         # --- direccion: explicita, con UNRESOLVED admitido ----------------
-        dirs: list[dict] = []
+        direction_confidences: dict[str, float] = {}
         direccion_sin_resolver = False
-        vistas: set[str] = set()
         for cand in raw.get("direction_candidates") or []:
             if not isinstance(cand, dict):
                 continue
@@ -914,20 +914,31 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
             if valor == UNRESOLVED_DIRECTION:
                 direccion_sin_resolver = True
                 continue
-            if valor not in CONTRACT_DIRECTIONS or valor in vistas:
+            if valor not in CONTRACT_DIRECTIONS:
                 if valor not in CONTRACT_DIRECTIONS:
                     out.diagnostics.append(
                         Diagnostic("UNKNOWN_DIRECTION", info.step, episode.episode_id, valor[:64])
                     )
                 continue
-            vistas.add(valor)
-            dirs.append(
-                {
-                    "direction": valor,
-                    "confidence": min(clamp(cand.get("confidence", 0.5), default=0.0), confidence_cap),
-                }
+            bruta = cand.get("confidence", 0.5)
+            if not is_number(bruta) or not 0.0 <= float(bruta) <= 1.0:
+                out.diagnostics.append(
+                    Diagnostic(
+                        "INVALID_CONFIDENCE", info.step, episode.episode_id,
+                        f"direction {valor}: {str(bruta)[:32]!r} fuera de [0,1]",
+                    )
+                )
+                continue
+            confidence = min(float(bruta), confidence_cap)
+            direction_confidences[valor] = max(
+                confidence, direction_confidences.get(valor, 0.0)
             )
-        dirs = dirs[:MAX_DIRECTION_CANDIDATES]
+        dirs = [
+            {"direction": name, "confidence": confidence}
+            for name, confidence in sorted(
+                direction_confidences.items(), key=lambda item: (-item[1], item[0])
+            )[:MAX_DIRECTION_CANDIDATES]
+        ]
 
         hint = str(raw.get("epistemic_status") or "ASSERTED").strip().upper()
         negated = bool(raw.get("negated", False))
@@ -1004,6 +1015,7 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
             )
 
         metadata = {
+            "metadata_block_version": "1",
             "model_proposed": True,
             "untrusted_origin": True,
             "anchor_reason_codes": list(anchor.reason_codes) if anchor else [],
@@ -1096,7 +1108,11 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
             evidence_fragment_ids=[anchor.fragment_id],
             reason_codes=[_reason_code(raw.get("reason"))],
             relation_phrase=quote[:2000],
-            metadata={"model_proposed": True, "untrusted_origin": True},
+            metadata={
+                "model_proposed": True,
+                "metadata_block_version": "1",
+                "untrusted_origin": True,
+            },
         )
         emit(claim, out, info, episode.episode_id)
 

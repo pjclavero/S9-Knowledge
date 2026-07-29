@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any, Iterable
 
+from ..claim_metadata import ClaimSemanticMetadata
 from ..contracts import ClaimProposal, EntityMention
 from ..contracts.base import canonical_json, schema_validator, sha256_hash
 
@@ -99,6 +100,7 @@ def mention_key(mention: EntityMention) -> MentionKey:
 
 def claim_key(claim: ClaimProposal) -> ClaimKey:
     meta = _metadata(claim)
+    semantic_meta = ClaimSemanticMetadata.from_metadata(meta)
     return ClaimKey(
         workspace=claim.workspace,
         source_asset_id=claim.source_asset_id,
@@ -109,7 +111,7 @@ def claim_key(claim: ClaimProposal) -> ClaimKey:
         evidence_fragment_ids=stable_unique(claim.evidence_fragment_ids),
         relation_phrase=str(claim.relation_phrase or "").strip().casefold(),
         negated=bool(claim.negated),
-        negation_kind=str(meta.get("negation_kind") or ""),
+        negation_kind=semantic_meta.negation_kind if claim.negated else "",
         epistemic_status_hint=str(claim.epistemic_status_hint or ""),
         epistemic_cues=stable_unique(claim.epistemic_cues),
         temporal_expressions=canonical_sequence(claim.temporal_expressions),

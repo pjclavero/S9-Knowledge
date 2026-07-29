@@ -152,6 +152,9 @@ SYMMETRIC_PREDICATE = _f(AXIS_DIRECTION, Severity.INFO, None, "SYMMETRIC_PREDICA
 # -- negacion ---------------------------------------------------------------
 NEGATED_CLAIM = _f(AXIS_NEGATION, Severity.WARN, None, "NEGATED_CLAIM")
 NEGATION_NOT_ACCEPTED = _f(AXIS_NEGATION, Severity.REVIEW, "REVIEW_EVIDENCE", "NEGATION_NOT_ACCEPTED")
+UNKNOWN_NEGATION_KIND = _f(
+    AXIS_NEGATION, Severity.REVIEW, "REVIEW_EVIDENCE", "UNKNOWN_NEGATION_KIND"
+)
 #: El texto niega, pero no consta que niegue ESTA relacion ("no cree que...",
 #: doble negacion). Negar por defecto seria inventar; afirmar, tambien.
 NEGATION_SCOPE_AMBIGUOUS = _f(AXIS_NEGATION, Severity.REVIEW, "REVIEW_EVIDENCE", "NEGATION_SCOPE_AMBIGUOUS")
@@ -182,6 +185,9 @@ CESSATION_WITHOUT_PRIOR = _f(AXIS_TEMPORAL, Severity.REVIEW, "REVIEW_TEMPORALITY
 #: La positiva vigente existe pero el snapshot no la ancla (`state_hash` a None):
 #: sin concurrencia optimista no se cierra ninguna vigencia.
 CESSATION_TARGET_UNANCHORED = _f(AXIS_TEMPORAL, Severity.REVIEW, "REVIEW_TEMPORALITY", "CESSATION_TARGET_UNANCHORED")
+CESSATION_MULTIPLE_ACTIVE = _f(
+    AXIS_NEGATION, Severity.REVIEW, "REVIEW_TEMPORALITY", "CESSATION_MULTIPLE_ACTIVE"
+)
 
 # -- contradiccion ----------------------------------------------------------
 # Contra el SNAPSHOT (lo que el grafo ya dice)...

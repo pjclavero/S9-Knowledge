@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
+from ..claim_metadata import ClaimSemanticMetadata
 from ..benchmarks.harness import run as harness_run
 from ..benchmarks.loader import GoldDataset, PredictionBundle, index_by, load_gold
 from ..benchmarks.matching import MatchConfig, build_alignment, claim_key, match_by_key, match_spans
@@ -466,15 +467,17 @@ def negation_metrics(
 
     kinds: dict[str, int] = {}
     for claim in activos:
-        kind = (claim.get("metadata") or {}).get("negation_kind")
+        kind = ClaimSemanticMetadata.from_metadata(claim.get("metadata")).negation_kind
         if kind:
             kinds[kind] = kinds.get(kind, 0) + 1
     cesaciones = kinds.get("CESSATION", 0)
     cesaciones_con_temporal = sum(
         1
         for c in activos
-        if (c.get("metadata") or {}).get("negation_kind") == "CESSATION"
-        and (c.get("metadata") or {}).get("temporal_resolution_required")
+        if ClaimSemanticMetadata.from_metadata(c.get("metadata")).negation_kind == "CESSATION"
+        and ClaimSemanticMetadata.from_metadata(
+            c.get("metadata")
+        ).temporal_resolution_required
     )
 
     return {
