@@ -1,0 +1,195 @@
+.v3r-shell {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px 24px 48px;
+}
+
+.v3r-header,
+.v3r-filters,
+.v3r-actions,
+.v3r-context {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.v3r-header {
+  justify-content: space-between;
+}
+
+.v3r-header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.v3r-header p {
+  margin: 4px 0 0;
+  color: #4b5563;
+}
+
+.v3r-filters {
+  border-block: 1px solid #d1d5db;
+  margin: 18px 0;
+  padding: 12px 0;
+  flex-wrap: wrap;
+}
+
+.v3r-filters label,
+.v3r-decision label {
+  display: grid;
+  gap: 5px;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.v3r-filters select,
+.v3r-decision select,
+.v3r-decision input,
+.v3r-decision textarea {
+  border: 1px solid #9ca3af;
+  border-radius: 4px;
+  background: #fff;
+  color: #111827;
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.v3r-item {
+  outline: none;
+}
+
+.v3r-context {
+  color: #4b5563;
+  font-size: 13px;
+  justify-content: space-between;
+}
+
+.v3r-evidence {
+  max-height: 190px;
+  overflow: auto;
+  margin: 14px 0;
+  padding: 14px 16px;
+  border-left: 4px solid #2563eb;
+  background: #f8fafc;
+  font-size: 17px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.v3r-evidence mark {
+  background: #fde68a;
+  color: #111827;
+  padding: 1px 0;
+}
+
+.v3r-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px;
+}
+
+.v3r-grid h2 {
+  margin: 8px 0;
+  font-size: 16px;
+}
+
+.v3r-facts {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 7px 12px;
+  margin: 0;
+}
+
+.v3r-facts dt {
+  color: #6b7280;
+}
+
+.v3r-facts dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.v3r-reasons {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.v3r-version {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.v3r-decision {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #d1d5db;
+}
+
+.v3r-decision fieldset {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.v3r-decision legend {
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.v3r-rationale {
+  margin-top: 12px;
+}
+
+.v3r-actions {
+  margin-top: 12px;
+}
+
+.v3r-actions button,
+.v3r-secondary {
+  min-height: 38px;
+  border: 1px solid #1d4ed8;
+  border-radius: 4px;
+  padding: 8px 14px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.v3r-actions .v3r-danger {
+  border-color: #b91c1c;
+  background: #b91c1c;
+}
+
+.v3r-actions .v3r-secondary,
+.v3r-secondary {
+  border-color: #6b7280;
+  background: #fff;
+  color: #1f2937;
+}
+
+.v3r-empty {
+  padding: 28px 0;
+  color: #4b5563;
+}
+
+@media (max-width: 760px) {
+  .v3r-shell {
+    padding-inline: 14px;
+  }
+
+  .v3r-grid,
+  .v3r-decision fieldset {
+    grid-template-columns: 1fr;
+  }
+
+  .v3r-header,
+  .v3r-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
