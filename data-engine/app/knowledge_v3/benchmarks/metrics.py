@@ -215,6 +215,107 @@ def set_prf(gold: set[Any], pred: set[Any]) -> dict[str, Any]:
     return prf(tp, len(pred - gold), len(gold - pred))
 
 
+def negation_policy_metrics(cases: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Calcula las cinco puertas de la politica sobre casos del split negation.
+
+    Cada fila empareja gold y salida real mediante estos campos:
+    ``expected_negated``, ``predicted_negated``, ``family``,
+    ``expected_decision``, ``predicted_decision``, ``evidence_anchored`` y
+    ``scope_correct``. La funcion no modifica ni completa el gold. En especial,
+    el recall de autoaprobacion conserva su denominador aunque el motor no
+    apruebe nada: 0 de N vale 0.0, nunca ``None``.
+    """
+    negative_gold = [case for case in cases if case["expected_negated"]]
+    predicted_negative = [case for case in cases if case["predicted_negated"]]
+    negative_tp = sum(case["expected_negated"] for case in predicted_negative)
+    negative_fp = len(predicted_negative) - negative_tp
+    false_positive_edges = sum(
+        case["expected_negated"] and not case["predicted_negated"] for case in cases
+    )
+    negated_cessation = [
+        case for case in cases if case.get("family") == "NEGATED_CESSATION"
+    ]
+    false_cessations = sum(
+        case.get("predicted_negation_kind") == "CESSATION" for case in negated_cessation
+    )
+    anchored = sum(bool(case["evidence_anchored"]) for case in cases)
+    scope_correct = sum(bool(case["scope_correct"]) for case in cases)
+    auto_gold = [
+        case
+        for case in negative_gold
+        if case["expected_decision"] == "AUTO_APPROVE"
+    ]
+    auto_approved = sum(
+        case["predicted_decision"] == "ACCEPT" for case in auto_gold
+    )
+    return {
+        "negative_edge_precision": {
+            **prf(negative_tp, negative_fp, len(negative_gold) - negative_tp),
+            "false_positive_positive_edges": false_positive_edges,
+            "passes": negative_fp == 0 and false_positive_edges == 0,
+        },
+        "negated_cessation_safety": {
+            "correct": len(negated_cessation) - false_cessations,
+            "total": len(negated_cessation),
+            "false_cessations": false_cessations,
+            "accuracy": ratio(
+                len(negated_cessation) - false_cessations, len(negated_cessation)
+            ),
+            "passes": false_cessations == 0,
+        },
+        "evidence_grounding": {
+            **accuracy(anchored, len(cases)),
+            "passes": bool(cases) and anchored == len(cases),
+        },
+        "scope_accuracy": {
+            **accuracy(scope_correct, len(cases)),
+            "passes": bool(cases) and scope_correct == len(cases),
+        },
+        "auto_approval_recall": {
+            "auto_approved": auto_approved,
+            "auto_approvable": len(auto_gold),
+            "recall": ratio(auto_approved, len(auto_gold)),
+            "passes": bool(auto_gold) and auto_approved == len(auto_gold),
+        },
+    }
+
+
+def negation_split_metrics(gold: Any, predictions: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Empareja salidas por ``case_id`` con el gold inmutable del split.
+
+    El adaptador solo lee `GoldDataset`; no completa predicciones ausentes ni
+    escribe anotaciones. Exige una salida para cada claim evaluable, evitando
+    que una corrida parcial infle las cinco metricas.
+    """
+    if gold.split != "negation":
+        raise ValueError(f"se esperaba split 'negation', recibido {gold.split!r}")
+    rows: list[dict[str, Any]] = []
+    for claim in gold.claims:
+        annotation = claim["metadata"]["negation"]
+        # El unico ABSTAIN del gold no declara polaridad de arista: no entra en
+        # ninguna de las cinco metricas de aprobacion/escritura.
+        if not isinstance(annotation.get("expected_negated"), bool):
+            continue
+        case_id = annotation["case_id"]
+        prediction_key = claim["claim_id"] if claim["claim_id"] in predictions else case_id
+        if prediction_key not in predictions:
+            raise ValueError(f"falta prediccion para {claim['claim_id']} ({case_id})")
+        predicted = predictions[prediction_key]
+        rows.append(
+            {
+                "family": annotation["family"],
+                "expected_negated": annotation["expected_negated"],
+                "predicted_negated": bool(predicted["negated"]),
+                "predicted_negation_kind": predicted.get("negation_kind", ""),
+                "expected_decision": annotation["expected_decision"],
+                "predicted_decision": predicted["decision"],
+                "evidence_anchored": bool(predicted["evidence_anchored"]),
+                "scope_correct": bool(predicted["scope_correct"]),
+            }
+        )
+    return negation_policy_metrics(rows)
+
+
 __all__ = [
     "ROUND",
     "accuracy",
@@ -222,6 +323,8 @@ __all__ = [
     "duplicate_rate",
     "error_rate",
     "levenshtein",
+    "negation_policy_metrics",
+    "negation_split_metrics",
     "over_merge_rate",
     "prf",
     "ratio",

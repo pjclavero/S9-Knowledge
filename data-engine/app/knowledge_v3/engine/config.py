@@ -91,6 +91,16 @@ class EngineConfig:
     #: Un hecho negado es un hecho. Se acepta, pero siempre con aviso.
     accept_negated: bool = True
 
+    #: Traslada al motor la politica de aprobacion de negaciones. Apagado
+    #: conserva la politica historica: el extractor puede seguir solicitando
+    #: revision universal. Encendido solo SIMPLE/NEVER limpios pueden aceptar;
+    #: las cesaciones se calculan en sombra y todos los demas tipos revisan.
+    graduated_negation_policy: bool = False
+
+    #: Activa la graduacion de relativas sin anclaje entre limite desconocido
+    #: (WARN) y alcance material (REVIEW). Apagado conserva el finding historico.
+    graduated_temporal_policy: bool = False
+
     #: Vida del plan. Un plan caduca (contrato: `expires_at`).
     plan_ttl_seconds: int = 86400
 

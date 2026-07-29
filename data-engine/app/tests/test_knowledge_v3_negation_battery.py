@@ -385,7 +385,12 @@ _ENCHUFE = re.compile(
 
 def test_la_bateria_no_esta_enchufada_a_ningun_flujo_automatico():
     repo = Path(__file__).resolve().parents[3]
-    propio = {Path(__file__).resolve()}
+    # Lote 2 conecta exclusivamente el modulo de metricas solicitado; sigue
+    # prohibido enchufar el split a pipeline, deploy o gates automaticos.
+    propio = {
+        Path(__file__).resolve(),
+        Path(__file__).with_name("test_knowledge_v3_negation_policy_metrics.py").resolve(),
+    }
     culpables = []
     for carpeta in ("data-engine", "scripts", "deploy", "shared", "tests"):
         base = repo / carpeta

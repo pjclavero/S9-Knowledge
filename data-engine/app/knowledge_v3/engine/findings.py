@@ -163,6 +163,15 @@ NEGATION_NOT_YET = _f(AXIS_NEGATION, Severity.WARN, None, "NEGATION_NOT_YET")
 #: "nunca": negacion absoluta. Ligada al contexto temporal de la FUENTE; de aqui
 #: no sale ningun intervalo infinito.
 NEGATION_ABSOLUTE = _f(AXIS_NEGATION, Severity.WARN, None, "NEGATION_ABSOLUTE")
+#: Politica graduada: estos tipos no son escribibles automaticamente.
+NEGATION_POLICY_REVIEW = _f(
+    AXIS_NEGATION, Severity.REVIEW, "REVIEW_EVIDENCE", "NEGATION_POLICY_REVIEW"
+)
+#: La cesacion se evalua completamente para medir que plan habria producido,
+#: pero la fase sombra nunca permite escribirlo.
+CESSATION_SHADOW_PLAN = _f(
+    AXIS_NEGATION, Severity.INFO, None, "CESSATION_SHADOW_PLAN"
+)
 
 # -- epistemicidad ----------------------------------------------------------
 EPISTEMIC_NOT_ASSERTED = _f(AXIS_EPISTEMIC, Severity.REVIEW, "REVIEW_EVIDENCE", "EPISTEMIC_NOT_ASSERTED")
@@ -171,7 +180,15 @@ EPISTEMIC_UNKNOWN = _f(AXIS_EPISTEMIC, Severity.ABSTAIN, "AMBIGUOUS_SEMANTICS", 
 
 # -- temporalidad -----------------------------------------------------------
 TEMPORAL_UNSPECIFIED = _f(AXIS_TEMPORAL, Severity.INFO, None, "TEMPORAL_UNSPECIFIED")
-TEMPORAL_UNRESOLVED_RELATIVE = _f(AXIS_TEMPORAL, Severity.WARN, None, "TEMPORAL_UNRESOLVED_RELATIVE")
+#: Compatibilidad del modo sin graduacion; las dos categorias nuevas solo se
+#: emiten al activar `EngineConfig.graduated_temporal_policy`.
+TEMPORAL_UNRESOLVED_RELATIVE = _f(
+    AXIS_TEMPORAL, Severity.WARN, None, "TEMPORAL_UNRESOLVED_RELATIVE"
+)
+TEMPORAL_BOUND_UNKNOWN = _f(AXIS_TEMPORAL, Severity.WARN, None, "TEMPORAL_BOUND_UNKNOWN")
+TEMPORAL_SCOPE_MATERIAL = _f(
+    AXIS_TEMPORAL, Severity.REVIEW, "REVIEW_TEMPORALITY", "TEMPORAL_SCOPE_MATERIAL"
+)
 TEMPORAL_CONFLICTING_EXPRESSIONS = _f(AXIS_TEMPORAL, Severity.REVIEW, "REVIEW_TEMPORALITY", "TEMPORAL_CONFLICTING_EXPRESSIONS")
 TEMPORAL_INTERVAL_INVERTED = _f(AXIS_TEMPORAL, Severity.REVIEW, "REVIEW_TEMPORALITY", "TEMPORAL_INTERVAL_INVERTED")
 TEMPORAL_CALENDAR_UNKNOWN = _f(AXIS_TEMPORAL, Severity.REVIEW, "REVIEW_TEMPORALITY", "TEMPORAL_CALENDAR_UNKNOWN")
