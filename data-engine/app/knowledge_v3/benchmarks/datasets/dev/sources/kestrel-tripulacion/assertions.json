@@ -1,0 +1,138 @@
+{
+  "benchmark_file": "assertions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "assertion_id": "assertion:kestrel:nadir-member-halcyon",
+      "calendar_id": "calendar:kestrel",
+      "collection_id": "collection:kestrel",
+      "confidence": 0.5,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:kestrel-tripulacion:e01"
+      ],
+      "epistemic_status": "CONFLICTED",
+      "event_time": "2387-01-01T00:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:kestrel-tripulacion:e01:f06"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "gold_key": "nadir-member-halcyon",
+        "phenomena": [
+          "CONFLICT"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:kestrel:halcyon",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T12:00:00Z",
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "state": "UNKNOWN",
+      "status": "CONTRADICTED",
+      "subject_entity_id": "entity:kestrel:nadir",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": "2387-01-01T00:00:00Z",
+      "valid_to": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "assertion_id": "assertion:kestrel:ruta-member-vela",
+      "calendar_id": null,
+      "collection_id": "collection:kestrel",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:kestrel-tripulacion:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:kestrel-tripulacion:e01:f08"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "kestrel-tripulacion",
+          "split": "dev",
+          "world": "kestrel"
+        },
+        "gold_key": "ruta-member-vela",
+        "phenomena": [
+          "NEW_ENTITY"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:kestrel:vela",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T12:00:00Z",
+      "source_asset_id": "asset:kestrel-tripulacion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "6024b4c7ec41643ef07fb548e8d5933c558b24eefb3143119fbf15828f8ac868"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:kestrel:ruta-simm",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "kestrel-tripulacion",
+  "split": "dev",
+  "world": "kestrel"
+}

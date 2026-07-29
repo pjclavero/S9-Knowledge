@@ -1,0 +1,50 @@
+{
+  "benchmark_file": "negatives",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "end": 85,
+      "episode_id": "episode:liga-audio-crudo:e01",
+      "forbidden_object_mentions": [
+        "mention:liga-audio-crudo:e01:m03"
+      ],
+      "forbidden_predicates": [
+        "MEMBER_OF"
+      ],
+      "forbidden_subject_mentions": [
+        "mention:liga-audio-crudo:e01:m00"
+      ],
+      "kind": "COORDINATION_MISPAIR",
+      "literal_text": "y tan bien su ermana lorea por el club aldabra",
+      "must_not_produce": "CLAIM_FOR_PAIR",
+      "negative_id": "negative:liga-audio-crudo:coordinacion-irune-aldabra",
+      "rationale": "La segunda cláusula coordinada tiene sujeto propio: Irune no fichó por el Aldabra.",
+      "split": "heldout",
+      "start": 39
+    },
+    {
+      "end": 38,
+      "episode_id": "episode:liga-audio-crudo:e01",
+      "forbidden_object_mentions": [
+        "mention:liga-audio-crudo:e01:m01"
+      ],
+      "forbidden_predicates": [
+        "MEMBER_OF"
+      ],
+      "forbidden_subject_mentions": [
+        "mention:liga-audio-crudo:e01:m02"
+      ],
+      "kind": "COORDINATION_MISPAIR",
+      "literal_text": "irune basterra ficho por el club farol",
+      "must_not_produce": "CLAIM_FOR_PAIR",
+      "negative_id": "negative:liga-audio-crudo:coordinacion-lorea-farol",
+      "rationale": "Lorea no aparece en la primera cláusula: emparejarla con el Farol es cruzar la coordinación.",
+      "split": "heldout",
+      "start": 0
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-audio-crudo",
+  "split": "heldout",
+  "world": "liga"
+}

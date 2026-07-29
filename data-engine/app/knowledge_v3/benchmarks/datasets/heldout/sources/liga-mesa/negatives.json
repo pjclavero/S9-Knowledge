@@ -1,0 +1,26 @@
+{
+  "benchmark_file": "negatives",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "end": 74,
+      "episode_id": "episode:liga-mesa:e03",
+      "forbidden_object_mentions": [],
+      "forbidden_predicates": [
+        "MEMBER_OF"
+      ],
+      "forbidden_subject_mentions": [],
+      "kind": "COUNTERFACTUAL",
+      "literal_text": "Si el Rompiente hubiera pagado la cláusula, yo estaría hoy en su plantilla",
+      "must_not_produce": "CLAIM",
+      "negative_id": "negative:liga-mesa:contrafactual-vero-rompiente",
+      "rationale": "El condicional irreal dice justamente que NO ocurrió.",
+      "split": "heldout",
+      "start": 0
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-mesa",
+  "split": "heldout",
+  "world": "liga"
+}

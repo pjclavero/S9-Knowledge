@@ -1,0 +1,349 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:ferrovia-tabla:e01:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:ferrovia-tabla:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-tabla:e01:f08"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-tabla",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "gold_key": "iker-member-trasandina",
+        "phenomena": [
+          "DUPLICATE_ACROSS_SOURCES",
+          "TABLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:ferrovia-tabla:e01:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [
+        {
+          "key": "turno",
+          "value": "noche"
+        }
+      ],
+      "relation_phrase": "Iker Lasalde\tTrasandina Unida",
+      "review_required": false,
+      "source_asset_id": "asset:ferrovia-tabla",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "subject_mentions": [
+        "mention:ferrovia-tabla:e01:m00"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:ferrovia",
+          "fragment_id": null,
+          "kind": "POINT",
+          "text": "1898",
+          "valid_from": "1898-01-01T00:00:00Z",
+          "valid_to": null
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:ferrovia-tabla:e01:c01",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:ferrovia-tabla:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-tabla:e01:f09"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-tabla",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "gold_key": "txomin-member-norte",
+        "phenomena": [
+          "NEW_ENTITY",
+          "TABLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:ferrovia-tabla:e01:m03"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [
+        {
+          "key": "turno",
+          "value": "día"
+        }
+      ],
+      "relation_phrase": "Txomin Ereña\tCompañía del Norte",
+      "review_required": false,
+      "source_asset_id": "asset:ferrovia-tabla",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "subject_mentions": [
+        "mention:ferrovia-tabla:e01:m02"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:ferrovia",
+          "fragment_id": null,
+          "kind": "POINT",
+          "text": "1902",
+          "valid_from": "1902-01-01T00:00:00Z",
+          "valid_to": null
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:ferrovia-tabla:e01:c02",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:ferrovia-tabla:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-tabla:e01:f10"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-tabla",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "gold_key": "maren-member-norte",
+        "phenomena": [
+          "TABLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:ferrovia-tabla:e01:m05"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [
+        {
+          "key": "turno",
+          "value": "día"
+        }
+      ],
+      "relation_phrase": "Maren Ibarrola\tCompañía del Norte",
+      "review_required": false,
+      "source_asset_id": "asset:ferrovia-tabla",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "subject_mentions": [
+        "mention:ferrovia-tabla:e01:m04"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:ferrovia",
+          "fragment_id": null,
+          "kind": "POINT",
+          "text": "1893",
+          "valid_from": "1893-01-01T00:00:00Z",
+          "valid_to": null
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:ferrovia-tabla:e01:c03",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:ferrovia-tabla:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-tabla:e01:f11"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-tabla",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "gold_key": "nerea-member-norte",
+        "phenomena": [
+          "DUPLICATE_ACROSS_SOURCES",
+          "TABLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:ferrovia-tabla:e01:m07"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [
+        {
+          "key": "turno",
+          "value": "noche"
+        }
+      ],
+      "relation_phrase": "Nerea Lasalde\tCompañía del Norte",
+      "review_required": false,
+      "source_asset_id": "asset:ferrovia-tabla",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "subject_mentions": [
+        "mention:ferrovia-tabla:e01:m06"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:ferrovia",
+          "fragment_id": null,
+          "kind": "POINT",
+          "text": "1901",
+          "valid_from": "1901-01-01T00:00:00Z",
+          "valid_to": null
+        }
+      ],
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-tabla",
+  "split": "heldout",
+  "world": "ferrovia"
+}

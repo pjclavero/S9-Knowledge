@@ -1,0 +1,126 @@
+{
+  "collection_id": "collection:campana-leyenda",
+  "contract_id": "graph-mutation-plan/v3-internal-v1",
+  "contract_version": "1.0.0",
+  "created_at": "2026-07-27T10:30:00Z",
+  "decisions": [
+    {
+      "claim_id": "claim:p12:0",
+      "confidence": 0.79,
+      "decision": "ACCEPT",
+      "decision_id": "decision:0001",
+      "direction": "SUBJECT_TO_OBJECT",
+      "epistemic_status": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:p12:0"
+      ],
+      "negated": false,
+      "object_entity_id": "entity:casa-del-ciervo",
+      "predicate": null,
+      "reason_codes": [
+        "LOCAL_APPROVED",
+        "EVIDENCE_LITERAL",
+        "ONTOLOGY_COMPATIBLE"
+      ],
+      "subject_entity_id": "entity:daiki"
+    },
+    {
+      "claim_id": "claim:p13:0",
+      "confidence": 0.44,
+      "decision": "ABSTAIN",
+      "decision_id": "decision:0002",
+      "direction": null,
+      "evidence_fragment_ids": [
+        "fragment:p13:ocr:0"
+      ],
+      "object_entity_id": null,
+      "predicate": null,
+      "reason_codes": [
+        "INSUFFICIENT_EVIDENCE",
+        "VISUAL_INFERRED"
+      ],
+      "subject_entity_id": null
+    }
+  ],
+  "engine_version": "3.0.0",
+  "expires_at": "2026-07-28T10:30:00Z",
+  "game_profile": "generic",
+  "local_approval": {
+    "approved": true,
+    "approved_by": {
+      "name": "s9k.engine.local",
+      "provider": "local",
+      "version": "3.0.0"
+    },
+    "created_at": "2026-07-27T10:30:00Z",
+    "decision_hash": {
+      "algorithm": "sha256",
+      "value": "d9d0cf5228925a4393430df39701bcafd2daf839f42039d6e44f2d6619e42ae3"
+    },
+    "validator_chain": [
+      {
+        "result": "PASS",
+        "validator": "structural",
+        "version": "3.0.0"
+      },
+      {
+        "result": "PASS",
+        "validator": "semantic",
+        "version": "3.0.0"
+      },
+      {
+        "result": "PASS",
+        "validator": "ontology",
+        "version": "core-1.4.0"
+      }
+    ]
+  },
+  "mutation_operations": [
+    {
+      "assertion_id": "assertion:0001",
+      "decision_id": "decision:0001",
+      "evidence_fragment_ids": [
+        "fragment:p12:0"
+      ],
+      "expected_hash": null,
+      "expected_state": "WOULD_CREATE",
+      "expected_version": null,
+      "idempotency_key": "idem:sha256:2be8ab1c850b698a530216365c775b93787ddc4f7355e6673e843b377e0a6696",
+      "operation_id": "op:0001",
+      "operation_type": "CREATE_ASSERTION",
+      "payload": {
+        "object_entity_id": "entity:casa-del-ciervo",
+        "predicate": "MEMBER_OF",
+        "subject_entity_id": "entity:daiki"
+      },
+      "target_entity_id": null
+    }
+  ],
+  "ontology_version": "core-1.4.0",
+  "plan_hash": {
+    "algorithm": "sha256",
+    "value": "95bc476f1708c1c5f24e8ae9fc3226c512962d748ef0ccf2a77c64dace416ece"
+  },
+  "plan_id": "plan:manual-001:0001",
+  "produced_by_step": "engine.plan",
+  "provider_trace": [
+    {
+      "model": null,
+      "name": "s9k.knowledge_v3",
+      "produced": [
+        "decisions",
+        "mutation_operations"
+      ],
+      "provider": "local",
+      "step": "engine.plan",
+      "version": "3.0.0"
+    }
+  ],
+  "snapshot_id": "snapshot:neo4j:2026-07-27T10:29:00Z",
+  "source_asset_id": "asset:manual-001",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "a900b2ece307794d62690e1ffbe35853112ebbdef8fe18061b62f896d38f23a2"
+  },
+  "workspace": "leyenda"
+}

@@ -1,0 +1,361 @@
+{
+  "benchmark_file": "manifest",
+  "catalog_files": [
+    "catalog/entities.json",
+    "catalog/game_profile_generic.json",
+    "catalog/game_profile_narrow.json"
+  ],
+  "dataset_version": "1.0.0",
+  "file_hashes": {
+    "dev/catalog/entities.json": "17cd58370a7543c3c22874ee6f769550555c3355a4202d2f676d44c610bf2529",
+    "dev/catalog/game_profile_generic.json": "34756e3adc2bd166160a8e7452076c82bc4410b46de6a9d95214d5aedaee11d4",
+    "dev/catalog/game_profile_narrow.json": "6818026b7a4b91c3ba44d882f979ad82705780df9c9882434e0d266ec8e74ac8",
+    "dev/sources/kestrel-informe/assertions.json": "8e72b8d0949ac10ec254602563e5331ad2b4df5e3e8657416813b197c00d04af",
+    "dev/sources/kestrel-informe/claims.json": "a18935966164beaa4c31d1d45dffaebb8cde523e0ece3f1f69570c4dd144ae35",
+    "dev/sources/kestrel-informe/episodes.json": "cbd5eb77f7882afe86d19cd21ab310a692e12489cd5bf06f11070079ca33288a",
+    "dev/sources/kestrel-informe/fragments.json": "4525a39b0a3d4c8dc3346a21cdc17ee006c7102407ac410d1154cf9841389639",
+    "dev/sources/kestrel-informe/mentions.json": "decba0de74b5f3f527d04f6c46c46727b1d7184851592b92ca6baf2de03a7b92",
+    "dev/sources/kestrel-informe/negatives.json": "a5437c5366620733aecfc5fecc629c0106a302bb2405571988b24dd307f718d5",
+    "dev/sources/kestrel-informe/plans.json": "01f8a4fb9294bb425b7889206fa834b7b90522bbba9cacf0b89fd14b1790f81a",
+    "dev/sources/kestrel-informe/reference_text.json": "ed39c19227e1a1ab2441506fad9fe05e4d39756f89f69948f63d3c1c8659851d",
+    "dev/sources/kestrel-informe/resolutions.json": "920170f705749c31c785e02f5512d953295d99193e842b2a69abfc4c4a68491c",
+    "dev/sources/kestrel-informe/source_asset.json": "c164bf8ca028e768cb0be803b034404c4a22f72bbf1842e07916c91c2d1aa8a9",
+    "dev/sources/kestrel-tripulacion/assertions.json": "62b96dfe7460997fe8a82901809df9ececafa5e6974a78be21366498bc79e554",
+    "dev/sources/kestrel-tripulacion/claims.json": "4896f3feeb0940568bca0711052fa5cca55b9a3933c5e690fd291089e3ed2e09",
+    "dev/sources/kestrel-tripulacion/episodes.json": "1066c7384bc6317183af56d4e4f87236acc229f743d7488cf270eb6eab784d68",
+    "dev/sources/kestrel-tripulacion/fragments.json": "ef7f9cacdcf9142fcd1ef4ae518ce1b6ab91d04418f7831130146b95b465f1b4",
+    "dev/sources/kestrel-tripulacion/mentions.json": "3771cfd6226b1171928b023e6d9c725a02d74963f9d5ddcf5a33c120abf12f4e",
+    "dev/sources/kestrel-tripulacion/negatives.json": "3dc9532246a6cd44e25ab083f3c6bd95dcdfc6f1b110dc81896b4c6874d154b4",
+    "dev/sources/kestrel-tripulacion/plans.json": "36b34bc2d64af78d9bbfea3f009401a814165ffa946eb893f68f4a5ca3ac5e62",
+    "dev/sources/kestrel-tripulacion/reference_text.json": "5c5160c7d1fbf5731f7ea3e3382c8464502748b1bf165891d06d4ec09eafef9b",
+    "dev/sources/kestrel-tripulacion/resolutions.json": "915411e564c9ae03af9aaf361fa38c283d7a382c31c9a55956ff42cbb32174c2",
+    "dev/sources/kestrel-tripulacion/source_asset.json": "14a4a5b08a92431c33e58b7fd4dfda34f4136e2b5556a4be50b7cc7e80fc07b6",
+    "dev/sources/leyenda-cronica/assertions.json": "f3f38de10df1b99be1effc976d33f898b08eeb2f7c2e8c9ff79862a433a5880f",
+    "dev/sources/leyenda-cronica/claims.json": "a2abe84654f3debab88a7ca199667c091013e56c396a7d8d3f4a72ffb44827a8",
+    "dev/sources/leyenda-cronica/episodes.json": "b17c9ff2da76bb43c70d4d972644f2e330c73314df654dba4e75b22ff3599a1d",
+    "dev/sources/leyenda-cronica/fragments.json": "bf2203177e3286667749f9157e38e0f6f2929aa0927a9f0443f4fc3978d81179",
+    "dev/sources/leyenda-cronica/mentions.json": "04ae7da22fab8ffc7f398142c886700dfcc050f70b6f5bc14a70267e7d21bc24",
+    "dev/sources/leyenda-cronica/negatives.json": "3c503736fbbb2e66050759685466236db3089c68735e2ae39f101958f758148a",
+    "dev/sources/leyenda-cronica/plans.json": "d0d5750b54406b7e0ee2cdcff9459fad2f1ae49f6793d0d52052c1ce3c486d48",
+    "dev/sources/leyenda-cronica/reference_text.json": "bdd27efe64b214f6f6ecccb7587250911d36c332c40b51bd0741daa9fe14bef8",
+    "dev/sources/leyenda-cronica/resolutions.json": "ffb1cb573f90e12667ec6fa63707d4a85927a633d2ff3941b6f3f6375ecc8e12",
+    "dev/sources/leyenda-cronica/source_asset.json": "245a6c70faf00e57a69f557a9823199be77cbc033fdc05451d35b8ff392f3071",
+    "dev/sources/leyenda-escaneo/assertions.json": "5e2954a2ff55d8d9e4bea10cc8f170cc1148dd89b5d3b33d8dbc0d8a11ecef65",
+    "dev/sources/leyenda-escaneo/claims.json": "8846a42ecb72286a471bc66b539de05253489d1237d486204a3095e0865882cd",
+    "dev/sources/leyenda-escaneo/episodes.json": "02a53b7d609984782243566b2b8919485fb178d6bc5e6af3379acb570434cb33",
+    "dev/sources/leyenda-escaneo/fragments.json": "12298ebd22e1a154f6938fff4f13873efd1dd94256fa4d92b4556495e33a8cc6",
+    "dev/sources/leyenda-escaneo/mentions.json": "ae607673bb151b3689dc2f8752d25618d87227bac88577bc52878a21fccd11a2",
+    "dev/sources/leyenda-escaneo/negatives.json": "9976c6a05d8221c73ee6f1710b499c677f9f7bf7736f2f9fa801b8caeb97f99b",
+    "dev/sources/leyenda-escaneo/plans.json": "8978ab817fde78b9f77c2196acaf0426bbae93927d0d8f2830450e0e79f8a33d",
+    "dev/sources/leyenda-escaneo/reference_text.json": "6e847a0e7ed61808f6fa099d504a00157582b7787554a380066dfbeda2e32985",
+    "dev/sources/leyenda-escaneo/resolutions.json": "1c2b59975e32abc3b47d81ba8248f6dbfe33df70af50904f92dd9f575515687b",
+    "dev/sources/leyenda-escaneo/source_asset.json": "5ec441cf2eeb69969442531908524def0d7d653957ca5611a682b151dac3be90",
+    "dev/sources/mareas-cuaderno/assertions.json": "4051fec75f7389f42129dd50137440566494cedafd104297dbbe24bc62256af5",
+    "dev/sources/mareas-cuaderno/claims.json": "0a798cb4868c422bdb2bcb8453326aad6e03347fe3a4761541946f41eb09abe2",
+    "dev/sources/mareas-cuaderno/episodes.json": "34d9c624af036a76b4f57f88cec1131430d8e0446491072d9224e27a5dd84f9d",
+    "dev/sources/mareas-cuaderno/fragments.json": "c2278cbb38816fbcf22c9be7c08ec723f511c76e1445aecdd1f399416f66a2ce",
+    "dev/sources/mareas-cuaderno/mentions.json": "faa25055c36d6ce998445b49babc08d1f4e5d67356f9dceac6f8f6ee2e01958e",
+    "dev/sources/mareas-cuaderno/negatives.json": "74fa2496dd7026b6f3b9f64197ffa7f9c85b2059ea721ae5dd609d6dfd1355bd",
+    "dev/sources/mareas-cuaderno/plans.json": "668f252f94bda134c035151c2176701e1bb8a70b0b1e45ec6702d543f34244fe",
+    "dev/sources/mareas-cuaderno/reference_text.json": "a49020b825a443fcd8f713ac6efae313c6016abf7331005a492b47c99754d49a",
+    "dev/sources/mareas-cuaderno/resolutions.json": "37920e3b2275b54d09467a95b7a496610a2a65f6bae406dbc35a4c60ad006b50",
+    "dev/sources/mareas-cuaderno/source_asset.json": "8f778ee4e411f9e7e082cb8091e7bd3d8ce320a1370f0f8297756e7a74123a2a",
+    "dev/sources/mareas-sesion/assertions.json": "2ac320d0f3b10cbd935940c381cbcf1f2c52adf42a0cce5ad28f403e06e7e809",
+    "dev/sources/mareas-sesion/claims.json": "5bab7a1375084bde6ef4d4db4e9a4b8a6487e1723ad353ffd1c7df58a377ec3a",
+    "dev/sources/mareas-sesion/episodes.json": "8d4cb966eed7917e2c2941e4e0090ebdd3d6c0233cac4cf4d5cf94022f7d8f63",
+    "dev/sources/mareas-sesion/fragments.json": "819d4330982ccf84e56a1a3f5297c0efee705da0bbe50f1483eb3510a93660b0",
+    "dev/sources/mareas-sesion/mentions.json": "882bbed20122822e42b0e9d350a4897e3700f3a7ca414d608dbef5124dd2bb3e",
+    "dev/sources/mareas-sesion/negatives.json": "b66c8f47dc98e1f0e98f415c7d7f6cf1c73848cb83dc3a98db5dd2c717a22467",
+    "dev/sources/mareas-sesion/plans.json": "ae8dce79d73ee8664e2f5561144d5cca4a3b4ba3a695e258c550b60d86d9c137",
+    "dev/sources/mareas-sesion/reference_text.json": "af2659c1c9d2607c4b4bb5f64a7e6114fd69814531db4a134bcd0368687ed8f0",
+    "dev/sources/mareas-sesion/resolutions.json": "6b72797f54c8874f086c9233f85b44505777758a59e60c9e217564574521ccbc",
+    "dev/sources/mareas-sesion/source_asset.json": "3d7b70e45c1dab5d68c4e830e22cf33b498d7df1b58524960c17f61965e937f4"
+  },
+  "format_version": "1.0.0",
+  "phenomena_index": {
+    "ABSTENTION": [
+      "leyenda-escaneo"
+    ],
+    "CONFLICT": [
+      "kestrel-informe",
+      "kestrel-tripulacion"
+    ],
+    "COREFERENCE": [
+      "leyenda-cronica",
+      "mareas-cuaderno"
+    ],
+    "COUNTERFACTUAL": [
+      "mareas-cuaderno"
+    ],
+    "DUPLICATE_ACROSS_SOURCES": [
+      "kestrel-tripulacion",
+      "leyenda-escaneo"
+    ],
+    "FICTION_WITHIN_FICTION": [
+      "kestrel-informe",
+      "leyenda-cronica"
+    ],
+    "HYPOTHETICAL": [
+      "mareas-cuaderno"
+    ],
+    "NEGATION": [
+      "kestrel-informe",
+      "leyenda-cronica",
+      "mareas-sesion"
+    ],
+    "NEW_ENTITY": [
+      "kestrel-tripulacion"
+    ],
+    "OCR_NOISE": [
+      "leyenda-escaneo"
+    ],
+    "ONTOLOGY_VIOLATION": [
+      "kestrel-informe"
+    ],
+    "PROVISIONAL_ENTITY": [
+      "leyenda-escaneo"
+    ],
+    "QUESTION": [
+      "leyenda-cronica"
+    ],
+    "RUMOR": [
+      "kestrel-informe",
+      "leyenda-cronica",
+      "mareas-sesion"
+    ],
+    "SEAT_VS_ORGANIZATION": [
+      "leyenda-cronica"
+    ],
+    "SPEAKER_COREFERENCE": [
+      "mareas-sesion"
+    ],
+    "SUPERSESSION": [
+      "leyenda-cronica"
+    ],
+    "SYMMETRIC": [
+      "leyenda-cronica",
+      "mareas-cuaderno",
+      "mareas-sesion"
+    ],
+    "TABLE": [
+      "kestrel-tripulacion"
+    ],
+    "TEMPORALITY": [
+      "leyenda-cronica",
+      "mareas-cuaderno"
+    ],
+    "TRANSITIVE": [
+      "mareas-cuaderno"
+    ],
+    "VISUAL_INFERRED": [
+      "leyenda-escaneo"
+    ]
+  },
+  "purpose": "Dataset gold de DESARROLLO. No es held-out: quien implementa puede verlo. El held-out lo prepara un equipo independiente y se instala como split hermano sin tocar el arnes.",
+  "sources": [
+    {
+      "collection_id": "collection:leyenda",
+      "counts": {
+        "assertions": 4,
+        "claims": 4,
+        "claims_extractor_gold": 4,
+        "decisions": 4,
+        "episodes": 3,
+        "fragments": 16,
+        "mentions": 12,
+        "negatives": 2,
+        "operations": 5,
+        "plans": 1,
+        "resolutions": 6
+      },
+      "description": "Markdown de cronica: sucesion de cargos, negacion explicita y rumor.",
+      "modalities": [
+        "TEXT"
+      ],
+      "phenomena": [
+        "COREFERENCE",
+        "FICTION_WITHIN_FICTION",
+        "NEGATION",
+        "QUESTION",
+        "RUMOR",
+        "SEAT_VS_ORGANIZATION",
+        "SUPERSESSION",
+        "SYMMETRIC",
+        "TEMPORALITY"
+      ],
+      "source_id": "leyenda-cronica",
+      "source_kind": "MARKDOWN",
+      "title": "Crónica de la Casa del Ciervo",
+      "world": "leyenda"
+    },
+    {
+      "collection_id": "collection:mareas",
+      "counts": {
+        "assertions": 3,
+        "claims": 3,
+        "claims_extractor_gold": 3,
+        "decisions": 3,
+        "episodes": 3,
+        "fragments": 13,
+        "mentions": 10,
+        "negatives": 1,
+        "operations": 3,
+        "plans": 1,
+        "resolutions": 6
+      },
+      "description": "Nota de campo: rivalidad simetrica, contencion espacial e hipotesis.",
+      "modalities": [
+        "TEXT"
+      ],
+      "phenomena": [
+        "COREFERENCE",
+        "COUNTERFACTUAL",
+        "HYPOTHETICAL",
+        "SYMMETRIC",
+        "TEMPORALITY",
+        "TRANSITIVE"
+      ],
+      "source_id": "mareas-cuaderno",
+      "source_kind": "MARKDOWN",
+      "title": "Cuaderno de puerto de Puerto Quilla",
+      "world": "mareas"
+    },
+    {
+      "collection_id": "collection:kestrel",
+      "counts": {
+        "assertions": 4,
+        "claims": 5,
+        "claims_extractor_gold": 4,
+        "decisions": 5,
+        "episodes": 3,
+        "fragments": 14,
+        "mentions": 9,
+        "negatives": 1,
+        "operations": 3,
+        "plans": 1,
+        "resolutions": 5
+      },
+      "description": "Informe administrativo: negacion documental, ficcion emitida y rumor.",
+      "modalities": [
+        "TEXT"
+      ],
+      "phenomena": [
+        "CONFLICT",
+        "FICTION_WITHIN_FICTION",
+        "NEGATION",
+        "ONTOLOGY_VIOLATION",
+        "RUMOR"
+      ],
+      "source_id": "kestrel-informe",
+      "source_kind": "MARKDOWN",
+      "title": "Informe de estación Kestrel",
+      "world": "kestrel"
+    },
+    {
+      "collection_id": "collection:kestrel",
+      "counts": {
+        "assertions": 2,
+        "claims": 3,
+        "claims_extractor_gold": 3,
+        "decisions": 3,
+        "episodes": 1,
+        "fragments": 9,
+        "mentions": 6,
+        "negatives": 0,
+        "operations": 3,
+        "plans": 1,
+        "resolutions": 5
+      },
+      "description": "Tabla: contradice al informe, repite un hecho ya conocido y trae un tripulante nuevo.",
+      "modalities": [
+        "TABLE"
+      ],
+      "phenomena": [
+        "CONFLICT",
+        "DUPLICATE_ACROSS_SOURCES",
+        "NEW_ENTITY",
+        "TABLE"
+      ],
+      "source_id": "kestrel-tripulacion",
+      "source_kind": "TABLE",
+      "title": "Registro de tripulación del ciclo 2387",
+      "world": "kestrel"
+    },
+    {
+      "collection_id": "collection:mareas",
+      "counts": {
+        "assertions": 3,
+        "claims": 3,
+        "claims_extractor_gold": 3,
+        "decisions": 3,
+        "episodes": 3,
+        "fragments": 11,
+        "mentions": 8,
+        "negatives": 0,
+        "operations": 3,
+        "plans": 1,
+        "resolutions": 5
+      },
+      "description": "Turnos de habla con diarizacion: el 'yo' cambia de referente segun quien hable.",
+      "modalities": [
+        "SPEAKER_TURN"
+      ],
+      "phenomena": [
+        "NEGATION",
+        "RUMOR",
+        "SPEAKER_COREFERENCE",
+        "SYMMETRIC"
+      ],
+      "source_id": "mareas-sesion",
+      "source_kind": "AUDIO",
+      "title": "Transcripción de sesión en Puerto Quilla",
+      "world": "mareas"
+    },
+    {
+      "collection_id": "collection:leyenda",
+      "counts": {
+        "assertions": 0,
+        "claims": 3,
+        "claims_extractor_gold": 3,
+        "decisions": 3,
+        "episodes": 3,
+        "fragments": 9,
+        "mentions": 6,
+        "negatives": 0,
+        "operations": 1,
+        "plans": 1,
+        "resolutions": 4
+      },
+      "description": "Imagen escaneada: OCR degradado y un plano del que solo cabe inferir.",
+      "modalities": [
+        "DIAGRAM",
+        "OCR_TEXT"
+      ],
+      "phenomena": [
+        "ABSTENTION",
+        "DUPLICATE_ACROSS_SOURCES",
+        "OCR_NOISE",
+        "PROVISIONAL_ENTITY",
+        "VISUAL_INFERRED"
+      ],
+      "source_id": "leyenda-escaneo",
+      "source_kind": "IMAGE",
+      "title": "Escaneo del acta de Vado Alto",
+      "world": "leyenda"
+    }
+  ],
+  "split": "dev",
+  "totals": {
+    "assertions": 16,
+    "claims": 21,
+    "claims_extractor_gold": 20,
+    "decisions": 21,
+    "episodes": 16,
+    "fragments": 72,
+    "mentions": 51,
+    "negatives": 4,
+    "operations": 18,
+    "plans": 6,
+    "resolutions": 31
+  }
+}

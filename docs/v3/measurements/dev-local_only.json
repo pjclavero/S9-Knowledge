@@ -1,0 +1,162 @@
+{
+  "ablation": {
+    "claim_source": "real",
+    "description": "Solo codigo local determinista: ni Ollama ni externo.",
+    "entity_source": "real",
+    "extra": {},
+    "glossary": "with_glossary",
+    "label": "local_only",
+    "profile_id": "generic",
+    "providers": "local_only"
+  },
+  "benchmark_format_version": "1.0.0",
+  "e2e": {
+    "reason": "la prediccion no trae afirmaciones",
+    "status": "not_evaluated"
+  },
+  "engine": {
+    "reason": "la prediccion no trae decisiones del motor (ni sueltas ni en plan)",
+    "status": "not_evaluated"
+  },
+  "extractor": {
+    "claims": {
+      "f1": null,
+      "fn": 20,
+      "fp": 0,
+      "precision": null,
+      "recall": 0.0,
+      "tp": 0
+    },
+    "claims_unevaluable": 0,
+    "coreference": {
+      "f1": 0.666667,
+      "fn": 2,
+      "fp": 0,
+      "pairs_dropped_unaligned": 0,
+      "precision": 1.0,
+      "recall": 0.5,
+      "tp": 2,
+      "universe": "menciones alineadas con el gold; las no alineadas no forman par"
+    },
+    "false_candidates": {
+      "by_kind": {},
+      "claim_ids": [],
+      "false_candidate_claims": 0,
+      "false_candidate_rate": null,
+      "negatives_in_split": 4,
+      "status": "scored",
+      "trap_hit_rate": 0.0,
+      "trap_ids_hit": [],
+      "traps_hit": 0,
+      "traps_total": 4,
+      "unanchored_claims_in_trap_episodes": 0
+    },
+    "mentions": {
+      "f1": 0.817204,
+      "fn": 13,
+      "fp": 4,
+      "precision": 0.904762,
+      "recall": 0.745098,
+      "tp": 38
+    },
+    "status": "scored",
+    "type_accuracy_matched": {
+      "accuracy": 0.973684,
+      "correct": 37,
+      "total": 38
+    },
+    "type_accuracy_strict": {
+      "accuracy": 0.72549,
+      "correct": 37,
+      "total": 51
+    }
+  },
+  "gold": {
+    "assertions": 16,
+    "claims": 21,
+    "claims_extractor_gold": 20,
+    "dataset_version": "1.0.0",
+    "decisions": 21,
+    "entities": 20,
+    "episodes": 16,
+    "fragments": 72,
+    "mentions": 51,
+    "negatives": 4,
+    "plans": 6,
+    "resolutions": 31,
+    "sources": 6,
+    "split": "dev",
+    "worlds": [
+      "kestrel",
+      "leyenda",
+      "mareas"
+    ]
+  },
+  "match_config": {
+    "claim_key_extra": [],
+    "fact_key_includes_validity": false,
+    "overlap_threshold": 0.5,
+    "span_mode": "exact",
+    "symmetric_predicates": [
+      "ALLY_OF",
+      "RIVAL_OF",
+      "SIBLING_OF"
+    ]
+  },
+  "normalizer": {
+    "reason": "la prediccion no trae episodios",
+    "status": "not_evaluated"
+  },
+  "prediction": {
+    "assertions": 0,
+    "claims": 0,
+    "decisions": 0,
+    "episodes": 0,
+    "fragments": 0,
+    "mentions": 42,
+    "plans": 0,
+    "resolutions": 40
+  },
+  "resolver": {
+    "action_accuracy": {
+      "accuracy": 0.923077,
+      "correct": 12,
+      "total": 13
+    },
+    "action_accuracy_strict": {
+      "accuracy": 0.387097,
+      "correct": 12,
+      "total": 31
+    },
+    "cluster_alignment": {
+      "mapping_size": 17,
+      "strategy": "voraz por solape descendente; los ids del catalogo quedan fijados"
+    },
+    "duplicate_clusters": 0,
+    "duplicate_rate": 0.0,
+    "gold_entities_covered": 17,
+    "identity_accuracy": {
+      "accuracy": 0.72549,
+      "correct": 37,
+      "total": 51
+    },
+    "mentions_unassigned_by_prediction": 14,
+    "over_merge_rate": 0.0,
+    "over_merged_clusters": 0,
+    "predicted_clusters": 17,
+    "resolution_coverage": 0.419355,
+    "resolution_groups_gold": 31,
+    "resolution_groups_matched": 13,
+    "status": "scored"
+  },
+  "resources": {
+    "external_cost_usd": 0.0,
+    "latency_ms": 278.493,
+    "peak_rss_mb": 36.289,
+    "provider_calls": 0,
+    "status": "reported_by_runner"
+  },
+  "run_id": "dev-local_only",
+  "split": "dev",
+  "subsystem": "e2e"
+}

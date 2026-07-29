@@ -1,0 +1,746 @@
+{
+  "benchmark_file": "fragments",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 8,
+      "episode_id": "episode:ferrovia-cartas:e01",
+      "fragment_id": "fragment:ferrovia-cartas:e01:f00",
+      "frame_id": null,
+      "literal_text": "Portazgo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "portazgo",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 61,
+      "episode_id": "episode:ferrovia-cartas:e01",
+      "fragment_id": "fragment:ferrovia-cartas:e01:f01",
+      "frame_id": null,
+      "literal_text": "Maren Ibarrola",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "maren ibarrola",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 47,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 106,
+      "episode_id": "episode:ferrovia-cartas:e01",
+      "fragment_id": "fragment:ferrovia-cartas:e01:f02",
+      "frame_id": null,
+      "literal_text": "Trasandina Unida",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "trasandina unida",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 90,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 130,
+      "episode_id": "episode:ferrovia-cartas:e01",
+      "fragment_id": "fragment:ferrovia-cartas:e01:f03",
+      "frame_id": null,
+      "literal_text": "Compañía del Norte",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "compañía del norte",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 112,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 182,
+      "episode_id": "episode:ferrovia-cartas:e01",
+      "fragment_id": "fragment:ferrovia-cartas:e01:f04",
+      "frame_id": null,
+      "literal_text": "Túnel de Aizkorri",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "túnel de aizkorri",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 165,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 147,
+      "episode_id": "episode:ferrovia-cartas:e01",
+      "fragment_id": "fragment:ferrovia-cartas:e01:f05",
+      "frame_id": null,
+      "literal_text": "se han repartido",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "se han repartido",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 131,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 8,
+      "episode_id": "episode:ferrovia-cartas:e02",
+      "fragment_id": "fragment:ferrovia-cartas:e02:f00",
+      "frame_id": null,
+      "literal_text": "Portazgo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "portazgo",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 75,
+      "episode_id": "episode:ferrovia-cartas:e02",
+      "fragment_id": "fragment:ferrovia-cartas:e02:f01",
+      "frame_id": null,
+      "literal_text": "locomotora Cierzo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "locomotora cierzo",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 58,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 114,
+      "episode_id": "episode:ferrovia-cartas:e02",
+      "fragment_id": "fragment:ferrovia-cartas:e02:f02",
+      "frame_id": null,
+      "literal_text": "Compañía del Norte",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "compañía del norte",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 96,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 8,
+      "episode_id": "episode:ferrovia-cartas:e03",
+      "fragment_id": "fragment:ferrovia-cartas:e03:f00",
+      "frame_id": null,
+      "literal_text": "Portazgo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "portazgo",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 63,
+      "episode_id": "episode:ferrovia-cartas:e03",
+      "fragment_id": "fragment:ferrovia-cartas:e03:f01",
+      "frame_id": null,
+      "literal_text": "Iker Lasalde",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "iker lasalde",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 51,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 104,
+      "episode_id": "episode:ferrovia-cartas:e03",
+      "fragment_id": "fragment:ferrovia-cartas:e03:f02",
+      "frame_id": null,
+      "literal_text": "Trasandina Unida",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "trasandina unida",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 88,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 172,
+      "episode_id": "episode:ferrovia-cartas:e03",
+      "fragment_id": "fragment:ferrovia-cartas:e03:f03",
+      "frame_id": null,
+      "literal_text": "locomotora Cierzo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "locomotora cierzo",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 155,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 213,
+      "episode_id": "episode:ferrovia-cartas:e03",
+      "fragment_id": "fragment:ferrovia-cartas:e03:f04",
+      "frame_id": null,
+      "literal_text": "Trasandina Unida",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "trasandina unida",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 197,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 87,
+      "episode_id": "episode:ferrovia-cartas:e03",
+      "fragment_id": "fragment:ferrovia-cartas:e03:f05",
+      "frame_id": null,
+      "literal_text": "no figura como socio de",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "no figura como socio de",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 64,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 196,
+      "episode_id": "episode:ferrovia-cartas:e03",
+      "fragment_id": "fragment:ferrovia-cartas:e03:f06",
+      "frame_id": null,
+      "literal_text": "pertenece a",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        }
+      },
+      "normalized_text": "pertenece a",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "start": 185,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-cartas",
+  "split": "heldout",
+  "world": "ferrovia"
+}

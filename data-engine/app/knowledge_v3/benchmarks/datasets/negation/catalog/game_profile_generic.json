@@ -1,0 +1,252 @@
+{
+  "benchmark_file": "catalog/game_profile_generic",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "aliases": [],
+      "ambiguous_terms": [],
+      "calendars": [
+        {
+          "calendar_id": "calendar:basalto",
+          "epoch_label": "Cuenta de las Fraguas",
+          "units": [
+            "ciclo",
+            "temporada"
+          ]
+        },
+        {
+          "calendar_id": "calendar:cirro",
+          "epoch_label": "Cuenta de los Vientos",
+          "units": [
+            "ejercicio",
+            "equinoccio"
+          ]
+        },
+        {
+          "calendar_id": "calendar:zafiro",
+          "epoch_label": "Cuenta Abisal",
+          "units": [
+            "ciclo",
+            "marea"
+          ]
+        },
+        {
+          "calendar_id": "calendar:ambar",
+          "epoch_label": "Era de la Resina",
+          "units": [
+            "ano",
+            "invierno"
+          ]
+        }
+      ],
+      "contract_id": "game-profile/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "core_ontology_version": "core-1.4.0",
+      "entity_types": [
+        "Character",
+        "Location",
+        "Faction",
+        "Object",
+        "Event",
+        "Concept"
+      ],
+      "evaluation_examples": [],
+      "factions": [],
+      "identity_rules": [],
+      "learned_adapter": null,
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "catalog",
+          "split": "negation",
+          "world": "all"
+        }
+      },
+      "predicates": [
+        {
+          "domain": [
+            "Character"
+          ],
+          "functional": false,
+          "inverse_of": "HAS_MEMBER",
+          "predicate": "MEMBER_OF",
+          "range": [
+            "Faction"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": "MEMBER_OF",
+          "predicate": "HAS_MEMBER",
+          "range": [
+            "Character"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character"
+          ],
+          "functional": true,
+          "inverse_of": "LED_BY",
+          "predicate": "LEADS",
+          "range": [
+            "Faction"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": "LEADS",
+          "predicate": "LED_BY",
+          "range": [
+            "Character"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character",
+            "Object",
+            "Location",
+            "Event",
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": null,
+          "predicate": "LOCATED_IN",
+          "range": [
+            "Location"
+          ],
+          "symmetric": false,
+          "transitive": true
+        },
+        {
+          "domain": [
+            "Character",
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": null,
+          "predicate": "ALLY_OF",
+          "range": [
+            "Character",
+            "Faction"
+          ],
+          "symmetric": true,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character",
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": null,
+          "predicate": "RIVAL_OF",
+          "range": [
+            "Character",
+            "Faction"
+          ],
+          "symmetric": true,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character"
+          ],
+          "functional": false,
+          "inverse_of": null,
+          "predicate": "SIBLING_OF",
+          "range": [
+            "Character"
+          ],
+          "symmetric": true,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character",
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": "OWNED_BY",
+          "predicate": "OWNS",
+          "range": [
+            "Object",
+            "Location"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Object",
+            "Location"
+          ],
+          "functional": false,
+          "inverse_of": "OWNS",
+          "predicate": "OWNED_BY",
+          "range": [
+            "Character",
+            "Faction"
+          ],
+          "symmetric": false,
+          "transitive": false
+        }
+      ],
+      "produced_by_step": "gold.profile",
+      "profile_id": "generic",
+      "profile_version": "1.0.0",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "predicates",
+            "entity_types"
+          ],
+          "provider": "local",
+          "step": "gold.profile",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "profile:generic",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "cfd0a4894c0158bdda1babfa16beb8d5be5d2d7bec8117a5c185988c6fd059bd"
+      },
+      "source_priorities": [
+        {
+          "priority": 60,
+          "source_kind": "MARKDOWN"
+        },
+        {
+          "priority": 40,
+          "source_kind": "AUDIO"
+        },
+        {
+          "priority": 30,
+          "source_kind": "IMAGE"
+        }
+      ],
+      "titles": [],
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "catalog",
+  "split": "negation",
+  "world": "all"
+}

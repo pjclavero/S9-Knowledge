@@ -1,0 +1,266 @@
+{
+  "benchmark_file": "assertions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "assertion_id": "assertion:liga:irune-member-farol",
+      "calendar_id": null,
+      "collection_id": "collection:liga",
+      "confidence": 0.75,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:liga-audio-crudo:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e01:f04"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "gold_key": "irune-member-farol",
+        "phenomena": [
+          "ASR_NOISE"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:liga:farol",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:liga:irune",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "assertion_id": "assertion:liga:lorea-member-aldabra",
+      "calendar_id": null,
+      "collection_id": "collection:liga",
+      "confidence": 0.68,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:liga-audio-crudo:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e01:f05"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "gold_key": "lorea-member-aldabra",
+        "phenomena": [
+          "ASR_NOISE"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:liga:aldabra",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:liga:lorea",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "assertion_id": "assertion:liga:irune-sibling-lorea",
+      "calendar_id": null,
+      "collection_id": "collection:liga",
+      "confidence": 0.68,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:liga-audio-crudo:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e01:f06"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "gold_key": "irune-sibling-lorea",
+        "phenomena": [
+          "SYMMETRIC"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:liga:lorea",
+      "ontology_version": "core-1.4.0",
+      "predicate": "SIBLING_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:liga:irune",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "assertion_id": "assertion:liga:irune-leads-farol",
+      "calendar_id": "calendar:liga",
+      "collection_id": "collection:liga",
+      "confidence": 0.5,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:liga-audio-crudo:e02"
+      ],
+      "epistemic_status": "HYPOTHETICAL",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e02:f03"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "gold_key": "irune-leads-farol",
+        "phenomena": [
+          "HYPOTHETICAL"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:liga:farol",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LEADS",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "state": "HYPOTHETICAL",
+      "status": "PROVISIONAL",
+      "subject_entity_id": "entity:liga:irune",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-audio-crudo",
+  "split": "heldout",
+  "world": "liga"
+}

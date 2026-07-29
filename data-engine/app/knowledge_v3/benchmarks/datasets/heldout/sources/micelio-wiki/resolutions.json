@@ -1,0 +1,394 @@
+{
+  "benchmark_file": "resolutions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:micelio:hermandad"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:micelio-wiki:e01:f00",
+        "fragment:micelio-wiki:e02:f04",
+        "fragment:micelio-wiki:e03:f04"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:micelio-wiki:e01:m00",
+        "mention:micelio-wiki:e02:m04",
+        "mention:micelio-wiki:e03:m04"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS",
+        "COREFERENCE_CHAIN"
+      ],
+      "resolution_id": "resolution:micelio-wiki:hermandad",
+      "selected_entity_id": "entity:micelio:hermandad",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "workspace": "bench-heldout"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:micelio:camara-honda"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:micelio-wiki:e01:f01",
+        "fragment:micelio-wiki:e02:f00",
+        "fragment:micelio-wiki:e03:f01"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:micelio-wiki:e01:m01",
+        "mention:micelio-wiki:e02:m00",
+        "mention:micelio-wiki:e03:m01"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:micelio-wiki:camara-honda",
+      "selected_entity_id": "entity:micelio:camara-honda",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "workspace": "bench-heldout"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:micelio:conclave"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:micelio-wiki:e01:f02",
+        "fragment:micelio-wiki:e02:f02",
+        "fragment:micelio-wiki:e02:f06",
+        "fragment:micelio-wiki:e03:f00"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:micelio-wiki:e01:m02",
+        "mention:micelio-wiki:e02:m02",
+        "mention:micelio-wiki:e02:m06",
+        "mention:micelio-wiki:e03:m00"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:micelio-wiki:conclave",
+      "selected_entity_id": "entity:micelio:conclave",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "workspace": "bench-heldout"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:micelio:camara-yesca"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:micelio-wiki:e01:f03"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:micelio-wiki:e01:m03"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:micelio-wiki:camara-yesca",
+      "selected_entity_id": "entity:micelio:camara-yesca",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "workspace": "bench-heldout"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:micelio:leire"
+      ],
+      "confidence": 0.82,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:micelio-wiki:e01:f04",
+        "fragment:micelio-wiki:e03:f02",
+        "fragment:micelio-wiki:e03:f05"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:micelio-wiki:e01:m04",
+        "mention:micelio-wiki:e03:m02",
+        "mention:micelio-wiki:e03:m05"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS",
+        "KINSHIP_INFERENCE",
+        "COREFERENCE_CHAIN"
+      ],
+      "resolution_id": "resolution:micelio-wiki:leire",
+      "selected_entity_id": "entity:micelio:leire",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "workspace": "bench-heldout"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:micelio:galeria-ocre"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:micelio-wiki:e02:f01",
+        "fragment:micelio-wiki:e02:f03",
+        "fragment:micelio-wiki:e03:f06"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:micelio-wiki:e02:m01",
+        "mention:micelio-wiki:e02:m03",
+        "mention:micelio-wiki:e03:m06"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:micelio-wiki:galeria-ocre",
+      "selected_entity_id": "entity:micelio:galeria-ocre",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "workspace": "bench-heldout"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:micelio:sabel"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:micelio-wiki:e02:f05",
+        "fragment:micelio-wiki:e03:f03"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:micelio-wiki:e02:m05",
+        "mention:micelio-wiki:e03:m03"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_ALIAS"
+      ],
+      "resolution_id": "resolution:micelio-wiki:sabel",
+      "selected_entity_id": "entity:micelio:sabel",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-wiki",
+  "split": "heldout",
+  "world": "micelio"
+}

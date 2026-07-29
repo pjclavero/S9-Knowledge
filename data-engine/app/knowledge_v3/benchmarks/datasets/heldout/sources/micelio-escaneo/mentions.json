@@ -1,0 +1,371 @@
+{
+  "benchmark_file": "mentions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": {
+        "height": 0.06,
+        "page": 1,
+        "width": 0.72,
+        "x": 0.07,
+        "y": 0.11
+      },
+      "confidence": 0.74,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 27,
+      "episode_id": "episode:micelio-escaneo:e01",
+      "evidence_fragment_ids": [
+        "fragment:micelio-escaneo:e01:f00"
+      ],
+      "mention_id": "mention:micelio-escaneo:e01:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "cárnara honda",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "start": 14,
+      "surface": "Cárnara Honda",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": {
+        "height": 0.06,
+        "page": 1,
+        "width": 0.72,
+        "x": 0.07,
+        "y": 0.11
+      },
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 55,
+      "episode_id": "episode:micelio-escaneo:e01",
+      "evidence_fragment_ids": [
+        "fragment:micelio-escaneo:e01:f01"
+      ],
+      "mention_id": "mention:micelio-escaneo:e01:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "leire onraita",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "start": 42,
+      "surface": "Leire Onraita",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": {
+        "height": 0.06,
+        "page": 1,
+        "width": 0.72,
+        "x": 0.07,
+        "y": 0.11
+      },
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 86,
+      "episode_id": "episode:micelio-escaneo:e01",
+      "evidence_fragment_ids": [
+        "fragment:micelio-escaneo:e01:f02"
+      ],
+      "mention_id": "mention:micelio-escaneo:e01:m02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "hermandad del esporo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "start": 66,
+      "surface": "Hermandad del Esporo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": {
+        "height": 0.06,
+        "page": 1,
+        "width": 0.55,
+        "x": 0.07,
+        "y": 0.34
+      },
+      "confidence": 0.35,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 30,
+      "episode_id": "episode:micelio-escaneo:e02",
+      "evidence_fragment_ids": [
+        "fragment:micelio-escaneo:e02:f00"
+      ],
+      "mention_id": "mention:micelio-escaneo:e02:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "0nra1ta",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "start": 23,
+      "surface": "0nra1ta",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": {
+        "height": 0.32,
+        "page": 2,
+        "width": 0.6,
+        "x": 0.12,
+        "y": 0.52
+      },
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 34,
+      "episode_id": "episode:micelio-escaneo:e03",
+      "evidence_fragment_ids": [
+        "fragment:micelio-escaneo:e03:f00"
+      ],
+      "mention_id": "mention:micelio-escaneo:e03:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "cámara yesca",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "start": 22,
+      "surface": "Cámara Yesca",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": {
+        "height": 0.32,
+        "page": 2,
+        "width": 0.6,
+        "x": 0.12,
+        "y": 0.52
+      },
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 82,
+      "episode_id": "episode:micelio-escaneo:e03",
+      "evidence_fragment_ids": [
+        "fragment:micelio-escaneo:e03:f01"
+      ],
+      "mention_id": "mention:micelio-escaneo:e03:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "galería ocre",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "start": 70,
+      "surface": "Galería Ocre",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-escaneo",
+  "split": "heldout",
+  "world": "micelio"
+}

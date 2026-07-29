@@ -61,6 +61,11 @@ class CircuitBreaker:
     """Circuit breaker simple por proveedor.
 
     Estados: CLOSED (normal) -> OPEN (demasiados fallos) -> HALF_OPEN (prueba)
+
+    Solo cuentan los fallos que sugieren que el proveedor esta CAIDO (red,
+    timeout, 5xx, rate limit). Los errores permanentes —capacidad no
+    soportada, credenciales, input invalido— no se registran aqui: describen la
+    peticion, no la salud del proveedor.
     """
 
     def __init__(self, failure_threshold: int = 5, cooldown_seconds: float = 60.0):
@@ -222,8 +227,18 @@ class BurstDispatcher:
                     })
 
                 except (AuthError, UnsupportedCapabilityError, InputTooLargeError, ContentBlockedError) as exc:
-                    # Errores permanentes: no reintentar
-                    self._circuit.record_failure()
+                    # Errores permanentes: no reintentar y, sobre todo, NO
+                    # contarlos en el circuit breaker.
+                    #
+                    # El breaker existe para dejar de insistir a un proveedor
+                    # que esta CAIDO. Un error permanente no dice nada sobre su
+                    # salud: dice que ESA peticion no procede. Contarlos hacia
+                    # que pedir tres veces una capacidad que el proveedor no
+                    # sirve (p. ej. embeddings a un Ollama sin `--embeddings`,
+                    # que responde 501) abriese el circuito y bloquease de
+                    # rebote la extraccion, que funcionaba perfectamente. El
+                    # proveedor quedaba inutilizado por pedirle algo que nunca
+                    # tuvo.
                     self.total_failed += 1
                     return current_job.copy(update={
                         "status": JobStatus.FAILED,

@@ -1,0 +1,102 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:ferrovia-tabla",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "418656d057243546357c99687b945be709d9bacc5fc93816312cb6e86c63986a"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ferrovia-tabla:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-tabla",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "phenomena": [
+          "DUPLICATE_ACROSS_SOURCES",
+          "NEW_ENTITY",
+          "TABLE"
+        ]
+      },
+      "modality": "TABLE",
+      "next_episode_id": null,
+      "page": 1,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.97
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:ferrovia-tabla",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "165ed4568ec6ad0b41c2a1ff64b220c97d1f17f1146a3f824d0b114b0918f5fd"
+      },
+      "speaker": null,
+      "table": {
+        "header": [
+          "Socio",
+          "Compañía",
+          "Turno",
+          "Alta"
+        ],
+        "rows": [
+          [
+            "Iker Lasalde",
+            "Trasandina Unida",
+            "noche",
+            "1898"
+          ],
+          [
+            "Txomin Ereña",
+            "Compañía del Norte",
+            "día",
+            "1902"
+          ],
+          [
+            "Maren Ibarrola",
+            "Compañía del Norte",
+            "día",
+            "1893"
+          ],
+          [
+            "Nerea Lasalde",
+            "Compañía del Norte",
+            "noche",
+            "1901"
+          ]
+        ]
+      },
+      "text": null,
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-tabla",
+  "split": "heldout",
+  "world": "ferrovia"
+}

@@ -1,0 +1,478 @@
+{
+  "benchmark_file": "fragments",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": {
+        "height": 0.05,
+        "page": 1,
+        "width": 0.7,
+        "x": 0.08,
+        "y": 0.12
+      },
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 12,
+      "episode_id": "episode:leyenda-escaneo:e01",
+      "fragment_id": "fragment:leyenda-escaneo:e01:f00",
+      "frame_id": null,
+      "literal_text": "Daiki Oliaru",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "normalized_text": "daiki oliaru",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": {
+        "height": 0.05,
+        "page": 1,
+        "width": 0.7,
+        "x": 0.08,
+        "y": 0.12
+      },
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 59,
+      "episode_id": "episode:leyenda-escaneo:e01",
+      "fragment_id": "fragment:leyenda-escaneo:e01:f01",
+      "frame_id": null,
+      "literal_text": "Casa de1 Ciervo",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "normalized_text": "casa de1 ciervo",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 44,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": {
+        "height": 0.05,
+        "page": 1,
+        "width": 0.7,
+        "x": 0.08,
+        "y": 0.12
+      },
+      "confidence": 0.66,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 59,
+      "episode_id": "episode:leyenda-escaneo:e01",
+      "fragment_id": "fragment:leyenda-escaneo:e01:f02",
+      "frame_id": null,
+      "literal_text": "fue nornbrado magistrado de la Casa de1 Ciervo",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "normalized_text": "fue nombrado magistrado de la casa del ciervo",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 13,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": {
+        "height": 0.05,
+        "page": 1,
+        "width": 0.66,
+        "x": 0.08,
+        "y": 0.31
+      },
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 19,
+      "episode_id": "episode:leyenda-escaneo:e02",
+      "fragment_id": "fragment:leyenda-escaneo:e02:f00",
+      "frame_id": null,
+      "literal_text": "V4ndreth",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "normalized_text": "v4ndreth",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 11,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": {
+        "height": 0.05,
+        "page": 1,
+        "width": 0.66,
+        "x": 0.08,
+        "y": 0.31
+      },
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 64,
+      "episode_id": "episode:leyenda-escaneo:e02",
+      "fragment_id": "fragment:leyenda-escaneo:e02:f01",
+      "frame_id": null,
+      "literal_text": "Vado A1to",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "normalized_text": "vado a1to",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 55,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": {
+        "height": 0.05,
+        "page": 1,
+        "width": 0.66,
+        "x": 0.08,
+        "y": 0.31
+      },
+      "confidence": 0.4,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 51,
+      "episode_id": "episode:leyenda-escaneo:e02",
+      "fragment_id": "fragment:leyenda-escaneo:e02:f02",
+      "frame_id": null,
+      "literal_text": "firmo el acta junto a1 senescal",
+      "media_type": "OCR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "normalized_text": "firmo el acta junto a1 senescal",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 20,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": {
+        "height": 0.3,
+        "page": 2,
+        "width": 0.55,
+        "x": 0.15,
+        "y": 0.55
+      },
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 48,
+      "episode_id": "episode:leyenda-escaneo:e03",
+      "fragment_id": "fragment:leyenda-escaneo:e03:f00",
+      "frame_id": null,
+      "literal_text": "Casa del Ciervo",
+      "media_type": "DIAGRAM",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "normalized_text": "casa del ciervo",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 33,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": {
+        "height": 0.3,
+        "page": 2,
+        "width": 0.55,
+        "x": 0.15,
+        "y": 0.55
+      },
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 68,
+      "episode_id": "episode:leyenda-escaneo:e03",
+      "fragment_id": "fragment:leyenda-escaneo:e03:f01",
+      "frame_id": null,
+      "literal_text": "Vado Alto",
+      "media_type": "DIAGRAM",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "normalized_text": "vado alto",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 59,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": {
+        "height": 0.3,
+        "page": 2,
+        "width": 0.55,
+        "x": 0.15,
+        "y": 0.55
+      },
+      "confidence": 0.5,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 68,
+      "episode_id": "episode:leyenda-escaneo:e03",
+      "fragment_id": "fragment:leyenda-escaneo:e03:f02",
+      "frame_id": null,
+      "literal_text": "el recinto de la Casa del Ciervo dentro de Vado Alto",
+      "media_type": "DIAGRAM",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-escaneo",
+          "split": "dev",
+          "world": "leyenda"
+        }
+      },
+      "normalized_text": "el recinto de la casa del ciervo dentro de vado alto",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:leyenda-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9a228cf38b897ef29aca48c5f41db4bdfe45b91719e8b684633b6e66f297c3b6"
+      },
+      "start": 16,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-escaneo",
+  "split": "dev",
+  "world": "leyenda"
+}

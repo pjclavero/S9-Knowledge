@@ -1,0 +1,204 @@
+{
+  "benchmark_file": "assertions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "assertion_id": "assertion:ferrovia:trasandina-ally-norte",
+      "calendar_id": null,
+      "collection_id": "collection:ferrovia",
+      "confidence": 0.55,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:ferrovia-cartas:e01"
+      ],
+      "epistemic_status": "RUMORED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-cartas:e01:f05"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "gold_key": "trasandina-ally-norte",
+        "phenomena": [
+          "RUMOR",
+          "SYMMETRIC"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:ferrovia:norte",
+      "ontology_version": "core-1.4.0",
+      "predicate": "ALLY_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "state": "ACTIVE",
+      "status": "PROVISIONAL",
+      "subject_entity_id": "entity:ferrovia:trasandina",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "assertion_id": "assertion:ferrovia:iker-not-member-trasandina",
+      "calendar_id": null,
+      "collection_id": "collection:ferrovia",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:ferrovia-cartas:e03"
+      ],
+      "epistemic_status": "CONFLICTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-cartas:e03:f05"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "gold_key": "iker-not-member-trasandina",
+        "phenomena": [
+          "CONFLICT",
+          "NEGATION"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:ferrovia:trasandina",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "state": "ACTIVE",
+      "status": "CONTRADICTED",
+      "subject_entity_id": "entity:ferrovia:iker",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "assertion_id": "assertion:ferrovia:cierzo-owned-trasandina",
+      "calendar_id": null,
+      "collection_id": "collection:ferrovia",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:ferrovia-cartas:e03"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": null,
+      "evidence_fragment_ids": [
+        "fragment:ferrovia-cartas:e03:f06"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-cartas",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "gold_key": "cierzo-owned-trasandina",
+        "phenomena": [
+          "INVERSE_PREDICATE"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:ferrovia:trasandina",
+      "ontology_version": "core-1.4.0",
+      "predicate": "OWNED_BY",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-07-27T18:00:00Z",
+      "source_asset_id": "asset:ferrovia-cartas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae765f80fbe03e05500de72ca6a42c4d5b8546afe820d5ab99c04fdb2c51fb26"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:ferrovia:cierzo",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-cartas",
+  "split": "heldout",
+  "world": "ferrovia"
+}

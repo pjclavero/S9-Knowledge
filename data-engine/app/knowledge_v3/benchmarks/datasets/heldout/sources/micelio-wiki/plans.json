@@ -1,0 +1,501 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:micelio",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-07-27T18:30:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:micelio-wiki:e01:c00",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:micelio-wiki:d1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e01:f05"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:micelio:camara-honda",
+          "predicate": "LOCATED_IN",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:micelio:hermandad"
+        },
+        {
+          "claim_id": "claim:micelio-wiki:e01:c01",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:micelio-wiki:d2",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e01:f06"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:micelio:conclave",
+          "predicate": "RIVAL_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:micelio:hermandad"
+        },
+        {
+          "claim_id": "claim:micelio-wiki:e01:c02",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:micelio-wiki:d3",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e01:f07"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:micelio:camara-yesca",
+          "predicate": "OWNS",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:micelio:hermandad"
+        },
+        {
+          "claim_id": "claim:micelio-wiki:e01:c03",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:micelio-wiki:d4",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e01:f08"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:micelio:leire",
+          "predicate": "HAS_MEMBER",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:micelio:hermandad"
+        },
+        {
+          "claim_id": "claim:micelio-wiki:e02:c00",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:micelio-wiki:d5",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e02:f07"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:micelio:galeria-ocre",
+          "predicate": "LOCATED_IN",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:micelio:camara-honda"
+        },
+        {
+          "claim_id": "claim:micelio-wiki:e02:c01",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:micelio-wiki:d6",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "HYPOTHETICAL",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e02:f08"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:micelio:galeria-ocre",
+          "predicate": "LOCATED_IN",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:micelio:conclave"
+        },
+        {
+          "claim_id": "claim:micelio-wiki:e02:c02",
+          "confidence": 0.95,
+          "decision": "REJECT_INVALID",
+          "decision_id": "decision:micelio-wiki:d7",
+          "direction": null,
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e02:f08"
+          ],
+          "object_entity_id": null,
+          "predicate": null,
+          "reason_codes": [
+            "ONTOLOGY_INCOMPATIBLE",
+            "TYPE_INCOMPATIBLE"
+          ],
+          "subject_entity_id": null
+        },
+        {
+          "claim_id": "claim:micelio-wiki:e03:c00",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:micelio-wiki:d8",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e03:f07"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:micelio:hermandad",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:micelio:leire"
+        },
+        {
+          "claim_id": "claim:micelio-wiki:e03:c01",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:micelio-wiki:d9",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e03:f08"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:micelio:sabel",
+          "predicate": "SIBLING_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:micelio:leire"
+        },
+        {
+          "claim_id": "claim:micelio-wiki:e03:c02",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:micelio-wiki:d10",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e03:f09"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:micelio:galeria-ocre",
+          "predicate": "LOCATED_IN",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:micelio:leire"
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-07-28T18:30:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": true,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-07-27T18:30:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "3cbb9c787948d6e1db541eccbc5f7242ad602cfc4d35fa9b063a7e0405236d4c"
+        },
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "ontology",
+            "version": "core-1.4.0"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:micelio:hermandad-in-honda",
+          "decision_id": "decision:micelio-wiki:d1",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e01:f05"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:d78ce3e3ca3c2198a7e41cf5dee53707d501f9f85d623b86923b7fbcaf156ef0",
+          "operation_id": "op:micelio-wiki:d1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:micelio:camara-honda",
+            "predicate": "LOCATED_IN",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:micelio:hermandad",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:micelio:hermandad-rival-conclave",
+          "decision_id": "decision:micelio-wiki:d2",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e01:f06"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:4049a14a77a292719ce4c2e821f5fb79af8948c7c34c0f3ba285cd41ece92cad",
+          "operation_id": "op:micelio-wiki:d2",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "UNDIRECTED",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:micelio:conclave",
+            "predicate": "RIVAL_OF",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:micelio:hermandad",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:micelio:hermandad-owns-yesca",
+          "decision_id": "decision:micelio-wiki:d3",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e01:f07"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:c79c21e8f00f37644dcb0bb8b4096cb9988edfb2fd78a61461e7133b9f9f40a6",
+          "operation_id": "op:micelio-wiki:d3",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:micelio:camara-yesca",
+            "predicate": "OWNS",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:micelio:hermandad",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:micelio:hermandad-has-leire",
+          "decision_id": "decision:micelio-wiki:d4",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e01:f08"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:d81e01a57775b913ee3a7dde7957be77c615b0f0440409d6b33b1ed53dd362d9",
+          "operation_id": "op:micelio-wiki:d4",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:micelio:leire",
+            "predicate": "HAS_MEMBER",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:micelio:hermandad",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:micelio:honda-in-ocre",
+          "decision_id": "decision:micelio-wiki:d5",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e02:f07"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:5a3206146e6afcef9b354f7d83b0b7a09d297397901dc9bb583e3c4c4a97cd65",
+          "operation_id": "op:micelio-wiki:d5",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:micelio:galeria-ocre",
+            "predicate": "LOCATED_IN",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:micelio:camara-honda",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:micelio:conclave-in-ocre",
+          "decision_id": "decision:micelio-wiki:d6",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e02:f08"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:d9dbfd83cc201347dfdabeba52b3c2df038ba5ea144c07a98bdc37c2c7eec51c",
+          "operation_id": "op:micelio-wiki:d6",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "HYPOTHETICAL",
+            "negated": false,
+            "object_entity_id": "entity:micelio:galeria-ocre",
+            "predicate": "LOCATED_IN",
+            "state": "HYPOTHETICAL",
+            "status": "PROVISIONAL",
+            "subject_entity_id": "entity:micelio:conclave",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:micelio:leire-leads-hermandad",
+          "decision_id": "decision:micelio-wiki:d8",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e03:f07"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:13e8247bc1f0e3ddc07151c59cc0c49b8d600b4d589ecca3a2d4610d489f29fe",
+          "operation_id": "op:micelio-wiki:d8",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:micelio:hermandad",
+            "predicate": "LEADS",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:micelio:leire",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:micelio:leire-sibling-sabel",
+          "decision_id": "decision:micelio-wiki:d9",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e03:f08"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:82fe6c6f0deb47233eeb51c4683f5c45e4cd099a9f6f8e4b627572ac492bfb70",
+          "operation_id": "op:micelio-wiki:d9",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "UNDIRECTED",
+            "epistemic_status": "ASSERTED",
+            "negated": false,
+            "object_entity_id": "entity:micelio:sabel",
+            "predicate": "SIBLING_OF",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:micelio:leire",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:micelio:leire-not-in-ocre",
+          "decision_id": "decision:micelio-wiki:d10",
+          "evidence_fragment_ids": [
+            "fragment:micelio-wiki:e03:f09"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:bc518bda7d6bb997e861ee4093e4ee5a7b00603301f21101f6b721fb32d3df62",
+          "operation_id": "op:micelio-wiki:d10",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "epistemic_status": "ASSERTED",
+            "negated": true,
+            "object_entity_id": "entity:micelio:galeria-ocre",
+            "predicate": "LOCATED_IN",
+            "state": "ACTIVE",
+            "status": "ASSERTED",
+            "subject_entity_id": "entity:micelio:leire",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "d4950b6746db01a05d91d1d2be625b710db1dfe95be087e23ff4e69b11c7c415"
+      },
+      "plan_id": "plan:micelio-wiki:p1",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:heldout:micelio-wiki",
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-wiki",
+  "split": "heldout",
+  "world": "micelio"
+}

@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/knowledge-v3/v1/game-profile-v3.schema.json",
+  "title": "game-profile/v3-internal-v1",
+  "description": "Perfil de juego: ontologia local sobre el nucleo comun. En V3 inicial solo existe 'generic'. Su source_hash es el hash del propio documento de perfil (excepcion documentada: un perfil no procede de un SourceAsset).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_id", "contract_version", "workspace", "source_asset_id", "source_hash",
+    "provider_trace", "produced_by_step", "profile_id", "profile_version", "core_ontology_version",
+    "entity_types", "predicates", "aliases", "titles", "factions", "calendars",
+    "identity_rules", "ambiguous_terms", "source_priorities", "evaluation_examples"
+  ],
+  "properties": {
+    "contract_id": { "const": "game-profile/v3-internal-v1" },
+    "contract_version": { "$ref": "_common-v3.schema.json#/$defs/contract_version" },
+    "workspace": { "$ref": "_common-v3.schema.json#/$defs/workspace" },
+    "source_asset_id": {
+      "$ref": "_common-v3.schema.json#/$defs/stable_id",
+      "description": "Identificador del documento de perfil que origina este contrato (no un asset multimedia)."
+    },
+    "source_hash": { "$ref": "_common-v3.schema.json#/$defs/hash" },
+    "provider_trace": { "$ref": "_common-v3.schema.json#/$defs/provider_trace" },
+    "produced_by_step": {
+      "$ref": "_common-v3.schema.json#/$defs/stable_id",
+      "description": "Paso de `provider_trace` que produjo el CONTENIDO principal de este documento. Referencia explicita: la atribucion de proveedor no puede depender de heuristicas sobre `produced`, porque una traza mal adivinada convierte una salida externa en 'local' sin que nadie se entere."
+    },
+
+    "profile_id": { "$ref": "_common-v3.schema.json#/$defs/game_profile" },
+    "profile_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "core_ontology_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "entity_types": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Subconjunto del catalogo canonico. Un perfil restringe o reordena; no inventa tipos nuevos en v1.",
+      "items": { "$ref": "_common-v3.schema.json#/$defs/entity_type" }
+    },
+    "predicates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["predicate", "domain", "range"],
+        "properties": {
+          "predicate": { "$ref": "_common-v3.schema.json#/$defs/predicate" },
+          "domain": { "type": "array", "minItems": 1, "items": { "$ref": "_common-v3.schema.json#/$defs/entity_type" } },
+          "range": { "type": "array", "minItems": 1, "items": { "$ref": "_common-v3.schema.json#/$defs/entity_type" } },
+          "symmetric": { "type": "boolean" },
+          "transitive": { "type": "boolean" },
+          "functional": { "type": "boolean" },
+          "inverse_of": {
+            "anyOf": [
+              { "$ref": "_common-v3.schema.json#/$defs/predicate" },
+              { "type": "null" }
+            ]
+          }
+        }
+      }
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["canonical", "variants"],
+        "properties": {
+          "canonical": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "variants": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 256 } }
+        }
+      }
+    },
+    "titles": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 128 } },
+    "factions": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 256 } },
+    "calendars": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["calendar_id", "epoch_label"],
+        "properties": {
+          "calendar_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+          "epoch_label": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "units": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 64 } }
+        }
+      }
+    },
+    "identity_rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule_id", "kind", "reason_code"],
+        "properties": {
+          "rule_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+          "kind": { "type": "string", "enum": ["MERGE_IF", "NEVER_MERGE_IF", "REQUIRE_REVIEW_IF"] },
+          "reason_code": { "$ref": "_common-v3.schema.json#/$defs/reason_code" },
+          "description": { "type": "string", "maxLength": 1000 }
+        }
+      }
+    },
+    "ambiguous_terms": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 256 } },
+    "source_priorities": {
+      "type": "array",
+      "description": "Prioridad de fuentes ante conflicto. Orden explicito; nunca implicito.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_kind", "priority"],
+        "properties": {
+          "source_kind": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "priority": { "type": "integer", "minimum": 0, "maximum": 100 }
+        }
+      }
+    },
+    "evaluation_examples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["example_id", "text", "expected"],
+        "properties": {
+          "example_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+          "text": { "type": "string", "minLength": 1, "maxLength": 4000 },
+          "expected": { "type": "string", "minLength": 1, "maxLength": 512 }
+        }
+      }
+    },
+    "learned_adapter": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["adapter_id", "enabled"],
+          "properties": {
+            "adapter_id": { "$ref": "_common-v3.schema.json#/$defs/stable_id" },
+            "enabled": { "const": false }
+          }
+        },
+        { "type": "null" }
+      ],
+      "description": "Reservado para el futuro adaptador por juego. En v1 solo puede declararse deshabilitado."
+    },
+    "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" }
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "aliases": [
+    {
+      "canonical": "Daiki",
+      "variants": [
+        "Daiqui",
+        "daiki",
+        "el magistrado"
+      ]
+    }
+  ],
+  "ambiguous_terms": [
+    "el magistrado",
+    "el consejo"
+  ],
+  "calendars": [
+    {
+      "calendar_id": "calendar:umbra",
+      "epoch_label": "Era del Ciervo",
+      "units": [
+        "ciclo",
+        "luna"
+      ]
+    }
+  ],
+  "contract_id": "game-profile/v3-internal-v1",
+  "contract_version": "1.0.0",
+  "core_ontology_version": "core-1.4.0",
+  "entity_types": [
+    "Character",
+    "Location",
+    "Faction",
+    "Object",
+    "Event",
+    "Concept"
+  ],
+  "evaluation_examples": [
+    {
+      "example_id": "example:0001",
+      "expected": "NEGATED MEMBER_OF(Daiki, Consejo de Umbra)",
+      "text": "Daiki jamas juro lealtad al Consejo de Umbra."
+    }
+  ],
+  "factions": [
+    "Casa del Ciervo",
+    "Consejo de Umbra"
+  ],
+  "identity_rules": [
+    {
+      "description": "Un titulo compartido no basta para fusionar dos personajes.",
+      "kind": "NEVER_MERGE_IF",
+      "reason_code": "TITLE_ONLY_MATCH",
+      "rule_id": "rule:never-merge-titles"
+    }
+  ],
+  "predicates": [
+    {
+      "domain": [
+        "Character"
+      ],
+      "functional": false,
+      "inverse_of": "HAS_MEMBER",
+      "predicate": "MEMBER_OF",
+      "range": [
+        "Faction"
+      ],
+      "symmetric": false,
+      "transitive": false
+    },
+    {
+      "domain": [
+        "Faction"
+      ],
+      "functional": false,
+      "inverse_of": "MEMBER_OF",
+      "predicate": "HAS_MEMBER",
+      "range": [
+        "Character"
+      ],
+      "symmetric": false,
+      "transitive": false
+    },
+    {
+      "domain": [
+        "Character",
+        "Object",
+        "Location",
+        "Event"
+      ],
+      "functional": false,
+      "inverse_of": null,
+      "predicate": "LOCATED_IN",
+      "range": [
+        "Location"
+      ],
+      "symmetric": false,
+      "transitive": true
+    },
+    {
+      "domain": [
+        "Character",
+        "Faction"
+      ],
+      "functional": false,
+      "inverse_of": null,
+      "predicate": "ALLY_OF",
+      "range": [
+        "Character",
+        "Faction"
+      ],
+      "symmetric": true,
+      "transitive": false
+    },
+    {
+      "domain": [
+        "Character"
+      ],
+      "functional": false,
+      "inverse_of": "HAS_MEMBER",
+      "predicate": "MEMBER_OF",
+      "range": [
+        "Faction"
+      ],
+      "symmetric": false,
+      "transitive": false
+    }
+  ],
+  "produced_by_step": "profile.load",
+  "profile_id": "generic",
+  "profile_version": "1.0.0",
+  "provider_trace": [
+    {
+      "model": null,
+      "name": "s9k.knowledge_v3",
+      "produced": [
+        "predicates",
+        "entity_types"
+      ],
+      "provider": "local",
+      "step": "profile.load",
+      "version": "3.0.0"
+    }
+  ],
+  "source_asset_id": "profile:generic",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "66eff1089c941e535373d962f2580fd1e8b6fad38969e83b0ae15fcaab925286"
+  },
+  "source_priorities": [
+    {
+      "priority": 80,
+      "source_kind": "PDF"
+    },
+    {
+      "priority": 40,
+      "source_kind": "AUDIO"
+    }
+  ],
+  "titles": [
+    "magistrado",
+    "senescal"
+  ],
+  "workspace": "leyenda"
+}

@@ -1,0 +1,67 @@
+{
+  "benchmark_file": "source_asset",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:mareas-cuaderno",
+      "byte_size": 475,
+      "collection_id": "collection:mareas",
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "contract_id": "source-asset/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "copyright_class": "OWN",
+      "created_at": "2026-02-02T10:00:00Z",
+      "game_profile": "generic",
+      "ingested_at": "2026-07-20T09:05:00Z",
+      "language_hint": "es",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "description": "Nota de campo: rivalidad simetrica, contencion espacial e hipotesis.",
+        "title": "Cuaderno de puerto de Puerto Quilla"
+      },
+      "mime_type": "text/markdown",
+      "original_location": "benchmarks/dev/mareas-cuaderno/cuaderno-puerto-quilla.md",
+      "original_name": "cuaderno-puerto-quilla.md",
+      "privacy_class": "INTERNAL",
+      "processing_policy": {
+        "allow_external_providers": true,
+        "allow_media_persistence": true,
+        "retention_days": 365
+      },
+      "produced_by_step": "gold.ingest",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "content_hash",
+            "byte_size",
+            "mime_type"
+          ],
+          "provider": "local",
+          "step": "gold.ingest",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "source_kind": "MARKDOWN",
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "mareas-cuaderno",
+  "split": "dev",
+  "world": "mareas"
+}

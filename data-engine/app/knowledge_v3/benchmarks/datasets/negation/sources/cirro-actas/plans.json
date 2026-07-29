@@ -1,0 +1,438 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:cirro",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-07-29T09:15:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:cirro-actas:e01:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:cirro-actas:e01:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e01:f003"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:cirro:consejo-vientos",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:cirro:dagna-hoill"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e02:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:cirro-actas:e02:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e02:f006"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:cirro:compania-arrecife",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:cirro:pol-arriaga"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e03:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:cirro-actas:e03:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e03:f009"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:cirro:vera-luntz",
+          "predicate": "HAS_MEMBER",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:cirro:cofradia-velas"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e04:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:cirro-actas:e04:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e04:f012"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:cirro:junta-astilleros",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:cirro:ismael-corvo"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e05:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:cirro-actas:e05:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e05:f015"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:cirro:sociedad-aerostatos",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:cirro:tanit-pereo"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e06:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:cirro-actas:e06:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e06:f018"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:cirro:compania-arrecife",
+          "predicate": "OWNED_BY",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:cirro:muelle-alto"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e07:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:cirro-actas:e07:c1",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e07:f021"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:cirro:selva-ondiz",
+          "predicate": "ALLY_OF",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:cirro:hugo-marlen"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e08:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:cirro-actas:e08:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e08:f025"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:cirro:cofradia-velas",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:cirro:radi-oster"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e09:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:cirro-actas:e09:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "UNKNOWN",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e09:f028"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:cirro:junta-astilleros",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:cirro:noa-quimper"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e10:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:cirro-actas:e10:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e10:f031"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:cirro:consejo-vientos",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:cirro:vera-luntz"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e11:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:cirro-actas:e11:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e11:f034"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:cirro:ismael-corvo",
+          "predicate": "LED_BY",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:cirro:sociedad-aerostatos"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e12:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:cirro-actas:e12:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "UNKNOWN",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e12:f038"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:cirro:cofradia-velas",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:cirro:tanit-pereo"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e13:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:cirro-actas:e13:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "UNKNOWN",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e13:f042"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:cirro:junta-astilleros",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:cirro:hugo-marlen"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e14:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:cirro-actas:e14:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "UNKNOWN",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e14:f046"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:cirro:consejo-vientos",
+          "predicate": "OWNED_BY",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:cirro:carta-fletes"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e15:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:cirro-actas:e15:c1",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e15:f049"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:cirro:radi-oster",
+          "predicate": "RIVAL_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:cirro:vera-luntz"
+        },
+        {
+          "claim_id": "claim:cirro-actas:e16:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:cirro-actas:e16:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e16:f052"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:cirro:noa-quimper",
+          "predicate": "LED_BY",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:cirro:compania-arrecife"
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-07-30T09:15:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": false,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-07-29T09:15:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "0fcafc488a743bba73389662a295913670eeab7d3627952b0db19ccb51d035be"
+        },
+        "key_id": null,
+        "signature": null,
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "ontology",
+            "version": "core-1.4.0"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "cirro-actas",
+          "split": "negation",
+          "world": "cirro"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:cirro:neg-pos-03-1",
+          "decision_id": "decision:claim:cirro-actas:e15:c1",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e15:f049"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:3415d8fe3b081d2ab425e21eca47219b1196a63c3e87805edeac93479c8734a6",
+          "operation_id": "op:cirro-actas:neg-pos-03-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "UNDIRECTED",
+            "negated": false,
+            "object_entity_id": "entity:cirro:radi-oster",
+            "predicate": "RIVAL_OF",
+            "subject_entity_id": "entity:cirro:vera-luntz",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:cirro:neg-pos-04-1",
+          "decision_id": "decision:claim:cirro-actas:e16:c1",
+          "evidence_fragment_ids": [
+            "fragment:cirro-actas:e16:f052"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:863c1f7f06b2378bab2c653d4d89c273539d05a210be4c0d698fdbd5533d8661",
+          "operation_id": "op:cirro-actas:neg-pos-04-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": false,
+            "object_entity_id": "entity:cirro:noa-quimper",
+            "predicate": "LED_BY",
+            "subject_entity_id": "entity:cirro:compania-arrecife",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "86dcca9ddd8490d12b2b620ccc30cbda18be98cac1ae704e24e9ac9227dd002c"
+      },
+      "plan_id": "plan:cirro-actas:0001",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:bench:cirro-actas",
+      "source_asset_id": "asset:cirro-actas",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ae5cb8a14b53f0bd5d00678ab2d35881a6c785fce18da7571f820e2774c884c3"
+      },
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "cirro-actas",
+  "split": "negation",
+  "world": "cirro"
+}

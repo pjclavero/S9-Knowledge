@@ -1,0 +1,87 @@
+{
+  "benchmark_file": "negatives",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "end": 201,
+      "episode_id": "episode:ferrovia-memoria:e02",
+      "forbidden_object_mentions": [
+        "mention:ferrovia-memoria:e02:m03"
+      ],
+      "forbidden_predicates": [
+        "OWNED_BY",
+        "OWNS"
+      ],
+      "forbidden_subject_mentions": [
+        "mention:ferrovia-memoria:e02:m02"
+      ],
+      "kind": "MODIFIER_MISPAIR",
+      "literal_text": "el hermano de Nerea Lasalde para explotar el Túnel de Aizkorri",
+      "must_not_produce": "CLAIM_FOR_PAIR",
+      "negative_id": "negative:ferrovia-memoria:modificador-nerea-tunel",
+      "rationale": "Quien firma es el hermano, no Nerea. Emparejar a Nerea con el túnel es el error clásico del sujeto-modificador.",
+      "split": "heldout",
+      "start": 139
+    },
+    {
+      "end": 165,
+      "episode_id": "episode:ferrovia-memoria:e03",
+      "forbidden_object_mentions": [],
+      "forbidden_predicates": [
+        "LOCATED_IN"
+      ],
+      "forbidden_subject_mentions": [],
+      "kind": "EVENT_LOCATION",
+      "literal_text": "discutieron el reparto en la Estación de Portazgo",
+      "must_not_produce": "CLAIM",
+      "negative_id": "negative:ferrovia-memoria:lugar-de-evento-portazgo",
+      "rationale": "Reunirse una vez en un sitio no ubica a nadie en el. Un LOCATED_IN persistente sobre los hermanos seria falso.",
+      "split": "heldout",
+      "start": 116
+    },
+    {
+      "end": 97,
+      "episode_id": "episode:ferrovia-memoria:e03",
+      "forbidden_object_mentions": [
+        "mention:ferrovia-memoria:e03:m03"
+      ],
+      "forbidden_predicates": [
+        "MEMBER_OF"
+      ],
+      "forbidden_subject_mentions": [
+        "mention:ferrovia-memoria:e03:m00"
+      ],
+      "kind": "COORDINATION_MISPAIR",
+      "literal_text": "y también Iker Lasalde ingresó en Trasandina Unida",
+      "must_not_produce": "CLAIM_FOR_PAIR",
+      "negative_id": "negative:ferrovia-memoria:coordinacion-nerea-trasandina",
+      "rationale": "La coordinación abre una segunda cláusula con sujeto propio: Nerea no ingresó en Trasandina Unida.",
+      "split": "heldout",
+      "start": 47
+    },
+    {
+      "end": 46,
+      "episode_id": "episode:ferrovia-memoria:e03",
+      "forbidden_object_mentions": [
+        "mention:ferrovia-memoria:e03:m01"
+      ],
+      "forbidden_predicates": [
+        "MEMBER_OF"
+      ],
+      "forbidden_subject_mentions": [
+        "mention:ferrovia-memoria:e03:m02"
+      ],
+      "kind": "COORDINATION_MISPAIR",
+      "literal_text": "Nerea Lasalde ingresó en la Compañía del Norte",
+      "must_not_produce": "CLAIM_FOR_PAIR",
+      "negative_id": "negative:ferrovia-memoria:coordinacion-iker-norte",
+      "rationale": "El objeto de la primera cláusula no pertenece al sujeto de la segunda.",
+      "split": "heldout",
+      "start": 0
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-memoria",
+  "split": "heldout",
+  "world": "ferrovia"
+}

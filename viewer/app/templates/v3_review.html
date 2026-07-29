@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Revisión V3 · S9 Knowledge{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/v3-review.css">{% endblock %}
+{% block body %}
+<main class="v3r-shell">
+  <header class="v3r-header">
+    <div>
+      <h1>Revisión V3</h1>
+      {% if queue %}
+      <p><strong data-remaining>{{ queue.remaining }}</strong> pendientes de {{ queue.total }}</p>
+      {% else %}
+      <p>Selecciona un workspace para comenzar.</p>
+      {% endif %}
+    </div>
+    {% if workspace %}
+    <form method="post" action="/v3/review/undo">
+      <input type="hidden" name="workspace" value="{{ workspace | e }}">
+      <input type="hidden" name="request_id" value="{{ request_id | e }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+      <button type="submit" class="v3r-secondary">Deshacer última</button>
+    </form>
+    {% endif %}
+  </header>
+
+  <form class="v3r-filters" method="get" action="/v3/review">
+    <label>Workspace
+      <select name="workspace" required onchange="this.form.submit()">
+        <option value="">Seleccionar</option>
+        {% for item in workspaces %}
+        <option value="{{ item | e }}" {% if item == workspace %}selected{% endif %}>{{ item | e }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% if queue %}
+    <label>Fuente
+      <select name="source_id" onchange="this.form.submit()">
+        <option value="">Todas</option>
+        {% for item in queue.sources %}
+        <option value="{{ item | e }}" {% if item == source_id %}selected{% endif %}>{{ item | e }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Decisión del motor
+      <select name="engine_decision" onchange="this.form.submit()">
+        <option value="">Todas</option>
+        {% for item in queue.decisions %}
+        <option value="{{ item | e }}" {% if item == engine_decision %}selected{% endif %}>{{ item | e }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% endif %}
+  </form>
+
+  {% if queue and queue.items %}
+  <section class="v3r-stack" aria-live="polite">
+    {% for item in queue.items %}
+    <article class="v3r-item" data-review-item {% if not loop.first %}hidden{% endif %}>
+      <div class="v3r-context">
+        <span>{{ item.source_id | e }}</span>
+        <span>{{ item.episode_id | e }}</span>
+        <span>{{ item.engine_decision.decision | default("Sin decisión") | e }}</span>
+      </div>
+
+      <blockquote class="v3r-evidence">{{ item.evidence_before | e }}<mark>{{ item.evidence_literal | e }}</mark>{{ item.evidence_after | e }}</blockquote>
+
+      <div class="v3r-grid">
+        <section>
+          <h2>Propuesta</h2>
+          <dl class="v3r-facts">
+            <dt>Sujeto</dt><dd>{{ item.proposal.subject | default("No disponible") | e }}</dd>
+            <dt>Predicado</dt><dd>{{ item.proposal.predicate | default("No disponible") | e }}</dd>
+            <dt>Objeto</dt><dd>{{ item.proposal.object | default("No disponible") | e }}</dd>
+            <dt>Dirección</dt><dd>{{ item.proposal.direction | default("No disponible") | e }}</dd>
+            <dt>Negación</dt><dd>{{ item.proposal.negation | default("No disponible") | e }}</dd>
+          </dl>
+        </section>
+
+        <section>
+          <h2>Por qué requiere revisión</h2>
+          <ul class="v3r-reasons">
+            {% for reason in item.reason_explanations %}
+            <li>{{ reason.label | e }}</li>
+            {% else %}
+            <li>No disponible</li>
+            {% endfor %}
+          </ul>
+          <h2>Ontología aplicable</h2>
+          <p>{{ item.ontology.allowed_predicates | default([]) | join(", ") | e if item.ontology else "No disponible" }}</p>
+          <p class="v3r-version">
+            Ontología {{ item.ontology_version | default("No disponible", true) | e }}
+            · motor {{ item.engine_version | default("No disponible", true) | e }}
+          </p>
+        </section>
+      </div>
+
+      <form class="v3r-decision" method="post" action="/v3/review/decide">
+        <input type="hidden" name="workspace" value="{{ workspace | e }}">
+        <input type="hidden" name="proposal_id" value="{{ item.proposal_id | e }}">
+        <input type="hidden" name="request_id" value="{{ request_id | e }}-{{ loop.index0 }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+
+        <fieldset>
+          <legend>Corrección</legend>
+          <label>Predicado
+            <select name="predicate">
+              <option value="">Mantener</option>
+              {% for candidate in item.predicate_alternatives %}
+              <option value="{{ candidate.value | e }}">
+                {{ candidate.value | e }}
+                · {{ candidate.confidence | default("?") | e }}
+                · {{ candidate.extractor | default(candidate.provider) | default("extractor no disponible") | e }}
+              </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Dirección
+            <select name="direction">
+              <option value="">Mantener</option>
+              {% for candidate in item.direction_alternatives %}
+              <option value="{{ candidate.value | e }}">
+                {{ candidate.value | e }}
+                · {{ candidate.confidence | default("?") | e }}
+                · {{ candidate.extractor | default(candidate.provider) | default("extractor no disponible") | e }}
+              </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Negación
+            <select name="negated">
+              <option value="">Mantener</option>
+              <option value="true">Negada</option>
+              <option value="false">Afirmativa</option>
+            </select>
+          </label>
+          <label>Alcance <input name="scope" value="{{ item.proposal.scope | default('') | e }}"></label>
+        </fieldset>
+        <label class="v3r-rationale">Motivo opcional
+          <textarea name="rationale" rows="2"></textarea>
+        </label>
+        <div class="v3r-actions">
+          <button name="human_decision" value="APPROVE" data-action="approve">Aprobar</button>
+          <button name="human_decision" value="REJECT" data-action="reject" class="v3r-danger">Rechazar</button>
+          <button name="human_decision" value="CORRECT" data-action="correct" class="v3r-secondary">Corregir</button>
+          <button type="button" data-action="next" class="v3r-secondary">Siguiente</button>
+        </div>
+      </form>
+    </article>
+    {% endfor %}
+  </section>
+  {% elif queue %}
+  <p class="v3r-empty">No quedan propuestas con estos filtros.</p>
+  {% endif %}
+</main>
+{% endblock %}
+{% block scripts %}<script src="/static/js/v3-review.js"></script>{% endblock %}

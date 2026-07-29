@@ -1,0 +1,637 @@
+# -*- coding: utf-8 -*-
+"""Writer V3 contra un Neo4j real y efimero.
+
+Estas pruebas estan saltadas por defecto porque arrancan un contenedor Docker.
+Se activan explicitamente con:
+
+    S9K_WRITER_NEO4J_REAL=1 python -m pytest data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py -q
+
+No aceptan una URI externa: el fixture levanta y destruye su propio Neo4j.
+"""
+from __future__ import annotations
+
+import json
+import os
+import socket
+import subprocess
+import time
+import uuid
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Any
+
+import pytest
+
+pytest.importorskip("jsonschema")
+neo4j = pytest.importorskip("neo4j")
+
+from knowledge_v3.contracts.base import seal_plan  # noqa: E402
+from knowledge_v3.writer import (  # noqa: E402
+    GraphWriter,
+    InMemoryAppliedKeys,
+    InMemoryAuditSink,
+    OperatorRequest,
+    codes,
+)
+from knowledge_v3.writer.writer import (  # noqa: E402
+    OUTCOME_ABORTED,
+    OUTCOME_APPLIED,
+    OUTCOME_BLOCKED,
+    OUTCOME_SIMULATED,
+)
+
+
+LIVE = os.environ.get("S9K_WRITER_NEO4J_REAL", "").strip() == "1"
+pytestmark = pytest.mark.skipif(
+    not LIVE,
+    reason="Neo4j real efimero: activar con S9K_WRITER_NEO4J_REAL=1",
+)
+
+WORKSPACE = "writer-real"
+OTHER_WORKSPACE = "writer-real-otro"
+SNAPSHOT = "snapshot:neo4j:real:2026-07-27T10:29:00Z"
+NOW = datetime(2026, 7, 27, 12, 0, 0, tzinfo=timezone.utc)
+HASH_A = {"algorithm": "sha256", "value": "a" * 64}
+HASH_B = {"algorithm": "sha256", "value": "b" * 64}
+HASH_C = {"algorithm": "sha256", "value": "c" * 64}
+
+
+def _clock():
+    return NOW
+
+
+def _free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def _run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess:
+    try:
+        return subprocess.run(cmd, text=True, capture_output=True, check=check)
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"ejecutable no disponible: {cmd[0]}") from exc
+
+
+@pytest.fixture(scope="session")
+def neo4j_driver():
+    image = os.environ.get("S9K_WRITER_NEO4J_IMAGE", "neo4j:5.26-community")
+    name = "s9k-writer-real-" + uuid.uuid4().hex[:12]
+    port = _free_port()
+    password = "s9k-writer-real-" + uuid.uuid4().hex[:12]
+
+    try:
+        docker_version = _run(["docker", "version"], check=False)
+    except RuntimeError as exc:
+        pytest.skip(str(exc))
+    if docker_version.returncode != 0:
+        pytest.skip("Docker no esta disponible para levantar Neo4j efimero")
+
+    cmd = [
+        "docker",
+        "run",
+        "--rm",
+        "--detach",
+        "--name",
+        name,
+        "--publish",
+        f"127.0.0.1:{port}:7687",
+        "--env",
+        f"NEO4J_AUTH=neo4j/{password}",
+        "--env",
+        "NEO4J_server_memory_heap_initial__size=128m",
+        "--env",
+        "NEO4J_server_memory_heap_max__size=256m",
+        image,
+    ]
+    started = _run(cmd, check=False)
+    if started.returncode != 0:
+        pytest.skip(f"no se pudo arrancar Neo4j efimero: {started.stderr.strip()}")
+
+    uri = f"bolt://127.0.0.1:{port}"
+    driver = neo4j.GraphDatabase.driver(uri, auth=("neo4j", password))
+    deadline = time.monotonic() + 120
+    try:
+        while True:
+            try:
+                driver.verify_connectivity()
+                break
+            except Exception as exc:
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(f"Neo4j no acepto conexiones en {uri}: {exc}") from exc
+                time.sleep(1)
+        yield driver
+    finally:
+        driver.close()
+        _run(["docker", "rm", "-f", name], check=False)
+
+
+@dataclass
+class GraphProbe:
+    driver: Any
+
+    def run(self, cypher: str, params: dict[str, Any] | None = None) -> list[dict]:
+        with self.driver.session() as session:
+            return [record.data() for record in session.run(cypher, params or {})]
+
+    def clean(self) -> None:
+        self.run("MATCH (n) DETACH DELETE n")
+
+    def counts(self) -> dict[str, int]:
+        nodes = self.run("MATCH (n) RETURN count(n) AS c")[0]["c"]
+        rels = self.run("MATCH ()-[r]->() RETURN count(r) AS c")[0]["c"]
+        return {"nodes": nodes, "relationships": rels}
+
+    def snapshot_bytes(self) -> str:
+        nodes = self.run(
+            "MATCH (n) "
+            "RETURN labels(n) AS labels, properties(n) AS props "
+            "ORDER BY labels(n), properties(n)"
+        )
+        rels = self.run(
+            "MATCH (a)-[r]->(b) "
+            "RETURN type(r) AS type, properties(r) AS props, "
+            "properties(a) AS start, properties(b) AS end "
+            "ORDER BY type(r), properties(r), properties(a), properties(b)"
+        )
+        return json.dumps({"nodes": nodes, "relationships": rels}, sort_keys=True)
+
+    def seed_entity(
+        self,
+        entity_id: str,
+        *,
+        workspace: str = WORKSPACE,
+        version: int = 1,
+        state_hash: str = HASH_A["value"],
+        name: str | None = None,
+    ) -> None:
+        self.run(
+            "CREATE (:V3Entity:Character $props)",
+            {
+                "props": {
+                    "entity_id": entity_id,
+                    "workspace": workspace,
+                    "version": version,
+                    "state_hash": state_hash,
+                    "canonical_name": name or entity_id,
+                }
+            },
+        )
+
+    def seed_assertion(
+        self,
+        assertion_id: str,
+        *,
+        workspace: str = WORKSPACE,
+        version: int = 1,
+        state_hash: str = HASH_B["value"],
+        status: str = "ASSERTED",
+    ) -> None:
+        self.run(
+            "CREATE (:V3Assertion $props)",
+            {
+                "props": {
+                    "assertion_id": assertion_id,
+                    "workspace": workspace,
+                    "version": version,
+                    "state_hash": state_hash,
+                    "status": status,
+                    "predicate": "MEMBER_OF",
+                }
+            },
+        )
+
+    def node(self, label: str, key: str, value: str, *, workspace: str = WORKSPACE) -> dict | None:
+        rows = self.run(
+            f"MATCH (n:{label} {{{key}: $value, workspace: $ws}}) RETURN properties(n) AS props",
+            {"value": value, "ws": workspace},
+        )
+        return rows[0]["props"] if rows else None
+
+
+@pytest.fixture()
+def graph(neo4j_driver):
+    probe = GraphProbe(neo4j_driver)
+    probe.clean()
+    yield probe
+    probe.clean()
+
+
+def decision(decision_id: str, subject: str = "entity:a", obj: str = "entity:b") -> dict:
+    return {
+        "decision_id": decision_id,
+        "claim_id": f"claim:{decision_id}",
+        "decision": "ACCEPT",
+        "predicate": "MEMBER_OF",
+        "direction": "SUBJECT_TO_OBJECT",
+        "subject_entity_id": subject,
+        "object_entity_id": obj,
+        "epistemic_status": "ASSERTED",
+        "negated": False,
+        "confidence": 0.81,
+        "reason_codes": ["LOCAL_APPROVED"],
+        "evidence_fragment_ids": [f"fragment:{decision_id}"],
+    }
+
+
+def op(
+    op_id: str,
+    op_type: str,
+    decision_id: str,
+    *,
+    target: str | None = None,
+    assertion: str | None = None,
+    payload: dict[str, Any] | None = None,
+    expected_state: str,
+    expected_version: int | None,
+    expected_hash: dict | None,
+) -> dict:
+    return {
+        "operation_id": op_id,
+        "operation_type": op_type,
+        "decision_id": decision_id,
+        "target_entity_id": target,
+        "assertion_id": assertion,
+        "payload": payload or {},
+        "evidence_fragment_ids": [f"fragment:{decision_id}"],
+        "idempotency_key": "idem:sha256:" + "0" * 64,
+        "expected_state": expected_state,
+        "expected_version": expected_version,
+        "expected_hash": expected_hash,
+    }
+
+
+def create_entity(op_id: str, entity_id: str, name: str, decision_id: str = "decision:1") -> dict:
+    return op(
+        op_id,
+        "CREATE_ENTITY",
+        decision_id,
+        target=entity_id,
+        payload={"entity_type": "Character", "canonical_name": name},
+        expected_state="WOULD_CREATE",
+        expected_version=None,
+        expected_hash=None,
+    )
+
+
+def create_assertion(
+    op_id: str,
+    assertion_id: str,
+    subject: str,
+    obj: str,
+    decision_id: str = "decision:1",
+) -> dict:
+    return op(
+        op_id,
+        "CREATE_ASSERTION",
+        decision_id,
+        assertion=assertion_id,
+        payload={
+            "subject_entity_id": subject,
+            "object_entity_id": obj,
+            "predicate": "MEMBER_OF",
+            "status": "ASSERTED",
+        },
+        expected_state="WOULD_CREATE",
+        expected_version=None,
+        expected_hash=None,
+    )
+
+
+def link_existing(
+    op_id: str,
+    subject: str,
+    obj: str,
+    *,
+    decision_id: str = "decision:1",
+    version: int = 1,
+    state_hash: dict = HASH_A,
+) -> dict:
+    return op(
+        op_id,
+        "LINK_EXISTING",
+        decision_id,
+        target=subject,
+        payload={"subject_entity_id": subject, "object_entity_id": obj, "predicate": "MEMBER_OF"},
+        expected_state="WOULD_LINK_EXISTING",
+        expected_version=version,
+        expected_hash=state_hash,
+    )
+
+
+def update_entity(
+    op_id: str,
+    entity_id: str,
+    *,
+    decision_id: str = "decision:1",
+    version: int = 1,
+    state_hash: dict = HASH_A,
+) -> dict:
+    return op(
+        op_id,
+        "UPDATE_ENTITY",
+        decision_id,
+        target=entity_id,
+        payload={
+            "status": "SUPERSEDED",
+            "valid_to": "2026-07-27T00:00:00Z",
+            "reason_code": "COPYRIGHT_TAKEDOWN",
+        },
+        expected_state="WOULD_UPDATE",
+        expected_version=version,
+        expected_hash=state_hash,
+    )
+
+
+def supersede_assertion(
+    op_id: str,
+    assertion_id: str,
+    *,
+    successor: str | None = None,
+    decision_id: str = "decision:1",
+    version: int = 1,
+    state_hash: dict = HASH_B,
+) -> dict:
+    payload = {
+        "status": "SUPERSEDED",
+        "valid_to": "2026-07-27T00:00:00Z",
+        "reason_code": "COPYRIGHT_TAKEDOWN",
+    }
+    if successor:
+        payload["superseded_by"] = successor
+    return op(
+        op_id,
+        "SUPERSEDE_ASSERTION",
+        decision_id,
+        assertion=assertion_id,
+        payload=payload,
+        expected_state="WOULD_SUPERSEDE",
+        expected_version=version,
+        expected_hash=state_hash,
+    )
+
+
+def make_plan(
+    operations: list[dict],
+    *,
+    workspace: str = WORKSPACE,
+    decisions: list[dict] | None = None,
+    plan_id: str | None = None,
+) -> dict:
+    if decisions is None:
+        decisions = [
+            decision(decision_id)
+            for decision_id in sorted({operation["decision_id"] for operation in operations})
+        ]
+    doc = {
+        "contract_id": "graph-mutation-plan/v3-internal-v1",
+        "contract_version": "1.0.0",
+        "workspace": workspace,
+        "source_asset_id": "asset:writer-real",
+        "source_hash": {"algorithm": "sha256", "value": "d" * 64},
+        "provider_trace": [
+            {
+                "step": "engine.plan",
+                "provider": "local",
+                "name": "s9k.knowledge_v3",
+                "version": "3.0.0",
+                "model": None,
+                "produced": ["decisions", "mutation_operations"],
+            }
+        ],
+        "produced_by_step": "engine.plan",
+        "plan_id": plan_id or ("plan:writer-real:" + uuid.uuid4().hex[:8]),
+        "plan_hash": {"algorithm": "sha256", "value": "0" * 64},
+        "snapshot_id": SNAPSHOT,
+        "engine_version": "3.0.0",
+        "ontology_version": "core-1.4.0",
+        "game_profile": "generic",
+        "collection_id": "collection:writer-real",
+        "created_at": "2026-07-27T10:30:00Z",
+        "expires_at": "2026-07-27T12:30:00Z",
+        "decisions": decisions,
+        "mutation_operations": operations,
+        "local_approval": {
+            "approved": True,
+            "decision_hash": {"algorithm": "sha256", "value": "0" * 64},
+            "validator_chain": [
+                {"validator": "structural", "version": "3.0.0", "result": "PASS"},
+                {"validator": "semantic", "version": "3.0.0", "result": "PASS"},
+            ],
+            "created_at": "2026-07-27T10:30:00Z",
+            "approved_by": {"provider": "local", "name": "s9k.engine.local", "version": "3.0.0"},
+        },
+    }
+    return seal_plan(doc)
+
+
+def apply_request(plan: dict, **over: Any) -> OperatorRequest:
+    base = {
+        "apply": True,
+        "operator_id": "writer-real",
+        "workspace": WORKSPACE,
+        "expected_plan_hash": plan["plan_hash"]["value"],
+        "max_operations": 50,
+        "current_snapshot_id": SNAPSHOT,
+        "env": {"S9K_ALLOW_REAL_INGEST": "1", "S9K_WRITER_WORKSPACE": WORKSPACE},
+    }
+    base.update(over)
+    return OperatorRequest(**base)
+
+
+def dry_request(**over: Any) -> OperatorRequest:
+    base = {
+        "apply": False,
+        "operator_id": "writer-real",
+        "workspace": WORKSPACE,
+        "current_snapshot_id": SNAPSHOT,
+        "env": {},
+    }
+    base.update(over)
+    return OperatorRequest(**base)
+
+
+def writer(driver: Any, keys: InMemoryAppliedKeys | None = None, *, workspace: str = WORKSPACE) -> GraphWriter:
+    return GraphWriter(
+        workspace=workspace,
+        driver=driver,
+        audit=InMemoryAuditSink(),
+        applied_keys=keys or InMemoryAppliedKeys(),
+        clock=_clock,
+    )
+
+
+def test_cypher_valido_para_todas_las_operaciones_soportadas(graph: GraphProbe):
+    graph.seed_entity("entity:origen", version=1, state_hash=HASH_A["value"])
+    graph.seed_entity("entity:destino", version=1, state_hash=HASH_C["value"])
+    graph.seed_assertion("assertion:vieja", version=1, state_hash=HASH_B["value"])
+
+    ops = [
+        create_entity("op:0001", "entity:nueva", "Nueva"),
+        create_assertion("op:0002", "assertion:nueva", "entity:origen", "entity:destino"),
+        link_existing("op:0003", "entity:origen", "entity:destino"),
+        update_entity("op:0004", "entity:origen"),
+        supersede_assertion("op:0005", "assertion:vieja", successor="assertion:nueva"),
+    ]
+    plan = make_plan(ops)
+
+    result = writer(graph.driver).write(plan, apply_request(plan))
+
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+    assert graph.counts() == {"nodes": 5, "relationships": 1}
+    assert graph.node("V3Entity", "entity_id", "entity:origen")["version"] == 2
+    assert graph.node("V3Assertion", "assertion_id", "assertion:vieja")["status"] == "SUPERSEDED"
+
+
+def test_create_only_no_sobrescribe_nodo_existente(graph: GraphProbe):
+    graph.seed_entity("entity:duplicada", name="Nombre original")
+    before = graph.snapshot_bytes()
+    plan = make_plan([create_entity("op:0001", "entity:duplicada", "Nombre cambiado")])
+
+    result = writer(graph.driver).write(plan, apply_request(plan))
+
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_TARGET_ALREADY_EXISTS in result.codes
+    assert graph.snapshot_bytes() == before
+    assert graph.node("V3Entity", "entity_id", "entity:duplicada")["canonical_name"] == "Nombre original"
+
+
+def test_concurrencia_optimista_real_aborta_el_plan_entero(graph: GraphProbe):
+    graph.seed_entity("entity:origen", version=1, state_hash=HASH_A["value"])
+    graph.seed_entity("entity:destino", version=1, state_hash=HASH_C["value"])
+    plan = make_plan(
+        [
+            create_entity("op:0001", "entity:primera-escritura", "Temporal"),
+            link_existing("op:0002", "entity:origen", "entity:destino", version=1, state_hash=HASH_A),
+        ]
+    )
+    graph.run(
+        "MATCH (n:V3Entity {entity_id: $id, workspace: $ws}) "
+        "SET n.version = 2, n.state_hash = $hash",
+        {"id": "entity:origen", "ws": WORKSPACE, "hash": HASH_B["value"]},
+    )
+
+    result = writer(graph.driver).write(plan, apply_request(plan))
+
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_VERSION_MISMATCH in result.codes
+    assert graph.node("V3Entity", "entity_id", "entity:primera-escritura") is None
+    assert graph.counts() == {"nodes": 2, "relationships": 0}
+
+
+def test_transaccion_real_revierte_escrituras_previas_si_falla_operacion_n(graph: GraphProbe):
+    plan = make_plan(
+        [
+            create_entity("op:0001", "entity:misma", "Primera"),
+            create_entity("op:0002", "entity:misma", "Segunda"),
+        ]
+    )
+
+    result = writer(graph.driver).write(plan, apply_request(plan))
+
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_TARGET_ALREADY_EXISTS in result.codes
+    assert graph.counts() == {"nodes": 0, "relationships": 0}
+
+
+def test_idempotencia_real_segunda_aplicacion_no_cambia_el_grafo(graph: GraphProbe):
+    plan = make_plan([create_entity("op:0001", "entity:idempotente", "Idempotente")])
+    keys = InMemoryAppliedKeys()
+    sut = writer(graph.driver, keys)
+
+    first = sut.write(plan, apply_request(plan))
+    before_second = graph.snapshot_bytes()
+    second = sut.write(plan, apply_request(plan))
+
+    assert first.outcome == OUTCOME_APPLIED
+    assert second.outcome == OUTCOME_APPLIED
+    assert second.noop_operations == 1
+    assert graph.snapshot_bytes() == before_second
+    assert graph.counts() == {"nodes": 1, "relationships": 0}
+
+
+def test_cierre_de_vigencia_conserva_historia_y_crea_sucesor(graph: GraphProbe):
+    graph.seed_assertion("assertion:vieja", version=1, state_hash=HASH_B["value"], status="ASSERTED")
+    plan = make_plan(
+        [
+            supersede_assertion("op:0001", "assertion:vieja", successor="assertion:nueva"),
+            create_assertion("op:0002", "assertion:nueva", "entity:origen", "entity:destino"),
+        ]
+    )
+
+    result = writer(graph.driver).write(plan, apply_request(plan))
+
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+    old = graph.node("V3Assertion", "assertion_id", "assertion:vieja")
+    new = graph.node("V3Assertion", "assertion_id", "assertion:nueva")
+    assert old["status"] == "SUPERSEDED"
+    assert old["superseded_by"] == "assertion:nueva"
+    assert old["version"] == 2
+    assert new["status"] == "ASSERTED"
+    assert graph.counts() == {"nodes": 2, "relationships": 0}
+
+
+def test_dry_run_con_driver_real_no_toca_ni_un_byte(graph: GraphProbe):
+    graph.seed_entity("entity:intacta", name="Intacta")
+    before = graph.snapshot_bytes()
+    plan = make_plan([create_entity("op:0001", "entity:dry-run", "Dry Run")])
+
+    result = writer(graph.driver).write(plan, dry_request())
+
+    assert result.outcome == OUTCOME_SIMULATED
+    assert graph.snapshot_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "request_overrides,expected_code",
+    [
+        ({"env": {"S9K_WRITER_WORKSPACE": WORKSPACE}}, codes.GATE_ENV_NOT_ALLOWED),
+        ({"expected_plan_hash": "f" * 64}, codes.GATE_PLAN_HASH_NOT_CONFIRMED),
+        (
+            {
+                "workspace": OTHER_WORKSPACE,
+                "env": {"S9K_ALLOW_REAL_INGEST": "1", "S9K_WRITER_WORKSPACE": OTHER_WORKSPACE},
+            },
+            codes.GATE_WORKSPACE_DECLARATION_MISMATCH,
+        ),
+    ],
+)
+def test_gate_bloquea_con_base_real_disponible_y_no_escribe(
+    graph: GraphProbe,
+    request_overrides: dict,
+    expected_code: str,
+):
+    before = graph.snapshot_bytes()
+    plan = make_plan([create_entity("op:0001", "entity:bloqueada", "Bloqueada")])
+
+    result = writer(graph.driver).write(plan, apply_request(plan, **request_overrides))
+
+    assert result.outcome == OUTCOME_BLOCKED
+    assert expected_code in result.codes
+    assert graph.snapshot_bytes() == before
+
+
+def test_aislamiento_workspace_no_toca_nodos_de_otro_workspace(graph: GraphProbe):
+    graph.seed_entity(
+        "entity:ajena",
+        workspace=OTHER_WORKSPACE,
+        version=1,
+        state_hash=HASH_A["value"],
+        name="Ajena",
+    )
+    graph.seed_entity(
+        "entity:destino",
+        workspace=OTHER_WORKSPACE,
+        version=1,
+        state_hash=HASH_C["value"],
+        name="Destino ajeno",
+    )
+    before_other = graph.snapshot_bytes()
+    plan = make_plan([link_existing("op:0001", "entity:ajena", "entity:destino")])
+
+    result = writer(graph.driver).write(plan, apply_request(plan))
+
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_TARGET_MISSING in result.codes
+    assert graph.snapshot_bytes() == before_other
+    assert graph.counts() == {"nodes": 2, "relationships": 0}

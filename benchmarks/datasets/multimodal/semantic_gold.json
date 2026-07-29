@@ -1,0 +1,24 @@
+{
+  "workspace": "multimodal-bruma",
+  "entities": [
+    {
+      "entity_id": "entity:liora-vale",
+      "canonical_name": "Liora Vale",
+      "entity_type": "Character"
+    },
+    {
+      "entity_id": "entity:narek-sol",
+      "canonical_name": "Narek Sol",
+      "entity_type": "Character"
+    }
+  ],
+  "claims": [
+    {
+      "subject": "entity:liora-vale",
+      "predicate": "ALLY_OF",
+      "object": "entity:narek-sol",
+      "direction": "SUBJECT_TO_OBJECT",
+      "negated": false
+    }
+  ]
+}

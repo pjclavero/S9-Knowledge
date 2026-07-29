@@ -1,0 +1,82 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:basalto-cronica:e01",
+      "text": "Conviene dejarlo dicho de una vez, porque la copia de Puerto Escoria lo arrastra mal desde hace tres ciclos: Harun Vell no pertenece a la Orden de la Obsidiana."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e02",
+      "text": "La Hermandad de la Fumarola no es dirigida por Sira Delantre, y el registro de mando de la temporada lo confirma."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e03",
+      "text": "Nerea Tossa, hermana de Beltrán Osk, no lo es."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e04",
+      "text": "El Gremio de Fundidores acaba de desmentir por escrito que Mira Cauce figure entre sus miembros."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e05",
+      "text": "El censo de la temporada trae poco nuevo. Se confirma la reparacion del malecon, se anota el traslado de dos hornos y se corrige la grafia de tres apellidos. Entre las correcciones importa una: el Sello de Lava no es propiedad de Teo Ravasi, por mas que asi figurase en la copia anterior."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e06",
+      "text": "En Isla Tenaza no tiene sede la Casa Verrant, aunque muchos lo den por hecho."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e07",
+      "text": "Ilde Varona nunca pertenecio al Conclave de la Ceniza. Esta cronica cubre desde la fundacion hasta el ciclo 41 y no dice nada de lo que venga despues."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e08",
+      "text": "La Orden de la Obsidiana jamas fue dirigida por Kaspar Nune, ni siquiera durante el interregno del ciclo 38."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e09",
+      "text": "En ningun momento de las cuatro generaciones que cubre esta cronica el Yunque Negro estuvo en manos del Gremio de Fundidores."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e10",
+      "text": "Runa Belisa y Beltrán Osk no fueron hermanos en ningun caso: los padrones los separan por dos linajes distintos."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e11",
+      "text": "Sira Delantre no dejo de servir a la Casa Verrant cuando estallo el motin de los hornos; siguio en su puesto hasta el final de la temporada."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e12",
+      "text": "No es cierto que Olmo Quiral abandonase el Foso Humeante."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e13",
+      "text": "La Hermandad de la Fumarola no fue abandonada por Nerea Tossa, por mucho que el panfleto lo repita."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e14",
+      "text": "Beltrán Osk dimitio de tres cargos menores aquel invierno, pero no dejo de liderar el Conclave de la Ceniza."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e15",
+      "text": "No es falso que Mira Cauce sea aliada de Ilde Varona."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e16",
+      "text": "Nadie puede negar que el Puerto Escoria no esta bajo el control del Gremio de Fundidores."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e17",
+      "text": "Teo Ravasi lidera el Gremio de Fundidores desde el ciclo 39."
+    },
+    {
+      "episode_id": "episode:basalto-cronica:e18",
+      "text": "Harun Vell no llego a tiempo al conclave de invierno, pero Sira Delantre pertenece a la Orden de la Obsidiana desde hace siete ciclos."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "basalto-cronica",
+  "split": "negation",
+  "world": "basalto"
+}

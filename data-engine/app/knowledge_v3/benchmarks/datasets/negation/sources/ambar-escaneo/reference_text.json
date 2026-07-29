@@ -1,0 +1,54 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:ambar-escaneo:e01",
+      "text": "Veli Ardún nunca fue miembro de la Corte de la Resina, segun el padron cerrado en las visperas del ano 214."
+    },
+    {
+      "episode_id": "episode:ambar-escaneo:e02",
+      "text": "El Anillo de Ámbar jamas pertenecio a la Mesnada Ocre."
+    },
+    {
+      "episode_id": "episode:ambar-escaneo:e03",
+      "text": "Jonás Treme dejo de encabezar la Cofradia del Lacre en el invierno de 216."
+    },
+    {
+      "episode_id": "episode:ambar-escaneo:e04",
+      "text": "Corre por Villa Savia el rumor de que Sabela Orín no es hermana de Cirilo Nadal."
+    },
+    {
+      "episode_id": "episode:ambar-escaneo:e05",
+      "text": "Se dice en la Corte de la Resina que Otilia Vasque ya no dirige la Mesnada Ocre."
+    },
+    {
+      "episode_id": "episode:ambar-escaneo:e06",
+      "text": "Si el proximo lacre no confirma a Cirilo Nadal al frente de la Cofradia del Lacre, habra que convocar otra vez a las casas."
+    },
+    {
+      "episode_id": "episode:ambar-escaneo:e07",
+      "text": "¿Sigue o no sigue Sabela Orín en la Mesnada Ocre? El escribano no lo anoto."
+    },
+    {
+      "episode_id": "episode:ambar-escaneo:e08",
+      "text": "¿Acaso Veli Ardún no pertenece a la Cofradia del Lacre?"
+    },
+    {
+      "episode_id": "episode:ambar-escaneo:e09",
+      "text": "Si Jonás Treme no hubiera abandonado la Corte de la Resina, hoy la sala tendria otro dueno."
+    },
+    {
+      "episode_id": "episode:ambar-escaneo:e10",
+      "text": "En el entremes que representaron los comicos, el falso legado declamaba: «Otilia Vasque no es duena de Villa Savia»."
+    },
+    {
+      "episode_id": "episode:ambar-escaneo:e11",
+      "text": "No inscribais a Cirilo Nadal en la Mesnada Ocre hasta que llegue la cedula."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ambar-escaneo",
+  "split": "negation",
+  "world": "ambar"
+}

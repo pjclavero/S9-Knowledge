@@ -1,0 +1,134 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:liga-audio-crudo",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "95aeda3bcd5e65c980ce7a52ef50d91a6f5b76bffa95bd03e47b94f29fb2827b"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:liga-audio-crudo:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "phenomena": [
+          "ASR_NOISE",
+          "COORDINATION_MISPAIR",
+          "SYMMETRIC"
+        ]
+      },
+      "modality": "ASR_TEXT",
+      "next_episode_id": "episode:liga-audio-crudo:e02",
+      "page": null,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "ASR_PHONETIC_SURFACE",
+          "NO_PUNCTUATION"
+        ],
+        "score": 0.63
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "irune basterra ficho por el club farol y tan bien su ermana lorea por el club aldabra esta temporada",
+      "time_end": 7.5,
+      "time_start": 0.0,
+      "turn": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "asset_id": "asset:liga-audio-crudo",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "ca5f6966547cffd6a4ebf0973b5cd259ff3065caaa3a6993745809583262bf8e"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:liga-audio-crudo:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "phenomena": [
+          "ASR_NOISE",
+          "COREFERENCE",
+          "HYPOTHETICAL"
+        ]
+      },
+      "modality": "ASR_TEXT",
+      "next_episode_id": null,
+      "page": null,
+      "previous_episode_id": "episode:liga-audio-crudo:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "ASR_PHONETIC_SURFACE",
+          "NO_PUNCTUATION"
+        ],
+        "score": 0.61
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "si el club farol asciende irune basterra dirigiria el equipo el año que biene",
+      "time_end": 13.0,
+      "time_start": 7.5,
+      "turn": null,
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-audio-crudo",
+  "split": "heldout",
+  "world": "liga"
+}

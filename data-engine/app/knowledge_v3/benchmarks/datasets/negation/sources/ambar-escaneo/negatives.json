@@ -1,0 +1,94 @@
+{
+  "benchmark_file": "negatives",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "case_id": "NEG-NOCLAIM-01",
+      "end": 55,
+      "episode_id": "episode:ambar-escaneo:e08",
+      "family": "NO_CLAIM",
+      "forbidden_predicates": [
+        "MEMBER_OF",
+        "HAS_MEMBER"
+      ],
+      "kind": "QUESTION",
+      "literal_text": "¿Acaso Veli Ardún no pertenece a la Cofradia del Lacre?",
+      "must_not_produce": "claim",
+      "negative_id": "negative:ambar-escaneo:neg-noclaim-01",
+      "rationale": "Formalmente identica a NEG-SIMPLE-01 salvo por los signos de interrogacion. No hay claim: nadie ha afirmado nada.",
+      "split": "negation",
+      "start": 0,
+      "traps": [
+        "pregunta retorica que contiene una negacion simple perfectamente formada"
+      ]
+    },
+    {
+      "case_id": "NEG-NOCLAIM-02",
+      "end": 91,
+      "episode_id": "episode:ambar-escaneo:e09",
+      "family": "NO_CLAIM",
+      "forbidden_predicates": [
+        "MEMBER_OF",
+        "HAS_MEMBER",
+        "LOCATED_IN"
+      ],
+      "kind": "COUNTERFACTUAL",
+      "literal_text": "Si Jonás Treme no hubiera abandonado la Corte de la Resina, hoy la sala tendria otro dueno.",
+      "must_not_produce": "claim",
+      "negative_id": "negative:ambar-escaneo:neg-noclaim-02",
+      "rationale": "El contrafactual presupone que la cesacion SI ocurrio, pero no la afirma en este enunciado. Registrar aqui una continuidad seria inventar.",
+      "split": "negation",
+      "start": 0,
+      "traps": [
+        "contrafactual con negacion de cesacion dentro",
+        "par minimo con NEG-COND-01, que si produce claim"
+      ]
+    },
+    {
+      "case_id": "NEG-NOCLAIM-03",
+      "end": 116,
+      "episode_id": "episode:ambar-escaneo:e10",
+      "family": "NO_CLAIM",
+      "forbidden_predicates": [
+        "OWNS",
+        "OWNED_BY"
+      ],
+      "kind": "FICTION_WITHIN_FICTION",
+      "literal_text": "En el entremes que representaron los comicos, el falso legado declamaba: «Otilia Vasque no es duena de Villa Savia».",
+      "must_not_produce": "claim",
+      "negative_id": "negative:ambar-escaneo:neg-noclaim-03",
+      "rationale": "Ficcion dentro de la ficcion: la cita es literal y aun asi no es un hecho del mundo.",
+      "split": "negation",
+      "start": 0,
+      "traps": [
+        "negacion literal y bien formada DENTRO de una ficcion representada",
+        "'los comicos' y 'el falso legado' son sustantivos de rol: no se anotan"
+      ]
+    },
+    {
+      "case_id": "NEG-NOCLAIM-04",
+      "end": 75,
+      "episode_id": "episode:ambar-escaneo:e11",
+      "family": "NO_CLAIM",
+      "forbidden_predicates": [
+        "MEMBER_OF",
+        "HAS_MEMBER"
+      ],
+      "kind": "IMPERATIVE",
+      "literal_text": "No inscribais a Cirilo Nadal en la Mesnada Ocre hasta que llegue la cedula.",
+      "must_not_produce": "claim",
+      "negative_id": "negative:ambar-escaneo:neg-noclaim-04",
+      "rationale": "Una orden no describe el mundo: lo pide. Ni afirma ni niega la pertenencia, y ademas presupone que hoy no existe.",
+      "split": "negation",
+      "start": 0,
+      "traps": [
+        "ORDEN negativa: docs/v3/18 la nombra como descalificador y no tenia caso propio",
+        "extiende el vocabulario de `kind` de negativos con IMPERATIVE"
+      ]
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ambar-escaneo",
+  "split": "negation",
+  "world": "ambar"
+}

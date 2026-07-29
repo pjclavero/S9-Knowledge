@@ -1,0 +1,692 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:ambar-escaneo:e01:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:ambar-escaneo:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e01:f003"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "gold_key": "NEG-NEVER-05:PRIMARY",
+        "negation": {
+          "anchor_quote": "Veli Ardún nunca fue rniembro de la Corte de la Resina",
+          "case_id": "NEG-NEVER-05",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:ambar:corte-resina",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:ambar:veli-ardun",
+          "family": "NEVER",
+          "knowledge_horizon": "0214-12-31T00:00:00Z",
+          "negation_kind": "NEVER",
+          "rationale": "NEVER con el nucleo del predicado corrompido por OCR. La cita literal que ancla es la degradada, no la corregida.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "OCR",
+          "traps": [
+            "OCR rn/m: 'rniembro' por 'miembro' rompe la palabra clave del predicado",
+            "OCR l/1: 'e1' y '1as'",
+            "el horizonte de conocimiento (ano 214) va en la misma frase, degradado"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER",
+          "OCR_NOISE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:ambar-escaneo:e01:m002"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Veli Ardún nunca fue rniembro de la Corte de la Resina",
+      "review_required": false,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "subject_mentions": [
+        "mention:ambar-escaneo:e01:m001"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:ambar-escaneo:e02:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:ambar-escaneo:e02",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e02:f006"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "gold_key": "NEG-NEVER-06:PRIMARY",
+        "negation": {
+          "anchor_quote": "El Anillo de Ámbar jamas pertenecio a la Mesnada Ocre",
+          "case_id": "NEG-NEVER-06",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:ambar:mesnada-ocre",
+          "expected_predicate": "OWNED_BY",
+          "expected_subject": "entity:ambar:anillo-ambar",
+          "family": "NEVER",
+          "knowledge_horizon": "0216-12-31T00:00:00Z",
+          "negation_kind": "NEVER",
+          "rationale": "Contraste con NEG-NEVER-05: aqui el limite temporal viene de la procedencia, no del enunciado. Un NEVER sin horizonte es una afirmacion sobre el futuro.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "el horizonte de conocimiento NO esta en el texto: lo pone la fecha del escaneo"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "NEVER"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:ambar-escaneo:e02:m004"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "OWNED_BY"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "El Anillo de Ámbar jamas pertenecio a la Mesnada Ocre",
+      "review_required": false,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "subject_mentions": [
+        "mention:ambar-escaneo:e02:m003"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:ambar-escaneo:e03:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:ambar-escaneo:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e03:f009"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "gold_key": "NEG-CESS-10:PRIMARY",
+        "negation": {
+          "anchor_quote": "Jonás Trerne dejo de encabezar la Cofradia de1 Lacre",
+          "case_id": "NEG-CESS-10",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:ambar:cofradia-lacre",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:ambar:jonas-treme",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "Cesacion con las dos entidades degradadas y el predicado en sinonimo.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "OCR",
+          "traps": [
+            "OCR m/rn en el nombre propio ('Trerne') y l/1 en el de la faccion ('de1')",
+            "'encabezar' como sinonimo de liderar"
+          ],
+          "verb_form": "INDEFINIDO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY",
+          "OCR_NOISE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:ambar-escaneo:e03:m006"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Jonás Trerne dejo de encabezar la Cofradia de1 Lacre",
+      "review_required": false,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "subject_mentions": [
+        "mention:ambar-escaneo:e03:m005"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:ambar-escaneo:e04:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:ambar-escaneo:e04",
+      "epistemic_cues": [
+        "Corre por Villa Savia el rumor de que"
+      ],
+      "epistemic_status_hint": "RUMORED",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e04:f013"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "gold_key": "NEG-RUMOR-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Sabela Orín no es hermana de Cirilo Nadal",
+          "case_id": "NEG-RUMOR-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": true,
+          "expected_object": "entity:ambar:cirilo-nadal",
+          "expected_predicate": "SIBLING_OF",
+          "expected_subject": "entity:ambar:sabela-orin",
+          "family": "QUESTION_CONDITIONAL_RUMOR",
+          "forbidden_outcomes": [
+            "AUTO_APPROVE"
+          ],
+          "negation_kind": "SIMPLE",
+          "rationale": "Un rumor SI produce claim (docs/v3/08 §2.2), pero no puede autoaprobarse. Registrar el rumor como rumor es correcto; borrarlo es perder informacion.",
+          "reading": "RUMORED_NEGATIVE",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "el ALCANCE es inequivoco pero el estatus epistemico bloquea la autoaprobacion",
+            "es la unica trampa de la bateria que falla SOLO por la condicion 5 de docs/v3/18"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "NEGATION_BATTERY",
+          "QUESTION_CONDITIONAL_RUMOR",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:ambar-escaneo:e04:m008"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "SIBLING_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Sabela Orín no es hermana de Cirilo Nadal",
+      "review_required": false,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "subject_mentions": [
+        "mention:ambar-escaneo:e04:m007"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:ambar-escaneo:e05:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:ambar-escaneo:e05",
+      "epistemic_cues": [
+        "Se dice en la Corte de 1a Resina que"
+      ],
+      "epistemic_status_hint": "RUMORED",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e05:f017"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "gold_key": "NEG-RUMOR-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "0tilia Vasque ya no dirige la Mesnada Ocre",
+          "case_id": "NEG-RUMOR-02",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:ambar:mesnada-ocre",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:ambar:otilia-vasque",
+          "family": "QUESTION_CONDITIONAL_RUMOR",
+          "forbidden_outcomes": [
+            "AUTO_APPROVE",
+            "CLOSE_ASSERTION"
+          ],
+          "negation_kind": "CESSATION",
+          "rationale": "Cuando concurren rumor y cesacion, manda la cesacion: es la que puede cerrar una afirmacion existente.",
+          "reading": "RUMORED_CESSATION",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "OCR",
+          "traps": [
+            "OCR O/0 en el nombre y l/1 en la faccion",
+            "rumor Y cesacion a la vez: dos motivos independientes para no autoaprobar"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "CESSATION",
+          "NEGATION_BATTERY",
+          "OCR_NOISE",
+          "QUESTION_CONDITIONAL_RUMOR"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:ambar-escaneo:e05:m011"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "0tilia Vasque ya no dirige la Mesnada Ocre",
+      "review_required": false,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "subject_mentions": [
+        "mention:ambar-escaneo:e05:m010"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:ambar-escaneo:e06:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:ambar-escaneo:e06",
+      "epistemic_cues": [
+        "Si"
+      ],
+      "epistemic_status_hint": "HYPOTHETICAL",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e06:f020"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "gold_key": "NEG-COND-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Si el proximo lacre no confirma a Cirilo Nadal al frente de la Cofradia del Lacre",
+          "case_id": "NEG-COND-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:ambar:cofradia-lacre",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:ambar:cirilo-nadal",
+          "family": "QUESTION_CONDITIONAL_RUMOR",
+          "forbidden_outcomes": [
+            "AUTO_APPROVE",
+            "NEGATIVE_EDGE"
+          ],
+          "negation_kind": "SIMPLE",
+          "rationale": "La frontera entre condicional real e irreal decide si hay claim. Los dos casos estan en la bateria, uno al lado del otro.",
+          "reading": "HYPOTHETICAL_NEGATIVE",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "condicional REAL (no contrafactual): produce claim hipotetico, no caso negativo",
+            "comparar con NEG-NOCLAIM-02, que si es contrafactual y no produce nada"
+          ],
+          "verb_form": "CONDICIONAL_REAL",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "QUESTION_CONDITIONAL_RUMOR",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:ambar-escaneo:e06:m014"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Si el proximo lacre no confirma a Cirilo Nadal al frente de la Cofradia del Lacre",
+      "review_required": false,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "subject_mentions": [
+        "mention:ambar-escaneo:e06:m013"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    },
+    {
+      "abstained": true,
+      "alternatives": [],
+      "claim_id": "claim:ambar-escaneo:e07:c1",
+      "confidence": 0,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [],
+      "episode_id": "episode:ambar-escaneo:e07",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "fragment:ambar-escaneo:e07:f023"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ambar-escaneo",
+          "split": "negation",
+          "world": "ambar"
+        },
+        "gold_key": "NEG-ABST-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "¿Sigue o no sigue Sabela Orín en la Mesnada Ocre?",
+          "case_id": "NEG-ABST-01",
+          "cue_position": "BETWEEN_ARGUMENTS",
+          "expected_decision": "ABSTAIN",
+          "expected_direction": null,
+          "expected_negated": null,
+          "expected_object": null,
+          "expected_predicate": null,
+          "expected_subject": null,
+          "family": "QUESTION_CONDITIONAL_RUMOR",
+          "forbidden_outcomes": [
+            "AUTO_APPROVE",
+            "NEGATIVE_EDGE",
+            "POSITIVE_EDGE"
+          ],
+          "negation_kind": "SIMPLE",
+          "rationale": "Las entidades existen y la relacion se nombra, pero la fuente dice que no lo sabe. Abstenerse es la salida correcta, y tiene que poder emparejarse.",
+          "reading": "UNDETERMINED",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "pregunta disyuntiva que contiene la afirmacion Y su negacion",
+            "la frase siguiente declara explicitamente que no hay respuesta"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "ABSTENTION",
+          "AMBIGUOUS_SCOPE",
+          "NEGATION_BATTERY",
+          "QUESTION_CONDITIONAL_RUMOR",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [],
+      "predicate_candidates": [],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.negation",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "¿Sigue o no sigue Sabela Orín en la Mesnada Ocre?",
+      "review_required": false,
+      "source_asset_id": "asset:ambar-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "238faf17b31240960fc39bf8e8a14f1e56941524cb9865a2baaa185399aa59b9"
+      },
+      "subject_mentions": [],
+      "temporal_expressions": [],
+      "workspace": "bench-negation"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ambar-escaneo",
+  "split": "negation",
+  "world": "ambar"
+}

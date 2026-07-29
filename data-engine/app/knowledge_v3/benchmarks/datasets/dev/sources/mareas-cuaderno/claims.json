@@ -1,0 +1,241 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:mareas-cuaderno:e01:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:mareas-cuaderno:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:mareas-cuaderno:e01:f02"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "gold_key": "gremio-rival-cofradia",
+        "phenomena": [
+          "SYMMETRIC"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:mareas-cuaderno:e01:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "RIVAL_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "llevan enfrentados desde la marea negra",
+      "review_required": false,
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "subject_mentions": [
+        "mention:mareas-cuaderno:e01:m00"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:mareas",
+          "fragment_id": null,
+          "kind": "RELATIVE",
+          "text": "desde la marea negra",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:mareas-cuaderno:e02:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:mareas-cuaderno:e02",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:mareas-cuaderno:e02:f04"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "gold_key": "amarra-in-quilla",
+        "phenomena": [
+          "TRANSITIVE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:mareas-cuaderno:e02:m02"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "LOCATED_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "un barrio de Puerto Quilla",
+      "review_required": false,
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "subject_mentions": [
+        "mention:mareas-cuaderno:e02:m01"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-dev"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:mareas-cuaderno:e03:c00",
+      "confidence": 0.5,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.5,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:mareas-cuaderno:e03",
+      "epistemic_cues": [
+        "planea"
+      ],
+      "epistemic_status_hint": "HYPOTHETICAL",
+      "evidence_fragment_ids": [
+        "fragment:mareas-cuaderno:e03:f04"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "gold_key": "torv-leads-cofradia-plan",
+        "phenomena": [
+          "HYPOTHETICAL",
+          "TEMPORALITY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:mareas-cuaderno:e03:m03"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.5,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "planea entregar a Torv el bastón de la Cofradía de Ámbar en el próximo ciclo",
+      "review_required": true,
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "subject_mentions": [
+        "mention:mareas-cuaderno:e03:m02"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:mareas",
+          "fragment_id": null,
+          "kind": "RELATIVE",
+          "text": "en el próximo ciclo",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "mareas-cuaderno",
+  "split": "dev",
+  "world": "mareas"
+}

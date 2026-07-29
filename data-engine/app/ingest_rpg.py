@@ -30,9 +30,48 @@ EXIT_NO_TEXT_PAGES = 21
 EXIT_MODEL_ERROR = 30
 EXIT_INVALID_JSON = 31
 EXIT_NEO4J_ERROR = 40
+EXIT_INGEST_GATE_BLOCKED = 41
 EXIT_NO_SPACE = 50
 EXIT_LOCKED = 60
 EXIT_REQUIRES_OCR = 70
+
+# ── Llave de entorno para escritura real (camino A, legacy) ───────────────────
+# Este CLI (`property-graph-rpg`) es el "camino A" descrito en la auditoría
+# docs/v3/00-audit-current-system.md: escribe directamente en Neo4j con
+# MERGE+SET y, hasta ahora, sin más guard que --dry-run/--no-neo4j. Se alcanza
+# también automáticamente desde youtube/fetch_youtube.py:run_rpg_extraction()
+# vía subprocess, por lo que el corte debe estar en el propio proceso, lo más
+# cerca posible de la conexión/escritura real (Neo4jWriter.__init__), y no
+# depender de que quien invoque el CLI añada flags.
+ENV_ALLOW_REAL_INGEST = "S9K_ALLOW_REAL_INGEST"
+_ALLOWED_REAL_INGEST_VALUES = ("1", "true")
+
+_REAL_INGEST_GATE_MSG = (
+    "ABORTADO: property-graph-rpg (ingest_rpg.py, camino A legacy) intentó "
+    "escritura real en Neo4j sin autorización explícita. "
+    f"Define {ENV_ALLOW_REAL_INGEST}=1 (o 'true') en el entorno para permitirla. "
+    "Esta variable está ausente o tiene otro valor. "
+    "La ruta soportada para ingesta real es la de revisión "
+    "(cli/data_review.py run --dry-run seguido de cli/data_review.py "
+    "ingest-approved), no este CLI legacy. "
+    "Para simular sin escribir usa --dry-run o --no-neo4j."
+)
+
+
+def _real_ingest_allowed() -> bool:
+    """True si la llave de entorno autoriza escritura real en Neo4j (camino A)."""
+    value = os.environ.get(ENV_ALLOW_REAL_INGEST, "").strip().lower()
+    return value in _ALLOWED_REAL_INGEST_VALUES
+
+
+def _should_connect_neo4j(args) -> bool:
+    """Verdadero si main() debe intentar conectar/escribir en Neo4j.
+
+    --dry-run y --no-neo4j siguen funcionando sin la llave de entorno: ninguno
+    de los dos intenta construir un Neo4jWriter, así que no llegan al gate de
+    S9K_ALLOW_REAL_INGEST en absoluto.
+    """
+    return not args.no_neo4j and not args.dry_run
 
 NEXTCLOUD_BASE = "/mnt/nextcloud-rol"
 
@@ -431,6 +470,12 @@ class Neo4jWriter:
     }
 
     def __init__(self, config: dict):
+        # Corte de la llave lo más cerca posible de la escritura real: ni
+        # siquiera se importa el driver de neo4j si no está autorizado.
+        if not _real_ingest_allowed():
+            log.error(_REAL_INGEST_GATE_MSG)
+            sys.exit(EXIT_INGEST_GATE_BLOCKED)
+
         try:
             from neo4j import GraphDatabase
         except ImportError:
@@ -1267,7 +1312,7 @@ def main():
         extractor = OllamaExtractor(config, args.model, profile=getattr(args, 'profile', 'short'))
 
         writer = None
-        if not args.no_neo4j and not args.dry_run:
+        if _should_connect_neo4j(args):
             try:
                 writer = Neo4jWriter(config)
             except SystemExit:

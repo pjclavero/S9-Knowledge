@@ -1,0 +1,608 @@
+{
+  "benchmark_file": "fragments",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 18,
+      "episode_id": "episode:mareas-cuaderno:e01",
+      "fragment_id": "fragment:mareas-cuaderno:e01:f00",
+      "frame_id": null,
+      "literal_text": "Gremio de Faros",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "gremio de faros",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "start": 3,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 41,
+      "episode_id": "episode:mareas-cuaderno:e01",
+      "fragment_id": "fragment:mareas-cuaderno:e01:f01",
+      "frame_id": null,
+      "literal_text": "Cofradía de Ámbar",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "cofradía de ámbar",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "start": 24,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 81,
+      "episode_id": "episode:mareas-cuaderno:e01",
+      "fragment_id": "fragment:mareas-cuaderno:e01:f02",
+      "frame_id": null,
+      "literal_text": "llevan enfrentados desde la marea negra",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "llevan enfrentados desde la marea negra",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "start": 42,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:mareas-cuaderno:e02",
+      "fragment_id": "fragment:mareas-cuaderno:e02:f00",
+      "frame_id": null,
+      "literal_text": "Sela Marrec",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "sela marrec",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 33,
+      "episode_id": "episode:mareas-cuaderno:e02",
+      "fragment_id": "fragment:mareas-cuaderno:e02:f01",
+      "frame_id": null,
+      "literal_text": "Amarra Vieja",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "amarra vieja",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "start": 21,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 61,
+      "episode_id": "episode:mareas-cuaderno:e02",
+      "fragment_id": "fragment:mareas-cuaderno:e02:f02",
+      "frame_id": null,
+      "literal_text": "Puerto Quilla",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "puerto quilla",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "start": 48,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 69,
+      "episode_id": "episode:mareas-cuaderno:e02",
+      "fragment_id": "fragment:mareas-cuaderno:e02:f03",
+      "frame_id": null,
+      "literal_text": "allí",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "allí",
+      "page": 1,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "start": 65,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 61,
+      "episode_id": "episode:mareas-cuaderno:e02",
+      "fragment_id": "fragment:mareas-cuaderno:e02:f04",
+      "frame_id": null,
+      "literal_text": "un barrio de Puerto Quilla",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "un barrio de puerto quilla",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "start": 35,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 14,
+      "episode_id": "episode:mareas-cuaderno:e03",
+      "fragment_id": "fragment:mareas-cuaderno:e03:f00",
+      "frame_id": null,
+      "literal_text": "Torv Marrec",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "torv marrec",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "start": 3,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 49,
+      "episode_id": "episode:mareas-cuaderno:e03",
+      "fragment_id": "fragment:mareas-cuaderno:e03:f01",
+      "frame_id": null,
+      "literal_text": "Cofradía de Ámbar",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "cofradía de ámbar",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "start": 32,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 159,
+      "episode_id": "episode:mareas-cuaderno:e03",
+      "fragment_id": "fragment:mareas-cuaderno:e03:f02",
+      "frame_id": null,
+      "literal_text": "Torv",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "torv",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "start": 155,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 193,
+      "episode_id": "episode:mareas-cuaderno:e03",
+      "fragment_id": "fragment:mareas-cuaderno:e03:f03",
+      "frame_id": null,
+      "literal_text": "Cofradía de Ámbar",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "cofradía de ámbar",
+      "page": 2,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "start": 176,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 213,
+      "episode_id": "episode:mareas-cuaderno:e03",
+      "fragment_id": "fragment:mareas-cuaderno:e03:f04",
+      "frame_id": null,
+      "literal_text": "planea entregar a Torv el bastón de la Cofradía de Ámbar en el próximo ciclo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-cuaderno",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "planea entregar a torv el bastón de la cofradía de ámbar en el próximo ciclo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-cuaderno",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1495dd5c6a21e64641f585f345c9cf7a4c1276eaeb7f09e849147d139e482471"
+      },
+      "start": 137,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "mareas-cuaderno",
+  "split": "dev",
+  "world": "mareas"
+}

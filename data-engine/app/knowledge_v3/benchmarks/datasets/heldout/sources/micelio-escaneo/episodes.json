@@ -1,0 +1,206 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:micelio-escaneo",
+      "bbox": {
+        "height": 0.06,
+        "page": 1,
+        "width": 0.72,
+        "x": 0.07,
+        "y": 0.11
+      },
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "b190449bf73918b1bd400d8b0a678ce83f9bfa97664086942b1a5e44e0df1834"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:micelio-escaneo:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "phenomena": [
+          "DUPLICATE_ACROSS_SOURCES",
+          "OCR_NOISE"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": "episode:micelio-escaneo:e02",
+      "page": 1,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "OCR_DEGRADED_SURFACE"
+        ],
+        "score": 0.71
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "El acta de la Cárnara Honda confirrna que Leire Onraita dirige 1a Hermandad del Esporo desde la ultima siembra.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "asset_id": "asset:micelio-escaneo",
+      "bbox": {
+        "height": 0.06,
+        "page": 1,
+        "width": 0.55,
+        "x": 0.07,
+        "y": 0.34
+      },
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "160bd62a82c913e6408387033e1786d86d53b66c89b20e13cce695b85737ba27"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:micelio-escaneo:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "phenomena": [
+          "ABSTENTION",
+          "OCR_NOISE",
+          "PROVISIONAL_ENTITY"
+        ]
+      },
+      "modality": "OCR_TEXT",
+      "next_episode_id": "episode:micelio-escaneo:e03",
+      "page": 1,
+      "previous_episode_id": "episode:micelio-escaneo:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "OCR_DEGRADED_SURFACE"
+        ],
+        "score": 0.52
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "La rubrica pertenece a 0nra1ta, segun el rnargen del acta.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "asset_id": "asset:micelio-escaneo",
+      "bbox": {
+        "height": 0.32,
+        "page": 2,
+        "width": 0.6,
+        "x": 0.12,
+        "y": 0.52
+      },
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "b2fc47d9885cf1da38e36d02b0b302c663e957e44aa84fda804acbd727695f7c"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:micelio-escaneo:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-escaneo",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "phenomena": [
+          "VISUAL_INFERRED"
+        ]
+      },
+      "modality": "DIAGRAM",
+      "next_episode_id": null,
+      "page": 2,
+      "previous_episode_id": "episode:micelio-escaneo:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.6
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:micelio-escaneo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "b59b68f8c3db13db9f964ee1ced913660a41d51abe18314c06bc0738160e02b8"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Plano de galerías: la Cámara Yesca dibujada dentro del contorno de la Galería Ocre.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-escaneo",
+  "split": "heldout",
+  "world": "micelio"
+}

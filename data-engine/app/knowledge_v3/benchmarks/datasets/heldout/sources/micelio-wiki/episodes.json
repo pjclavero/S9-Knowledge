@@ -1,0 +1,189 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:micelio-wiki",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "f227fc4a6899c7c79e70c9379ccb89d8e6d754851d0a9082bb22dc1ed2e363c0"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:micelio-wiki:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "phenomena": [
+          "INVERSE_PREDICATE",
+          "SYMMETRIC"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:micelio-wiki:e02",
+      "page": 1,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.97
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "== Hermandad del Esporo ==\nTipo: hermandad de cultivo\nSede: Cámara Honda\nRival declarada: Cónclave Lívido\nCultivo en propiedad: Cámara Yesca\nMiembro destacada: Leire Onraita",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "asset_id": "asset:micelio-wiki",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "1efa85beb8253883fa5479fa63a7fb2592bb1fcd35af4e9a6f83e6ce641e9e0d"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:micelio-wiki:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "phenomena": [
+          "HYPOTHETICAL",
+          "ONTOLOGY_VIOLATION",
+          "QUESTION",
+          "TRANSITIVE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:micelio-wiki:e03",
+      "page": 1,
+      "previous_episode_id": "episode:micelio-wiki:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.97
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "== Geografía ==\nLa Cámara Honda se abre dentro de la Galería Ocre. Si el Cónclave Lívido llegara a ocupar la Galería Ocre, la Hermandad tendría que mudar sus cultivos. ¿Llegó Sabel Onraita a presidir el Cónclave Lívido?",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "asset_id": "asset:micelio-wiki",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "434f472e5b72302036449d2402107f09f52e9903ca61d23a56202d3342bad2eb"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:micelio-wiki:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "micelio-wiki",
+          "split": "heldout",
+          "world": "micelio"
+        },
+        "phenomena": [
+          "COREFERENCE",
+          "FICTION_WITHIN_FICTION",
+          "MODIFIER_MISPAIR",
+          "NEGATION",
+          "SYMMETRIC"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": null,
+      "page": 2,
+      "previous_episode_id": "episode:micelio-wiki:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.97
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:micelio-wiki",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e2f3473a42458956ad399949e316364e040dee552609eda08813709d4febfb56"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "== Cultura ==\nEn la pantomima que los cultivadores representan cada solsticio, el Cónclave Lívido devora la Cámara Honda. La hermana de Sabel Onraita dirige la Hermandad del Esporo desde la última siembra; ella no ha vuelto a la Galería Ocre.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "micelio-wiki",
+  "split": "heldout",
+  "world": "micelio"
+}

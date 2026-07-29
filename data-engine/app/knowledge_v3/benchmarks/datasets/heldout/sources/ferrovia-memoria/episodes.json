@@ -1,0 +1,187 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:ferrovia-memoria",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "7d4bbd46273e2e2b2715ef5110facfcf9c44ec8e40c01dd76a0f2d1f5c080edd"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ferrovia-memoria:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "phenomena": [
+          "COREFERENCE",
+          "SUPERSESSION",
+          "TEMPORALITY"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:ferrovia-memoria:e02",
+      "page": 1,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.97
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Maren Ibarrola encabezó la Compañía del Norte desde el otoño de 1893 hasta el desprendimiento de Portazgo. Cedió la dirección en 1897 y desde entonces Iker Lasalde encabezó la Compañía. Desde el deshielo de 1901 la encabeza Nerea Lasalde.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "asset_id": "asset:ferrovia-memoria",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "1a9d78d981c72c59e3aac44cd396f6fb239e57376b2c8d4e174ccebb0543346c"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ferrovia-memoria:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "phenomena": [
+          "MODIFIER_MISPAIR",
+          "NEGATION",
+          "NEGATION_AT_DISTANCE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:ferrovia-memoria:e03",
+      "page": 1,
+      "previous_episode_id": "episode:ferrovia-memoria:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.97
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "El expediente de concesión no reconoció ninguna de las peticiones que Trasandina Unida presentó aquel invierno, ni siquiera la que firmaba el hermano de Nerea Lasalde para explotar el Túnel de Aizkorri.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-heldout"
+    },
+    {
+      "asset_id": "asset:ferrovia-memoria",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "34b8095fe17689ded58ba9c5c9ee6bba5de7f19ecf706fc298ee44cb65f2921b"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:ferrovia-memoria:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "ferrovia-memoria",
+          "split": "heldout",
+          "world": "ferrovia"
+        },
+        "phenomena": [
+          "CONFLICT",
+          "COORDINATION_MISPAIR",
+          "SYMMETRIC"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": null,
+      "page": 2,
+      "previous_episode_id": "episode:ferrovia-memoria:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.97
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:ferrovia-memoria",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "9933bd6387e30603852940f056f610e19309e3dd88b8ee4a7bd9175e7bdeb174"
+      },
+      "speaker": null,
+      "table": null,
+      "text": "Nerea Lasalde ingresó en la Compañía del Norte y también Iker Lasalde ingresó en Trasandina Unida. Los dos hermanos discutieron el reparto en la Estación de Portazgo.",
+      "time_end": null,
+      "time_start": null,
+      "turn": null,
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "ferrovia-memoria",
+  "split": "heldout",
+  "world": "ferrovia"
+}

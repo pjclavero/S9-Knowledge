@@ -1,0 +1,196 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:liga-mesa",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "12166c458473ddcc09092dcdbd4d139ebe8f561de58b3c2cd057705d17a0d074"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:liga-mesa:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "phenomena": [
+          "SPEAKER_COREFERENCE",
+          "TEMPORALITY"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:liga-mesa:e02",
+      "page": null,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.97
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "speaker": {
+        "confidence": 0.94,
+        "label": "Vero",
+        "speaker_id": "speaker:liga:vero"
+      },
+      "table": null,
+      "text": "Yo dejé el Club Aldabra en cuanto se firmó el traspaso; ahora entreno en el Canchón del Este.",
+      "time_end": 9.0,
+      "time_start": 0.0,
+      "turn": 0,
+      "workspace": "bench-heldout"
+    },
+    {
+      "asset_id": "asset:liga-mesa",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "b2ff905850ee8085fec4d2726ddcd2f998e8eace3fcc9a75ce4179772884929b"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:liga-mesa:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "phenomena": [
+          "SPEAKER_COREFERENCE",
+          "SYMMETRIC"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:liga-mesa:e03",
+      "page": null,
+      "previous_episode_id": "episode:liga-mesa:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.97
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "speaker": {
+        "confidence": 0.92,
+        "label": "Hektor",
+        "speaker_id": "speaker:liga:hektor"
+      },
+      "table": null,
+      "text": "Yo sigo en el Club Rompiente. Nuestro club y el Aldabra llevan tres temporadas enfrentados.",
+      "time_end": 18.0,
+      "time_start": 9.0,
+      "turn": 1,
+      "workspace": "bench-heldout"
+    },
+    {
+      "asset_id": "asset:liga-mesa",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "7dd946fa4297c5b97345fe9771183a5e79c284a88807adbc00f91dbf5244e298"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:liga-mesa:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-mesa",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "phenomena": [
+          "COUNTERFACTUAL",
+          "RUMOR"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": null,
+      "page": null,
+      "previous_episode_id": "episode:liga-mesa:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.97
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:liga-mesa",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "ad871a3dacc2a0d792101a393678397538702d89a7e028dd649f52b28cf788f7"
+      },
+      "speaker": {
+        "confidence": 0.94,
+        "label": "Vero",
+        "speaker_id": "speaker:liga:vero"
+      },
+      "table": null,
+      "text": "Si el Rompiente hubiera pagado la cláusula, yo estaría hoy en su plantilla. Corre el rumor de que Hektor Zuloaga volverá al Aldabra la próxima temporada.",
+      "time_end": 28.0,
+      "time_start": 18.0,
+      "turn": 2,
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-mesa",
+  "split": "heldout",
+  "world": "liga"
+}

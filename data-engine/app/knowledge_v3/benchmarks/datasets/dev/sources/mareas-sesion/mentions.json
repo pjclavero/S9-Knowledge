@@ -1,0 +1,459 @@
+{
+  "benchmark_file": "mentions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [
+        "mention:mareas-sesion:e02:m01",
+        "mention:mareas-sesion:e03:m02"
+      ],
+      "end": 2,
+      "episode_id": "episode:mareas-sesion:e01",
+      "evidence_fragment_ids": [
+        "fragment:mareas-sesion:e01:f00"
+      ],
+      "mention_id": "mention:mareas-sesion:e01:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "mention_kind": "SPEAKER_SELF"
+      },
+      "normalized_surface": "yo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 0,
+      "surface": "Yo",
+      "time_end": 12.4,
+      "time_start": 12.0,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 47,
+      "episode_id": "episode:mareas-sesion:e01",
+      "evidence_fragment_ids": [
+        "fragment:mareas-sesion:e01:f01"
+      ],
+      "mention_id": "mention:mareas-sesion:e01:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "cofradía de ámbar",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 30,
+      "surface": "Cofradía de Ámbar",
+      "time_end": 15.2,
+      "time_start": 14.0,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 2,
+      "episode_id": "episode:mareas-sesion:e02",
+      "evidence_fragment_ids": [
+        "fragment:mareas-sesion:e02:f00"
+      ],
+      "mention_id": "mention:mareas-sesion:e02:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "mention_kind": "SPEAKER_SELF"
+      },
+      "normalized_surface": "mi",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 0,
+      "surface": "Mi",
+      "time_end": 20.3,
+      "time_start": 20.0,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [
+        "mention:mareas-sesion:e01:m00",
+        "mention:mareas-sesion:e03:m02"
+      ],
+      "end": 15,
+      "episode_id": "episode:mareas-sesion:e02",
+      "evidence_fragment_ids": [
+        "fragment:mareas-sesion:e02:f01"
+      ],
+      "mention_id": "mention:mareas-sesion:e02:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "sela",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 11,
+      "surface": "Sela",
+      "time_end": 21.4,
+      "time_start": 20.8,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 47,
+      "episode_id": "episode:mareas-sesion:e02",
+      "evidence_fragment_ids": [
+        "fragment:mareas-sesion:e02:f02"
+      ],
+      "mention_id": "mention:mareas-sesion:e02:m02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "amarra vieja",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 35,
+      "surface": "Amarra Vieja",
+      "time_end": 24.1,
+      "time_start": 23.0,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 44,
+      "episode_id": "episode:mareas-sesion:e03",
+      "evidence_fragment_ids": [
+        "fragment:mareas-sesion:e03:f00"
+      ],
+      "mention_id": "mention:mareas-sesion:e03:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "gremio de faros",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 29,
+      "surface": "Gremio de Faros",
+      "time_end": 31.2,
+      "time_start": 30.0,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 64,
+      "episode_id": "episode:mareas-sesion:e03",
+      "evidence_fragment_ids": [
+        "fragment:mareas-sesion:e03:f01"
+      ],
+      "mention_id": "mention:mareas-sesion:e03:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "amarra vieja",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 52,
+      "surface": "Amarra Vieja",
+      "time_end": 32.5,
+      "time_start": 31.6,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [
+        "mention:mareas-sesion:e01:m00",
+        "mention:mareas-sesion:e02:m01"
+      ],
+      "end": 92,
+      "episode_id": "episode:mareas-sesion:e03",
+      "evidence_fragment_ids": [
+        "fragment:mareas-sesion:e03:f02"
+      ],
+      "mention_id": "mention:mareas-sesion:e03:m02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "mention_kind": "SPEAKER_SELF"
+      },
+      "normalized_surface": "yo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 90,
+      "surface": "yo",
+      "time_end": 34.3,
+      "time_start": 34.0,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "mareas-sesion",
+  "split": "dev",
+  "world": "mareas"
+}

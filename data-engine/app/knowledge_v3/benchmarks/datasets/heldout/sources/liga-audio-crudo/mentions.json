@@ -1,0 +1,399 @@
+{
+  "benchmark_file": "mentions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 0.8,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 14,
+      "episode_id": "episode:liga-audio-crudo:e01",
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e01:f00"
+      ],
+      "mention_id": "mention:liga-audio-crudo:e01:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "irune basterra",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "start": 0,
+      "surface": "irune basterra",
+      "time_end": 7.5,
+      "time_start": 0.0,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.85,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 38,
+      "episode_id": "episode:liga-audio-crudo:e01",
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e01:f01"
+      ],
+      "mention_id": "mention:liga-audio-crudo:e01:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "club farol",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "start": 28,
+      "surface": "club farol",
+      "time_end": 7.5,
+      "time_start": 0.0,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.7,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 65,
+      "episode_id": "episode:liga-audio-crudo:e01",
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e01:f02"
+      ],
+      "mention_id": "mention:liga-audio-crudo:e01:m02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "lorea",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "start": 60,
+      "surface": "lorea",
+      "time_end": 7.5,
+      "time_start": 0.0,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.85,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 85,
+      "episode_id": "episode:liga-audio-crudo:e01",
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e01:f03"
+      ],
+      "mention_id": "mention:liga-audio-crudo:e01:m03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "club aldabra",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "start": 73,
+      "surface": "club aldabra",
+      "time_end": 7.5,
+      "time_start": 0.0,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.85,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [
+        "mention:liga-audio-crudo:e02:m02"
+      ],
+      "end": 16,
+      "episode_id": "episode:liga-audio-crudo:e02",
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e02:f00"
+      ],
+      "mention_id": "mention:liga-audio-crudo:e02:m00",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "club farol",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "start": 6,
+      "surface": "club farol",
+      "time_end": 13.0,
+      "time_start": 7.5,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.8,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 40,
+      "episode_id": "episode:liga-audio-crudo:e02",
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e02:f01"
+      ],
+      "mention_id": "mention:liga-audio-crudo:e02:m01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "mention_kind": "NAME"
+      },
+      "normalized_surface": "irune basterra",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "start": 26,
+      "surface": "irune basterra",
+      "time_end": 13.0,
+      "time_start": 7.5,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-heldout"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.6,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [
+        "mention:liga-audio-crudo:e02:m00"
+      ],
+      "end": 60,
+      "episode_id": "episode:liga-audio-crudo:e02",
+      "evidence_fragment_ids": [
+        "fragment:liga-audio-crudo:e02:f02"
+      ],
+      "mention_id": "mention:liga-audio-crudo:e02:m02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "liga-audio-crudo",
+          "split": "heldout",
+          "world": "liga"
+        },
+        "mention_kind": "NOMINAL"
+      },
+      "normalized_surface": "el equipo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold.heldout",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:liga-audio-crudo",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "2c41fe8354d9a46b342b11b53adb11a36dc5a5055986a814513a9b86cc554ac1"
+      },
+      "start": 51,
+      "surface": "el equipo",
+      "time_end": 13.0,
+      "time_start": 7.5,
+      "type_candidates": [
+        {
+          "confidence": 1.0,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-heldout"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "liga-audio-crudo",
+  "split": "heldout",
+  "world": "liga"
+}

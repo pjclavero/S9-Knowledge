@@ -1,0 +1,314 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:leyenda-cronica:e01:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:leyenda-cronica:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e01:f04"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "gold_key": "ilaria-leads-casa",
+        "phenomena": [
+          "TEMPORALITY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:leyenda-cronica:e01:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "dirigió la Casa del Ciervo desde el invierno de 1041",
+      "review_required": false,
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "subject_mentions": [
+        "mention:leyenda-cronica:e01:m00"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:leyenda",
+          "fragment_id": null,
+          "kind": "INTERVAL",
+          "text": "desde el invierno de 1041 hasta la caída de Vado Alto",
+          "valid_from": "1041-12-01T00:00:00Z",
+          "valid_to": "1042-03-20T00:00:00Z"
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:leyenda-cronica:e01:c01",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:leyenda-cronica:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e01:f05"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "gold_key": "daiki-leads-casa",
+        "phenomena": [
+          "SUPERSESSION",
+          "TEMPORALITY"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:leyenda-cronica:e01:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "el cargo recayó en Daiki Oharu",
+      "review_required": false,
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "subject_mentions": [
+        "mention:leyenda-cronica:e01:m03"
+      ],
+      "temporal_expressions": [
+        {
+          "calendar_id": "calendar:leyenda",
+          "fragment_id": null,
+          "kind": "POINT",
+          "text": "desde la primavera de 1042",
+          "valid_from": "1042-03-21T00:00:00Z",
+          "valid_to": null
+        }
+      ],
+      "workspace": "bench-dev"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:leyenda-cronica:e02:c00",
+      "confidence": 0.95,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.95,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:leyenda-cronica:e02",
+      "epistemic_cues": [
+        "ha negado"
+      ],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e02:f04"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "gold_key": "daiki-not-member-consejo",
+        "phenomena": [
+          "NEGATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:leyenda-cronica:e02:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.95,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "ha negado en cada asamblea su pertenencia al Consejo de Umbra",
+      "review_required": false,
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "subject_mentions": [
+        "mention:leyenda-cronica:e02:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-dev"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:leyenda-cronica:e03:c00",
+      "confidence": 0.55,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.55,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:leyenda-cronica:e03",
+      "epistemic_cues": [
+        "Corre el rumor de que"
+      ],
+      "epistemic_status_hint": "RUMORED",
+      "evidence_fragment_ids": [
+        "fragment:leyenda-cronica:e03:f04"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "leyenda-cronica",
+          "split": "dev",
+          "world": "leyenda"
+        },
+        "gold_key": "casa-ally-consejo-rumor",
+        "phenomena": [
+          "RUMOR",
+          "SYMMETRIC"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:leyenda-cronica:e03:m01"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.55,
+          "predicate": "ALLY_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicate_candidates",
+            "relation_phrase"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "firmaron un pacto secreto la noche de la última luna",
+      "review_required": true,
+      "source_asset_id": "asset:leyenda-cronica",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "680f6ace8f7d25a266f2443c6e782722a1ef9b406ce80f9accd04c2f22b89018"
+      },
+      "subject_mentions": [
+        "mention:leyenda-cronica:e03:m00"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "leyenda-cronica",
+  "split": "dev",
+  "world": "leyenda"
+}

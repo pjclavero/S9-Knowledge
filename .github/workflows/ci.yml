@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
@@ -100,6 +103,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
@@ -142,6 +148,58 @@ jobs:
         run: |
           set -euo pipefail
           python -m pytest contracts/review-ingest/v1/tests/ -q
+
+  knowledge-v3-contracts:
+    name: Contratos internos V3 (v3-internal-v1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Install JSON Schema tooling
+        run: |
+          # Sin `|| true`: si falta jsonschema el gate falla, no pasa en verde.
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install "jsonschema>=4.18,<5.0" "pytest>=8.2,<9.0"
+          python -c "import jsonschema, referencing; print('jsonschema ok')"
+
+      - name: Validate V3 contracts (roundtrip + mutacion)
+        run: |
+          set -euo pipefail
+          out="$(python -m pytest contracts/knowledge-v3/v1/tests/ -q --no-header 2>&1)" || {
+            echo "${out}"; exit 1;
+          }
+          echo "${out}"
+          # Un gate que no ejecuta nada seria un verde que no comprueba nada.
+          if ! grep -qE '[0-9]+ passed' <<<"${out}"; then
+            echo "ERROR: los tests de contratos V3 no llegaron a ejecutarse"
+            exit 1
+          fi
+
+      - name: Los ejemplos coinciden con las fixtures (no hay deriva)
+        run: |
+          set -euo pipefail
+          python contracts/knowledge-v3/v1/tests/generate_examples.py
+          # `git diff` NO ve ficheros nuevos sin rastrear: un ejemplo anadido a
+          # las fixtures y no commiteado pasaba este gate en verde. Hay que
+          # mirar tambien el estado con --porcelain, que si los lista.
+          if ! git diff --quiet -- contracts/knowledge-v3/v1/examples; then
+            echo "ERROR: los ejemplos en disco no coinciden con las fixtures"
+            git --no-pager diff --stat -- contracts/knowledge-v3/v1/examples
+            exit 1
+          fi
+          untracked="$(git status --porcelain -- contracts/knowledge-v3/v1/examples)"
+          if [ -n "${untracked}" ]; then
+            echo "ERROR: ejemplos generados que no estan en el repositorio:"
+            echo "${untracked}"
+            exit 1
+          fi
+          echo "OK: ejemplos sincronizados (modificados y sin rastrear)"
 
   check-unicode:
     name: No dangerous Unicode (Trojan Source)

@@ -1,0 +1,38 @@
+{
+  "bbox": null,
+  "confidence": 1.0,
+  "contract_id": "evidence-fragment/v3-internal-v1",
+  "contract_version": "1.0.0",
+  "end": 79,
+  "episode_id": "episode:manual-001:p12",
+  "fragment_id": "fragment:p12:0",
+  "frame_id": null,
+  "literal_text": "jamas juro lealtad al Consejo de Umbra",
+  "media_type": "EMBEDDED_TEXT",
+  "normalized_text": "jamas juro lealtad al consejo de umbra",
+  "page": 12,
+  "produced_by_step": "anchor",
+  "provider_trace": [
+    {
+      "model": null,
+      "name": "s9k.knowledge_v3",
+      "produced": [
+        "start",
+        "end",
+        "literal_text"
+      ],
+      "provider": "local",
+      "step": "anchor",
+      "version": "3.0.0"
+    }
+  ],
+  "source_asset_id": "asset:manual-001",
+  "source_hash": {
+    "algorithm": "sha256",
+    "value": "a900b2ece307794d62690e1ffbe35853112ebbdef8fe18061b62f896d38f23a2"
+  },
+  "start": 42,
+  "time_end": null,
+  "time_start": null,
+  "workspace": "leyenda"
+}

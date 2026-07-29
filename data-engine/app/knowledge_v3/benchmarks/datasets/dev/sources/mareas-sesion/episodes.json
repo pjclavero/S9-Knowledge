@@ -1,0 +1,198 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:mareas-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "a489709d6c0950984ed901a20ebe22b1878e73b6700f01aadf68a16634bd7c5a"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:mareas-sesion:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "phenomena": [
+          "NEGATION",
+          "SPEAKER_COREFERENCE"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:mareas-sesion:e02",
+      "page": null,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "LOW_SNR"
+        ],
+        "score": 0.86
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "speaker": {
+        "confidence": 0.94,
+        "label": "Sela",
+        "speaker_id": "speaker:sela"
+      },
+      "table": null,
+      "text": "Yo nunca he trabajado para la Cofradía de Ámbar, por mucho que lo repitan en el muelle.",
+      "time_end": 19.5,
+      "time_start": 12.0,
+      "turn": 0,
+      "workspace": "bench-dev"
+    },
+    {
+      "asset_id": "asset:mareas-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "0659627b1ed71f85b5d1895ee41a1756f6c29f9eb24045c40b07fdb0ae09a96f"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:mareas-sesion:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "phenomena": [
+          "SPEAKER_COREFERENCE",
+          "SYMMETRIC"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:mareas-sesion:e03",
+      "page": null,
+      "previous_episode_id": "episode:mareas-sesion:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.9
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "speaker": {
+        "confidence": 0.91,
+        "label": "Torv",
+        "speaker_id": "speaker:torv"
+      },
+      "table": null,
+      "text": "Mi hermana Sela lleva el taller de Amarra Vieja desde antes de la marea negra.",
+      "time_end": 27.0,
+      "time_start": 20.0,
+      "turn": 1,
+      "workspace": "bench-dev"
+    },
+    {
+      "asset_id": "asset:mareas-sesion",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "de491774b65da4ae9aecc10a45550e8fa471747a509e7ca7fb0a7d49f9503941"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:mareas-sesion:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        },
+        "phenomena": [
+          "RUMOR",
+          "SPEAKER_COREFERENCE"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": null,
+      "page": null,
+      "previous_episode_id": "episode:mareas-sesion:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.88
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "speaker": {
+        "confidence": 0.94,
+        "label": "Sela",
+        "speaker_id": "speaker:sela"
+      },
+      "table": null,
+      "text": "Dicen los estibadores que el Gremio de Faros compró Amarra Vieja el invierno pasado, pero yo no he visto la escritura.",
+      "time_end": 36.0,
+      "time_start": 28.5,
+      "turn": 2,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "mareas-sesion",
+  "split": "dev",
+  "world": "mareas"
+}

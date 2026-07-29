@@ -1,0 +1,22 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:mareas-sesion:e01",
+      "text": "Yo nunca he trabajado para la Cofradía de Ámbar, por mucho que lo repitan en el muelle."
+    },
+    {
+      "episode_id": "episode:mareas-sesion:e02",
+      "text": "Mi hermana Sela lleva el taller de Amarra Vieja desde antes de la marea negra."
+    },
+    {
+      "episode_id": "episode:mareas-sesion:e03",
+      "text": "Dicen los estibadores que el Gremio de Faros compró Amarra Vieja el invierno pasado, pero yo no he visto la escritura."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "mareas-sesion",
+  "split": "dev",
+  "world": "mareas"
+}

@@ -1,0 +1,432 @@
+{
+  "benchmark_file": "game_profile",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "aliases": [
+        {
+          "canonical": "Daiki Oharu",
+          "variants": [
+            "Daiki",
+            "Daiki Oharu",
+            "Oharu",
+            "Daiki Oliaru"
+          ]
+        },
+        {
+          "canonical": "Ilaria Vandreth",
+          "variants": [
+            "Ilaria",
+            "Ilaria Vandreth",
+            "Vandreth"
+          ]
+        },
+        {
+          "canonical": "Casa del Ciervo",
+          "variants": [
+            "Casa del Ciervo",
+            "la Casa",
+            "Casa de1 Ciervo"
+          ]
+        },
+        {
+          "canonical": "Consejo de Umbra",
+          "variants": [
+            "Consejo de Umbra",
+            "el Consejo"
+          ]
+        },
+        {
+          "canonical": "Umbra",
+          "variants": [
+            "Umbra"
+          ]
+        },
+        {
+          "canonical": "Vado Alto",
+          "variants": [
+            "Vado Alto"
+          ]
+        },
+        {
+          "canonical": "Sela Marrec",
+          "variants": [
+            "Sela",
+            "Sela Marrec",
+            "la tallista"
+          ]
+        },
+        {
+          "canonical": "Torv Marrec",
+          "variants": [
+            "Torv",
+            "Torv Marrec"
+          ]
+        },
+        {
+          "canonical": "Gremio de Faros",
+          "variants": [
+            "Gremio de Faros",
+            "el Gremio"
+          ]
+        },
+        {
+          "canonical": "Cofradia de Ambar",
+          "variants": [
+            "Cofradia de Ambar",
+            "la Cofradia"
+          ]
+        },
+        {
+          "canonical": "Puerto Quilla",
+          "variants": [
+            "Puerto Quilla"
+          ]
+        },
+        {
+          "canonical": "Amarra Vieja",
+          "variants": [
+            "Amarra Vieja"
+          ]
+        },
+        {
+          "canonical": "Vania Ostrow",
+          "variants": [
+            "Vania",
+            "Vania Ostrow",
+            "Ostrow"
+          ]
+        },
+        {
+          "canonical": "Nadir Boone",
+          "variants": [
+            "Nadir",
+            "Nadir Boone",
+            "Boone"
+          ]
+        },
+        {
+          "canonical": "Consorcio Halcyon",
+          "variants": [
+            "Consorcio Halcyon",
+            "Halcyon",
+            "el Consorcio"
+          ]
+        },
+        {
+          "canonical": "Cooperativa Vela",
+          "variants": [
+            "Cooperativa Vela",
+            "Vela"
+          ]
+        },
+        {
+          "canonical": "Estacion Kestrel",
+          "variants": [
+            "Estacion Kestrel",
+            "la estacion"
+          ]
+        },
+        {
+          "canonical": "Nucleo Bruma",
+          "variants": [
+            "Nucleo Bruma"
+          ]
+        },
+        {
+          "canonical": "Ruta Simm",
+          "variants": [
+            "Ruta Simm"
+          ]
+        },
+        {
+          "canonical": "V4ndreth",
+          "variants": [
+            "V4ndreth"
+          ]
+        }
+      ],
+      "ambiguous_terms": [
+        "el Consejo",
+        "la Casa",
+        "el Gremio",
+        "la Cofradia",
+        "la estacion"
+      ],
+      "calendars": [
+        {
+          "calendar_id": "calendar:leyenda",
+          "epoch_label": "Era del Ciervo",
+          "units": [
+            "ciclo",
+            "luna"
+          ]
+        },
+        {
+          "calendar_id": "calendar:mareas",
+          "epoch_label": "Cuenta de Mareas",
+          "units": [
+            "marea",
+            "temporada"
+          ]
+        },
+        {
+          "calendar_id": "calendar:kestrel",
+          "epoch_label": "Ciclo orbital",
+          "units": [
+            "ciclo",
+            "turno"
+          ]
+        }
+      ],
+      "contract_id": "game-profile/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "core_ontology_version": "core-1.4.0",
+      "entity_types": [
+        "Character",
+        "Location",
+        "Faction",
+        "Object",
+        "Event",
+        "Concept"
+      ],
+      "evaluation_examples": [
+        {
+          "example_id": "example:negacion",
+          "expected": "NEGATED MEMBER_OF",
+          "text": "El registro no incluye a ese tripulante entre el personal del consorcio."
+        },
+        {
+          "example_id": "example:simetrica",
+          "expected": "RIVAL_OF (simetrica)",
+          "text": "Los dos gremios llevan una temporada enfrentados."
+        }
+      ],
+      "factions": [
+        "Casa del Ciervo",
+        "Consejo de Umbra",
+        "Gremio de Faros",
+        "Cofradia de Ambar",
+        "Consorcio Halcyon",
+        "Cooperativa Vela"
+      ],
+      "identity_rules": [
+        {
+          "description": "Compartir cargo no basta para fundir dos personajes.",
+          "kind": "NEVER_MERGE_IF",
+          "reason_code": "TITLE_ONLY_MATCH",
+          "rule_id": "rule:titulo-no-funde"
+        },
+        {
+          "description": "Una superficie degradada por OCR se revisa antes de fundirla.",
+          "kind": "REQUIRE_REVIEW_IF",
+          "reason_code": "OCR_DEGRADED_SURFACE",
+          "rule_id": "rule:ocr-revisa"
+        }
+      ],
+      "learned_adapter": {
+        "adapter_id": "adapter:none",
+        "enabled": false
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "role": "perfil correcto del dataset",
+          "split": "dev"
+        }
+      },
+      "predicates": [
+        {
+          "domain": [
+            "Character"
+          ],
+          "functional": false,
+          "inverse_of": "HAS_MEMBER",
+          "predicate": "MEMBER_OF",
+          "range": [
+            "Faction"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": "MEMBER_OF",
+          "predicate": "HAS_MEMBER",
+          "range": [
+            "Character"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character"
+          ],
+          "functional": true,
+          "inverse_of": "LED_BY",
+          "predicate": "LEADS",
+          "range": [
+            "Faction"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": "LEADS",
+          "predicate": "LED_BY",
+          "range": [
+            "Character"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character",
+            "Object",
+            "Location",
+            "Event",
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": null,
+          "predicate": "LOCATED_IN",
+          "range": [
+            "Location"
+          ],
+          "symmetric": false,
+          "transitive": true
+        },
+        {
+          "domain": [
+            "Character",
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": null,
+          "predicate": "ALLY_OF",
+          "range": [
+            "Character",
+            "Faction"
+          ],
+          "symmetric": true,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character",
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": null,
+          "predicate": "RIVAL_OF",
+          "range": [
+            "Character",
+            "Faction"
+          ],
+          "symmetric": true,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character"
+          ],
+          "functional": false,
+          "inverse_of": null,
+          "predicate": "SIBLING_OF",
+          "range": [
+            "Character"
+          ],
+          "symmetric": true,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character",
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": "OWNED_BY",
+          "predicate": "OWNS",
+          "range": [
+            "Object",
+            "Location"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Object",
+            "Location"
+          ],
+          "functional": false,
+          "inverse_of": "OWNS",
+          "predicate": "OWNED_BY",
+          "range": [
+            "Character",
+            "Faction"
+          ],
+          "symmetric": false,
+          "transitive": false
+        }
+      ],
+      "produced_by_step": "gold.profile",
+      "profile_id": "generic",
+      "profile_version": "1.0.0",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "predicates",
+            "entity_types"
+          ],
+          "provider": "local",
+          "step": "gold.profile",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "profile:generic",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "66eff1089c941e535373d962f2580fd1e8b6fad38969e83b0ae15fcaab925286"
+      },
+      "source_priorities": [
+        {
+          "priority": 80,
+          "source_kind": "MARKDOWN"
+        },
+        {
+          "priority": 70,
+          "source_kind": "TABLE"
+        },
+        {
+          "priority": 50,
+          "source_kind": "AUDIO"
+        },
+        {
+          "priority": 30,
+          "source_kind": "IMAGE"
+        }
+      ],
+      "titles": [
+        "magistrado",
+        "senescal",
+        "maestra de faros",
+        "jefa de operaciones"
+      ],
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "split": "dev"
+}

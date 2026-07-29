@@ -1,0 +1,516 @@
+{
+  "benchmark_file": "fragments",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 2,
+      "episode_id": "episode:mareas-sesion:e01",
+      "fragment_id": "fragment:mareas-sesion:e01:f00",
+      "frame_id": null,
+      "literal_text": "Yo",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "yo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 0,
+      "time_end": 12.4,
+      "time_start": 12.0,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 47,
+      "episode_id": "episode:mareas-sesion:e01",
+      "fragment_id": "fragment:mareas-sesion:e01:f01",
+      "frame_id": null,
+      "literal_text": "Cofradía de Ámbar",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "cofradía de ámbar",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 30,
+      "time_end": 15.2,
+      "time_start": 14.0,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.86,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 47,
+      "episode_id": "episode:mareas-sesion:e01",
+      "fragment_id": "fragment:mareas-sesion:e01:f02",
+      "frame_id": null,
+      "literal_text": "nunca he trabajado para la Cofradía de Ámbar",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "nunca he trabajado para la cofradía de ámbar",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 3,
+      "time_end": 15.2,
+      "time_start": 12.5,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 2,
+      "episode_id": "episode:mareas-sesion:e02",
+      "fragment_id": "fragment:mareas-sesion:e02:f00",
+      "frame_id": null,
+      "literal_text": "Mi",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "mi",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 0,
+      "time_end": 20.3,
+      "time_start": 20.0,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 15,
+      "episode_id": "episode:mareas-sesion:e02",
+      "fragment_id": "fragment:mareas-sesion:e02:f01",
+      "frame_id": null,
+      "literal_text": "Sela",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "sela",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 11,
+      "time_end": 21.4,
+      "time_start": 20.8,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 47,
+      "episode_id": "episode:mareas-sesion:e02",
+      "fragment_id": "fragment:mareas-sesion:e02:f02",
+      "frame_id": null,
+      "literal_text": "Amarra Vieja",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "amarra vieja",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 35,
+      "time_end": 24.1,
+      "time_start": 23.0,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.9,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 15,
+      "episode_id": "episode:mareas-sesion:e02",
+      "fragment_id": "fragment:mareas-sesion:e02:f03",
+      "frame_id": null,
+      "literal_text": "Mi hermana Sela",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "mi hermana sela",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 0,
+      "time_end": 21.4,
+      "time_start": 20.0,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 44,
+      "episode_id": "episode:mareas-sesion:e03",
+      "fragment_id": "fragment:mareas-sesion:e03:f00",
+      "frame_id": null,
+      "literal_text": "Gremio de Faros",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "gremio de faros",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 29,
+      "time_end": 31.2,
+      "time_start": 30.0,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 64,
+      "episode_id": "episode:mareas-sesion:e03",
+      "fragment_id": "fragment:mareas-sesion:e03:f01",
+      "frame_id": null,
+      "literal_text": "Amarra Vieja",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "amarra vieja",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 52,
+      "time_end": 32.5,
+      "time_start": 31.6,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 1.0,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 92,
+      "episode_id": "episode:mareas-sesion:e03",
+      "fragment_id": "fragment:mareas-sesion:e03:f02",
+      "frame_id": null,
+      "literal_text": "yo",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "yo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 90,
+      "time_end": 34.3,
+      "time_start": 34.0,
+      "workspace": "bench-dev"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.84,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 83,
+      "episode_id": "episode:mareas-sesion:e03",
+      "fragment_id": "fragment:mareas-sesion:e03:f03",
+      "frame_id": null,
+      "literal_text": "el Gremio de Faros compró Amarra Vieja el invierno pasado",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "mareas-sesion",
+          "split": "dev",
+          "world": "mareas"
+        }
+      },
+      "normalized_text": "el gremio de faros compró amarra vieja el invierno pasado",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.gold",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:mareas-sesion",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "e6059a7e800eab4eba4a60bba355939a47524762303c62736390b5907b0be684"
+      },
+      "start": 26,
+      "time_end": 33.0,
+      "time_start": 29.5,
+      "workspace": "bench-dev"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "mareas-sesion",
+  "split": "dev",
+  "world": "mareas"
+}
