@@ -92,6 +92,29 @@ revisión; sí la que interviene en la decisión.
 Diseñar el plan `CREATE_ENTITY` independiente antes de tocar `LINK_EXISTING`.
 Requiere decisión del operador sobre deduplicación reforzada y umbrales.
 
+### Lote 6 — replicabilidad y mantenimiento (verificado contra `deploy/`)
+
+Diseñado pero a medio implementar. Existe: esqueleto Ansible (6 roles),
+`deploy.sh`/`preflight.sh`/`rollback-release.sh`/`retention.py`, verificación
+de identidad de release, backup/restore/rollback-dryrun de Neo4j, doc 28.
+Pendiente, por orden de valor:
+
+1. **Secretos**: ninguna unidad carga `EnvironmentFile=/etc/s9-knowledge/providers.env`
+   — la credencial de proveedores está inerte en producción (y la API key de
+   NVIDIA expuesta sigue sin rotar);
+2. despliegue genérico: la forma exacta de VM105 está cableada en
+   `deploy/tests/test_release_identity.py:125` y `deployments/local-vm105/` es
+   una guía nunca ejecutada;
+3. rollback conjunto de aplicación y datos (hoy son dos procedimientos sueltos);
+4. pruebas periódicas de restore (el script existe, la periodicidad no);
+5. creación/gestión de workspaces;
+6. modo sin Nextcloud (los "tres modos" solo existen en la documentación
+   consolidada; `deploy/` no menciona Nextcloud);
+7. procedimiento de actualización V3 y documentación operativa final.
+
+El instalador completo, el wizard y la gestión web de workspaces quedaron
+declarados fuera de alcance y siguen fuera.
+
 ### Fuera de estos lotes (siguen en el doc 30)
 
 Encargos D (proveedores con recambio), E (eje temporal de campaña),
