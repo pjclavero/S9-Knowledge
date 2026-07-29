@@ -221,6 +221,19 @@ def _pending_episode(
     )
 
 
+def _source_labels(source: SourceInput) -> dict[str, str]:
+    payload = dict(source.payload or {})
+    labels = {
+        "source_file": source.original_name,
+        "ingested_by": str(payload.get("ingested_by") or ""),
+    }
+    for key in ("author_hint", "perspective_hint", "session_id", "in_game_date"):
+        value = payload.get(key)
+        if value not in (None, ""):
+            labels[key] = str(value)
+    return labels
+
+
 def _valid_bbox(bbox: Any) -> bool:
     if not isinstance(bbox, dict):
         return False
@@ -301,6 +314,64 @@ def _literal_fragments(
     return fragments
 
 
+def _transcription_fragments(
+    result: VisualResult,
+    content: str,
+    media_type: str,
+    region: VisualRegion,
+) -> list[FragmentDraft]:
+    """Proyecta offsets textuales de HTR sin inventar cajas de imagen."""
+    records = result.metadata.get("transcription_spans")
+    if not isinstance(records, list):
+        return _literal_fragments(result, region, content, media_type)
+    fragments: list[FragmentDraft] = []
+    for index, item in enumerate(records):
+        if not isinstance(item, dict):
+            raise errors.NormalizationError(
+                errors.ANCHOR_MISMATCH,
+                f"tramo de transcripcion {index} no es un objeto",
+            )
+        start, end = item.get("start"), item.get("end")
+        literal = item.get("text")
+        if (
+            not isinstance(start, int)
+            or not isinstance(end, int)
+            or not isinstance(literal, str)
+            or start < 0
+            or end <= start
+            or content[start:end] != literal
+        ):
+            raise errors.NormalizationError(
+                errors.ANCHOR_MISMATCH,
+                f"tramo de transcripcion {index} no coincide con sus offsets",
+            )
+        fragments.append(
+            FragmentDraft(
+                literal_text=literal,
+                start=start,
+                end=end,
+                media_type=media_type,
+                confidence=check_provider_confidence(
+                    item.get("confidence", result.confidence),
+                    where=f"tramo de transcripcion {index}",
+                ),
+                bbox=None,
+                page=region.page,
+                frame_id=region.frame_id,
+                produced_by=STEP_VISION,
+                metadata={
+                    "anchor": "transcription_offsets",
+                    "lane": "TRANSCRIBED_TEXT",
+                    "review_required": bool(item.get("review_required")),
+                    "reason_codes": list(item.get("reason_codes") or []),
+                    "line": item.get("line"),
+                    "region_id": region.region_id,
+                },
+            )
+        )
+    return fragments
+
+
 def _episode_from_result(
     result: VisualResult, region: VisualRegion
 ) -> EpisodeDraft:
@@ -334,7 +405,11 @@ def _episode_from_result(
     if literal:
         # OCR/HTR: el texto ES el contenido del episodio, y los offsets son
         # offsets de texto de verdad.
-        fragments = _literal_fragments(result, region, content, media_type)
+        fragments = (
+            _transcription_fragments(result, content, media_type, region)
+            if result.mode == MODE_HTR
+            else _literal_fragments(result, region, content, media_type)
+        )
         episode_quality = text_quality(content)
         episode_quality["score"] = min(episode_quality["score"], confidence)
         if low:
@@ -349,7 +424,7 @@ def _episode_from_result(
             quality=episode_quality,
             fragments=fragments,
             produced_by=STEP_VISION,
-            metadata={"region_id": region.region_id},
+            metadata={"region_id": region.region_id, **dict(result.metadata)},
         )
 
     # Interpretacion visual: el texto describe, no cita. Va a metadata y el
@@ -451,6 +526,10 @@ class _BaseVisualAdapter(SourceAdapter):
             raise errors.NormalizationError(
                 errors.EMPTY_SOURCE, f"{source.original_name} sin contenido binario"
             )
+        # La politica debe validarse antes de invocar al proveedor. Hacerlo solo
+        # en `assemble()` detectaria la incoherencia, pero ya habria expuesto la
+        # imagen privada.
+        options.processing_policy()
         # Comprobacion PREVIA: si el proveedor declara su clase por adelantado
         # (`provider_kind`) y la politica no la admite, no se le llega a mandar
         # el material. Rechazar solo el resultado ya habria expuesto los bytes.
@@ -475,7 +554,13 @@ class _BaseVisualAdapter(SourceAdapter):
                     )
                 )
                 if result is None:
-                    episodes.append(_pending_episode(mode, region))
+                    pending_episode = _pending_episode(mode, region)
+                    if mode == MODE_HTR:
+                        pending_episode.metadata = {
+                            **(pending_episode.metadata or {}),
+                            **_source_labels(source),
+                        }
+                    episodes.append(pending_episode)
                     pending += 1
                     continue
                 if result.mode != mode:
@@ -488,7 +573,13 @@ class _BaseVisualAdapter(SourceAdapter):
                 # su clase por adelantado, pero el resultado siempre la lleva.
                 self._check_external_allowed(result.provider, options)
                 results.append(result)
-                episodes.append(_episode_from_result(result, region))
+                episode = _episode_from_result(result, region)
+                if mode == MODE_HTR:
+                    episode.metadata = {
+                        **(episode.metadata or {}),
+                        **_source_labels(source),
+                    }
+                episodes.append(episode)
         return AdapterOutput(
             source_kind=source.source_kind
             if source.source_kind in self.source_kinds
@@ -505,6 +596,13 @@ class _BaseVisualAdapter(SourceAdapter):
                 "visual_provider": type(self.provider).__name__,
                 "visual_pending_requests": pending,
                 "visual_implementation": "stub" if self.is_stub else "real",
+                **(
+                    {
+                        "transcription_metrics": self.provider.metrics.snapshot()
+                    }
+                    if hasattr(self.provider, "metrics")
+                    else {}
+                ),
             },
         )
 

@@ -39,6 +39,11 @@ from .base import (  # noqa: F401
 from .errors import NormalizationError  # noqa: F401
 from .normalizer import normalize, normalize_bytes  # noqa: F401
 from .registry import AdapterRegistry, default_registry  # noqa: F401
+from .transcription import (  # noqa: F401
+    TranscriptionCascade,
+    TranscriptionMetrics,
+    build_nvidia_transcription_cascade,
+)
 
 __all__ = [
     "NORMALIZER_VERSION",
@@ -54,7 +59,10 @@ __all__ = [
     "NormalizationResult",
     "SourceAdapter",
     "SourceInput",
+    "TranscriptionCascade",
+    "TranscriptionMetrics",
     "assemble",
+    "build_nvidia_transcription_cascade",
     "default_registry",
     "errors",
     "ids",
