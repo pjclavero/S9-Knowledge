@@ -5,6 +5,7 @@
       -> normalizacion multimodal      (multimodal/)
       -> episodios + evidencias
       -> extraccion                    (extraction/)
+      -> reconciliacion textual         (reconcile/)
       -> resolucion de identidad       (resolution/)
       -> motor local                   (engine/)
       -> ledger temporal               (ledger/)
@@ -59,6 +60,7 @@ from ..ledger.store import InMemoryLedgerStore
 from ..multimodal.base import IngestOptions, NormalizationResult, SourceInput
 from ..multimodal.normalizer import normalize
 from ..multimodal.registry import default_registry
+from ..reconcile import ProposalReconciler
 from ..resolution.resolver import EntityResolver, ResolutionRequest
 from ..writer.gate import OperatorRequest
 from ..writer.writer import GraphWriter
@@ -88,6 +90,7 @@ class SourceRun:
     #: Diagnosticos del extractor + notas de coordinacion del orquestador.
     diagnostics: list[dict] = field(default_factory=list)
     normalization_report: dict = field(default_factory=dict)
+    reconciliation_report: dict = field(default_factory=dict)
     stage_latency_ms: dict = field(default_factory=dict)
     #: Etapa en la que la cadena se detuvo, o None si llego al final.
     stopped_at: Optional[str] = None
@@ -126,6 +129,7 @@ class SourceRun:
             ),
             "write_outcome": self.write_result.outcome if self.write_result else None,
             "write_codes": self.write_result.codes if self.write_result else [],
+            "reconciliation": dict(self.reconciliation_report),
             "stopped_at": self.stopped_at,
             "stop_reason": self.stop_reason,
             "diagnostics": sorted({d["code"] for d in self.diagnostics}),
@@ -251,6 +255,7 @@ class KnowledgePipeline:
             config=config.resolution_config,
             glossary=config.glossary,
         )
+        self.reconciler = ProposalReconciler(config.reconciler_config)
         self._extraction = self._build_extraction_pipeline()
 
     # -- montaje de la extraccion ------------------------------------------
@@ -371,7 +376,7 @@ class KnowledgePipeline:
         )
 
     def resolve(self, run: SourceRun) -> None:
-        """Etapa 3. Menciones -> resoluciones de identidad.
+        """Etapa 4. Menciones -> resoluciones de identidad.
 
         Una peticion por grupo de correferencia (ver `grouping.py`). El
         resolutor se queda con el historial entre grupos de la MISMA fuente,
@@ -387,8 +392,25 @@ class KnowledgePipeline:
             )
             run.resolutions.append(outcome.resolution)
 
+    def reconcile(self, run: SourceRun) -> None:
+        """Etapa 3. Propuestas textuales equivalentes -> IDs alineados."""
+        out = ExtractionOutput(mentions=list(run.mentions), claims=list(run.claims))
+        result = self.reconciler.run(out)
+        run.mentions = list(result.output.mentions)
+        run.claims = list(result.output.claims)
+        run.reconciliation_report = result.stats.to_dict()
+        run.diagnostics.extend(
+            {
+                "step": d.step,
+                "code": d.code,
+                "episode_id": d.episode_id,
+                "detail": d.detail,
+            }
+            for d in result.output.diagnostics
+        )
+
     def decide(self, run: SourceRun, snapshot: GraphSnapshot, gold: GoldInjection) -> None:
-        """Etapa 4. El motor local: la unica pieza con autoridad."""
+        """Etapa 5. El motor local: la unica pieza con autoridad."""
         claims = list(gold.claims) if self.config.claim_source == "gold" else run.claims
         resolutions = (
             list(gold.resolutions)
@@ -418,7 +440,7 @@ class KnowledgePipeline:
         run.assertions = list(result.assertions)
 
     def record(self, run: SourceRun) -> None:
-        """Etapa 5. Al ledger va lo que el motor APROBO. Nada mas.
+        """Etapa 6. Al ledger va lo que el motor APROBO. Nada mas.
 
         El criterio no es del orquestador: `plan.approved` ya lo fijo el motor
         y `result.assertions` son exactamente las del plan de escritura. Aqui
@@ -452,7 +474,7 @@ class KnowledgePipeline:
                 )
 
     def write(self, run: SourceRun, snapshot_id: str) -> None:
-        """Etapa 6. El plan al writer. DRY-RUN salvo peticion explicita."""
+        """Etapa 7. El plan al writer. DRY-RUN salvo peticion explicita."""
         if not self.config.with_writer or run.plan is None:
             return
         cfg = self.config
@@ -485,11 +507,13 @@ class KnowledgePipeline:
     ) -> SourceRun:
         """La cadena entera sobre una fuente."""
         run = SourceRun(source_id=case.source_id)
-        stages = (
+        stages = [
             ("normalize", lambda: self.normalize(case, run)),
             ("extract", lambda: self.extract(run)),
-            ("resolve", lambda: self.resolve(run)),
-        )
+        ]
+        if self.config.with_reconciliation:
+            stages.append(("reconcile", lambda: self.reconcile(run)))
+        stages.append(("resolve", lambda: self.resolve(run)))
         for name, step in stages:
             started = time.perf_counter()
             step()
