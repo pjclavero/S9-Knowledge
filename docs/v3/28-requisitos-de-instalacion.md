@@ -110,3 +110,68 @@ python -m pytest data-engine/app/tests/ -q --ignore=data-engine/app/tests/e2e
 | VM105 `common-services` | 3.13.5 | **5.5.0 + spa** | sí | Aquí viven Neo4j, Grafana e InfluxDB |
 | VM102 `ia-server` | — | — | — | Ollama; sin acceso SSH con las credenciales del resto |
 | Estación de trabajo `ia02` | 3.13 | no | binario sí, sin permiso de socket | Los tests de OCR y de Neo4j se saltan aquí |
+
+---
+
+## 8. Proveedores externos: qué está realmente disponible (verificado 2026-07-29)
+
+Credenciales en `/etc/s9-knowledge/providers.env` (0600 root:root), cargadas con
+`EnvironmentFile=` en systemd o `--env-file` en Docker. **Sin dependencias nuevas:
+ni gestor de secretos ni servicio adicional que desplegar.** El panel de gestión,
+cuando exista, debe guardar el **nombre de la variable**, nunca su valor.
+
+### Modelos accesibles con la clave actual
+
+Probados contra `https://integrate.api.nvidia.com/v1/chat/completions` con una
+imagen renderizada real (texto negro sobre blanco):
+
+| Modelo | Resultado |
+|---|---|
+| `meta/llama-3.3-70b-instruct` | **200** — texto, ya en uso |
+| `meta/llama-3.2-90b-vision-instruct` | **200** — transcripción limpia y exacta |
+| `nvidia/nemotron-nano-12b-v2-vl` | **200** — transcripción limpia y exacta |
+| `meta/llama-3.2-11b-vision-instruct` | **200** — correcta, con preámbulo conversacional |
+| `moonshotai/kimi-k2.6` | **404** — listado en `/models` pero **no habilitado** |
+| `microsoft/phi-3-vision-128k-instruct` | **404** — ídem |
+
+> **Cuidado con `/models`: lista modelos que la cuenta no puede usar.** El 404 de
+> Kimi lo dice literal: *"Function '23d4f03a-…': Not found for account…"*. Un
+> control con `llama-3.3-70b` devolvió 200 con la misma clave y los mismos
+> encabezados, así que no era la credencial ni la petición. Si se quiere Kimi, hay
+> que solicitar acceso en el portal.
+
+### Los VLM transcriben, pero NO sustituyen al OCR
+
+Los tres modelos de visión leyeron el texto correctamente. Aun así **no pueden
+ocupar el carril `OCR_TEXT`**: devuelven texto, no **posiciones**. El contrato de
+evidencia exige bounding boxes para `OCR_TEXT`, y sin ellas la evidencia no se
+puede anclar y el claim no se sostiene.
+
+Reparto correcto de carriles:
+
+| Carril | Proveedor | Salida |
+|---|---|---|
+| `OCR_TEXT` | **Tesseract** (local) | Texto **con bbox** por palabra |
+| Interpretación visual | **VLM en nube** | Descripción → `VISUAL_INFERRED`, revisión obligatoria por contrato |
+
+Y el sistema **rechaza** a un proveedor que intente devolver ambas cosas a la vez:
+es una guarda verificada, no una convención.
+
+### Varios proveedores por capacidad: sí, con matices
+
+- **Se admiten varios** por capacidad; el router ya lo contempla.
+- **Dos proveedores de la misma familia no son dos pruebas.** Dos VLM de nube con el
+  mismo prompt comparten modos de fallo y cuentan como **una** familia de evidencia.
+  Tesseract (algorítmico, local) y un VLM (generativo, nube) sí son independientes.
+- **Para OCR, consenso no aplica**: dos OCR dan textos con posiciones distintas, y el
+  reconciliador —que fusiona solo con certeza— conservará ambos. Lo que sí aplica es
+  **escalado**: Tesseract primero, y a un VLM cuando falle o la confianza sea baja.
+- **Donde dos familias sí aportan de verdad es en extracción semántica**, y el
+  reconciliador ya registra `proposals`, `providers` e `independent_families` por
+  separado, sin votar.
+
+### Pendiente
+
+Ninguna unidad systemd carga todavía `providers.env`. Hasta que se añada
+`EnvironmentFile=/etc/s9-knowledge/providers.env`, la clave existe y está inerte en
+producción.
