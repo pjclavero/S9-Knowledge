@@ -1,6 +1,6 @@
 # ProposalReconciler — especificación
 
-Fecha: 2026-07-29 · Estado: **especificado, listo para implementar**
+Fecha: 2026-07-29 · Estado: **implementado y verificado**
 
 > El reconciliador **no descubre identidades ni decide hechos**. Solo hace que
 > varias propuestas sobre el mismo fragmento textual lleguen ordenadas,
@@ -227,4 +227,46 @@ evidencia) y comparar solo dentro de esos grupos. Nada de todos contra todos.
 8. ¿Sobreviven los ocho claims semánticos?
 9. Analizar qué pérdidas quedan en el resolutor o en el motor
 10. Después, la política de aprobación de negaciones
+```
+
+## 13. Verificación de la implementación
+
+Verificado el 2026-07-30 sin modificar los contratos congelados ni efectuar
+inferencia de red:
+
+- Los 10 casos de `data-engine/app/tests/test_knowledge_v3_reconcile.py` cubren
+  fusión textual, conservación ante polaridad/predicados rivales, familias de
+  independencia, permutaciones, idempotencia, identidad de un extractor y el
+  caso mínimo de aceptación.
+- `test_knowledge_v3_reconcile_validation.py` añade procesos independientes con
+  `PYTHONHASHSEED=0`, `1` y `random`. Los tres produjeron exactamente el mismo
+  SHA-256 canónico:
+  `8325f19204fc7eb9836cab6b3f560bf4912ffff3b1a5c97effb2cef56137f3d2`.
+- El benchmark sintético, generado con `random.Random(20260730)`, obtuvo para
+  10/100/1.000 propuestas medianas de 0,310/37,147/81,831 ms (siete pasadas;
+  mínimos 0,271/35,649/81,082 ms). Las claves se agrupan mediante tablas hash y
+  cada grupo se ordena canónicamente: la estructura observada es compatible con
+  coste O(n log n), sin comparación todos-contra-todos. El test exige 1.000
+  propuestas en menos de 30 s y un umbral de escala deliberadamente generoso.
+- El arnés `knowledge_v3.extraction.semantic_bench` incorpora `D-R`: ejecuta
+  `ProposalReconciler` sobre la unión D. Con las 16 respuestas del caché
+  `docs/v3/measurements/runs/c1-cache.json` (16 hits, 0 misses), C1 obtiene 8
+  claims correctos (F1 0,421053), D obtiene 0 (F1 0) y D-R recupera los 8
+  (F1 0,421053). D-R reduce los falsos positivos de menciones de 43 a 16.
+  En la corrida documentada, D tardó 235 ms y D-R 445 ms (210 ms añadidos
+  por reconciliación, incluida la validación contractual).
+  El resultado completo queda en
+  `docs/v3/measurements/runs/bench-C1-D-DR.json`.
+- El criterio normativo de los ocho claims queda fijado explícitamente por
+  `test_aceptacion_los_ocho_claims_de_c1_sobreviven_en_D_R`; el test anterior
+  `test_aceptacion_la_union_no_puede_destruir_los_claims_del_semantico`
+  conserva además el caso mínimo unitario de un claim.
+
+Comando offline reproducible:
+
+```bash
+PYTHONPATH=data-engine/app python3 -m knowledge_v3.extraction.semantic_bench \
+  --config A --config C1 --config D --config D-R \
+  --cache docs/v3/measurements/runs/c1-cache.json \
+  --out docs/v3/measurements/runs/bench-C1-D-DR.json
 ```
