@@ -32,7 +32,7 @@ No se añadió ninguna dependencia.
 - `data-engine/app/knowledge_v3/multimodal/adapters/visual.py`
 - `data-engine/app/knowledge_v3/multimodal/__init__.py`
 - `data-engine/app/tests/test_knowledge_v3_handwritten_transcription.py`
-- `docs/v3/30-transcripcion-manuscrita.md`
+- `docs/v3/31-transcripcion-manuscrita.md`
 
 No se tocaron contratos, extracción, resolución, motor, reconciliación, writer,
 CI, `pytest.ini`, corpus gold, `heldout` ni `negation`.
