@@ -500,6 +500,10 @@ def apply_surface_resolution(entities: list[dict], alias_map: dict,
     ningun miembro tenia id de GT, todo el grupo recibe el id sintetico menor
     (el sistema real tambien los fusionaria).
 
+    Con `bijective_only=True` un grupo solo conserva el id del GT si la
+    correspondencia grupo<->id es BIYECTIVA (ni fusiones ni divisiones); en caso
+    contrario recibe un id sintetico que jamas empareja. Es la cota PESIMISTA.
+
     Devuelve (entidades_reenlazadas, notas de fusion/renombrado).
     """
     groups: dict[str, list[dict]] = {}
@@ -526,9 +530,10 @@ def apply_surface_resolution(entities: list[dict], alias_map: dict,
             # entidad del GT si la correspondencia es BIYECTIVA (ni fusion ni
             # division). Si no lo es, el sistema real no tiene forma de saber a
             # cual de las dos se refiere -> id sintetico, que nunca empareja.
-            counts = {}
             notes.append({"surface_key": key, "reason": "no_biyectivo",
-                          "gt_ids": sorted(id_groups)})
+                          "gt_ids": sorted(counts),
+                          "grupos_por_id": {i: sorted(id_groups[i]) for i in counts}})
+            counts = {}
         if counts:
             chosen = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
         elif any(not m["id"].startswith(UNMATCHED_PREFIX) for m in members):
