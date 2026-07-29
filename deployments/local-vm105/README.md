@@ -1,4 +1,8 @@
-# Despliegue del visor S9 Knowledge en VM105
+# Despliegue del visor S9 Knowledge en VM105 (referencia histórica)
+
+Esta carpeta se conserva como **referencia histórica** y no es el procedimiento
+ejecutable vigente. Para instalaciones nuevas use `deploy/ansible/` y cambie
+host, usuario y rutas mediante el inventario.
 
 Guía y checklist para desplegar el visor mínimo (v0.2, tag `v0.2-viewer-minimal`)
 en VM105. **Este documento es solo una guía: no se ha ejecutado ningún paso de

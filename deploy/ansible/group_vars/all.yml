@@ -23,6 +23,8 @@ s9k_release_id: ""
 # ---------------------------------------------------------------------------
 s9k_viewer_service: s9-knowledge-viewer.service
 s9k_viewer_port: 8088
+s9k_service_user: www-data
+s9k_service_group: www-data
 
 # ---------------------------------------------------------------------------
 # Paquetes de sistema requeridos
@@ -44,3 +46,7 @@ s9k_auth_enabled: false
 # Healthchecks (timer deshabilitado por defecto hasta validación en lab)
 # ---------------------------------------------------------------------------
 s9k_healthcheck_timer_enabled: false
+s9k_restore_test_enabled: false
+s9k_restore_test_timer: weekly
+s9k_restore_max_age_days: 8
+s9k_neo4j_backup_root: /opt/knowledge-services/backups

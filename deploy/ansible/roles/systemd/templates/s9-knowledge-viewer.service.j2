@@ -1,0 +1,20 @@
+[Unit]
+Description=S9 Knowledge Viewer
+After=network.target
+AssertPathExists={{ s9k_root }}/current/viewer
+AssertPathExists={{ s9k_config_root }}/viewer.env
+AssertPathExists={{ s9k_providers_env }}
+
+[Service]
+Type=simple
+User={{ s9k_service_user }}
+Group={{ s9k_service_group }}
+WorkingDirectory={{ s9k_root }}/current/viewer
+EnvironmentFile={{ s9k_config_root }}/viewer.env
+EnvironmentFile=-{{ s9k_providers_env }}
+ExecStart={{ s9k_root }}/current/viewer/.venv/bin/uvicorn app.main:app --host ${S9K_VIEWER_HOST} --port ${S9K_VIEWER_PORT}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

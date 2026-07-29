@@ -1,0 +1,10 @@
+[Unit]
+Description=S9 Knowledge - prueba del ultimo dump Neo4j
+After=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-{{ s9k_providers_env }}
+ExecStart=/usr/local/sbin/s9k-test-latest-neo4j-restore
+User=root
+Group=root

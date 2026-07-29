@@ -3,6 +3,7 @@
 #
 # Uso:
 #   neo4j-rollback-dryrun.sh --source-id <source_id>
+#   neo4j-rollback-dryrun.sh --backup-file <ruta/neo4j.dump>
 #
 # Variables de entorno:
 #   NEO4J_CONTAINER   Nombre del contenedor (default: neo4j-knowledge)
@@ -22,6 +23,7 @@ set -euo pipefail
 
 # --- Configuración ---
 SOURCE_ID=""
+BACKUP_FILE=""
 NEO4J_CONTAINER="${NEO4J_CONTAINER:-neo4j-knowledge}"
 NEO4J_USER="${NEO4J_USER:-neo4j}"
 NEO4J_PASSWORD="${NEO4J_PASSWORD:-}"
@@ -31,7 +33,13 @@ TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --source-id)
+      [ "$#" -ge 2 ] || { echo "ERROR: falta valor para --source-id"; exit 1; }
       SOURCE_ID="$2"
+      shift 2
+      ;;
+    --backup-file)
+      [ "$#" -ge 2 ] || { echo "ERROR: falta valor para --backup-file"; exit 1; }
+      BACKUP_FILE="$2"
       shift 2
       ;;
     -h|--help)
@@ -45,8 +53,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[ -z "$SOURCE_ID" ] && { echo "ERROR: --source-id es obligatorio"; exit 1; }
-[ -z "$NEO4J_PASSWORD" ] && { echo "ERROR: Variable NEO4J_PASSWORD no definida"; exit 1; }
+if [ -n "$SOURCE_ID" ] && [ -n "$BACKUP_FILE" ]; then
+  echo "ERROR: usa --source-id o --backup-file, no ambos"
+  exit 1
+fi
+if [ -n "$BACKUP_FILE" ]; then
+  [ -f "$BACKUP_FILE" ] || { echo "ERROR: dump no encontrado: $BACKUP_FILE"; exit 1; }
+  RESTORE_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/neo4j-restore.sh"
+  [ -x "$RESTORE_SCRIPT" ] || { echo "ERROR: restore no ejecutable: $RESTORE_SCRIPT"; exit 1; }
+  echo "DRY-RUN de restore sobre: $BACKUP_FILE"
+  exec "$RESTORE_SCRIPT" --backup-file "$BACKUP_FILE" --dry-run
+fi
+[ -n "$SOURCE_ID" ] || { echo "ERROR: --source-id o --backup-file es obligatorio"; exit 1; }
+[ -n "$NEO4J_PASSWORD" ] || { echo "ERROR: Variable NEO4J_PASSWORD no definida"; exit 1; }
 
 REPORT_FILE="/tmp/rollback-dryrun-${SOURCE_ID}-${TIMESTAMP}.txt"
 

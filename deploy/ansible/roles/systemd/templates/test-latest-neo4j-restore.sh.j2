@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+set -euo pipefail
+
+backup_root="${S9K_NEO4J_BACKUP_ROOT:-{{ s9k_neo4j_backup_root }}}"
+max_age_days="${S9K_RESTORE_MAX_AGE_DAYS:-{{ s9k_restore_max_age_days }}}"
+dryrun="{{ s9k_root }}/current/scripts/backup/neo4j-rollback-dryrun.sh"
+
+[[ "${max_age_days}" =~ ^[0-9]+$ ]] || {
+    printf 'ERROR: S9K_RESTORE_MAX_AGE_DAYS debe ser entero no negativo\n' >&2
+    exit 2
+}
+dump="$(find "${backup_root}" -type f -name 'neo4j.dump' -printf '%T@ %p\n' 2>/dev/null |
+    sort -nr | head -1 | cut -d' ' -f2-)"
+[[ -n "${dump}" && -f "${dump}" ]] || {
+    printf 'ERROR: no hay neo4j.dump bajo %s\n' "${backup_root}" >&2
+    exit 1
+}
+now="$(date +%s)"
+mtime="$(stat -c %Y "${dump}")"
+age_seconds=$((now - mtime))
+max_seconds=$((max_age_days * 86400))
+if (( age_seconds > max_seconds )); then
+    printf 'ERROR: dump demasiado antiguo: %s (%d dias; maximo %d)\n' \
+        "${dump}" "$((age_seconds / 86400))" "${max_age_days}" >&2
+    exit 1
+fi
+printf 'Probando ultimo dump: %s\n' "${dump}"
+exec "${dryrun}" --backup-file "${dump}"

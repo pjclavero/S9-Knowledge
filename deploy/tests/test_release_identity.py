@@ -9,6 +9,7 @@ cualquier python del sistema (ver test_interprete_del_sistema_ajeno_al_venv).
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -29,7 +30,11 @@ from verify_release_identity import (  # noqa: E402
 
 RELEASE_ID = "20260716-f8b6153"
 COMMIT = "f8b6153be9c4edca1efa905d1c6503ea86e261b5"
-LEGACY = "/opt/knowledge-services/s9-knowledge-repo"
+LEGACY = os.environ.get(
+    "S9K_TEST_LEGACY_ROOT", "/opt/knowledge-services/s9-knowledge-repo"
+)
+DEFAULT_SERVICE_HOST = os.environ.get("S9K_TEST_VIEWER_HOST", "0.0.0.0")
+DEFAULT_SERVICE_PORT = os.environ.get("S9K_TEST_VIEWER_PORT", "8088")
 
 
 # ---------------------------------------------------------------------------
@@ -121,8 +126,8 @@ def test_venv_con_symlinks_es_valido(tmp_path):
 
 @pytest.mark.skipif(not Path("/usr/bin/python3.13").exists(),
                     reason="requiere /usr/bin/python3.13 para el symlink real")
-def test_cmdline_de_produccion_tal_cual(tmp_path):
-    """Forma EXACTA de VM105: systemd lanza `<venv>/bin/python3 <current>/…/uvicorn`.
+def test_cmdline_systemd_parametrizable(tmp_path):
+    """Forma systemd parametrizable; los defaults reproducen la VM105 histórica.
 
     cmdline[0] es un symlink al python del sistema y cmdline[1] llega por `current`.
     Resolver el binario (en vez de solo su directorio) daba un falso INVALID.
@@ -132,7 +137,7 @@ def test_cmdline_de_produccion_tal_cual(tmp_path):
     r = _classify(tmp_path, _proc(release, cmdline=[
         str(venv / "bin" / "python3"),                       # symlink -> /usr/bin/python3.13
         str(tmp_path / "current" / "viewer" / ".venv" / "bin" / "uvicorn"),
-        "app.main:app", "--host", "0.0.0.0", "--port", "8088",
+        "app.main:app", "--host", DEFAULT_SERVICE_HOST, "--port", DEFAULT_SERVICE_PORT,
     ]))
     assert r["verdict"] == VERDICT_VALID_SYMLINK, r["failed_indicators"]
 

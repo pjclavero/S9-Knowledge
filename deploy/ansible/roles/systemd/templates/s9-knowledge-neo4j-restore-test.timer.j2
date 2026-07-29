@@ -1,0 +1,10 @@
+[Unit]
+Description=S9 Knowledge - calendario de prueba de restore Neo4j
+
+[Timer]
+OnCalendar={{ s9k_restore_test_timer }}
+Persistent=true
+Unit=s9-knowledge-neo4j-restore-test.service
+
+[Install]
+WantedBy=timers.target
