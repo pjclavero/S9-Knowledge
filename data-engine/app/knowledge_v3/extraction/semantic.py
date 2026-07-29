@@ -34,6 +34,10 @@ prompt, mismo esquema, mismos limites, misma validacion; solo cambia el modelo.
 from __future__ import annotations
 
 import time
+import hashlib
+import json
+from collections import deque
+from dataclasses import asdict
 from dataclasses import dataclass, field
 from typing import Any, Optional, Sequence
 
@@ -128,6 +132,7 @@ class SemanticEpisodeExtractor(Extractor):
         temporal_second_pass: bool = True,
         emit_abstention_on_failure: bool = True,
         max_chars: int = 6000,
+        max_recorded_runs: int = 256,
     ) -> None:
         self.port = port
         provider = getattr(port, "provider", Provider.LOCAL)
@@ -143,8 +148,10 @@ class SemanticEpisodeExtractor(Extractor):
         self.temporal_second_pass = bool(temporal_second_pass)
         self.emit_abstention_on_failure = bool(emit_abstention_on_failure)
         self.max_chars = int(max_chars)
-        self.runs: list[EpisodeRun] = []
-        self._ontology_cache: dict[int, OntologySpec] = {}
+        if int(max_recorded_runs) <= 0:
+            raise ValueError("max_recorded_runs debe ser mayor que cero")
+        self.runs: deque[EpisodeRun] = deque(maxlen=int(max_recorded_runs))
+        self._ontology_cache: dict[str, OntologySpec] = {}
         self.info = ExtractorInfo(
             step=SEMANTIC_STEP,
             provider=provider,
@@ -155,9 +162,23 @@ class SemanticEpisodeExtractor(Extractor):
     # -- ontologia --------------------------------------------------------
     def ontology_for(self, ctx: ExtractionContext) -> OntologySpec:
         """Compila (y cachea) la ontologia del contexto. Sin perfil, no hay."""
-        clave = id(ctx)
+        profile = ctx.profile.to_dict() if ctx.profile is not None else None
+        lexicon = [
+            asdict(entry) for entry in getattr(ctx.lexicon, "entries", ())
+        ]
+        content = {
+            "profile": profile,
+            "lexicon": lexicon,
+            "entity_types": entity_types_of(ctx.profile),
+        }
+        clave = hashlib.sha256(
+            json.dumps(content, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+        ).hexdigest()
         cached = self._ontology_cache.get(clave)
         if cached is None:
+            # El extractor trabaja con un perfil activo: al cambiar su contenido
+            # se invalida la entrada anterior en vez de acumular perfiles viejos.
+            self._ontology_cache.clear()
             cached = compile_ontology(
                 ctx.profile,
                 lexicon=ctx.lexicon,
@@ -165,6 +186,12 @@ class SemanticEpisodeExtractor(Extractor):
             )
             self._ontology_cache[clave] = cached
         return cached
+
+    def export_and_clear_runs(self) -> list[dict]:
+        """Exporta una instantanea cronologica de telemetria y vacia el buffer."""
+        exported = [run.to_dict() for run in self.runs]
+        self.runs.clear()
+        return exported
 
     def supports(self, episode: SourceEpisode) -> bool:
         return bool(episode.text) or bool(getattr(episode, "table", None))
@@ -274,7 +301,12 @@ class SemanticEpisodeExtractor(Extractor):
             episode=episode,
             evidence_fragment_ids=index.fragment_ids[:1],
             reason_codes=[code],
-            metadata={"model": self.info.model, "detail": detail[:300], "untrusted_origin": True},
+            metadata={
+                "model": self.info.model,
+                "detail": detail[:300],
+                "metadata_block_version": "1",
+                "untrusted_origin": True,
+            },
         )
         emit(claim, out, self.info, episode.episode_id)
 

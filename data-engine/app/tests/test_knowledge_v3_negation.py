@@ -414,6 +414,24 @@ def negativo(kind: str, **over):
 
 
 class TestMotorNegacion:
+    def test_tipo_desconocido_va_a_revision_y_no_es_escribible(self):
+        with pytest.warns(RuntimeWarning, match="negation_kind"):
+            result = run([negativo("CESATION")], snap=snapshot())
+        decision = result.decisions[0]
+        assert decision.decision == "REVIEW"
+        assert decision.negation_kind == "UNKNOWN"
+        assert "UNKNOWN_NEGATION_KIND" in codes(decision)
+        assert result.plan is None
+        assert result.assertions == ()
+
+    def test_tipo_ausente_en_claim_negado_sigue_siendo_simple(self):
+        without_kind = negativo("SIMPLE")
+        without_kind.metadata.pop("negation_kind")
+        result = run([without_kind], snap=snapshot())
+        decision = result.decisions[0]
+        assert decision.negation_kind == "SIMPLE"
+        assert "UNKNOWN_NEGATION_KIND" not in codes(decision)
+
     def test_negativa_sin_positiva_previa_produce_afirmacion_negativa(self):
         result = run([negativo("SIMPLE")], snap=snapshot())
         decision = result.decisions[0]
@@ -453,6 +471,27 @@ class TestMotorNegacion:
         # y la historia se conserva: la nueva SUCEDE a la anterior
         assert result.assertions[0].supersedes == "assertion:vigente"
         assert result.assertions[0].negated is True
+
+    def test_cesacion_con_dos_positivas_vigentes_no_elige_ninguna(self):
+        first = anclada(assertion_id="assertion:vigente:a")
+        second = anclada(assertion_id="assertion:vigente:b")
+        result = run([negativo("CESSATION")], snap=snapshot([first, second]))
+        decision = result.decisions[0]
+        assert decision.decision == "REVIEW"
+        assert decision.supersedes is None
+        assert "CESSATION_MULTIPLE_ACTIVE" in codes(decision)
+        detail = next(
+            finding.detail
+            for finding in decision.findings
+            if finding.code == "CESSATION_MULTIPLE_ACTIVE"
+        )
+        assert "assertion:vigente:a" in detail
+        assert "assertion:vigente:b" in detail
+        for plan in (result.plan, result.review_plan):
+            assert plan is None or not any(
+                operation["operation_type"] == "SUPERSEDE_ASSERTION"
+                for operation in plan.mutation_operations
+            )
 
     def test_la_separacion_temporal_NO_es_contradiccion_sino_transicion(self):
         result = run([negativo("CESSATION")], snap=snapshot([anclada()]))

@@ -31,6 +31,7 @@ from .errors import PipelineError
 
 #: Modos de proveedor, identicos a `benchmarks.ablations.PROVIDER_MODES`.
 LOCAL_ONLY = "local_only"
+LOCAL_WITH_OLLAMA = "local_with_ollama"
 EXTERNAL_ONLY = "external_only"
 LOCAL_PLUS_EXTERNAL = "local_plus_external"
 NO_OLLAMA = "no_ollama"
@@ -106,7 +107,9 @@ class PipelineConfig:
     ablation: str = "unspecified"
 
     def __post_init__(self) -> None:
-        if self.providers not in (LOCAL_ONLY, EXTERNAL_ONLY, LOCAL_PLUS_EXTERNAL, NO_OLLAMA):
+        if self.providers not in (
+            LOCAL_ONLY, LOCAL_WITH_OLLAMA, EXTERNAL_ONLY, LOCAL_PLUS_EXTERNAL, NO_OLLAMA
+        ):
             raise PipelineError("config", f"modo de proveedor desconocido: {self.providers!r}")
         if self.entity_source not in ("gold", "real"):
             raise PipelineError("config", f"entity_source desconocido: {self.entity_source!r}")
@@ -133,8 +136,11 @@ class PipelineConfig:
 
     @property
     def wants_ollama(self) -> bool:
-        """Ollama participa solo en `local_plus_external`, y con cliente."""
-        return self.providers == LOCAL_PLUS_EXTERNAL and self.ollama_client is not None
+        """Ollama participa en los dos modos que lo declaran, y con cliente."""
+        return (
+            self.providers in (LOCAL_WITH_OLLAMA, LOCAL_PLUS_EXTERNAL)
+            and self.ollama_client is not None
+        )
 
     @property
     def wants_external(self) -> bool:
@@ -222,6 +228,7 @@ __all__ = [
     "EXTERNAL_ONLY",
     "GoldInjection",
     "LOCAL_ONLY",
+    "LOCAL_WITH_OLLAMA",
     "LOCAL_PLUS_EXTERNAL",
     "NO_OLLAMA",
     "PipelineConfig",

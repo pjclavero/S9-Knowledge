@@ -323,6 +323,46 @@ class TestAnclaje:
 # 4. Ontologia cerrada y candidatos multiples
 # ==========================================================================
 class TestPredicadosYCandidatos:
+    def test_gana_el_predicado_de_mayor_confianza_aunque_llegue_desordenado(self):
+        _ex, out = run(
+            {
+                "mentions": BASE_MENTIONS,
+                "claims": [claim(predicate_candidates=[
+                    {"predicate": "LEADS", "confidence": 0.2},
+                    {"predicate": "MEMBER_OF", "confidence": 0.9},
+                ])],
+                "abstentions": [],
+            }
+        )
+        assert asserted(out)[0].best_predicate() == "MEMBER_OF"
+
+    def test_empate_de_predicado_se_resuelve_alfabeticamente(self):
+        _ex, out = run(
+            {
+                "mentions": BASE_MENTIONS,
+                "claims": [claim(predicate_candidates=[
+                    {"predicate": "MEMBER_OF", "confidence": 0.8},
+                    {"predicate": "LEADS", "confidence": 0.8},
+                ])],
+                "abstentions": [],
+            }
+        )
+        assert asserted(out)[0].best_predicate() == "LEADS"
+
+    def test_confianza_invalida_descarta_el_predicado_y_deja_codigo(self):
+        _ex, out = run(
+            {
+                "mentions": BASE_MENTIONS,
+                "claims": [claim(predicate_candidates=[
+                    {"predicate": "LEADS", "confidence": 1.1},
+                    {"predicate": "MEMBER_OF", "confidence": 0.8},
+                ])],
+                "abstentions": [],
+            }
+        )
+        assert [c["predicate"] for c in asserted(out)[0].predicate_candidates] == ["MEMBER_OF"]
+        assert "INVALID_CONFIDENCE" in codes(out)
+
     def test_candidatos_multiples_sobreviven_ordenados(self):
         _ex, out = run(
             {
@@ -391,6 +431,40 @@ class TestPredicadosYCandidatos:
 
 
 class TestDireccion:
+    def test_gana_la_direccion_de_mayor_confianza_aunque_llegue_desordenada(self):
+        _ex, out = run({
+            "mentions": BASE_MENTIONS,
+            "claims": [claim(direction_candidates=[
+                {"direction": "SUBJECT_TO_OBJECT", "confidence": 0.2},
+                {"direction": "OBJECT_TO_SUBJECT", "confidence": 0.9},
+            ])],
+            "abstentions": [],
+        })
+        assert asserted(out)[0].best_direction() == "OBJECT_TO_SUBJECT"
+
+    def test_empate_de_direccion_se_resuelve_por_el_orden_canonico_del_contrato(self):
+        _ex, out = run({
+            "mentions": BASE_MENTIONS,
+            "claims": [claim(direction_candidates=[
+                {"direction": "SUBJECT_TO_OBJECT", "confidence": 0.8},
+                {"direction": "OBJECT_TO_SUBJECT", "confidence": 0.8},
+            ])],
+            "abstentions": [],
+        })
+        assert asserted(out)[0].best_direction() == "SUBJECT_TO_OBJECT"
+
+    def test_confianza_invalida_descarta_la_direccion_y_deja_codigo(self):
+        _ex, out = run({
+            "mentions": BASE_MENTIONS,
+            "claims": [claim(direction_candidates=[
+                {"direction": "OBJECT_TO_SUBJECT", "confidence": "alta"},
+                {"direction": "SUBJECT_TO_OBJECT", "confidence": 0.8},
+            ])],
+            "abstentions": [],
+        })
+        assert asserted(out)[0].best_direction() == "SUBJECT_TO_OBJECT"
+        assert "INVALID_CONFIDENCE" in codes(out)
+
     def test_la_direccion_la_dice_el_modelo(self):
         _ex, out = run(
             {
@@ -690,6 +764,35 @@ class TestPipelines:
 # 9. Rendimiento: se registra, no se maquilla
 # ==========================================================================
 class TestRendimiento:
+    def test_el_buffer_es_circular_y_se_puede_exportar_y_vaciar(self):
+        extractor = SemanticEpisodeExtractor(
+            port_returning({"mentions": [], "claims": [], "abstentions": []}),
+            max_recorded_runs=2,
+        )
+        for i in range(3):
+            ctx, episode = context(episode_id=f"ep:buffer-{i}")
+            extractor.extract_episode(ctx, episode)
+        assert [run.episode_id for run in extractor.runs] == ["ep:buffer-1", "ep:buffer-2"]
+        assert [run["episode_id"] for run in extractor.export_and_clear_runs()] == [
+            "ep:buffer-1", "ep:buffer-2"
+        ]
+        assert list(extractor.runs) == []
+
+    def test_contextos_con_igual_contenido_comparten_ontologia_cacheada(self):
+        extractor = SemanticEpisodeExtractor(MockProviderPort())
+        first_ctx, _ = context()
+        second_ctx, _ = context()
+        assert extractor.ontology_for(first_ctx) is extractor.ontology_for(second_ctx)
+        assert len(extractor._ontology_cache) == 1
+
+    def test_un_cambio_de_contenido_invalida_la_clave_de_ontologia(self):
+        extractor = SemanticEpisodeExtractor(MockProviderPort())
+        first_ctx, _ = context()
+        changed_ctx, _ = context()
+        changed_ctx.lexicon = Lexicon(())
+        assert extractor.ontology_for(first_ctx) is not extractor.ontology_for(changed_ctx)
+        assert len(extractor._ontology_cache) == 1
+
     def test_se_registra_una_entrada_por_episodio_salga_bien_o_mal(self):
         ctx, episode = context()
         puerto = MockProviderPort(responses=[ProviderUnavailable("caido")])

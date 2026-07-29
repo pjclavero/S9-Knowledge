@@ -1596,6 +1596,44 @@ class TestTrapCorpus:
         assert claim.review_required is True
 
 
+class TestProximidadAdversarial:
+    """Documenta la seleccion actual before[-1]/after[0], sin cambiarla."""
+
+    LEXICON = Lexicon(
+        [
+            *GOLD_LEXICON.entries,
+            LexiconEntry("Círculo Gris", "Faction", (), 0.9, "glossary"),
+            LexiconEntry("Mira", "Character", (), 0.9, "glossary"),
+            LexiconEntry("reliquia", "Object", (), 0.9, "glossary"),
+        ]
+    )
+
+    @pytest.mark.parametrize(
+        "text,predicate,expected_object",
+        [
+            ("Elara lidera la Orden del Alba cerca de Valdor.", "LEADS", "Orden del Alba"),
+            ("Elara pertenece a la Orden del Alba, aliado de Círculo Gris.",
+             "MEMBER_OF", "Orden del Alba"),
+        ],
+    )
+    def test_el_objeto_inmediato_es_el_correcto_en_frases_con_tercera_entidad(
+        self, text, predicate, expected_object
+    ):
+        ctx, _ = single_context("ep:proximity", text, lexicon=self.LEXICON)
+        out = DeterministicExtractor().extract(ctx)
+        claims = asserted(out)
+        assert claims
+        matching = [claim for claim in claims if claim.best_predicate() == predicate]
+        assert matching
+        assert surfaces_of(out, matching[0])[2] == expected_object
+
+    def test_verbo_no_soportado_se_abstiene_sin_inventar_objeto(self):
+        text = "Elara entregó la reliquia a Kael en presencia de Mira."
+        ctx, _ = single_context("ep:proximity-delivery", text, lexicon=self.LEXICON)
+        out = DeterministicExtractor().extract(ctx)
+        assert asserted(out) == []
+
+
 # ==========================================================================
 # 13. Observaciones no bloqueantes de la revision (O1-O3)
 # ==========================================================================

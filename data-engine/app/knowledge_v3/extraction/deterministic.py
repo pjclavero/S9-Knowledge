@@ -683,6 +683,7 @@ class DeterministicExtractor(Extractor):
             metadata={
                 "rule_phrases": list(rule.phrases),
                 "quality_score": episode.quality.get("score"),
+                "metadata_block_version": "1",
                 # Excepcion documentada: `negation_kind` no existe en el contrato
                 # congelado y viaja en `metadata`, igual que
                 # `temporal_resolution_required`.

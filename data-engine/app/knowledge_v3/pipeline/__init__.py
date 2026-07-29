@@ -23,6 +23,7 @@ from .bundle import peak_rss_mb, to_bundle  # noqa: F401
 from .config import (  # noqa: F401
     EXTERNAL_ONLY,
     LOCAL_ONLY,
+    LOCAL_WITH_OLLAMA,
     LOCAL_PLUS_EXTERNAL,
     NO_OLLAMA,
     GoldInjection,
@@ -52,6 +53,7 @@ __all__ = [
     "GoldInjection",
     "KnowledgePipeline",
     "LOCAL_ONLY",
+    "LOCAL_WITH_OLLAMA",
     "LOCAL_PLUS_EXTERNAL",
     "NO_OLLAMA",
     "PipelineConfig",

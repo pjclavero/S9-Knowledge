@@ -68,6 +68,13 @@ from knowledge_v3.pipeline import (  # noqa: E402
     from_raw,
     profile_of,
 )
+from knowledge_v3.pipeline.config import (  # noqa: E402
+    EXTERNAL_ONLY,
+    LOCAL_ONLY,
+    LOCAL_PLUS_EXTERNAL,
+    LOCAL_WITH_OLLAMA,
+    NO_OLLAMA,
+)
 from knowledge_v3.resolution.provisional import normalize_surface  # noqa: E402
 from knowledge_v3.writer.admission import AdmissionContext, admit  # noqa: E402
 
@@ -572,6 +579,31 @@ class TestConjunta06SinExterno:
 # ===========================================================================
 class TestConjunta07SinOllama:
     """Sin Ollama la cadena entera sigue siendo una cadena."""
+
+    @pytest.mark.parametrize(
+        "mode,expected",
+        [
+            (LOCAL_ONLY, (True, False, False)),
+            (LOCAL_WITH_OLLAMA, (True, True, False)),
+            (EXTERNAL_ONLY, (False, False, True)),
+            (LOCAL_PLUS_EXTERNAL, (True, True, True)),
+            (NO_OLLAMA, (True, False, True)),
+        ],
+    )
+    def test_tabla_de_verdad_de_modos(self, gold, mode, expected):
+        config = base_config(
+            gold,
+            providers=mode,
+            ollama_client=object(),
+            external_port=object(),
+        )
+        actual = (
+            config.wants_local_extractors,
+            config.wants_ollama,
+            config.wants_external,
+        )
+        assert actual == expected
+        assert config.declared()["ollama_active"] is expected[1]
 
     def test_sin_ollama_no_hay_ni_un_paso_ollama_en_la_traza(self, gold, entities):
         _, result = _run_all(

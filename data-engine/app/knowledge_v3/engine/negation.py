@@ -42,6 +42,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+from ..claim_metadata import ClaimSemanticMetadata
 from ..contracts.claim import ClaimProposal
 from . import findings as F
 from .config import EngineConfig
@@ -56,6 +57,7 @@ NEGATION_KIND_NEVER = "NEVER"
 NEGATION_KIND_CESSATION = "CESSATION"
 NEGATION_KIND_NOT_YET = "NOT_YET"
 NEGATION_KIND_SCOPE_AMBIGUOUS = "SCOPE_AMBIGUOUS"
+NEGATION_KIND_UNKNOWN = "UNKNOWN"
 
 NEGATION_KINDS = (
     NEGATION_KIND_SIMPLE,
@@ -71,14 +73,17 @@ def negation_kind_of(claim: ClaimProposal) -> str:
 
     `negation_kind` NO existe en el contrato congelado: viaja en `metadata`, que
     es el unico bloque abierto de la familia `v3-internal-v1`. Un valor
-    desconocido se trata como `SIMPLE`: es el tipo menos comprometido de los que
-    escriben, y el que no cierra nada.
+    ausente se trata como `SIMPLE`: es el tipo menos comprometido. Un valor
+    presente pero desconocido se conserva como `UNKNOWN` para impedir escritura.
     """
     if not claim.negated:
         return ""
-    raw = (claim.metadata or {}).get("negation_kind")
-    kind = str(raw or "").strip().upper()
-    return kind if kind in NEGATION_KINDS else NEGATION_KIND_SIMPLE
+    metadata = ClaimSemanticMetadata.from_metadata(claim.metadata)
+    return _kind_from_metadata(metadata)
+
+
+def _kind_from_metadata(metadata: ClaimSemanticMetadata) -> str:
+    return NEGATION_KIND_UNKNOWN if metadata.unknown_negation_kind else metadata.negation_kind
 
 
 @dataclass(frozen=True)
@@ -101,12 +106,12 @@ def find_active_positive(
     object_entity_id: str,
     predicate: str,
     direction: str,
-) -> Optional[SnapshotAssertion]:
-    """Afirmacion POSITIVA vigente sobre la misma clave canonica, si la hay.
+) -> tuple[SnapshotAssertion, ...]:
+    """Afirmaciones POSITIVAS vigentes sobre la misma clave canonica.
 
     Se compara sobre la clave canonica, igual que el eje de contradiccion: decir
     lo mismo al reves, o con la inversa del predicado, sigue siendo la misma
-    relacion, y una cesacion tiene que poder cerrarla.
+    relacion. La tupla conserva la cardinalidad para no esconder incoherencias.
     """
     key = canonical_key(index, subject_entity_id, object_entity_id, predicate, direction)
     candidatos = [
@@ -123,11 +128,7 @@ def find_active_positive(
         )
         == key
     ]
-    if not candidatos:
-        return None
-    # Determinista: si hubiese varias vigentes sobre la misma clave (que ya seria
-    # una incoherencia del ledger), se elige siempre la misma.
-    return min(candidatos, key=lambda a: a.assertion_id)
+    return tuple(sorted(candidatos, key=lambda a: a.assertion_id))
 
 
 def resolve_negation(
@@ -145,8 +146,18 @@ def resolve_negation(
     if not claim.negated:
         return NegationOutcome()
 
-    kind = negation_kind_of(claim)
+    metadata = ClaimSemanticMetadata.from_metadata(claim.metadata)
+    kind = _kind_from_metadata(metadata)
     out: list[F.Finding] = []
+
+    if kind == NEGATION_KIND_UNKNOWN:
+        out.append(
+            F.UNKNOWN_NEGATION_KIND(
+                f"metadata.negation_kind={metadata.unknown_negation_kind!r} no pertenece "
+                "al vocabulario conocido; no se degrada a una negacion escribible"
+            )
+        )
+        return NegationOutcome(kind, tuple(out), None)
 
     if not config.accept_negated:
         out.append(F.NEGATION_NOT_ACCEPTED("la configuracion no acepta hechos negados"))
@@ -194,10 +205,10 @@ def resolve_negation(
         )
         return NegationOutcome(kind, tuple(out), None)
 
-    previa = find_active_positive(
+    previas = find_active_positive(
         index, snapshot, subject_entity_id, object_entity_id, predicate, direction
     )
-    if previa is None:
+    if not previas:
         # NO se inventa la relacion previa. Que el texto diga "ya no lidera" no
         # demuestra que el grafo lo supiera: puede ser una fuente que llega antes
         # que la que afirmaba. Se registra la negativa de cese y se pide revision
@@ -210,6 +221,17 @@ def resolve_negation(
         )
         return NegationOutcome(kind, tuple(out), None)
 
+    if len(previas) > 1:
+        assertion_ids = ", ".join(previous.assertion_id for previous in previas)
+        out.append(
+            F.CESSATION_MULTIPLE_ACTIVE(
+                f"multiples afirmaciones positivas vigentes para la misma clave: "
+                f"{assertion_ids}; no se elige cual cerrar"
+            )
+        )
+        return NegationOutcome(kind, tuple(out), None)
+
+    previa = previas[0]
     if previa.state_hash is None:
         # Sin `state_hash` no hay concurrencia optimista, y el contrato congelado
         # rechaza una operacion de cierre sin `expected_hash`. Se dice y se manda
@@ -239,6 +261,7 @@ __all__ = [
     "NEGATION_KIND_NOT_YET",
     "NEGATION_KIND_SCOPE_AMBIGUOUS",
     "NEGATION_KIND_SIMPLE",
+    "NEGATION_KIND_UNKNOWN",
     "NegationOutcome",
     "find_active_positive",
     "negation_kind_of",
