@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import subprocess
 import sys
 from pathlib import Path
 
@@ -270,6 +271,7 @@ def test_18_autor_y_perspectiva_se_conservan_separados():
 
 
 def test_19_contratos_congelados_mantienen_su_hash():
+    frozen_ref = "v3-contracts-frozen-1.0.0"
     roots = [
         _REPO_ROOT / "contracts/knowledge-v3/v1",
         _REPO_ROOT / "data-engine/app/knowledge_v3/contracts",
@@ -283,13 +285,49 @@ def test_19_contratos_congelados_mantienen_su_hash():
         and "tests" not in path.parts
         and "examples" not in path.parts
     )
-    digest = hashlib.sha256()
-    for path in files:
-        digest.update(path.relative_to(_REPO_ROOT).as_posix().encode())
-        digest.update(b"\0")
-        digest.update(path.read_bytes().replace(b"\r\n", b"\n"))
+
+    relative_paths = [path.relative_to(_REPO_ROOT).as_posix() for path in files]
+    frozen_paths = subprocess.check_output(
+        [
+            "git",
+            "ls-tree",
+            "-r",
+            "--name-only",
+            frozen_ref,
+            "--",
+            "contracts/knowledge-v3/v1",
+            "data-engine/app/knowledge_v3/contracts",
+        ],
+        cwd=_REPO_ROOT,
+        text=True,
+    ).splitlines()
+    frozen_paths = [
+        path
+        for path in frozen_paths
+        if "__pycache__" not in path.split("/")
+        and "tests" not in path.split("/")
+        and "examples" not in path.split("/")
+    ]
+
+    def digest(contents):
+        result = hashlib.sha256()
+        for relative_path, content in zip(relative_paths, contents, strict=True):
+            result.update(relative_path.encode())
+            result.update(b"\0")
+            result.update(content.replace(b"\r\n", b"\n"))
+        return result.hexdigest()
+
     assert len(files) == 23
-    assert digest.hexdigest() == "4ae5e78313b5df79a62466e16cb5daa1675c94c472e1e881494fe5b962898c5d"
+    assert relative_paths == frozen_paths
+    current_digest = digest(path.read_bytes() for path in files)
+    frozen_digest = digest(
+        subprocess.check_output(
+            ["git", "show", f"{frozen_ref}:{relative_path}"],
+            cwd=_REPO_ROOT,
+        )
+        for relative_path in frozen_paths
+    )
+    assert current_digest == frozen_digest
 
 
 def test_20_determinismo_en_diez_pasadas():
