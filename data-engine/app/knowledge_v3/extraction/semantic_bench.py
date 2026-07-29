@@ -13,6 +13,7 @@ Configuraciones (dosier del bloque):
     C1  semantico con qwen2.5:7b via Ollama    (ejecucion REAL)
     C2  semantico con llama-3.3-70b via NVIDIA (requiere API key en el entorno)
     D   A + C1, como UNION conservando origen  (sin reconciliador: a proposito)
+    D-R D pasada por ProposalReconciler         (comparacion offline con D)
 
     python -m knowledge_v3.extraction.semantic_bench --config A
     python -m knowledge_v3.extraction.semantic_bench --config C1 --cache runs/c1.json
@@ -53,7 +54,7 @@ from .text import normalize
 #: Split de medicion. Cableado a proposito: el held-out no se mide aqui.
 SPLIT = "dev"
 
-CONFIGS = ("A", "C1", "C2", "D")
+CONFIGS = ("A", "C1", "C2", "D", "D-R")
 
 
 # --------------------------------------------------------------------------
@@ -217,6 +218,23 @@ def run_config(
             performance=prior["C1"].performance,
             provider="local+" + prior["C1"].provider,
             model=prior["C1"].model,
+        )
+
+    if config == "D-R":
+        if not prior or "D" not in prior:
+            raise ValueError("D-R necesita D ya ejecutado")
+        # Import local para que el benchmark del extractor siga pudiendo
+        # importarse sin acoplar todas las configuraciones al reconciliador.
+        from ..reconcile import ProposalReconciler
+
+        reconciled = ProposalReconciler().reconcile(prior["D"].output)
+        return RunResult(
+            "D-R",
+            reconciled,
+            prior["D"].wall_ms + int((time.monotonic() - started) * 1000),
+            performance=prior["D"].performance,
+            provider=prior["D"].provider + "+reconciler",
+            model=prior["D"].model,
         )
     raise ValueError(f"configuracion desconocida: {config!r}")
 

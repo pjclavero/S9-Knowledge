@@ -142,8 +142,20 @@ class TestUnion:
         assert len(union.output.mentions) == len(a.output.mentions) + len(c1.output.mentions)
         assert union.provider.startswith("local+")
 
+    def test_D_R_necesita_D(self, ctx):
+        with pytest.raises(ValueError):
+            run_config("D-R", ctx, prior={})
+
+    def test_D_R_reconcilia_la_union(self, ctx):
+        a = run_config("A", ctx)
+        c1 = run_config("C1", ctx, port=MockProviderPort())
+        d = run_config("D", ctx, prior={"A": a, "C1": c1})
+        dr = run_config("D-R", ctx, prior={"D": d})
+        assert len(dr.output.mentions) <= len(d.output.mentions)
+        assert dr.provider.endswith("+reconciler")
+
     def test_configuraciones_declaradas(self):
-        assert CONFIGS == ("A", "C1", "C2", "D")
+        assert CONFIGS == ("A", "C1", "C2", "D", "D-R")
 
 
 class TestCache:
