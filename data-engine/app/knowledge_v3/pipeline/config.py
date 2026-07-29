@@ -23,6 +23,7 @@ from ..benchmarks.ablations import Ablation, resolve as resolve_ablation
 from ..contracts.game_profile import GameProfile
 from ..engine.config import DEFAULT_CONFIG as ENGINE_DEFAULT, EngineConfig
 from ..extraction.lexicon import Lexicon
+from ..reconcile import DEFAULT_RECONCILER_CONFIG, ReconcilerConfig
 from ..resolution.catalog import EntityCatalog
 from ..resolution.config import DEFAULT_CONFIG as RESOLUTION_DEFAULT, ResolutionConfig
 from ..resolution.glossary import GlossarySource
@@ -65,6 +66,8 @@ class PipelineConfig:
     # -- extraccion ---------------------------------------------------------
     with_temporal: bool = True
     with_coreference: bool = True
+    with_reconciliation: bool = True
+    reconciler_config: ReconcilerConfig = DEFAULT_RECONCILER_CONFIG
     #: `None` = corrida SIN glosario (ablacion `without_glossary`).
     lexicon: Optional[Lexicon] = None
 
@@ -158,6 +161,11 @@ class PipelineConfig:
             "visual_provider_bound": self.visual_provider is not None,
             "with_temporal": self.with_temporal,
             "with_coreference": self.with_coreference,
+            "with_reconciliation": self.with_reconciliation,
+            "reconciler_version": self.reconciler_config.version,
+            "independence_registry_version": (
+                self.reconciler_config.independence_registry.version
+            ),
             "glossary": "with_glossary" if self.lexicon is not None else "without_glossary",
             "entity_source": self.entity_source,
             "claim_source": self.claim_source,
