@@ -1,0 +1,30 @@
+{
+  "split": "multimodal",
+  "automatic": false,
+  "world": "Bruma Nueva",
+  "reference_text": "sources/bruma.txt",
+  "semantic_gold": "semantic_gold.json",
+  "modalities": [
+    {
+      "source_id": "bruma-text",
+      "kind": "TEXT",
+      "path": "sources/bruma.txt"
+    },
+    {
+      "source_id": "bruma-pdf-native",
+      "kind": "PDF",
+      "path": "sources/bruma-native.pdf"
+    },
+    {
+      "source_id": "bruma-scan",
+      "kind": "IMAGE",
+      "path": "sources/bruma-scan.png"
+    },
+    {
+      "source_id": "bruma-audio",
+      "kind": "AUDIO",
+      "path": "sources/bruma-audio-transcript.json",
+      "transcript_simulated": true
+    }
+  ]
+}
