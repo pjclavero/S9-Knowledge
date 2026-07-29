@@ -104,6 +104,17 @@ class VisualRequest:
 
 
 @dataclass(frozen=True)
+class VisualTextSpan:
+    """Literal OCR/HTR anchored both in result text and image coordinates."""
+
+    text: str
+    start: int
+    end: int
+    bbox: dict
+    confidence: float
+
+
+@dataclass(frozen=True)
 class VisualResult:
     """Respuesta de un proveedor visual.
 
@@ -121,6 +132,7 @@ class VisualResult:
     name: str = "unknown"
     version: str = "unknown"
     model: Optional[str] = None
+    spans: tuple[VisualTextSpan, ...] = ()
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -181,7 +193,13 @@ def _regions_from(source: SourceInput) -> list[VisualRegion]:
     return regions
 
 
-def _pending_episode(mode: str, region: VisualRegion) -> EpisodeDraft:
+def _pending_episode(
+    mode: str,
+    region: VisualRegion,
+    *,
+    pending_reason: str = "NO_VISUAL_PROVIDER",
+    metadata: Optional[dict[str, Any]] = None,
+) -> EpisodeDraft:
     modality, media_type = MODE_TARGETS[mode]
     return EpisodeDraft(
         # Un episodio pendiente NO se declara con la modalidad textual que
@@ -193,13 +211,94 @@ def _pending_episode(mode: str, region: VisualRegion) -> EpisodeDraft:
         bbox=region.bbox,
         quality=pending_quality(),
         metadata={
-            "pending_reason": "NO_VISUAL_PROVIDER",
+            "pending_reason": pending_reason,
             "requested_mode": mode,
             "would_produce_modality": modality,
             "would_produce_media_type": media_type,
             "region_id": region.region_id,
+            **(metadata or {}),
         },
     )
+
+
+def _valid_bbox(bbox: Any) -> bool:
+    if not isinstance(bbox, dict):
+        return False
+    try:
+        x = float(bbox["x"])
+        y = float(bbox["y"])
+        width = float(bbox["width"])
+        height = float(bbox["height"])
+    except (KeyError, TypeError, ValueError):
+        return False
+    return (
+        0.0 <= x <= 1.0
+        and 0.0 <= y <= 1.0
+        and 0.0 < width <= 1.0
+        and 0.0 < height <= 1.0
+        and x + width <= 1.0 + 1e-9
+        and y + height <= 1.0 + 1e-9
+    )
+
+
+def _literal_fragments(
+    result: VisualResult,
+    region: VisualRegion,
+    content: str,
+    media_type: str,
+) -> list[FragmentDraft]:
+    if not result.spans:
+        return [
+            FragmentDraft(
+                literal_text=content,
+                start=0,
+                end=len(content),
+                media_type=media_type,
+                confidence=result.confidence,
+                bbox=region.bbox,
+                page=region.page,
+                frame_id=region.frame_id,
+                produced_by=STEP_VISION,
+            )
+        ]
+    fragments: list[FragmentDraft] = []
+    previous_end = 0
+    for index, span in enumerate(result.spans):
+        if (
+            span.start < previous_end
+            or span.end <= span.start
+            or span.end > len(content)
+            or content[span.start:span.end] != span.text
+        ):
+            raise errors.NormalizationError(
+                errors.ANCHOR_MISMATCH,
+                f"span OCR {index} no coincide con los offsets del texto reconocido",
+            )
+        if not _valid_bbox(span.bbox):
+            raise errors.NormalizationError(
+                errors.ANCHOR_MISMATCH,
+                f"span OCR {index} con bbox fuera de los limites de la imagen",
+            )
+        confidence = check_provider_confidence(
+            span.confidence,
+            where=f"span OCR {index} de {result.name!r}",
+        )
+        fragments.append(
+            FragmentDraft(
+                literal_text=span.text,
+                start=span.start,
+                end=span.end,
+                media_type=media_type,
+                confidence=confidence,
+                bbox=dict(span.bbox),
+                page=region.page,
+                frame_id=region.frame_id,
+                produced_by=STEP_VISION,
+                metadata={"anchor": "text+bbox", "region_id": region.region_id},
+            )
+        )
+        previous_end = span.end
+    return fragments
 
 
 def _episode_from_result(
@@ -219,29 +318,23 @@ def _episode_from_result(
             f"resultado {result.mode} con texto literal: la interpretacion visual "
             "no produce texto literal de la imagen",
         )
-    content = (result.text if literal else result.description) or ""
-    if not content.strip():
-        return _pending_episode(result.mode, region)
-
     confidence = check_provider_confidence(
         result.confidence, where=f"resultado visual {result.mode} de {result.name!r}"
     )
+    content = (result.text if literal else result.description) or ""
+    if not content.strip():
+        return _pending_episode(
+            result.mode,
+            region,
+            pending_reason=str(result.metadata.get("diagnostic") or "NO_CONTENT_DETECTED"),
+            metadata=dict(result.metadata),
+        )
     low = confidence < LOW_CONFIDENCE_THRESHOLD
 
     if literal:
         # OCR/HTR: el texto ES el contenido del episodio, y los offsets son
         # offsets de texto de verdad.
-        fragment = FragmentDraft(
-            literal_text=content,
-            start=0,
-            end=len(content),
-            media_type=media_type,
-            confidence=confidence,
-            bbox=region.bbox,
-            page=region.page,
-            frame_id=region.frame_id,
-            produced_by=STEP_VISION,
-        )
+        fragments = _literal_fragments(result, region, content, media_type)
         episode_quality = text_quality(content)
         episode_quality["score"] = min(episode_quality["score"], confidence)
         if low:
@@ -254,7 +347,7 @@ def _episode_from_result(
             page=region.page,
             bbox=region.bbox,
             quality=episode_quality,
-            fragments=[fragment],
+            fragments=fragments,
             produced_by=STEP_VISION,
             metadata={"region_id": region.region_id},
         )
@@ -349,7 +442,7 @@ class _BaseVisualAdapter(SourceAdapter):
             provider,
             first.name,
             first.version,
-            ["text", "description", "confidence"],
+                ["text", "description", "confidence"],
             model=first.model,
         )
 
