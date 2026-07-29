@@ -234,7 +234,7 @@ class ProviderAttribution:
     def local(cls, name: str, version: str, step: str, **kw) -> "ProviderAttribution":
         """Atribucion de un paso LOCAL determinista. El tier no es elegible.
 
-        El `step` se valida: un paso local no puede llamarse `…​.nvidia`. Sin
+        El `step` se valida: un paso local no puede llamarse `….nvidia`. Sin
         esa comprobacion, `local(step="extraction.nvidia")` producia una traza
         que decia `provider: local` sobre un paso que cualquier lector humano
         atribuiria al externo.
