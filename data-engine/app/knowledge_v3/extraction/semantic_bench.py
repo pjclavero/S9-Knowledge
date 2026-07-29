@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
+from ..claim_metadata import ClaimSemanticMetadata
 from ..benchmarks.harness import run as harness_run
 from ..benchmarks.loader import GoldDataset, PredictionBundle, index_by, load_gold
 from ..benchmarks.matching import MatchConfig, build_alignment, claim_key, match_by_key, match_spans
@@ -585,4 +586,3 @@ __all__ = [
 
 if __name__ == "__main__":  # pragma: no cover - entrada de linea de comandos
     sys.exit(main())
-from ..claim_metadata import ClaimSemanticMetadata
