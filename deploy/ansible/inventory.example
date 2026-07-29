@@ -7,7 +7,8 @@
 #   ansible-playbook -i inventory.ini site.yml --check --diff
 
 [s9knowledge]
-vm105 ansible_host=192.168.1.205 ansible_user=root
+# Defaults historicos de VM105; cambie solo el inventario para otro host.
+knowledge ansible_host=192.168.1.205 ansible_user=root
 
 [s9knowledge:vars]
 # Rutas del modelo de releases (deben coincidir con deploy/scripts/lib.sh)
@@ -29,6 +30,7 @@ s9k_auth_enabled=false
 
 # Healthcheck timer (deshabilitado hasta validacion)
 s9k_healthcheck_timer_enabled=false
+s9k_restore_test_enabled=false
 
 # Los secretos (S9K_CSRF_SECRET, S9K_NEO4J_PASSWORD, etc.) NO van aqui.
 # Se gestionan en EnvironmentFiles del host (/etc/s9-knowledge/*.env, modo 0600)

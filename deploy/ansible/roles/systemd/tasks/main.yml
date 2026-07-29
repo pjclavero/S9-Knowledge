@@ -1,33 +1,117 @@
 ---
 # Rol systemd — instala units desde la release activa y gestiona el servicio.
-# No fuerza reinicios destructivos. Idempotente. Sin secretos.
+# No fuerza reinicios destructivos. Idempotente. Solo instala plantillas vacías:
+# los valores secretos se rellenan fuera de Ansible, directamente en el host.
 
-- name: Verificar que la unit del visor existe en la release activa
+- name: Instalar plantilla vacia de proveedores
+  ansible.builtin.template:
+    src: providers.env.j2
+    dest: "{{ s9k_providers_env }}"
+    owner: root
+    group: root
+    mode: "0600"
+    force: false
+  tags:
+    - systemd
+
+- name: Verificar que providers.env existe antes de gestionar servicios
   ansible.builtin.stat:
-    path: "{{ s9k_root }}/current/viewer/systemd/{{ s9k_viewer_service }}"
+    path: "{{ s9k_providers_env }}"
+  register: _providers_env_stat
+  changed_when: false
+  tags:
+    - systemd
+
+- name: Bloquear arranque sin providers.env
+  ansible.builtin.assert:
+    that:
+      - _providers_env_stat.stat.exists
+      - _providers_env_stat.stat.isreg
+    fail_msg: "Falta {{ s9k_providers_env }}; no se arrancaran servicios S9 Knowledge"
+  tags:
+    - systemd
+
+- name: Verificar que el visor existe en la release activa
+  ansible.builtin.stat:
+    path: "{{ s9k_root }}/current/viewer"
   register: _unit_stat
   changed_when: false
   tags:
     - systemd
 
 - name: Instalar unit del visor en systemd
-  ansible.builtin.copy:
-    src: "{{ s9k_root }}/current/viewer/systemd/{{ s9k_viewer_service }}"
+  ansible.builtin.template:
+    src: s9-knowledge-viewer.service.j2
     dest: "/etc/systemd/system/{{ s9k_viewer_service }}"
     owner: root
     group: root
     mode: "0644"
-    remote_src: true
   when: _unit_stat.stat.exists
   notify: Recargar systemd
+  tags:
+    - systemd
+
+- name: Crear directorio de overrides del visor
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ s9k_viewer_service }}.d"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: _unit_stat.stat.exists
+  tags:
+    - systemd
+
+- name: Cargar proveedores en la unit del visor
+  ansible.builtin.template:
+    src: providers.conf.j2
+    dest: "/etc/systemd/system/{{ s9k_viewer_service }}.d/providers.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: _unit_stat.stat.exists
+  notify: Recargar systemd
+  tags:
+    - systemd
+
+- name: Instalar script de prueba periodica de restore
+  ansible.builtin.template:
+    src: test-latest-neo4j-restore.sh.j2
+    dest: /usr/local/sbin/s9k-test-latest-neo4j-restore
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - systemd
+
+- name: Instalar unidades de prueba periodica de restore
+  ansible.builtin.template:
+    src: "{{ item }}"
+    dest: "/etc/systemd/system/{{ item | regex_replace('\\.j2$', '') }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - s9-knowledge-neo4j-restore-test.service.j2
+    - s9-knowledge-neo4j-restore-test.timer.j2
+  notify: Recargar systemd
+  tags:
+    - systemd
+
+- name: Mantener timer de restore deshabilitado por defecto
+  ansible.builtin.systemd:
+    name: s9-knowledge-neo4j-restore-test.timer
+    enabled: "{{ s9k_restore_test_enabled | bool }}"
+    state: "{{ 'started' if s9k_restore_test_enabled | bool else 'stopped' }}"
+    daemon_reload: true
   tags:
     - systemd
 
 - name: Advertir si la unit no existe en la release
   ansible.builtin.debug:
     msg: >-
-      AVISO: unit {{ s9k_viewer_service }} no encontrada en
-      {{ s9k_root }}/current/viewer/systemd/. El servicio no se podra gestionar.
+      AVISO: visor no encontrado en {{ s9k_root }}/current/viewer/.
+      El servicio no se podra gestionar.
   when: not _unit_stat.stat.exists
   tags:
     - systemd
@@ -38,6 +122,8 @@
     enabled: true
     state: started
     daemon_reload: false
-  when: _unit_stat.stat.exists
+  when:
+    - _unit_stat.stat.exists
+    - _providers_env_stat.stat.exists
   tags:
     - systemd
