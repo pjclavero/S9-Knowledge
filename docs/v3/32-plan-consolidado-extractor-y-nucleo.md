@@ -73,7 +73,9 @@ lista, no antes.**
 
 **Resultado:** reproducibilidad entre `PYTHONHASHSEED`, escala hasta 1.000
 propuestas y artefacto de alineación de spans demostrados; D-R conserva 8
-claims correctos frente a D=0.
+claims correctos frente a D=0 (métrica del arnés, `harness_extractor.claims`,
+F1 0.421; la métrica de bloque más estricta, `block_metrics.claims`, da 3
+frente a 0 — mismo sentido, distinta superficie de emparejamiento).
 
 - corridas con distintos `PYTHONHASHSEED`;
 - rendimiento con 10 / 100 / 1.000 propuestas;
