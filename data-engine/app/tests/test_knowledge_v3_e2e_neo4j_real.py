@@ -135,6 +135,24 @@ def test_e2e_01_aplicado_contra_neo4j_efimero(graph: GraphProbe):
     """El plan de E2E-01, construido desde bytes, se aplica de verdad."""
     plan_doc, _run, _p = pipeline_plan("p7-e2e-01", T_HECHO)
     assert plan_doc["local_approval"]["approved"] is True
+    projection = next(
+        op
+        for op in plan_doc["mutation_operations"]
+        if op["operation_type"] == "PROJECT_RELATION"
+    )
+    payload = projection["payload"]
+    graph.seed_entity(
+        payload["subject_entity_id"],
+        workspace=plan_doc["workspace"],
+        version=projection["expected_version"],
+        state_hash=projection["expected_hash"]["value"],
+    )
+    graph.seed_entity(
+        payload["object_entity_id"],
+        workspace=plan_doc["workspace"],
+        version=1,
+        state_hash=HASH_B["value"],
+    )
 
     result = writer_for(plan_doc, graph.driver).write(plan_doc, request_for(plan_doc))
 
