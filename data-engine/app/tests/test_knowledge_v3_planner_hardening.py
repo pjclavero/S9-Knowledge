@@ -277,17 +277,11 @@ def fabricated_accept() -> ClaimDecision:
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "HALLAZGO P3-1: el planner aprueba y sella un ACCEPT fabricado que nunca "
-        "paso por decide_claim y no lleva EVIDENCE_LITERAL_VERIFIED. Su cadena de "
-        "validadores comprueba que la operacion venga de un ACCEPT, pero no que ese "
-        "ACCEPT tenga evidencia literal verificada: `_validator_chain` solo mira "
-        "`d.evidence_fragment_ids` (que la lista no este vacia), no el finding. La "
-        "invariante 1 de decision.py no tiene contrapartida en el planner."
-    ),
-)
+# HALLAZGO P3-1 (demostrado en main d50c931, xfail estricto): el planner
+# aprobaba y sellaba un ACCEPT fabricado sin EVIDENCE_LITERAL_VERIFIED —
+# `_validator_chain` solo miraba que `evidence_fragment_ids` no estuviera
+# vacia. Corregido por el endurecimiento del planner (encargo C): ahora exige
+# el finding. Este test queda como regresion positiva de esa correccion.
 def test_4_un_accept_fabricado_sin_evidencia_verificada_no_produce_plan_aplicable():
     build = build_plan(plan_context(), [fabricated_accept()], index(), DEFAULT_CONFIG)
     assert build.plan is None or not build.plan.approved
