@@ -1,0 +1,355 @@
+{
+  "corpus": {
+    "cases": 24,
+    "path": "data-engine/app/knowledge_v3/benchmarks/datasets/factivity/cases.json",
+    "provenance": "dev-synthetic/opus-2026-07-30",
+    "split": "dev-synthetic"
+  },
+  "gate": "6",
+  "generated_by": "opus-gate6",
+  "lanes": {
+    "nvidia": {
+      "errors": [],
+      "lane": "nvidia",
+      "latency_ms": {
+        "max": 163130,
+        "mean": 48744,
+        "median": 40451,
+        "min": 935
+      },
+      "model": "meta/llama-3.3-70b-instruct",
+      "rows": {
+        "fact:alcance-complejo:01": {
+          "abstentions": 1,
+          "claim_ids": [
+            "claim:extract.semantic:511764098c5f8361"
+          ],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:alcance-complejo:02": {
+          "abstentions": 1,
+          "claim_ids": [
+            "claim:extract.semantic:3f525b90684e6c8b"
+          ],
+          "diagnostic_codes": [
+            "PROVIDER_UNAVAILABLE"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:condicional:01": {
+          "abstentions": 1,
+          "claim_ids": [
+            "claim:extract.semantic:cc6f6f17606e266d"
+          ],
+          "diagnostic_codes": [
+            "PROVIDER_UNAVAILABLE"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:condicional:02": {
+          "abstentions": 1,
+          "claim_ids": [
+            "claim:extract.semantic:d994c1d42932fc1b"
+          ],
+          "diagnostic_codes": [
+            "PROVIDER_UNAVAILABLE"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:contrafactual:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "CONDITIONAL_CONTEXT"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:contrafactual:02": {
+          "abstentions": 1,
+          "claim_ids": [
+            "claim:extract.semantic:1c4c7445258d05b5"
+          ],
+          "diagnostic_codes": [
+            "PROVIDER_UNAVAILABLE"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:deseo:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "DESIRE_CONTEXT"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:deseo:02": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "DESIRE_CONTEXT"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:falsedad-atribuida:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "FALSITY_CONTEXT"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:falsedad-atribuida:02": {
+          "abstentions": 0,
+          "claim_ids": [
+            "claim:extract.semantic:d730a4da8a9f8f48"
+          ],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 1,
+          "predicates": [
+            "LOCATED_IN",
+            "OWNS"
+          ],
+          "world_claims": 0
+        },
+        "fact:ficcion-en-ficcion:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "FICTION_WITHIN_FICTION_CONTEXT"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:ficcion-en-ficcion:02": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "FICTION_WITHIN_FICTION_CONTEXT"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:01": {
+          "abstentions": 0,
+          "claim_ids": [
+            "claim:extract.semantic:400affe180c8b9d8",
+            "claim:extract.semantic:41f9dc3d17e743b9",
+            "claim:extract.semantic:84e4610dd10a650a"
+          ],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [
+            "LEADS",
+            "LOCATED_IN",
+            "MEMBER_OF",
+            "OWNS",
+            "SERVES"
+          ],
+          "world_claims": 3
+        },
+        "fact:hecho-afirmado:02": {
+          "abstentions": 0,
+          "claim_ids": [
+            "claim:extract.semantic:80af1795ac6246fb",
+            "claim:extract.semantic:7860010d0432eb01"
+          ],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [
+            "LEADS",
+            "OWES_TO",
+            "OWNS",
+            "SERVES"
+          ],
+          "world_claims": 2
+        },
+        "fact:hipotesis:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "NON_FACTIVE_CONTEXT"
+          ],
+          "diagnostics": 2,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hipotesis:02": {
+          "abstentions": 1,
+          "claim_ids": [
+            "claim:extract.semantic:90f92c6396323c21"
+          ],
+          "diagnostic_codes": [
+            "PROVIDER_UNAVAILABLE"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:negacion-factual:01": {
+          "abstentions": 1,
+          "claim_ids": [
+            "claim:extract.semantic:bbc8801af72db661"
+          ],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:negacion-factual:02": {
+          "abstentions": 0,
+          "claim_ids": [
+            "claim:extract.semantic:d82d2c5b18b67ca3"
+          ],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 1,
+          "predicates": [
+            "MEMBER_OF",
+            "OWNS"
+          ],
+          "world_claims": 0
+        },
+        "fact:orden:01": {
+          "abstentions": 1,
+          "claim_ids": [
+            "claim:extract.semantic:ad1f28dd9037d89e",
+            "claim:extract.semantic:7527cd6cda230865"
+          ],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 1,
+          "predicates": [
+            "MEMBER_OF",
+            "OWES_TO"
+          ],
+          "world_claims": 0
+        },
+        "fact:orden:02": {
+          "abstentions": 1,
+          "claim_ids": [
+            "claim:extract.semantic:b38a72ef53e1e48f"
+          ],
+          "diagnostic_codes": [
+            "PROVIDER_UNAVAILABLE"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:pregunta:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "INTERROGATIVE_CONTEXT"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:pregunta:02": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "CONDITIONAL_CONTEXT"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:rumor:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "HALLUCINATED_MENTION",
+            "HALLUCINATED_QUOTE",
+            "SUBJECT_NOT_GROUNDED"
+          ],
+          "diagnostics": 4,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:rumor:02": {
+          "abstentions": 0,
+          "claim_ids": [
+            "claim:extract.semantic:d42fdc4e707e8f6c"
+          ],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 1,
+          "negated_world_claims": 1,
+          "predicates": [
+            "MEMBER_OF",
+            "SERVES"
+          ],
+          "world_claims": 0
+        }
+      },
+      "wall_seconds": 1170.0
+    }
+  }
+}

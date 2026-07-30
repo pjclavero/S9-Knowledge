@@ -284,16 +284,33 @@ def analyse(raw: dict, cases: dict) -> dict[str, Any]:
             if len(set(actions.values())) > 1:
                 disagreements.append({"case_id": entry["case_id"], "actions": actions})
         agreement = 1 - len(disagreements) / len(common) if common else 0.0
+        # TRAMPA QUE ESTE BLOQUE EVITA: al anadir un carril con muestra
+        # pequena, la INTERSECCION se encoge. Si en las pocas frases comunes
+        # ningun carril produce un hecho, todos "coinciden" en no hacer nada y
+        # sale un 100% que no significa nada — la misma inanicion de siempre,
+        # disfrazada de acuerdo. Se exige que haya algo sobre lo que discrepar.
+        con_hecho = [
+            e for e in common
+            if any(
+                e["lanes"][l]["action"] in ("CREATE_POSITIVE", "CREATE_NEGATIVE")
+                for l in usable
+            )
+        ]
         add(
             "100% acuerdo de ACCION entre carriles",
             f"{agreement:.2%} sobre {len(common)} frases comunes "
-            f"({len(disagreements)} discrepancias)",
+            f"({len(disagreements)} discrepancias; {len(con_hecho)} con algun hecho)",
             "100%",
             not disagreements,
-            "; ".join(
-                f"{d['case_id']}:{d['actions']}" for d in disagreements[:8]
+            "; ".join(f"{d['case_id']}:{d['actions']}" for d in disagreements[:8])
+            or (
+                ""
+                if con_hecho
+                else "en las frases comunes ningun carril produce un hecho: "
+                "coincidir en no hacer nada no es acuerdo"
             ),
             "+".join(usable),
+            evaluable=bool(con_hecho),
         )
     else:
         add(
