@@ -49,6 +49,12 @@ from .gate import (
 from .gate import evaluate as evaluate_gate
 from .idempotency import AppliedKeyStore, InMemoryAppliedKeys, JsonlAppliedKeys
 from .rollback import RollbackDocument, RollbackInstruction, build_rollback
+from .schema import (
+    APPLIED_OPERATION_CONSTRAINT,
+    APPLIED_OPERATION_CONSTRAINT_CYPHER,
+    SCHEMA_VERSION,
+    bootstrap_writer_schema,
+)
 from .view import UNSIGNED_FIELDS, SignedView
 from .writer import (
     MODE_APPLY,
@@ -91,6 +97,10 @@ __all__ = [
     "assert_safe",
     "ALLOWED_UPDATE_PROPS",
     "RESERVED_PROPS",
+    "APPLIED_OPERATION_CONSTRAINT",
+    "APPLIED_OPERATION_CONSTRAINT_CYPHER",
+    "SCHEMA_VERSION",
+    "bootstrap_writer_schema",
     # idempotencia
     "AppliedKeyStore",
     "InMemoryAppliedKeys",
