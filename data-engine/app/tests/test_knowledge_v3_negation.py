@@ -791,10 +791,8 @@ class TestE2ENegacion:
 
     def test_la_pregunta_deja_su_rastro(self, gold, entities):
         _p, run = _run_e2e(gold, entities, "pregunta")
-        razones = {
-            r for c in run.claims for r in (c.metadata or {}).get("abstention_reasons", [])
-        }
-        assert C.CODE_INTERROGATIVE in razones
+        assert not run.claims
+        assert any(d["code"] == C.CODE_INTERROGATIVE for d in run.diagnostics)
 
     def test_el_alcance_ambiguo_deja_su_rastro(self, gold, entities):
         _p, run = _run_e2e(gold, entities, "alcance")

@@ -32,6 +32,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
+from .factivity import (
+    FactivityAction,
+    FactivityResult,
+    FactivitySignals,
+    classify_factivity,
+)
 from .text import Token, find_phrase, phrase_tokens, tokenize
 
 #: Marcas de negacion. Se comparan sobre la forma normalizada.
@@ -251,6 +257,7 @@ CODE_NEGATION_MISMATCH = "NEGATION_CONTEXT_MISMATCH"
 CODE_NON_FACTIVE = "NON_FACTIVE_CONTEXT"
 CODE_FALSITY = "FALSITY_CONTEXT"
 CODE_CONDITIONAL = "CONDITIONAL_CONTEXT"
+CODE_COUNTERFACTUAL = "COUNTERFACTUAL_CONTEXT"
 CODE_INTERROGATIVE = "INTERROGATIVE_CONTEXT"
 CODE_FICTION = "FICTION_WITHIN_FICTION_CONTEXT"
 CODE_DEONTIC = "DEONTIC_CONTEXT"
@@ -274,6 +281,29 @@ class ContextVerdict:
     negation_kind: str = ""
 
     @property
+    def factivity(self) -> FactivityResult:
+        """Resultado de la unica politica de factualidad del extractor."""
+        codes = set(self.reason_codes)
+        return classify_factivity(
+            FactivitySignals(
+                negated=self.negated,
+                question=CODE_INTERROGATIVE in codes,
+                conditional=CODE_CONDITIONAL in codes,
+                counterfactual=CODE_COUNTERFACTUAL in codes,
+                hypothetical=self.hint == "HYPOTHETICAL",
+                desire=CODE_DESIRE in codes,
+                command=CODE_DEONTIC in codes,
+                reported_falsehood=CODE_FALSITY in codes,
+                fiction_within_fiction=CODE_FICTION in codes,
+                rumor=self.hint == "RUMORED",
+                ambiguous_scope=CODE_NEGATION_SCOPE in codes,
+            ),
+            cues=self.cues,
+            reasons=self.reason_codes,
+            scope="AMBIGUOUS" if CODE_NEGATION_SCOPE in codes else "WORLD",
+        )
+
+    @property
     def not_a_statement(self) -> bool:
         """Deseo, orden o prohibicion: no es un hecho, pero tampoco una farsa.
 
@@ -284,15 +314,19 @@ class ContextVerdict:
         alguien la quiere o la prohibe— y perder el rastro seria perder
         informacion.
         """
-        return bool({CODE_DEONTIC, CODE_DESIRE} & set(self.reason_codes))
+        return self.factivity.factivity_class.value in {"COMMAND", "DESIRE"}
 
     @property
     def non_factive(self) -> bool:
         """El texto no esta afirmando el hecho (lo supone, lo pregunta o lo niega)."""
-        return bool(
-            {CODE_FALSITY, CODE_CONDITIONAL, CODE_INTERROGATIVE, CODE_FICTION}
-            & set(self.reason_codes)
-        )
+        return self.factivity.factivity_class.value in {
+            "QUESTION",
+            "CONDITIONAL",
+            "COUNTERFACTUAL",
+            "HYPOTHETICAL",
+            "REPORTED_FALSEHOOD",
+            "FICTION_WITHIN_FICTION",
+        }
 
     @property
     def blocks_assertion(self) -> bool:
@@ -587,7 +621,12 @@ def analyze_context(
     for phrase in CONDITIONAL_PHRASES:
         if _has_phrase(tokens, phrase, lo, hi):
             cues.append(phrase)
-            if CODE_CONDITIONAL not in reasons:
+            # "de haber" presenta un mundo alternativo ya no realizado; el
+            # resto de marcas suspende el hecho bajo una condicion abierta.
+            code = CODE_COUNTERFACTUAL if phrase == "de haber" else CODE_CONDITIONAL
+            if code not in reasons:
+                reasons.append(code)
+            if code == CODE_COUNTERFACTUAL and CODE_CONDITIONAL not in reasons:
                 reasons.append(CODE_CONDITIONAL)
 
     for phrase in FICTION_PHRASES:
@@ -657,6 +696,7 @@ __all__ = [
     "CESSATION_PHRASES",
     "CLAUSE_CONJUNCTIONS",
     "CODE_CONDITIONAL",
+    "CODE_COUNTERFACTUAL",
     "CODE_DEONTIC",
     "CODE_DESIRE",
     "CODE_FALSITY",
@@ -684,6 +724,8 @@ __all__ = [
     "NOT_YET_PHRASES",
     "SCOPE_VERBS",
     "ContextVerdict",
+    "FactivityAction",
+    "FactivityResult",
     "NegationVerdict",
     "analyze_context",
     "analyze_raw_text",
