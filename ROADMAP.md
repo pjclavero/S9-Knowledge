@@ -1,162 +1,47 @@
 # ROADMAP — S9 Knowledge
 
-Ver [project dossier and checklist.md](docs/project%20dossier%20and%20checklist.md) para el estado detallado por componente.
+El estado de producción es autoritativo en
+[`docs/project-status.yaml`](docs/project-status.yaml). El plan técnico vigente
+del repositorio es
+[`docs/v3/32-plan-consolidado-extractor-y-nucleo.md`](docs/v3/32-plan-consolidado-extractor-y-nucleo.md).
+V3 está en `main`, pero todavía no está desplegada: producción continúa en RC5.1.
 
----
+## V3 (vigente)
 
-## Secuencia de prioridades
+Estados: **COMPLETADO · PENDIENTE DE DECISIÓN · PENDIENTE · GATEADO**.
 
-Estados: **COMPLETADO · PARCIAL · PENDIENTE · BLOQUEADO · DEPRECADO**.
+| Frente | Estado | Resultado / siguiente condición |
+|---|---|---|
+| Rediseño integral V3 (PR #110) | **COMPLETADO** | `knowledge_v3` mergeado en `main`; contratos congelados `v3-contracts-frozen-1.0.0`. |
+| Lote 1 (PR #111) | **COMPLETADO** | Extractor y motor endurecidos sin cambiar la política observable. |
+| Lote 3 (PR #112) | **COMPLETADO** | Reconciliador reproducible y validado a escala; D-R recupera 8 claims correctos frente a 0 de D. |
+| Lotes 2 y 2b (PR #113) | **COMPLETADOS** | Política graduada de negaciones y temporalidad implementada tras flags **OFF**. |
+| Lote 6 (PR #114) | **COMPLETADO** | Replicabilidad reforzada: secretos, despliegue genérico, rollback conjunto, restore periódico y workspaces. |
+| Lote 4 | **PENDIENTE DE DECISIÓN** | El operador debe fijar la política común de condicionales. |
+| Lote 5 | **PENDIENTE DE DECISIÓN** | El operador debe definir el flujo y los umbrales de creación de entidades antes de relajar `LINK_EXISTING`. |
+| Encargos D, E, G y H del doc 30 | **PENDIENTES** | Proveedores con recambio, eje temporal de campaña, observabilidad y registro del bucle humano. |
+| Contexto episódico inter-episodio | **PENDIENTE POR DISEÑO** | Se mantiene correferencia intra-episodio; la evidencia aprobable sigue anclada al episodio actual. |
+| Activación de política graduada | **GATEADA** | Los flags siguen **OFF** hasta completar medición en sombra y aceptar los criterios de activación. |
+| Despliegue V3 | **PENDIENTE** | No se ha desplegado en VM105; RC5.1 continúa activa. |
 
-```
-Auditoría inicial (v0.2.5b):       COMPLETADO
-Schema RPG:                        COMPLETADO
-Data engine / pipeline revisión:   COMPLETADO
-Benchmark del extractor:           COMPLETADO (dictamen: relaciones por debajo de umbral)
-Revisión externa (NVIDIA sombra):  COMPLETADO (validación real de proveedor: PENDIENTE)
-Writer de ingesta controlada:      COMPLETADO (doble guard)
-Visor web:                         COMPLETADO (desplegado por releases)
-Login propio del visor:            COMPLETADO (Basic Auth retirada)
-Roles y sesiones:                  PARCIAL (login+roles ok; visibilidad por personaje PENDIENTE)
-Acceso externo (HTTPS):            COMPLETADO
-Despliegue por releases:           COMPLETADO (RC5.1 activa; resolución forward-ref corregida)
-Healthcheck operativo:             COMPLETADO
-Timer horario del healthcheck:     COMPLETADO (OnCalendar=hourly, Persistent)
-Panel de revisión:                 PARCIAL (lectura ok; acciones desde UI PENDIENTE)
-Permisos RPG en backend:           PENDIENTE
-Visibilidad por personaje:         PENDIENTE
-Worker multimedia:                 PARCIAL (transcripción manual ok; handlers automáticos PENDIENTE)
-OCR:                               PENDIENTE
-ASR (integración en cola):         PENDIENTE
-External burst B2/B3:              PENDIENTE
-Primera ingesta real:             BLOQUEADO (doble guard; no autorizada)
-Limpieza histórica del grafo:      PENDIENTE
-Backup/restore periódico:          PARCIAL (backup+restore validados; automatización periódica PENDIENTE)
-```
+Las decisiones de producto de los Lotes 4 y 5 no se presuponen. Tampoco se
+presenta la implementación de una política tras flags como una autorización para
+activarla o escribir en producción.
 
-### Prioridades siguientes
+## Legacy (v1/v2)
 
-- **P0** — contratos de review/ingest.
-- **P1** — panel de revisión operativo (acciones desde UI).
-- **P1** — permisos RPG en backend.
-- **P2** — primera ingesta controlada (requiere autorización explícita).
-- **P2** — worker real y external burst (B2/B3).
-- **P3** — limpieza histórica del grafo.
-- **P3** — restore periódico programado.
+La línea v1/v2 explica la release RC5.1 que sigue desplegada, pero ya no es el
+camino de desarrollo principal. Quedan como hitos históricos:
 
----
+- pipeline de review/ingest, benchmarks del extractor híbrido y revisión humana;
+- visor, login, roles, despliegue por releases, healthchecks y backup/restore;
+- writer con doble guard y primera ingesta real no autorizada;
+- external AI en sombra y burst posterior pendiente en aquella arquitectura.
 
-## Prioridad 0 — Motor de datos y repositorio (COMPLETADA ✅)
+Documentación histórica:
 
-- Schema RPG v1.5.0: 27 tipos de nodo, 113 relaciones, vocabularios controlados.
-- Pipeline de revisión: segment → classify → extract → validate → resolve → decide → approved_payload.
-- Extractor: modos heurístico, LLM (qwen2.5:7b) e híbrido implementados.
-- Tests: suite verde (recuento actual en [docs/project-status.yaml](docs/project-status.yaml)).
-- CI: GitHub Actions en verde (Python 3.13).
-- Producción: RC5.1 (`47bc314`) desplegada por releases; ver [docs/02-current-state.md](docs/02-current-state.md).
-
----
-
-## Prioridad 1 — Backup, Restore y Rollback (COMPLETADA ✅)
-
-- [x] Backup/restore de Neo4j verificado en lab (2026-07-13)
-- [x] Scripts backup/restore en main (`scripts/backup/`)
-- [x] Backup real de producción ejecutado (2026-07-13 21:49 UTC, 132 KB, 25 s parada)
-- [x] Restore real en instancia aislada verificado (199 nodos, 140 relaciones, idéntico a producción)
-- [x] Rollback por source_id validado en laboratorio con datos sintéticos
-- [x] Documentación de operaciones actualizada (docs/26–32)
-- [x] Copia externa a yggdrasil verificada (2026-07-14, SHA256 coincide)
-
-**Dictamen:** COMPLETADA — ver [docs/32-production-backup-restore-validation.md](docs/32-production-backup-restore-validation.md)
-
-### P1.1 — Endurecimiento operativo pendiente
-
-- [x] Copia externa verificada a yggdrasil (2026-07-14)
-- [ ] Automatización de copia en neo4j-backup.sh
-- [ ] Timer systemd para backup semanal
-- [ ] Script transaccional de rollback con --dry-run
-- [ ] Prueba periódica programada de restore
-
----
-
-Transcripción de vídeo (docs/40): faster-whisper medium APTA CON REVISIÓN DE SEGMENTOS CONFLICTIVOS (91% auto-aceptable; conflictos = nombres propios). Referencia humana pendiente para WER definitivo.
-
-IA externa NVIDIA (docs/42): revisión multi-modelo + consenso + calibración en **modo sombra** (implementado, sin escritura). Fase B (lotes externos) diseñada, pendiente. Validación real pendiente de API key.
-
-## Prioridad 2 — Calidad del extractor y del pipeline (EN DEFINICIÓN)
-
-El bloqueo real no es ausencia de LLM — los tres modos (heurístico, LLM, híbrido) están implementados. El bloqueo es la falta de validación de calidad sobre un corpus representativo.
-
-- [ ] Corpus de evaluación: fuentes representativas con verdad esperada
-- [ ] Métricas: precisión, recall, F1, falsos positivos, falsos negativos, duplicados, relaciones inválidas
-- [ ] Comparativa: heurístico vs LLM vs híbrido por tipo de fuente
-- [ ] Criterio de autoaprobado: umbral verificable
-- [ ] Criterio de envío a revisión humana
-- [ ] Criterio de rechazo
-- [ ] Pruebas de regresión
-- [ ] Condiciones para habilitar la primera ingesta real
-
-Ver [docs/33-extractor-quality-benchmark-plan.md](docs/33-extractor-quality-benchmark-plan.md) para el plan de evaluación.
-
----
-
-## Prioridad 3 — Primera ingesta real controlada (PENDIENTE)
-
-Requiere: Prioridad 1 completa + Prioridad 2 con criterios aceptados.
-
-- [ ] Fuente pequeña y representativa seleccionada
-- [ ] Auditoría pre-ingesta del grafo
-- [ ] Dry-run completo del pipeline
-- [ ] Backup inmediatamente antes
-- [ ] Ingesta real con S9K_ALLOW_REAL_INGEST
-- [ ] Auditoría post-ingesta
-- [ ] Verificación de que el resto del grafo no cambió
-
----
-
-## Prioridad 4 — Limpieza del grafo histórico (PENDIENTE)
-
-- [ ] Migración controlada de ~87 nodos sin source_id/source_kind
-- [ ] Corrección de relaciones semánticamente inválidas (HAS_FOUGHT → FOUGHT_AT)
-- [ ] Eliminación de duplicados detectados por audit-graph
-
----
-
-## Prioridad 5 — Autenticación y seguridad del visor (PARCIAL)
-
-- [x] **Login propio del visor** (formulario con submit explícito, sesiones, CSRF). Basic Auth retirada del proxy. — COMPLETADO
-- [x] Usuarios y roles en la app (1 administrador activo). — COMPLETADO
-- [ ] Acciones de revisión desde el visor. — PENDIENTE
-- [ ] Permisos RPG aplicados en consultas (visibilidad por personaje). — PENDIENTE
-
----
-
-## Prioridad 6 — Despliegue y operación (COMPLETADA ✅)
-
-- [x] Despliegue por releases inmutables + symlink atómico `current`. — COMPLETADO
-- [x] deploy-tools versionados e independientes de la release. — COMPLETADO
-- [x] Retención fail-closed y verify-deployment fail-closed. — COMPLETADO
-- [x] Resolución de refs remotas (regresión forward-ref corregida, [docs/51](docs/51-deploy-forward-ref-regression.md)). — COMPLETADO
-- [x] Healthcheck operativo + timer horario (`OnCalendar=hourly`, Persistent). — COMPLETADO
-- [x] RC5.1 (`47bc314`) activa en producción; RC5 conservada como candidata no desplegada. — COMPLETADO
-
----
-
-## Estado del visor actual (IMPLEMENTADO Y DESPLEGADO)
-
-- `/graph`: vis.js — operativo ✅
-- `/jobs`: panel de cola — implementado como base ✅
-- `/reviews`: panel de revisión en lectura ✅
-- Login propio: **COMPLETADO** (Basic Auth retirada)
-- Acciones de revisión desde UI: PENDIENTE
-- Permisos RPG en API/UI: PENDIENTE
-- Acceso externo: https://knowledge.seccionnueve.duckdns.org (HTTPS, autenticación en la app) ✅
-
----
-
-## Componentes transversales activos
-
-- Worker genérico: base implementada (job_store.py + worker.py con echo/noop)
-- Handlers multimedia completos: PENDIENTE (transcripción faster-whisper operativa en manual)
-- Nextcloud mount: rclone-nextcloud-rol.service activo (solo lectura) ✅
-- Ollama: qwen2.5:7b en ia-server (192.168.1.157:11434) ✅
+- [Dosier y checklist](docs/archivados/project%20dossier%20and%20checklist.md)
+- [Estado de RC5.1](docs/archivados/02-current-state.md)
+- [Arquitectura](docs/archivados/01-architecture.md)
+- [Fases históricas](docs/archivados/03-phases.md)
+- [Índice completo de archivados](docs/archivados/INDEX.md)

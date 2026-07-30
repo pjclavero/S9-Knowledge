@@ -4,6 +4,29 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-07-30 — Cierre de los lotes técnicos V3 (PRs #111–#114)
+- **PR #111 — Lote 1:** endurecimiento del extractor y del motor sin cambio de
+  política: ordenación estable de candidatos, frontera tipada de metadata,
+  selección local explícita, caches acotadas y tratamiento fail-closed de
+  negaciones desconocidas o con múltiples afirmaciones activas.
+- **PR #112 — Lote 3:** validación del reconciliador con distintos
+  `PYTHONHASHSEED`, prueba de escala y aceptación medida; D-R conserva los 8
+  claims correctos de C1 que D reducía a 0.
+- **PR #113 — Lotes 2 y 2b:** política graduada de negaciones y temporalidad
+  implementada en el motor tras flags por defecto **OFF**, con métricas para su
+  evaluación antes de activarla.
+- **PR #114 — Lote 6:** replicabilidad reforzada para secretos, despliegue
+  genérico, rollback conjunto de aplicación y datos, restore periódico y
+  creación de workspaces.
+
+### 2026-07-29 — Rediseño integral Knowledge V3 (PR #110)
+- Merge de `knowledge_v3` en `main` con contratos congelados bajo
+  `v3-contracts-frozen-1.0.0`, extractor determinista y semántico,
+  reconciliador, motor local, ledger temporal y writer con gate de operador.
+- Integradas la evidencia multimodal (`OCR_TEXT`, `TRANSCRIBED_TEXT`,
+  `VISUAL_INFERRED`) y la transcripción manuscrita. V3 queda en el repositorio,
+  no desplegada en producción.
+
 ### 2026-07-18 — Despliegue por candidatas RC1–RC5.1 y corrección de la regresión forward-ref
 - **RC5.1** (`deploy-v0.3.0-rc5.1`, `47bc314`) — **DESPLEGADA y activa en producción.**
   Corrige la regresión de despliegue "forward-ref": desplegar hacia un tag/commit

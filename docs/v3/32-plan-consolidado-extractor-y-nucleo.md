@@ -1,6 +1,7 @@
 # 32 — Plan consolidado: extractor y validación del núcleo V3
 
-Fecha: 2026-07-30 · Estado: **en ejecución (Lote 1)**
+Fecha: 2026-07-30 · Estado: **lotes técnicos completados; pendientes decisiones
+de producto (Lotes 4 y 5)**
 
 Consolida dos fuentes: la revisión externa del extractor (8 hallazgos, todos
 verificados contra `main` línea a línea) y los pendientes de validación del
@@ -39,7 +40,11 @@ las relaciones posteriores ya pueden aprobarse.
 
 ## Lotes
 
-### Lote 1 — arreglos sin decisión de política (esta rama)
+### Lote 1 — COMPLETADO y mergeado (PR #111)
+
+**Resultado:** extractor y motor endurecidos frente a los hallazgos sin cambiar
+la política observable; metadata tipada, orden estable, caches acotadas y
+negaciones ambiguas en fail-closed.
 
 Hallazgos 1, 5, 6, 7, tests adversariales del 8 (sin cambiar su lógica:
 primero fijar el comportamiento, después decidir) **y los dos P0 del motor de
@@ -52,7 +57,10 @@ amortigua) y **obligatorios antes de autoaprobar negaciones**. Criterio: la
 ordenación de candidatos es prerequisito de cualquier autoaprobación futura;
 la frontera tipada de metadata es prerequisito del Lote 2.
 
-### Lote 2 — política graduada de negaciones (encargo F, doc 30 + docs 18/19)
+### Lote 2 — COMPLETADO y mergeado (PR #113)
+
+**Resultado:** política graduada implementada en el motor, con métricas y flag
+por defecto **OFF**; su activación queda gateada a medición en sombra.
 
 Mover la política del extractor al motor. Los hallazgos 2 y 3 son la misma
 puerta: el `force_review=True` del semántico y el `negated or` del determinista
@@ -61,7 +69,13 @@ solo se retiran cuando la política graduada esté implementada y medida
 real texto → motor → plan). **La línea debe desaparecer cuando la política esté
 lista, no antes.**
 
-### Lote 3 — validación pendiente del reconciliador (docs 21/22)
+### Lote 3 — COMPLETADO y mergeado (PR #112)
+
+**Resultado:** reproducibilidad entre `PYTHONHASHSEED`, escala hasta 1.000
+propuestas y artefacto de alineación de spans demostrados; D-R conserva 8
+claims correctos frente a D=0 (métrica del arnés, `harness_extractor.claims`,
+F1 0.421; la métrica de bloque más estricta, `block_metrics.claims`, da 3
+frente a 0 — mismo sentido, distinta superficie de emparejamiento).
 
 - corridas con distintos `PYTHONHASHSEED`;
 - rendimiento con 10 / 100 / 1.000 propuestas;
@@ -79,7 +93,10 @@ el semántico — contrafactual/pregunta/ficción/falsedad no producen claim;
 deseo/orden, abstención o solo diagnóstico; hipótesis explícita que interese
 conservar, claim epistémico separado, nunca relación del mundo.
 
-### Lote 2b — graduación temporal (hallazgo 11)
+### Lote 2b — COMPLETADO y mergeado (PR #113)
+
+**Resultado:** separadas la incertidumbre de cota temporal y la ambigüedad que
+cambia el significado, tras flag por defecto **OFF**.
 
 Separar `TEMPORAL_BOUND_UNKNOWN` (WARN: la relación es segura y solo falta la
 fecha exacta) de `TEMPORAL_SCOPE_MATERIAL` (REVIEW: el tiempo cambia el
@@ -92,28 +109,14 @@ revisión; sí la que interviene en la decisión.
 Diseñar el plan `CREATE_ENTITY` independiente antes de tocar `LINK_EXISTING`.
 Requiere decisión del operador sobre deduplicación reforzada y umbrales.
 
-### Lote 6 — replicabilidad y mantenimiento (verificado contra `deploy/`)
+### Lote 6 — COMPLETADO y mergeado (PR #114)
 
-Diseñado pero a medio implementar. Existe: esqueleto Ansible (6 roles),
-`deploy.sh`/`preflight.sh`/`rollback-release.sh`/`retention.py`, verificación
-de identidad de release, backup/restore/rollback-dryrun de Neo4j, doc 28.
-Pendiente, por orden de valor:
+**Resultado:** carga segura de secretos, despliegue genérico, rollback conjunto
+de aplicación y datos, restore periódico y creación de workspaces incorporados.
 
-1. **Secretos**: ninguna unidad carga `EnvironmentFile=/etc/s9-knowledge/providers.env`
-   — la credencial de proveedores está inerte en producción (y la API key de
-   NVIDIA expuesta sigue sin rotar);
-2. despliegue genérico: la forma exacta de VM105 está cableada en
-   `deploy/tests/test_release_identity.py:125` y `deployments/local-vm105/` es
-   una guía nunca ejecutada;
-3. rollback conjunto de aplicación y datos (hoy son dos procedimientos sueltos);
-4. pruebas periódicas de restore (el script existe, la periodicidad no);
-5. creación/gestión de workspaces;
-6. modo sin Nextcloud (los "tres modos" solo existen en la documentación
-   consolidada; `deploy/` no menciona Nextcloud);
-7. procedimiento de actualización V3 y documentación operativa final.
-
-El instalador completo, el wizard y la gestión web de workspaces quedaron
-declarados fuera de alcance y siguen fuera.
+El instalador completo, el wizard, la gestión web de workspaces y el modo sin
+Nextcloud permanecen fuera de alcance. Completar este lote en el repositorio no
+equivale a haber desplegado V3 en producción.
 
 ### Fuera de estos lotes (siguen en el doc 30)
 

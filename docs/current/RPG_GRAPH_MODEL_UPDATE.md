@@ -1,5 +1,8 @@
 # Actualización del modelo de grafo RPG — Informe
 
+> **Documento de la era v1/v2 (legacy); la línea vigente es V3, ver
+> [`docs/v3/`](../v3/).**
+
 Documento de trabajo para la ampliación del modelo de datos del grafo de campañas
 de rol (workspace `leyenda` y futuros). Registra el **estado ANTES del cambio** y
 sirve como referencia de las fases de actualización.

@@ -1,6 +1,6 @@
 # S9-Knowledge V3 — estado del programa y decisiones
 
-Fecha: 2026-07-28 · Rama: `feat/knowledge-v3-redesign` · Base congelada de contratos:
+Fecha: 2026-07-28 · Actualizado: 2026-07-30 · Rama actual: `main` · Base congelada de contratos:
 `v3-contracts-frozen-1.0.0`
 
 Este documento es el mapa del programa: qué está construido y verificado, qué se
@@ -25,8 +25,8 @@ punto de entrada; cada bloque tiene su documento propio en `docs/v3/`.
 | Writer con gate de operador | `09-writer.md` | CONFORME, mergeado |
 | Held-out independiente | `10-heldout.md` | Mergeado, **sin usar** |
 | Cadena extremo a extremo | `11-e2e.md` | Mergeado |
-| Extractor semántico episódico | `12-semantic-extractor.md` | En rama, midiendo |
-| Semántico conectado a la cadena + negaciones | `15-semantic-extractor-e2e-integration.md` | En rama `fix/v3-semantic-extractor-e2e` |
+| Extractor semántico episódico | `12-semantic-extractor.md` | Mergeado |
+| Semántico conectado a la cadena + negaciones | `15-semantic-extractor-e2e-integration.md` | Mergeado |
 
 Cada bloque pasó por editor, revisor independiente y correcciones. Seis de los
 nueve recibieron un NO CONFORME inicial: historia mutable en el ledger, cruce de
@@ -194,8 +194,8 @@ Dos resultados nuevos:
   `key_id` están reservados y sin uso.
 - Ninguna prueba contra un Neo4j real: que las consultas hagan allí lo que dicen es
   verificación de despliegue pendiente.
-- `nvidia.env` no lo carga ninguna unidad systemd: la clave está inerte en
-  producción.
+- La release RC5.1 de producción no carga la configuración de proveedores V3;
+  las plantillas corregidas en el Lote 6 aún no están desplegadas.
 - **El camino de escritura de la negación tiene cobertura CERO en producción.**
   `extraction/deterministic.py:643` (`review = bool(negated or ...)`, preexistente)
   hace que TODO claim negado, de cualquier tipo y por cualquier carril, nazca con
@@ -211,3 +211,15 @@ Dos resultados nuevos:
   liderazgo de`) no se detectan (fail-open benigno).
 - El coste real de Ollama en esta ronda: 50,1 s/llamada y 181,7 s/episodio,
   **×1,41** sobre los 129 s/episodio del bloque 12.
+
+## 6. Actualización de estado — 2026-07-30
+
+- V3 quedó mergeada en `main` mediante la PR #110; ya no está limitada a la
+  rama indicada en la cabecera histórica de este documento.
+- Los Lotes 1, 2, 2b, 3 y 6 del
+  [`plan consolidado`](32-plan-consolidado-extractor-y-nucleo.md) están
+  completados y mergeados mediante las PRs #111–#114.
+- La política graduada de negaciones y temporalidad está implementada, pero sus
+  flags permanecen **OFF** hasta completar la medición en sombra. No hay
+  autorización implícita para activarla.
+- Producción en VM105 continúa en RC5.1. V3 no está desplegada.

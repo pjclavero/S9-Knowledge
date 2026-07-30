@@ -1,5 +1,8 @@
 # Diseño del visor de grafo — S9 Knowledge (modelo de datos)
 
+> **Documento de la era v1/v2 (legacy); la línea vigente es V3, ver
+> [`docs/v3/`](../v3/).**
+
 Documento de diseño. **No implementa el visor**: define qué datos deja el pipeline
 en Neo4j y qué vistas podrá construir el visor futuro sobre ellos.
 
