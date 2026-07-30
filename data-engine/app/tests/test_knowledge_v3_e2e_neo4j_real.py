@@ -134,7 +134,7 @@ def request_for(plan_doc: dict, **over) -> OperatorRequest:
 def test_e2e_01_aplicado_contra_neo4j_efimero(graph: GraphProbe):
     """El plan de E2E-01, construido desde bytes, se aplica de verdad."""
     plan_doc, _run, _p = pipeline_plan("p7-e2e-01", T_HECHO)
-    assert plan_doc["approved"] is True or plan_doc["local_approval"]["approved"] is True
+    assert plan_doc["local_approval"]["approved"] is True
 
     result = writer_for(plan_doc, graph.driver).write(plan_doc, request_for(plan_doc))
 
@@ -409,8 +409,14 @@ class TestNegacionDeCesacionNoCierra:
         assert "NEGATION_POLICY_REVIEW" in decision.reason_codes()
         assert "CESSATION_SHADOW_PLAN" in decision.reason_codes()
         assert effective_ops == []
-        assert "CREATE_ASSERTION" in review_ops
-        assert "SUPERSEDE_ASSERTION" in review_ops
+        assert review_ops == []
+        shadow = next(
+            finding.detail
+            for finding in decision.findings
+            if finding.code == "CESSATION_SHADOW_PLAN"
+        )
+        assert previous.assertion_id in shadow
+        assert "afirmacion negativa" in shadow
 
 
 def _plan_or_none(source_id: str, text: str, *, assertions=(), **config_overrides):
