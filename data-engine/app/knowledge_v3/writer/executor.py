@@ -22,6 +22,7 @@ conexion y no tiene ninguna URL por defecto.
 from __future__ import annotations
 
 import re
+import uuid
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -350,8 +351,8 @@ def execute_operation(
 def execute_plan(driver: Any, view: SignedView, ctx: ExecutionContext) -> ExecutionOutcome:
     """Aplica el plan en UNA transaccion. Cualquier fallo la revierte entera.
 
-    Las claves de idempotencia se registran DESPUES del commit: marcarlas antes
-    perderia para siempre una operacion que la transaccion acabo revirtiendo.
+    La marca autoritativa vive en Neo4j y se crea dentro de esta transaccion.
+    El almacén inyectado se actualiza después sólo como caché compatible.
     """
     outcome = ExecutionOutcome()
     pending: list[AppliedOperation] = []
@@ -373,8 +374,41 @@ def execute_plan(driver: Any, view: SignedView, ctx: ExecutionContext) -> Execut
         try:
             for op in view.mutation_operations:
                 key = op["idempotency_key"]
-                if ctx.applied_keys.is_applied(key):
-                    # No-op contabilizado: no llega al driver, no escribe dos veces.
+                cached = ctx.applied_keys.is_applied(key)
+                claimed = _single(
+                    tx,
+                    cypher.claim_applied_operation(
+                        view.workspace,
+                        key,
+                        view.plan_hash_value,
+                        op["operation_id"],
+                        ctx.written_at,
+                        uuid.uuid4().hex,
+                    ),
+                )
+                existing_hash = _field(claimed, "plan_hash")
+                existing_operation = _field(claimed, "operation_id")
+                created = _field(claimed, "created")
+                # Compatibilidad con drivers falsos antiguos sin retorno tipado.
+                if created is None and existing_hash is None:
+                    created = not cached
+                if not created:
+                    if (
+                        existing_hash != view.plan_hash_value
+                        or existing_operation != op["operation_id"]
+                    ):
+                        raise WriterAbort(
+                            codes.EXEC_IDEMPOTENCY_CONFLICT,
+                            "idempotency_key ya aplicada por un plan incompatible",
+                            {
+                                "workspace": view.workspace,
+                                "idempotency_key": key,
+                                "expected_plan_hash": view.plan_hash_value,
+                                "actual_plan_hash": existing_hash,
+                                "expected_operation_id": op["operation_id"],
+                                "actual_operation_id": existing_operation,
+                            },
+                        )
                     outcome.noop_keys.append(key)
                     continue
                 pending.append(execute_operation(tx, op, view, ctx))
@@ -387,20 +421,25 @@ def execute_plan(driver: Any, view: SignedView, ctx: ExecutionContext) -> Execut
             raise
 
     for applied in pending:
-        ctx.applied_keys.record(
-            applied.idempotency_key,
-            {
-                "workspace": view.workspace,
-                "snapshot_id": view.snapshot_id,
-                "plan_hash": view.plan_hash_value,
-                "operation_id": applied.operation_id,
-                "operation_type": applied.operation_type,
-                "target_id": applied.target_id,
-                "created_id": applied.created_id,
-                "applied_at": ctx.written_at,
-                "operator_id": ctx.operator_id,
-            },
-        )
+        try:
+            ctx.applied_keys.record(
+                applied.idempotency_key,
+                {
+                    "workspace": view.workspace,
+                    "snapshot_id": view.snapshot_id,
+                    "plan_hash": view.plan_hash_value,
+                    "operation_id": applied.operation_id,
+                    "operation_type": applied.operation_type,
+                    "target_id": applied.target_id,
+                    "created_id": applied.created_id,
+                    "applied_at": ctx.written_at,
+                    "operator_id": ctx.operator_id,
+                    "authority": "neo4j",
+                },
+            )
+        except Exception:
+            # Una caché vacía o atrasada es segura: el reintento consulta Neo4j.
+            pass
     outcome.applied = pending
     return outcome
 

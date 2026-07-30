@@ -417,9 +417,10 @@ def test_el_replay_de_un_plan_completo_no_escribe_ni_una_vez_mas():
     assert len(primero.writes) == 3
 
     for _ in range(3):
-        repetido = FakeDriver()
+        repetido = primero
+        writes_before = list(repetido.writes)
         result = make_writer(repetido, applied_keys=keys).write(plan, apply_request(plan))
-        assert repetido.writes == []
+        assert repetido.writes == writes_before
         assert result.noop_operations == 3
 
 
