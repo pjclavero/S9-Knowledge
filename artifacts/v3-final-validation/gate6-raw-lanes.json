@@ -1,0 +1,391 @@
+{
+  "corpus": {
+    "cases": 12,
+    "path": "data-engine/app/knowledge_v3/benchmarks/datasets/factivity/cases.json",
+    "provenance": "dev-synthetic/opus-2026-07-30",
+    "split": "dev-synthetic"
+  },
+  "gate": "6",
+  "generated_by": "opus-gate6",
+  "lanes": {
+    "combined": {
+      "errors": [],
+      "lane": "combined",
+      "latency_ms": {
+        "max": 7,
+        "mean": 5,
+        "median": 6,
+        "min": 4
+      },
+      "rows": {
+        "fact:hecho-afirmado:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:02": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:03": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:04": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:05": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:06": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:07": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:08": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:09": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:10": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:negacion-factual:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:negacion-factual:02": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        }
+      },
+      "wall_seconds": 0.1
+    },
+    "det": {
+      "errors": [],
+      "lane": "det",
+      "latency_ms": {
+        "max": 7,
+        "mean": 5,
+        "median": 5,
+        "min": 4
+      },
+      "rows": {
+        "fact:hecho-afirmado:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:02": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:03": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:04": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:05": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:06": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:07": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:08": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:09": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:hecho-afirmado:10": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:negacion-factual:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:negacion-factual:02": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [],
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        }
+      },
+      "wall_seconds": 0.1
+    },
+    "policy": {
+      "lane": "policy",
+      "rows": {
+        "fact:hecho-afirmado:01": {
+          "factivity_class": "ASSERTED_FACT",
+          "hint": "ASSERTED",
+          "negated": false,
+          "negation_kind": "",
+          "policy_action": "EMIT_WORLD_CLAIM",
+          "reason_codes": [],
+          "scope": "WORLD"
+        },
+        "fact:hecho-afirmado:02": {
+          "factivity_class": "ASSERTED_FACT",
+          "hint": "ASSERTED",
+          "negated": false,
+          "negation_kind": "",
+          "policy_action": "EMIT_WORLD_CLAIM",
+          "reason_codes": [],
+          "scope": "WORLD"
+        },
+        "fact:hecho-afirmado:03": {
+          "factivity_class": "ASSERTED_FACT",
+          "hint": "ASSERTED",
+          "negated": false,
+          "negation_kind": "",
+          "policy_action": "EMIT_WORLD_CLAIM",
+          "reason_codes": [],
+          "scope": "WORLD"
+        },
+        "fact:hecho-afirmado:04": {
+          "factivity_class": "ASSERTED_FACT",
+          "hint": "ASSERTED",
+          "negated": false,
+          "negation_kind": "",
+          "policy_action": "EMIT_WORLD_CLAIM",
+          "reason_codes": [],
+          "scope": "WORLD"
+        },
+        "fact:hecho-afirmado:05": {
+          "factivity_class": "ASSERTED_FACT",
+          "hint": "ASSERTED",
+          "negated": false,
+          "negation_kind": "",
+          "policy_action": "EMIT_WORLD_CLAIM",
+          "reason_codes": [],
+          "scope": "WORLD"
+        },
+        "fact:hecho-afirmado:06": {
+          "factivity_class": "ASSERTED_FACT",
+          "hint": "ASSERTED",
+          "negated": false,
+          "negation_kind": "",
+          "policy_action": "EMIT_WORLD_CLAIM",
+          "reason_codes": [],
+          "scope": "WORLD"
+        },
+        "fact:hecho-afirmado:07": {
+          "factivity_class": "ASSERTED_FACT",
+          "hint": "ASSERTED",
+          "negated": false,
+          "negation_kind": "",
+          "policy_action": "EMIT_WORLD_CLAIM",
+          "reason_codes": [],
+          "scope": "WORLD"
+        },
+        "fact:hecho-afirmado:08": {
+          "factivity_class": "ASSERTED_FACT",
+          "hint": "ASSERTED",
+          "negated": false,
+          "negation_kind": "",
+          "policy_action": "EMIT_WORLD_CLAIM",
+          "reason_codes": [],
+          "scope": "WORLD"
+        },
+        "fact:hecho-afirmado:09": {
+          "factivity_class": "ASSERTED_FACT",
+          "hint": "ASSERTED",
+          "negated": false,
+          "negation_kind": "",
+          "policy_action": "EMIT_WORLD_CLAIM",
+          "reason_codes": [],
+          "scope": "WORLD"
+        },
+        "fact:hecho-afirmado:10": {
+          "factivity_class": "ASSERTED_FACT",
+          "hint": "ASSERTED",
+          "negated": false,
+          "negation_kind": "",
+          "policy_action": "EMIT_WORLD_CLAIM",
+          "reason_codes": [],
+          "scope": "WORLD"
+        },
+        "fact:negacion-factual:01": {
+          "factivity_class": "NEGATED_FACT",
+          "hint": "ASSERTED",
+          "negated": true,
+          "negation_kind": "SIMPLE",
+          "policy_action": "EMIT_NEGATED_WORLD_CLAIM",
+          "reason_codes": [],
+          "scope": "WORLD"
+        },
+        "fact:negacion-factual:02": {
+          "factivity_class": "NEGATED_FACT",
+          "hint": "ASSERTED",
+          "negated": true,
+          "negation_kind": "NEVER",
+          "policy_action": "EMIT_NEGATED_WORLD_CLAIM",
+          "reason_codes": [],
+          "scope": "WORLD"
+        }
+      }
+    }
+  }
+}

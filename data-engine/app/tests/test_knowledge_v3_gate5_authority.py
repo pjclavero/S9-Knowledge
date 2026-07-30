@@ -319,6 +319,75 @@ def test_el_proveedor_no_puede_firmar_una_confianza_alta():
         )
 
 
+# ==========================================================================
+# 3. La sombra es inerte: mide, no decide
+# ==========================================================================
+def test_el_registro_de_sombra_no_puede_transportar_una_operacion_aplicable():
+    """Gate: 0 operaciones sombra aplicables.
+
+    No se comprueba mirando una corrida concreta —eso solo diria que HOY no
+    llevaba ninguna—, sino la FORMA del registro: si `ShadowDecisionRecord`
+    solo puede contener cadenas, booleanos y tuplas de cadenas, entonces no hay
+    corrida capaz de meter en el un plan ni una operacion ejecutable.
+
+    `operation_kinds` es una tupla de ETIQUETAS ("CREATE_ASSERTION"), no de
+    operaciones: un nombre no se puede aplicar contra un grafo.
+    """
+    from dataclasses import fields
+
+    from knowledge_v3.engine.shadow import ShadowDecisionRecord
+
+    assert ShadowDecisionRecord.__dataclass_params__.frozen, (
+        "un registro mutable de sombra podria modificarse despues de emitirse"
+    )
+    permitidos = {"str", "bool", "str | None", "tuple[str, ...]"}
+    tipos = {f.name: str(f.type) for f in fields(ShadowDecisionRecord)}
+    fuera = {n: t for n, t in tipos.items() if t not in permitidos}
+    assert fuera == {}, f"la sombra transporta tipos no inertes: {fuera}"
+
+
+def test_la_sombra_trabaja_sobre_copias_y_no_toca_la_decision_efectiva():
+    """Gate: 0 decisiones efectivas alteradas por la sombra.
+
+    Se le da a `evaluate_semantic_shadow` la MISMA lista que se usa como
+    efectiva y se comprueba que, tras evaluar, las decisiones efectivas siguen
+    byte a byte igual. Si la sombra mutase en sitio en vez de copiar, aqui se
+    veria.
+    """
+    import json
+
+    from knowledge_v3.engine import DEFAULT_CONFIG
+    from knowledge_v3.engine.ontology import ProfileIndex
+    from knowledge_v3.engine.shadow import evaluate_semantic_shadow
+
+    from test_knowledge_v3_engine_gold import claim as gold_claim
+    from test_knowledge_v3_engine_gold import profile as gold_profile
+    from test_knowledge_v3_engine_gold import run as gold_run
+
+    result = gold_run([gold_claim()])
+    decisions = result.decisions
+
+    def huella():
+        return json.dumps(
+            [
+                {**d.to_contract_dict(), "findings": [f.code for f in d.findings]}
+                for d in decisions
+            ],
+            sort_keys=True,
+            ensure_ascii=False,
+        )
+
+    antes = huella()
+    records = evaluate_semantic_shadow(
+        [gold_claim()], decisions, decisions, ProfileIndex(gold_profile()), DEFAULT_CONFIG
+    )
+    assert huella() == antes, "la sombra alteró las decisiones efectivas"
+    # Y lo que devuelve son registros inertes, no operaciones.
+    for record in records:
+        assert isinstance(record.operation_kinds, tuple)
+        assert all(isinstance(k, str) for k in record.operation_kinds)
+
+
 def test_el_carril_externo_esta_mas_capado_que_el_local():
     """Un proveedor remoto no ha visto el corpus: su techo es mas bajo.
 

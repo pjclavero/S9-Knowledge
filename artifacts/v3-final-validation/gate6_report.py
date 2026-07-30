@@ -27,11 +27,38 @@ NO_WORLD_FACT_FAMILIES = ("PREGUNTA", "CONTRAFACTUAL", "FICCION_EN_FICCION")
 NOT_MATERIALIZED_FAMILIES = ("DESEO", "ORDEN")
 
 
-def load(raw_path: Path) -> tuple[dict, dict]:
-    raw = json.loads(raw_path.read_text(encoding="utf-8"))
+def load(raw_paths: list[Path]) -> tuple[dict, dict]:
+    """Funde varios ficheros crudos en uno.
+
+    Cada carril se mide por separado —los de proveedor tardan y se lanzan
+    cuando la maquina lo permite—, asi que el analisis tiene que poder juntar
+    lo que exista sin exigir que todo se haya medido a la vez.
+
+    Los carriles de proveedor van sobre una MUESTRA, no sobre el corpus entero.
+    Eso se propaga: `covered_cases` de cada carril dice sobre que frases se
+    midio, y el gate de acuerdo solo se calcula donde ambos carriles miraron.
+    """
+    merged: dict = {"gate": "6", "corpus": None, "lanes": {}}
+    for path in raw_paths:
+        if not path.exists():
+            continue
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if merged["corpus"] is None:
+            merged["corpus"] = raw["corpus"]
+        for name, lane in raw["lanes"].items():
+            lane = dict(lane)
+            lane["covered_cases"] = sorted(lane.get("rows", {}))
+            merged["lanes"][name] = lane
     corpus = json.loads(CORPUS.read_text(encoding="utf-8"))
+    if merged["corpus"] is None:
+        merged["corpus"] = {
+            "path": str(CORPUS),
+            "split": corpus["split"],
+            "provenance": corpus["provenance"],
+            "cases": len(corpus["cases"]),
+        }
     cases = {c["case_id"]: c for c in corpus["cases"]}
-    return raw, cases
+    return merged, cases
 
 
 def world_positive(row: dict) -> int:
@@ -41,6 +68,9 @@ def world_positive(row: dict) -> int:
 
 def world_negative(row: dict) -> int:
     return int(row.get("negated_world_claims", 0) or 0)
+
+
+NOT_MEASURED = "NOT_MEASURED"
 
 
 def action_of(row: dict) -> str:
@@ -76,7 +106,14 @@ def analyse(raw: dict, cases: dict) -> dict[str, Any]:
             "lanes": {},
         }
         for lane in extraction_lanes:
-            row = lanes[lane]["rows"].get(case_id, {})
+            rows = lanes[lane].get("rows", {})
+            if case_id not in rows:
+                # El carril no midio esta frase (muestra estratificada). Se
+                # marca; NO se cuenta como "no produjo hechos", que seria
+                # convertir una ausencia de medida en un acierto.
+                entry["lanes"][lane] = {"action": NOT_MEASURED}
+                continue
+            row = rows[case_id]
             entry["lanes"][lane] = {
                 "world_claims": world_positive(row),
                 "negated_world_claims": world_negative(row),
@@ -88,15 +125,24 @@ def analyse(raw: dict, cases: dict) -> dict[str, Any]:
             }
         matrix.append(entry)
 
+    def measured(lane: str):
+        return [e for e in matrix if e["lanes"][lane]["action"] != NOT_MEASURED]
+
     # --- vacuidad: sin controles positivos, ningun gate significa nada ----
     vacuity = {}
     for lane in extraction_lanes:
+        controls = [
+            e
+            for e in measured(lane)
+            if e["family"] in ("HECHO_AFIRMADO", "NEGACION_FACTUAL")
+        ]
         produced = sum(
             e["lanes"][lane]["world_claims"] + e["lanes"][lane]["negated_world_claims"]
-            for e in matrix
-            if e["family"] in ("HECHO_AFIRMADO", "NEGACION_FACTUAL")
+            for e in controls
         )
         vacuity[lane] = {
+            "cases_measured": len(measured(lane)),
+            "controls_measured": len(controls),
             "controls_producing_facts": produced,
             "vacuous": produced == 0,
             "note": (
@@ -123,28 +169,26 @@ def analyse(raw: dict, cases: dict) -> dict[str, Any]:
         )
 
     for lane in extraction_lanes:
-        if vacuity[lane]["vacuous"]:
-            add(
-                f"carril util (no vacuo)",
-                vacuity[lane]["controls_producing_facts"],
-                "> 0 hechos en controles positivos",
-                False,
-                vacuity[lane]["note"],
-                lane,
-            )
-            continue
+        vacuo = vacuity[lane]["vacuous"]
         add(
             "carril util (no vacuo)",
             vacuity[lane]["controls_producing_facts"],
             "> 0 hechos en controles positivos",
-            True,
-            "",
+            not vacuo,
+            vacuity[lane]["note"] if vacuo else "",
             lane,
         )
+        # OJO: aunque el carril sea vacuo se siguen evaluando los gates de
+        # seguridad. La vacuidad invalida los APROBADOS —no se puede acreditar
+        # "0 hechos en preguntas" a quien no extrae nada—, pero NO invalida las
+        # VIOLACIONES: si un carril que no acierta los controles ademas
+        # materializa un hecho donde no lo hay, eso es un fallo real y contarlo
+        # como "no interpretable" seria esconderlo.
+        suffix = " [carril vacuo: un APROBADO aqui no es acreditable]" if vacuo else ""
 
         offenders = [
             e["case_id"]
-            for e in matrix
+            for e in measured(lane)
             if e["family"] in NO_WORLD_FACT_FAMILIES and e["lanes"][lane]["world_claims"] > 0
         ]
         add(
@@ -152,13 +196,13 @@ def analyse(raw: dict, cases: dict) -> dict[str, Any]:
             len(offenders),
             0,
             not offenders,
-            ", ".join(offenders[:6]),
+            ", ".join(offenders[:6]) + suffix,
             lane,
         )
 
         not_materialized = [
             e["case_id"]
-            for e in matrix
+            for e in measured(lane)
             if e["family"] in NOT_MATERIALIZED_FAMILIES
             and (e["lanes"][lane]["world_claims"] or e["lanes"][lane]["negated_world_claims"])
         ]
@@ -167,13 +211,13 @@ def analyse(raw: dict, cases: dict) -> dict[str, Any]:
             len(not_materialized),
             0,
             not not_materialized,
-            ", ".join(not_materialized[:6]),
+            ", ".join(not_materialized[:6]) + suffix,
             lane,
         )
 
         inverted = [
             e["case_id"]
-            for e in matrix
+            for e in measured(lane)
             if e["family"] == "FALSEDAD_ATRIBUIDA" and e["lanes"][lane]["world_claims"] > 0
         ]
         add(
@@ -181,33 +225,55 @@ def analyse(raw: dict, cases: dict) -> dict[str, Any]:
             len(inverted),
             0,
             not inverted,
-            ", ".join(inverted[:6]),
+            ", ".join(inverted[:6]) + suffix,
             lane,
         )
 
-        neg_family = [e for e in matrix if e["family"] == "NEGACION_FACTUAL"]
+        materialized_abstain = [
+            (e["case_id"], e["family"], e["lanes"][lane]["action"])
+            for e in measured(lane)
+            if e["expected"] == "ABSTAIN"
+            and e["lanes"][lane]["action"] in ("CREATE_POSITIVE", "CREATE_NEGATIVE")
+        ]
+        add(
+            "(suplementario) ninguna familia con esperado ABSTAIN materializa un hecho",
+            len(materialized_abstain),
+            0,
+            not materialized_abstain,
+            "; ".join(f"{c}/{f}->{a}" for c, f, a in materialized_abstain[:8]) + suffix,
+            lane,
+        )
+
+        neg_family = [e for e in measured(lane) if e["family"] == "NEGACION_FACTUAL"]
         kept = [e for e in neg_family if e["lanes"][lane]["negated_world_claims"] > 0]
         add(
             "negacion factual directa conserva claim negativo",
             f"{len(kept)}/{len(neg_family)}",
             f"{len(neg_family)}/{len(neg_family)}",
-            len(kept) == len(neg_family),
-            ", ".join(e["case_id"] for e in neg_family if e not in kept)[:200],
+            len(neg_family) > 0 and len(kept) == len(neg_family),
+            ", ".join(e["case_id"] for e in neg_family if e not in kept)[:200] + suffix,
             lane,
         )
 
     # acuerdo de ACCION entre carriles (solo carriles no vacuos y sin error)
-    usable = [lane for lane in extraction_lanes if not vacuity[lane]["vacuous"]]
-    if len(usable) >= 2:
+    usable = [
+        lane for lane in extraction_lanes if vacuity[lane]["cases_measured"] > 0
+    ]
+    if len(usable) >= 2 and any(not vacuity[l]["vacuous"] for l in usable):
+        common = [
+            e for e in matrix
+            if all(e["lanes"][l]["action"] != NOT_MEASURED for l in usable)
+        ]
         disagreements = []
-        for entry in matrix:
+        for entry in common:
             actions = {lane: entry["lanes"][lane]["action"] for lane in usable}
             if len(set(actions.values())) > 1:
                 disagreements.append({"case_id": entry["case_id"], "actions": actions})
-        agreement = 1 - len(disagreements) / len(matrix) if matrix else 0.0
+        agreement = 1 - len(disagreements) / len(common) if common else 0.0
         add(
             "100% acuerdo de ACCION entre carriles",
-            f"{agreement:.2%} ({len(disagreements)} discrepancias)",
+            f"{agreement:.2%} sobre {len(common)} frases comunes "
+            f"({len(disagreements)} discrepancias)",
             "100%",
             not disagreements,
             "; ".join(
@@ -218,10 +284,15 @@ def analyse(raw: dict, cases: dict) -> dict[str, Any]:
     else:
         add(
             "100% acuerdo de ACCION entre carriles",
-            f"solo {len(usable)} carril(es) utiles",
+            (
+                f"{len(usable)} carriles medidos, todos vacuos"
+                if len(usable) >= 2
+                else f"solo {len(usable)} carril(es) medidos"
+            ),
             ">= 2 carriles utiles",
             False,
-            "sin dos carriles no vacuos el acuerdo no es medible",
+            "sin dos carriles medidos, y al menos uno no vacuo, el acuerdo no "
+            "es medible: dos carriles que no extraen nada coinciden siempre",
             "+".join(usable) or "-",
         )
 
@@ -229,7 +300,7 @@ def analyse(raw: dict, cases: dict) -> dict[str, Any]:
     by_family: dict[str, Any] = defaultdict(dict)
     for lane in extraction_lanes:
         per = defaultdict(lambda: Counter())
-        for entry in matrix:
+        for entry in measured(lane):
             per[entry["family"]][entry["lanes"][lane]["action"]] += 1
         for family, counter in per.items():
             by_family[family][lane] = dict(counter)
@@ -312,11 +383,11 @@ def to_markdown(report: dict) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--raw", default="artifacts/v3-final-validation/gate6-raw-lanes.json")
+    parser.add_argument("--raw", nargs="+", default=["artifacts/v3-final-validation/gate6-raw-lanes.json"])
     parser.add_argument("--out", default="artifacts/v3-final-validation")
     args = parser.parse_args()
 
-    raw, cases = load(Path(args.raw))
+    raw, cases = load([Path(p) for p in args.raw])
     report = analyse(raw, cases)
     out = Path(args.out)
     (out / "gate6-factivity-matrix.json").write_text(

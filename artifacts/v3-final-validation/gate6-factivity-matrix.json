@@ -1,0 +1,2484 @@
+{
+  "by_family": {
+    "ALCANCE_COMPLEJO": {
+      "nvidia": {
+        "CREATE_NEGATIVE": 1,
+        "NO_FACT": 1
+      }
+    },
+    "CONDICIONAL": {
+      "nvidia": {
+        "NO_FACT": 2
+      }
+    },
+    "CONTRAFACTUAL": {
+      "nvidia": {
+        "NO_FACT": 2
+      }
+    },
+    "DESEO": {
+      "nvidia": {
+        "NO_FACT": 2
+      }
+    },
+    "FALSEDAD_ATRIBUIDA": {
+      "nvidia": {
+        "NO_FACT": 2
+      }
+    },
+    "FICCION_EN_FICCION": {
+      "nvidia": {
+        "NO_FACT": 2
+      }
+    },
+    "HECHO_AFIRMADO": {
+      "combined": {
+        "NO_FACT": 10
+      },
+      "det": {
+        "NO_FACT": 10
+      },
+      "nvidia": {
+        "NO_FACT": 2
+      }
+    },
+    "HIPOTESIS": {
+      "nvidia": {
+        "CREATE_POSITIVE": 2
+      }
+    },
+    "NEGACION_FACTUAL": {
+      "combined": {
+        "NO_FACT": 2
+      },
+      "det": {
+        "NO_FACT": 2
+      },
+      "nvidia": {
+        "NO_FACT": 2
+      }
+    },
+    "ORDEN": {
+      "nvidia": {
+        "CREATE_NEGATIVE": 1,
+        "NO_FACT": 1
+      }
+    },
+    "PREGUNTA": {
+      "nvidia": {
+        "NO_FACT": 2
+      }
+    },
+    "RUMOR": {
+      "nvidia": {
+        "CREATE_NEGATIVE": 1,
+        "NO_FACT": 1
+      }
+    }
+  },
+  "corpus": {
+    "cases": 12,
+    "path": "data-engine/app/knowledge_v3/benchmarks/datasets/factivity/cases.json",
+    "provenance": "dev-synthetic/opus-2026-07-30",
+    "split": "dev-synthetic"
+  },
+  "gate": "6",
+  "gates": [
+    {
+      "detail": "el carril no produce ningun hecho ni en los controles positivos: cualquier gate de seguridad pasaria por inanicion, no por acierto",
+      "lane": "combined",
+      "name": "carril util (no vacuo)",
+      "observed": 0,
+      "status": "NO CONFORME",
+      "threshold": "> 0 hechos en controles positivos"
+    },
+    {
+      "detail": " [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "combined",
+      "name": "0 hechos del mundo en preguntas/contrafactuales/ficcion interna",
+      "observed": 0,
+      "status": "CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": " [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "combined",
+      "name": "deseos/ordenes no materializados",
+      "observed": 0,
+      "status": "CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": " [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "combined",
+      "name": "falsedad atribuida no invertida (no se afirma lo desmentido)",
+      "observed": 0,
+      "status": "CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": " [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "combined",
+      "name": "(suplementario) ninguna familia con esperado ABSTAIN materializa un hecho",
+      "observed": 0,
+      "status": "CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": "fact:negacion-factual:01, fact:negacion-factual:02 [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "combined",
+      "name": "negacion factual directa conserva claim negativo",
+      "observed": "0/2",
+      "status": "NO CONFORME",
+      "threshold": "2/2"
+    },
+    {
+      "detail": "el carril no produce ningun hecho ni en los controles positivos: cualquier gate de seguridad pasaria por inanicion, no por acierto",
+      "lane": "det",
+      "name": "carril util (no vacuo)",
+      "observed": 0,
+      "status": "NO CONFORME",
+      "threshold": "> 0 hechos en controles positivos"
+    },
+    {
+      "detail": " [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "det",
+      "name": "0 hechos del mundo en preguntas/contrafactuales/ficcion interna",
+      "observed": 0,
+      "status": "CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": " [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "det",
+      "name": "deseos/ordenes no materializados",
+      "observed": 0,
+      "status": "CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": " [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "det",
+      "name": "falsedad atribuida no invertida (no se afirma lo desmentido)",
+      "observed": 0,
+      "status": "CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": " [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "det",
+      "name": "(suplementario) ninguna familia con esperado ABSTAIN materializa un hecho",
+      "observed": 0,
+      "status": "CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": "fact:negacion-factual:01, fact:negacion-factual:02 [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "det",
+      "name": "negacion factual directa conserva claim negativo",
+      "observed": "0/2",
+      "status": "NO CONFORME",
+      "threshold": "2/2"
+    },
+    {
+      "detail": "el carril no produce ningun hecho ni en los controles positivos: cualquier gate de seguridad pasaria por inanicion, no por acierto",
+      "lane": "nvidia",
+      "name": "carril util (no vacuo)",
+      "observed": 0,
+      "status": "NO CONFORME",
+      "threshold": "> 0 hechos en controles positivos"
+    },
+    {
+      "detail": " [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "nvidia",
+      "name": "0 hechos del mundo en preguntas/contrafactuales/ficcion interna",
+      "observed": 0,
+      "status": "CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": "fact:orden:01 [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "nvidia",
+      "name": "deseos/ordenes no materializados",
+      "observed": 1,
+      "status": "NO CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": " [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "nvidia",
+      "name": "falsedad atribuida no invertida (no se afirma lo desmentido)",
+      "observed": 0,
+      "status": "CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": "fact:hipotesis:01/HIPOTESIS->CREATE_POSITIVE; fact:hipotesis:02/HIPOTESIS->CREATE_POSITIVE; fact:orden:01/ORDEN->CREATE_NEGATIVE; fact:rumor:02/RUMOR->CREATE_NEGATIVE [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "nvidia",
+      "name": "(suplementario) ninguna familia con esperado ABSTAIN materializa un hecho",
+      "observed": 4,
+      "status": "NO CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": "fact:negacion-factual:01, fact:negacion-factual:02 [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "nvidia",
+      "name": "negacion factual directa conserva claim negativo",
+      "observed": "0/2",
+      "status": "NO CONFORME",
+      "threshold": "2/2"
+    },
+    {
+      "detail": "sin dos carriles medidos, y al menos uno no vacuo, el acuerdo no es medible: dos carriles que no extraen nada coinciden siempre",
+      "lane": "combined+det+nvidia",
+      "name": "100% acuerdo de ACCION entre carriles",
+      "observed": "3 carriles medidos, todos vacuos",
+      "status": "NO CONFORME",
+      "threshold": ">= 2 carriles utiles"
+    }
+  ],
+  "lanes": {
+    "combined": {
+      "errors": [],
+      "latency_ms": {
+        "max": 7,
+        "mean": 5,
+        "median": 6,
+        "min": 4
+      },
+      "model": null,
+      "wall_seconds": 0.1
+    },
+    "det": {
+      "errors": [],
+      "latency_ms": {
+        "max": 7,
+        "mean": 5,
+        "median": 5,
+        "min": 4
+      },
+      "model": null,
+      "wall_seconds": 0.1
+    },
+    "nvidia": {
+      "errors": [],
+      "latency_ms": {
+        "max": 180296,
+        "mean": 57170,
+        "median": 50107,
+        "min": 1336
+      },
+      "model": "meta/llama-3.3-70b-instruct",
+      "wall_seconds": 1372.2
+    }
+  },
+  "matrix": [
+    {
+      "case_id": "fact:hecho-afirmado:01",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "lanes": {
+        "combined": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "det": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "nvidia": {
+          "abstentions": 1,
+          "action": "NO_FACT",
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {
+        "factivity_class": "ASSERTED_FACT",
+        "hint": "ASSERTED",
+        "negated": false,
+        "negation_kind": "",
+        "policy_action": "EMIT_WORLD_CLAIM",
+        "reason_codes": [],
+        "scope": "WORLD"
+      },
+      "text": "Harun Vell, forjador mayor de la Orden de la Obsidiana, custodia desde el invierno pasado el Yunque Negro en el Foso Humeante."
+    },
+    {
+      "case_id": "fact:hecho-afirmado:02",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "lanes": {
+        "combined": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "det": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "nvidia": {
+          "abstentions": 1,
+          "action": "NO_FACT",
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {
+        "factivity_class": "ASSERTED_FACT",
+        "hint": "ASSERTED",
+        "negated": false,
+        "negation_kind": "",
+        "policy_action": "EMIT_WORLD_CLAIM",
+        "reason_codes": [],
+        "scope": "WORLD"
+      },
+      "text": "El Sello de Lava fue entregado por Kaspar Nune a la Casa Verrant en presencia del Cónclave de la Ceniza."
+    },
+    {
+      "case_id": "fact:hecho-afirmado:03",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "lanes": {
+        "combined": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "det": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {
+        "factivity_class": "ASSERTED_FACT",
+        "hint": "ASSERTED",
+        "negated": false,
+        "negation_kind": "",
+        "policy_action": "EMIT_WORLD_CLAIM",
+        "reason_codes": [],
+        "scope": "WORLD"
+      },
+      "text": "Se juró lealtad al Consejo de los Vientos aquella mañana, y desde entonces la Cofradía de las Velas responde ante Dagna Hoill."
+    },
+    {
+      "case_id": "fact:hecho-afirmado:04",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "lanes": {
+        "combined": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "det": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {
+        "factivity_class": "ASSERTED_FACT",
+        "hint": "ASSERTED",
+        "negated": false,
+        "negation_kind": "",
+        "policy_action": "EMIT_WORLD_CLAIM",
+        "reason_codes": [],
+        "scope": "WORLD"
+      },
+      "text": "Toturi mantiene con el Clan del León una alianza que ningún tratado posterior ha revocado."
+    },
+    {
+      "case_id": "fact:hecho-afirmado:05",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "lanes": {
+        "combined": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "det": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {
+        "factivity_class": "ASSERTED_FACT",
+        "hint": "ASSERTED",
+        "negated": false,
+        "negation_kind": "",
+        "policy_action": "EMIT_WORLD_CLAIM",
+        "reason_codes": [],
+        "scope": "WORLD"
+      },
+      "text": "Sira Delantre dirige el taller de Isla Tenaza."
+    },
+    {
+      "case_id": "fact:hecho-afirmado:06",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "lanes": {
+        "combined": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "det": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {
+        "factivity_class": "ASSERTED_FACT",
+        "hint": "ASSERTED",
+        "negated": false,
+        "negation_kind": "",
+        "policy_action": "EMIT_WORLD_CLAIM",
+        "reason_codes": [],
+        "scope": "WORLD"
+      },
+      "text": "Ilde Varona, la escriba que copió los registros del Gremio de Fundidores, debe a Beltrán Osk una suma que salda cada solsticio."
+    },
+    {
+      "case_id": "fact:hecho-afirmado:07",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "lanes": {
+        "combined": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "det": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {
+        "factivity_class": "ASSERTED_FACT",
+        "hint": "ASSERTED",
+        "negated": false,
+        "negation_kind": "",
+        "policy_action": "EMIT_WORLD_CLAIM",
+        "reason_codes": [],
+        "scope": "WORLD"
+      },
+      "text": "Tras la muerte del maestre anterior, Teo Ravasi sucedió en el mando de la Hermandad de la Fumarola."
+    },
+    {
+      "case_id": "fact:hecho-afirmado:08",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "lanes": {
+        "combined": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "det": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {
+        "factivity_class": "ASSERTED_FACT",
+        "hint": "ASSERTED",
+        "negated": false,
+        "negation_kind": "",
+        "policy_action": "EMIT_WORLD_CLAIM",
+        "reason_codes": [],
+        "scope": "WORLD"
+      },
+      "text": "El escriba refirió que la Compañía del Arrecife opera dos rutas entre Muelle Alto y Puerto Escoria, y sus libros lo confirman."
+    },
+    {
+      "case_id": "fact:hecho-afirmado:09",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "lanes": {
+        "combined": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "det": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {
+        "factivity_class": "ASSERTED_FACT",
+        "hint": "ASSERTED",
+        "negated": false,
+        "negation_kind": "",
+        "policy_action": "EMIT_WORLD_CLAIM",
+        "reason_codes": [],
+        "scope": "WORLD"
+      },
+      "text": "Nerea Tossa, cartógrafa de oficio, lleva sirviendo a la Junta de Astilleros más de doce años."
+    },
+    {
+      "case_id": "fact:hecho-afirmado:10",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "lanes": {
+        "combined": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "det": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {
+        "factivity_class": "ASSERTED_FACT",
+        "hint": "ASSERTED",
+        "negated": false,
+        "negation_kind": "",
+        "policy_action": "EMIT_WORLD_CLAIM",
+        "reason_codes": [],
+        "scope": "WORLD"
+      },
+      "text": "La Carta de Fletes se guarda en la Torre Anemos, bajo la vigilancia de Olmo Quiral, desde que la Sociedad de Aerostatos cedió su copia."
+    },
+    {
+      "case_id": "fact:negacion-factual:01",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "lanes": {
+        "combined": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "det": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "nvidia": {
+          "abstentions": 1,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {
+        "factivity_class": "NEGATED_FACT",
+        "hint": "ASSERTED",
+        "negated": true,
+        "negation_kind": "SIMPLE",
+        "policy_action": "EMIT_NEGATED_WORLD_CLAIM",
+        "reason_codes": [],
+        "scope": "WORLD"
+      },
+      "text": "Mira Cauce no pertenece al Gremio de Fundidores, por mucho que trabaje en sus hornos."
+    },
+    {
+      "case_id": "fact:negacion-factual:02",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "lanes": {
+        "combined": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "det": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "nvidia": {
+          "abstentions": 1,
+          "action": "NO_FACT",
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {
+        "factivity_class": "NEGATED_FACT",
+        "hint": "ASSERTED",
+        "negated": true,
+        "negation_kind": "NEVER",
+        "policy_action": "EMIT_NEGATED_WORLD_CLAIM",
+        "reason_codes": [],
+        "scope": "WORLD"
+      },
+      "text": "El Yunque Negro nunca estuvo en manos de la Casa Verrant."
+    },
+    {
+      "case_id": "fact:negacion-factual:03",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Ninguna de las compañías de Cirro rinde vasallaje a la Orden de la Obsidiana."
+    },
+    {
+      "case_id": "fact:negacion-factual:04",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Dejó de servir a Radi Oster el año en que se firmó la tregua, y no ha vuelto a hacerlo."
+    },
+    {
+      "case_id": "fact:negacion-factual:05",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "No se ha entregado el Sello de Lava a nadie del Cónclave de la Ceniza."
+    },
+    {
+      "case_id": "fact:negacion-factual:06",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Pol Arriaga niega deber nada a Noa Quimper, y los libros de la Junta le dan la razón."
+    },
+    {
+      "case_id": "fact:negacion-factual:07",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Hugo Marlén jamás pilotó una nave de la Cofradía de las Velas."
+    },
+    {
+      "case_id": "fact:negacion-factual:08",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Aunque su nombre figure en la lista, Vera Luntz no es aliada del Consejo de los Vientos."
+    },
+    {
+      "case_id": "fact:negacion-factual:09",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Tanit Pereo tampoco custodia la Carta de Fletes, pese a lo que dictaminaron en Muelle Alto."
+    },
+    {
+      "case_id": "fact:negacion-factual:10",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Se dio por rota la alianza entre la Hermandad de la Fumarola y el Gremio de Fundidores, y desde ese día no existe pacto alguno entre ambas."
+    },
+    {
+      "case_id": "fact:pregunta:01",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 1,
+          "action": "NO_FACT",
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "¿Quién custodia realmente el Yunque Negro desde que Harun Vell abandonó el Foso Humeante?"
+    },
+    {
+      "case_id": "fact:pregunta:02",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "Beltrán Osk preguntó a la asamblea si la Casa Verrant seguía pagando su parte del flete."
+    },
+    {
+      "case_id": "fact:pregunta:03",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "¿De veras juró Teo Ravasi lealtad al Cónclave de la Ceniza, o solo asintió en silencio?"
+    },
+    {
+      "case_id": "fact:pregunta:04",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Nadie supo responder cuántas naves de la Compañía del Arrecife quedaban amarradas en Muelle Alto."
+    },
+    {
+      "case_id": "fact:pregunta:05",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "¿Qué clan reclama hoy la sucesión de Toturi?"
+    },
+    {
+      "case_id": "fact:pregunta:06",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Me pregunto si Sira Delantre habrá roto ya su contrato con la Orden de la Obsidiana."
+    },
+    {
+      "case_id": "fact:pregunta:07",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "¿Fue el Sello de Lava lo que se entregó en Puerto Escoria, o fue una copia labrada por Kaspar Nune?"
+    },
+    {
+      "case_id": "fact:pregunta:08",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "El interrogatorio giró en torno a dónde había escondido Ilde Varona los registros del gremio."
+    },
+    {
+      "case_id": "fact:pregunta:09",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "¿Por qué habría de romper Dagna Hoill una alianza que la sostiene en el poder?"
+    },
+    {
+      "case_id": "fact:pregunta:10",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "¿Cuándo dejó Runa Belisa de arrear caravanas para el Gremio de Fundidores?"
+    },
+    {
+      "case_id": "fact:condicional:01",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "Si Harun Vell aceptase el mando de la Orden de la Obsidiana, el Foso Humeante quedaría sin forjador."
+    },
+    {
+      "case_id": "fact:condicional:02",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 2,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "En caso de que la Casa Verrant incumpla el pago, el Cónclave de la Ceniza revocará su licencia."
+    },
+    {
+      "case_id": "fact:condicional:03",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Solo si el Consejo de los Vientos lo autoriza podrá Tanit Pereo custodiar la Carta de Fletes."
+    },
+    {
+      "case_id": "fact:condicional:04",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Mientras Toturi no rompa la tregua, el Clan del León mantendrá sus guarniciones donde están."
+    },
+    {
+      "case_id": "fact:condicional:05",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "De haber sabido el maestre que Teo Ravasi servía a otra casa, no le habría confiado el sello."
+    },
+    {
+      "case_id": "fact:condicional:06",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Si acaso alguien reclama la deuda de Ilde Varona, que la reclame ante la Junta de Astilleros."
+    },
+    {
+      "case_id": "fact:condicional:07",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Cumplidos los tres inviernos de servicio, Mira Cauce quedaría libre de su juramento."
+    },
+    {
+      "case_id": "fact:condicional:08",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "A no ser que la Hermandad de la Fumarola pague el rescate, Olmo Quiral seguirá retenido en Isla Tenaza."
+    },
+    {
+      "case_id": "fact:condicional:09",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Salvo que medie Nerea Tossa, no habrá acuerdo entre las dos cofradías."
+    },
+    {
+      "case_id": "fact:condicional:10",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Como Vera Luntz vuelva a faltar al muelle, la despedirán sin carta de recomendación."
+    },
+    {
+      "case_id": "fact:contrafactual:01",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "Si Kaspar Nune hubiera pertenecido al Gremio de Fundidores, jamás habrían fundido el Sello de Lava fuera de Puerto Escoria."
+    },
+    {
+      "case_id": "fact:contrafactual:02",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 1,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "De no haberse roto la alianza, la Compañía del Arrecife seguiría fletando para la Casa Verrant."
+    },
+    {
+      "case_id": "fact:contrafactual:03",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Ojalá hubiese sido Dagna Hoill quien presidiera el Consejo aquella noche; otra suerte habría corrido la ciudad."
+    },
+    {
+      "case_id": "fact:contrafactual:04",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Toturi habría heredado la custodia del estandarte si su hermano no hubiera vuelto de la campaña."
+    },
+    {
+      "case_id": "fact:contrafactual:05",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Con un solo voto más, el Cónclave de la Ceniza habría expulsado a Beltrán Osk de sus filas."
+    },
+    {
+      "case_id": "fact:contrafactual:06",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Aunque hubiese jurado ante el Consejo de los Vientos, Pol Arriaga no habría obtenido licencia de vuelo."
+    },
+    {
+      "case_id": "fact:contrafactual:07",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Sin la mediación de Nerea Tossa, la Junta de Astilleros habría quedado disuelta antes del deshielo."
+    },
+    {
+      "case_id": "fact:contrafactual:08",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Qué distinta sería la Hermandad de la Fumarola si Teo Ravasi hubiera aceptado el maestrazgo."
+    },
+    {
+      "case_id": "fact:contrafactual:09",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Runa Belisa se lamenta de que, en otro tiempo, no la enviaran a custodiar el Yunque Negro; de haberlo hecho, la reliquia no se habría perdido."
+    },
+    {
+      "case_id": "fact:contrafactual:10",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Puestos a imaginar, si Isla Tenaza jamás se hubiera hundido, la Orden de la Obsidiana tendría allí su capítulo."
+    },
+    {
+      "case_id": "fact:hipotesis:01",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 1,
+          "action": "CREATE_POSITIVE",
+          "diagnostics": 0,
+          "epistemic_proposals": 1,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 1
+        }
+      },
+      "policy": {},
+      "text": "Cabe suponer que Sira Delantre sirva en secreto a la Casa Verrant, aunque nada lo prueba."
+    },
+    {
+      "case_id": "fact:hipotesis:02",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 0,
+          "action": "CREATE_POSITIVE",
+          "diagnostics": 0,
+          "epistemic_proposals": 1,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 1
+        }
+      },
+      "policy": {},
+      "text": "Los vigías barajan la posibilidad de que el Sello de Lava se encuentre todavía en el Foso Humeante."
+    },
+    {
+      "case_id": "fact:hipotesis:03",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Quizá Hugo Marlén haya roto ya su contrato con la Sociedad de Aerostatos."
+    },
+    {
+      "case_id": "fact:hipotesis:04",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Es probable que la deuda de Ilde Varona pase a manos del Gremio de Fundidores, si bien nadie lo ha formalizado."
+    },
+    {
+      "case_id": "fact:hipotesis:05",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Trabajamos con la hipótesis de que Olmo Quiral fuese el último custodio de la Carta de Fletes."
+    },
+    {
+      "case_id": "fact:hipotesis:06",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Podría ser que el Clan del León y la Casa del Ciervo hubieran sellado una alianza antes del asedio."
+    },
+    {
+      "case_id": "fact:hipotesis:07",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Se sospecha que alguien del Consejo de Umbra financia a los contrabandistas de Puerto Escoria."
+    },
+    {
+      "case_id": "fact:hipotesis:08",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Nada impide pensar que Noa Quimper herede el astillero, pero el testamento sigue sin abrirse."
+    },
+    {
+      "case_id": "fact:hipotesis:09",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Supongamos, solo por un momento, que Mira Cauce respondiera ante el Cónclave de la Ceniza."
+    },
+    {
+      "case_id": "fact:hipotesis:10",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Todo apunta a que la reliquia salió de Isla Tenaza, aunque el registro de aduanas no lo recoge."
+    },
+    {
+      "case_id": "fact:deseo:01",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "Ojalá Toturi acepte algún día la corona que le ofrecen los clanes menores."
+    },
+    {
+      "case_id": "fact:deseo:02",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 1,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "Beltrán Osk anhela que su casa vuelva a sentarse en el Cónclave de la Ceniza."
+    },
+    {
+      "case_id": "fact:deseo:03",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Quisiera Dagna Hoill que la Cofradía de las Velas jurase fidelidad antes del deshielo."
+    },
+    {
+      "case_id": "fact:deseo:04",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Los aprendices sueñan con forjar un día en el Yunque Negro."
+    },
+    {
+      "case_id": "fact:deseo:05",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Que la Orden de la Obsidiana halle por fin un maestre digno."
+    },
+    {
+      "case_id": "fact:deseo:06",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "A Runa Belisa le gustaría servir a la Junta de Astilleros y dejar atrás las caravanas."
+    },
+    {
+      "case_id": "fact:deseo:07",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Nerea Tossa espera, contra todo pronóstico, que le devuelvan los mapas incautados en Muelle Alto."
+    },
+    {
+      "case_id": "fact:deseo:08",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Pluguiera a los kami que la tregua entre ambos clanes durase más que la anterior."
+    },
+    {
+      "case_id": "fact:orden:01",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 1,
+          "action": "CREATE_NEGATIVE",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 1,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "Custodia el Sello de Lava hasta que regrese el maestre, y no se lo entregues a nadie de la Casa Verrant."
+    },
+    {
+      "case_id": "fact:orden:02",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 1,
+          "action": "NO_FACT",
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "El Consejo de los Vientos ordenó que la Compañía del Arrecife suspendiera todos sus fletes."
+    },
+    {
+      "case_id": "fact:orden:03",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Que Olmo Quiral se presente mañana en la Torre Anemos."
+    },
+    {
+      "case_id": "fact:orden:04",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Prohibido a los miembros del Gremio de Fundidores comerciar con Puerto Escoria."
+    },
+    {
+      "case_id": "fact:orden:05",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Devuélvase la Carta de Fletes a la Junta de Astilleros sin más dilación."
+    },
+    {
+      "case_id": "fact:orden:06",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Se ruega a Ilde Varona que abandone el archivo antes del toque de queda."
+    },
+    {
+      "case_id": "fact:orden:07",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "No jures lealtad a la Hermandad de la Fumarola mientras yo viva."
+    },
+    {
+      "case_id": "fact:orden:08",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Deberá Kaspar Nune comparecer ante el Cónclave de la Ceniza y responder por la fundición perdida."
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:01",
+      "expected": "DIAGNOSTIC",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 1,
+          "action": "NO_FACT",
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "Pol Arriaga mintió al declarar que pertenecía al Consejo de los Vientos."
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:02",
+      "expected": "WRITE_NEGATIVE",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 1,
+          "action": "NO_FACT",
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "Contra lo que sostiene el pregonero, el Yunque Negro no se halla en la Torre Anemos."
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:03",
+      "expected": "DIAGNOSTIC",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Fingió Vera Luntz una deuda con Noa Quimper para justificar el retraso del flete."
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:04",
+      "expected": "WRITE_NEGATIVE",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Es falso que la Casa Verrant custodie reliquia alguna del Cónclave de la Ceniza."
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:05",
+      "expected": "DIAGNOSTIC",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "El impostor se hacía pasar por emisario del Clan del León, y durante dos lunas nadie lo desmintió."
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:06",
+      "expected": "DIAGNOSTIC",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Los cronistas de Umbra atribuyeron a Toturi una alianza con la Casa del Ciervo que los archivos desmienten punto por punto."
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:07",
+      "expected": "WRITE_NEGATIVE",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Nunca fue cierto que Sira Delantre dirigiera el Foso Humeante; el cargo lo ocupó siempre otro."
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:08",
+      "expected": "DIAGNOSTIC",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Se falsificó un acta donde constaba que Hugo Marlén servía a la Sociedad de Aerostatos."
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:01",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 2,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "En la obra que representaron los cómicos de Puerto Escoria, Harun Vell traicionaba a la Orden de la Obsidiana en el tercer acto."
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:02",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 1,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "Cuenta la balada de los hornos que el Yunque Negro fue forjado por un dios de ceniza."
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:03",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Nerea Tossa soñó que la Junta de Astilleros la nombraba almiranta y le entregaba la Carta de Fletes."
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:04",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "En el juego de cartas que se practica en Muelle Alto, la Casa Verrant siempre vence al Gremio de Fundidores."
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:05",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Los titiriteros ambulantes escenifican una versión en la que Toturi renuncia al Clan del León y se retira a un monasterio."
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:06",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Según el poema apócrifo que circula por Isla Tenaza, Mira Cauce habría fundado la Hermandad de la Fumarola."
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:07",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "En la pesadilla recurrente del vigía, Isla Tenaza pertenecía al Consejo de Umbra y sus faros ardían de noche."
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:08",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "El manual de máscaras describe a un personaje llamado Beltrán Osk que sirve a tres casas a la vez, pero es solo un arquetipo del repertorio."
+    },
+    {
+      "case_id": "fact:rumor:01",
+      "expected": "ABSTAIN",
+      "family": "RUMOR",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 5,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "Corre por los muelles que Dagna Hoill habría pactado en secreto con la Compañía del Arrecife."
+    },
+    {
+      "case_id": "fact:rumor:02",
+      "expected": "ABSTAIN",
+      "family": "RUMOR",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 0,
+          "action": "CREATE_NEGATIVE",
+          "diagnostics": 0,
+          "epistemic_proposals": 1,
+          "error": null,
+          "negated_world_claims": 1,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "Dicen los arrieros, aunque nadie lo firma, que Runa Belisa dejó de servir al gremio hace tres inviernos."
+    },
+    {
+      "case_id": "fact:rumor:03",
+      "expected": "ABSTAIN",
+      "family": "RUMOR",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Se rumorea en la Torre Anemos que el Sello de Lava cambió de manos durante la última subasta."
+    },
+    {
+      "case_id": "fact:rumor:04",
+      "expected": "ABSTAIN",
+      "family": "RUMOR",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Llegó a oídos del escriba que Teo Ravasi debía favores a la Casa del Ciervo, si bien no halló constancia de ello."
+    },
+    {
+      "case_id": "fact:alcance-complejo:01",
+      "expected": "DIAGNOSTIC",
+      "family": "ALCANCE_COMPLEJO",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 1,
+          "action": "NO_FACT",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "No es que Kaspar Nune sirva a la Casa Verrant, sino que le vende hierro a precio de gremio."
+    },
+    {
+      "case_id": "fact:alcance-complejo:02",
+      "expected": "DIAGNOSTIC",
+      "family": "ALCANCE_COMPLEJO",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "abstentions": 0,
+          "action": "CREATE_NEGATIVE",
+          "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 1,
+          "world_claims": 0
+        }
+      },
+      "policy": {},
+      "text": "Todos los capitanes de la Cofradía de las Velas no juraron ante el Consejo de los Vientos."
+    },
+    {
+      "case_id": "fact:alcance-complejo:03",
+      "expected": "DIAGNOSTIC",
+      "family": "ALCANCE_COMPLEJO",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "Nadie ignora que Ilde Varona custodia los registros del Gremio de Fundidores."
+    },
+    {
+      "case_id": "fact:alcance-complejo:04",
+      "expected": "DIAGNOSTIC",
+      "family": "ALCANCE_COMPLEJO",
+      "lanes": {
+        "combined": {
+          "action": "NOT_MEASURED"
+        },
+        "det": {
+          "action": "NOT_MEASURED"
+        },
+        "nvidia": {
+          "action": "NOT_MEASURED"
+        }
+      },
+      "policy": {},
+      "text": "El Cónclave de la Ceniza no revocó la alianza porque la Casa Verrant hubiera incumplido, sino por presiones de Puerto Escoria."
+    }
+  ],
+  "vacuity": {
+    "combined": {
+      "cases_measured": 12,
+      "controls_measured": 12,
+      "controls_producing_facts": 0,
+      "note": "el carril no produce ningun hecho ni en los controles positivos: cualquier gate de seguridad pasaria por inanicion, no por acierto",
+      "vacuous": true
+    },
+    "det": {
+      "cases_measured": 12,
+      "controls_measured": 12,
+      "controls_producing_facts": 0,
+      "note": "el carril no produce ningun hecho ni en los controles positivos: cualquier gate de seguridad pasaria por inanicion, no por acierto",
+      "vacuous": true
+    },
+    "nvidia": {
+      "cases_measured": 24,
+      "controls_measured": 4,
+      "controls_producing_facts": 0,
+      "note": "el carril no produce ningun hecho ni en los controles positivos: cualquier gate de seguridad pasaria por inanicion, no por acierto",
+      "vacuous": true
+    }
+  }
+}
