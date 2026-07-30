@@ -40,6 +40,37 @@ Lectura honesta de estas cifras:
   CPU cargada domina la latencia por episodio y es la razón de que el carril
   Ollama se muestreara en vez de recorrer las 100 frases.
 
+## Coste real de los carriles de extracción semántica
+
+Éstas son las cifras que importan, y son **mucho** peores que las del prompt
+mínimo: el prompt de extracción lleva la ontología completa más el episodio, y
+el extractor hace **dos llamadas por episodio** (extracción + segunda pasada
+temporal).
+
+| Carril | Frases | Llamadas | Latencia mediana / frase | Pared total | Errores |
+|---|---|---|---|---|---|
+| `nvidia` (`meta/llama-3.3-70b-instruct`) | 24 | 48 | **50 107 ms** (min 1 336 / max 180 296) | **1 372 s** (22,9 min) | 0 |
+| `ollama` (`qwen2.5:7b`, CPU) | 4 | 8 | > 5 min/frase (no completó en 15 min la primera vez) | ver abajo | — |
+
+Dos lecturas honestas:
+
+1. **El salto de 6 s a 50 s en NVIDIA no es del proveedor, es del prompt.** La
+   misma API respondía en 6,2 s a un prompt de dos líneas. Cualquier
+   planificación de ingesta que use los 6 s como referencia se equivocará por un
+   factor de 8.
+2. **Ollama con el prompt real es inviable a este tamaño en esta máquina.** Un
+   primer intento de 3 frases fue **abortado por su propio timeout de 15 min**
+   sin escribir nada. Por eso el carril se redujo a 4 frases y se relanzó cuando
+   la carga bajó.
+
+### Fallo de diseño del propio utillaje (anotado para no repetirlo)
+
+`gate6_factivity_runner.py` escribe el JSON **sólo al final**. Cuando el primer
+intento de Ollama agotó su timeout, se perdió el trabajo de 15 minutos y no
+quedó ni una fila. Un runner de medidas caras debe volcar resultados
+incrementalmente. No se ha cambiado ahora para no alterar el utillaje a mitad de
+campaña, pero es lo primero que hay que corregir antes de la siguiente.
+
 ## Coste por etapa
 
 | Etapa | Coste observado | Nota |
