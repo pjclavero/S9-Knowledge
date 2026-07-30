@@ -349,10 +349,7 @@ def test_explicit_alias_correction_proposes_but_never_applies_glossary(review_fi
         expected_proposal_hash=item["proposal_hash"],
         correction={"subject_alias": "Ari"},
     )
-    from app.services.v3_glossary_candidates import GlossaryCandidateStore
-    candidates = GlossaryCandidateStore(
-        decisions.parent / "glossary-candidates"
-    ).list("alpha")
+    candidates = service.glossary_candidates("alpha")
     assert len(candidates) == 1
     assert candidates[0]["candidate_type"] == "ALIAS_CANDIDATE"
     assert candidates[0]["origin"]["human_decision_ids"] == [record["decision_id"]]

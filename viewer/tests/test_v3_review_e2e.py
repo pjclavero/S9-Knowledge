@@ -690,7 +690,7 @@ def test_no_mutacion_del_glosario_en_el_flujo_completo(
         assert response.status_code == 303, (decision, response.status_code)
 
     assert len(read_history(decisions)) == 3
-    candidates = GlossaryCandidateStore(decisions.parent / "glossary-candidates").list(WORKSPACE)
+    candidates = service.glossary_candidates(WORKSPACE)
     assert candidates, "la corrección explícita no propuso ningún candidato"
     assert {c["status"] for c in candidates} == {"PROPOSED"}
 
