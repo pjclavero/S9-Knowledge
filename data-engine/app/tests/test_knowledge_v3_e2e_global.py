@@ -917,14 +917,7 @@ class TestDefectosDeProduccion:
     inesperada y la suite avisa. Un `skip` los habria escondido.
     """
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="DEFECTO D-G1: 'corre el rumor de que' no esta en EPISTEMIC_CUES "
-        "(cues.py:52). Un rumor explicito se lee como ASSERTED, llega a ACCEPT "
-        "y produce un plan APROBADO con operaciones de escritura. El control "
-        "'se dice que' si esta en la lista y sale REVIEW. La construccion "
-        "aparece literalmente en el corpus dev (leyenda-cronica e03).",
-    )
+    # HALLAZGO D-G1 corregido: el marco explicito de rumor ya frena la escritura.
     def test_DG1_un_rumor_explicito_no_deberia_aprobarse(self, gold, entities):
         _, run = run_text(
             gold,
@@ -951,17 +944,7 @@ class TestDefectosDeProduccion:
         assert decision.epistemic_status == "RUMORED"
         assert "EPISTEMIC_NOT_ASSERTED" in codes(decision)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="DEFECTO D-G2: review_export.review_documents busca "
-        "claim['subject_mention_id'] / claim['object_mention_id'] (el contrato "
-        "ClaimProposal tiene 'subject_mentions'/'object_mentions', en plural) y "
-        "cruza las resoluciones por 'mention_id' (EntityResolution tiene "
-        "'mention_ids'). Las tres claves son inexistentes, asi que TODO "
-        "documento de revision humana muestra subject='UNKNOWN', "
-        "object='UNKNOWN' y resolution={subject: null, object: null}: el "
-        "revisor nunca ve de quien habla el claim que tiene que juzgar.",
-    )
+    # HALLAZGO D-G2 corregido: export usa las listas de menciones de los contratos.
     def test_DG2_el_documento_de_revision_deberia_decir_de_quien_habla(
         self, gold, entities
     ):

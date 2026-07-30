@@ -49,6 +49,29 @@ def _lookup(items: list[Any], key: str, value: Any) -> dict[str, Any]:
     return {}
 
 
+def _mention_and_resolution(
+    mention_ids: Any,
+    mentions: list[Any],
+    resolutions: list[Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Resolve the first claim mention using the real plural contracts."""
+    mention_id = next(iter(mention_ids or []), None)
+    mention = _lookup(mentions, "mention_id", mention_id)
+    for resolution_value in resolutions:
+        resolution = _dict(resolution_value)
+        if mention_id is not None and mention_id in (resolution.get("mention_ids") or []):
+            return mention, resolution
+    return mention, {}
+
+
+def _resolved_entity_id(resolution: dict[str, Any]) -> Any:
+    return (
+        resolution.get("selected_entity_id")
+        or resolution.get("assigned_entity_id")
+        or "not_available"
+    )
+
+
 def review_documents(result: Any, *, workspace: str) -> list[dict[str, Any]]:
     """Adapt a real PipelineResult without inventing absent data."""
     documents: list[dict[str, Any]] = []
@@ -56,6 +79,7 @@ def review_documents(result: Any, *, workspace: str) -> list[dict[str, Any]]:
     for run in getattr(result, "runs", ()):
         episodes = list(getattr(run, "episodes", ()))
         claims = list(getattr(run, "claims", ()))
+        mentions = list(getattr(run, "mentions", ()))
         resolutions = list(getattr(run, "resolutions", ()))
         fragments = list(getattr(run, "fragments", ()))
         for decision_value in getattr(run, "decisions", ()):
@@ -78,12 +102,26 @@ def review_documents(result: Any, *, workspace: str) -> list[dict[str, Any]]:
                 start = end = 0
             if not (0 <= start <= end <= len(episode_text)):
                 start = end = 0
-            subject_resolution = _lookup(resolutions, "mention_id", claim.get("subject_mention_id"))
-            object_resolution = _lookup(resolutions, "mention_id", claim.get("object_mention_id"))
+            subject_mention, subject_resolution = _mention_and_resolution(
+                claim.get("subject_mentions"), mentions, resolutions
+            )
+            object_mention, object_resolution = _mention_and_resolution(
+                claim.get("object_mentions"), mentions, resolutions
+            )
+            subject_entity = _resolved_entity_id(subject_resolution)
+            object_entity = _resolved_entity_id(object_resolution)
             proposal = {
-                "subject": claim.get("subject") or claim.get("subject_mention_id") or "UNKNOWN",
+                "subject": (
+                    subject_entity
+                    if subject_entity != "not_available"
+                    else subject_mention.get("surface") or "not_available"
+                ),
                 "predicate": decision.get("predicate") or claim.get("predicate") or "UNKNOWN",
-                "object": claim.get("object") or claim.get("object_mention_id") or "UNKNOWN",
+                "object": (
+                    object_entity
+                    if object_entity != "not_available"
+                    else object_mention.get("surface") or "not_available"
+                ),
                 "direction": decision.get("direction") or claim.get("direction") or "UNKNOWN",
                 "negated": claim.get("negated", False),
                 "negation_kind": claim.get("negation_kind") or "UNKNOWN",
@@ -111,8 +149,8 @@ def review_documents(result: Any, *, workspace: str) -> list[dict[str, Any]]:
                     "shadow_decision": decision.get("shadow_decision"),
                 },
                 "resolution": {
-                    "subject": subject_resolution.get("resolved_entity_id"),
-                    "object": object_resolution.get("resolved_entity_id"),
+                    "subject": subject_entity,
+                    "object": object_entity,
                 },
                 "alternatives": {
                     "predicates": claim.get("predicate_alternatives") or [],

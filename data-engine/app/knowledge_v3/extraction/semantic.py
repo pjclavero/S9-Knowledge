@@ -363,6 +363,16 @@ class SemanticEpisodeExtractor(Extractor):
             self._abstain(out, episode, index, "MODEL_PAYLOAD_MALFORMED", str(exc))
             return out
 
+        if not reply.payload.get("claims") and not reply.payload.get("abstentions"):
+            out.diagnostics.append(
+                Diagnostic(
+                    "EMPTY_PROVIDER_PAYLOAD",
+                    self.info.step,
+                    episode.episode_id,
+                    "el proveedor no devolvio claims ni abstenciones explicitas",
+                )
+            )
+
         try:
             out.extend(
                 normalize_semantic_payload(

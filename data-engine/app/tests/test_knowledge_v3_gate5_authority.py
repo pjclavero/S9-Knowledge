@@ -208,19 +208,7 @@ def test_una_respuesta_vacia_no_produce_ninguna_escritura():
     assert out.mentions == []
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "HALLAZGO P5-1 (observabilidad, NO brecha de escritura): un proveedor que "
-        "responde 200 con cuerpo `{}` es indistinguible de 'el modelo no encontró "
-        "nada'. `check_semantic_shape` da por buenas las claves ausentes "
-        "(payload.get(key, [])), el extractor no emite diagnóstico ni abstención y "
-        "marca `run.ok = True`. Una respuesta truncada, filtrada o vaciada por un "
-        "límite de cuota queda registrada como episodio procesado con éxito y cero "
-        "hechos: pérdida silenciosa de cobertura sin rastro auditable. El resto de "
-        "modos de fallo sí dejan diagnóstico; este no."
-    ),
-)
+# HALLAZGO P5-1 corregido: el episodio sigue siendo ok pero deja diagnostico auditable.
 def test_p5_1_una_respuesta_vacia_deberia_dejar_rastro():
     ctx, episodes = context_for(TEXTO)
     extractor = SemanticEpisodeExtractor(EmptyPort())

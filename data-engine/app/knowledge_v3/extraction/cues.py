@@ -29,6 +29,7 @@ Tres ejes, tres consecuencias distintas:
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
@@ -51,6 +52,7 @@ NEGATION_WINDOW = 3
 #: cierto; si sabe que el texto lo presenta como rumor, hipotesis o intencion.
 EPISTEMIC_CUES: tuple[tuple[str, str], ...] = (
     ("se rumorea", "RUMORED"),
+    ("corre el rumor de que", "RUMORED"),
     ("dicen que", "RUMORED"),
     ("se dice que", "RUMORED"),
     ("segun cuentan", "RUMORED"),
@@ -61,10 +63,42 @@ EPISTEMIC_CUES: tuple[tuple[str, str], ...] = (
     ("tal vez", "HYPOTHETICAL"),
     ("podria", "HYPOTHETICAL"),
     ("si acaso", "HYPOTHETICAL"),
+    ("cabe suponer que", "HYPOTHETICAL"),
+    ("barajan la posibilidad de que", "HYPOTHETICAL"),
+    ("es probable que", "HYPOTHETICAL"),
+    ("con la hipotesis de que", "HYPOTHETICAL"),
+    ("podria ser que", "HYPOTHETICAL"),
+    ("se sospecha que", "HYPOTHETICAL"),
+    ("nada impide pensar que", "HYPOTHETICAL"),
+    ("supongamos", "HYPOTHETICAL"),
+    ("todo apunta a que", "HYPOTHETICAL"),
     ("planea", "INTENDED"),
     ("pretende", "INTENDED"),
     ("tiene intencion de", "INTENDED"),
     ("jurara", "INTENDED"),
+)
+
+# Construcciones productivas de reporte con un sintagma nominal interpuesto.
+# El hueco esta acotado para no convertir cualquier "dicen ... que" remoto en
+# rumor ni atravesar una clausula completa.
+EPISTEMIC_PATTERNS: tuple[tuple[re.Pattern[str], str, str], ...] = (
+    (
+        re.compile(r"\bdicen (?:el|la|los|las) (?:\w+ ){0,6}que\b"),
+        "dicen <fuente> que",
+        "RUMORED",
+    ),
+    (
+        re.compile(
+            r"\bllego a oidos (?:de|del|de la|de los|de las) (?:\w+ ){0,3}que\b"
+        ),
+        "llego a oidos de <fuente> que",
+        "RUMORED",
+    ),
+    (
+        re.compile(r"\bcorre por (?:el|la|los|las) (?:\w+ ){0,3}que\b"),
+        "corre por <lugar> que",
+        "RUMORED",
+    ),
 )
 
 #: Frases que NIEGAN LA VERDAD del hecho o lo atribuyen a un error. No es que el
@@ -81,6 +115,13 @@ FALSITY_PHRASES: tuple[str, ...] = (
     "aseguro falsamente",
     "falsamente",
     "se equivocaba al afirmar que",
+    "mintio",
+    "fingio",
+    "se hacia pasar por",
+    "desmiente",
+    "desmienten",
+    "nunca fue cierto que",
+    "se falsifico",
 )
 
 #: Frases que SUSPENDEN el hecho: lo ponen bajo condicion o excepcion. El hecho
@@ -92,6 +133,17 @@ CONDITIONAL_PHRASES: tuple[str, ...] = (
     "siempre que",
     "de haber",
     "suponiendo que",
+    "a no ser que",
+    "solo si",
+    "puestos a imaginar",
+)
+
+# Preguntas indirectas sin signos de interrogacion.
+INTERROGATIVE_PHRASES: tuple[str, ...] = (
+    "pregunto",
+    "nadie supo responder",
+    "me pregunto si",
+    "interrogatorio",
 )
 
 #: Marcos de FICCION DENTRO DE LA FICCION: el texto cuenta lo que pasa en una
@@ -118,6 +170,13 @@ FICTION_PHRASES: tuple[str, ...] = (
     "cuenta la leyenda",
     "los titiriteros representaron",
     "lo invento todo",
+    "cuenta la balada",
+    "sono que",
+    "en el juego de cartas",
+    "escenifican una version",
+    "poema apocrifo",
+    "en la pesadilla",
+    "solo un arquetipo",
 )
 
 #: Frases DEONTICAS: prohiben u ordenan. Una prohibicion no dice que algo NO
@@ -134,6 +193,11 @@ DEONTIC_PHRASES: tuple[str, ...] = (
     "se prohibe",
     "no se permite",
     "no permitas",
+    "ordeno que",
+    "prohibido",
+    "se ruega",
+    "no jures",
+    "debera",
 )
 
 #: Frases de DESEO. "Ojala Kael sirviera a la Orden" no afirma nada del mundo.
@@ -147,6 +211,11 @@ DESIRE_PHRASES: tuple[str, ...] = (
     "queria que",
     "desea que",
     "deseaba que",
+    "anhela que",
+    "suenan con",
+    "le gustaria",
+    "pluguiera",
+    "quisiera",
 )
 
 # --------------------------------------------------------------------------
@@ -657,10 +726,21 @@ def analyze_context(
 
     if any(mark in (text or "") for mark in INTERROGATIVE_MARKS):
         reasons.append(CODE_INTERROGATIVE)
+    for phrase in INTERROGATIVE_PHRASES:
+        if _has_phrase(tokens, phrase, lo, hi):
+            cues.append(phrase)
+            if CODE_INTERROGATIVE not in reasons:
+                reasons.append(CODE_INTERROGATIVE)
 
     hint = "ASSERTED"
     for cue, mapped in EPISTEMIC_CUES:
         if _has_phrase(tokens, cue, lo, hi):
+            cues.append(cue)
+            if hint == "ASSERTED":
+                hint = mapped
+    normalized_window = " ".join(token.norm for token in tokens[lo:hi])
+    for pattern, cue, mapped in EPISTEMIC_PATTERNS:
+        if pattern.search(normalized_window):
             cues.append(cue)
             if hint == "ASSERTED":
                 hint = mapped
@@ -710,8 +790,10 @@ __all__ = [
     "DEONTIC_PHRASES",
     "DESIRE_PHRASES",
     "EPISTEMIC_CUES",
+    "EPISTEMIC_PATTERNS",
     "FALSITY_PHRASES",
     "FICTION_PHRASES",
+    "INTERROGATIVE_PHRASES",
     "NEGATION_CUES",
     "NEGATION_KINDS",
     "NEGATION_KIND_CESSATION",
