@@ -135,7 +135,6 @@ def assertion_for(
 #: `idempotency_key` (que se deriva del payload) cambiase en cada ejecucion —
 #: es decir, destruiria la idempotencia que el contrato exige.
 PAYLOAD_FIELDS = (
-    "assertion_id",
     "subject_entity_id",
     "object_entity_id",
     "predicate",

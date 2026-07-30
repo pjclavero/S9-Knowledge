@@ -273,7 +273,12 @@ class GraphWriter:
 
         # 3a. Dry-run: no recibe el driver, luego no puede tocarlo.
         if mode == MODE_DRY_RUN:
-            outcome: ExecutionOutcome = simulate_plan(view, exec_ctx)
+            try:
+                outcome: ExecutionOutcome = simulate_plan(view, exec_ctx)
+            except WriterError as exc:
+                return self._finish(
+                    OUTCOME_ABORTED, mode, req, plan_doc, [exc.as_rejection()]
+                )
             return self._finish(
                 OUTCOME_SIMULATED,
                 mode,

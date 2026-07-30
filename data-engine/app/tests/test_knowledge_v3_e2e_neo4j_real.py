@@ -127,18 +127,7 @@ def request_for(plan_doc: dict, **over) -> OperatorRequest:
 # ==========================================================================
 # E2E-01 — el plan real del motor, aplicado contra Neo4j
 # ==========================================================================
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "HALLAZGO F7-2: el plan que produce el motor NO es ejecutable. El planner "
-        "mete `assertion_id` dentro del payload de CREATE_ASSERTION "
-        "(engine/planner.py: PAYLOAD_FIELDS empieza por 'assertion_id') y el writer "
-        "lo rechaza como propiedad reservada (writer/cypher.py: RESERVED_PROPS). "
-        "Resultado: EXEC_UNSUPPORTED_PAYLOAD y OUTCOME_ABORTED. El dry-run NO lo "
-        "ve porque simulate_plan no llama a safe_props. Reproducible sin Docker: "
-        "tests/test_knowledge_v3_gate5_authority.py::test_f7_2_*"
-    ),
-)
+# REGRESION F7-2: antes era xfail por el assertion_id duplicado en payload.
 def test_e2e_01_aplicado_contra_neo4j_efimero(graph: GraphProbe):
     """El plan de E2E-01, construido desde bytes, se aplica de verdad."""
     plan_doc, _run, _p = pipeline_plan("p7-e2e-01", T_HECHO)
@@ -333,18 +322,13 @@ class TestNegacionDeCesacionNoCierra:
         ]
         assert "SUPERSEDE_ASSERTION" not in ops, ops
 
-    def test_el_plan_de_una_cesacion_tampoco_supersede_hoy(self):
-        """Documenta F7-1: hoy NINGUNA cesacion del pipeline cierra nada.
-
-        No es que la negacion de cesacion se comporte bien y la cesacion mal:
-        es que por esta ruta ninguna de las dos puede superseder, porque el
-        snapshot que sale del ledger no lleva `state_hash`. Ver F7-1.
-        """
+    def test_el_plan_de_una_cesacion_si_supersede(self):
+        """REGRESION F7-1: una cesacion anclada cierra la vigencia anterior."""
         _plan, run, _p = _plan_or_none("p7-ces", T_CESACION)
         ops = [] if run.plan is None else [
             o["operation_type"] for o in run.plan.mutation_operations
         ]
-        assert "SUPERSEDE_ASSERTION" not in ops, ops
+        assert "SUPERSEDE_ASSERTION" in ops, ops
 
 
 def _plan_or_none(source_id: str, text: str):

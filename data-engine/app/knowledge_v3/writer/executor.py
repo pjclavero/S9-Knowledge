@@ -192,6 +192,43 @@ def _reason_code(op: dict) -> str:
     return value
 
 
+def _validated_payload(op: dict) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Valida la parte ejecutable de una operacion sin consultar el grafo.
+
+    Es deliberadamente comun a apply y dry-run: una simulacion no puede
+    presentar como ejecutable un payload que el writer real rechazaria.
+    """
+    op_type = op["operation_type"]
+    if op_type not in SUPPORTED_TYPES:
+        raise WriterAbort(
+            codes.EXEC_UNSUPPORTED_OPERATION,
+            f"tipo de operacion no soportado: {op_type}",
+            {"operation_id": op["operation_id"], "operation_type": op_type},
+        )
+    payload = dict(op.get("payload") or {})
+    props = cypher.safe_props(payload)
+    if op_type == "CREATE_ENTITY":
+        _require(op.get("target_entity_id"), op, "target_entity_id")
+        cypher.safe_token(payload.get("entity_type"), "etiqueta")
+    elif op_type == "CREATE_ASSERTION":
+        _require(op.get("assertion_id"), op, "assertion_id")
+    elif op_type in RELATION_TYPES:
+        _require(payload.get("subject_entity_id"), op, "payload.subject_entity_id")
+        _require(payload.get("object_entity_id"), op, "payload.object_entity_id")
+        predicate = _require(payload.get("predicate"), op, "payload.predicate")
+        cypher.safe_token(predicate, "tipo de relacion")
+    else:
+        _require(
+            op.get("assertion_id")
+            if op_type == "SUPERSEDE_ASSERTION"
+            else op.get("target_entity_id"),
+            op,
+            "assertion_id" if op_type == "SUPERSEDE_ASSERTION" else "target_entity_id",
+        )
+        _reason_code(op)
+    return payload, props
+
+
 # --- Procedencia ----------------------------------------------------------
 def _provenance(view: SignedView, op: dict, ctx: ExecutionContext) -> dict[str, Any]:
     """Lo que el writer estampa el mismo en todo lo que escribe.
@@ -224,15 +261,8 @@ def execute_operation(
     tx: Any, op: dict, view: SignedView, ctx: ExecutionContext
 ) -> AppliedOperation:
     op_type = op["operation_type"]
-    if op_type not in SUPPORTED_TYPES:
-        raise WriterAbort(
-            codes.EXEC_UNSUPPORTED_OPERATION,
-            f"tipo de operacion no soportado: {op_type}",
-            {"operation_id": op["operation_id"], "operation_type": op_type},
-        )
     ws = view.workspace
-    payload = dict(op.get("payload") or {})
-    props = cypher.safe_props(payload)
+    payload, props = _validated_payload(op)
     prov = _provenance(view, op, ctx)
 
     if op_type == "CREATE_ENTITY":
@@ -386,6 +416,7 @@ def simulate_plan(view: SignedView, ctx: ExecutionContext) -> ExecutionOutcome:
         if ctx.applied_keys.is_applied(key):
             outcome.noop_keys.append(key)
             continue
+        _validated_payload(op)
         outcome.applied.append(
             AppliedOperation(
                 operation_id=op["operation_id"],

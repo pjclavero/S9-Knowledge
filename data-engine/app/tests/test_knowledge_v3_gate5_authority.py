@@ -399,19 +399,7 @@ def _pipeline_plan_de_un_hecho():
     return run.plan.to_dict()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "HALLAZGO F7-2: el plan que produce el motor NO es ejecutable. El planner "
-        "mete `assertion_id` en el payload de CREATE_ASSERTION (planner.py: "
-        "PAYLOAD_FIELDS empieza por 'assertion_id') y el writer lo rechaza como "
-        "propiedad reservada (cypher.py: RESERVED_PROPS). Sale "
-        "EXEC_UNSUPPORTED_PAYLOAD / OUTCOME_ABORTED y NO se escribe nada. Estaba "
-        "oculto porque `simulate_plan` (dry-run) no llama a `safe_props`: todos "
-        "los e2e simulan, y todos los tests del writer que aplican construyen el "
-        "payload a mano SIN assertion_id. Nadie habia aplicado un plan del motor."
-    ),
-)
+# REGRESION F7-2: antes era xfail porque planner y writer discrepaban.
 def test_f7_2_el_plan_del_motor_se_aplica_sin_ser_rechazado():
     """Se ejecuta en modo APPLY con driver falso: no hace falta Neo4j.
 
@@ -431,9 +419,17 @@ def test_f7_2_el_plan_del_motor_se_aplica_sin_ser_rechazado():
 
     plan = _pipeline_plan_de_un_hecho()
     moment = datetime.fromisoformat(plan["created_at"].replace("Z", "+00:00"))
+    nodes = {
+        ("entity", op["target_entity_id"]): {
+            "version": op["expected_version"],
+            "state_hash": op["expected_hash"]["value"],
+        }
+        for op in plan["mutation_operations"]
+        if op["operation_type"] in {"LINK_EXISTING", "PROJECT_RELATION"}
+    }
     writer = GraphWriter(
         workspace=plan["workspace"],
-        driver=FakeDriver(),
+        driver=FakeDriver(nodes=nodes),
         audit=InMemoryAuditSink(),
         applied_keys=InMemoryAppliedKeys(),
         clock=lambda: moment,
@@ -497,19 +493,7 @@ def test_f7_2_el_dry_run_del_mismo_plan_si_pasa():
     assert result.outcome == OUTCOME_SIMULATED, result.codes
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "HALLAZGO F7-1: una cesacion nunca puede cerrar nada por la ruta real. "
-        "`bridge.assertion_from_edge` construye la SnapshotAssertion SIN "
-        "`state_hash` (las entidades si lo derivan, via SnapshotEntity.of), y "
-        "`engine/negation.py` se niega —con razon— a cerrar una vigencia sin "
-        "ancla de concurrencia: emite CESSATION_TARGET_UNANCHORED y deja "
-        "supersedes=None. Consecuencia: SUPERSEDE_ASSERTION es inalcanzable "
-        "desde el pipeline, y por eso la puerta 4 midio 0 operaciones "
-        "destructivas y dio NO EVALUABLE en las dos precisiones destructivas."
-    ),
-)
+# REGRESION F7-1: antes era xfail porque el bridge perdia el hash del ledger.
 def test_f7_1_una_cesacion_sobre_un_hecho_vigente_supersede():
     """Dos corridas sobre el MISMO pipeline: se afirma y luego se cesa."""
     from knowledge_v3.pipeline.pipeline import KnowledgePipeline
@@ -538,12 +522,8 @@ def test_f7_1_una_cesacion_sobre_un_hecho_vigente_supersede():
     )
 
 
-def test_f7_1_el_snapshot_del_ledger_no_ancla_sus_afirmaciones():
-    """Reproduccion minima y directa de la causa de F7-1.
-
-    Se afirma que hoy es asi. Si alguien corrige el bridge, este test falla y
-    obliga a revisar el hallazgo en vez de dejarlo obsoleto en un informe.
-    """
+def test_f7_1_el_snapshot_del_ledger_ancla_sus_afirmaciones():
+    """REGRESION F7-1: el bridge conserva el hash canonico del ledger."""
     from knowledge_v3.pipeline import bridge
     from knowledge_v3.pipeline.pipeline import KnowledgePipeline
 
@@ -562,9 +542,10 @@ def test_f7_1_el_snapshot_del_ledger_no_ancla_sus_afirmaciones():
 
     snap = bridge.engine_snapshot(pipeline.ledger, entities=entities)
     assert len(snap.assertions) == 1
-    assert snap.assertions[0].state_hash is None, (
-        "el bridge ya ancla las afirmaciones: F7-1 puede estar corregido"
-    )
+    sealed = pipeline.ledger.snapshot()
+    assert snap.assertions[0].state_hash == sealed.assertion(
+        snap.assertions[0].assertion_id
+    ).hash
     # Y la asimetria: las ENTIDADES si van ancladas.
     alguna = next(iter(snap.entities.values())) if hasattr(snap, "entities") else None
     if alguna is not None:

@@ -913,6 +913,18 @@ def test_un_payload_que_pisa_una_propiedad_reservada_aborta():
     assert codes.EXEC_UNSUPPORTED_PAYLOAD in result.codes
 
 
+def test_el_dry_run_rechaza_el_mismo_payload_reservado_que_apply():
+    """REGRESION F7-2: simular no puede ocultar un payload inejecutable."""
+    operation = op_create_entity("op:0001", "decision:0001", "entity:daiki")
+    operation["payload"]["written_by_operator"] = "otro"
+    plan = make_plan(operations=[operation])
+
+    result = make_writer(ExplodingDriver()).write(plan, dry_request())
+
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_UNSUPPORTED_PAYLOAD in result.codes
+
+
 def test_una_etiqueta_con_forma_rara_aborta_en_vez_de_interpolarse():
     op = op_create_entity("op:0001", "decision:0001", "entity:daiki")
     op["payload"]["entity_type"] = "Character) DETACH DELETE (n"
