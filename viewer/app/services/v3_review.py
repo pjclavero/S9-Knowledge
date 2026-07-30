@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from app.services.v3_glossary_candidates import GlossaryCandidateStore
 
 VALID_HUMAN_DECISIONS = frozenset({"APPROVE", "REJECT", "CORRECT"})
 VALID_ENGINE_DECISIONS = frozenset({"ACCEPT", "REVIEW", "ABSTAIN", "REJECT_INVALID"})
@@ -42,12 +43,25 @@ class HistoryIntegrityError(ReviewError):
     """The JSONL decision history is malformed or its hash chain is broken."""
 
 
+class StaleReviewError(ReviewError):
+    """The proposal changed after it was rendered to the reviewer."""
+
+    def __init__(self, current: dict[str, Any]):
+        super().__init__("STALE_REVIEW: la propuesta cambió; revisa su versión actual")
+        self.current = current
+
+
 def _canonical(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _sha256(value: Any) -> str:
     return hashlib.sha256(_canonical(value).encode("utf-8")).hexdigest()
+
+
+def proposal_hash(proposal: dict[str, Any]) -> str:
+    """Hash of canonical proposal content, excluding its self-referential hash."""
+    return _sha256({key: value for key, value in proposal.items() if key != "proposal_hash"})
 
 
 def _lock_for(path: Path) -> threading.RLock:
@@ -108,6 +122,17 @@ def default_decisions_path() -> Path:
     if configured:
         return Path(configured)
     return Path(__file__).resolve().parents[2] / "output" / "reviews-v3" / "decisions.jsonl"
+
+
+def default_audit_path() -> Path:
+    return default_decisions_path().with_name("audit.jsonl")
+
+
+def default_glossary_root() -> Path:
+    configured = os.environ.get("S9K_V3_GLOSSARY_CANDIDATES_DIR")
+    if configured:
+        return Path(configured)
+    return default_decisions_path().parent / "glossary-candidates"
 
 
 def _candidate_views(
@@ -314,6 +339,7 @@ class ReviewService:
         return {
             **proposal,
             "proposal_id": _proposal_id(proposal),
+            "proposal_hash": proposal_hash(proposal),
             "evidence_before": before,
             "evidence_literal": literal,
             "evidence_after": after,
@@ -337,6 +363,7 @@ class ReviewService:
         rationale: str = "",
         correction: dict[str, Any] | None = None,
         supersedes_decision_id: str | None = None,
+        expected_proposal_hash: str | None = None,
     ) -> dict[str, Any]:
         if human_decision not in VALID_HUMAN_DECISIONS:
             raise ReviewError(f"human_decision inválida: {human_decision}")
@@ -365,6 +392,17 @@ class ReviewService:
             )
             if proposal is None:
                 raise ReviewError("propuesta inexistente en el workspace seleccionado")
+            actual_proposal_hash = proposal_hash(proposal)
+            # None is retained for programmatic backwards compatibility. The HTML
+            # route always supplies the hash the reviewer actually saw.
+            expected = expected_proposal_hash or actual_proposal_hash
+            if expected != actual_proposal_hash:
+                self._audit_stale(
+                    proposal=proposal, reviewer=reviewer, request_id=request_id,
+                    human_decision=human_decision, expected=expected,
+                    actual=actual_proposal_hash,
+                )
+                raise StaleReviewError(self.present(proposal))
             if supersedes_decision_id and not any(
                 item["decision_id"] == supersedes_decision_id
                 and item["workspace"] == workspace
@@ -382,8 +420,13 @@ class ReviewService:
                 "workspace": workspace,
                 "source_id": proposal["source_id"],
                 "episode_id": proposal["episode_id"],
+                "proposal_id": proposal_id,
                 "proposal": json.loads(_canonical(proposal)),
+                "expected_proposal_hash": expected,
+                "actual_proposal_hash": actual_proposal_hash,
                 "engine_decision": json.loads(_canonical(engine_decision)),
+                "effective_decision": engine_decision.get("effective_decision"),
+                "shadow_decision": engine_decision.get("shadow_decision"),
                 "human_decision": human_decision,
                 "correction": correction or {},
                 "rationale": rationale.strip(),
@@ -392,6 +435,7 @@ class ReviewService:
                     or (proposal.get("ontology") or {}).get("version")
                 ),
                 "engine_version": proposal.get("engine_version"),
+                "prompt_version": proposal.get("prompt_version"),
                 "supersedes_decision_id": supersedes_decision_id,
                 "previous_hash": history[-1]["record_hash"] if history else None,
             }
@@ -401,7 +445,69 @@ class ReviewService:
                 handle.write(_canonical(record) + "\n")
                 handle.flush()
                 os.fsync(handle.fileno())
+            self._generate_glossary_candidates(record, proposal)
             return record
+
+    def _audit_stale(self, *, proposal: dict[str, Any], reviewer: str, request_id: str,
+                     human_decision: str, expected: str, actual: str) -> None:
+        path = default_audit_path() if self.decisions_path == default_decisions_path() else (
+            self.decisions_path.with_name("audit.jsonl")
+        )
+        event = {
+            "event": "STALE_REVIEW", "timestamp": _now(), "request_id": request_id,
+            "reviewer": reviewer, "workspace": proposal["workspace"],
+            "source_id": proposal["source_id"], "episode_id": proposal["episode_id"],
+            "proposal_id": _proposal_id(proposal),
+            "expected_proposal_hash": expected, "actual_proposal_hash": actual,
+            "human_decision": human_decision,
+        }
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8", newline="\n") as handle:
+            handle.write(_canonical(event) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+
+    def _generate_glossary_candidates(
+        self, record: dict[str, Any], proposal: dict[str, Any]
+    ) -> None:
+        """Only explicit human fields can produce candidates; rejections cannot."""
+        if record["human_decision"] == "REJECT":
+            return
+        correction = record["correction"]
+        mapping = [
+            ("subject_canonical_name", "CANONICAL_TERM_CANDIDATE", "subject"),
+            ("object_canonical_name", "CANONICAL_TERM_CANDIDATE", "object"),
+            ("subject_alias", "ALIAS_CANDIDATE", "subject"),
+            ("object_alias", "ALIAS_CANDIDATE", "object"),
+            ("spoken_form", "SPOKEN_FORM_CANDIDATE", "subject"),
+            ("suggested_entity_type", "ENTITY_TYPE_CANDIDATE", "subject"),
+            ("misrecognition", "KNOWN_MISRECOGNITION_CANDIDATE", "subject"),
+        ]
+        root = (
+            default_glossary_root()
+            if self.decisions_path == default_decisions_path()
+            else self.decisions_path.parent / "glossary-candidates"
+        )
+        store = GlossaryCandidateStore(root)
+        claim = proposal.get("proposal") or {}
+        provenance = proposal.get("provenance") or {}
+        for field, candidate_type, canonical_field in mapping:
+            value = str(correction.get(field) or "").strip()
+            if not value:
+                continue
+            # An OCR/ASR correction is a known misrecognition, never an alias.
+            canonical = str(claim.get(canonical_field) or value)
+            store.propose(
+                workspace=record["workspace"], candidate_type=candidate_type,
+                canonical_value=canonical, candidate_value=value,
+                entity_type=correction.get("suggested_entity_type"),
+                resolved_entity_id=(proposal.get("resolution") or {}).get(canonical_field),
+                source_id=record["source_id"], episode_id=record["episode_id"],
+                evidence=proposal.get("evidence") or {},
+                decision_id=record["decision_id"], proposal_id=record["proposal_id"],
+                provenance=provenance,
+                reason_codes=["EXPLICIT_HUMAN_CORRECTION"],
+            )
 
     def undo_last(self, *, workspace: str, reviewer: str, request_id: str) -> dict[str, Any]:
         with _lock_for(self.decisions_path):

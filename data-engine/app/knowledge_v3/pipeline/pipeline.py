@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Optional, Sequence
 
 from ..contracts.assertion import FactAssertion
@@ -544,6 +545,7 @@ class KnowledgePipeline:
         cases: Sequence[SourceCase],
         *,
         catalog_entities: Sequence[SnapshotEntity] = (),
+        review_proposals_dir: Path | None = None,
     ) -> PipelineResult:
         """La cadena sobre varias fuentes, en orden y compartiendo ledger.
 
@@ -562,6 +564,13 @@ class KnowledgePipeline:
             )
         result.latency_ms = (time.perf_counter() - started) * 1000.0
         result.provider_calls = self._count_provider_calls(result)
+        if review_proposals_dir is not None:
+            # Explicit boundary export. No viewer service is imported or called.
+            from ..review_export import export_review_package
+
+            export_review_package(
+                result, review_proposals_dir, workspace=self.config.workspace
+            )
         return result
 
     @staticmethod

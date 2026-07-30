@@ -99,6 +99,7 @@ def run_one(
     external_port: Any = None,
     run_id: Optional[str] = None,
     engine_isolated: bool = False,
+    review_proposals_dir: Path | None = None,
 ) -> tuple[dict, Any]:
     """Una corrida + su informe. Devuelve `(report, pipeline_result)`.
 
@@ -120,7 +121,11 @@ def run_one(
         config = dataclasses.replace(config, entity_source="gold", claim_source="gold")
     pipeline = KnowledgePipeline(config)
     entities = entities_from_catalog(catalog_entries(gold))
-    result = pipeline.run(cases_from_gold(gold, entry=entry), catalog_entities=entities)
+    result = pipeline.run(
+        cases_from_gold(gold, entry=entry),
+        catalog_entities=entities,
+        review_proposals_dir=review_proposals_dir,
+    )
     bundle = to_bundle(
         result,
         split=gold.split,
@@ -175,6 +180,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--ollama-timeout", type=float, default=300.0)
     parser.add_argument("--out-dir", default=None)
     parser.add_argument(
+        "--review-proposals-dir", default=None,
+        help="exporta paquete inmutable para /v3/review (p.ej. output/reviews-v3/proposals)",
+    )
+    parser.add_argument(
         "--engine-isolated",
         action="store_true",
         help="entidades Y claims gold a la vez: aisla el motor de verdad (D-7)",
@@ -203,6 +212,9 @@ def main(argv: Optional[list[str]] = None) -> int:
                 entry=args.entry,
                 ollama_client=client,
                 engine_isolated=args.engine_isolated,
+                review_proposals_dir=(
+                    Path(args.review_proposals_dir) if args.review_proposals_dir else None
+                ),
             )
         except PipelineError as exc:
             print(f"[{label}] NO EJECUTADA: {exc}", file=sys.stderr)
