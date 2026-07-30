@@ -1,0 +1,1023 @@
+{
+  "benchmark_file": "factivity/cases",
+  "cases": [
+    {
+      "case_id": "fact:hecho-afirmado:01",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "negative": false,
+      "note": "Afirmación directa en indicativo, con aposición; hay dos relaciones del mundo (pertenencia y custodia) que deben escribirse.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Harun Vell, forjador mayor de la Orden de la Obsidiana, custodia desde el invierno pasado el Yunque Negro en el Foso Humeante.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:hecho-afirmado:02",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "negative": false,
+      "note": "Pasiva perifrástica que narra un hecho consumado del mundo; el agente y el receptor están explícitos.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "El Sello de Lava fue entregado por Kaspar Nune a la Casa Verrant en presencia del Cónclave de la Ceniza.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:hecho-afirmado:03",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "negative": false,
+      "note": "Pasiva refleja seguida de coordinada afirmativa: dos hechos consumados, ninguno modalizado.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Se juró lealtad al Consejo de los Vientos aquella mañana, y desde entonces la Cofradía de las Velas responde ante Dagna Hoill.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:hecho-afirmado:04",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "negative": false,
+      "note": "La relativa contiene una negación, pero refuerza el hecho principal afirmado: la alianza sigue vigente.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Toturi mantiene con el Clan del León una alianza que ningún tratado posterior ha revocado.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:hecho-afirmado:05",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "negative": false,
+      "note": "Oración mínima en presente de indicativo: hecho del mundo sin modalización alguna.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Sira Delantre dirige el taller de Isla Tenaza.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:hecho-afirmado:06",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "negative": false,
+      "note": "Relativa explicativa más relativa especificativa; el núcleo afirma una deuda real y su periodicidad.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Ilde Varona, la escriba que copió los registros del Gremio de Fundidores, debe a Beltrán Osk una suma que salda cada solsticio.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:hecho-afirmado:07",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "negative": false,
+      "note": "Sucesión narrada en pasado simple: hecho consumado que el grafo debe registrar.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Tras la muerte del maestre anterior, Teo Ravasi sucedió en el mando de la Hermandad de la Fumarola.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:hecho-afirmado:08",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "negative": false,
+      "note": "Discurso indirecto con fuente y respaldo documental explícito: la coordinada final ancla el hecho como verdadero en el mundo.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "El escriba refirió que la Compañía del Arrecife opera dos rutas entre Muelle Alto y Puerto Escoria, y sus libros lo confirman.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:hecho-afirmado:09",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "negative": false,
+      "note": "Perífrasis durativa 'llevar + gerundio' que expresa un servicio real y en curso.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Nerea Tossa, cartógrafa de oficio, lleva sirviendo a la Junta de Astilleros más de doce años.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:hecho-afirmado:10",
+      "expected": "WRITE_POSITIVE",
+      "family": "HECHO_AFIRMADO",
+      "negative": false,
+      "note": "Pasiva refleja con complemento locativo y subordinada temporal: ubicación y custodia afirmadas.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "La Carta de Fletes se guarda en la Torre Anemos, bajo la vigilancia de Olmo Quiral, desde que la Sociedad de Aerostatos cedió su copia.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:negacion-factual:01",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "negative": true,
+      "note": "Negación simple y explícita de la pertenencia; la concesiva no la debilita, la delimita.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Mira Cauce no pertenece al Gremio de Fundidores, por mucho que trabaje en sus hornos.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:negacion-factual:02",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "negative": true,
+      "note": "Negación universal en el tiempo ('nunca'): hecho negativo firme sobre la custodia.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "El Yunque Negro nunca estuvo en manos de la Casa Verrant.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:negacion-factual:03",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "negative": true,
+      "note": "Cuantificador negativo en sujeto: niega la relación para todo el conjunto.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Ninguna de las compañías de Cirro rinde vasallaje a la Orden de la Obsidiana.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:negacion-factual:04",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "negative": true,
+      "note": "Cesación más negación de reanudación: el estado actual del mundo es negativo.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Dejó de servir a Radi Oster el año en que se firmó la tregua, y no ha vuelto a hacerlo.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:negacion-factual:05",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "negative": true,
+      "note": "Pasiva refleja negada con término de polaridad negativa: la entrega no ocurrió.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "No se ha entregado el Sello de Lava a nadie del Cónclave de la Ceniza.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:negacion-factual:06",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "negative": true,
+      "note": "La negación del protagonista queda respaldada por una fuente documental: el hecho negativo es del mundo, no solo atribuido.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Pol Arriaga niega deber nada a Noa Quimper, y los libros de la Junta le dan la razón.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:negacion-factual:07",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "negative": true,
+      "note": "'Jamás' niega toda la línea temporal del vínculo laboral.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Hugo Marlén jamás pilotó una nave de la Cofradía de las Velas.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:negacion-factual:08",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "negative": true,
+      "note": "Concesiva antepuesta que aisla la apariencia; el núcleo niega la alianza.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Aunque su nombre figure en la lista, Vera Luntz no es aliada del Consejo de los Vientos.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:negacion-factual:09",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "negative": true,
+      "note": "Negación aditiva ('tampoco') sobre la custodia; el inciso final no la revierte.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Tanit Pereo tampoco custodia la Carta de Fletes, pese a lo que dictaminaron en Muelle Alto.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:negacion-factual:10",
+      "expected": "WRITE_NEGATIVE",
+      "family": "NEGACION_FACTUAL",
+      "negative": true,
+      "note": "Ruptura consumada más negación del estado presente: el grafo debe registrar la relación como negada.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Se dio por rota la alianza entre la Hermandad de la Fumarola y el Gremio de Fundidores, y desde ese día no existe pacto alguno entre ambas.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:pregunta:01",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "negative": false,
+      "note": "Interrogativa parcial: pide información, no la aporta; no hay hecho que escribir.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "¿Quién custodia realmente el Yunque Negro desde que Harun Vell abandonó el Foso Humeante?",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:pregunta:02",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "negative": false,
+      "note": "Interrogativa indirecta en discurso referido: se narra el acto de preguntar, no el pago.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Beltrán Osk preguntó a la asamblea si la Casa Verrant seguía pagando su parte del flete.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:pregunta:03",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "negative": false,
+      "note": "Disyuntiva interrogativa: ambas alternativas quedan abiertas.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "¿De veras juró Teo Ravasi lealtad al Cónclave de la Ceniza, o solo asintió en silencio?",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:pregunta:04",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "negative": false,
+      "note": "Interrogativa indirecta encabezada por 'cuántas' bajo un verbo de ignorancia: ningún dato queda afirmado.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Nadie supo responder cuántas naves de la Compañía del Arrecife quedaban amarradas en Muelle Alto.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:pregunta:05",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "negative": false,
+      "note": "Pregunta breve sobre sucesión: no afirma ningún reclamante concreto.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "¿Qué clan reclama hoy la sucesión de Toturi?",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:pregunta:06",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "negative": false,
+      "note": "Duda en futuro de conjetura: modalidad epistémica, sin compromiso con el hecho.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Me pregunto si Sira Delantre habrá roto ya su contrato con la Orden de la Obsidiana.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:pregunta:07",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "negative": false,
+      "note": "Estructura ecuacional interrogativa doble: el objeto entregado sigue sin determinarse.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "¿Fue el Sello de Lava lo que se entregó en Puerto Escoria, o fue una copia labrada por Kaspar Nune?",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:pregunta:08",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "negative": false,
+      "note": "Subordinada interrogativa locativa: se refiere el tema del interrogatorio, no la ubicación.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "El interrogatorio giró en torno a dónde había escondido Ilde Varona los registros del gremio.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:pregunta:09",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "negative": false,
+      "note": "Interrogativa retórica con condicional: no afirma ruptura ni la descarta como hecho registrable.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "¿Por qué habría de romper Dagna Hoill una alianza que la sostiene en el poder?",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:pregunta:10",
+      "expected": "ABSTAIN",
+      "family": "PREGUNTA",
+      "negative": false,
+      "note": "La pregunta presupone una cesación, pero no la afirma; escribirla sería escribir una presuposición.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "¿Cuándo dejó Runa Belisa de arrear caravanas para el Gremio de Fundidores?",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:condicional:01",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "negative": false,
+      "note": "Condicional potencial: ni la prótasis ni la apódosis se afirman como hechos.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Si Harun Vell aceptase el mando de la Orden de la Obsidiana, el Foso Humeante quedaría sin forjador.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:condicional:02",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "negative": false,
+      "note": "Condicional prospectiva con subjuntivo: la revocación depende de un incumplimiento no ocurrido.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "En caso de que la Casa Verrant incumpla el pago, el Cónclave de la Ceniza revocará su licencia.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:condicional:03",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "negative": false,
+      "note": "Condición necesaria antepuesta: la custodia queda supeditada, no afirmada.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Solo si el Consejo de los Vientos lo autoriza podrá Tanit Pereo custodiar la Carta de Fletes.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:condicional:04",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "negative": false,
+      "note": "Condicional temporal con subjuntivo: describe un compromiso futuro, no un estado verificado.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Mientras Toturi no rompa la tregua, el Clan del León mantendrá sus guarniciones donde están.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:condicional:05",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "negative": false,
+      "note": "Condicional de infinitivo compuesto: hipótesis sobre el pasado, sin hecho afirmado.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "De haber sabido el maestre que Teo Ravasi servía a otra casa, no le habría confiado el sello.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:condicional:06",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "negative": false,
+      "note": "Condicional con apódosis exhortativa: no afirma que exista reclamación ni resuelve la deuda.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Si acaso alguien reclama la deuda de Ilde Varona, que la reclame ante la Junta de Astilleros.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:condicional:07",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "negative": false,
+      "note": "Condicional implícita en participio absoluto más condicional simple: nada consumado.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Cumplidos los tres inviernos de servicio, Mira Cauce quedaría libre de su juramento.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:condicional:08",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "negative": false,
+      "note": "Condicional negativa exceptiva: el desenlace depende de un pago no realizado.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "A no ser que la Hermandad de la Fumarola pague el rescate, Olmo Quiral seguirá retenido en Isla Tenaza.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:condicional:09",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "negative": false,
+      "note": "Excepción condicional: el acuerdo ni existe ni se descarta como hecho registrable.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Salvo que medie Nerea Tossa, no habrá acuerdo entre las dos cofradías.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:condicional:10",
+      "expected": "ABSTAIN",
+      "family": "CONDICIONAL",
+      "negative": false,
+      "note": "Condicional coloquial con 'como' más subjuntivo: amenaza condicionada, no hecho.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Como Vera Luntz vuelva a faltar al muelle, la despedirán sin carta de recomendación.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:contrafactual:01",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "negative": false,
+      "note": "Contrafactual de pasado: la prótasis se presenta como falsa, luego no hay pertenencia que escribir.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Si Kaspar Nune hubiera pertenecido al Gremio de Fundidores, jamás habrían fundido el Sello de Lava fuera de Puerto Escoria.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:contrafactual:02",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "negative": false,
+      "note": "Contrafactual que presupone lo contrario de lo dicho: el fletamento no ocurre.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "De no haberse roto la alianza, la Compañía del Arrecife seguiría fletando para la Casa Verrant.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:contrafactual:03",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "negative": false,
+      "note": "Deseo contrafactual sobre el pasado: niega implícitamente que ella presidiera.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Ojalá hubiese sido Dagna Hoill quien presidiera el Consejo aquella noche; otra suerte habría corrido la ciudad.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:contrafactual:04",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "negative": false,
+      "note": "Apódosis en condicional compuesto: la herencia no se produjo.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Toturi habría heredado la custodia del estandarte si su hermano no hubiera vuelto de la campaña.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:contrafactual:05",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "negative": false,
+      "note": "Contrafactual con prótasis nominal: la expulsión no llegó a ocurrir.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Con un solo voto más, el Cónclave de la Ceniza habría expulsado a Beltrán Osk de sus filas.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:contrafactual:06",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "negative": false,
+      "note": "Concesiva contrafactual: ni el juramento ni la licencia son hechos del mundo.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Aunque hubiese jurado ante el Consejo de los Vientos, Pol Arriaga no habría obtenido licencia de vuelo.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:contrafactual:07",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "negative": false,
+      "note": "Contrafactual introducida por 'sin': la disolución no sucedió.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Sin la mediación de Nerea Tossa, la Junta de Astilleros habría quedado disuelta antes del deshielo.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:contrafactual:08",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "negative": false,
+      "note": "Exclamativa contrafactual: implica que no aceptó, pero no formula un hecho positivo escribible.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Qué distinta sería la Hermandad de la Fumarola si Teo Ravasi hubiera aceptado el maestrazgo.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:contrafactual:09",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "negative": false,
+      "note": "Lamento más contrafactual encadenada: el pasado alternativo no es mundo, es especulación del personaje.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Runa Belisa se lamenta de que, en otro tiempo, no la enviaran a custodiar el Yunque Negro; de haberlo hecho, la reliquia no se habría perdido.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:contrafactual:10",
+      "expected": "ABSTAIN",
+      "family": "CONTRAFACTUAL",
+      "negative": false,
+      "note": "Marco explícitamente imaginario más contrafactual: nada de esto describe el mundo real de la ficción.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Puestos a imaginar, si Isla Tenaza jamás se hubiera hundido, la Orden de la Obsidiana tendría allí su capítulo.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:hipotesis:01",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "negative": false,
+      "note": "Suposición con subjuntivo y reconocimiento explícito de falta de prueba.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Cabe suponer que Sira Delantre sirva en secreto a la Casa Verrant, aunque nada lo prueba.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:hipotesis:02",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "negative": false,
+      "note": "Sustantivo modal 'posibilidad' que suspende el compromiso con la ubicación.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Los vigías barajan la posibilidad de que el Sello de Lava se encuentre todavía en el Foso Humeante.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:hipotesis:03",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "negative": false,
+      "note": "Adverbio dubitativo más subjuntivo: no hay compromiso factual con la ruptura.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Quizá Hugo Marlén haya roto ya su contrato con la Sociedad de Aerostatos.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:hipotesis:04",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "negative": false,
+      "note": "Perífrasis de probabilidad y reconocimiento de que no hay acto formal: no procede escribir.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Es probable que la deuda de Ilde Varona pase a manos del Gremio de Fundidores, si bien nadie lo ha formalizado.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:hipotesis:05",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "negative": false,
+      "note": "Marco metodológico explícito de hipótesis de trabajo.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Trabajamos con la hipótesis de que Olmo Quiral fuese el último custodio de la Carta de Fletes.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:hipotesis:06",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "negative": false,
+      "note": "Perífrasis modal de posibilidad sobre el pasado; no hay evidencia asertada.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Podría ser que el Clan del León y la Casa del Ciervo hubieran sellado una alianza antes del asedio.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:hipotesis:07",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "negative": false,
+      "note": "Pasiva refleja con verbo de sospecha y agente indeterminado: doble motivo para abstenerse.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Se sospecha que alguien del Consejo de Umbra financia a los contrabandistas de Puerto Escoria.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:hipotesis:08",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "negative": false,
+      "note": "Conjetura sobre una sucesión pendiente, explícitamente no resuelta.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Nada impide pensar que Noa Quimper herede el astillero, pero el testamento sigue sin abrirse.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:hipotesis:09",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "negative": false,
+      "note": "Imperativo exhortativo que abre un supuesto: marco hipotético puro.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Supongamos, solo por un momento, que Mira Cauce respondiera ante el Cónclave de la Ceniza.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:hipotesis:10",
+      "expected": "ABSTAIN",
+      "family": "HIPOTESIS",
+      "negative": false,
+      "note": "Indicio sin confirmación y con contraevidencia documental: abstención, no escritura.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Todo apunta a que la reliquia salió de Isla Tenaza, aunque el registro de aduanas no lo recoge.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:deseo:01",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "negative": false,
+      "note": "Optativa con 'ojalá': expresa voluntad, no describe el mundo.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Ojalá Toturi acepte algún día la corona que le ofrecen los clanes menores.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:deseo:02",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "negative": false,
+      "note": "Verbo volitivo con completiva en subjuntivo: el retorno no ha ocurrido.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Beltrán Osk anhela que su casa vuelva a sentarse en el Cónclave de la Ceniza.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:deseo:03",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "negative": false,
+      "note": "Condicional de cortesía con valor optativo y completiva en imperfecto de subjuntivo.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Quisiera Dagna Hoill que la Cofradía de las Velas jurase fidelidad antes del deshielo.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:deseo:04",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "negative": false,
+      "note": "Perífrasis de deseo ('soñar con' + infinitivo): proyecto, no hecho.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Los aprendices sueñan con forjar un día en el Yunque Negro.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:deseo:05",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "negative": false,
+      "note": "Optativa desiderativa independiente introducida por 'que'.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Que la Orden de la Obsidiana halle por fin un maestre digno.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:deseo:06",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "negative": false,
+      "note": "Condicional de deseo: ni el servicio nuevo ni el abandono del anterior son hechos.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "A Runa Belisa le gustaría servir a la Junta de Astilleros y dejar atrás las caravanas.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:deseo:07",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "negative": false,
+      "note": "Verbo de esperanza con inciso: la devolución es pretendida, no realizada.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Nerea Tossa espera, contra todo pronóstico, que le devuelvan los mapas incautados en Muelle Alto.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:deseo:08",
+      "expected": "ABSTAIN",
+      "family": "DESEO",
+      "negative": false,
+      "note": "Optativa arcaizante: pura expresión de deseo sin contenido factual.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Pluguiera a los kami que la tregua entre ambos clanes durase más que la anterior.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:orden:01",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "negative": false,
+      "note": "Imperativo afirmativo y negativo: instrucciones, no descripción del mundo.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Custodia el Sello de Lava hasta que regrese el maestre, y no se lo entregues a nadie de la Casa Verrant.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:orden:02",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "negative": false,
+      "note": "Mandato en discurso indirecto con subjuntivo: se ordena la suspensión, no consta que ocurriera.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "El Consejo de los Vientos ordenó que la Compañía del Arrecife suspendiera todos sus fletes.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:orden:03",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "negative": false,
+      "note": "Orden de tercera persona: convoca, no afirma presencia alguna.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Que Olmo Quiral se presente mañana en la Torre Anemos.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:orden:04",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "negative": false,
+      "note": "Enunciado deóntico de prohibición: regula conductas, no registra hechos.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Prohibido a los miembros del Gremio de Fundidores comerciar con Puerto Escoria.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:orden:05",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "negative": false,
+      "note": "Imperativo con pasiva refleja de estilo jurídico: mandato de devolución pendiente.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Devuélvase la Carta de Fletes a la Junta de Astilleros sin más dilación.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:orden:06",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "negative": false,
+      "note": "Petición formal en pasiva refleja con completiva en subjuntivo.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Se ruega a Ilde Varona que abandone el archivo antes del toque de queda.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:orden:07",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "negative": false,
+      "note": "Imperativo negativo: prohíbe un juramento que, por tanto, no consta realizado.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "No jures lealtad a la Hermandad de la Fumarola mientras yo viva.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:orden:08",
+      "expected": "ABSTAIN",
+      "family": "ORDEN",
+      "negative": false,
+      "note": "Perífrasis de obligación con verbo antepuesto: obligación futura, no hecho consumado.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Deberá Kaspar Nune comparecer ante el Cónclave de la Ceniza y responder por la fundición perdida.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:01",
+      "expected": "DIAGNOSTIC",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "negative": false,
+      "note": "El hecho real es la mentira y la declaración, no la pertenencia; el contenido incrustado es falso, así que el motor debe marcar revisión de atribución en vez de escribir la relación.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Pol Arriaga mintió al declarar que pertenecía al Consejo de los Vientos.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:02",
+      "expected": "WRITE_NEGATIVE",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "negative": true,
+      "note": "El texto desmiente claramente una ubicación: procede escribir el hecho como negado.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Contra lo que sostiene el pregonero, el Yunque Negro no se halla en la Torre Anemos.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:03",
+      "expected": "DIAGNOSTIC",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "negative": false,
+      "note": "La deuda es simulada: el hecho verdadero es la simulación, de alcance problemático para el grafo.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Fingió Vera Luntz una deuda con Noa Quimper para justificar el retraso del flete.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:04",
+      "expected": "WRITE_NEGATIVE",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "negative": true,
+      "note": "Construcción 'es falso que' que niega inequívocamente la custodia: hecho negativo del mundo.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Es falso que la Casa Verrant custodie reliquia alguna del Cónclave de la Ceniza.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:05",
+      "expected": "DIAGNOSTIC",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "negative": false,
+      "note": "La representación es fingida; lo real es la impostura y su duración, no el vínculo con el clan.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "El impostor se hacía pasar por emisario del Clan del León, y durante dos lunas nadie lo desmintió.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:06",
+      "expected": "DIAGNOSTIC",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "negative": false,
+      "note": "Atribución documentada y refutada: conviven una fuente que afirma y otra que niega; exige juicio humano.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Los cronistas de Umbra atribuyeron a Toturi una alianza con la Casa del Ciervo que los archivos desmienten punto por punto.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:07",
+      "expected": "WRITE_NEGATIVE",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "negative": true,
+      "note": "Negación metalingüística seguida de corrección: la relación queda claramente negada.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Nunca fue cierto que Sira Delantre dirigiera el Foso Humeante; el cargo lo ocupó siempre otro.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:falsedad-atribuida:08",
+      "expected": "DIAGNOSTIC",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "negative": false,
+      "note": "El hecho real es la falsificación del acta; el vínculo laboral que el acta afirma no debe escribirse sin revisión.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Se falsificó un acta donde constaba que Hugo Marlén servía a la Sociedad de Aerostatos.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:01",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "negative": false,
+      "note": "Hecho interno a una obra teatral incrustada: no pertenece al mundo, sino a la ficción dentro de la ficción.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "En la obra que representaron los cómicos de Puerto Escoria, Harun Vell traicionaba a la Orden de la Obsidiana en el tercer acto.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:02",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "negative": false,
+      "note": "Contenido de una balada legendaria; el marco 'cuenta la balada' impide tratarlo como hecho.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Cuenta la balada de los hornos que el Yunque Negro fue forjado por un dios de ceniza.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:03",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "negative": false,
+      "note": "Contenido onírico: el nombramiento sucede solo dentro del sueño.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Nerea Tossa soñó que la Junta de Astilleros la nombraba almiranta y le entregaba la Carta de Fletes.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:04",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "negative": false,
+      "note": "Regla de un juego representado: no describe relaciones reales entre las facciones.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "En el juego de cartas que se practica en Muelle Alto, la Casa Verrant siempre vence al Gremio de Fundidores.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:05",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "negative": false,
+      "note": "Versión escenificada y alternativa; el marco de representación cancela la factividad.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Los titiriteros ambulantes escenifican una versión en la que Toturi renuncia al Clan del León y se retira a un monasterio.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:06",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "negative": false,
+      "note": "Fuente apócrifa más condicional de rumor: doble suspensión del compromiso factual.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Según el poema apócrifo que circula por Isla Tenaza, Mira Cauce habría fundado la Hermandad de la Fumarola.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:07",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "negative": false,
+      "note": "Mundo onírico con relaciones propias que no deben migrar al grafo.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "En la pesadilla recurrente del vigía, Isla Tenaza pertenecía al Consejo de Umbra y sus faros ardían de noche.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:ficcion-en-ficcion:08",
+      "expected": "ABSTAIN",
+      "family": "FICCION_EN_FICCION",
+      "negative": false,
+      "note": "Personaje homónimo de un repertorio teatral, desambiguado explícitamente en la propia frase.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "El manual de máscaras describe a un personaje llamado Beltrán Osk que sirve a tres casas a la vez, pero es solo un arquetipo del repertorio.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:rumor:01",
+      "expected": "ABSTAIN",
+      "family": "RUMOR",
+      "negative": false,
+      "note": "Rumor anónimo con condicional de rumor: sin respaldo, no procede escribir el pacto.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Corre por los muelles que Dagna Hoill habría pactado en secreto con la Compañía del Arrecife.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:rumor:02",
+      "expected": "ABSTAIN",
+      "family": "RUMOR",
+      "negative": false,
+      "note": "Fuente indeterminada y sin respaldo documental explícito: abstención.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Dicen los arrieros, aunque nadie lo firma, que Runa Belisa dejó de servir al gremio hace tres inviernos.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:rumor:03",
+      "expected": "ABSTAIN",
+      "family": "RUMOR",
+      "negative": false,
+      "note": "Pasiva refleja de rumor: la transferencia no está acreditada.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Se rumorea en la Torre Anemos que el Sello de Lava cambió de manos durante la última subasta.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:rumor:04",
+      "expected": "ABSTAIN",
+      "family": "RUMOR",
+      "negative": false,
+      "note": "Habladuría referida y expresamente no confirmada por quien la recoge.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Llegó a oídos del escriba que Teo Ravasi debía favores a la Casa del Ciervo, si bien no halló constancia de ello.",
+      "world_fact": false
+    },
+    {
+      "case_id": "fact:alcance-complejo:01",
+      "expected": "DIAGNOSTIC",
+      "family": "ALCANCE_COMPLEJO",
+      "negative": true,
+      "note": "Negación metalingüística correctiva: niega el servicio y afirma otra relación distinta en la misma oración; el alcance doble exige revisión humana.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "No es que Kaspar Nune sirva a la Casa Verrant, sino que le vende hierro a precio de gremio.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:alcance-complejo:02",
+      "expected": "DIAGNOSTIC",
+      "family": "ALCANCE_COMPLEJO",
+      "negative": true,
+      "note": "Ambigüedad clásica de alcance entre cuantificador y negación: puede leerse 'ninguno juró' o 'no todos juraron'.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Todos los capitanes de la Cofradía de las Velas no juraron ante el Consejo de los Vientos.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:alcance-complejo:03",
+      "expected": "DIAGNOSTIC",
+      "family": "ALCANCE_COMPLEJO",
+      "negative": false,
+      "note": "Doble negación léxica ('nadie' + 'ignora') que en realidad afirma la custodia; el motor debe revisar el alcance antes de escribir el hecho positivo.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "Nadie ignora que Ilde Varona custodia los registros del Gremio de Fundidores.",
+      "world_fact": true
+    },
+    {
+      "case_id": "fact:alcance-complejo:04",
+      "expected": "DIAGNOSTIC",
+      "family": "ALCANCE_COMPLEJO",
+      "negative": false,
+      "note": "La negación afecta a la causal, no al verbo principal: la revocación sí ocurrió, pero con motivo distinto; alcance difícil que pide revisión.",
+      "provenance": "dev-synthetic/opus-2026-07-30",
+      "text": "El Cónclave de la Ceniza no revocó la alianza porque la Casa Verrant hubiera incumplido, sino por presiones de Puerto Escoria.",
+      "world_fact": true
+    }
+  ],
+  "dataset_version": "1.0.0",
+  "description": "Corpus sintético de no-factividad en español: mide si el motor distingue hechos afirmados y negados del mundo de ficción frente a preguntas, condicionales, contrafactuales, hipótesis, deseos, órdenes, falsedades atribuidas, ficción incrustada, rumores y alcances ambiguos.",
+  "families": {
+    "ALCANCE_COMPLEJO": 4,
+    "CONDICIONAL": 10,
+    "CONTRAFACTUAL": 10,
+    "DESEO": 8,
+    "FALSEDAD_ATRIBUIDA": 8,
+    "FICCION_EN_FICCION": 8,
+    "HECHO_AFIRMADO": 10,
+    "HIPOTESIS": 10,
+    "NEGACION_FACTUAL": 10,
+    "ORDEN": 8,
+    "PREGUNTA": 10,
+    "RUMOR": 4
+  },
+  "provenance": "dev-synthetic/opus-2026-07-30",
+  "split": "dev-synthetic"
+}
