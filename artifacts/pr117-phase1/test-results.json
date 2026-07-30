@@ -1,0 +1,32 @@
+{
+  "initial_real": {"passed": 8, "failed": 3, "skipped": 0, "duration_seconds": 45.53},
+  "focused_intermediate": {"passed": 160, "failed": 1, "skipped": 0, "duration_seconds": 109.15},
+  "focused_final": {
+    "passed": 161,
+    "failed": 0,
+    "skipped": 0,
+    "xfailed": 0,
+    "duration_seconds": 106.89
+  },
+  "data_engine": {"passed": 4775, "failed": 0, "skipped": 40, "xfailed": 3},
+  "viewer": {
+    "passed": 423,
+    "failed": 0,
+    "skipped": 2,
+    "xfailed": 0,
+    "duration_seconds": 14.25
+  },
+  "combined": {
+    "passed": 5198,
+    "failed": 0,
+    "skipped": 42,
+    "xfailed": 3,
+    "duration_seconds": 114.68
+  },
+  "hash_seeds": {
+    "1": {"passed": 31, "duration_seconds": 101.08},
+    "7": {"passed": 31, "duration_seconds": 103.28},
+    "42": {"passed": 31, "duration_seconds": 98.52},
+    "123": {"passed": 31, "duration_seconds": 94.15}
+  }
+}

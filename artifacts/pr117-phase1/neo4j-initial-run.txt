@@ -1,0 +1,122 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.5, pytest-9.1.1, pluggy-1.6.0 -- /root/S9-Knowledge-pr117-phase1/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /root/S9-Knowledge-pr117-phase1
+configfile: pytest.ini
+plugins: anyio-4.14.1, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 11 items
+
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py::test_cypher_valido_para_todas_las_operaciones_soportadas FAILED [  9%]
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py::test_create_only_no_sobrescribe_nodo_existente PASSED [ 18%]
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py::test_concurrencia_optimista_real_aborta_el_plan_entero PASSED [ 27%]
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py::test_transaccion_real_revierte_escrituras_previas_si_falla_operacion_n PASSED [ 36%]
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py::test_idempotencia_real_segunda_aplicacion_no_cambia_el_grafo FAILED [ 45%]
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py::test_cierre_de_vigencia_conserva_historia_y_crea_sucesor FAILED [ 54%]
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py::test_dry_run_con_driver_real_no_toca_ni_un_byte PASSED [ 63%]
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py::test_gate_bloquea_con_base_real_disponible_y_no_escribe[request_overrides0-GATE_ENV_NOT_ALLOWED] PASSED [ 72%]
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py::test_gate_bloquea_con_base_real_disponible_y_no_escribe[request_overrides1-GATE_PLAN_HASH_NOT_CONFIRMED] PASSED [ 81%]
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py::test_gate_bloquea_con_base_real_disponible_y_no_escribe[request_overrides2-GATE_WORKSPACE_DECLARATION_MISMATCH] PASSED [ 90%]
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py::test_aislamiento_workspace_no_toca_nodos_de_otro_workspace PASSED [100%]
+
+=================================== FAILURES ===================================
+___________ test_cypher_valido_para_todas_las_operaciones_soportadas ___________
+
+graph = GraphProbe(driver=<neo4j._sync.driver.BoltDriver object at 0x7fd6948a1e80>)
+
+    def test_cypher_valido_para_todas_las_operaciones_soportadas(graph: GraphProbe):
+        graph.seed_entity("entity:origen", version=1, state_hash=HASH_A["value"])
+        graph.seed_entity("entity:destino", version=1, state_hash=HASH_C["value"])
+        graph.seed_assertion("assertion:vieja", version=1, state_hash=HASH_B["value"])
+    
+        ops = [
+            create_entity("op:0001", "entity:nueva", "Nueva"),
+            create_assertion("op:0002", "assertion:nueva", "entity:origen", "entity:destino"),
+            link_existing("op:0003", "entity:origen", "entity:destino"),
+            update_entity("op:0004", "entity:origen"),
+            supersede_assertion("op:0005", "assertion:vieja", successor="assertion:nueva"),
+        ]
+        plan = make_plan(ops)
+    
+        result = writer(graph.driver).write(plan, apply_request(plan))
+    
+        assert result.outcome == OUTCOME_APPLIED, result.codes
+>       assert graph.counts() == {"nodes": 5, "relationships": 1}
+E       AssertionError: assert {'nodes': 10,...tionships': 1} == {'nodes': 5, ...tionships': 1}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Differing items:
+E         {'nodes': 10} != {'nodes': 5}
+E         
+E         Full diff:
+E           {...
+E         
+E         ...Full output truncated (6 lines hidden), use '-vv' to show
+
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py:481: AssertionError
+_________ test_idempotencia_real_segunda_aplicacion_no_cambia_el_grafo _________
+
+graph = GraphProbe(driver=<neo4j._sync.driver.BoltDriver object at 0x7fd6948a1e80>)
+
+    def test_idempotencia_real_segunda_aplicacion_no_cambia_el_grafo(graph: GraphProbe):
+        plan = make_plan([create_entity("op:0001", "entity:idempotente", "Idempotente")])
+        keys = InMemoryAppliedKeys()
+        sut = writer(graph.driver, keys)
+    
+        first = sut.write(plan, apply_request(plan))
+        before_second = graph.snapshot_bytes()
+        second = sut.write(plan, apply_request(plan))
+    
+        assert first.outcome == OUTCOME_APPLIED
+        assert second.outcome == OUTCOME_APPLIED
+        assert second.noop_operations == 1
+        assert graph.snapshot_bytes() == before_second
+>       assert graph.counts() == {"nodes": 1, "relationships": 0}
+E       AssertionError: assert {'nodes': 2, ...tionships': 0} == {'nodes': 1, ...tionships': 0}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Differing items:
+E         {'nodes': 2} != {'nodes': 1}
+E         
+E         Full diff:
+E           {...
+E         
+E         ...Full output truncated (6 lines hidden), use '-vv' to show
+
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py:550: AssertionError
+___________ test_cierre_de_vigencia_conserva_historia_y_crea_sucesor ___________
+
+graph = GraphProbe(driver=<neo4j._sync.driver.BoltDriver object at 0x7fd6948a1e80>)
+
+    def test_cierre_de_vigencia_conserva_historia_y_crea_sucesor(graph: GraphProbe):
+        graph.seed_assertion("assertion:vieja", version=1, state_hash=HASH_B["value"], status="ASSERTED")
+        plan = make_plan(
+            [
+                supersede_assertion("op:0001", "assertion:vieja", successor="assertion:nueva"),
+                create_assertion("op:0002", "assertion:nueva", "entity:origen", "entity:destino"),
+            ]
+        )
+    
+        result = writer(graph.driver).write(plan, apply_request(plan))
+    
+        assert result.outcome == OUTCOME_APPLIED, result.codes
+        old = graph.node("V3Assertion", "assertion_id", "assertion:vieja")
+        new = graph.node("V3Assertion", "assertion_id", "assertion:nueva")
+        assert old["status"] == "SUPERSEDED"
+        assert old["superseded_by"] == "assertion:nueva"
+        assert old["version"] == 2
+        assert new["status"] == "ASSERTED"
+>       assert graph.counts() == {"nodes": 2, "relationships": 0}
+E       AssertionError: assert {'nodes': 4, ...tionships': 0} == {'nodes': 2, ...tionships': 0}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Differing items:
+E         {'nodes': 4} != {'nodes': 2}
+E         
+E         Full diff:
+E           {...
+E         
+E         ...Full output truncated (6 lines hidden), use '-vv' to show
+
+data-engine/app/tests/test_knowledge_v3_writer_neo4j_real.py:571: AssertionError
+========================= 3 failed, 8 passed in 45.53s =========================
