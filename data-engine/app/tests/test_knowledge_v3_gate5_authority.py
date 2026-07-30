@@ -376,6 +376,201 @@ def test_la_sombra_trabaja_sobre_copias_y_no_toca_la_decision_efectiva():
         assert all(isinstance(k, str) for k in record.operation_kinds)
 
 
+# ==========================================================================
+# 4. La frontera motor -> writer, ejercitada en modo APPLY sin Neo4j
+# ==========================================================================
+def _pipeline_plan_de_un_hecho():
+    """Plan REAL del motor sobre un texto limpio, recorriendo la cadena entera."""
+    from knowledge_v3.pipeline.pipeline import KnowledgePipeline
+
+    from test_knowledge_v3_e2e_global import (
+        T_HECHO,
+        base_config,
+        gold_dev,
+        raw_case,
+        snapshot_entities,
+    )
+
+    gold = gold_dev()
+    entities = snapshot_entities(gold)
+    pipeline = KnowledgePipeline(base_config(gold, writer_driver=None))
+    run = pipeline.run([raw_case("g5-apply", T_HECHO)], catalog_entities=entities).runs[0]
+    assert run.plan is not None, (run.stopped_at, run.stop_reason)
+    return run.plan.to_dict()
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "HALLAZGO F7-2: el plan que produce el motor NO es ejecutable. El planner "
+        "mete `assertion_id` en el payload de CREATE_ASSERTION (planner.py: "
+        "PAYLOAD_FIELDS empieza por 'assertion_id') y el writer lo rechaza como "
+        "propiedad reservada (cypher.py: RESERVED_PROPS). Sale "
+        "EXEC_UNSUPPORTED_PAYLOAD / OUTCOME_ABORTED y NO se escribe nada. Estaba "
+        "oculto porque `simulate_plan` (dry-run) no llama a `safe_props`: todos "
+        "los e2e simulan, y todos los tests del writer que aplican construyen el "
+        "payload a mano SIN assertion_id. Nadie habia aplicado un plan del motor."
+    ),
+)
+def test_f7_2_el_plan_del_motor_se_aplica_sin_ser_rechazado():
+    """Se ejecuta en modo APPLY con driver falso: no hace falta Neo4j.
+
+    Lo que se prueba no es el grafo —eso es la puerta 7— sino que el artefacto
+    que el motor firma sea el que el writer sabe ejecutar.
+    """
+    from datetime import datetime
+
+    from knowledge_v3.writer import (
+        GraphWriter,
+        InMemoryAppliedKeys,
+        InMemoryAuditSink,
+        OperatorRequest,
+    )
+
+    from test_knowledge_v3_writer import FakeDriver
+
+    plan = _pipeline_plan_de_un_hecho()
+    moment = datetime.fromisoformat(plan["created_at"].replace("Z", "+00:00"))
+    writer = GraphWriter(
+        workspace=plan["workspace"],
+        driver=FakeDriver(),
+        audit=InMemoryAuditSink(),
+        applied_keys=InMemoryAppliedKeys(),
+        clock=lambda: moment,
+    )
+    request = OperatorRequest(
+        apply=True,
+        operator_id="gate5",
+        workspace=plan["workspace"],
+        expected_plan_hash=plan["plan_hash"]["value"],
+        max_operations=50,
+        current_snapshot_id=plan["snapshot_id"],
+        env={
+            "S9K_ALLOW_REAL_INGEST": "1",
+            "S9K_WRITER_WORKSPACE": plan["workspace"],
+        },
+    )
+
+    result = writer.write(plan, request)
+
+    assert result.ok, result.codes
+
+
+def test_f7_2_el_dry_run_del_mismo_plan_si_pasa():
+    """Control que localiza el defecto: en simulacion el mismo plan va bien.
+
+    Es la razon de que F7-2 sobreviviese a toda la bateria e2e: el dry-run no
+    valida el payload, asi que un plan inejecutable se presenta al operador como
+    perfectamente simulable.
+    """
+    from datetime import datetime
+
+    from knowledge_v3.writer import (
+        GraphWriter,
+        InMemoryAppliedKeys,
+        InMemoryAuditSink,
+        OperatorRequest,
+    )
+    from knowledge_v3.writer.writer import OUTCOME_SIMULATED
+
+    from test_knowledge_v3_writer import ExplodingDriver
+
+    plan = _pipeline_plan_de_un_hecho()
+    moment = datetime.fromisoformat(plan["created_at"].replace("Z", "+00:00"))
+    writer = GraphWriter(
+        workspace=plan["workspace"],
+        driver=ExplodingDriver(),
+        audit=InMemoryAuditSink(),
+        applied_keys=InMemoryAppliedKeys(),
+        clock=lambda: moment,
+    )
+    request = OperatorRequest(
+        apply=False,
+        operator_id="gate5",
+        workspace=plan["workspace"],
+        current_snapshot_id=plan["snapshot_id"],
+        env={},
+    )
+
+    result = writer.write(plan, request)
+
+    assert result.outcome == OUTCOME_SIMULATED, result.codes
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "HALLAZGO F7-1: una cesacion nunca puede cerrar nada por la ruta real. "
+        "`bridge.assertion_from_edge` construye la SnapshotAssertion SIN "
+        "`state_hash` (las entidades si lo derivan, via SnapshotEntity.of), y "
+        "`engine/negation.py` se niega —con razon— a cerrar una vigencia sin "
+        "ancla de concurrencia: emite CESSATION_TARGET_UNANCHORED y deja "
+        "supersedes=None. Consecuencia: SUPERSEDE_ASSERTION es inalcanzable "
+        "desde el pipeline, y por eso la puerta 4 midio 0 operaciones "
+        "destructivas y dio NO EVALUABLE en las dos precisiones destructivas."
+    ),
+)
+def test_f7_1_una_cesacion_sobre_un_hecho_vigente_supersede():
+    """Dos corridas sobre el MISMO pipeline: se afirma y luego se cesa."""
+    from knowledge_v3.pipeline.pipeline import KnowledgePipeline
+
+    from test_knowledge_v3_e2e_global import (
+        T_CESACION,
+        T_HECHO,
+        base_config,
+        gold_dev,
+        raw_case,
+        snapshot_entities,
+    )
+
+    gold = gold_dev()
+    entities = snapshot_entities(gold)
+    pipeline = KnowledgePipeline(base_config(gold, writer_driver=None))
+
+    primera = pipeline.run([raw_case("f71-a", T_HECHO)], catalog_entities=entities).runs[0]
+    assert primera.decisions[0].decision == "ACCEPT", "precondicion: el hecho queda vigente"
+
+    segunda = pipeline.run([raw_case("f71-b", T_CESACION)], catalog_entities=entities).runs[0]
+    decision = segunda.decisions[0]
+
+    assert decision.supersedes is not None, (
+        f"la cesacion no encontro que cerrar: {sorted(decision.reason_codes())}"
+    )
+
+
+def test_f7_1_el_snapshot_del_ledger_no_ancla_sus_afirmaciones():
+    """Reproduccion minima y directa de la causa de F7-1.
+
+    Se afirma que hoy es asi. Si alguien corrige el bridge, este test falla y
+    obliga a revisar el hallazgo en vez de dejarlo obsoleto en un informe.
+    """
+    from knowledge_v3.pipeline import bridge
+    from knowledge_v3.pipeline.pipeline import KnowledgePipeline
+
+    from test_knowledge_v3_e2e_global import (
+        T_HECHO,
+        base_config,
+        gold_dev,
+        raw_case,
+        snapshot_entities,
+    )
+
+    gold = gold_dev()
+    entities = snapshot_entities(gold)
+    pipeline = KnowledgePipeline(base_config(gold, writer_driver=None))
+    pipeline.run([raw_case("f71-c", T_HECHO)], catalog_entities=entities)
+
+    snap = bridge.engine_snapshot(pipeline.ledger, entities=entities)
+    assert len(snap.assertions) == 1
+    assert snap.assertions[0].state_hash is None, (
+        "el bridge ya ancla las afirmaciones: F7-1 puede estar corregido"
+    )
+    # Y la asimetria: las ENTIDADES si van ancladas.
+    alguna = next(iter(snap.entities.values())) if hasattr(snap, "entities") else None
+    if alguna is not None:
+        assert alguna.state_hash, "las entidades deberian ir ancladas"
+
+
 def test_el_carril_externo_esta_mas_capado_que_el_local():
     """Un proveedor remoto no ha visto el corpus: su techo es mas bajo.
 
