@@ -78,6 +78,35 @@ la laguna no se nota porque no propone nada; con un semántico real, sí.
 
 ---
 
+## F6-4 — Ollama: 2 de 4 episodios agotan el tiempo, y el sistema reacciona bien
+
+4 frases, `qwen2.5:7b` sobre CPU. Latencia mediana **600 199 ms** — es decir, el
+**timeout del cliente de Ollama (600 s)**, no un tiempo de respuesta.
+
+| Caso | Familia | Resultado | Diagnóstico |
+|---|---|---|---|
+| `fact:alcance-complejo:01` | ALCANCE_COMPLEJO | abstención | `PROVIDER_UNAVAILABLE` |
+| `fact:contrafactual:01` | CONTRAFACTUAL | abstención | `PROVIDER_UNAVAILABLE` |
+| `fact:condicional:01` | CONDICIONAL | sin claim | `CONDITIONAL_CONTEXT` |
+| `fact:deseo:01` | DESEO | sin claim | `DESIRE_CONTEXT` |
+
+Dos lecturas, y la segunda es la buena noticia de esta puerta:
+
+1. **Operativa:** `qwen2.5:7b` sobre esta CPU **no puede** completar el prompt
+   real de extracción dentro de su propio timeout de cliente para la mitad de
+   los episodios. El carril Ollama, tal y como está configurado, no es utilizable
+   para ingesta en esta máquina.
+2. **De seguridad — y ésta vale mucho:** cuando el proveedor real se cayó de
+   verdad, el sistema hizo **exactamente** lo que la puerta 5 exige: diagnóstico
+   `PROVIDER_UNAVAILABLE`, abstención con evidencia anclada, **cero** hechos del
+   mundo, y el lote siguió con los episodios restantes.
+
+Esto no es un mock: es un fallo de proveedor **real**, no provocado, observado en
+vivo. Los tests de la puerta 5 cubren los cinco modos de fallo con dobles; aquí
+se ve el comportamiento confirmado contra un proveedor que se cayó solo.
+
+---
+
 ## F6-3 — El gate de acuerdo entre carriles no es medible
 
 Los tres carriles medidos (`det`, `combined`, `nvidia`) son **vacuos** según el

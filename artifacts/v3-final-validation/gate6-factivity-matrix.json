@@ -4,21 +4,33 @@
       "nvidia": {
         "CREATE_NEGATIVE": 1,
         "NO_FACT": 1
+      },
+      "ollama": {
+        "NO_FACT": 1
       }
     },
     "CONDICIONAL": {
       "nvidia": {
         "NO_FACT": 2
+      },
+      "ollama": {
+        "NO_FACT": 1
       }
     },
     "CONTRAFACTUAL": {
       "nvidia": {
         "NO_FACT": 2
+      },
+      "ollama": {
+        "NO_FACT": 1
       }
     },
     "DESEO": {
       "nvidia": {
         "NO_FACT": 2
+      },
+      "ollama": {
+        "NO_FACT": 1
       }
     },
     "FALSEDAD_ATRIBUIDA": {
@@ -229,10 +241,58 @@
       "threshold": "2/2"
     },
     {
+      "detail": "el carril no produce ningun hecho ni en los controles positivos: cualquier gate de seguridad pasaria por inanicion, no por acierto",
+      "lane": "ollama",
+      "name": "carril util (no vacuo)",
+      "observed": 0,
+      "status": "NO CONFORME",
+      "threshold": "> 0 hechos en controles positivos"
+    },
+    {
+      "detail": " [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "ollama",
+      "name": "0 hechos del mundo en preguntas/contrafactuales/ficcion interna",
+      "observed": 0,
+      "status": "CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": " [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "ollama",
+      "name": "deseos/ordenes no materializados",
+      "observed": 0,
+      "status": "CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": " [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "ollama",
+      "name": "falsedad atribuida no invertida (no se afirma lo desmentido)",
+      "observed": 0,
+      "status": "CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": " [carril vacuo: un APROBADO aqui no es acreditable]",
+      "lane": "ollama",
+      "name": "(suplementario) ninguna familia con esperado ABSTAIN materializa un hecho",
+      "observed": 0,
+      "status": "CONFORME",
+      "threshold": 0
+    },
+    {
+      "detail": "el carril no midio ninguna frase de esta familia",
+      "lane": "ollama",
+      "name": "negacion factual directa conserva claim negativo",
+      "observed": "0/0",
+      "status": "NO EVALUABLE",
+      "threshold": "0/0"
+    },
+    {
       "detail": "sin dos carriles medidos, y al menos uno no vacuo, el acuerdo no es medible: dos carriles que no extraen nada coinciden siempre",
-      "lane": "combined+det+nvidia",
+      "lane": "combined+det+nvidia+ollama",
       "name": "100% acuerdo de ACCION entre carriles",
-      "observed": "3 carriles medidos, todos vacuos",
+      "observed": "4 carriles medidos, todos vacuos",
       "status": "NO CONFORME",
       "threshold": ">= 2 carriles utiles"
     }
@@ -270,6 +330,17 @@
       },
       "model": "meta/llama-3.3-70b-instruct",
       "wall_seconds": 1372.2
+    },
+    "ollama": {
+      "errors": [],
+      "latency_ms": {
+        "max": 600220,
+        "mean": 434728,
+        "median": 600199,
+        "min": 257736
+      },
+      "model": "qwen2.5:7b",
+      "wall_seconds": 1738.9
     }
   },
   "matrix": [
@@ -304,6 +375,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {
@@ -348,6 +422,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {
@@ -385,6 +462,9 @@
           "world_claims": 0
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -424,6 +504,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {
@@ -461,6 +544,9 @@
           "world_claims": 0
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -500,6 +586,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {
@@ -537,6 +626,9 @@
           "world_claims": 0
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -576,6 +668,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {
@@ -614,6 +709,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {
@@ -651,6 +749,9 @@
           "world_claims": 0
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -696,6 +797,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {
@@ -740,6 +844,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {
@@ -766,6 +873,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -783,6 +893,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -802,6 +915,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -819,6 +935,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -838,6 +957,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -855,6 +977,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -874,6 +999,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -891,6 +1019,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -916,6 +1047,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -940,6 +1074,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -957,6 +1094,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -976,6 +1116,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -993,6 +1136,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1012,6 +1158,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1029,6 +1178,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1048,6 +1200,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1065,6 +1220,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1084,6 +1242,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1101,6 +1262,15 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "ollama": {
           "abstentions": 0,
           "action": "NO_FACT",
           "diagnostics": 1,
@@ -1132,6 +1302,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1149,6 +1322,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1168,6 +1344,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1185,6 +1364,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1204,6 +1386,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1221,6 +1406,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1240,6 +1428,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1257,6 +1448,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1276,6 +1470,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1294,6 +1491,15 @@
         },
         "nvidia": {
           "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "ollama": {
+          "abstentions": 1,
           "action": "NO_FACT",
           "diagnostics": 1,
           "epistemic_proposals": 0,
@@ -1324,6 +1530,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1341,6 +1550,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1360,6 +1572,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1377,6 +1592,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1396,6 +1614,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1413,6 +1634,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1432,6 +1656,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1450,6 +1677,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1467,6 +1697,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1492,6 +1725,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 1
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1516,6 +1752,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 1
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1533,6 +1772,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1552,6 +1794,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1569,6 +1814,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1588,6 +1836,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1605,6 +1856,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1624,6 +1878,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1641,6 +1898,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1660,6 +1920,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1677,6 +1940,15 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "abstentions": 0,
+          "action": "NO_FACT",
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "ollama": {
           "abstentions": 0,
           "action": "NO_FACT",
           "diagnostics": 1,
@@ -1708,6 +1980,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1725,6 +2000,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1744,6 +2022,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1761,6 +2042,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1780,6 +2064,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1798,6 +2085,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1815,6 +2105,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1840,6 +2133,9 @@
           "error": null,
           "negated_world_claims": 1,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1864,6 +2160,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1881,6 +2180,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1900,6 +2202,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1917,6 +2222,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1936,6 +2244,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1954,6 +2265,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -1971,6 +2285,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -1996,6 +2313,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2020,6 +2340,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2037,6 +2360,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -2056,6 +2382,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2073,6 +2402,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -2092,6 +2424,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2110,6 +2445,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2127,6 +2465,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -2152,6 +2493,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2176,6 +2520,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2193,6 +2540,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -2212,6 +2562,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2229,6 +2582,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -2248,6 +2604,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2266,6 +2625,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2283,6 +2645,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -2308,6 +2673,9 @@
           "error": null,
           "negated_world_claims": 0,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2332,6 +2700,9 @@
           "error": null,
           "negated_world_claims": 1,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2350,6 +2721,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2367,6 +2741,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -2388,6 +2765,15 @@
           "abstentions": 1,
           "action": "NO_FACT",
           "diagnostics": 0,
+          "epistemic_proposals": 0,
+          "error": null,
+          "negated_world_claims": 0,
+          "world_claims": 0
+        },
+        "ollama": {
+          "abstentions": 1,
+          "action": "NO_FACT",
+          "diagnostics": 1,
           "epistemic_proposals": 0,
           "error": null,
           "negated_world_claims": 0,
@@ -2416,6 +2802,9 @@
           "error": null,
           "negated_world_claims": 1,
           "world_claims": 0
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2434,6 +2823,9 @@
         },
         "nvidia": {
           "action": "NOT_MEASURED"
+        },
+        "ollama": {
+          "action": "NOT_MEASURED"
         }
       },
       "policy": {},
@@ -2451,6 +2843,9 @@
           "action": "NOT_MEASURED"
         },
         "nvidia": {
+          "action": "NOT_MEASURED"
+        },
+        "ollama": {
           "action": "NOT_MEASURED"
         }
       },
@@ -2476,6 +2871,13 @@
     "nvidia": {
       "cases_measured": 24,
       "controls_measured": 4,
+      "controls_producing_facts": 0,
+      "note": "el carril no produce ningun hecho ni en los controles positivos: cualquier gate de seguridad pasaria por inanicion, no por acierto",
+      "vacuous": true
+    },
+    "ollama": {
+      "cases_measured": 4,
+      "controls_measured": 0,
       "controls_producing_facts": 0,
       "note": "el carril no produce ningun hecho ni en los controles positivos: cualquier gate de seguridad pasaria por inanicion, no por acierto",
       "vacuous": true

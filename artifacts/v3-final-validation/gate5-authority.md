@@ -47,6 +47,23 @@ que el proveedor real funcione (esa es la sección 1).
 Y además: con el semántico caído el **carril determinista sigue produciendo
 claims** — si no lo hiciera, el carril local no sería local.
 
+### Confirmación con un fallo REAL, no provocado
+
+Durante la medida de la puerta 6, `qwen2.5:7b` **se cayó solo**: 2 de 4
+episodios agotaron el timeout de cliente de 600 s (latencia mediana observada
+600 199 ms). No fue un doble ni un fallo inducido.
+
+El sistema hizo exactamente lo que esta puerta exige:
+
+| Caso | Diagnóstico | Claims activos | Abstención anclada | Lote sigue |
+|---|---|---|---|---|
+| `fact:alcance-complejo:01` | `PROVIDER_UNAVAILABLE` | 0 | sí | sí |
+| `fact:contrafactual:01` | `PROVIDER_UNAVAILABLE` | 0 | sí | sí |
+
+Los dos episodios restantes se procesaron con normalidad. **Un proveedor real
+cayéndose no tumbó el lote, no coló un claim y no provocó ninguna escritura.**
+Los dobles de la sección anterior son la regresión; esto es la evidencia.
+
 ### HALLAZGO P5-1 — la respuesta vacía no deja rastro
 
 *Observabilidad, **no** brecha de escritura. El gate duro se mantiene: no se

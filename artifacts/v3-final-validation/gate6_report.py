@@ -156,14 +156,25 @@ def analyse(raw: dict, cases: dict) -> dict[str, Any]:
     # --- gates ------------------------------------------------------------
     gates = []
 
-    def add(name: str, observed, threshold, ok: bool, detail: str = "", lane: str = "-"):
+    def add(
+        name: str,
+        observed,
+        threshold,
+        ok: bool,
+        detail: str = "",
+        lane: str = "-",
+        evaluable: bool = True,
+    ):
+        # Un gate sin poblacion NO es un suspenso: es un gate que no se ha
+        # podido evaluar. Contarlo como NO CONFORME inventaria un fallo, igual
+        # que contarlo como CONFORME inventaria un acierto.
         gates.append(
             {
                 "name": name,
                 "lane": lane,
                 "observed": observed,
                 "threshold": threshold,
-                "status": "CONFORME" if ok else "NO CONFORME",
+                "status": ("CONFORME" if ok else "NO CONFORME") if evaluable else "NO EVALUABLE",
                 "detail": detail,
             }
         )
@@ -250,9 +261,12 @@ def analyse(raw: dict, cases: dict) -> dict[str, Any]:
             "negacion factual directa conserva claim negativo",
             f"{len(kept)}/{len(neg_family)}",
             f"{len(neg_family)}/{len(neg_family)}",
-            len(neg_family) > 0 and len(kept) == len(neg_family),
-            ", ".join(e["case_id"] for e in neg_family if e not in kept)[:200] + suffix,
+            len(kept) == len(neg_family),
+            (", ".join(e["case_id"] for e in neg_family if e not in kept)[:200] + suffix)
+            if neg_family
+            else "el carril no midio ninguna frase de esta familia",
             lane,
+            evaluable=bool(neg_family),
         )
 
     # acuerdo de ACCION entre carriles (solo carriles no vacuos y sin error)
