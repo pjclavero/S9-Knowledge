@@ -36,3 +36,16 @@ sustantivos (`armería`, `cofradía`) y una lista de excepciones sólo trasladar
 el sobreajuste. Hasta disponer de análisis morfológico determinista, el detector
 léxico deja esta construcción como limitación conocida en vez de memorizar su
 prefijo.
+
+## Adenda post-F7-1 (observación del revisor final)
+
+El revisor señaló que el «0 operaciones sombra destructivas» se midió antes
+del fix F7-1 (cuando `SUPERSEDE_ASSERTION` era inalcanzable) y pidió
+re-medición. Re-ejecutado el runner completo sobre HEAD con F7-1/F7-2
+integrados: salida **byte-idéntica** a la versionada. El 0 es estructural,
+no artefacto: (1) la evaluación sombra solo aplica a claims de origen
+semántico y esta corrida es del carril determinista; (2) las cesaciones del
+corpus no tienen afirmación positiva vigente en el snapshot de partida, por
+lo que terminan en `CESSATION_WITHOUT_PRIOR`, nunca en supersesión. La
+verificación post-fix de la supersesión real vive en la puerta 7 (VM105,
+E2E de cesación aplicada contra Neo4j efímero, 53 passed).
