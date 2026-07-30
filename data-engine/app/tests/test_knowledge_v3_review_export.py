@@ -34,6 +34,18 @@ class Run:
         "claim_id": "claim-1", "episode_id": "episode-1",
         "decision": "REVIEW", "reason_codes": ["LOW_CONFIDENCE"],
     }),)
+    shadow_decisions: tuple = (Value({
+        "claim_id": "claim-1",
+        "effective_decision": "REVIEW",
+        "shadow_decision": "ACCEPT",
+        "ignored_findings": ["EXTRACTOR_REQUESTED_REVIEW"],
+        "effective_findings": ["EXTRACTOR_REQUESTED_REVIEW"],
+        "shadow_findings": ["EVIDENCE_LITERAL_VERIFIED"],
+        "would_emit_operations": True,
+        "operation_kinds": ["CREATE_ASSERTION"],
+        "provider": "ollama",
+        "model": "qwen2.5:7b",
+    }),)
 
 
 @dataclass
@@ -48,6 +60,9 @@ def test_real_result_export_is_deterministic_complete_and_idempotent(tmp_path):
     second = review_documents(result, workspace="alpha")
     assert first == second
     assert first[0]["engine_decision"]["decision"] == "REVIEW"
+    assert first[0]["engine_decision"]["effective_decision"] == "REVIEW"
+    assert first[0]["engine_decision"]["shadow_decision"] == "ACCEPT"
+    assert first[0]["engine_decision"]["provider"] == "ollama"
     assert first[0]["proposal_hash"]
     assert set(first[0]) >= {
         "proposal_id", "workspace", "source_id", "episode_id", "episode_text",
@@ -58,3 +73,15 @@ def test_real_result_export_is_deterministic_complete_and_idempotent(tmp_path):
     path = export_review_package(result, tmp_path, workspace="alpha")
     assert export_review_package(result, tmp_path, workspace="alpha") == path
     assert len(list(tmp_path.glob("*.json"))) == 1
+
+
+def test_proposal_id_is_stable_while_version_hash_changes():
+    result = Result()
+    before = review_documents(result, workspace="alpha")[0]
+    result.runs[0].decisions = (Value({
+        "claim_id": "claim-1", "episode_id": "episode-1",
+        "decision": "REVIEW", "reason_codes": ["DIFFERENT_REASON"],
+    }),)
+    after = review_documents(result, workspace="alpha")[0]
+    assert before["proposal_id"] == after["proposal_id"]
+    assert before["proposal_hash"] != after["proposal_hash"]

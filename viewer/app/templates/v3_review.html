@@ -61,7 +61,8 @@
       <div class="v3r-context">
         <span>{{ item.source_id | e }}</span>
         <span>{{ item.episode_id | e }}</span>
-        <span>{{ item.engine_decision.decision | default("Sin decisión") | e }}</span>
+        <span>efectiva: {{ item.engine_decision.effective_decision | default(item.engine_decision.decision) | default("Sin decisión") | e }}</span>
+        <span>sombra: {{ item.engine_decision.shadow_decision | default("No disponible", true) | e }}</span>
       </div>
 
       <blockquote class="v3r-evidence">{{ item.evidence_before | e }}<mark>{{ item.evidence_literal | e }}</mark>{{ item.evidence_after | e }}</blockquote>
@@ -87,6 +88,19 @@
             <li>No disponible</li>
             {% endfor %}
           </ul>
+          <dl class="v3r-facts">
+            <dt>Hallazgos efectivos</dt>
+            <dd>{{ item.engine_decision.effective_findings | default([]) | join(", ") | e }}</dd>
+            <dt>Hallazgos sombra</dt>
+            <dd>{{ item.engine_decision.shadow_findings | default([]) | join(", ") | e }}</dd>
+            <dt>Operaciones que emitiría</dt>
+            <dd>{{ item.engine_decision.operation_kinds | default([]) | join(", ") | e }}</dd>
+            <dt>Origen semántico</dt>
+            <dd>
+              {{ item.engine_decision.provider | default("No disponible", true) | e }}
+              · {{ item.engine_decision.model | default("No disponible", true) | e }}
+            </dd>
+          </dl>
           <h2>Ontología aplicable</h2>
           <p>{{ item.ontology.allowed_predicates | default([]) | join(", ") | e if item.ontology else "No disponible" }}</p>
           <p class="v3r-version">
