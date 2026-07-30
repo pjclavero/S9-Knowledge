@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Candidatos de glosario V3 · S9 Knowledge{% endblock %}
+{% block body %}
+<main class="v3r-shell">
+  <header><h1>Candidatos de glosario</h1><p>Vista de solo lectura. Estos candidatos no se aplican automáticamente.</p></header>
+  <form method="get" action="/v3/review/glossary-candidates">
+    <label>Workspace
+      <select name="workspace" required onchange="this.form.submit()">
+        <option value="">Seleccionar</option>
+        {% for value in workspaces %}
+        <option value="{{ value | e }}" {% if value == workspace %}selected{% endif %}>{{ value | e }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+  {% for item in items %}
+  <article>
+    <h2>{{ item.candidate_type | e }}</h2>
+    <dl>
+      <dt>Canónico</dt><dd>{{ item.canonical_value | e }}</dd>
+      <dt>Candidato</dt><dd>{{ item.candidate_value | e }}</dd>
+      <dt>Estado</dt><dd>{{ item.status | e }}</dd>
+      <dt>Apariciones</dt><dd>{{ item.occurrence_count }}</dd>
+      <dt>Fuentes</dt><dd>{{ item.source_count }}</dd>
+    </dl>
+  </article>
+  {% else %}
+  <p>No hay candidatos propuestos en este workspace.</p>
+  {% endfor %}
+</main>
+{% endblock %}
