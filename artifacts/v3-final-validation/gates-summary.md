@@ -157,11 +157,22 @@ Reproducción: afirmar y luego cesar sobre el **mismo** pipeline.
 
 | Árbol | Resultado |
 |---|---|
-| `data-engine/app` | **4761 passed, 37 skipped, 5 xfailed, 0 failed** |
+| `data-engine/app` | **4762 passed, 35 skipped, 5 xfailed, 0 failed** |
 | `viewer` | 418 passed, 1 skipped |
 
-**Skips:** 37 (27 previos + 10 de la puerta 7), **0 accidentales**, auditados por cuatro vías de pérdida
-silenciosa. 11 de 27 (40,7 %) son la escritura real contra Neo4j.
+**Skips:** 36 en total (35 en `data-engine` + 1 en `viewer`), **0 accidentales**,
+auditados por cuatro vías de pérdida silenciosa —no leyendo motivos, que es como
+un skip accidental se esconde.
+
+**La mitad exacta de los skips es Neo4j:** 18 de 36 (9 de
+`test_knowledge_v3_writer_neo4j_real.py` + 9 de la puerta 7). Dicho sin adornos:
+`apply=True`, las transacciones y la idempotencia **contra un grafo de verdad no
+se ejecutan en este árbol**. Es justo donde viven F7-2 y F7-1, y no es
+casualidad: lo que no se ejecuta es lo que esconde defectos.
+
+Los dos `skip` que este fichero tenía prometiendo «lo ejecuta el coordinador»
+han desaparecido: los tests existen. En su lugar queda un test que **sí corre** y
+comprueba que las implementaciones siguen ahí, para que la promesa no se pudra.
 
 **Reproducibilidad:** `PYTHONHASHSEED=1,7,42,123`, 12 ejecuciones, cero
 variación intra-sonda.

@@ -887,24 +887,37 @@ def test_ningun_escenario_toca_el_driver_de_neo4j(gold, entities, source_id, tex
 # ===========================================================================
 # DIFERIDOS A LA PUERTA 7 (Neo4j efimero, los ejecuta el coordinador en VM105)
 # ===========================================================================
-@pytest.mark.skip(
-    reason="puerta 7 / Neo4j efimero: confirmar que el plan de E2E-01, ya "
-    "simulado aqui, se APLICA de verdad contra un Neo4j efimero y que la "
-    "idempotency_key impide la segunda escritura. Requiere Docker + Neo4j "
-    "(S9K_WRITER_NEO4J_REAL=1); lo ejecuta el coordinador en VM105."
+#: Los dos diferidos YA ESTAN IMPLEMENTADOS, en un fichero aparte que se activa
+#: con `S9K_WRITER_NEO4J_REAL=1`. Vive fuera de este modulo porque las fixtures
+#: del contenedor requieren el paquete `neo4j`, e importarlo aqui ataria los 39
+#: tests de este fichero —que hoy corren siempre— a esa dependencia.
+PUERTA7_MODULO = "test_knowledge_v3_e2e_neo4j_real"
+PUERTA7_TESTS = (
+    "test_e2e_01_aplicado_contra_neo4j_efimero",
+    "test_e2e_12_correccion_propagada_al_grafo_real",
 )
-def test_e2e_01_aplicado_contra_neo4j_efimero():  # pragma: no cover
-    raise AssertionError("no debe ejecutarse en este arbol")
 
 
-@pytest.mark.skip(
-    reason="puerta 7 / Neo4j efimero: confirmar que la retractacion del "
-    "operador de E2E-12 se propaga al GRAFO y no solo al ledger en memoria. "
-    "Requiere Docker + Neo4j (S9K_WRITER_NEO4J_REAL=1); lo ejecuta el "
-    "coordinador en VM105."
-)
-def test_e2e_12_correccion_propagada_al_grafo_real():  # pragma: no cover
-    raise AssertionError("no debe ejecutarse en este arbol")
+def test_los_diferidos_a_la_puerta_7_existen_de_verdad():
+    """Guarda contra el podrido del enlace.
+
+    Un `skip` con un `reason` prometiendo que el test existe en otro sitio es
+    una promesa que nadie comprueba. Esto la comprueba: si alguien renombra o
+    borra las implementaciones, este test —que SI corre en este arbol— falla.
+    """
+    import importlib
+    from pathlib import Path
+
+    ruta = Path(__file__).with_name(f"{PUERTA7_MODULO}.py")
+    assert ruta.exists(), f"falta {ruta}"
+
+    fuente = ruta.read_text(encoding="utf-8")
+    for nombre in PUERTA7_TESTS:
+        assert f"def {nombre}(" in fuente, f"{nombre} ya no esta en {PUERTA7_MODULO}"
+
+    # Y que el guardia siga puesto: no deben correr sin el flag.
+    assert "S9K_WRITER_NEO4J_REAL" in fuente
+    importlib.import_module(PUERTA7_MODULO)  # no debe romper al importarse
 
 
 # ===========================================================================
