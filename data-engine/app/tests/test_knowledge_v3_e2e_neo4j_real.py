@@ -40,6 +40,9 @@ pytestmark = pytest.mark.skipif(
 )
 
 from knowledge_v3.pipeline.pipeline import KnowledgePipeline  # noqa: E402
+from knowledge_v3.engine import EngineConfig  # noqa: E402
+from knowledge_v3.engine.snapshot import InMemoryGraphSnapshot, SnapshotAssertion  # noqa: E402
+from knowledge_v3.contracts.base import sha256_hash  # noqa: E402
 from knowledge_v3.writer import (  # noqa: E402
     GraphWriter,
     InMemoryAppliedKeys,
@@ -251,7 +254,12 @@ class TestCesacionContraGrafoReal:
         plan = make_plan(
             [
                 create_assertion(
-                    "op:0001", "assertion:ya-no-lidera", "entity:toturi", "entity:clan-leon"
+                    "op:0001",
+                    "assertion:ya-no-lidera",
+                    "entity:toturi",
+                    "entity:clan-leon",
+                    predicate="LEADS",
+                    negated=True,
                 ),
                 supersede_assertion(
                     "op:0002", "assertion:lidera", successor="assertion:ya-no-lidera"
@@ -259,7 +267,9 @@ class TestCesacionContraGrafoReal:
             ]
         )
 
-        result = _writer_real(graph.driver).write(plan, apply_request(plan))
+        keys = InMemoryAppliedKeys()
+        sut = _writer_real(graph.driver, keys)
+        result = sut.write(plan, apply_request(plan))
 
         assert result.outcome == OUTCOME_APPLIED, result.codes
         anterior = graph.node("V3Assertion", "assertion_id", "assertion:lidera")
@@ -268,6 +278,16 @@ class TestCesacionContraGrafoReal:
         assert anterior.get("reason_code"), "R1 del writer: no se cierra sin motivo"
         # La historia se conserva: el nodo anterior sigue ahi con su evidencia.
         assert anterior["assertion_id"] == "assertion:lidera"
+        nueva = graph.node("V3Assertion", "assertion_id", "assertion:ya-no-lidera")
+        assert nueva["negated"] is True
+        assert nueva["predicate"] == "LEADS"
+        assert nueva["status"] == "ASSERTED"
+
+        huella = graph.snapshot_bytes()
+        repeat = sut.write(plan, apply_request(plan))
+        assert repeat.outcome == OUTCOME_APPLIED
+        assert repeat.noop_operations == 2
+        assert graph.snapshot_bytes() == huella
 
     def test_la_cesacion_es_idempotente(self, graph: GraphProbe):
         self._seed(graph)
@@ -303,6 +323,26 @@ class TestCesacionContraGrafoReal:
         assert codes.EXEC_HASH_MISMATCH in result.codes
         assert graph.snapshot_bytes() == antes, "un cierre bloqueado dejo rastro"
 
+    def test_una_version_distinta_bloquea_el_cierre(self, graph: GraphProbe):
+        self._seed(graph)
+        plan = make_plan(
+            [
+                supersede_assertion(
+                    "op:0001",
+                    "assertion:lidera",
+                    successor="assertion:x",
+                    version=2,
+                )
+            ]
+        )
+        antes = graph.snapshot_bytes()
+
+        result = _writer_real(graph.driver).write(plan, apply_request(plan))
+
+        assert result.outcome == OUTCOME_ABORTED
+        assert codes.EXEC_VERSION_MISMATCH in result.codes
+        assert graph.snapshot_bytes() == antes, "un cierre bloqueado dejo rastro"
+
 
 # ==========================================================================
 # La negacion de cesacion NO cierra nada — verificable desde el motor
@@ -322,18 +362,73 @@ class TestNegacionDeCesacionNoCierra:
         ]
         assert "SUPERSEDE_ASSERTION" not in ops, ops
 
-    def test_el_plan_de_una_cesacion_si_supersede(self):
-        """REGRESION F7-1: una cesacion anclada cierra la vigencia anterior."""
+    def test_una_cesacion_sin_previa_revisa_y_no_inventa_operaciones(self):
+        """CES-03: sin positiva activa, el plan efectivo vacío es correcto."""
         _plan, run, _p = _plan_or_none("p7-ces", T_CESACION)
         ops = [] if run.plan is None else [
             o["operation_type"] for o in run.plan.mutation_operations
         ]
-        assert "SUPERSEDE_ASSERTION" in ops, ops
+        decision = run.decisions[0]
+        assert decision.decision == "REVIEW"
+        assert decision.supersedes is None
+        assert "CESSATION_WITHOUT_ACTIVE_ASSERTION" in decision.reason_codes()
+        assert ops == []
+
+    def test_una_cesacion_anclada_viaja_en_plan_de_revision_sin_aplicarse(self):
+        """La política conserva el cierre seguro, pero no le da autoridad efectiva."""
+        previous = SnapshotAssertion(
+            assertion_id="assertion:lidera:activa",
+            subject_entity_id="entity:leyenda:ilaria",
+            object_entity_id="entity:leyenda:casa-ciervo",
+            predicate="LEADS",
+            direction="SUBJECT_TO_OBJECT",
+            negated=False,
+            status="ASSERTED",
+            state="ACTIVE",
+            version=1,
+            state_hash=sha256_hash({"assertion": "assertion:lidera:activa"}),
+        )
+        _plan, run, _p = _plan_or_none(
+            "p7-ces-anclada",
+            T_CESACION,
+            assertions=[previous],
+            negation_policy_at_engine=True,
+            engine_config=EngineConfig(graduated_negation_policy=True),
+        )
+        decision = run.decisions[0]
+        effective_ops = [] if run.plan is None else list(run.plan.mutation_operations)
+        review_ops = (
+            []
+            if run.review_plan is None
+            else [op["operation_type"] for op in run.review_plan.mutation_operations]
+        )
+
+        assert decision.decision == "REVIEW"
+        assert decision.supersedes == previous
+        assert "EXTRACTOR_REQUESTED_REVIEW" not in decision.reason_codes()
+        assert "NEGATION_POLICY_REVIEW" in decision.reason_codes()
+        assert "CESSATION_SHADOW_PLAN" in decision.reason_codes()
+        assert effective_ops == []
+        assert "CREATE_ASSERTION" in review_ops
+        assert "SUPERSEDE_ASSERTION" in review_ops
 
 
-def _plan_or_none(source_id: str, text: str):
+def _plan_or_none(source_id: str, text: str, *, assertions=(), **config_overrides):
     gold = gold_dev()
     entities = snapshot_entities(gold)
-    pipeline = KnowledgePipeline(base_config(gold, writer_driver=None))
-    run = pipeline.run([raw_case(source_id, text)], catalog_entities=entities).runs[0]
+    config_overrides.setdefault("writer_driver", None)
+    pipeline = KnowledgePipeline(base_config(gold, **config_overrides))
+    snapshot = None
+    if assertions:
+        snapshot = InMemoryGraphSnapshot.build(
+            snapshot_id="snapshot:puerta7:cesacion",
+            workspace=pipeline.config.workspace,
+            entities=entities,
+            assertions=assertions,
+        )
+    run = pipeline.run_source(
+        raw_case(source_id, text),
+        snapshot=snapshot,
+        catalog_entities=entities,
+    )
     return (run.plan.to_dict() if run.plan else None), run, pipeline

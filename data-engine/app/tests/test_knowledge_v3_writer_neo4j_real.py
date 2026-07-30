@@ -301,6 +301,9 @@ def create_assertion(
     subject: str,
     obj: str,
     decision_id: str = "decision:1",
+    *,
+    predicate: str = "MEMBER_OF",
+    negated: bool = False,
 ) -> dict:
     return op(
         op_id,
@@ -310,7 +313,8 @@ def create_assertion(
         payload={
             "subject_entity_id": subject,
             "object_entity_id": obj,
-            "predicate": "MEMBER_OF",
+            "predicate": predicate,
+            "negated": negated,
             "status": "ASSERTED",
         },
         expected_state="WOULD_CREATE",
