@@ -1,0 +1,79 @@
+{
+  "corpus": {
+    "cases": 4,
+    "path": "data-engine/app/knowledge_v3/benchmarks/datasets/factivity/cases.json",
+    "provenance": "dev-synthetic/opus-2026-07-30",
+    "split": "dev-synthetic"
+  },
+  "gate": "6",
+  "generated_by": "opus-gate6",
+  "lanes": {
+    "ollama": {
+      "errors": [],
+      "lane": "ollama",
+      "latency_ms": {
+        "max": 597423,
+        "mean": 429177,
+        "median": 588879,
+        "min": 258702
+      },
+      "model": "qwen2.5:7b",
+      "rows": {
+        "fact:alcance-complejo:01": {
+          "abstentions": 1,
+          "claim_ids": [
+            "claim:extract.semantic:adf58561dd2d6194"
+          ],
+          "diagnostic_codes": [
+            "PREDICATE_NOT_IN_PROFILE"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:condicional:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "CONDITIONAL_CONTEXT",
+            "PREDICATE_NOT_IN_PROFILE"
+          ],
+          "diagnostics": 2,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:contrafactual:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "CONDITIONAL_CONTEXT",
+            "PREDICATE_NOT_IN_PROFILE",
+            "UNKNOWN_ENTITY_TYPE"
+          ],
+          "diagnostics": 4,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:deseo:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "DESIRE_CONTEXT"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        }
+      },
+      "wall_seconds": 1716.7
+    }
+  }
+}

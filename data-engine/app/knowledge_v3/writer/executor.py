@@ -22,6 +22,7 @@ conexion y no tiene ninguna URL por defecto.
 from __future__ import annotations
 
 import re
+import uuid
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -192,6 +193,43 @@ def _reason_code(op: dict) -> str:
     return value
 
 
+def _validated_payload(op: dict) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Valida la parte ejecutable de una operacion sin consultar el grafo.
+
+    Es deliberadamente comun a apply y dry-run: una simulacion no puede
+    presentar como ejecutable un payload que el writer real rechazaria.
+    """
+    op_type = op["operation_type"]
+    if op_type not in SUPPORTED_TYPES:
+        raise WriterAbort(
+            codes.EXEC_UNSUPPORTED_OPERATION,
+            f"tipo de operacion no soportado: {op_type}",
+            {"operation_id": op["operation_id"], "operation_type": op_type},
+        )
+    payload = dict(op.get("payload") or {})
+    props = cypher.safe_props(payload)
+    if op_type == "CREATE_ENTITY":
+        _require(op.get("target_entity_id"), op, "target_entity_id")
+        cypher.safe_token(payload.get("entity_type"), "etiqueta")
+    elif op_type == "CREATE_ASSERTION":
+        _require(op.get("assertion_id"), op, "assertion_id")
+    elif op_type in RELATION_TYPES:
+        _require(payload.get("subject_entity_id"), op, "payload.subject_entity_id")
+        _require(payload.get("object_entity_id"), op, "payload.object_entity_id")
+        predicate = _require(payload.get("predicate"), op, "payload.predicate")
+        cypher.safe_token(predicate, "tipo de relacion")
+    else:
+        _require(
+            op.get("assertion_id")
+            if op_type == "SUPERSEDE_ASSERTION"
+            else op.get("target_entity_id"),
+            op,
+            "assertion_id" if op_type == "SUPERSEDE_ASSERTION" else "target_entity_id",
+        )
+        _reason_code(op)
+    return payload, props
+
+
 # --- Procedencia ----------------------------------------------------------
 def _provenance(view: SignedView, op: dict, ctx: ExecutionContext) -> dict[str, Any]:
     """Lo que el writer estampa el mismo en todo lo que escribe.
@@ -224,15 +262,8 @@ def execute_operation(
     tx: Any, op: dict, view: SignedView, ctx: ExecutionContext
 ) -> AppliedOperation:
     op_type = op["operation_type"]
-    if op_type not in SUPPORTED_TYPES:
-        raise WriterAbort(
-            codes.EXEC_UNSUPPORTED_OPERATION,
-            f"tipo de operacion no soportado: {op_type}",
-            {"operation_id": op["operation_id"], "operation_type": op_type},
-        )
     ws = view.workspace
-    payload = dict(op.get("payload") or {})
-    props = cypher.safe_props(payload)
+    payload, props = _validated_payload(op)
     prov = _provenance(view, op, ctx)
 
     if op_type == "CREATE_ENTITY":
@@ -320,8 +351,8 @@ def execute_operation(
 def execute_plan(driver: Any, view: SignedView, ctx: ExecutionContext) -> ExecutionOutcome:
     """Aplica el plan en UNA transaccion. Cualquier fallo la revierte entera.
 
-    Las claves de idempotencia se registran DESPUES del commit: marcarlas antes
-    perderia para siempre una operacion que la transaccion acabo revirtiendo.
+    La marca autoritativa vive en Neo4j y se crea dentro de esta transaccion.
+    El almacén inyectado se actualiza después sólo como caché compatible.
     """
     outcome = ExecutionOutcome()
     pending: list[AppliedOperation] = []
@@ -343,8 +374,41 @@ def execute_plan(driver: Any, view: SignedView, ctx: ExecutionContext) -> Execut
         try:
             for op in view.mutation_operations:
                 key = op["idempotency_key"]
-                if ctx.applied_keys.is_applied(key):
-                    # No-op contabilizado: no llega al driver, no escribe dos veces.
+                cached = ctx.applied_keys.is_applied(key)
+                claimed = _single(
+                    tx,
+                    cypher.claim_applied_operation(
+                        view.workspace,
+                        key,
+                        view.plan_hash_value,
+                        op["operation_id"],
+                        ctx.written_at,
+                        uuid.uuid4().hex,
+                    ),
+                )
+                existing_hash = _field(claimed, "plan_hash")
+                existing_operation = _field(claimed, "operation_id")
+                created = _field(claimed, "created")
+                # Compatibilidad con drivers falsos antiguos sin retorno tipado.
+                if created is None and existing_hash is None:
+                    created = not cached
+                if not created:
+                    if (
+                        existing_hash != view.plan_hash_value
+                        or existing_operation != op["operation_id"]
+                    ):
+                        raise WriterAbort(
+                            codes.EXEC_IDEMPOTENCY_CONFLICT,
+                            "idempotency_key ya aplicada por un plan incompatible",
+                            {
+                                "workspace": view.workspace,
+                                "idempotency_key": key,
+                                "expected_plan_hash": view.plan_hash_value,
+                                "actual_plan_hash": existing_hash,
+                                "expected_operation_id": op["operation_id"],
+                                "actual_operation_id": existing_operation,
+                            },
+                        )
                     outcome.noop_keys.append(key)
                     continue
                 pending.append(execute_operation(tx, op, view, ctx))
@@ -357,20 +421,25 @@ def execute_plan(driver: Any, view: SignedView, ctx: ExecutionContext) -> Execut
             raise
 
     for applied in pending:
-        ctx.applied_keys.record(
-            applied.idempotency_key,
-            {
-                "workspace": view.workspace,
-                "snapshot_id": view.snapshot_id,
-                "plan_hash": view.plan_hash_value,
-                "operation_id": applied.operation_id,
-                "operation_type": applied.operation_type,
-                "target_id": applied.target_id,
-                "created_id": applied.created_id,
-                "applied_at": ctx.written_at,
-                "operator_id": ctx.operator_id,
-            },
-        )
+        try:
+            ctx.applied_keys.record(
+                applied.idempotency_key,
+                {
+                    "workspace": view.workspace,
+                    "snapshot_id": view.snapshot_id,
+                    "plan_hash": view.plan_hash_value,
+                    "operation_id": applied.operation_id,
+                    "operation_type": applied.operation_type,
+                    "target_id": applied.target_id,
+                    "created_id": applied.created_id,
+                    "applied_at": ctx.written_at,
+                    "operator_id": ctx.operator_id,
+                    "authority": "neo4j",
+                },
+            )
+        except Exception:
+            # Una caché vacía o atrasada es segura: el reintento consulta Neo4j.
+            pass
     outcome.applied = pending
     return outcome
 
@@ -386,6 +455,7 @@ def simulate_plan(view: SignedView, ctx: ExecutionContext) -> ExecutionOutcome:
         if ctx.applied_keys.is_applied(key):
             outcome.noop_keys.append(key)
             continue
+        _validated_payload(op)
         outcome.applied.append(
             AppliedOperation(
                 operation_id=op["operation_id"],

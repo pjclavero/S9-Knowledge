@@ -38,6 +38,7 @@ from .ontology import (  # noqa: F401
 )
 from .planner import PlanContext, build_plan  # noqa: F401
 from .signals import ExternalSignal  # noqa: F401
+from .shadow import ShadowDecisionRecord, has_semantic_origin  # noqa: F401
 from .snapshot import (  # noqa: F401
     GraphSnapshot,
     InMemoryGraphSnapshot,
@@ -74,6 +75,8 @@ __all__ = [
     "Severity",
     "SnapshotAssertion",
     "SnapshotEntity",
+    "ShadowDecisionRecord",
+    "has_semantic_origin",
     "TemporalOutcome",
     "build_plan",
     "canonical_key",

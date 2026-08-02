@@ -135,7 +135,6 @@ def assertion_for(
 #: `idempotency_key` (que se deriva del payload) cambiase en cada ejecucion —
 #: es decir, destruiria la idempotencia que el contrato exige.
 PAYLOAD_FIELDS = (
-    "assertion_id",
     "subject_entity_id",
     "object_entity_id",
     "predicate",
@@ -320,7 +319,11 @@ def _validator_chain(
         for d in decisions
         if d.accepted
     )
-    evidence_ok = all(d.evidence_fragment_ids for d in decisions)
+    evidence_ok = all(
+        any(f.code == "EVIDENCE_LITERAL_VERIFIED" for f in d.findings)
+        for d in decisions
+        if d.accepted
+    )
     no_conflict_accepted = all(not d.conflicts for d in decisions if d.accepted) and all(
         not any(f.axis == "CONTRADICTION" and f.severity >= 2 for f in d.findings)
         for d in decisions
@@ -330,7 +333,10 @@ def _validator_chain(
         profile.spec(d.predicate) is not None for d in decisions if d.accepted and d.predicate
     ) and context.ontology_version == profile.ontology_version
     anchored = all(
-        op["expected_version"] is not None
+        (
+            op["expected_version"] is not None
+            and op["expected_hash"] is not None
+        )
         or op["operation_type"] in ("CREATE_ENTITY", "CREATE_ASSERTION")
         for op in operations
     )
@@ -442,8 +448,16 @@ def build_plan(
     kind: str = "write",
     proposal_steps: Optional[dict] = None,
     extra_steps: Sequence[dict] = (),
+    decision_source: str = "effective",
 ) -> PlanBuild:
-    """Construye, sella y valida un plan. Devuelve `plan=None` si no hay decisiones."""
+    """Construye un plan solo desde decisiones efectivas.
+
+    ``decision_source`` es una invariante verificable de frontera: los
+    artefactos sombra no pueden convertirse accidentalmente en el contrato que
+    consume el writer.
+    """
+    if decision_source != "effective":
+        raise EnginePlanError("el writer solo admite planes derivados de decisiones efectivas")
     decisions = list(decisions)
     if not decisions:
         return PlanBuild(None, (), ())
@@ -456,17 +470,24 @@ def build_plan(
     for decision in decisions:
         if not decision.writes:
             continue
+        if not any(f.code == "EVIDENCE_LITERAL_VERIFIED" for f in decision.findings):
+            semantic_failures.append("EVIDENCE_LITERAL_NOT_VERIFIED")
+            continue
+        if decision.negated and decision.negation_kind in ("", "UNKNOWN", "SCOPE_AMBIGUOUS"):
+            semantic_failures.append("NEGATION_KIND_NOT_WRITABLE")
+            continue
         try:
             assertion = assertion_for(context, decision, proposal_steps.get(decision.claim_id))
-        except V3ContractError as exc:
+        except V3ContractError:
             semantic_failures.append("ASSERTION_INVALID")
-            decision.findings.append(
-                F.EVIDENCE_NOT_VERIFIABLE(f"la afirmacion derivada no valida: {exc}")
-            )
             continue
         assertions.append(assertion)
         operations.extend(_operations(context, decision, assertion, config))
 
+    # Orden total antes de sellar: ni el orden de llegada de los claims ni el
+    # de las operaciones auxiliares afecta al hash o a la idempotency key.
+    assertions.sort(key=lambda assertion: assertion.assertion_id)
+    operations.sort(key=lambda operation: operation["operation_id"])
     has_review = any(d.decision == "REVIEW" for d in decisions)
     chain = _validator_chain(context, decisions, operations, profile, True, semantic_failures)
     approved = (

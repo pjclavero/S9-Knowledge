@@ -1,0 +1,513 @@
+{
+  "by_family": {
+    "CONDICIONAL": {
+      "ASSERTED_FACT": 2,
+      "UNKNOWN": 1
+    },
+    "CONTRAFACTUAL": {
+      "ASSERTED_FACT": 1,
+      "CONDITIONAL": 1,
+      "UNKNOWN": 1
+    },
+    "DESEO": {
+      "ASSERTED_FACT": 1,
+      "NEGATED_FACT": 1
+    },
+    "FALSEDAD_ATRIBUIDA": {
+      "ASSERTED_FACT": 2
+    },
+    "FICCION_EN_FICCION": {
+      "ASSERTED_FACT": 2
+    },
+    "HECHO_AFIRMADO": {
+      "ASSERTED_FACT": 2
+    },
+    "HIPOTESIS": {
+      "ASSERTED_FACT": 3,
+      "NEGATED_FACT": 1
+    },
+    "NEGACION_FACTUAL": {
+      "NEGATED_FACT": 2
+    },
+    "ORDEN": {
+      "ASSERTED_FACT": 3
+    },
+    "PREGUNTA": {
+      "CONDITIONAL": 2,
+      "QUESTION": 1
+    },
+    "RUMOR": {
+      "ASSERTED_FACT": 4
+    }
+  },
+  "contaminated_cases": [],
+  "generated_by": "opus-fase3",
+  "leaks": [
+    {
+      "case_id": "gen:hip:01",
+      "class": "NEGATED_FACT",
+      "family": "HIPOTESIS",
+      "text": "No es descartable que Yevin Aroca guarde todavía el cetro de sal."
+    },
+    {
+      "case_id": "gen:hip:02",
+      "class": "ASSERTED_FACT",
+      "family": "HIPOTESIS",
+      "text": "Nada garantiza que la Orden del Yunque siga fiel al puerto."
+    },
+    {
+      "case_id": "gen:hip:03",
+      "class": "ASSERTED_FACT",
+      "family": "HIPOTESIS",
+      "text": "Se barrunta entre los escribas que Delia Sarn encabeza la partida."
+    },
+    {
+      "case_id": "gen:hip:04",
+      "class": "ASSERTED_FACT",
+      "family": "HIPOTESIS",
+      "text": "En el supuesto de que Marto Quiles mande la flota, el bloqueo caería solo."
+    },
+    {
+      "case_id": "gen:rum:01",
+      "class": "ASSERTED_FACT",
+      "family": "RUMOR",
+      "text": "Según se murmura en los muelles, Delia Sarn pertenece a la Liga del Cardo."
+    },
+    {
+      "case_id": "gen:rum:02",
+      "class": "ASSERTED_FACT",
+      "family": "RUMOR",
+      "text": "Voces sin nombre aseguran que el cetro de sal descansa en la Cripta Baja."
+    },
+    {
+      "case_id": "gen:rum:03",
+      "class": "ASSERTED_FACT",
+      "family": "RUMOR",
+      "text": "De boca en boca se repite que Yevin Aroca traicionó a la Liga del Cardo."
+    },
+    {
+      "case_id": "gen:rum:04",
+      "class": "ASSERTED_FACT",
+      "family": "RUMOR",
+      "text": "Trascendió, sin que nadie lo confirmara, que Marto Quiles sirve a la Casa Ondel."
+    },
+    {
+      "case_id": "gen:con:01",
+      "class": "ASSERTED_FACT",
+      "family": "CONDICIONAL",
+      "text": "Con tal de que Marto Quiles dirija la flota, el Cardo aceptará el pacto."
+    },
+    {
+      "case_id": "gen:con:02",
+      "class": "ASSERTED_FACT",
+      "family": "CONDICIONAL",
+      "text": "A condición de que Delia Sarn abandone la Liga, se levantará el destierro."
+    },
+    {
+      "case_id": "gen:cfa:02",
+      "class": "ASSERTED_FACT",
+      "family": "CONTRAFACTUAL",
+      "text": "Habría bastado con que Marto Quiles firmase para que la Casa Ondel cediera el puerto."
+    },
+    {
+      "case_id": "gen:des:01",
+      "class": "ASSERTED_FACT",
+      "family": "DESEO",
+      "text": "Ansía el veedor que Delia Sarn renuncie al mando de la Liga del Cardo."
+    },
+    {
+      "case_id": "gen:des:02",
+      "class": "NEGATED_FACT",
+      "family": "DESEO",
+      "text": "No le importaría a Marto Quiles que la Casa Ondel perdiese el puerto."
+    },
+    {
+      "case_id": "gen:ord:01",
+      "class": "ASSERTED_FACT",
+      "family": "ORDEN",
+      "text": "Abstente de entregar el cetro de sal a nadie de la Casa Ondel."
+    },
+    {
+      "case_id": "gen:ord:02",
+      "class": "ASSERTED_FACT",
+      "family": "ORDEN",
+      "text": "Guárdate muy bien de jurar lealtad a la Liga del Cardo."
+    },
+    {
+      "case_id": "gen:ord:03",
+      "class": "ASSERTED_FACT",
+      "family": "ORDEN",
+      "text": "Cúmplase la sentencia: que Yevin Aroca devuelva el cetro a la Cripta Baja."
+    },
+    {
+      "case_id": "gen:fal:01",
+      "class": "ASSERTED_FACT",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "text": "Quedó desmentido en el consejo que Delia Sarn mandara en la Liga del Cardo."
+    },
+    {
+      "case_id": "gen:fal:02",
+      "class": "ASSERTED_FACT",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "text": "El heraldo atribuyó sin fundamento a Marto Quiles el mando de la flota."
+    },
+    {
+      "case_id": "gen:fic:01",
+      "class": "ASSERTED_FACT",
+      "family": "FICCION_EN_FICCION",
+      "text": "En el entremés que representaron los cómicos, Yevin Aroca robaba el cetro de sal."
+    },
+    {
+      "case_id": "gen:fic:02",
+      "class": "ASSERTED_FACT",
+      "family": "FICCION_EN_FICCION",
+      "text": "El romance de ciego hace a Delia Sarn señora de la Cripta Baja."
+    }
+  ],
+  "missed_controls": [],
+  "probe": "factivity-generalization",
+  "purpose": "conjunto de control con marcadores no-factivos AUSENTES de cues.py y de cases.json: distingue generalizacion de memorizacion del parche",
+  "rows": [
+    {
+      "case_id": "gen:hip:01",
+      "correct": false,
+      "factivity_class": "NEGATED_FACT",
+      "family": "HIPOTESIS",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_NEGATED_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "No es descartable que Yevin Aroca guarde todavía el cetro de sal."
+    },
+    {
+      "case_id": "gen:hip:02",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "HIPOTESIS",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "Nada garantiza que la Orden del Yunque siga fiel al puerto."
+    },
+    {
+      "case_id": "gen:hip:03",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "HIPOTESIS",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "Se barrunta entre los escribas que Delia Sarn encabeza la partida."
+    },
+    {
+      "case_id": "gen:hip:04",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "HIPOTESIS",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "En el supuesto de que Marto Quiles mande la flota, el bloqueo caería solo."
+    },
+    {
+      "case_id": "gen:rum:01",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "RUMOR",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "Según se murmura en los muelles, Delia Sarn pertenece a la Liga del Cardo."
+    },
+    {
+      "case_id": "gen:rum:02",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "RUMOR",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "Voces sin nombre aseguran que el cetro de sal descansa en la Cripta Baja."
+    },
+    {
+      "case_id": "gen:rum:03",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "RUMOR",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "De boca en boca se repite que Yevin Aroca traicionó a la Liga del Cardo."
+    },
+    {
+      "case_id": "gen:rum:04",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "RUMOR",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "Trascendió, sin que nadie lo confirmara, que Marto Quiles sirve a la Casa Ondel."
+    },
+    {
+      "case_id": "gen:pre:01",
+      "correct": true,
+      "factivity_class": "CONDITIONAL",
+      "family": "PREGUNTA",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_DIAGNOSTIC",
+      "read_as_world_fact": false,
+      "should_be_world_fact": false,
+      "text": "Quiso saber el veedor si Delia Sarn manda de verdad en la Liga del Cardo."
+    },
+    {
+      "case_id": "gen:pre:02",
+      "correct": true,
+      "factivity_class": "CONDITIONAL",
+      "family": "PREGUNTA",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_DIAGNOSTIC",
+      "read_as_world_fact": false,
+      "should_be_world_fact": false,
+      "text": "Planteó la duda de si el cetro de sal salió alguna vez de la Cripta Baja."
+    },
+    {
+      "case_id": "gen:pre:03",
+      "correct": true,
+      "factivity_class": "QUESTION",
+      "family": "PREGUNTA",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_DIAGNOSTIC",
+      "read_as_world_fact": false,
+      "should_be_world_fact": false,
+      "text": "¿Custodia Yevin Aroca el cetro de sal desde la caída del puerto?"
+    },
+    {
+      "case_id": "gen:con:01",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "CONDICIONAL",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "Con tal de que Marto Quiles dirija la flota, el Cardo aceptará el pacto."
+    },
+    {
+      "case_id": "gen:con:02",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "CONDICIONAL",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "A condición de que Delia Sarn abandone la Liga, se levantará el destierro."
+    },
+    {
+      "case_id": "gen:con:03",
+      "correct": true,
+      "factivity_class": "UNKNOWN",
+      "family": "CONDICIONAL",
+      "known_cues_in_text": [],
+      "policy_action": "REVIEW_SCOPE",
+      "read_as_world_fact": false,
+      "should_be_world_fact": false,
+      "text": "Como no sea que Yevin Aroca entregue el cetro, no habrá tregua alguna."
+    },
+    {
+      "case_id": "gen:cfa:01",
+      "correct": true,
+      "factivity_class": "UNKNOWN",
+      "family": "CONTRAFACTUAL",
+      "known_cues_in_text": [],
+      "policy_action": "REVIEW_SCOPE",
+      "read_as_world_fact": false,
+      "should_be_world_fact": false,
+      "text": "De no haber muerto el viejo maestre, Delia Sarn jamás habría mandado en la Liga."
+    },
+    {
+      "case_id": "gen:cfa:02",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "CONTRAFACTUAL",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "Habría bastado con que Marto Quiles firmase para que la Casa Ondel cediera el puerto."
+    },
+    {
+      "case_id": "gen:cfa:03",
+      "correct": true,
+      "factivity_class": "CONDITIONAL",
+      "family": "CONTRAFACTUAL",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_DIAGNOSTIC",
+      "read_as_world_fact": false,
+      "should_be_world_fact": false,
+      "text": "Otro gallo cantaría si el cetro de sal siguiera en la Cripta Baja."
+    },
+    {
+      "case_id": "gen:des:01",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "DESEO",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "Ansía el veedor que Delia Sarn renuncie al mando de la Liga del Cardo."
+    },
+    {
+      "case_id": "gen:des:02",
+      "correct": false,
+      "factivity_class": "NEGATED_FACT",
+      "family": "DESEO",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_NEGATED_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "No le importaría a Marto Quiles que la Casa Ondel perdiese el puerto."
+    },
+    {
+      "case_id": "gen:ord:01",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "ORDEN",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "Abstente de entregar el cetro de sal a nadie de la Casa Ondel."
+    },
+    {
+      "case_id": "gen:ord:02",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "ORDEN",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "Guárdate muy bien de jurar lealtad a la Liga del Cardo."
+    },
+    {
+      "case_id": "gen:ord:03",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "ORDEN",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "Cúmplase la sentencia: que Yevin Aroca devuelva el cetro a la Cripta Baja."
+    },
+    {
+      "case_id": "gen:fal:01",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "Quedó desmentido en el consejo que Delia Sarn mandara en la Liga del Cardo."
+    },
+    {
+      "case_id": "gen:fal:02",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "FALSEDAD_ATRIBUIDA",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "El heraldo atribuyó sin fundamento a Marto Quiles el mando de la flota."
+    },
+    {
+      "case_id": "gen:fic:01",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "FICCION_EN_FICCION",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "En el entremés que representaron los cómicos, Yevin Aroca robaba el cetro de sal."
+    },
+    {
+      "case_id": "gen:fic:02",
+      "correct": false,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "FICCION_EN_FICCION",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": false,
+      "text": "El romance de ciego hace a Delia Sarn señora de la Cripta Baja."
+    },
+    {
+      "case_id": "gen:pos:01",
+      "correct": true,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "HECHO_AFIRMADO",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": true,
+      "text": "Yevin Aroca custodia el cetro de sal en la Cripta Baja."
+    },
+    {
+      "case_id": "gen:pos:02",
+      "correct": true,
+      "factivity_class": "ASSERTED_FACT",
+      "family": "HECHO_AFIRMADO",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": true,
+      "text": "Delia Sarn encabeza la Liga del Cardo desde la caída del puerto."
+    },
+    {
+      "case_id": "gen:pos:03",
+      "correct": true,
+      "factivity_class": "NEGATED_FACT",
+      "family": "NEGACION_FACTUAL",
+      "known_cues_in_text": [],
+      "policy_action": "EMIT_NEGATED_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": true,
+      "text": "Marto Quiles no pertenece a la Casa Ondel."
+    },
+    {
+      "case_id": "gen:pos:04",
+      "correct": true,
+      "factivity_class": "NEGATED_FACT",
+      "family": "NEGACION_FACTUAL",
+      "known_cues_in_text": [
+        "nunca"
+      ],
+      "policy_action": "EMIT_NEGATED_WORLD_CLAIM",
+      "read_as_world_fact": true,
+      "should_be_world_fact": true,
+      "text": "El cetro de sal nunca salió de la Cripta Baja."
+    }
+  ],
+  "totals": {
+    "cases": 30,
+    "control_accuracy": 1.0,
+    "controls": 4,
+    "controls_missed": 0,
+    "non_factive": 26,
+    "non_factive_accuracy": 0.2308,
+    "non_factive_read_as_fact": 20
+  }
+}

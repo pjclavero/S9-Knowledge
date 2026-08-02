@@ -14,6 +14,7 @@ from app.services.v3_review import (
     ReviewService,
     read_history,
     reason_label,
+    StaleReviewError,
 )
 
 
@@ -306,13 +307,51 @@ def test_post_reload_does_not_duplicate_decision(monkeypatch, review_files):
     app = FastAPI()
     app.include_router(router_module.router)
     client = TestClient(app)
+    item = next(i for i in service.queue("alpha").items if i["proposal_id"] == "p1")
     form = {
         "workspace": "alpha",
         "proposal_id": "p1",
         "human_decision": "APPROVE",
         "request_id": "same-browser-submit",
+        "expected_proposal_hash": item["proposal_hash"],
         "csrf_token": "",
     }
+    # Sin hash, la ruta HTTP rechaza: el control de revisión obsoleta es obligatorio.
+    sin_hash = {k: v for k, v in form.items() if k != "expected_proposal_hash"}
+    assert client.post("/v3/review/decide", data=sin_hash, follow_redirects=False).status_code == 400
     assert client.post("/v3/review/decide", data=form, follow_redirects=False).status_code == 303
     assert client.post("/v3/review/decide", data=form, follow_redirects=False).status_code == 303
     assert len(read_history(decisions)) == 1
+
+
+def test_stale_review_is_audited_without_changing_valid_history(review_files):
+    proposals_dir, decisions = review_files
+    service = ReviewService(proposals_dir, decisions)
+    with pytest.raises(StaleReviewError, match="STALE_REVIEW"):
+        service.record(
+            proposal_id="p1", workspace="alpha", reviewer="mara",
+            human_decision="APPROVE", request_id="stale-1",
+            expected_proposal_hash="0" * 64,
+        )
+    assert read_history(decisions) == []
+    audit = json.loads((decisions.parent / "audit.jsonl").read_text(encoding="utf-8"))
+    assert audit["event"] == "STALE_REVIEW"
+    assert audit["expected_proposal_hash"] == "0" * 64
+
+
+def test_explicit_alias_correction_proposes_but_never_applies_glossary(review_files):
+    proposals_dir, decisions = review_files
+    service = ReviewService(proposals_dir, decisions)
+    item = service.queue("alpha").items[0]
+    record = service.record(
+        proposal_id=item["proposal_id"], workspace="alpha", reviewer="mara",
+        human_decision="CORRECT", request_id="alias-1",
+        expected_proposal_hash=item["proposal_hash"],
+        correction={"subject_alias": "Ari"},
+    )
+    candidates = service.glossary_candidates("alpha")
+    assert len(candidates) == 1
+    assert candidates[0]["candidate_type"] == "ALIAS_CANDIDATE"
+    assert candidates[0]["origin"]["human_decision_ids"] == [record["decision_id"]]
+    assert candidates[0]["status"] == "PROPOSED"
+    assert "apply" not in candidates[0]

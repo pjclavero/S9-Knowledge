@@ -244,6 +244,7 @@ class FakeTx:
         self.driver = driver
         self.committed = False
         self.rolled_back = False
+        self.pending_marks: dict[tuple[str, str], dict] = {}
 
     def run(self, cypher: str, params: dict):
         self.driver.queries.append((cypher, params))
@@ -254,6 +255,21 @@ class FakeTx:
             kind = "assertion" if "V3Assertion" in cypher else "entity"
             state = self.driver.nodes.get((kind, params["id"]))
             return FakeResult(dict(state) if state is not None else None)
+        if "V3AppliedOperation" in cypher:
+            identity = (params["ws"], params["key"])
+            mark = self.driver.applied_marks.get(identity) or self.pending_marks.get(identity)
+            if mark is None:
+                mark = {
+                    "plan_hash": params["plan_hash"],
+                    "operation_id": params["operation_id"],
+                    "claim_token": params["claim_token"],
+                }
+                self.pending_marks[identity] = mark
+            return FakeResult({
+                "plan_hash": mark["plan_hash"],
+                "operation_id": mark["operation_id"],
+                "created": mark["claim_token"] == params["claim_token"],
+            })
         self.driver.writes.append((cypher, params))
         return FakeResult({"id": params.get("props", {}).get("entity_id")
                            or params.get("props", {}).get("assertion_id")
@@ -263,6 +279,7 @@ class FakeTx:
     def commit(self):
         self.committed = True
         self.driver.committed = True
+        self.driver.applied_marks.update(self.pending_marks)
 
     def rollback(self):
         self.rolled_back = True
@@ -296,6 +313,7 @@ class FakeDriver:
         self.transactions: list = []
         self.committed = False
         self.rolled_back = False
+        self.applied_marks: dict[tuple[str, str], dict] = {}
 
     def session(self):
         return FakeSession(self)
@@ -784,6 +802,8 @@ def test_ninguna_consulta_ejecutada_es_destructiva():
         assert_safe(query)  # no lanza
         upper = query.upper()
         for prohibido in ("MERGE", "DELETE", "DETACH", "REMOVE", "DROP"):
+            if prohibido == "MERGE" and "V3APPLIEDOPERATION" in upper:
+                continue
             assert prohibido not in upper
 
 
@@ -913,6 +933,18 @@ def test_un_payload_que_pisa_una_propiedad_reservada_aborta():
     assert codes.EXEC_UNSUPPORTED_PAYLOAD in result.codes
 
 
+def test_el_dry_run_rechaza_el_mismo_payload_reservado_que_apply():
+    """REGRESION F7-2: simular no puede ocultar un payload inejecutable."""
+    operation = op_create_entity("op:0001", "decision:0001", "entity:daiki")
+    operation["payload"]["written_by_operator"] = "otro"
+    plan = make_plan(operations=[operation])
+
+    result = make_writer(ExplodingDriver()).write(plan, dry_request())
+
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_UNSUPPORTED_PAYLOAD in result.codes
+
+
 def test_una_etiqueta_con_forma_rara_aborta_en_vez_de_interpolarse():
     op = op_create_entity("op:0001", "decision:0001", "entity:daiki")
     op["payload"]["entity_type"] = "Character) DETACH DELETE (n"
@@ -966,16 +998,17 @@ def test_reaplicar_el_mismo_plan_no_escribe_dos_veces():
     primero = FakeDriver()
     r1 = make_writer(primero, applied_keys=keys).write(plan, apply_request(plan))
     assert r1.outcome == OUTCOME_APPLIED and r1.applied_operations == 1
+    writes_after_first = list(primero.writes)
 
-    segundo = FakeDriver()
+    segundo = primero
     r2 = make_writer(segundo, applied_keys=keys).write(plan, apply_request(plan))
     assert r2.outcome == OUTCOME_APPLIED
     assert r2.applied_operations == 0
     assert r2.noop_operations == 1
-    assert segundo.writes == []
+    assert segundo.writes == writes_after_first
 
 
-def test_la_misma_operacion_en_otro_plan_lleva_la_misma_clave_y_es_no_op():
+def test_la_misma_clave_con_plan_distinto_falla_cerrado():
     # Misma identidad logica, distinto plan_id y created_at: la clave se deriva
     # de (workspace, snapshot, identidad de la operacion), no del plan.
     plan_a = make_plan()
@@ -987,26 +1020,32 @@ def test_la_misma_operacion_en_otro_plan_lleva_la_misma_clave_y_es_no_op():
         == plan_b["mutation_operations"][0]["idempotency_key"]
     )
     keys = InMemoryAppliedKeys()
-    make_writer(FakeDriver(), applied_keys=keys).write(plan_a, apply_request(plan_a))
     driver = FakeDriver()
+    # Neo4j is authoritative. Simulate the committed marker surviving while
+    # the local cache is shared by copying the transactional mark.
+    first_driver = FakeDriver()
+    make_writer(first_driver, applied_keys=keys).write(plan_a, apply_request(plan_a))
+    driver.applied_marks.update(first_driver.applied_marks)
     result = make_writer(driver, applied_keys=keys).write(plan_b, apply_request(plan_b))
-    assert result.noop_operations == 1
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_IDEMPOTENCY_CONFLICT in result.codes
     assert driver.writes == []
 
 
 def test_la_idempotencia_sobrevive_a_reiniciar_el_writer(tmp_path):
     plan = make_plan()
     path = tmp_path / "applied.jsonl"
-    make_writer(FakeDriver(), applied_keys=JsonlAppliedKeys(path)).write(
+    driver = FakeDriver()
+    make_writer(driver, applied_keys=JsonlAppliedKeys(path)).write(
         plan, apply_request(plan)
     )
+    writes_after_first = list(driver.writes)
     # Otro proceso, otro almacen cargado del mismo fichero.
-    driver = FakeDriver()
     result = make_writer(driver, applied_keys=JsonlAppliedKeys(path)).write(
         plan, apply_request(plan)
     )
     assert result.noop_operations == 1
-    assert driver.writes == []
+    assert driver.writes == writes_after_first
 
 
 def test_un_plan_abortado_no_deja_claves_registradas():

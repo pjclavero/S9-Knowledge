@@ -1182,7 +1182,8 @@ class TestQuoteInContext:
         }
         out = normalize_payload(payload, ctx=ctx, episode=episode, info=DETERMINISTIC_INFO)
         assert asserted(out) == []
-        assert "NON_FACTIVE_CONTEXT" in out.claims[0].metadata["abstention_reasons"]
+        assert out.claims == []
+        assert any(d.code == "FALSITY_CONTEXT" for d in out.diagnostics)
 
     def test_el_contexto_manda_sobre_la_pista_del_modelo(self):
         ctx, episode = single_context("ep:rum", "Se dice que Kael vive en Valdor.")
@@ -1262,15 +1263,14 @@ class TestNonFactiveDeterministic:
             ctx, _ = single_context("ep:nf", texto)
             out = DeterministicExtractor().extract(ctx)
             assert asserted(out) == [], texto
-            reasons = [r for c in out.claims for r in c.metadata["abstention_reasons"]]
-            assert "NON_FACTIVE_CONTEXT" in reasons, texto
+            assert out.claims == [], texto
+            assert out.diagnostics, texto
 
-    def test_el_condicional_sale_como_hipotesis(self):
+    def test_el_condicional_solo_deja_diagnostico(self):
         ctx, _ = single_context("ep:cond", "Si Kael vive en Valdor, la Orden lo sabra.")
-        claims = asserted(DeterministicExtractor().extract(ctx))
-        assert claims
-        assert claims[0].epistemic_status_hint == "HYPOTHETICAL"
-        assert claims[0].review_required is True
+        out = DeterministicExtractor().extract(ctx)
+        assert out.claims == []
+        assert any(d.code == "CONDITIONAL_CONTEXT" for d in out.diagnostics)
 
 
 class TestCoordinationAndModifiers:

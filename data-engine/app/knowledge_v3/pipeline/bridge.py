@@ -42,8 +42,12 @@ from ..ledger.assertions import TemporalLedger
 from ..ledger.projection import ProjectedEdge, project
 
 
-def assertion_from_edge(edge: ProjectedEdge) -> SnapshotAssertion:
-    """`ProjectedEdge` (ledger) -> `SnapshotAssertion` (motor). Copia, no criterio."""
+def assertion_from_edge(edge: ProjectedEdge, state_hash: dict) -> SnapshotAssertion:
+    """`ProjectedEdge` (ledger) -> `SnapshotAssertion` (motor). Copia, no criterio.
+
+    El hash no se recalcula desde la proyeccion degradada: viene del snapshot
+    sellado del ledger, que lo deriva del documento autoritativo completo.
+    """
     return SnapshotAssertion(
         assertion_id=edge.assertion_id,
         subject_entity_id=edge.subject_entity_id,
@@ -57,6 +61,7 @@ def assertion_from_edge(edge: ProjectedEdge) -> SnapshotAssertion:
         valid_from=edge.valid_from,
         valid_to=edge.valid_to,
         confidence=edge.confidence,
+        state_hash=dict(state_hash),
     )
 
 
@@ -77,11 +82,15 @@ def engine_snapshot(
     view = ledger.view(as_of)
     sealed = ledger.snapshot(as_of)
     edges = project(view)
+    assertion_hashes = {item.item_id: item.hash for item in sealed.assertions}
     return InMemoryGraphSnapshot.build(
         snapshot_id=sealed.snapshot_id,
         workspace=sealed.workspace,
         entities=entities,
-        assertions=[assertion_from_edge(e) for e in edges],
+        assertions=[
+            assertion_from_edge(e, assertion_hashes[e.assertion_id])
+            for e in edges
+        ],
     )
 
 

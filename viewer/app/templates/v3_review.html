@@ -3,6 +3,9 @@
 {% block head %}<link rel="stylesheet" href="/static/css/v3-review.css">{% endblock %}
 {% block body %}
 <main class="v3r-shell">
+  {% if notice == "STALE_REVIEW" %}
+  <p role="alert" class="v3r-error">La propuesta cambió desde que la viste. No se registró tu decisión; revisa la versión actual.</p>
+  {% endif %}
   <header class="v3r-header">
     <div>
       <h1>Revisión V3</h1>
@@ -58,7 +61,8 @@
       <div class="v3r-context">
         <span>{{ item.source_id | e }}</span>
         <span>{{ item.episode_id | e }}</span>
-        <span>{{ item.engine_decision.decision | default("Sin decisión") | e }}</span>
+        <span>efectiva: {{ item.engine_decision.effective_decision | default(item.engine_decision.decision) | default("Sin decisión") | e }}</span>
+        <span>sombra: {{ item.engine_decision.shadow_decision | default("No disponible", true) | e }}</span>
       </div>
 
       <blockquote class="v3r-evidence">{{ item.evidence_before | e }}<mark>{{ item.evidence_literal | e }}</mark>{{ item.evidence_after | e }}</blockquote>
@@ -84,6 +88,19 @@
             <li>No disponible</li>
             {% endfor %}
           </ul>
+          <dl class="v3r-facts">
+            <dt>Hallazgos efectivos</dt>
+            <dd>{{ item.engine_decision.effective_findings | default([]) | join(", ") | e }}</dd>
+            <dt>Hallazgos sombra</dt>
+            <dd>{{ item.engine_decision.shadow_findings | default([]) | join(", ") | e }}</dd>
+            <dt>Operaciones que emitiría</dt>
+            <dd>{{ item.engine_decision.operation_kinds | default([]) | join(", ") | e }}</dd>
+            <dt>Origen semántico</dt>
+            <dd>
+              {{ item.engine_decision.provider | default("No disponible", true) | e }}
+              · {{ item.engine_decision.model | default("No disponible", true) | e }}
+            </dd>
+          </dl>
           <h2>Ontología aplicable</h2>
           <p>{{ item.ontology.allowed_predicates | default([]) | join(", ") | e if item.ontology else "No disponible" }}</p>
           <p class="v3r-version">
@@ -96,6 +113,7 @@
       <form class="v3r-decision" method="post" action="/v3/review/decide">
         <input type="hidden" name="workspace" value="{{ workspace | e }}">
         <input type="hidden" name="proposal_id" value="{{ item.proposal_id | e }}">
+        <input type="hidden" name="expected_proposal_hash" value="{{ item.proposal_hash | e }}">
         <input type="hidden" name="request_id" value="{{ request_id | e }}-{{ loop.index0 }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
 
@@ -133,6 +151,16 @@
             </select>
           </label>
           <label>Alcance <input name="scope" value="{{ item.proposal.scope | default('') | e }}"></label>
+          <label>Nombre canónico sugerido (sujeto) <input name="subject_canonical_name"></label>
+          <label>Alias observado (sujeto) <input name="subject_alias"></label>
+          <label>Nombre canónico sugerido (objeto) <input name="object_canonical_name"></label>
+          <label>Alias observado (objeto) <input name="object_alias"></label>
+          <label>Tipo de entidad sugerido <input name="suggested_entity_type"></label>
+          <label>Error OCR/ASR
+            <select name="is_ocr_asr_error"><option value="">No indicado</option><option value="true">Sí</option></select>
+          </label>
+          <label>Forma mal reconocida <input name="misrecognition"></label>
+          <label>Forma hablada sugerida <input name="spoken_form"></label>
         </fieldset>
         <label class="v3r-rationale">Motivo opcional
           <textarea name="rationale" rows="2"></textarea>

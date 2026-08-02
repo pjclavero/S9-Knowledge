@@ -1,0 +1,1371 @@
+{
+  "gate": "4",
+  "config": {
+    "split": "negation",
+    "workspace": "bench-negation",
+    "ablation": "local_only",
+    "entry": "raw",
+    "semantic_shadow_evaluation": true,
+    "graduated_negation_policy": true,
+    "graduated_temporal_policy": true,
+    "negation_policy_at_engine": true,
+    "accept_negated": true,
+    "emit_projection": true,
+    "writer_mode": "DRY_RUN",
+    "providers": "local_only",
+    "ollama_active": false,
+    "external_active": false,
+    "match": {
+      "span_mode": "overlap",
+      "overlap_threshold": 0.5,
+      "claim_key_extra": [],
+      "fact_key_includes_validity": false,
+      "symmetric_predicates": [
+        "ALLY_OF",
+        "RIVAL_OF",
+        "SIBLING_OF"
+      ]
+    }
+  },
+  "corpus": {
+    "gold_claims": 57,
+    "evaluable_cases": 56,
+    "covered_cases": 8,
+    "coverage": 0.142857,
+    "gold_negatives_no_claim": 4,
+    "sources": [
+      {
+        "source_id": "ambar-escaneo",
+        "episodes": 22,
+        "claims": 0,
+        "decisions": 0,
+        "stopped_at": "engine",
+        "stop_reason": "el extractor no propuso ningun claim para esta fuente"
+      },
+      {
+        "source_id": "basalto-cronica",
+        "episodes": 18,
+        "claims": 5,
+        "decisions": 5,
+        "stopped_at": null,
+        "stop_reason": null
+      },
+      {
+        "source_id": "cirro-actas",
+        "episodes": 16,
+        "claims": 1,
+        "decisions": 1,
+        "stopped_at": null,
+        "stop_reason": null
+      },
+      {
+        "source_id": "zafiro-sesion",
+        "episodes": 8,
+        "claims": 5,
+        "decisions": 5,
+        "stopped_at": null,
+        "stop_reason": null
+      }
+    ],
+    "episodes_predicted": 64,
+    "episodes_aligned": 35,
+    "mentions": {
+      "span_tp": 76,
+      "span_fp": 0,
+      "span_fn": 55,
+      "surface_fallback": 29,
+      "aligned_total": 105,
+      "gold_total": 131
+    },
+    "claims_matched": 8
+  },
+  "metrics_global": {
+    "negative_edge_precision": 1.0,
+    "negative_edge_recall": 0.083333,
+    "negated_cessation_safety": 1.0,
+    "cessation_precision": 1.0,
+    "cessation_recall": 0.090909,
+    "negation_scope_accuracy": 0.875,
+    "evidence_grounding": 1.0,
+    "false_positive_relation_from_negation": 0,
+    "auto_approval_precision": 1.0,
+    "auto_approval_recall": 0.0625
+  },
+  "metrics_detail": {
+    "negative_edge_precision": {
+      "value": 1.0,
+      "view": "covered",
+      "counts": {
+        "tp": 3,
+        "fp": 0,
+        "fn": 1,
+        "precision": 1.0,
+        "recall": 0.75,
+        "f1": 0.857143,
+        "false_positive_positive_edges": 1,
+        "passes": false
+      }
+    },
+    "negative_edge_recall": {
+      "value": 0.083333,
+      "view": "full",
+      "counts": {
+        "tp": 3,
+        "fp": 0,
+        "fn": 33,
+        "precision": 1.0,
+        "recall": 0.083333,
+        "f1": 0.153846,
+        "false_positive_positive_edges": 33,
+        "passes": false
+      }
+    },
+    "negated_cessation_safety": {
+      "value": 1.0,
+      "view": "full",
+      "counts": {
+        "correct": 8,
+        "total": 8,
+        "false_cessations": 0,
+        "accuracy": 1.0,
+        "passes": true
+      }
+    },
+    "cessation_precision": {
+      "value": 1.0,
+      "view": "covered",
+      "counts": {
+        "tp": 1,
+        "predicted": 1
+      }
+    },
+    "cessation_recall": {
+      "value": 0.090909,
+      "view": "full",
+      "counts": {
+        "gold": 11
+      }
+    },
+    "negation_scope_accuracy": {
+      "value": 0.875,
+      "view": "covered",
+      "counts": {
+        "correct": 7,
+        "total": 8,
+        "accuracy": 0.875,
+        "passes": false
+      },
+      "full": {
+        "correct": 7,
+        "total": 56,
+        "accuracy": 0.125,
+        "passes": false
+      }
+    },
+    "evidence_grounding": {
+      "value": 1.0,
+      "view": "covered",
+      "counts": {
+        "correct": 8,
+        "total": 8,
+        "accuracy": 1.0,
+        "passes": true
+      },
+      "full": {
+        "correct": 8,
+        "total": 56,
+        "accuracy": 0.142857,
+        "passes": false
+      }
+    },
+    "false_positive_relation_from_negation": {
+      "value": 0,
+      "view": "full",
+      "counts": {
+        "gold_negative_cases": 36
+      }
+    },
+    "auto_approval_precision": {
+      "value": 1.0,
+      "view": "covered",
+      "counts": {
+        "accepted": 3
+      }
+    },
+    "auto_approval_recall": {
+      "value": 0.0625,
+      "view": "full",
+      "counts": {
+        "auto_approved": 1,
+        "auto_approvable": 16,
+        "recall": 0.0625,
+        "passes": false
+      }
+    },
+    "_destructive": {
+      "operations": 0,
+      "cessation_correct": 0,
+      "cessation_precision": null,
+      "scope_correct": 0,
+      "scope_precision": null
+    },
+    "_coverage": {
+      "correct": 8,
+      "total": 56,
+      "accuracy": 0.142857
+    }
+  },
+  "metrics_by_family": {
+    "SIMPLE": {
+      "cases": 11,
+      "covered": 2,
+      "negative_edge_precision": 1.0,
+      "negative_edge_recall": 0.1,
+      "negated_cessation_safety": null,
+      "cessation_precision": null,
+      "cessation_recall": null,
+      "negation_scope_accuracy": 0.5,
+      "evidence_grounding": 1.0,
+      "false_positive_relation_from_negation": 0,
+      "auto_approval_precision": 1.0,
+      "auto_approval_recall": 0.1
+    },
+    "NEVER": {
+      "cases": 6,
+      "covered": 0,
+      "negative_edge_precision": null,
+      "negative_edge_recall": 0.0,
+      "negated_cessation_safety": null,
+      "cessation_precision": null,
+      "cessation_recall": null,
+      "negation_scope_accuracy": null,
+      "evidence_grounding": null,
+      "false_positive_relation_from_negation": 0,
+      "auto_approval_precision": null,
+      "auto_approval_recall": 0.0
+    },
+    "CESSATION": {
+      "cases": 10,
+      "covered": 1,
+      "negative_edge_precision": 1.0,
+      "negative_edge_recall": 0.1,
+      "negated_cessation_safety": null,
+      "cessation_precision": 1.0,
+      "cessation_recall": 0.1,
+      "negation_scope_accuracy": 1.0,
+      "evidence_grounding": 1.0,
+      "false_positive_relation_from_negation": 0,
+      "auto_approval_precision": null,
+      "auto_approval_recall": null
+    },
+    "NEGATED_CESSATION": {
+      "cases": 8,
+      "covered": 0,
+      "negative_edge_precision": null,
+      "negative_edge_recall": null,
+      "negated_cessation_safety": 1.0,
+      "cessation_precision": null,
+      "cessation_recall": null,
+      "negation_scope_accuracy": null,
+      "evidence_grounding": null,
+      "false_positive_relation_from_negation": 0,
+      "auto_approval_precision": null,
+      "auto_approval_recall": null
+    },
+    "NOT_YET": {
+      "cases": 5,
+      "covered": 1,
+      "negative_edge_precision": 1.0,
+      "negative_edge_recall": 0.2,
+      "negated_cessation_safety": null,
+      "cessation_precision": null,
+      "cessation_recall": null,
+      "negation_scope_accuracy": 1.0,
+      "evidence_grounding": 1.0,
+      "false_positive_relation_from_negation": 0,
+      "auto_approval_precision": null,
+      "auto_approval_recall": null
+    },
+    "SCOPE_EMBEDDED": {
+      "cases": 5,
+      "covered": 0,
+      "negative_edge_precision": null,
+      "negative_edge_recall": 0.0,
+      "negated_cessation_safety": null,
+      "cessation_precision": null,
+      "cessation_recall": null,
+      "negation_scope_accuracy": null,
+      "evidence_grounding": null,
+      "false_positive_relation_from_negation": 0,
+      "auto_approval_precision": null,
+      "auto_approval_recall": null
+    },
+    "QUESTION_CONDITIONAL_RUMOR": {
+      "cases": 3,
+      "covered": 0,
+      "negative_edge_precision": null,
+      "negative_edge_recall": 0.0,
+      "negated_cessation_safety": null,
+      "cessation_precision": null,
+      "cessation_recall": 0.0,
+      "negation_scope_accuracy": null,
+      "evidence_grounding": null,
+      "false_positive_relation_from_negation": 0,
+      "auto_approval_precision": null,
+      "auto_approval_recall": null
+    },
+    "DOUBLE_NEGATION": {
+      "cases": 2,
+      "covered": 0,
+      "negative_edge_precision": null,
+      "negative_edge_recall": 0.0,
+      "negated_cessation_safety": null,
+      "cessation_precision": null,
+      "cessation_recall": null,
+      "negation_scope_accuracy": null,
+      "evidence_grounding": null,
+      "false_positive_relation_from_negation": 0,
+      "auto_approval_precision": null,
+      "auto_approval_recall": null
+    },
+    "POSITIVE_CONTROL": {
+      "cases": 6,
+      "covered": 4,
+      "negative_edge_precision": null,
+      "negative_edge_recall": null,
+      "negated_cessation_safety": null,
+      "cessation_precision": null,
+      "cessation_recall": null,
+      "negation_scope_accuracy": 1.0,
+      "evidence_grounding": 1.0,
+      "false_positive_relation_from_negation": 0,
+      "auto_approval_precision": 1.0,
+      "auto_approval_recall": null
+    },
+    "NO_CLAIM": {
+      "cases": 4,
+      "episodes_aligned": 0,
+      "violations": [],
+      "clean": 0,
+      "accuracy": null
+    }
+  },
+  "shadow": {
+    "enabled": true,
+    "records": 0,
+    "records_that_would_emit_operations": 0
+  },
+  "writer": {
+    "mode": "DRY_RUN",
+    "plans": 2,
+    "approved_plans": 2,
+    "operations": 5,
+    "operation_kinds": [
+      "CREATE_ASSERTION",
+      "PROJECT_RELATION"
+    ],
+    "outcomes": [
+      "SIMULATED"
+    ]
+  },
+  "positive_edges_over_negated_keys": {
+    "gold_negated_keys": 36,
+    "offending_operations": [],
+    "count": 0
+  },
+  "gates": [
+    {
+      "name": "ninguna operacion positiva sobre una relacion que el gold niega",
+      "metric": "positive_edges_over_negated_keys",
+      "threshold": 0,
+      "observed": 0,
+      "status": "CONFORME",
+      "denominator": 36
+    },
+    {
+      "name": "cero aristas positivas falsas desde negacion",
+      "metric": "false_positive_relation_from_negation",
+      "threshold": 0,
+      "observed": 0,
+      "status": "CONFORME"
+    },
+    {
+      "name": "cero cesaciones falsas desde 'no dejo de'",
+      "metric": "negated_cessation_safety",
+      "threshold": 1.0,
+      "observed": 1.0,
+      "status": "CONFORME"
+    },
+    {
+      "name": "evidencia anclada al 100% en lo emitido",
+      "metric": "evidence_grounding",
+      "threshold": 1.0,
+      "observed": 1.0,
+      "status": "CONFORME"
+    },
+    {
+      "name": "precision CESSATION destructiva 100%",
+      "metric": "destructive_cessation_precision",
+      "threshold": 1.0,
+      "observed": null,
+      "status": "NO_EVALUABLE",
+      "denominator": 0
+    },
+    {
+      "name": "precision de alcance destructivo 100%",
+      "metric": "destructive_scope_precision",
+      "threshold": 1.0,
+      "observed": null,
+      "status": "NO_EVALUABLE",
+      "denominator": 0
+    },
+    {
+      "name": "alcance global >= 0.95",
+      "metric": "negation_scope_accuracy",
+      "threshold": 0.95,
+      "observed": 0.875,
+      "status": "NO_CONFORME"
+    },
+    {
+      "name": "recall de autoaprobacion SIMPLE >= 0.75",
+      "metric": "auto_approval_recall[SIMPLE]",
+      "threshold": 0.75,
+      "observed": 0.1,
+      "status": "NO_CONFORME"
+    }
+  ],
+  "variants": {
+    "graduated_at_engine": {
+      "negation_policy_at_engine": true,
+      "coverage": 0.142857,
+      "metrics_global": {
+        "negative_edge_precision": 1.0,
+        "negative_edge_recall": 0.083333,
+        "negated_cessation_safety": 1.0,
+        "cessation_precision": 1.0,
+        "cessation_recall": 0.090909,
+        "negation_scope_accuracy": 0.875,
+        "evidence_grounding": 1.0,
+        "false_positive_relation_from_negation": 0,
+        "auto_approval_precision": 1.0,
+        "auto_approval_recall": 0.0625
+      },
+      "gates": [
+        {
+          "name": "ninguna operacion positiva sobre una relacion que el gold niega",
+          "observed": 0,
+          "status": "CONFORME"
+        },
+        {
+          "name": "cero aristas positivas falsas desde negacion",
+          "observed": 0,
+          "status": "CONFORME"
+        },
+        {
+          "name": "cero cesaciones falsas desde 'no dejo de'",
+          "observed": 1.0,
+          "status": "CONFORME"
+        },
+        {
+          "name": "evidencia anclada al 100% en lo emitido",
+          "observed": 1.0,
+          "status": "CONFORME"
+        },
+        {
+          "name": "precision CESSATION destructiva 100%",
+          "observed": null,
+          "status": "NO_EVALUABLE"
+        },
+        {
+          "name": "precision de alcance destructivo 100%",
+          "observed": null,
+          "status": "NO_EVALUABLE"
+        },
+        {
+          "name": "alcance global >= 0.95",
+          "observed": 0.875,
+          "status": "NO_CONFORME"
+        },
+        {
+          "name": "recall de autoaprobacion SIMPLE >= 0.75",
+          "observed": 0.1,
+          "status": "NO_CONFORME"
+        }
+      ]
+    },
+    "extractor_forces_review": {
+      "negation_policy_at_engine": false,
+      "coverage": 0.142857,
+      "metrics_global": {
+        "negative_edge_precision": 1.0,
+        "negative_edge_recall": 0.083333,
+        "negated_cessation_safety": 1.0,
+        "cessation_precision": 1.0,
+        "cessation_recall": 0.090909,
+        "negation_scope_accuracy": 0.875,
+        "evidence_grounding": 1.0,
+        "false_positive_relation_from_negation": 0,
+        "auto_approval_precision": 1.0,
+        "auto_approval_recall": 0.0
+      },
+      "gates": [
+        {
+          "name": "ninguna operacion positiva sobre una relacion que el gold niega",
+          "observed": 0,
+          "status": "CONFORME"
+        },
+        {
+          "name": "cero aristas positivas falsas desde negacion",
+          "observed": 0,
+          "status": "CONFORME"
+        },
+        {
+          "name": "cero cesaciones falsas desde 'no dejo de'",
+          "observed": 1.0,
+          "status": "CONFORME"
+        },
+        {
+          "name": "evidencia anclada al 100% en lo emitido",
+          "observed": 1.0,
+          "status": "CONFORME"
+        },
+        {
+          "name": "precision CESSATION destructiva 100%",
+          "observed": null,
+          "status": "NO_EVALUABLE"
+        },
+        {
+          "name": "precision de alcance destructivo 100%",
+          "observed": null,
+          "status": "NO_EVALUABLE"
+        },
+        {
+          "name": "alcance global >= 0.95",
+          "observed": 0.875,
+          "status": "NO_CONFORME"
+        },
+        {
+          "name": "recall de autoaprobacion SIMPLE >= 0.75",
+          "observed": 0.0,
+          "status": "NO_CONFORME"
+        }
+      ]
+    }
+  },
+  "secondary_metrics_global": {
+    "negative_edge_precision": 1.0,
+    "negative_edge_recall": 0.083333,
+    "negated_cessation_safety": 1.0,
+    "cessation_precision": 1.0,
+    "cessation_recall": 0.090909,
+    "negation_scope_accuracy": 0.875,
+    "evidence_grounding": 1.0,
+    "false_positive_relation_from_negation": 0,
+    "auto_approval_precision": 1.0,
+    "auto_approval_recall": 0.0
+  },
+  "cases": [
+    {
+      "case_id": "NEG-SIMPLE-01",
+      "family": "SIMPLE",
+      "covered": true,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "SIMPLE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "ABSTAIN",
+      "scope_correct": false,
+      "evidence_anchored": true,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SIMPLE-02",
+      "family": "SIMPLE",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "SIMPLE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SIMPLE-03",
+      "family": "SIMPLE",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "SIMPLE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SIMPLE-04",
+      "family": "SIMPLE",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "SIMPLE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SIMPLE-05",
+      "family": "SIMPLE",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "SIMPLE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SIMPLE-06",
+      "family": "SIMPLE",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "SIMPLE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NEVER-01",
+      "family": "NEVER",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "NEVER",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NEVER-02",
+      "family": "NEVER",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "NEVER",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NEVER-03",
+      "family": "NEVER",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "NEVER",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NEVER-04",
+      "family": "NEVER",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "NEVER",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NEGCESS-01",
+      "family": "NEGATED_CESSATION",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "NEGATED_CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NEGCESS-02",
+      "family": "NEGATED_CESSATION",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "NEGATED_CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NEGCESS-03",
+      "family": "NEGATED_CESSATION",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "NEGATED_CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NEGCESS-04",
+      "family": "NEGATED_CESSATION",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "NEGATED_CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-DOUBLE-01",
+      "family": "DOUBLE_NEGATION",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "DOUBLE_NEGATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-DOUBLE-02",
+      "family": "DOUBLE_NEGATION",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "DOUBLE_NEGATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-POS-01",
+      "family": "POSITIVE_CONTROL",
+      "covered": true,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "NONE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "ACCEPT",
+      "scope_correct": true,
+      "evidence_anchored": true,
+      "positive_operations": [
+        "CREATE_ASSERTION",
+        "PROJECT_RELATION"
+      ]
+    },
+    {
+      "case_id": "NEG-POS-02",
+      "family": "POSITIVE_CONTROL",
+      "covered": true,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "NONE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "ABSTAIN",
+      "scope_correct": true,
+      "evidence_anchored": true,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-CESS-01",
+      "family": "CESSATION",
+      "covered": true,
+      "expected_negated": true,
+      "predicted_negated": true,
+      "expected_negation_kind": "CESSATION",
+      "predicted_negation_kind": "CESSATION",
+      "expected_decision": "REVIEW_NEGATION_CESSATION",
+      "predicted_decision": "REVIEW",
+      "scope_correct": true,
+      "evidence_anchored": true,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-CESS-02",
+      "family": "CESSATION",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_CESSATION",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-CESS-03",
+      "family": "CESSATION",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_CESSATION",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-CESS-04",
+      "family": "CESSATION",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_CESSATION",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-CESS-05",
+      "family": "CESSATION",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_CESSATION",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-CESS-06",
+      "family": "CESSATION",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_CESSATION",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-CESS-07",
+      "family": "CESSATION",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_CESSATION",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NEGCESS-05",
+      "family": "NEGATED_CESSATION",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "NEGATED_CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NEGCESS-06",
+      "family": "NEGATED_CESSATION",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "NEGATED_CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NEGCESS-07",
+      "family": "NEGATED_CESSATION",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "NEGATED_CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NEGCESS-08",
+      "family": "NEGATED_CESSATION",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "NEGATED_CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SCOPE-01",
+      "family": "SCOPE_EMBEDDED",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "SCOPE_EMBEDDED",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SCOPE-02",
+      "family": "SCOPE_EMBEDDED",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "SCOPE_EMBEDDED",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SCOPE-03",
+      "family": "SCOPE_EMBEDDED",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "SCOPE_EMBEDDED",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-POS-03",
+      "family": "POSITIVE_CONTROL",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "NONE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-POS-04",
+      "family": "POSITIVE_CONTROL",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "NONE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SIMPLE-07",
+      "family": "SIMPLE",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "SIMPLE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SIMPLE-08",
+      "family": "SIMPLE",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "SIMPLE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SIMPLE-09",
+      "family": "SIMPLE",
+      "covered": true,
+      "expected_negated": true,
+      "predicted_negated": true,
+      "expected_negation_kind": "SIMPLE",
+      "predicted_negation_kind": "SIMPLE",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "ACCEPT",
+      "scope_correct": true,
+      "evidence_anchored": true,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SIMPLE-09",
+      "family": "SIMPLE",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "SIMPLE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SIMPLE-10",
+      "family": "SIMPLE",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "SIMPLE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NOTYET-01",
+      "family": "NOT_YET",
+      "covered": true,
+      "expected_negated": true,
+      "predicted_negated": true,
+      "expected_negation_kind": "NOT_YET",
+      "predicted_negation_kind": "NOT_YET",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "REVIEW",
+      "scope_correct": true,
+      "evidence_anchored": true,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NOTYET-02",
+      "family": "NOT_YET",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "NOT_YET",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NOTYET-03",
+      "family": "NOT_YET",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "NOT_YET",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NOTYET-04",
+      "family": "NOT_YET",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "NOT_YET",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NOTYET-05",
+      "family": "NOT_YET",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "NOT_YET",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SCOPE-04",
+      "family": "SCOPE_EMBEDDED",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "SCOPE_EMBEDDED",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-SCOPE-05",
+      "family": "SCOPE_EMBEDDED",
+      "covered": false,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "SCOPE_EMBEDDED",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-CESS-08",
+      "family": "CESSATION",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_CESSATION",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-CESS-09",
+      "family": "CESSATION",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_CESSATION",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-POS-05",
+      "family": "POSITIVE_CONTROL",
+      "covered": true,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "NONE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "ABSTAIN",
+      "scope_correct": true,
+      "evidence_anchored": true,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-POS-06",
+      "family": "POSITIVE_CONTROL",
+      "covered": true,
+      "expected_negated": false,
+      "predicted_negated": false,
+      "expected_negation_kind": "NONE",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "ACCEPT",
+      "scope_correct": true,
+      "evidence_anchored": true,
+      "positive_operations": [
+        "CREATE_ASSERTION",
+        "PROJECT_RELATION"
+      ]
+    },
+    {
+      "case_id": "NEG-NEVER-05",
+      "family": "NEVER",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "NEVER",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-NEVER-06",
+      "family": "NEVER",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "NEVER",
+      "predicted_negation_kind": "",
+      "expected_decision": "AUTO_APPROVE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-CESS-10",
+      "family": "CESSATION",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_CESSATION",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-RUMOR-01",
+      "family": "QUESTION_CONDITIONAL_RUMOR",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "SIMPLE",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-RUMOR-02",
+      "family": "QUESTION_CONDITIONAL_RUMOR",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "CESSATION",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_CESSATION",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    },
+    {
+      "case_id": "NEG-COND-01",
+      "family": "QUESTION_CONDITIONAL_RUMOR",
+      "covered": false,
+      "expected_negated": true,
+      "predicted_negated": false,
+      "expected_negation_kind": "SIMPLE",
+      "predicted_negation_kind": "",
+      "expected_decision": "REVIEW_NEGATION_SCOPE",
+      "predicted_decision": "NO_OUTPUT",
+      "scope_correct": false,
+      "evidence_anchored": false,
+      "positive_operations": []
+    }
+  ],
+  "generated_by": "opus-gate4",
+  "notes": [
+    "Corrida sin proveedores (ablacion local_only): extraccion DETERMINISTA. Ollama y el carril externo estan reservados por otro agente y no se usan. Esa es la causa dominante de la cobertura baja: el extractor determinista solo propone claim para 8 de los 56 casos evaluables.",
+    "Writer en DRY-RUN (apply=False, sin driver): ninguna operacion llega a Neo4j.",
+    "El corpus se ha leido; no se ha modificado ningun fichero suyo, ni se ha ampliado con casos propios: las puertas se miden sobre la bateria tal cual.",
+    "Evaluacion en sombra activa, 0 registros. La sombra solo compara claims del paso `extract.semantic`, que esta corrida no ejecuta por no admitir proveedores: es cobertura 0 de la sombra, NO una sombra validada.",
+    "La entrada por episodios no se puede usar en este corpus: 3 de sus 4 fuentes omiten las claves opcionales speaker/turn/table y `SourceEpisode.from_dict` las exige (falla con V3ContractError). Se entra por bytes, que ademas es la ruta completa que la puerta pide.",
+    "La fuente `ambar-escaneo` (22 episodios, modalidad IMAGE) llega sin texto: sin `visual_provider` no hay OCR, el extractor no propone nada y la cadena se detiene en el motor. Sus casos entran como no cubiertos.",
+    "Fallo de ALCANCE medido, caso a caso: NEG-SIMPLE-01 (SIMPLE) esperaba negado=True y salio negado=False con decision ABSTAIN.",
+    "Ninguna operacion positiva del plan afirma una relacion que el gold declara negada (36 claves negadas comprobadas contra todas las operaciones del plan). Es la comprobacion de seguridad que no depende del alineamiento.",
+    "Dos variantes medidas. `graduated_at_engine` (principal): el extractor no marca revision por negar y decide la politica graduada del motor. `extractor_forces_review`: el defecto de `PipelineConfig`, donde toda negacion va a revision desde el extractor y NINGUNA negacion puede autoaprobarse. Las puertas se puntuan sobre la principal; la otra se publica al lado."
+  ]
+}

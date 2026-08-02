@@ -605,25 +605,24 @@ class DeterministicExtractor(Extractor):
             hi=sentence.last_token + 1,
             focus=first,
         )
-        if _cues.CODE_FALSITY in verdict.reason_codes or _cues.CODE_INTERROGATIVE in verdict.reason_codes:
-            # El texto niega la verdad del hecho o pregunta por el. No hay nada
-            # que proponer: solo constancia de que aqui habia algo.
-            abstain(
-                [_cues.CODE_NON_FACTIVE, *verdict.reason_codes], [subject_id], [object_id]
+        policy = verdict.factivity
+        if policy.action is _cues.FactivityAction.EMIT_DIAGNOSTIC:
+            # Pregunta, condicional/hipotesis, falsedad atribuida, deseo,
+            # orden y ficcion interna conservan evidencia en el episodio y una
+            # traza estructurada, pero nunca producen una relacion del mundo.
+            out.diagnostics.append(
+                Diagnostic(
+                    policy.reasons[0] if policy.reasons else _cues.CODE_NON_FACTIVE,
+                    self.info.step,
+                    episode.episode_id,
+                    f"{policy.factivity_class.value}; scope={policy.scope}; "
+                    f"cues={list(policy.cues)}",
+                )
             )
             return
-        if verdict.not_a_statement:
-            # Deseo, orden o prohibicion: el texto habla de la relacion pero no
-            # la afirma. Abstencion CON su rastro.
-            abstain(
-                [c for c in verdict.reason_codes if c in (_cues.CODE_DEONTIC, _cues.CODE_DESIRE)],
-                [subject_id],
-                [object_id],
-            )
+        if policy.action is _cues.FactivityAction.REVIEW_SCOPE:
+            abstain([_cues.CODE_NEGATION_SCOPE], [subject_id], [object_id])
             return
-        if _cues.CODE_CONDITIONAL in verdict.reason_codes:
-            hint = "HYPOTHETICAL"
-            cues.extend(c for c in verdict.cues if c not in cues)
         temporal = []
         extra_trace = []
         if self.attach_temporal:

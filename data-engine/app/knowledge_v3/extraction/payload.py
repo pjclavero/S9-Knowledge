@@ -64,6 +64,7 @@ from .cues import (
     ContextVerdict,
     analyze_context,
 )
+from .factivity import FactivityAction
 from .text import (
     OFFSET_BASIS_EPISODE,
     Anchor,
@@ -353,11 +354,9 @@ def normalize_payload(  # noqa: C901 - una comprobacion por regla anti-alucinaci
             verdict = verify_quote_context(index, anchor, negated)
             if CODE_NEGATION_MISMATCH in verdict.reason_codes:
                 reasons.append(CODE_NEGATION_MISMATCH)
-            if verdict.non_factive:
-                reasons.append(CODE_NON_FACTIVE)
-                reasons.extend(
-                    c for c in verdict.reason_codes if c != CODE_NEGATION_MISMATCH
-                )
+            if verdict.factivity.action is FactivityAction.EMIT_DIAGNOSTIC:
+                _drop_non_factive(out, info, episode, verdict, relation_phrase)
+                continue
             elif verdict.hint != "ASSERTED" and hint == "ASSERTED":
                 # El contexto real dice rumor/hipotesis/intencion aunque el
                 # modelo dijera ASSERTED: manda el texto, no el modelo.
@@ -969,7 +968,7 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
             if anchor.ambiguous:
                 reasons.append("AMBIGUOUS_ANCHOR")
             verdict = verify_semantic_quote_context(index, anchor, negated)
-            if verdict.non_factive:
+            if verdict.factivity.action is FactivityAction.EMIT_DIAGNOSTIC:
                 # NO se emite NADA, ni siquiera una abstencion. Ver
                 # `_drop_non_factive`: donde el texto no afirma, no hay relacion
                 # que registrar, y un documento de claim anclado ahi es
@@ -995,13 +994,8 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
             elif negated:
                 reasons.append(CODE_NEGATION_NOT_IN_EVIDENCE)
                 negation_kind = kind_declarado
-            if verdict.not_a_statement:
-                # Deseo, orden o prohibicion: hay relacion mencionada, pero el
-                # texto no la afirma. Abstencion CON su rastro, no silencio.
-                reasons.extend(
-                    c for c in verdict.reason_codes
-                    if c not in (CODE_NEGATION_MISMATCH, CODE_NEGATION_SCOPE)
-                )
+            if verdict.factivity.action is FactivityAction.REVIEW_SCOPE:
+                reasons.append(CODE_NEGATION_SCOPE)
             if verdict.hint != "ASSERTED" and hint == "ASSERTED":
                 hint = verdict.hint
 
@@ -1099,7 +1093,7 @@ def normalize_semantic_payload(  # noqa: C901 - una comprobacion por regla
         # ficcion interna sigue siendo un documento de claim anclado ahi. Donde
         # el texto no afirma, no se emite nada.
         verdict = verify_semantic_quote_context(index, anchor, True)
-        if verdict.non_factive:
+        if verdict.factivity.action is FactivityAction.EMIT_DIAGNOSTIC:
             _drop_non_factive(out, info, episode, verdict, quote)
             continue
         claim = abstention_claim(

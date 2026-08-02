@@ -101,6 +101,10 @@ class EngineConfig:
     #: (WARN) y alcance material (REVIEW). Apagado conserva el finding historico.
     graduated_temporal_policy: bool = False
 
+    #: Evalua, sin autoridad de escritura, que ocurriria si se ignorase
+    #: exclusivamente la peticion de review del extractor semantico.
+    semantic_shadow_evaluation: bool = False
+
     #: Vida del plan. Un plan caduca (contrato: `expires_at`).
     plan_ttl_seconds: int = 86400
 

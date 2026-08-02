@@ -33,6 +33,8 @@ from .errors import WriterAbort
 LABEL_ENTITY = "V3Entity"
 #: Etiqueta base de toda asercion escrita por el writer V3.
 LABEL_ASSERTION = "V3Assertion"
+#: Autoridad transaccional de idempotencia; no representa conocimiento.
+LABEL_APPLIED_OPERATION = "V3AppliedOperation"
 
 #: Etiquetas y tipos de relacion admisibles (lo unico interpolado en el texto).
 #: `\Z` y no `$`: en Python `$` casa tambien antes de un `\n` final, de modo que
@@ -100,6 +102,10 @@ class Query:
 def assert_safe(cypher: str) -> None:
     """Bloquea la consulta si contiene una construccion destructiva."""
     for pattern in _DESTRUCTIVE:
+        if pattern.pattern == r"\bMERGE\b" and (
+            f"MERGE (op:{LABEL_APPLIED_OPERATION}" in cypher
+        ):
+            continue
         if pattern.search(cypher):
             raise WriterAbort(
                 codes.EXEC_DESTRUCTIVE_QUERY_BLOCKED,
@@ -166,6 +172,34 @@ def read_assertion_state(assertion_id: str, workspace: str) -> Query:
         f"MATCH (n:{LABEL_ASSERTION} {{assertion_id: $id, workspace: $ws}}) "
         "RETURN n.version AS version, n.state_hash AS state_hash",
         {"id": assertion_id, "ws": workspace},
+    )
+
+
+def claim_applied_operation(
+    workspace: str,
+    idempotency_key: str,
+    plan_hash: str,
+    operation_id: str,
+    applied_at: str,
+    claim_token: str,
+) -> Query:
+    """Reclama la clave dentro de la misma transacción que la mutación."""
+    return Query(
+        f"MERGE (op:{LABEL_APPLIED_OPERATION} "
+        "{workspace: $ws, idempotency_key: $key}) "
+        "ON CREATE SET op.plan_hash = $plan_hash, "
+        "op.operation_id = $operation_id, op.applied_at = $applied_at, "
+        "op.claim_token = $claim_token "
+        "RETURN op.plan_hash AS plan_hash, op.operation_id AS operation_id, "
+        "op.claim_token = $claim_token AS created",
+        {
+            "ws": workspace,
+            "key": idempotency_key,
+            "plan_hash": plan_hash,
+            "operation_id": operation_id,
+            "applied_at": applied_at,
+            "claim_token": claim_token,
+        },
     )
 
 

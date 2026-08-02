@@ -1,6 +1,6 @@
 # Bucle de revisión humana y Teacher Lab — S9-Knowledge V3
 
-Fecha: 2026-07-29 · Estado: **especificado, no implementado**
+Fecha: 2026-07-30 · Estado: **registro V3 implementado; aprendizaje pendiente**
 
 > **El activo principal no será GPT, Claude ni Qwen. Será el historial estructurado
 > de decisiones humanas correctas.** Contiene el dominio real, la ontología propia,
@@ -19,16 +19,18 @@ Dos comprobaciones en el código, no supuestos:
 - **El glosario no crece.** `resolution/glossary.py` define `GlossarySource` con un
   único método, `lookup()`. No hay `add`, `insert`, `upsert` ni `save`. La
   implementación real sobre SQLite es un enganche declarado y **sin conectar**.
-- **No existe cola de revisión en V3.** No hay módulo de revisión humana en
-  `knowledge_v3/`; lo único que registra decisiones es la auditoría del *writer*, y
-  solo registra intentos de escritura (`ATTEMPTED | APPLIED | SIMULATED | REJECTED |
-  BLOCKED | ABORTED`), no el juicio de un humano sobre una propuesta.
+- **Ya existe una cola de revisión V3.** El pipeline exporta paquetes inmutables a
+  `proposals/`, `/v3/review` los sirve y registra las decisiones humanas en una
+  cadena append-only. Las correcciones humanas explícitas generan candidatos de
+  glosario deduplicados, siempre `PROPOSED`, sin mutar el glosario efectivo.
+- **El aprendizaje estructurado sigue pendiente.** El historial ya no se pierde,
+  pero todavía no existe el proceso que lo convierta, con aprobación humana, en
+  reglas, cambios de perfil, casos de regresión o datasets del Teacher Lab.
 
-**Consecuencia y urgencia:** hoy, cada corrección humana se aplica al caso y se
-evapora. Si el activo principal es el historial de decisiones humanas, **cada
-revisión que se haga sin registrarla estructuradamente es material perdido para
-siempre**. Por eso el bucle humano no debería esperar al Teacher Lab: el registro
-tiene que empezar antes que todo lo demás, aunque al principio nadie lo explote.
+**Estado actual:** el primer tramo urgente ya está cubierto: las decisiones se
+registran y los candidatos de glosario se conservan sin aplicación automática.
+La prioridad pasa a explotar ese historial de forma versionada, reversible y
+medible, sin confundir «candidato generado» con «conocimiento aplicado».
 
 ## 2. Human Review Learning Loop
 
@@ -157,8 +159,8 @@ checkpoints y licencias de los modelos.
 3. Mover política de aprobación al motor
 4. Implementar ProposalReconciler
 5. Ampliar corpus real dev/validation
-6. Human Review Learning Loop
-7. Correcciones humanas → tests y candidatos
+6. Human Review Learning Loop                 ← registro implementado; aprendizaje pendiente
+7. Correcciones humanas → tests y candidatos  ← candidatos de glosario PROPOSED implementados
 8. Teacher Lab V1 (auditor · adversarial · analista · generador de tests)
 9. Medir impacto real
 10. ¿Hay dataset suficiente para destilar?

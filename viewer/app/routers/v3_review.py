@@ -11,7 +11,9 @@ from fastapi.templating import Jinja2Templates
 
 from app.auth.config import get_auth_settings
 from app.auth.csrf import get_csrf_token_for_session, validate_csrf
-from app.services.v3_review import ReviewError, ReviewService
+from app.services.v3_review import ReviewError, ReviewService, StaleReviewError
+from app.services.v3_review import default_glossary_root
+from app.services.v3_glossary_candidates import GlossaryCandidateStore
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -58,6 +60,25 @@ def _check_csrf(request: Request, token: str) -> None:
         raise HTTPException(status_code=403, detail="CSRF inválido")
 
 
+@router.get("/glossary-candidates", response_class=HTMLResponse)
+def glossary_candidates(
+    request: Request,
+    workspace: str | None = Query(default=None),
+):
+    guard = _guard(request)
+    if isinstance(guard, (RedirectResponse, HTMLResponse)):
+        return guard
+    workspaces = _service().workspaces()
+    selected = workspace or (workspaces[0] if len(workspaces) == 1 else None)
+    if selected and selected not in workspaces:
+        raise HTTPException(status_code=404, detail="Workspace no encontrado")
+    items = _service().glossary_candidates(selected) if selected else []
+    return templates.TemplateResponse(
+        request, "v3_glossary_candidates.html",
+        {"auth_user": guard, "workspaces": workspaces, "workspace": selected, "items": items},
+    )
+
+
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 def queue(
@@ -65,6 +86,7 @@ def queue(
     workspace: str | None = Query(default=None),
     source_id: str | None = Query(default=None),
     engine_decision: str | None = Query(default=None),
+    notice: str | None = Query(default=None),
 ):
     guard = _guard(request)
     if isinstance(guard, (RedirectResponse, HTMLResponse)):
@@ -94,6 +116,7 @@ def queue(
             "engine_decision": engine_decision,
             "queue": view,
             "request_id": str(uuid.uuid4()),
+            "notice": notice,
         },
     )
 
@@ -110,6 +133,15 @@ def decide(
     direction: str = Form(""),
     negated: str = Form(""),
     scope: str = Form(""),
+    expected_proposal_hash: str = Form(""),
+    subject_canonical_name: str = Form(""),
+    object_canonical_name: str = Form(""),
+    subject_alias: str = Form(""),
+    object_alias: str = Form(""),
+    suggested_entity_type: str = Form(""),
+    is_ocr_asr_error: str = Form(""),
+    misrecognition: str = Form(""),
+    spoken_form: str = Form(""),
     csrf_token: str = Form(""),
 ):
     guard = _guard(request)
@@ -122,11 +154,24 @@ def decide(
             "direction": direction.strip(),
             "negated": negated == "true" if negated else None,
             "scope": scope.strip(),
+            "subject_canonical_name": subject_canonical_name.strip(),
+            "object_canonical_name": object_canonical_name.strip(),
+            "subject_alias": subject_alias.strip(),
+            "object_alias": object_alias.strip(),
+            "suggested_entity_type": suggested_entity_type.strip(),
+            "is_ocr_asr_error": is_ocr_asr_error == "true" if is_ocr_asr_error else None,
+            "misrecognition": misrecognition.strip(),
+            "spoken_form": spoken_form.strip(),
         }.items()
         if value not in ("", None)
     }
     if human_decision == "CORRECT" and not correction:
         raise HTTPException(status_code=400, detail="CORRECT requiere al menos un cambio")
+    # El hash es obligatorio en la superficie HTTP: sin él, el control de
+    # revisión obsoleta se autoanularía (el servicio solo admite None para
+    # llamadores programáticos internos).
+    if not expected_proposal_hash.strip():
+        raise HTTPException(status_code=400, detail="expected_proposal_hash es obligatorio")
     try:
         _service().record(
             proposal_id=proposal_id,
@@ -136,6 +181,11 @@ def decide(
             request_id=request_id,
             rationale=rationale,
             correction=correction,
+            expected_proposal_hash=expected_proposal_hash,
+        )
+    except StaleReviewError:
+        return RedirectResponse(
+            url=f"/v3/review?workspace={workspace}&notice=STALE_REVIEW", status_code=303
         )
     except ReviewError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -162,4 +212,3 @@ def undo(
     except ReviewError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return RedirectResponse(url=f"/v3/review?workspace={workspace}", status_code=303)
-

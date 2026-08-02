@@ -1,0 +1,78 @@
+{
+  "corpus": {
+    "cases": 4,
+    "path": "data-engine/app/knowledge_v3/benchmarks/datasets/factivity/cases.json",
+    "provenance": "dev-synthetic/opus-2026-07-30",
+    "split": "dev-synthetic"
+  },
+  "gate": "6",
+  "generated_by": "opus-gate6",
+  "lanes": {
+    "ollama": {
+      "errors": [],
+      "lane": "ollama",
+      "latency_ms": {
+        "max": 600220,
+        "mean": 434728,
+        "median": 600199,
+        "min": 257736
+      },
+      "model": "qwen2.5:7b",
+      "rows": {
+        "fact:alcance-complejo:01": {
+          "abstentions": 1,
+          "claim_ids": [
+            "claim:extract.semantic:7bc0e17c9b983953"
+          ],
+          "diagnostic_codes": [
+            "PROVIDER_UNAVAILABLE"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:condicional:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "CONDITIONAL_CONTEXT"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:contrafactual:01": {
+          "abstentions": 1,
+          "claim_ids": [
+            "claim:extract.semantic:57ce1229a2ec63d6"
+          ],
+          "diagnostic_codes": [
+            "PROVIDER_UNAVAILABLE"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        },
+        "fact:deseo:01": {
+          "abstentions": 0,
+          "claim_ids": [],
+          "diagnostic_codes": [
+            "DESIRE_CONTEXT"
+          ],
+          "diagnostics": 1,
+          "epistemic_proposals": 0,
+          "negated_world_claims": 0,
+          "predicates": [],
+          "world_claims": 0
+        }
+      },
+      "wall_seconds": 1738.9
+    }
+  }
+}

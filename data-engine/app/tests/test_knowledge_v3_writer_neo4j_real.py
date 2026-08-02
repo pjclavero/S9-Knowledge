@@ -14,8 +14,10 @@ import json
 import os
 import socket
 import subprocess
+import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -31,6 +33,8 @@ from knowledge_v3.writer import (  # noqa: E402
     InMemoryAppliedKeys,
     InMemoryAuditSink,
     OperatorRequest,
+    APPLIED_OPERATION_CONSTRAINT,
+    bootstrap_writer_schema,
     codes,
 )
 from knowledge_v3.writer.writer import (  # noqa: E402
@@ -76,7 +80,7 @@ def _run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess:
 @pytest.fixture(scope="session")
 def neo4j_driver():
     image = os.environ.get("S9K_WRITER_NEO4J_IMAGE", "neo4j:5.26-community")
-    name = "s9k-writer-real-" + uuid.uuid4().hex[:12]
+    name = "s9k-v3-writer-test-" + uuid.uuid4().hex[:12]
     port = _free_port()
     password = "s9k-writer-real-" + uuid.uuid4().hex[:12]
 
@@ -120,6 +124,7 @@ def neo4j_driver():
                 if time.monotonic() >= deadline:
                     raise RuntimeError(f"Neo4j no acepto conexiones en {uri}: {exc}") from exc
                 time.sleep(1)
+        bootstrap_writer_schema(driver)
         yield driver
     finally:
         driver.close()
@@ -141,6 +146,22 @@ class GraphProbe:
         nodes = self.run("MATCH (n) RETURN count(n) AS c")[0]["c"]
         rels = self.run("MATCH ()-[r]->() RETURN count(r) AS c")[0]["c"]
         return {"nodes": nodes, "relationships": rels}
+
+    def knowledge_counts(self) -> dict[str, int]:
+        nodes = self.run(
+            "MATCH (n) WHERE n:V3Entity OR n:V3Assertion RETURN count(n) AS c"
+        )[0]["c"]
+        rels = self.run("MATCH ()-[r]->() RETURN count(r) AS c")[0]["c"]
+        return {"nodes": nodes, "relationships": rels}
+
+    def applied_operations(self) -> list[dict]:
+        return self.run(
+            "MATCH (op:V3AppliedOperation) "
+            "RETURN op.workspace AS workspace, "
+            "op.idempotency_key AS idempotency_key, "
+            "op.plan_hash AS plan_hash, op.operation_id AS operation_id "
+            "ORDER BY workspace, idempotency_key"
+        )
 
     def snapshot_bytes(self) -> str:
         nodes = self.run(
@@ -280,6 +301,9 @@ def create_assertion(
     subject: str,
     obj: str,
     decision_id: str = "decision:1",
+    *,
+    predicate: str = "MEMBER_OF",
+    negated: bool = False,
 ) -> dict:
     return op(
         op_id,
@@ -289,7 +313,8 @@ def create_assertion(
         payload={
             "subject_entity_id": subject,
             "object_entity_id": obj,
-            "predicate": "MEMBER_OF",
+            "predicate": predicate,
+            "negated": negated,
             "status": "ASSERTED",
         },
         expected_state="WOULD_CREATE",
@@ -478,7 +503,8 @@ def test_cypher_valido_para_todas_las_operaciones_soportadas(graph: GraphProbe):
     result = writer(graph.driver).write(plan, apply_request(plan))
 
     assert result.outcome == OUTCOME_APPLIED, result.codes
-    assert graph.counts() == {"nodes": 5, "relationships": 1}
+    assert graph.knowledge_counts() == {"nodes": 5, "relationships": 1}
+    assert len(graph.applied_operations()) == len(ops)
     assert graph.node("V3Entity", "entity_id", "entity:origen")["version"] == 2
     assert graph.node("V3Assertion", "assertion_id", "assertion:vieja")["status"] == "SUPERSEDED"
 
@@ -547,7 +573,8 @@ def test_idempotencia_real_segunda_aplicacion_no_cambia_el_grafo(graph: GraphPro
     assert second.outcome == OUTCOME_APPLIED
     assert second.noop_operations == 1
     assert graph.snapshot_bytes() == before_second
-    assert graph.counts() == {"nodes": 1, "relationships": 0}
+    assert graph.knowledge_counts() == {"nodes": 1, "relationships": 0}
+    assert len(graph.applied_operations()) == 1
 
 
 def test_cierre_de_vigencia_conserva_historia_y_crea_sucesor(graph: GraphProbe):
@@ -568,7 +595,8 @@ def test_cierre_de_vigencia_conserva_historia_y_crea_sucesor(graph: GraphProbe):
     assert old["superseded_by"] == "assertion:nueva"
     assert old["version"] == 2
     assert new["status"] == "ASSERTED"
-    assert graph.counts() == {"nodes": 2, "relationships": 0}
+    assert graph.knowledge_counts() == {"nodes": 2, "relationships": 0}
+    assert len(graph.applied_operations()) == 2
 
 
 def test_dry_run_con_driver_real_no_toca_ni_un_byte(graph: GraphProbe):
@@ -635,3 +663,181 @@ def test_aislamiento_workspace_no_toca_nodos_de_otro_workspace(graph: GraphProbe
     assert codes.EXEC_TARGET_MISSING in result.codes
     assert graph.snapshot_bytes() == before_other
     assert graph.counts() == {"nodes": 2, "relationships": 0}
+
+
+# ==========================================================================
+# Autoridad transaccional de idempotencia (ID-01 .. ID-08)
+# ==========================================================================
+def test_restriccion_compuesta_de_operacion_aplicada_existe(neo4j_driver):
+    rows = GraphProbe(neo4j_driver).run(
+        "SHOW CONSTRAINTS YIELD name, type, labelsOrTypes, properties "
+        "WHERE name = $name "
+        "RETURN name, type, labelsOrTypes, properties",
+        {"name": APPLIED_OPERATION_CONSTRAINT},
+    )
+
+    assert rows == [
+        {
+            "name": APPLIED_OPERATION_CONSTRAINT,
+            "type": "UNIQUENESS",
+            "labelsOrTypes": ["V3AppliedOperation"],
+            "properties": ["workspace", "idempotency_key"],
+        }
+    ]
+
+
+def test_id_01_y_02_primera_aplicacion_y_repeticion_exacta(graph: GraphProbe):
+    plan = make_plan([create_entity("op:id-01", "entity:id-01", "ID-01")])
+
+    first = writer(graph.driver).write(plan, apply_request(plan))
+    second = writer(graph.driver).write(plan, apply_request(plan))
+
+    assert first.outcome == OUTCOME_APPLIED and first.applied_operations == 1
+    assert second.outcome == OUTCOME_APPLIED and second.noop_operations == 1
+    assert graph.knowledge_counts() == {"nodes": 1, "relationships": 0}
+    assert len(graph.applied_operations()) == 1
+
+
+def test_id_03_misma_clave_con_plan_incompatible_falla_cerrado(graph: GraphProbe):
+    plan_a = make_plan(
+        [create_entity("op:id-03", "entity:id-03", "ID-03")],
+        plan_id="plan:id-03:a",
+    )
+    plan_b = dict(plan_a)
+    plan_b["created_at"] = "2026-07-27T10:31:00Z"
+    plan_b["plan_id"] = "plan:id-03:b"
+    plan_b = seal_plan(plan_b)
+    assert (
+        plan_a["mutation_operations"][0]["idempotency_key"]
+        == plan_b["mutation_operations"][0]["idempotency_key"]
+    )
+
+    first = writer(graph.driver).write(plan_a, apply_request(plan_a))
+    original_mark = graph.applied_operations()
+    second = writer(graph.driver).write(plan_b, apply_request(plan_b))
+
+    assert first.outcome == OUTCOME_APPLIED
+    assert second.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_IDEMPOTENCY_CONFLICT in second.codes
+    assert graph.knowledge_counts() == {"nodes": 1, "relationships": 0}
+    assert graph.applied_operations() == original_mark
+
+
+def test_id_04_fallo_antes_de_mutacion_no_deja_marca(graph: GraphProbe):
+    graph.seed_entity("entity:id-04", name="Ya existe")
+    plan = make_plan([create_entity("op:id-04", "entity:id-04", "Duplicada")])
+
+    result = writer(graph.driver).write(plan, apply_request(plan))
+
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_TARGET_ALREADY_EXISTS in result.codes
+    assert graph.applied_operations() == []
+
+
+def test_id_05_fallo_durante_mutacion_revierte_marca_y_escritura(graph: GraphProbe):
+    plan = make_plan(
+        [
+            create_entity("op:id-05-a", "entity:id-05", "Primera"),
+            create_entity("op:id-05-b", "entity:id-05", "Segunda"),
+        ]
+    )
+
+    result = writer(graph.driver).write(plan, apply_request(plan))
+
+    assert result.outcome == OUTCOME_ABORTED
+    assert graph.knowledge_counts() == {"nodes": 0, "relationships": 0}
+    assert graph.applied_operations() == []
+
+
+class _FailingAppliedKeys(InMemoryAppliedKeys):
+    def record(self, key: str, metadata: dict[str, Any]) -> None:
+        raise RuntimeError("caida simulada tras commit")
+
+
+def test_id_06_caida_tras_commit_y_cache_vacia_sigue_siendo_idempotente(
+    graph: GraphProbe,
+):
+    plan = make_plan([create_entity("op:id-06", "entity:id-06", "ID-06")])
+    first = writer(graph.driver, _FailingAppliedKeys()).write(plan, apply_request(plan))
+
+    restarted = writer(graph.driver, InMemoryAppliedKeys())
+    second = restarted.write(plan, apply_request(plan))
+
+    assert first.outcome == OUTCOME_APPLIED
+    assert second.outcome == OUTCOME_APPLIED and second.noop_operations == 1
+    assert graph.knowledge_counts() == {"nodes": 1, "relationships": 0}
+    assert len(graph.applied_operations()) == 1
+
+
+def test_id_07_concurrencia_real_crea_una_marca_y_una_mutacion(graph: GraphProbe):
+    plan = make_plan([create_entity("op:id-07", "entity:id-07", "ID-07")])
+    barrier = threading.Barrier(2)
+
+    def apply_once():
+        barrier.wait(timeout=10)
+        return writer(graph.driver).write(plan, apply_request(plan))
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _index: apply_once(), range(2)))
+
+    assert all(result.outcome == OUTCOME_APPLIED for result in results)
+    assert sorted(result.applied_operations for result in results) == [0, 1]
+    assert sorted(result.noop_operations for result in results) == [0, 1]
+    assert graph.knowledge_counts() == {"nodes": 1, "relationships": 0}
+    assert len(graph.applied_operations()) == 1
+
+
+def test_id_08_misma_clave_aislada_por_workspace(graph: GraphProbe):
+    operation_a = create_entity("op:id-08", "entity:id-08", "ID-08")
+    operation_b = create_entity("op:id-08", "entity:id-08", "ID-08")
+    plan_a = make_plan([operation_a], workspace=WORKSPACE, plan_id="plan:id-08:a")
+    plan_b = make_plan([operation_b], workspace=OTHER_WORKSPACE, plan_id="plan:id-08:b")
+    key_a = plan_a["mutation_operations"][0]["idempotency_key"]
+    key_b = plan_b["mutation_operations"][0]["idempotency_key"]
+    assert key_a != key_b
+
+    first = writer(graph.driver, workspace=WORKSPACE).write(plan_a, apply_request(plan_a))
+    second = writer(graph.driver, workspace=OTHER_WORKSPACE).write(
+        plan_b,
+        apply_request(
+            plan_b,
+            workspace=OTHER_WORKSPACE,
+            env={
+                "S9K_ALLOW_REAL_INGEST": "1",
+                "S9K_WRITER_WORKSPACE": OTHER_WORKSPACE,
+            },
+        ),
+    )
+
+    assert first.outcome == second.outcome == OUTCOME_APPLIED
+    assert len(graph.applied_operations()) == 2
+    assert {
+        (row["workspace"], row["idempotency_key"])
+        for row in graph.applied_operations()
+    } == {(WORKSPACE, key_a), (OTHER_WORKSPACE, key_b)}
+
+
+def test_gate_global_no_hay_parejas_de_idempotencia_duplicadas(graph: GraphProbe):
+    plan = make_plan([create_entity("op:gate", "entity:gate", "Gate")])
+    writer(graph.driver).write(plan, apply_request(plan))
+    writer(graph.driver).write(plan, apply_request(plan))
+
+    duplicates = graph.run(
+        "MATCH (op:V3AppliedOperation) "
+        "WITH op.workspace AS workspace, op.idempotency_key AS idempotency_key, "
+        "count(*) AS total "
+        "WHERE total > 1 "
+        "RETURN workspace, idempotency_key, total"
+    )
+    mutations_without_mark = graph.run(
+        "MATCH (n) "
+        "WHERE (n:V3Entity OR n:V3Assertion) AND n.idempotency_key IS NOT NULL "
+        "AND NOT EXISTS { "
+        "  MATCH (op:V3AppliedOperation {workspace: n.workspace, "
+        "                              idempotency_key: n.idempotency_key}) "
+        "} "
+        "RETURN properties(n) AS mutation"
+    )
+
+    assert duplicates == []
+    assert mutations_without_mark == []

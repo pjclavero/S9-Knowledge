@@ -20,6 +20,7 @@ Lo que este objeto NO hace, y no es una omision:
 """
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
@@ -42,6 +43,7 @@ from .ontology import ProfileIndex
 from .planner import PlanContext, build_plan
 from .signals import ExternalSignal, signals_by_claim
 from .snapshot import GraphSnapshot
+from .shadow import ShadowDecisionRecord, evaluate_semantic_shadow
 
 
 @dataclass(frozen=True)
@@ -53,6 +55,7 @@ class EngineResult:
     plan: Optional[GraphMutationPlan]
     review_plan: Optional[GraphMutationPlan]
     validator_chain: tuple[dict, ...]
+    shadow_decisions: tuple[ShadowDecisionRecord, ...] = ()
 
     def by_decision(self, decision: str) -> tuple[ClaimDecision, ...]:
         return tuple(d for d in self.decisions if d.decision == decision)
@@ -166,10 +169,26 @@ class LocalKnowledgeEngine:
             )
             for claim in claims
         ]
+        pre_batch_decisions = (
+            copy.deepcopy(decisions)
+            if self.config.semantic_shadow_evaluation
+            else ()
+        )
         # Segunda pasada de contradiccion: el lote contra si mismo, ANTES de
         # construir ningun plan. `decide_claim` ve un claim y todo el grafo;
         # solo aqui se ven unos claims a otros.
         decisions = apply_batch_contradictions(decisions, self.index)
+        shadow_decisions = (
+            evaluate_semantic_shadow(
+                claims,
+                decisions,
+                pre_batch_decisions,
+                self.index,
+                self.config,
+            )
+            if self.config.semantic_shadow_evaluation
+            else ()
+        )
 
         context = PlanContext(
             workspace=workspace,
@@ -216,4 +235,5 @@ class LocalKnowledgeEngine:
             plan=write_build.plan,
             review_plan=review_build.plan,
             validator_chain=write_build.validator_chain,
+            shadow_decisions=shadow_decisions,
         )
