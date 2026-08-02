@@ -263,6 +263,8 @@ CESSATION_PHRASES: tuple[str, ...] = (
     "dejan de",
     "dejo de",
     "dejaron de",
+    "ha dejado de",
+    "han dejado de",
     "cesa de",
     "ceso de",
     "cesaron de",
@@ -270,6 +272,8 @@ CESSATION_PHRASES: tuple[str, ...] = (
     "abandona",
     "abandono",
     "abandonaron",
+    "ha dejado atras",
+    "ha dejado atraes",  # variante typo-tolerante
     "rompio su alianza",
     "rompio la alianza",
     "rompio sus lazos",
@@ -279,8 +283,27 @@ CESSATION_PHRASES: tuple[str, ...] = (
     "dimitio como",
     "fue expulsado de",
     "fue expulsada de",
+    "fue destituido de",
+    "fue destituida de",
+    "fue abandonada por",
+    "fue abandonado por",
     "se separo de",
     "perdio su puesto en",
+    "salio del",
+)
+
+#: Cuantificadores de litotes positivos: "no pocos" = "muchos". Cuando "no"
+#: va seguido inmediatamente de uno de estos cuantificadores, la negacion NO
+#: es una marca de negacion sobre la relacion: es un recurso retorico que
+#: intensifica la afirmacion. Suprimir "no" del recuento de marcas en ese caso.
+LITOTES_QUANTIFIERS: frozenset[str] = frozenset({"pocos", "pocas", "pocas"})
+
+#: Frases que abren una subordinada EXCEPTIVA. La clausula subordinada
+#: resultante esta negada con certeza ("sello el pacto sin que lo ratificara"
+#: = "no lo ratifico"). Se detectan como tokens ADYACENTES para no confundir
+#: con "sin dinero", "sin permiso", etc.
+EXCEPTIVE_SUBORDINATORS: tuple[tuple[str, str], ...] = (
+    ("sin", "que"),
 )
 
 #: Verbos de ACTITUD o de REPORTE. Si la negacion va pegada a uno de ellos, lo
@@ -584,11 +607,32 @@ def classify_negation(
                 (CODE_NEGATION_SCOPE,),
             )
 
-    # 2. doble negacion: "ni"/"tampoco" no cuentan, son coordinacion de la misma
+    # 1b. subordinada exceptiva ("sin que"): la clausula subordinada esta negada
+    # con certeza. Se detecta ANTES del recuento para no interferir con el
+    # resto de la logica.
+    for t1, t2 in EXCEPTIVE_SUBORDINATORS:
+        for i in range(inicio, focus - 1):
+            if tokens[i].norm == t1 and tokens[i + 1].norm == t2:
+                return NegationVerdict(
+                    True, NEGATION_KIND_SIMPLE,
+                    (f"{tokens[i].text} {tokens[i + 1].text}",), ()
+                )
+
+    # 2. doble negacion: "ni"/"tampoco" no cuentan, son coordinacion de la misma.
+    # "no pocos/pocas" es una litotes positiva: se suprime ese "no" del recuento.
+    def _es_litotes(i: int) -> bool:
+        return (
+            tokens[i].norm == "no"
+            and i + 1 < focus
+            and tokens[i + 1].norm in LITOTES_QUANTIFIERS
+        )
+
     marcas = [
         tokens[i].norm
         for i in range(inicio, focus)
-        if tokens[i].norm in marcas_negacion and tokens[i].norm not in ("ni", "tampoco")
+        if tokens[i].norm in marcas_negacion
+        and tokens[i].norm not in ("ni", "tampoco")
+        and not _es_litotes(i)
     ]
     cesaciones = cessation_matches(tokens, inicio, hi)
 
@@ -630,9 +674,12 @@ def classify_negation(
         return NegationVerdict(True, NEGATION_KIND_SIMPLE, tuple(marcas), ())
 
     # Solo quedan "ni" y "tampoco", que se excluyeron del recuento de doble
-    # negacion por ser coordinacion de la MISMA. Sueltas siguen negando.
+    # negacion por ser coordinacion de la MISMA. Sueltas siguen negando. Se
+    # excluyen tambien las litotes (ya filtradas en marcas arriba).
     sueltas = [
-        tokens[i].norm for i in range(inicio, focus) if tokens[i].norm in marcas_negacion
+        tokens[i].norm
+        for i in range(inicio, focus)
+        if tokens[i].norm in marcas_negacion and not _es_litotes(i)
     ]
     if sueltas:
         return NegationVerdict(True, NEGATION_KIND_SIMPLE, tuple(sueltas), ())

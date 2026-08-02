@@ -143,11 +143,14 @@ def test_documenta_fallos_del_clasificador_en_frases_nuevas_fuera_de_corpus():
         f"  - [{fenom}] {t!r} -> negated={neg} kind={kind!r}"
         for t, fenom, neg, kind in fallos
     )
-    # Aserto exacto sobre el numero de fallos conocido hoy (4 de 8): si baja,
+    # Aserto exacto sobre el numero de fallos conocido hoy (1 de 8, tras B2): si baja,
     # es una mejora real que hay que celebrar y actualizar; si sube, es una
     # regresion que este test debe atrapar de inmediato.
-    assert len(fallos) == 4, (
-        f"el numero de fallos adversariales cambio de 4 a {len(fallos)} -- "
+    # B2 corrigio 3 de los 4 fallos originales: exceptiva 'sin que', cesacion
+    # perifrastica 'ha dejado atras' y litotes cuantitativa 'no pocos'.
+    # El fallo restante es la litotes correctiva 'no es que no...' (SCOPE_AMBIGUOUS).
+    assert len(fallos) == 1, (
+        f"el numero de fallos adversariales cambio de 1 a {len(fallos)} -- "
         f"revisar si es mejora o regresion:\n{detalle}"
     )
 

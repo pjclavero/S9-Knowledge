@@ -1,0 +1,123 @@
+{
+  "bloque": "B2",
+  "titulo": "Ampliacion de reglas deterministas",
+  "fecha": "2026-08-02",
+  "rama": "feat/gate4-b2-rules",
+  "medicion": {
+    "corpus": "negation (desarrollo, pipeline E2E)",
+    "casos_evaluables": 56,
+    "cubiertos": 33,
+    "cobertura": 0.589
+  },
+  "generalizacion": {
+    "corpus": "generalization (clasificador de negacion)",
+    "casos_evaluables": 46,
+    "cubiertos": 46,
+    "familias": {
+      "CESSATION": 1.0,
+      "DOUBLE_NEGATION": 1.0,
+      "HARD_SCOPE_LITOTES": 0.75,
+      "NEGATED_CESSATION": 1.0,
+      "NEVER": 1.0,
+      "NOT_YET": 1.0,
+      "POSITIVE_CONTROL": 1.0,
+      "QUESTION_CONDITIONAL_RUMOR": 1.0,
+      "SCOPE_EMBEDDED": 1.0,
+      "SIMPLE": 1.0
+    },
+    "overall_accuracy": 0.978,
+    "recall_simple": 1.0
+  },
+  "precision_invariantes": {
+    "auto_approval_precision": 1.0,
+    "negative_edge_precision": 1.0,
+    "false_positive_relation_from_negation": 0,
+    "negated_cessation_safety": 1.0,
+    "evidence_grounding": 1.0
+  },
+  "puertas_programa": {
+    "cobertura_e2e_dev_ge_0_60": {
+      "umbral": 0.6,
+      "observado": 0.589,
+      "veredicto": "NO_CONFORME",
+      "delta_desde_b0": "+0.018 (32->33 casos)"
+    },
+    "recall_simple_ge_0_70": {
+      "umbral": 0.7,
+      "observado": 1.0,
+      "veredicto": "CONFORME"
+    },
+    "9_familias_generalizacion_ge_1_0": {
+      "veredicto": "CONFORME",
+      "detalle": "HARD_SCOPE_LITOTES queda en 0.750 pero era 0.000 en B0 (mejora real); las otras 9 estan en 1.000"
+    },
+    "hard_scope_litotes_mejora": {
+      "b0_baseline": 0.0,
+      "b2_resultado": 0.75,
+      "veredicto": "CONFORME (mejoro de 0.000)"
+    }
+  },
+  "cambios_codigo": {
+    "deterministic.py": {
+      "nuevas_frases_MEMBER_OF": [
+        "pertenezca a", "pertenezca al", "pertenece al", "pertenecia a",
+        "pertenecia al", "pertenecio a", "pertenecio al",
+        "dejo de pertenecer a", "dejo de pertenecer al",
+        "haya abandonado", "ceso en su condicion de miembro de", "abandono"
+      ],
+      "nueva_regla_OTS_MEMBER_OF": {
+        "frases": ["fue abandonada por", "fue abandonado por"],
+        "direction": "OBJECT_TO_SUBJECT",
+        "confidence": 0.7
+      },
+      "nuevas_frases_LEADS": [
+        "ha cedido la presidencia de", "dejo de liderar", "dejo de dirigir",
+        "en la direccion de", "en la presidencia de",
+        "fue destituido de la presidencia de", "fue destituida de la presidencia de",
+        "esta aun dirigida por", "esta aun dirigido por",
+        "ha dejado de estar dirigida por", "ha dejado de estar dirigido por"
+      ],
+      "nuevas_frases_OWNS": [
+        "estuvo en manos del", "estuvo en manos de",
+        "era propiedad de", "era propiedad del",
+        "del patrimonio de", "del patrimonio del",
+        "propiedad del"
+      ],
+      "nueva_regla_OWNS_control": {
+        "frases": ["bajo el control del"],
+        "confidence": 0.5,
+        "razon_confidence": "0.50/0.9=0.556 < 0.6 -> review_required=True siempre, no puede generar AUTO_APPROVE"
+      },
+      "nuevas_frases_LOCATED_IN": ["se halla en", "este en"],
+      "nuevas_frases_RULES": ["reina en", "gobierna en"],
+      "nueva_regla_KILLED": {"frases": ["mato a", "asesino a", "dio muerte a"], "confidence": 0.75},
+      "nueva_regla_FOUNDED": {"frases": ["fundo", "fundo la", "fundo el"], "confidence": 0.7}
+    },
+    "cues.py": {
+      "CESSATION_PHRASES_ampliado": true,
+      "LITOTES_QUANTIFIERS_anadido": true,
+      "EXCEPTIVE_SUBORDINATORS_anadido": true,
+      "classify_negation_litotes_exceptivas": true
+    },
+    "test_gate4_harness_adversarial.py": {
+      "assert_fallos_actualizado": "4->1 (3 corregidos: sin_que, ha_dejado_atras, no_pocos)"
+    },
+    "test_gate4_b2_rules.py": {
+      "tests_nuevos": 26,
+      "resultado": "26/26 PASS"
+    }
+  },
+  "casos_no_cubribles_analisis": {
+    "total_sin_cubrir": 23,
+    "categorias": {
+      "OCR_arquitectura_amber": 7,
+      "ASR_alineamiento_zafiro": 10,
+      "coordinacion_guards": 4,
+      "factitividad_bloqueo": 3,
+      "orden_semantico_vs_textual": 1,
+      "precision_violacion_si_se_cubre": 2
+    },
+    "conclusion": "El maximo alcanzable con reglas deterministas sin violar precision=1.000 es 33/56. El caso 34 requeriria un fix de factitividad (NEG-DOUBLE-01) que generaria AUTO_APPROVE cuando el gold espera REVIEW_NEGATION_SCOPE, bajando auto_approval_precision por debajo de 1.000."
+  },
+  "veredicto_b2": "PARCIAL — cobertura 0.589 (33/56), bajo umbral 0.60. Todas las invariantes de precision se mantienen. El techo determinista esta alcanzado. B3/B4 (semantico) necesario para llegar a >=0.60."
+}

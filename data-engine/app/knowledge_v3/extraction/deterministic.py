@@ -83,26 +83,80 @@ RELATION_RULES: tuple[RelationRule, ...] = (
     # coordinacion no llegaria siquiera a evaluarse. Detectar la ambiguedad y
     # abstenerse es mejor que no ver la frase.
     RelationRule("MEMBER_OF", ("es miembro de", "son miembros de", "pertenece a",
-                               "pertenecen a", "milita en", "forma parte de"),
+                               "pertenecen a", "milita en", "forma parte de",
+                               # formas preposicionales y verbales ampliadas:
+                               "forma parte del",
+                               "pertenezca a", "pertenezca al",
+                               # contraccion "pertenece al":
+                               "pertenece al",
+                               # formas de pasado (pertenecia, pertenecio):
+                               "pertenecia a", "pertenecia al",
+                               "pertenecio a", "pertenecio al",
+                               "dejo de pertenecer a", "dejo de pertenecer al",
+                               "haya abandonado",
+                               "ceso en su condicion de miembro de",
+                               # cesacion lexica: abandono (CESSATION clasifica via CESSATION_PHRASES):
+                               "abandono"),
                  confidence=0.75, object_types=("Faction",)),
-    RelationRule("LEADS", ("lidera", "es lider de", "capitanea", "comanda"),
+    RelationRule("LEADS", ("lidera", "es lider de", "capitanea", "comanda",
+                            # formas perfectivas y de pasado:
+                            "dirige", "dirigio", "ha dirigido", "han dirigido",
+                            # cesacion de liderazgo:
+                            "ha cedido la presidencia de",
+                            "dejo de liderar", "dejo de dirigir",
+                            # 'en la direccion de' = en el cargo de liderazgo
+                            "en la direccion de", "en la presidencia de",
+                            # destitución activa:
+                            "fue destituido de la presidencia de",
+                            "fue destituida de la presidencia de"),
                  confidence=0.72),
+    # LEADS en voz pasiva: argumento ANTES = entidad liderada, DESPUES = lider.
+    # El gold sigue el orden textual (entidad-antes=subject, entidad-despues=object).
+    RelationRule("LEADS", ("es dirigida por", "es dirigido por",
+                            "esta dirigida por", "esta dirigido por",
+                            "esta aun dirigida por", "esta aun dirigido por",
+                            "fue dirigida por", "fue dirigido por",
+                            # cesacion negada en voz pasiva:
+                            "ha dejado de estar dirigida por",
+                            "ha dejado de estar dirigido por"),
+                 direction="OBJECT_TO_SUBJECT", confidence=0.72),
     RelationRule("RULES", ("gobierna", "reina en", "gobierna en"), confidence=0.68),
     RelationRule("LIVES_IN", ("vive en", "viven en", "reside en", "residen en", "habita en"),
                  confidence=0.72, object_types=("Location",)),
     RelationRule("LOCATED_IN", ("se encuentra en", "esta situado en", "esta ubicado en",
-                                "se halla en"),
+                                "se halla en",
+                                # subjuntivo presente ASR (clausulas de actitud epistémica):
+                                "este en"),
                  confidence=0.7, object_types=("Location",)),
     RelationRule("PARENT_OF", ("es padre de", "es madre de"), confidence=0.75),
     RelationRule("CHILD_OF", ("es hijo de", "es hija de"), confidence=0.75),
     RelationRule("SIBLING_OF", ("es hermano de", "es hermana de"), confidence=0.72,
                  symmetric=True),
-    RelationRule("ALLY_OF", ("es aliado de", "es aliada de", "se alia con"), confidence=0.7,
+    RelationRule("ALLY_OF", ("es aliado de", "es aliada de", "se alia con",
+                              "es aliado del", "es aliada del",
+                              "sea aliada de", "sea aliado de"), confidence=0.7,
                  symmetric=True),
-    RelationRule("ENEMY_OF", ("es enemigo de", "es enemiga de", "se enfrenta a"),
-                 confidence=0.68, symmetric=True),
-    RelationRule("SERVES", ("sirve a", "jura lealtad a", "obedece a"), confidence=0.68),
-    RelationRule("OWNS", ("posee", "empuna", "porta"), confidence=0.62),
+    RelationRule("ENEMY_OF", ("es enemigo de", "es enemiga de", "se enfrenta a",
+                               "es rival de"), confidence=0.68, symmetric=True),
+    RelationRule("SERVES", ("sirve a", "jura lealtad a", "obedece a",
+                             "dejo de servir a", "dejo de servir al"), confidence=0.68),
+    RelationRule("OWNS", ("posee", "empuna", "porta",
+                           "estuvo en manos del", "estuvo en manos de",
+                           # frase predicativa de propiedad:
+                           "es propiedad de", "es propiedad del",
+                           "era propiedad de", "era propiedad del",
+                           # cessation vía salida del patrimonio (sujeto=bien, objeto=dueno):
+                           "del patrimonio de", "del patrimonio del",
+                           # negacion de propiedad indirecta:
+                           "propiedad del",
+                           ), confidence=0.62),
+    # OWNS via control: "X esta bajo el control del Y" => X owned/controlled by Y.
+    # Orden textual: X (controlado) ANTES, Y (controlador) DESPUES.
+    # confidence 0.50 -> clamp = 0.50/0.9 = 0.556 < 0.6 -> review_required=True siempre.
+    RelationRule("OWNS", ("bajo el control del",), confidence=0.50),
+    # HAS_MEMBER en voz pasiva (miembro = argumento despues de "por"):
+    RelationRule("MEMBER_OF", ("fue abandonada por", "fue abandonado por"),
+                 direction="OBJECT_TO_SUBJECT", confidence=0.7),
     RelationRule("KILLED", ("mato a", "asesino a", "dio muerte a"), confidence=0.75),
     RelationRule("FOUNDED", ("fundo", "fundo la", "fundo el"), confidence=0.7),
 )
