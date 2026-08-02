@@ -1,0 +1,17 @@
+{
+  "authority": "neo4j",
+  "scenarios": {
+    "ID-01": "PASS",
+    "ID-02": "PASS",
+    "ID-03": "PASS",
+    "ID-04": "PASS",
+    "ID-05": "PASS",
+    "ID-06": "PASS",
+    "ID-07": "PASS",
+    "ID-08": "PASS"
+  },
+  "duplicate_mutations": 0,
+  "orphan_markers": 0,
+  "mutations_without_marker": 0,
+  "cross_workspace_writes": 0
+}

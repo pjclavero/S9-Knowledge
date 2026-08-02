@@ -407,6 +407,7 @@ aflojan. Se dice en vez de fingir que las 32 son igual de alcanzables.
 | `EXEC_UNSUPPORTED_PAYLOAD` | Payload inejecutable con seguridad: propiedad reservada, nombre inadmisible, etiqueta o predicado con forma sospechosa, valor no escalar. | directo |
 | `EXEC_REASON_CODE_MISSING` | Cierre de vigencia sin `reason_code` válido (R1). | directo |
 | `EXEC_DRIVER_FAILURE` | El driver falló, se pidió APPLY sin driver, o la fábrica de driver no devolvió ninguno. La transacción se revierte. | directo |
+| `EXEC_IDEMPOTENCY_CONFLICT` | La clave ya fue aplicada en el workspace por un plan u operación incompatibles. | directo |
 | `EXEC_DESTRUCTIVE_QUERY_BLOCKED` | Guardia interna: la consulta generada contenía una construcción destructiva. | **inalcanzable por los caminos públicos del writer** — ningún builder de `cypher.py` puede producir hoy una consulta destructiva, porque las etiquetas van validadas y los `SET` llevan lista blanca. Es la red para el próximo builder que alguien añada con prisa, y se prueba construyendo una `Query` destructiva a mano. |
 
 ---

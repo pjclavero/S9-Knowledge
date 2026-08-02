@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from app.services.v3_glossary_candidates import GlossaryCandidateStore
+from app.services.v3_review_store import SQLiteReviewStore
 
 VALID_HUMAN_DECISIONS = frozenset({"APPROVE", "REJECT", "CORRECT"})
 VALID_ENGINE_DECISIONS = frozenset({"ACCEPT", "REVIEW", "ABSTAIN", "REJECT_INVALID"})
@@ -61,7 +62,13 @@ def _sha256(value: Any) -> str:
 
 def proposal_hash(proposal: dict[str, Any]) -> str:
     """Hash of canonical proposal content, excluding its self-referential hash."""
-    return _sha256({key: value for key, value in proposal.items() if key != "proposal_hash"})
+    loader_metadata = {
+        "proposal_hash",
+        "package_origins",
+        "available_version_hashes",
+        "legacy_proposal_hash",
+    }
+    return _sha256({key: value for key, value in proposal.items() if key not in loader_metadata})
 
 
 def _lock_for(path: Path) -> threading.RLock:
@@ -128,6 +135,13 @@ def default_audit_path() -> Path:
     return default_decisions_path().with_name("audit.jsonl")
 
 
+def default_database_path() -> Path:
+    configured = os.environ.get("S9K_V3_REVIEW_DATABASE_PATH")
+    if configured:
+        return Path(configured)
+    return default_decisions_path().with_name("review.sqlite3")
+
+
 def default_glossary_root() -> Path:
     configured = os.environ.get("S9K_V3_GLOSSARY_CANDIDATES_DIR")
     if configured:
@@ -166,13 +180,20 @@ def _candidate_views(
 
 
 def load_proposals(directory: Path) -> list[dict[str, Any]]:
-    """Load proposal packages without crossing the selected workspace later."""
+    """Load and deterministically fold immutable proposal packages.
+
+    Identical versions are deduplicated while retaining every package origin.
+    Different hashes for one logical id remain versions; the deterministic
+    package order selects one active version without depending on load order.
+    """
     if not directory.exists():
         return []
-    proposals: list[dict[str, Any]] = []
-    seen: set[str] = set()
+    versions: dict[tuple[str, str], dict[str, dict[str, Any]]] = {}
     for path in sorted(directory.glob("*.json")):
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ReviewError(f"paquete corrupto: {path}") from exc
         documents = raw if isinstance(raw, list) else raw.get("items", [raw])
         if not isinstance(documents, list):
             raise ReviewError(f"paquete inválido: {path}")
@@ -180,14 +201,42 @@ def load_proposals(directory: Path) -> list[dict[str, Any]]:
             if not isinstance(proposal, dict):
                 raise ReviewError(f"propuesta inválida: {path}")
             identifier = _proposal_id(proposal)
-            if identifier in seen:
-                raise ReviewError(f"proposal_id duplicado: {identifier}")
-            _non_empty(proposal.get("workspace"), "workspace")
+            workspace = _non_empty(proposal.get("workspace"), "workspace")
             _non_empty(proposal.get("source_id"), "source_id")
             _non_empty(proposal.get("episode_id"), "episode_id")
             _evidence_parts(proposal)
-            seen.add(identifier)
-            proposals.append(proposal)
+            actual_hash = proposal_hash(proposal)
+            declared_hash = proposal.get("proposal_hash")
+            # Legacy exporters used a different self-hash. Accept it as input,
+            # but canonicalise every loaded version at this trust boundary.
+            normalized = json.loads(_canonical(proposal))
+            normalized["proposal_hash"] = actual_hash
+            by_hash = versions.setdefault((workspace, identifier), {})
+            existing = by_hash.get(actual_hash)
+            if existing is None:
+                normalized["package_origins"] = [path.name]
+                if declared_hash and declared_hash != actual_hash:
+                    normalized["legacy_proposal_hash"] = declared_hash
+                by_hash[actual_hash] = normalized
+            else:
+                existing["package_origins"] = sorted(
+                    set(existing.get("package_origins") or ()) | {path.name}
+                )
+    proposals: list[dict[str, Any]] = []
+    for key in sorted(versions):
+        by_hash = versions[key]
+        # Immutable package names are content-addressed. Lexical selection is
+        # stable under reversed directory iteration and process restart.
+        active_hash = max(
+            by_hash,
+            key=lambda digest: (
+                max(by_hash[digest].get("package_origins") or ("",)),
+                digest,
+            ),
+        )
+        active = by_hash[active_hash]
+        active["available_version_hashes"] = sorted(by_hash)
+        proposals.append(active)
     return proposals
 
 
@@ -266,11 +315,21 @@ class ReviewService:
     ) -> None:
         self.proposals_dir = proposals_dir or default_proposals_dir()
         self.decisions_path = decisions_path or default_decisions_path()
+        self.database_path = (
+            default_database_path()
+            if self.decisions_path == default_decisions_path()
+            else self.decisions_path.with_suffix(".sqlite3")
+        )
+        self.store = SQLiteReviewStore(self.database_path)
         # Kept only as a testable boundary: this service must never dereference it.
         self._graph_driver = graph_driver
 
     def workspaces(self) -> tuple[str, ...]:
         return tuple(sorted({str(item["workspace"]) for item in load_proposals(self.proposals_dir)}))
+
+    def glossary_candidates(self, workspace: str) -> list[dict[str, Any]]:
+        self.store.project_outbox(workspace, _now())
+        return self.store.candidates(workspace)
 
     def queue(
         self,
@@ -281,7 +340,7 @@ class ReviewService:
         include_decided: bool = False,
     ) -> QueueView:
         workspace = _non_empty(workspace, "workspace")
-        history = read_history(self.decisions_path)
+        history = self.store.decisions()
         active = _active_decisions(history)
         all_workspace = [
             proposal for proposal in load_proposals(self.proposals_dir)
@@ -372,7 +431,7 @@ class ReviewService:
         workspace = _non_empty(workspace, "workspace")
 
         with _lock_for(self.decisions_path):
-            history = read_history(self.decisions_path)
+            history = self.store.decisions()
             for existing in history:
                 if existing["request_id"] == request_id:
                     if (
@@ -440,13 +499,25 @@ class ReviewService:
                 "previous_hash": history[-1]["record_hash"] if history else None,
             }
             record["record_hash"] = _sha256(record)
+            outbox = self._glossary_outbox_payload(record, proposal)
+            stored, created = self.store.append_decision_and_outbox(record, outbox)
+            if not created:
+                if (
+                    stored["workspace"] != workspace
+                    or stored["proposal"]["proposal_id"] != proposal_id
+                    or stored["reviewer"] != reviewer
+                    or stored["human_decision"] != human_decision
+                ):
+                    raise ReviewError("request_id reutilizado con otra decisión")
+                return stored
+            # JSONL remains a compatibility/audit export, never the authority.
             self.decisions_path.parent.mkdir(parents=True, exist_ok=True)
             with self.decisions_path.open("a", encoding="utf-8", newline="\n") as handle:
                 handle.write(_canonical(record) + "\n")
                 handle.flush()
                 os.fsync(handle.fileno())
-            self._generate_glossary_candidates(record, proposal)
-            return record
+            self.store.project_outbox(workspace, _now())
+            return stored
 
     def _audit_stale(self, *, proposal: dict[str, Any], reviewer: str, request_id: str,
                      human_decision: str, expected: str, actual: str) -> None:
@@ -461,18 +532,19 @@ class ReviewService:
             "expected_proposal_hash": expected, "actual_proposal_hash": actual,
             "human_decision": human_decision,
         }
+        self.store.audit_stale(event)
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8", newline="\n") as handle:
             handle.write(_canonical(event) + "\n")
             handle.flush()
             os.fsync(handle.fileno())
 
-    def _generate_glossary_candidates(
+    def _glossary_outbox_payload(
         self, record: dict[str, Any], proposal: dict[str, Any]
-    ) -> None:
+    ) -> dict[str, Any] | None:
         """Only explicit human fields can produce candidates; rejections cannot."""
         if record["human_decision"] == "REJECT":
-            return
+            return None
         correction = record["correction"]
         mapping = [
             ("subject_canonical_name", "CANONICAL_TERM_CANDIDATE", "subject"),
@@ -483,35 +555,51 @@ class ReviewService:
             ("suggested_entity_type", "ENTITY_TYPE_CANDIDATE", "subject"),
             ("misrecognition", "KNOWN_MISRECOGNITION_CANDIDATE", "subject"),
         ]
-        root = (
-            default_glossary_root()
-            if self.decisions_path == default_decisions_path()
-            else self.decisions_path.parent / "glossary-candidates"
-        )
-        store = GlossaryCandidateStore(root)
         claim = proposal.get("proposal") or {}
         provenance = proposal.get("provenance") or {}
+        candidates: list[dict[str, Any]] = []
         for field, candidate_type, canonical_field in mapping:
             value = str(correction.get(field) or "").strip()
             if not value:
                 continue
             # An OCR/ASR correction is a known misrecognition, never an alias.
             canonical = str(claim.get(canonical_field) or value)
-            store.propose(
-                workspace=record["workspace"], candidate_type=candidate_type,
-                canonical_value=canonical, candidate_value=value,
-                entity_type=correction.get("suggested_entity_type"),
-                resolved_entity_id=(proposal.get("resolution") or {}).get(canonical_field),
-                source_id=record["source_id"], episode_id=record["episode_id"],
-                evidence=proposal.get("evidence") or {},
-                decision_id=record["decision_id"], proposal_id=record["proposal_id"],
-                provenance=provenance,
-                reason_codes=["EXPLICIT_HUMAN_CORRECTION"],
-            )
+            resolved = (proposal.get("resolution") or {}).get(canonical_field)
+            semantic_key = [
+                record["workspace"], candidate_type,
+                " ".join(canonical.casefold().split()),
+                " ".join(value.casefold().split()), resolved,
+            ]
+            candidate_id = f"glossary:{_sha256(semantic_key)}"
+            candidates.append({
+                "candidate_id": candidate_id,
+                "candidate_type": candidate_type,
+                "status": "PROPOSED",
+                "workspace": record["workspace"],
+                "canonical_value": canonical,
+                "candidate_value": value,
+                "entity_type": correction.get("suggested_entity_type"),
+                "resolved_entity_id": resolved,
+                "source_ids": [record["source_id"]],
+                "episode_ids": [record["episode_id"]],
+                "evidence": [proposal.get("evidence") or {}],
+                "occurrence_count": 1,
+                "source_count": 1,
+                "origin": {
+                    "human_decision_ids": [record["decision_id"]],
+                    "proposal_ids": [record["proposal_id"]],
+                    "extractors": provenance.get("extractors", []),
+                    "providers": provenance.get("providers", []),
+                },
+                "confidence": None,
+                "reason_codes": ["EXPLICIT_HUMAN_CORRECTION"],
+                "created_at": record["timestamp"],
+            })
+        return {"candidates": candidates} if candidates else None
 
     def undo_last(self, *, workspace: str, reviewer: str, request_id: str) -> dict[str, Any]:
         with _lock_for(self.decisions_path):
-            history = read_history(self.decisions_path)
+            history = self.store.decisions()
             active = [
                 record for record in _active_decisions(history).values()
                 if record["workspace"] == workspace

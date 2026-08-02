@@ -327,7 +327,7 @@ def test_23_un_rechazo_humano_no_propone_ningun_candidato(real_review, tmp_path)
                    correction={"subject_alias": "Ilaria"},
                    expected_proposal_hash=item["proposal_hash"])
     assert len(read_history(tmp_path / "decisions.jsonl")) == 1
-    candidates = GlossaryCandidateStore(tmp_path / "glossary-candidates").list(WORKSPACE)
+    candidates = service.glossary_candidates(WORKSPACE)
     assert candidates == [], "un REJECT propuso candidatos de glosario"
 
 
@@ -347,7 +347,7 @@ def test_24_correccion_real_propone_candidatos_sin_mutar_el_glosario(real_review
             "suggested_entity_type": "PERSON",
         },
     )
-    candidates = GlossaryCandidateStore(tmp_path / "glossary-candidates").list(WORKSPACE)
+    candidates = service.glossary_candidates(WORKSPACE)
     tipos = {c["candidate_type"] for c in candidates}
     assert tipos == {
         "CANONICAL_TERM_CANDIDATE", "ALIAS_CANDIDATE", "SPOKEN_FORM_CANDIDATE",

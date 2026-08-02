@@ -72,7 +72,7 @@ def glossary_candidates(
     selected = workspace or (workspaces[0] if len(workspaces) == 1 else None)
     if selected and selected not in workspaces:
         raise HTTPException(status_code=404, detail="Workspace no encontrado")
-    items = GlossaryCandidateStore(default_glossary_root()).list(selected) if selected else []
+    items = _service().glossary_candidates(selected) if selected else []
     return templates.TemplateResponse(
         request, "v3_glossary_candidates.html",
         {"auth_user": guard, "workspaces": workspaces, "workspace": selected, "items": items},

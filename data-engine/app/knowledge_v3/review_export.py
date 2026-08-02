@@ -41,6 +41,18 @@ def _semantic_hash(document: dict[str, Any]) -> str:
     return result["value"] if isinstance(result, dict) else str(result)
 
 
+def _stable_proposal_id(document: dict[str, Any], claim_id: Any) -> str:
+    identity = {
+        "workspace": document["workspace"],
+        "source_id": document["source_id"],
+        "episode_id": document["episode_id"],
+        "claim_id": str(claim_id or "not_available"),
+    }
+    digest = sha256_hash(identity)
+    value = digest["value"] if isinstance(digest, dict) else str(digest)
+    return f"review:{value}"
+
+
 def _lookup(items: list[Any], key: str, value: Any) -> dict[str, Any]:
     for item in items:
         raw = _dict(item)
@@ -82,6 +94,10 @@ def review_documents(result: Any, *, workspace: str) -> list[dict[str, Any]]:
         mentions = list(getattr(run, "mentions", ()))
         resolutions = list(getattr(run, "resolutions", ()))
         fragments = list(getattr(run, "fragments", ()))
+        shadow_by_claim_id = {
+            _dict(record).get("claim_id"): _dict(record)
+            for record in getattr(run, "shadow_decisions", ())
+        }
         for decision_value in getattr(run, "decisions", ()):
             decision = _dict(decision_value)
             outcome = str(decision.get("decision") or "UNKNOWN")
@@ -130,6 +146,7 @@ def review_documents(result: Any, *, workspace: str) -> list[dict[str, Any]]:
                 "temporal_status": claim.get("temporal_status") or "UNKNOWN",
             }
             trace = claim.get("provider_trace") or []
+            shadow = shadow_by_claim_id.get(claim_id)
             document: dict[str, Any] = {
                 "workspace": workspace,
                 "source_id": getattr(run, "source_id", None) or "not_available",
@@ -145,8 +162,20 @@ def review_documents(result: Any, *, workspace: str) -> list[dict[str, Any]]:
                     "decision": outcome,
                     "reason_codes": decision.get("reason_codes") or [],
                     "confidence": decision.get("confidence"),
-                    "effective_decision": decision.get("effective_decision") or outcome,
-                    "shadow_decision": decision.get("shadow_decision"),
+                    "effective_decision": outcome,
+                    "shadow_decision": shadow.get("shadow_decision") if shadow else None,
+                    "ignored_findings": shadow.get("ignored_findings", []) if shadow else [],
+                    "effective_findings": (
+                        shadow.get("effective_findings", [])
+                        if shadow else decision.get("reason_codes") or []
+                    ),
+                    "shadow_findings": shadow.get("shadow_findings", []) if shadow else [],
+                    "would_emit_operations": (
+                        bool(shadow.get("would_emit_operations")) if shadow else False
+                    ),
+                    "operation_kinds": shadow.get("operation_kinds", []) if shadow else [],
+                    "provider": shadow.get("provider") if shadow else None,
+                    "model": shadow.get("model") if shadow else None,
                 },
                 "resolution": {
                     "subject": subject_entity,
@@ -169,10 +198,9 @@ def review_documents(result: Any, *, workspace: str) -> list[dict[str, Any]]:
                 "prompt_version": config.get("prompt_version"),
                 "profile_version": config.get("profile_version") or config.get("profile_id"),
             }
-            digest = _semantic_hash(document)
-            document["proposal_id"] = f"review:{digest}"
-            hashed = sha256_hash(document)
-            document["proposal_hash"] = hashed["value"] if isinstance(hashed, dict) else str(hashed)
+            document["claim_id"] = claim_id
+            document["proposal_id"] = _stable_proposal_id(document, claim_id)
+            document["proposal_hash"] = _semantic_hash(document)
             documents.append(document)
     return sorted(documents, key=lambda x: (x["source_id"], x["episode_id"], x["proposal_id"]))
 

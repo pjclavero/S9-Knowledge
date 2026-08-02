@@ -112,6 +112,10 @@ class SourceRun:
     def decisions(self) -> tuple:
         return self.engine_result.decisions if self.engine_result else ()
 
+    @property
+    def shadow_decisions(self) -> tuple:
+        return self.engine_result.shadow_decisions if self.engine_result else ()
+
     def summary(self) -> dict:
         return {
             "source_id": self.source_id,
