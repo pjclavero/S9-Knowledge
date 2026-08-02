@@ -92,13 +92,24 @@ def from_episodes(source: GoldSource, *, with_gold: bool = True) -> SourceCase:
     )
 
 
-def reconstruct_bytes(source: GoldSource) -> tuple[bytes, Optional[dict]]:
+def reconstruct_bytes(
+    source: GoldSource, *, render_ocr_images: bool = False
+) -> tuple[bytes, Optional[dict]]:
     """Bytes plausibles de la fuente, mas el `payload` que su adaptador pide.
 
     No se inventa contenido: todo sale del texto o de la tabla que el gold ya
     publica. Lo unico que se anade es la ESTRUCTURA del formato (separadores de
     parrafo, cabecera CSV, envoltura de transcripcion), que es justamente lo
     que el normalizador tiene que saber leer.
+
+    `render_ocr_images` (OFF por defecto): para una fuente `IMAGE` cuyos
+    episodios ya traen texto conocido (`OCR_TEXT`/`HTR_TEXT`, el caso de
+    `ambar-escaneo` en el split `negation`, bloque B1 de la puerta 4), dibuja
+    ese texto en un PNG de verdad en vez de los bytes placeholder de siempre.
+    Es lo que permite que un proveedor OCR real (Tesseract) tenga algo que
+    leer y que la medicion compruebe si lo RECUPERA, no que lo repita. Sin la
+    bandera, o si la fuente no cumple el requisito (todo o nada, ver
+    `ocr_render.renderable`), el comportamiento es exactamente el de siempre.
     """
     kind = source.asset["source_kind"]
     episodes = _sorted_episodes(source)
@@ -138,6 +149,12 @@ def reconstruct_bytes(source: GoldSource) -> tuple[bytes, Optional[dict]]:
         return b"AUDIO-RECONSTRUIDO-DEL-GOLD", payload
 
     if kind in ("IMAGE", "CHARACTER_SHEET", "HANDWRITING", "MAP", "DIAGRAM"):
+        if render_ocr_images and kind == "IMAGE":
+            from .ocr_render import render_source_image, renderable
+
+            if renderable(episodes):
+                data, regions = render_source_image(episodes)
+                return data, {"regions": regions}
         regions = [
             {
                 "region_id": f"r{i}",
@@ -154,10 +171,15 @@ def reconstruct_bytes(source: GoldSource) -> tuple[bytes, Optional[dict]]:
     )
 
 
-def from_raw(source: GoldSource, *, collection_id: Optional[str] = None) -> SourceCase:
+def from_raw(
+    source: GoldSource,
+    *,
+    collection_id: Optional[str] = None,
+    render_ocr_images: bool = False,
+) -> SourceCase:
     """Entrada por bytes: la cadena arranca en el normalizador de verdad."""
     asset = source.asset
-    data, payload = reconstruct_bytes(source)
+    data, payload = reconstruct_bytes(source, render_ocr_images=render_ocr_images)
     options = IngestOptions(
         workspace=asset["workspace"],
         collection_id=collection_id or asset["collection_id"],
@@ -188,6 +210,7 @@ def cases_from_gold(
     *,
     entry: str = "episodes",
     only: Sequence[str] = (),
+    render_ocr_images: bool = False,
 ) -> list[SourceCase]:
     """Todas las fuentes del split como entradas de la cadena, en orden estable."""
     if entry not in ("episodes", "raw"):
@@ -196,8 +219,9 @@ def cases_from_gold(
     if only:
         wanted = set(only)
         sources = [s for s in sources if s.source_id in wanted]
-    build = from_episodes if entry == "episodes" else from_raw
-    return [build(s) for s in sources]
+    if entry == "episodes":
+        return [from_episodes(s) for s in sources]
+    return [from_raw(s, render_ocr_images=render_ocr_images) for s in sources]
 
 
 def catalog_entries(gold: GoldDataset) -> list[dict[str, Any]]:

@@ -54,6 +54,19 @@ apt-get install -y tesseract-ocr tesseract-ocr-spa
   opcional, no un requisito.
 - Instalación aditiva: no toca ningún servicio. Verificado que los contenedores de
   VM105 siguieron intactos tras instalarlo.
+- **Puerta 4, bloque B1 (carril OCR de la extracción)**: el paquete de idioma
+  `tesseract-ocr-spa` no es opcional para este bloque — el corpus de negaciones
+  (`ambar-escaneo`) está en español y `eng` solo no reconoce el texto. Fail-closed
+  verificado: sin el binario (o sin el paquete de idioma), la fuente `IMAGE` queda
+  con episodios pendientes y diagnóstico explícito (`VISION_PROVIDER_NOT_AVAILABLE`
+  / `UNPROCESSED_PENDING_PROVIDER`), cero claims, cero evidencia inventada — el
+  resto del sistema (el resto de fuentes del split, el resto de la puerta 4) sigue
+  funcionando exactamente igual. Ver `docs/v3/39-carril-ocr.md`.
+- Estado real verificado para este bloque: Tesseract 5.5.0 con `eng`+`spa` está
+  instalado en **VM105** y **no** en VM102. Los tests reales del carril OCR
+  (`data-engine/app/tests/test_gate4_b1_ocr_real.py`, gateados con
+  `pytest.skip` si falta el binario) se ejecutan y validan en VM105, no en la
+  estación de desarrollo `ia02` ni en VM102.
 
 ### Docker — solo para las pruebas del writer
 
