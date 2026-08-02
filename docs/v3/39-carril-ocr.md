@@ -167,8 +167,53 @@ PYTHONPATH=data-engine/app python3 -m pytest \
   prueba, no las del split) para comprobar que el carril no depende de haber
   visto ya esas frases.
 
+## 7bis. Los dos modos por región, y por qué `DESCRIPTION` queda pendiente
+
+`multimodal/adapters/visual.py::ImageAdapter.modes = (MODE_OCR,
+MODE_DESCRIPTION)`: por cada región, el adaptador pide **los dos modos**,
+siempre, tenga o no proveedor. Un proveedor puramente OCR (Tesseract, o el
+`_FakeVisualProvider` de `test_gate4_b1_ocr_lane.py`) sabe responder al modo
+OCR y **declina** `DESCRIPTION` (`recognize()` devuelve `None`: interpretar
+una imagen no es su trabajo, y mezclar lectura con interpretación es
+justamente lo que este adaptador rechaza). Ese `None`, por región, genera un
+episodio `IMAGE` **pendiente** con `NO_VISUAL_PROVIDER`.
+
+Con 11 episodios en `ambar-escaneo`, esto significa que una corrida con OCR
+conectado produce 11 episodios `OCR_TEXT` **y** 11 episodios `IMAGE`
+pendientes — no porque el carril haya fallado en la mitad de las regiones,
+sino porque `DESCRIPTION` (interpretación visual) queda pendiente
+**estructuralmente** con cualquier proveedor que no cubra esa capacidad. Por
+eso `eval/ocr_lane.py` publica `episodes.pending_by_mode` (un diccionario por
+modo solicitado, p. ej. `{"DESCRIPTION": 11}`) en vez de un total sin
+desglosar: un número suelto como "11 pendientes" sugeriría regiones sin leer,
+y no es eso.
+
+**B1 = conexión del carril OCR; B2 (o el bloque que corresponda) = cobertura
+de la extracción sobre ese texto.** Que solo 2 o 3 de 11 episodios lleguen a
+producir un claim determinista no es un fracaso de este bloque: el extractor
+determinista es deliberadamente conservador (ver el docstring de
+`extraction/deterministic.py`, "diseñado para precisión, no cobertura") y esa
+disciplina no cambia porque el texto venga de OCR en vez de markdown. B1 solo
+responde "¿llega texto real al extractor?"; cuánto de ese texto se convierte
+en claim es una pregunta distinta, ya existente antes de este bloque y fuera
+de su alcance.
+
 ## 8. Límites declarados
 
+- **P2 (limitación de diseño, señalada por el agente de tests)**:
+  `evidence_anchored`/la regla de oro de este bloque garantizan que el
+  literal de un claim existe, byte a byte, en el texto que el proveedor OCR
+  **devolvió** — no que ese texto sea fiel a los píxeles de la imagen. Un
+  proveedor que alucinara texto plausible con confianza alta pasaría el
+  anclaje exactamente igual que uno que leyera bien: la cadena de
+  `_literal_fragments` verifica coincidencia texto-episodio, no
+  texto-imagen. La defensa contra eso es la elección y la calibración de
+  confianza del proveedor (Tesseract es determinista y no genera texto que no
+  esté en la imagen; un VLM generativo sí podría hacerlo, ver
+  `docs/v3/28-requisitos-de-instalacion.md` §8: "los VLM transcriben, pero NO
+  sustituyen al OCR" es la misma razón), y esa elección queda **fuera del
+  alcance de B1**, que conecta el carril con el proveedor determinista
+  (Tesseract) precisamente para no depender de esa garantía.
 - Este carril **no mide** las puertas oficiales de B0
   (`negation_scope_accuracy`, `evidence_grounding`, etc. del runner
   congelado): esas siguen midiéndose exactamente igual, sin OCR, porque el

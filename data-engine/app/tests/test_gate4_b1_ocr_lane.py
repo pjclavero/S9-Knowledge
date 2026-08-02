@@ -114,6 +114,12 @@ def test_without_visual_provider_the_lane_stays_fail_closed():
     # Ni una sola fuga: cero claims tambien es cero violaciones de la regla de
     # oro, no una casilla vacia por casualidad.
     assert report["claims"]["golden_rule_violations"] == []
+    # Sin proveedor, los DOS modos que pide `ImageAdapter` (OCR y DESCRIPTION)
+    # quedan pendientes por region: el desglose por modo lo dice explicito, no
+    # un total que sugiera "regiones sin leer".
+    n = report["corpus"]["gold_episodes"]
+    assert report["episodes"]["pending_by_mode"] == {"OCR": n, "DESCRIPTION": n}
+    assert report["episodes"]["pending_total"] == 2 * n
 
 
 # --------------------------------------------------------------------------
@@ -134,6 +140,13 @@ def test_with_fake_visual_provider_the_lane_recovers_text_and_anchors_claims():
     for row in report["rows"]:
         assert row["evidence_anchored"] is True
         assert row["golden_rule_respected"] is True
+    # El proveedor de pruebas es puramente OCR (como Tesseract): responde al
+    # modo OCR y declina DESCRIPTION. Ese DESCRIPTION pendiente, UNA vez por
+    # region, es el comportamiento esperado -- no una fuga de cobertura de
+    # este bloque (B1 conecta el carril OCR; la interpretacion visual es otro
+    # carril, fuera de este alcance).
+    assert report["episodes"]["pending_by_mode"] == {"DESCRIPTION": len(texts)}
+    assert report["episodes"]["pending_total"] == len(texts)
 
 
 # --------------------------------------------------------------------------

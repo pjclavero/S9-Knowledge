@@ -5,10 +5,9 @@ Este modulo NO toca el runner E2E congelado
 (`artifacts/v3-final-validation/gate4_negation_measure.py`) ni el baseline B0
 (`knowledge_v3/eval/harness.py::measure_gate4_program`). Es una medicion
 ADICIONAL, activable con `--with-ocr` en `scripts/gate4/measure.py`, que corre
-la cadena solo sobre la fuente `ambar-escaneo` (22... en realidad 11 episodios
-`OCR_TEXT` en la version actual del split) con el carril visual conectado de
-verdad, y publica lo que ese carril produce -- sin mezclarlo con las puertas
-oficiales de B0.
+la cadena solo sobre la fuente `ambar-escaneo` (11 episodios `OCR_TEXT` en la
+version actual del split) con el carril visual conectado de verdad, y publica
+lo que ese carril produce -- sin mezclarlo con las puertas oficiales de B0.
 
 **Lo que se encontro sobre `ambar-escaneo` (documentado, no asumido)**: sus
 episodios YA declaran `modality=OCR_TEXT` y traen el texto gold (con ruido de
@@ -106,6 +105,22 @@ def measure_ocr_lane(*, visual_provider: Optional[Any] = None) -> dict[str, Any]
 
     ocr_episodes = [e for e in result.episodes if e.modality == "OCR_TEXT"]
     pending_episodes = [e for e in result.episodes if e.modality == "IMAGE"]
+    # `ImageAdapter.modes = (MODE_OCR, MODE_DESCRIPTION)`: PIDE los dos modos
+    # por region, siempre, tenga o no proveedor. Un proveedor puramente OCR
+    # (Tesseract, o el `_FakeVisualProvider` de las pruebas) responde al modo
+    # OCR y devuelve `None` al modo DESCRIPTION (no es su trabajo: DESCRIPTION
+    # es interpretacion visual, no lectura). Ese `None` genera, POR REGION, un
+    # episodio `IMAGE` pendiente con `NO_VISUAL_PROVIDER` -- no es evidencia de
+    # que el carril OCR haya fallado ni de que queden regiones "sin leer": es
+    # el modo DESCRIPTION quedando pendiente, estructuralmente, con cualquier
+    # proveedor que no cubra interpretacion visual (fuera del alcance de B1;
+    # ver docs/v3/39-carril-ocr.md). Desglosar por `requested_mode` (que
+    # `_pending_episode` ya deja en la metadata) es lo que distingue "el modo
+    # OCR no encontro nada" de "el modo DESCRIPTION nunca tuvo proveedor".
+    pending_by_mode: dict[str, int] = {}
+    for episode in pending_episodes:
+        mode = str((episode.metadata or {}).get("requested_mode", "UNKNOWN"))
+        pending_by_mode[mode] = pending_by_mode.get(mode, 0) + 1
     fragments = {f.fragment_id: f for f in result.fragments}
 
     # Recuperacion literal: cuantos episodios devolvieron EXACTAMENTE el texto
@@ -161,7 +176,12 @@ def measure_ocr_lane(*, visual_provider: Optional[Any] = None) -> dict[str, Any]
         },
         "episodes": {
             "ocr_text_produced": len(ocr_episodes),
-            "pending_no_provider_or_unread": len(pending_episodes),
+            # Desglosado por modo solicitado: NUNCA un total sin desglose, que
+            # sugeriria regiones sin leer. `DESCRIPTION` pendiente con un
+            # proveedor puramente OCR es el comportamiento ESPERADO (ver nota
+            # arriba), no una fuga de cobertura de este bloque.
+            "pending_by_mode": pending_by_mode,
+            "pending_total": len(pending_episodes),
             "exact_literal_recovery": exact_matches,
             "exact_literal_recovery_ratio": (
                 exact_matches / len(gold_source.episodes) if gold_source.episodes else None
