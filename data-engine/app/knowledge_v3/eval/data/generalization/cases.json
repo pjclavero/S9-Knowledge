@@ -1,0 +1,433 @@
+{
+  "corpus": "gate4-generalization",
+  "dataset_version": "1.0.0",
+  "purpose": "Corpus de GENERALIZACION de la puerta 4 (B0). Frases nuevas, entidades nuevas, cuatro dominios ausentes del corpus de desarrollo (historia naval, gremios de oficio, linajes, archivos monasticos). Ninguna coincide en nombre propio o sintagma verbatim con el split `negation`. Sirve para distinguir generalizacion de memorizacion, tal y como exige la leccion del motor v2 (predicado 0.81 en dev==test, 0.24 en real). La familia HARD_SCOPE_LITOTES (anadida tras revision) mide construcciones DURAS de negacion espanola que `extraction.cues` no cubre hoy (subordinada exceptiva 'sin que', litotes correctiva 'no es que no...', cesacion perifrastica 'ha dejado atras', litotes cuantitativa 'no pocos'): se espera una exactitud BAJA ahi a proposito -- es el liston que los bloques B2/B4 (reglas, carril semantico) tienen que subir, no un fallo del arnes.",
+  "families_quota": {
+    "SIMPLE": 8,
+    "NEVER": 4,
+    "CESSATION": 8,
+    "NEGATED_CESSATION": 4,
+    "NOT_YET": 4,
+    "SCOPE_EMBEDDED": 4,
+    "QUESTION_CONDITIONAL_RUMOR": 4,
+    "POSITIVE_CONTROL": 4,
+    "DOUBLE_NEGATION": 2,
+    "HARD_SCOPE_LITOTES": 4
+  },
+  "items": [
+    {
+      "case_id": "gen:simple:01",
+      "family": "SIMPLE",
+      "domain": "naval",
+      "text": "El comodoro Ilan Bracer no sirve en la Escuadra de Poniente.",
+      "focus_anchor": "la Escuadra de Poniente",
+      "gold": {"subject": "Ilan Bracer", "predicate": "SERVES_IN", "object": "la Escuadra de Poniente", "negated": true, "negation_kind": "SIMPLE", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Negacion simple con 'no' pegado al verbo, sin cesacion ni alcance: caso base de recall SIMPLE."
+    },
+    {
+      "case_id": "gen:simple:02",
+      "family": "SIMPLE",
+      "domain": "gremios",
+      "text": "La oficiala Petra Uslan no pertenece a la Cofradia de los Tundidores.",
+      "focus_anchor": "la Cofradia de los Tundidores",
+      "gold": {"subject": "Petra Uslan", "predicate": "MEMBER_OF", "object": "la Cofradia de los Tundidores", "negated": true, "negation_kind": "SIMPLE", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Negacion simple sobre una relacion de pertenencia, dominio de gremios."
+    },
+    {
+      "case_id": "gen:simple:03",
+      "family": "SIMPLE",
+      "domain": "linajes",
+      "text": "El regente Inigo Vasterra no gobierna la Casa de Tregua Alta.",
+      "focus_anchor": "la Casa de Tregua Alta",
+      "gold": {"subject": "Inigo Vasterra", "predicate": "GOVERNS", "object": "la Casa de Tregua Alta", "negated": true, "negation_kind": "SIMPLE", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Negacion simple sobre gobierno de una casa, dominio de linajes."
+    },
+    {
+      "case_id": "gen:simple:04",
+      "family": "SIMPLE",
+      "domain": "naval",
+      "text": "La almiranta Sara Vintos no comanda la fragata Argenta Templada.",
+      "focus_anchor": "la fragata Argenta Templada",
+      "gold": {"subject": "Sara Vintos", "predicate": "COMMANDS", "object": "la fragata Argenta Templada", "negated": true, "negation_kind": "SIMPLE", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Negacion simple sobre mando de una nave, verbo distinto (comanda)."
+    },
+    {
+      "case_id": "gen:simple:05",
+      "family": "SIMPLE",
+      "domain": "gremios",
+      "text": "El maestre Bruno Escaler no dirige el Gremio de Calafates de Punta Herrada.",
+      "focus_anchor": "el Gremio de Calafates de Punta Herrada",
+      "gold": {"subject": "Bruno Escaler", "predicate": "GOVERNS", "object": "el Gremio de Calafates de Punta Herrada", "negated": true, "negation_kind": "SIMPLE", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Negacion simple, tercer verbo distinto (dirige) para no memorizar una sola forma lexica."
+    },
+    {
+      "case_id": "gen:simple:06",
+      "family": "SIMPLE",
+      "domain": "linajes",
+      "text": "La dama Elvira Roncal no es aliada de la Corte de Poniente Alto.",
+      "focus_anchor": "la Corte de Poniente Alto",
+      "gold": {"subject": "Elvira Roncal", "predicate": "ALLY_OF", "object": "la Corte de Poniente Alto", "negated": true, "negation_kind": "SIMPLE", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Negacion simple con copula ('no es aliada de'), forma sintactica distinta de las anteriores."
+    },
+    {
+      "case_id": "gen:simple:07",
+      "family": "SIMPLE",
+      "domain": "naval",
+      "text": "El piloto Maximo Ferran no zarpa con la Escuadra de Poniente.",
+      "focus_anchor": "la Escuadra de Poniente",
+      "gold": {"subject": "Maximo Ferran", "predicate": "SERVES_IN", "object": "la Escuadra de Poniente", "negated": true, "negation_kind": "SIMPLE", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Negacion simple, verbo intransitivo con complemento (zarpa con), sujeto distinto reutilizando el objeto de 01 en otra frase."
+    },
+    {
+      "case_id": "gen:simple:08",
+      "family": "SIMPLE",
+      "domain": "gremios",
+      "text": "La aprendiz Nadia Furell no responde ante la Cofradia de los Tundidores.",
+      "focus_anchor": "la Cofradia de los Tundidores",
+      "gold": {"subject": "Nadia Furell", "predicate": "MEMBER_OF", "object": "la Cofradia de los Tundidores", "negated": true, "negation_kind": "SIMPLE", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Negacion simple, verbo de subordinacion (responde ante) distinto de 'pertenece a'."
+    },
+    {
+      "case_id": "gen:never:01",
+      "family": "NEVER",
+      "domain": "naval",
+      "text": "El comodoro Ilan Bracer nunca sirvio en la Escuadra de Poniente.",
+      "focus_anchor": "la Escuadra de Poniente",
+      "gold": {"subject": "Ilan Bracer", "predicate": "SERVES_IN", "object": "la Escuadra de Poniente", "negated": true, "negation_kind": "NEVER", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Negacion absoluta con 'nunca': niega toda la vida de la relacion, no un instante."
+    },
+    {
+      "case_id": "gen:never:02",
+      "family": "NEVER",
+      "domain": "gremios",
+      "text": "Petra Uslan jamas perteneció a la Cofradia de los Tundidores.",
+      "focus_anchor": "la Cofradia de los Tundidores",
+      "gold": {"subject": "Petra Uslan", "predicate": "MEMBER_OF", "object": "la Cofradia de los Tundidores", "negated": true, "negation_kind": "NEVER", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Variante lexica de 'nunca' ('jamas'), mismo tipo de negacion absoluta."
+    },
+    {
+      "case_id": "gen:never:03",
+      "family": "NEVER",
+      "domain": "linajes",
+      "text": "Inigo Vasterra nunca gobierno la Casa de Tregua Alta.",
+      "focus_anchor": "la Casa de Tregua Alta",
+      "gold": {"subject": "Inigo Vasterra", "predicate": "GOVERNS", "object": "la Casa de Tregua Alta", "negated": true, "negation_kind": "NEVER", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Negacion absoluta sobre gobierno, dominio de linajes."
+    },
+    {
+      "case_id": "gen:never:04",
+      "family": "NEVER",
+      "domain": "naval",
+      "text": "Sara Vintos jamas comando la fragata Argenta Templada.",
+      "focus_anchor": "la fragata Argenta Templada",
+      "gold": {"subject": "Sara Vintos", "predicate": "COMMANDS", "object": "la fragata Argenta Templada", "negated": true, "negation_kind": "NEVER", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Negacion absoluta sobre mando naval, verbo en preterito."
+    },
+    {
+      "case_id": "gen:cessation:01",
+      "family": "CESSATION",
+      "domain": "naval",
+      "text": "El comodoro Ilan Bracer ya no sirve en la Escuadra de Poniente.",
+      "focus_anchor": "la Escuadra de Poniente",
+      "gold": {"subject": "Ilan Bracer", "predicate": "SERVES_IN", "object": "la Escuadra de Poniente", "negated": true, "negation_kind": "CESSATION", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Cesacion con 'ya no': hubo relacion y termina, hay que cerrar vigencia, no borrar historia."
+    },
+    {
+      "case_id": "gen:cessation:02",
+      "family": "CESSATION",
+      "domain": "gremios",
+      "text": "Bruno Escaler dejo de dirigir el Gremio de Calafates de Punta Herrada.",
+      "focus_anchor": "el Gremio de Calafates de Punta Herrada",
+      "gold": {"subject": "Bruno Escaler", "predicate": "GOVERNS", "object": "el Gremio de Calafates de Punta Herrada", "negated": true, "negation_kind": "CESSATION", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Cesacion sin marca de negacion ('dejo de'): la mitad de las cesaciones reales no llevan 'no'."
+    },
+    {
+      "case_id": "gen:cessation:03",
+      "family": "CESSATION",
+      "domain": "linajes",
+      "text": "Elvira Roncal abandono la alianza con la Corte de Poniente Alto.",
+      "focus_anchor": "la Corte de Poniente Alto",
+      "gold": {"subject": "Elvira Roncal", "predicate": "ALLY_OF", "object": "la Corte de Poniente Alto", "negated": true, "negation_kind": "CESSATION", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Cesacion con verbo 'abandono', tercera forma lexica de cesacion."
+    },
+    {
+      "case_id": "gen:cessation:04",
+      "family": "CESSATION",
+      "domain": "naval",
+      "text": "Maximo Ferran renuncio a la Escuadra de Poniente.",
+      "focus_anchor": "la Escuadra de Poniente",
+      "gold": {"subject": "Maximo Ferran", "predicate": "SERVES_IN", "object": "la Escuadra de Poniente", "negated": true, "negation_kind": "CESSATION", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Cesacion con 'renuncio a', cuarta forma lexica de cesacion."
+    },
+    {
+      "case_id": "gen:cessation:05",
+      "family": "CESSATION",
+      "domain": "gremios",
+      "text": "Nadia Furell fue expulsada de la Cofradia de los Tundidores.",
+      "focus_anchor": "la Cofradia de los Tundidores",
+      "gold": {"subject": "Nadia Furell", "predicate": "MEMBER_OF", "object": "la Cofradia de los Tundidores", "negated": true, "negation_kind": "CESSATION", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Cesacion pasiva ('fue expulsada de'): distingue expulsion de abandono voluntario, pero ambas cierran vigencia."
+    },
+    {
+      "case_id": "gen:cessation:06",
+      "family": "CESSATION",
+      "domain": "linajes",
+      "text": "Tadeo Roncal perdio su puesto en el Linaje de los Oruz.",
+      "focus_anchor": "el Linaje de los Oruz",
+      "gold": {"subject": "Tadeo Roncal", "predicate": "MEMBER_OF", "object": "el Linaje de los Oruz", "negated": true, "negation_kind": "CESSATION", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Cesacion con 'perdio su puesto en', quinta forma lexica de cesacion."
+    },
+    {
+      "case_id": "gen:cessation:07",
+      "family": "CESSATION",
+      "domain": "naval",
+      "text": "Sara Vintos ceso de comandar la fragata Argenta Templada.",
+      "focus_anchor": "la fragata Argenta Templada",
+      "gold": {"subject": "Sara Vintos", "predicate": "COMMANDS", "object": "la fragata Argenta Templada", "negated": true, "negation_kind": "CESSATION", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Cesacion con 'ceso de', sexta forma lexica de cesacion."
+    },
+    {
+      "case_id": "gen:cessation:08",
+      "family": "CESSATION",
+      "domain": "gremios",
+      "text": "Petra Uslan se separo de la Cofradia de los Tundidores.",
+      "focus_anchor": "la Cofradia de los Tundidores",
+      "gold": {"subject": "Petra Uslan", "predicate": "MEMBER_OF", "object": "la Cofradia de los Tundidores", "negated": true, "negation_kind": "CESSATION", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Cesacion con 'se separo de', septima forma lexica de cesacion."
+    },
+    {
+      "case_id": "gen:negcess:01",
+      "family": "NEGATED_CESSATION",
+      "domain": "naval",
+      "text": "El comodoro Ilan Bracer no dejo de servir en la Escuadra de Poniente.",
+      "focus_anchor": "la Escuadra de Poniente",
+      "gold": {"subject": "Ilan Bracer", "predicate": "SERVES_IN", "object": "la Escuadra de Poniente", "negated": false, "negation_kind": "SCOPE_AMBIGUOUS", "review_scope": true, "non_factive": false},
+      "why_evaluable": "'No dejo de' AFIRMA la relacion (invierte la cesacion); leerla como cesacion cerraria una vigencia que el texto sostiene."
+    },
+    {
+      "case_id": "gen:negcess:02",
+      "family": "NEGATED_CESSATION",
+      "domain": "gremios",
+      "text": "Bruno Escaler no dejo de dirigir el Gremio de Calafates de Punta Herrada.",
+      "focus_anchor": "el Gremio de Calafates de Punta Herrada",
+      "gold": {"subject": "Bruno Escaler", "predicate": "GOVERNS", "object": "el Gremio de Calafates de Punta Herrada", "negated": false, "negation_kind": "SCOPE_AMBIGUOUS", "review_scope": true, "non_factive": false},
+      "why_evaluable": "Misma trampa de cesacion negada, dominio de gremios."
+    },
+    {
+      "case_id": "gen:negcess:03",
+      "family": "NEGATED_CESSATION",
+      "domain": "linajes",
+      "text": "Elvira Roncal no abandono jamas la Casa de Tregua Alta.",
+      "focus_anchor": "la Casa de Tregua Alta",
+      "gold": {"subject": "Elvira Roncal", "predicate": "GOVERNS", "object": "la Casa de Tregua Alta", "negated": false, "negation_kind": "SCOPE_AMBIGUOUS", "review_scope": true, "non_factive": false},
+      "why_evaluable": "Cesacion negada con enfasis ('jamas') pegado a la marca, dominio de linajes."
+    },
+    {
+      "case_id": "gen:negcess:04",
+      "family": "NEGATED_CESSATION",
+      "domain": "naval",
+      "text": "Maximo Ferran no renuncio a la Escuadra de Poniente.",
+      "focus_anchor": "la Escuadra de Poniente",
+      "gold": {"subject": "Maximo Ferran", "predicate": "SERVES_IN", "object": "la Escuadra de Poniente", "negated": false, "negation_kind": "SCOPE_AMBIGUOUS", "review_scope": true, "non_factive": false},
+      "why_evaluable": "Cesacion negada con verbo 'renuncio a', segunda forma lexica de la familia."
+    },
+    {
+      "case_id": "gen:notyet:01",
+      "family": "NOT_YET",
+      "domain": "naval",
+      "text": "El comodoro Ilan Bracer todavia no sirve en la Escuadra de Poniente.",
+      "focus_anchor": "la Escuadra de Poniente",
+      "gold": {"subject": "Ilan Bracer", "predicate": "SERVES_IN", "object": "la Escuadra de Poniente", "negated": true, "negation_kind": "NOT_YET", "review_scope": false, "non_factive": false},
+      "why_evaluable": "'Todavia no' no demuestra que antes hubiera relacion: distinto de cesacion aunque suene parecido."
+    },
+    {
+      "case_id": "gen:notyet:02",
+      "family": "NOT_YET",
+      "domain": "gremios",
+      "text": "Nadia Furell aun no pertenece a la Cofradia de los Tundidores.",
+      "focus_anchor": "la Cofradia de los Tundidores",
+      "gold": {"subject": "Nadia Furell", "predicate": "MEMBER_OF", "object": "la Cofradia de los Tundidores", "negated": true, "negation_kind": "NOT_YET", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Variante lexica 'aun no', misma familia NOT_YET."
+    },
+    {
+      "case_id": "gen:notyet:03",
+      "family": "NOT_YET",
+      "domain": "linajes",
+      "text": "Tadeo Roncal todavia no gobierna la Casa de Tregua Alta.",
+      "focus_anchor": "la Casa de Tregua Alta",
+      "gold": {"subject": "Tadeo Roncal", "predicate": "GOVERNS", "object": "la Casa de Tregua Alta", "negated": true, "negation_kind": "NOT_YET", "review_scope": false, "non_factive": false},
+      "why_evaluable": "NOT_YET sobre gobierno, dominio de linajes."
+    },
+    {
+      "case_id": "gen:notyet:04",
+      "family": "NOT_YET",
+      "domain": "naval",
+      "text": "Sara Vintos todavia no comanda la fragata Argenta Templada.",
+      "focus_anchor": "la fragata Argenta Templada",
+      "gold": {"subject": "Sara Vintos", "predicate": "COMMANDS", "object": "la fragata Argenta Templada", "negated": true, "negation_kind": "NOT_YET", "review_scope": false, "non_factive": false},
+      "why_evaluable": "NOT_YET sobre mando naval, cuarta instancia de la familia."
+    },
+    {
+      "case_id": "gen:scope:01",
+      "family": "SCOPE_EMBEDDED",
+      "domain": "naval",
+      "text": "El cronista Bruno Escaler no cree que Sara Vintos sirva en la Escuadra de Poniente.",
+      "focus_anchor": "la Escuadra de Poniente",
+      "gold": {"subject": "Sara Vintos", "predicate": "SERVES_IN", "object": "la Escuadra de Poniente", "negated": false, "negation_kind": "SCOPE_AMBIGUOUS", "review_scope": true, "non_factive": false},
+      "why_evaluable": "La negacion cuelga del verbo de creencia ('no cree'), no de la relacion subordinada: negarla por su cuenta inventaria un hecho contrario al que el texto realmente sostiene indeciso."
+    },
+    {
+      "case_id": "gen:scope:02",
+      "family": "SCOPE_EMBEDDED",
+      "domain": "gremios",
+      "text": "La oficiala Petra Uslan no sabe si Bruno Escaler dirige el Gremio de Calafates de Punta Herrada.",
+      "focus_anchor": "el Gremio de Calafates de Punta Herrada",
+      "gold": {"subject": "Bruno Escaler", "predicate": "GOVERNS", "object": "el Gremio de Calafates de Punta Herrada", "negated": false, "negation_kind": "SCOPE_AMBIGUOUS", "review_scope": true, "non_factive": false},
+      "why_evaluable": "Verbo de conocimiento negado ('no sabe si'), alcance sobre la subordinada, dominio de gremios."
+    },
+    {
+      "case_id": "gen:scope:03",
+      "family": "SCOPE_EMBEDDED",
+      "domain": "linajes",
+      "text": "El regente Inigo Vasterra no recuerda que Elvira Roncal gobierne la Casa de Tregua Alta.",
+      "focus_anchor": "la Casa de Tregua Alta",
+      "gold": {"subject": "Elvira Roncal", "predicate": "GOVERNS", "object": "la Casa de Tregua Alta", "negated": false, "negation_kind": "SCOPE_AMBIGUOUS", "review_scope": true, "non_factive": false},
+      "why_evaluable": "Verbo de memoria negado ('no recuerda que'), dominio de linajes."
+    },
+    {
+      "case_id": "gen:scope:04",
+      "family": "SCOPE_EMBEDDED",
+      "domain": "naval",
+      "text": "El piloto Maximo Ferran no considera que Ilan Bracer sirva en la Escuadra de Poniente.",
+      "focus_anchor": "la Escuadra de Poniente",
+      "gold": {"subject": "Ilan Bracer", "predicate": "SERVES_IN", "object": "la Escuadra de Poniente", "negated": false, "negation_kind": "SCOPE_AMBIGUOUS", "review_scope": true, "non_factive": false},
+      "why_evaluable": "Verbo de opinion negado ('no considera que'), cuarta instancia de la familia."
+    },
+    {
+      "case_id": "gen:qcr:01",
+      "family": "QUESTION_CONDITIONAL_RUMOR",
+      "domain": "gremios",
+      "text": "Se rumorea que Nadia Furell dirige el Gremio de Calafates de Punta Herrada.",
+      "focus_anchor": "el Gremio de Calafates de Punta Herrada",
+      "gold": {"subject": "Nadia Furell", "predicate": "GOVERNS", "object": "el Gremio de Calafates de Punta Herrada", "negated": false, "negation_kind": "", "review_scope": false, "non_factive": true},
+      "why_evaluable": "Rumor ('se rumorea que'): el texto no afirma el hecho del mundo, lo reporta como no confirmado."
+    },
+    {
+      "case_id": "gen:qcr:02",
+      "family": "QUESTION_CONDITIONAL_RUMOR",
+      "domain": "naval",
+      "text": "¿Comanda Sara Vintos la fragata Argenta Templada?",
+      "focus_anchor": "la fragata Argenta Templada",
+      "gold": {"subject": "Sara Vintos", "predicate": "COMMANDS", "object": "la fragata Argenta Templada", "negated": false, "negation_kind": "", "review_scope": false, "non_factive": true},
+      "why_evaluable": "Pregunta directa: no afirma nada, solo indaga."
+    },
+    {
+      "case_id": "gen:qcr:03",
+      "family": "QUESTION_CONDITIONAL_RUMOR",
+      "domain": "linajes",
+      "text": "Si Tadeo Roncal gobernara la Casa de Tregua Alta, cambiaria el protocolo de corte.",
+      "focus_anchor": "la Casa de Tregua Alta",
+      "gold": {"subject": "Tadeo Roncal", "predicate": "GOVERNS", "object": "la Casa de Tregua Alta", "negated": false, "negation_kind": "", "review_scope": false, "non_factive": true},
+      "why_evaluable": "Condicional con 'si' + subjuntivo: hipotesis, no hecho consumado."
+    },
+    {
+      "case_id": "gen:qcr:04",
+      "family": "QUESTION_CONDITIONAL_RUMOR",
+      "domain": "gremios",
+      "text": "En caso de que Petra Uslan dirija la Cofradia de los Tundidores, se convocara junta.",
+      "focus_anchor": "la Cofradia de los Tundidores",
+      "gold": {"subject": "Petra Uslan", "predicate": "GOVERNS", "object": "la Cofradia de los Tundidores", "negated": false, "negation_kind": "", "review_scope": false, "non_factive": true},
+      "why_evaluable": "Condicional con locucion distinta ('en caso de que'), misma familia no-factiva."
+    },
+    {
+      "case_id": "gen:pos:01",
+      "family": "POSITIVE_CONTROL",
+      "domain": "linajes",
+      "text": "Elvira Roncal gobierna la Casa de Tregua Alta.",
+      "focus_anchor": "la Casa de Tregua Alta",
+      "gold": {"subject": "Elvira Roncal", "predicate": "GOVERNS", "object": "la Casa de Tregua Alta", "negated": false, "negation_kind": "", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Control positivo: afirmacion llana, sin marca de negacion ni de no-factividad. Debe leerse como hecho."
+    },
+    {
+      "case_id": "gen:pos:02",
+      "family": "POSITIVE_CONTROL",
+      "domain": "gremios",
+      "text": "Petra Uslan dirige la Cofradia de los Tundidores.",
+      "focus_anchor": "la Cofradia de los Tundidores",
+      "gold": {"subject": "Petra Uslan", "predicate": "GOVERNS", "object": "la Cofradia de los Tundidores", "negated": false, "negation_kind": "", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Control positivo, dominio de gremios."
+    },
+    {
+      "case_id": "gen:pos:03",
+      "family": "POSITIVE_CONTROL",
+      "domain": "naval",
+      "text": "Maximo Ferran pilota la fragata Argenta Templada.",
+      "focus_anchor": "la fragata Argenta Templada",
+      "gold": {"subject": "Maximo Ferran", "predicate": "COMMANDS", "object": "la fragata Argenta Templada", "negated": false, "negation_kind": "", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Control positivo, dominio naval."
+    },
+    {
+      "case_id": "gen:pos:04",
+      "family": "POSITIVE_CONTROL",
+      "domain": "linajes",
+      "text": "Tadeo Roncal preside el Linaje de los Oruz.",
+      "focus_anchor": "el Linaje de los Oruz",
+      "gold": {"subject": "Tadeo Roncal", "predicate": "GOVERNS", "object": "el Linaje de los Oruz", "negated": false, "negation_kind": "", "review_scope": false, "non_factive": false},
+      "why_evaluable": "Control positivo con verbo distinto ('preside'), cuarta instancia."
+    },
+    {
+      "case_id": "gen:dbl:01",
+      "family": "DOUBLE_NEGATION",
+      "domain": "naval",
+      "text": "El comodoro Ilan Bracer nunca dejo de servir en la Escuadra de Poniente.",
+      "focus_anchor": "la Escuadra de Poniente",
+      "gold": {"subject": "Ilan Bracer", "predicate": "SERVES_IN", "object": "la Escuadra de Poniente", "negated": false, "negation_kind": "SCOPE_AMBIGUOUS", "review_scope": true, "non_factive": false},
+      "why_evaluable": "Doble negacion: 'nunca' + cesacion 'dejo de' se cancelan (afirmacion reforzada). Resolverla mecanicamente como negacion simple o cesacion seria invertir el sentido; debe ir a revision."
+    },
+    {
+      "case_id": "gen:dbl:02",
+      "family": "DOUBLE_NEGATION",
+      "domain": "gremios",
+      "text": "Bruno Escaler nunca dejo de dirigir el Gremio de Calafates de Punta Herrada.",
+      "focus_anchor": "el Gremio de Calafates de Punta Herrada",
+      "gold": {"subject": "Bruno Escaler", "predicate": "GOVERNS", "object": "el Gremio de Calafates de Punta Herrada", "negated": false, "negation_kind": "SCOPE_AMBIGUOUS", "review_scope": true, "non_factive": false},
+      "why_evaluable": "Segunda instancia de doble negacion, dominio de gremios."
+    },
+    {
+      "case_id": "gen:hard:01",
+      "family": "HARD_SCOPE_LITOTES",
+      "domain": "archivos",
+      "text": "El capataz Rutger Feld sello el pacto sin que el regidor Amancio Petra lo ratificara ante el Cabildo de Runas Pardas.",
+      "focus_anchor": "el Cabildo de Runas Pardas",
+      "gold": {"subject": "Amancio Petra", "predicate": "RATIFIES", "object": "el Cabildo de Runas Pardas", "negated": true, "negation_kind": "EXCEPTIVE_SCOPE", "review_scope": false, "non_factive": false, "expected_asserted_fact": true},
+      "why_evaluable": "Subordinada exceptiva 'sin que': niega con certeza la ratificacion, pero fuera del vocabulario cerrado de `cues.py` (ni NEGATION_CUES ni CESSATION_PHRASES la reconocen); el clasificador la lee como ASSERTED_FACT positivo, invirtiendo el sentido. Listado por el agente de tests como fallo conocido; caso propio con entidades nuevas."
+    },
+    {
+      "case_id": "gen:hard:02",
+      "family": "HARD_SCOPE_LITOTES",
+      "domain": "archivos",
+      "text": "No es que la escriba Dorotea Vance no perteneciera al Priorato de Sal Vieja.",
+      "focus_anchor": "Priorato de Sal Vieja",
+      "gold": {"subject": "Dorotea Vance", "predicate": "MEMBER_OF", "object": "Priorato de Sal Vieja", "negated": false, "negation_kind": "", "review_scope": false, "non_factive": false, "expected_asserted_fact": true},
+      "why_evaluable": "Litotes correctiva 'no es que no...': las dos marcas de negacion se cancelan y afirman la pertenencia con certeza, pero el clasificador cuenta las dos marcas como doble negacion generica y la manda a SCOPE_AMBIGUOUS (clase UNKNOWN, no se afirma el hecho), perdiendo la lectura positiva resuelta. Caso propio, entidades nuevas."
+    },
+    {
+      "case_id": "gen:hard:03",
+      "family": "HARD_SCOPE_LITOTES",
+      "domain": "archivos",
+      "text": "La curadora Livia Sanz ha dejado atras su alianza con la Orden de las Actas Grises.",
+      "focus_anchor": "la Orden de las Actas Grises",
+      "gold": {"subject": "Livia Sanz", "predicate": "ALLY_OF", "object": "la Orden de las Actas Grises", "negated": true, "negation_kind": "CESSATION", "review_scope": false, "non_factive": false, "expected_asserted_fact": true},
+      "why_evaluable": "Cesacion perifrastica 'ha dejado atras', equivalente semantico de 'dejo de' pero fuera de `CESSATION_PHRASES`: el clasificador no la reconoce como cesacion y lee ASSERTED_FACT liso, afirmando por error una alianza que el texto cierra. Caso propio, entidades nuevas."
+    },
+    {
+      "case_id": "gen:hard:04",
+      "family": "HARD_SCOPE_LITOTES",
+      "domain": "archivos",
+      "text": "No pocos escribas del Cabildo de Runas Pardas respaldaron a Amancio Petra como regidor.",
+      "focus_anchor": "el Cabildo de Runas Pardas",
+      "gold": {"subject": "Amancio Petra", "predicate": "ENDORSED_AS_REGENT", "object": "el Cabildo de Runas Pardas", "negated": false, "negation_kind": "", "review_scope": false, "non_factive": false, "expected_asserted_fact": true},
+      "why_evaluable": "Litotes cuantitativa 'no pocos' = 'bastantes': afirma un respaldo amplio, pero el clasificador trata el 'no' inicial como negacion SIMPLE llana (NEGATED_FACT), invirtiendo la polaridad real. Caso propio, entidades nuevas."
+    }
+  ]
+}
