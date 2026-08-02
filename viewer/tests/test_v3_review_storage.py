@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import multiprocessing
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,7 @@ from app.services.v3_review import (
     StaleReviewError,
     load_proposals,
 )
+from app.services.v3_review_store import SQLiteReviewStore
 
 
 def _proposal(
@@ -66,6 +68,29 @@ def _record_worker(
         output.put(("ok", record["decision_id"]))
     except Exception as exc:  # pragma: no cover - asserted in parent
         output.put(("error", type(exc).__name__, str(exc)))
+
+
+def test_read_connections_are_closed(monkeypatch, tmp_path):
+    connections = []
+    real_connect = sqlite3.connect
+
+    class TrackedConnection(sqlite3.Connection):
+        pass
+
+    def tracked_connect(*args, **kwargs):
+        connection = real_connect(*args, **kwargs, factory=TrackedConnection)
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr(sqlite3, "connect", tracked_connect)
+    store = SQLiteReviewStore(tmp_path / "review.sqlite3")
+    store.decisions()
+    store.candidates("alpha")
+
+    assert len(connections) == 3
+    for connection in connections:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
+            connection.execute("SELECT 1")
 
 
 def test_identical_and_partially_overlapping_packages_are_deduplicated(tmp_path):

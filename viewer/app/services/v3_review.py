@@ -321,7 +321,6 @@ class ReviewService:
             else self.decisions_path.with_suffix(".sqlite3")
         )
         self.store = SQLiteReviewStore(self.database_path)
-        self.store.import_proposals(load_proposals(self.proposals_dir))
         # Kept only as a testable boundary: this service must never dereference it.
         self._graph_driver = graph_driver
 
@@ -432,7 +431,6 @@ class ReviewService:
         workspace = _non_empty(workspace, "workspace")
 
         with _lock_for(self.decisions_path):
-            self.store.import_proposals(load_proposals(self.proposals_dir))
             history = self.store.decisions()
             for existing in history:
                 if existing["request_id"] == request_id:

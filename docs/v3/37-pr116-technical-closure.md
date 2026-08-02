@@ -17,8 +17,9 @@ Base auditada: `ee71dce374efc040003003e7d684254162f37db5`, rama
   identifica la versión canónica mostrada.
 - Paquetes idénticos se deduplican conservando procedencias; versiones
   diferentes mantienen una sola activa y activan `STALE_REVIEW`.
-- SQLite WAL almacena propuestas/versiones, decisiones, auditoría, outbox y
-  candidatos. `request_id` y candidatos tienen unicidad transaccional.
+- Las propuestas y sus versiones viven en el filesystem. SQLite WAL almacena
+  decisiones, auditoría, outbox y candidatos. `request_id` y candidatos tienen
+  unicidad transaccional.
 - Decisión y solicitud de candidato se confirman en una transacción; el
   proyector es reintentable y sólo crea estado `PROPOSED`.
 - El writer reclama `V3AppliedOperation` dentro de la misma transacción Neo4j.

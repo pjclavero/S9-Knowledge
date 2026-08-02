@@ -19,20 +19,6 @@ def digest(value: Any) -> str:
 
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS proposals (
-  workspace TEXT NOT NULL,
-  proposal_id TEXT NOT NULL,
-  active_hash TEXT NOT NULL,
-  PRIMARY KEY (workspace, proposal_id)
-);
-CREATE TABLE IF NOT EXISTS proposal_versions (
-  workspace TEXT NOT NULL,
-  proposal_id TEXT NOT NULL,
-  proposal_hash TEXT NOT NULL,
-  document_json TEXT NOT NULL,
-  package_origins_json TEXT NOT NULL,
-  PRIMARY KEY (workspace, proposal_id, proposal_hash)
-);
 CREATE TABLE IF NOT EXISTS human_decisions (
   decision_id TEXT PRIMARY KEY,
   workspace TEXT NOT NULL,
@@ -81,7 +67,7 @@ class SQLiteReviewStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         for attempt in range(60):
             try:
-                with self.connect() as connection:
+                with self.connection() as connection:
                     connection.execute("PRAGMA journal_mode=WAL")
                     connection.executescript(SCHEMA)
                 break
@@ -99,6 +85,14 @@ class SQLiteReviewStore:
         return connection
 
     @contextmanager
+    def connection(self) -> Iterator[sqlite3.Connection]:
+        connection = self.connect()
+        try:
+            yield connection
+        finally:
+            connection.close()
+
+    @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
         connection = self.connect()
         try:
@@ -111,31 +105,8 @@ class SQLiteReviewStore:
         finally:
             connection.close()
 
-    def import_proposals(self, proposals: list[dict[str, Any]]) -> None:
-        with self.transaction() as connection:
-            for proposal in proposals:
-                workspace = str(proposal["workspace"])
-                proposal_id = str(proposal["proposal_id"])
-                proposal_hash = str(proposal["proposal_hash"])
-                origins = proposal.get("package_origins") or []
-                connection.execute(
-                    """INSERT INTO proposal_versions
-                       (workspace, proposal_id, proposal_hash, document_json, package_origins_json)
-                       VALUES (?, ?, ?, ?, ?)
-                       ON CONFLICT(workspace, proposal_id, proposal_hash) DO UPDATE SET
-                         package_origins_json=excluded.package_origins_json""",
-                    (workspace, proposal_id, proposal_hash, canonical(proposal), canonical(origins)),
-                )
-                connection.execute(
-                    """INSERT INTO proposals(workspace, proposal_id, active_hash)
-                       VALUES (?, ?, ?)
-                       ON CONFLICT(workspace, proposal_id) DO UPDATE SET
-                         active_hash=excluded.active_hash""",
-                    (workspace, proposal_id, proposal_hash),
-                )
-
     def decisions(self) -> list[dict[str, Any]]:
-        with self.connect() as connection:
+        with self.connection() as connection:
             rows = connection.execute(
                 "SELECT record_json FROM human_decisions ORDER BY created_at, decision_id"
             ).fetchall()
@@ -297,7 +268,7 @@ class SQLiteReviewStore:
         return projected
 
     def candidates(self, workspace: str) -> list[dict[str, Any]]:
-        with self.connect() as connection:
+        with self.connection() as connection:
             rows = connection.execute(
                 """SELECT candidate_json FROM glossary_candidates
                    WHERE workspace=? ORDER BY candidate_id""",
