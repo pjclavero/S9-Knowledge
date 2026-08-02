@@ -1,1 +1,208 @@
-[]
+[
+ {
+  "actual_proposal_hash": "54bf20a21e59b3416e7f5d8ea3a497d1f0bf0277f8a378ad50c5a2dd3f6a2b77",
+  "correction": {
+   "scope": "not_available"
+  },
+  "decision_id": "human:7d2b9727-41b8-4183-9d11-5e6acbb4e3b7",
+  "effective_decision": "REVIEW",
+  "engine_decision": {
+   "confidence": 0.75,
+   "decision": "REVIEW",
+   "effective_decision": "REVIEW",
+   "reason_codes": [
+    "EVIDENCE_LITERAL_VERIFIED",
+    "EXTRACTOR_REQUESTED_REVIEW",
+    "NEGATED_CLAIM",
+    "REVIEW_EVIDENCE",
+    "TEMPORAL_UNSPECIFIED"
+   ],
+   "shadow_decision": null
+  },
+  "engine_version": "knowledge-v3",
+  "episode_id": "ep-b29d7baab34c7f25e450062fb2d4215a",
+  "expected_proposal_hash": "54bf20a21e59b3416e7f5d8ea3a497d1f0bf0277f8a378ad50c5a2dd3f6a2b77",
+  "human_decision": "APPROVE",
+  "ontology_version": null,
+  "previous_hash": null,
+  "prompt_version": null,
+  "proposal": {
+   "alternatives": {
+    "directions": [],
+    "predicates": []
+   },
+   "engine_decision": {
+    "confidence": 0.75,
+    "decision": "REVIEW",
+    "effective_decision": "REVIEW",
+    "reason_codes": [
+     "EVIDENCE_LITERAL_VERIFIED",
+     "EXTRACTOR_REQUESTED_REVIEW",
+     "NEGATED_CLAIM",
+     "REVIEW_EVIDENCE",
+     "TEMPORAL_UNSPECIFIED"
+    ],
+    "shadow_decision": null
+   },
+   "engine_version": "knowledge-v3",
+   "episode_id": "ep-b29d7baab34c7f25e450062fb2d4215a",
+   "episode_text": "Daiki Oharu no pertenece a la Casa del Ciervo.",
+   "evidence": {
+    "end": 46,
+    "literal_text": "Daiki Oharu no pertenece a la Casa del Ciervo.",
+    "start": 0
+   },
+   "ontology_version": null,
+   "profile_version": "generic",
+   "prompt_version": null,
+   "proposal": {
+    "direction": "SUBJECT_TO_OBJECT",
+    "epistemic_status": "UNKNOWN",
+    "negated": true,
+    "negation_kind": "UNKNOWN",
+    "object": "entity:leyenda:casa-ciervo",
+    "predicate": "MEMBER_OF",
+    "scope": "not_available",
+    "subject": "entity:leyenda:daiki",
+    "temporal_status": "UNKNOWN"
+   },
+   "proposal_hash": "54bf20a21e59b3416e7f5d8ea3a497d1f0bf0277f8a378ad50c5a2dd3f6a2b77",
+   "proposal_id": "review:9c43d5ca9c50510d3202cb714bc1cd30173aae6922414710ed244673f303d288",
+   "provenance": {
+    "extractors": [
+     "extract.deterministic"
+    ],
+    "independent_families": [
+     "not_available"
+    ],
+    "models": [
+     "not_available"
+    ],
+    "providers": [
+     "local"
+    ]
+   },
+   "resolution": {
+    "object": "entity:leyenda:casa-ciervo",
+    "subject": "entity:leyenda:daiki"
+   },
+   "source_id": "rev-01-negacion",
+   "workspace": "bench-dev"
+  },
+  "proposal_id": "review:9c43d5ca9c50510d3202cb714bc1cd30173aae6922414710ed244673f303d288",
+  "rationale": "",
+  "record_hash": "b100351bb80f936aaa54209738cb106e7a256f2ddbaafa22ad5ea001fd2323bb",
+  "request_id": "fb83e59e-d973-4790-baa3-684de3140ff1-0",
+  "reviewer": "revisor",
+  "shadow_decision": null,
+  "source_id": "rev-01-negacion",
+  "supersedes_decision_id": null,
+  "timestamp": "2026-08-02T00:13:17.565769Z",
+  "workspace": "bench-dev"
+ },
+ {
+  "actual_proposal_hash": "bbcfb6aa2315396d883023290f0e4114eb95809405ca00743ec36673ee53e457",
+  "correction": {
+   "scope": "not_available"
+  },
+  "decision_id": "human:560fadbd-81a5-4f8f-a876-dd9d5e7ff92f",
+  "effective_decision": "REVIEW",
+  "engine_decision": {
+   "confidence": 0.72,
+   "decision": "REVIEW",
+   "effective_decision": "REVIEW",
+   "reason_codes": [
+    "CESSATION_WITHOUT_ACTIVE_ASSERTION",
+    "EVIDENCE_LITERAL_VERIFIED",
+    "EXTRACTOR_REQUESTED_REVIEW",
+    "NEGATED_CLAIM",
+    "REVIEW_EVIDENCE",
+    "REVIEW_TEMPORALITY",
+    "TEMPORAL_UNSPECIFIED"
+   ],
+   "shadow_decision": null
+  },
+  "engine_version": "knowledge-v3",
+  "episode_id": "ep-e3d6126a3b744f3f6e660e37b8263291",
+  "expected_proposal_hash": "bbcfb6aa2315396d883023290f0e4114eb95809405ca00743ec36673ee53e457",
+  "human_decision": "APPROVE",
+  "ontology_version": null,
+  "previous_hash": "b100351bb80f936aaa54209738cb106e7a256f2ddbaafa22ad5ea001fd2323bb",
+  "prompt_version": null,
+  "proposal": {
+   "alternatives": {
+    "directions": [],
+    "predicates": []
+   },
+   "engine_decision": {
+    "confidence": 0.72,
+    "decision": "REVIEW",
+    "effective_decision": "REVIEW",
+    "reason_codes": [
+     "CESSATION_WITHOUT_ACTIVE_ASSERTION",
+     "EVIDENCE_LITERAL_VERIFIED",
+     "EXTRACTOR_REQUESTED_REVIEW",
+     "NEGATED_CLAIM",
+     "REVIEW_EVIDENCE",
+     "REVIEW_TEMPORALITY",
+     "TEMPORAL_UNSPECIFIED"
+    ],
+    "shadow_decision": null
+   },
+   "engine_version": "knowledge-v3",
+   "episode_id": "ep-e3d6126a3b744f3f6e660e37b8263291",
+   "episode_text": "Ilaria Vandreth ya no lidera la Casa del Ciervo.",
+   "evidence": {
+    "end": 48,
+    "literal_text": "Ilaria Vandreth ya no lidera la Casa del Ciervo.",
+    "start": 0
+   },
+   "ontology_version": null,
+   "profile_version": "generic",
+   "prompt_version": null,
+   "proposal": {
+    "direction": "SUBJECT_TO_OBJECT",
+    "epistemic_status": "UNKNOWN",
+    "negated": true,
+    "negation_kind": "UNKNOWN",
+    "object": "entity:leyenda:casa-ciervo",
+    "predicate": "LEADS",
+    "scope": "not_available",
+    "subject": "entity:leyenda:ilaria",
+    "temporal_status": "UNKNOWN"
+   },
+   "proposal_hash": "bbcfb6aa2315396d883023290f0e4114eb95809405ca00743ec36673ee53e457",
+   "proposal_id": "review:14b922501af3ff19d907a1507adbde438845c7299b0c02207a8c7f16878a57b7",
+   "provenance": {
+    "extractors": [
+     "extract.deterministic"
+    ],
+    "independent_families": [
+     "not_available"
+    ],
+    "models": [
+     "not_available"
+    ],
+    "providers": [
+     "local"
+    ]
+   },
+   "resolution": {
+    "object": "entity:leyenda:casa-ciervo",
+    "subject": "entity:leyenda:ilaria"
+   },
+   "source_id": "rev-02-cesacion",
+   "workspace": "bench-dev"
+  },
+  "proposal_id": "review:14b922501af3ff19d907a1507adbde438845c7299b0c02207a8c7f16878a57b7",
+  "rationale": "",
+  "record_hash": "f8d7348a692c6c03982289d8d73ab6da0f6dd16265688466e9bf7cfa3b1f2923",
+  "request_id": "3a55f423-abae-43eb-8089-e9d32a9377a0-0",
+  "reviewer": "revisor",
+  "shadow_decision": null,
+  "source_id": "rev-02-cesacion",
+  "supersedes_decision_id": null,
+  "timestamp": "2026-08-02T00:13:42.324180Z",
+  "workspace": "bench-dev"
+ }
+]
