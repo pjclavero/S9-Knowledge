@@ -70,3 +70,9 @@ state/external_ai_cache/
 # modelo de terceros bajo la clave del operador, no un artefacto del programa;
 # el resultado agregado versionado es artifacts/gate4-program/b3-nvidia-shadow.*)
 artifacts/gate4-program/b3-cache/
+
+# Bloque agreement (docs/v3/47): cache PROPIA de este bloque, deliberadamente
+# separada de la de B3 (ver docstring de scripts/agreement/measure_agreement.py
+# -- compartir cache entre bloques fue la causa de una contaminacion real).
+# El resultado agregado versionado es artifacts/agreement/agreement-shadow.*
+artifacts/agreement/cache/

@@ -12,7 +12,7 @@
     "determinista": {
       "ablation": "local_only",
       "nota": "cadena E2E real (normalizador + cues.py + motor + resolutor + writer DRY-RUN), la MISMA via que mide el 0.607 de B2.",
-      "wall_ms": 2514,
+      "wall_ms": 2597,
       "alineamiento": {
         "episodes_aligned": 35,
         "episodes_predicted": 64,
@@ -28,243 +28,34 @@
     "nvidia": {
       "ablation": "external_only",
       "nota": "carril NVIDIA en SOMBRA (nunca escribe, nunca decide), por la MISMA cadena E2E (motor, negacion, evidencia).",
-      "wall_ms": 3156655,
+      "wall_ms": 367479,
       "alineamiento": {
         "episodes_aligned": 35,
         "episodes_predicted": 64,
         "mentions_span_tp": 76,
         "mentions_span_fp": 4,
         "mentions_span_fn": 55,
-        "mentions_surface_fallback": 21,
-        "claims_matched": 27,
+        "mentions_surface_fallback": 25,
+        "claims_matched": 30,
         "rows": 56,
-        "covered_rows": 27
+        "covered_rows": 30
       }
     }
   },
   "diseno": {
-    "criterio_acuerdo": "mismo claim_id del gold (alineado via episode_alignment + mention_alignment + claim_alignment del runner congelado, reutilizados por ruta), predicado top-1 compatible (o ausente en algun carril), MISMA polaridad, Y AMBOS carriles con predicted_decision=='ACCEPT' -- el veredicto REAL del motor (engine/decision.py), que ya incorpora la puerta 6 (review_required + hint epistemico degradado nunca ACCEPT) y la verificacion de evidencia literal.",
-    "factividad": "un claim que el motor no aceptaria (REVIEW o REJECT reales) en CUALQUIERA de los dos carriles NUNCA entra en acuerdo, aunque ambos coincidan en polaridad: va a 'degradado_no_acuerdo', no a 'acuerdo'. Es la MISMA puerta que produccion, no una reimplementacion paralela.",
+    "criterio_acuerdo_contenido": "VISTA PRINCIPAL. mismo claim_id del gold (alineado via episode_alignment + mention_alignment + claim_alignment del runner congelado, reutilizados por ruta), predicado top-1 compatible (o ausente en algun carril), MISMA polaridad. NO exige ningun veredicto concreto del motor: el par de decisiones (ACCEPT/ACCEPT, REVIEW/REVIEW, ACCEPT/REVIEW, ABSTAIN/x...) se publica como atributo `decision_pair` de cada caso y se desglosa aparte -- esa tabla es la que responde la pregunta del operador.",
+    "criterio_acuerdo_con_accept": "VISTA SECUNDARIA (criterio original del bloque, conservado por trazabilidad): subconjunto de acuerdo_contenido donde AMBOS carriles reciben predicted_decision=='ACCEPT' real del motor. DECLARADO TAUTOLOGICO por el dictamen del revisor: exigir ACCEPT de ambos multiplica dos eventos ya raros del motor (la puerta 4 mide un recall de autoaprobacion bajo), asi que la interseccion tiende a vaciarse por construccion del filtro, no por la hipotesis medida.",
+    "factividad": "la puerta 6 (review_required + hint epistemico degradado nunca ACCEPT) sigue actuando dentro del motor real que produce cada `predicted_decision`; este bloque no la reimplementa. Lo que cambia respecto de la primera version es que 'acuerdo' ya NO exige ACCEPT de ambos carriles para existir: ese filtro se mueve a `acuerdo_con_accept`, la vista secundaria.",
     "denominador": "56 casos evaluables (convencion B0-B3: se excluye el unico ABSTAIN puro del gold, sin polaridad declarada).",
     "alineamiento_reutilizado": "episode_alignment/mention_alignment/claim_alignment/build_rows del runner E2E congelado (artifacts/v3-final-validation/gate4_negation_measure.py), cargado por ruta via knowledge_v3.eval._frozen_runner.load() -- nunca copiado ni modificado. Necesario porque score_extractor (benchmarks.harness) exige episode_id identico y la cadena real acuna ids propios a partir de los bytes de entrada; ver docstring del modulo."
   },
   "agreement": {
     "evaluable_total": 56,
-    "acuerdo": {
-      "n": 0,
-      "tp": 0,
-      "fp": 0,
-      "precision": null,
-      "cases": [],
-      "recall_sobre_gold": 0.0
-    },
-    "solo_det": {
-      "n": 16,
-      "tp": 8,
-      "fp": 8,
-      "precision": 0.5,
-      "cases": [
-        {
-          "claim_id": "claim:basalto-cronica:e02:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": false
-        },
-        {
-          "claim_id": "claim:basalto-cronica:e08:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": false
-        },
-        {
-          "claim_id": "claim:basalto-cronica:e09:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": false
-        },
-        {
-          "claim_id": "claim:basalto-cronica:e12:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": true
-        },
-        {
-          "claim_id": "claim:basalto-cronica:e13:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": true
-        },
-        {
-          "claim_id": "claim:basalto-cronica:e16:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": false
-        },
-        {
-          "claim_id": "claim:cirro-actas:e03:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": false
-        },
-        {
-          "claim_id": "claim:cirro-actas:e06:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": false
-        },
-        {
-          "claim_id": "claim:cirro-actas:e11:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": true
-        },
-        {
-          "claim_id": "claim:cirro-actas:e16:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": true
-        },
-        {
-          "claim_id": "claim:zafiro-sesion:e03:c1",
-          "negated": true,
-          "decision": "REVIEW",
-          "correct": true
-        },
-        {
-          "claim_id": "claim:zafiro-sesion:e05:c1",
-          "negated": true,
-          "decision": "REVIEW",
-          "correct": true
-        },
-        {
-          "claim_id": "claim:zafiro-sesion:e08:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": false
-        },
-        {
-          "claim_id": "claim:zafiro-sesion:e10:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": true
-        },
-        {
-          "claim_id": "claim:zafiro-sesion:e12:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": false
-        },
-        {
-          "claim_id": "claim:zafiro-sesion:e13:c1",
-          "negated": true,
-          "decision": "REVIEW",
-          "correct": true
-        }
-      ]
-    },
-    "solo_nvidia": {
-      "n": 9,
-      "tp": 4,
-      "fp": 5,
-      "precision": 0.4444,
-      "cases": [
-        {
-          "claim_id": "claim:basalto-cronica:e03:c1",
-          "negated": true,
-          "decision": "REVIEW",
-          "correct": true
-        },
-        {
-          "claim_id": "claim:basalto-cronica:e06:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": false
-        },
-        {
-          "claim_id": "claim:basalto-cronica:e10:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": false
-        },
-        {
-          "claim_id": "claim:cirro-actas:e07:c1",
-          "negated": false,
-          "decision": "ABSTAIN",
-          "correct": false
-        },
-        {
-          "claim_id": "claim:cirro-actas:e10:c1",
-          "negated": true,
-          "decision": "REVIEW",
-          "correct": false
-        },
-        {
-          "claim_id": "claim:cirro-actas:e13:c1",
-          "negated": true,
-          "decision": "REVIEW",
-          "correct": false
-        },
-        {
-          "claim_id": "claim:cirro-actas:e15:c1",
-          "negated": false,
-          "decision": "REVIEW",
-          "correct": true
-        },
-        {
-          "claim_id": "claim:zafiro-sesion:e02:c1",
-          "negated": true,
-          "decision": "REVIEW",
-          "correct": true
-        },
-        {
-          "claim_id": "claim:zafiro-sesion:e07:c1",
-          "negated": true,
-          "decision": "REVIEW",
-          "correct": true
-        }
-      ]
-    },
-    "discrepancia": {
-      "n": 3,
-      "cases": [
-        {
-          "claim_id": "claim:basalto-cronica:e01:c1",
-          "det_negated": false,
-          "nvidia_negated": true,
-          "det_decision": "ABSTAIN",
-          "nvidia_decision": "REVIEW",
-          "det_predicate": null,
-          "nvidia_predicate": "MEMBER_OF",
-          "gold_negated": true,
-          "reason": "polaridad_incompatible"
-        },
-        {
-          "claim_id": "claim:basalto-cronica:e05:c1",
-          "det_negated": false,
-          "nvidia_negated": true,
-          "det_decision": "ABSTAIN",
-          "nvidia_decision": "REVIEW",
-          "det_predicate": null,
-          "nvidia_predicate": "OWNED_BY",
-          "gold_negated": true,
-          "reason": "polaridad_incompatible"
-        },
-        {
-          "claim_id": "claim:cirro-actas:e05:c1",
-          "det_negated": true,
-          "nvidia_negated": false,
-          "det_decision": "REVIEW",
-          "nvidia_decision": "ABSTAIN",
-          "det_predicate": "MEMBER_OF",
-          "nvidia_predicate": null,
-          "gold_negated": true,
-          "reason": "polaridad_incompatible"
-        }
-      ],
-      "nota": "mismo claim_id gold (sujeto/objeto), pero polaridad o predicado incompatibles entre carriles; no hay una 'precision' unica del conjunto porque cada carril acierta o falla por separado -- ver `gold_negated` de cada caso."
-    },
-    "degradado_no_acuerdo": {
+    "acuerdo_contenido": {
       "n": 15,
+      "tp": 13,
+      "fp": 2,
+      "precision": 0.8667,
       "cases": [
         {
           "claim_id": "claim:basalto-cronica:e07:c1",
@@ -272,10 +63,13 @@
           "nvidia_negated": true,
           "det_decision": "REVIEW",
           "nvidia_decision": "REVIEW",
+          "decision_pair": "REVIEW/REVIEW",
           "det_predicate": "MEMBER_OF",
           "nvidia_predicate": "MEMBER_OF",
           "gold_negated": true,
-          "reason": "det=REVIEW nvidia=REVIEW"
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
         },
         {
           "claim_id": "claim:basalto-cronica:e11:c1",
@@ -283,10 +77,13 @@
           "nvidia_negated": false,
           "det_decision": "ABSTAIN",
           "nvidia_decision": "REVIEW",
+          "decision_pair": "ABSTAIN/REVIEW",
           "det_predicate": null,
           "nvidia_predicate": "MEMBER_OF",
           "gold_negated": false,
-          "reason": "det=ABSTAIN nvidia=REVIEW"
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
         },
         {
           "claim_id": "claim:basalto-cronica:e14:c1",
@@ -294,10 +91,13 @@
           "nvidia_negated": false,
           "det_decision": "ABSTAIN",
           "nvidia_decision": "ABSTAIN",
+          "decision_pair": "ABSTAIN/ABSTAIN",
           "det_predicate": null,
           "nvidia_predicate": null,
           "gold_negated": false,
-          "reason": "det=ABSTAIN nvidia=ABSTAIN"
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": true
         },
         {
           "claim_id": "claim:basalto-cronica:e17:c1",
@@ -305,10 +105,13 @@
           "nvidia_negated": false,
           "det_decision": "ACCEPT",
           "nvidia_decision": "REVIEW",
+          "decision_pair": "ACCEPT/REVIEW",
           "det_predicate": "LEADS",
           "nvidia_predicate": "LEADS",
           "gold_negated": false,
-          "reason": "det=ACCEPT nvidia=REVIEW"
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
         },
         {
           "claim_id": "claim:basalto-cronica:e18:c1",
@@ -316,10 +119,13 @@
           "nvidia_negated": false,
           "det_decision": "ABSTAIN",
           "nvidia_decision": "REVIEW",
+          "decision_pair": "ABSTAIN/REVIEW",
           "det_predicate": null,
           "nvidia_predicate": "MEMBER_OF",
           "gold_negated": false,
-          "reason": "det=ABSTAIN nvidia=REVIEW"
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
         },
         {
           "claim_id": "claim:cirro-actas:e01:c1",
@@ -327,10 +133,13 @@
           "nvidia_negated": true,
           "det_decision": "REVIEW",
           "nvidia_decision": "REVIEW",
+          "decision_pair": "REVIEW/REVIEW",
           "det_predicate": "LEADS",
           "nvidia_predicate": "LEADS",
           "gold_negated": true,
-          "reason": "det=REVIEW nvidia=REVIEW"
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
         },
         {
           "claim_id": "claim:cirro-actas:e02:c1",
@@ -338,10 +147,13 @@
           "nvidia_negated": true,
           "det_decision": "REVIEW",
           "nvidia_decision": "REVIEW",
+          "decision_pair": "REVIEW/REVIEW",
           "det_predicate": "MEMBER_OF",
           "nvidia_predicate": "MEMBER_OF",
           "gold_negated": true,
-          "reason": "det=REVIEW nvidia=REVIEW"
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
         },
         {
           "claim_id": "claim:cirro-actas:e04:c1",
@@ -349,10 +161,13 @@
           "nvidia_negated": true,
           "det_decision": "REVIEW",
           "nvidia_decision": "REVIEW",
+          "decision_pair": "REVIEW/REVIEW",
           "det_predicate": "LEADS",
           "nvidia_predicate": "LEADS",
           "gold_negated": true,
-          "reason": "det=REVIEW nvidia=REVIEW"
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
         },
         {
           "claim_id": "claim:cirro-actas:e08:c1",
@@ -360,10 +175,13 @@
           "nvidia_negated": false,
           "det_decision": "ABSTAIN",
           "nvidia_decision": "REVIEW",
+          "decision_pair": "ABSTAIN/REVIEW",
           "det_predicate": null,
           "nvidia_predicate": "LEADS",
           "gold_negated": false,
-          "reason": "det=ABSTAIN nvidia=REVIEW"
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
         },
         {
           "claim_id": "claim:cirro-actas:e09:c1",
@@ -371,10 +189,13 @@
           "nvidia_negated": false,
           "det_decision": "ABSTAIN",
           "nvidia_decision": "ABSTAIN",
+          "decision_pair": "ABSTAIN/ABSTAIN",
           "det_predicate": null,
           "nvidia_predicate": null,
           "gold_negated": false,
-          "reason": "det=ABSTAIN nvidia=ABSTAIN"
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": true
         },
         {
           "claim_id": "claim:cirro-actas:e12:c1",
@@ -382,10 +203,13 @@
           "nvidia_negated": false,
           "det_decision": "ABSTAIN",
           "nvidia_decision": "ABSTAIN",
+          "decision_pair": "ABSTAIN/ABSTAIN",
           "det_predicate": null,
           "nvidia_predicate": null,
           "gold_negated": false,
-          "reason": "det=ABSTAIN nvidia=ABSTAIN"
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": true
         },
         {
           "claim_id": "claim:cirro-actas:e14:c1",
@@ -393,10 +217,13 @@
           "nvidia_negated": false,
           "det_decision": "ABSTAIN",
           "nvidia_decision": "ABSTAIN",
+          "decision_pair": "ABSTAIN/ABSTAIN",
           "det_predicate": null,
           "nvidia_predicate": null,
           "gold_negated": true,
-          "reason": "det=ABSTAIN nvidia=ABSTAIN"
+          "correct": false,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": true
         },
         {
           "claim_id": "claim:zafiro-sesion:e01:c1",
@@ -404,10 +231,13 @@
           "nvidia_negated": false,
           "det_decision": "ABSTAIN",
           "nvidia_decision": "ABSTAIN",
+          "decision_pair": "ABSTAIN/ABSTAIN",
           "det_predicate": null,
           "nvidia_predicate": null,
           "gold_negated": true,
-          "reason": "det=ABSTAIN nvidia=ABSTAIN"
+          "correct": false,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": true
         },
         {
           "claim_id": "claim:zafiro-sesion:e14:c1",
@@ -415,10 +245,13 @@
           "nvidia_negated": false,
           "det_decision": "ABSTAIN",
           "nvidia_decision": "ABSTAIN",
+          "decision_pair": "ABSTAIN/ABSTAIN",
           "det_predicate": null,
           "nvidia_predicate": null,
           "gold_negated": false,
-          "reason": "det=ABSTAIN nvidia=ABSTAIN"
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": true
         },
         {
           "claim_id": "claim:zafiro-sesion:e15:c1",
@@ -426,16 +259,323 @@
           "nvidia_negated": false,
           "det_decision": "ACCEPT",
           "nvidia_decision": "REVIEW",
+          "decision_pair": "ACCEPT/REVIEW",
           "det_predicate": "OWNS",
           "nvidia_predicate": "OWNS",
           "gold_negated": false,
-          "reason": "det=ACCEPT nvidia=REVIEW"
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
         }
       ],
-      "nota": "mismo claim_id gold y misma polaridad entre carriles, pero excluido de ACUERDO porque el motor NO aceptaria (ACCEPT) el claim en al menos un carril -- REVIEW o REJECT reales por factividad degradada (puerta 6) o evidencia no verificada. Muestra cuanto 'acuerdo de polaridad' pierde la politica al exigir el mismo filtro que ya usa produccion."
+      "recall_sobre_gold": 0.2679,
+      "desglose_por_par_de_decisiones": {
+        "ABSTAIN/ABSTAIN": {
+          "n": 6,
+          "tp": 4,
+          "fp": 2,
+          "precision": 0.6667
+        },
+        "ABSTAIN/REVIEW": {
+          "n": 3,
+          "tp": 3,
+          "fp": 0,
+          "precision": 1.0
+        },
+        "ACCEPT/REVIEW": {
+          "n": 2,
+          "tp": 2,
+          "fp": 0,
+          "precision": 1.0
+        },
+        "REVIEW/REVIEW": {
+          "n": 4,
+          "tp": 4,
+          "fp": 0,
+          "precision": 1.0
+        }
+      },
+      "nota": "vista PRINCIPAL del bloque: mismo claim gold + predicado compatible + misma polaridad, SIN exigir ACCEPT de ningun motor. El par de decisiones (det/nvidia) de cada caso vive en `decision_pair`; el desglose por celda es la respuesta a la pregunta del operador, no el agregado. Los pares ABSTAIN/ABSTAIN coinciden en polaridad por CONVENCION (negated=False por defecto en ambos lados, no una comprobacion real) -- ver `ambos_abstienen` en cada caso."
+    },
+    "acuerdo_con_accept": {
+      "n": 0,
+      "tp": 0,
+      "fp": 0,
+      "precision": null,
+      "cases": [],
+      "recall_sobre_gold": 0.0,
+      "nota": "vista SECUNDARIA (criterio original de este bloque, conservado por trazabilidad): subconjunto de `acuerdo_contenido` donde AMBOS motores dan ACCEPT real. DECLARADO TAUTOLOGICO por el dictamen del revisor: exigir ACCEPT en los dos carriles multiplica dos eventos ya raros del motor (la puerta 4 mide un recall de autoaprobacion bajo), asi que la interseccion tiende a vaciarse por construccion del filtro, no por la hipotesis medida. No usar esta vista para leer 'el acuerdo no sirve': para eso esta `acuerdo_contenido`."
+    },
+    "solo_det": {
+      "n": 14,
+      "tp": 6,
+      "fp": 8,
+      "precision": 0.4286,
+      "cases": [
+        {
+          "claim_id": "claim:basalto-cronica:e02:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": false
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e08:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": false
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e09:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": false
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e12:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": true
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e13:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": true
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e16:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": false
+        },
+        {
+          "claim_id": "claim:cirro-actas:e03:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": false
+        },
+        {
+          "claim_id": "claim:cirro-actas:e06:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": false
+        },
+        {
+          "claim_id": "claim:cirro-actas:e11:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": true
+        },
+        {
+          "claim_id": "claim:cirro-actas:e16:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": true
+        },
+        {
+          "claim_id": "claim:zafiro-sesion:e03:c1",
+          "negated": true,
+          "decision": "REVIEW",
+          "is_abstain": false,
+          "correct": true
+        },
+        {
+          "claim_id": "claim:zafiro-sesion:e08:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": false
+        },
+        {
+          "claim_id": "claim:zafiro-sesion:e10:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": true
+        },
+        {
+          "claim_id": "claim:zafiro-sesion:e12:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": false
+        }
+      ],
+      "nota_abstain": "las filas con `is_abstain=True` cuentan con `negated=False` por convencion del programa (build_rows del runner congelado), no porque el carril haya afirmado una polaridad activa: su `correct` no debe leerse como precision de aserciones activas."
+    },
+    "solo_nvidia": {
+      "n": 10,
+      "tp": 5,
+      "fp": 5,
+      "precision": 0.5,
+      "cases": [
+        {
+          "claim_id": "claim:basalto-cronica:e03:c1",
+          "negated": true,
+          "decision": "REVIEW",
+          "is_abstain": false,
+          "correct": true
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e06:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": false
+        },
+        {
+          "claim_id": "claim:basalto-cronica:e10:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": false
+        },
+        {
+          "claim_id": "claim:cirro-actas:e07:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": false
+        },
+        {
+          "claim_id": "claim:cirro-actas:e10:c1",
+          "negated": true,
+          "decision": "REVIEW",
+          "is_abstain": false,
+          "correct": false
+        },
+        {
+          "claim_id": "claim:cirro-actas:e13:c1",
+          "negated": true,
+          "decision": "REVIEW",
+          "is_abstain": false,
+          "correct": false
+        },
+        {
+          "claim_id": "claim:cirro-actas:e15:c1",
+          "negated": false,
+          "decision": "REVIEW",
+          "is_abstain": false,
+          "correct": true
+        },
+        {
+          "claim_id": "claim:zafiro-sesion:e02:c1",
+          "negated": true,
+          "decision": "REVIEW",
+          "is_abstain": false,
+          "correct": true
+        },
+        {
+          "claim_id": "claim:zafiro-sesion:e07:c1",
+          "negated": true,
+          "decision": "REVIEW",
+          "is_abstain": false,
+          "correct": true
+        },
+        {
+          "claim_id": "claim:zafiro-sesion:e11:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": true
+        }
+      ],
+      "nota_abstain": "misma convencion que `solo_det`: `is_abstain=True` implica `negated=False` por defecto, no una polaridad comprobada."
+    },
+    "discrepancia": {
+      "n": 5,
+      "polaridades_opuestas_activas": {
+        "n": 0,
+        "tp": 0,
+        "fp": 0,
+        "precision": null,
+        "cases": [],
+        "nota": "ambos carriles predicen algo ACTIVO (ninguno abstiene) y la polaridad difiere: la unica discrepancia semantica 'dura' del bloque."
+      },
+      "abstain_vs_afirma": {
+        "n": 5,
+        "cases": [
+          {
+            "claim_id": "claim:basalto-cronica:e01:c1",
+            "det_negated": false,
+            "nvidia_negated": true,
+            "det_decision": "ABSTAIN",
+            "nvidia_decision": "REVIEW",
+            "decision_pair": "ABSTAIN/REVIEW",
+            "det_predicate": null,
+            "nvidia_predicate": "MEMBER_OF",
+            "gold_negated": true,
+            "reason": "abstain_vs_afirma"
+          },
+          {
+            "claim_id": "claim:basalto-cronica:e05:c1",
+            "det_negated": false,
+            "nvidia_negated": true,
+            "det_decision": "ABSTAIN",
+            "nvidia_decision": "REVIEW",
+            "decision_pair": "ABSTAIN/REVIEW",
+            "det_predicate": null,
+            "nvidia_predicate": "OWNED_BY",
+            "gold_negated": true,
+            "reason": "abstain_vs_afirma"
+          },
+          {
+            "claim_id": "claim:cirro-actas:e05:c1",
+            "det_negated": true,
+            "nvidia_negated": false,
+            "det_decision": "REVIEW",
+            "nvidia_decision": "ABSTAIN",
+            "decision_pair": "REVIEW/ABSTAIN",
+            "det_predicate": "MEMBER_OF",
+            "nvidia_predicate": null,
+            "gold_negated": true,
+            "reason": "abstain_vs_afirma"
+          },
+          {
+            "claim_id": "claim:zafiro-sesion:e05:c1",
+            "det_negated": true,
+            "nvidia_negated": false,
+            "det_decision": "REVIEW",
+            "nvidia_decision": "ABSTAIN",
+            "decision_pair": "REVIEW/ABSTAIN",
+            "det_predicate": "LEADS",
+            "nvidia_predicate": null,
+            "gold_negated": true,
+            "reason": "abstain_vs_afirma"
+          },
+          {
+            "claim_id": "claim:zafiro-sesion:e13:c1",
+            "det_negated": true,
+            "nvidia_negated": false,
+            "det_decision": "REVIEW",
+            "nvidia_decision": "ABSTAIN",
+            "decision_pair": "REVIEW/ABSTAIN",
+            "det_predicate": "MEMBER_OF",
+            "nvidia_predicate": null,
+            "gold_negated": true,
+            "reason": "abstain_vs_afirma"
+          }
+        ],
+        "nota": "un carril abstiene (ABSTAIN, negated=False por convencion) y el otro predice algo activo con polaridad distinta: discrepancia parcialmente artefactual, no dos afirmaciones opuestas."
+      },
+      "predicado_incompatible": {
+        "n": 0,
+        "cases": [],
+        "nota": "mismo claim gold, pero el predicado top-1 de cada carril difiere (ambos lo declaran)."
+      }
     },
     "sin_cubrir": {
-      "n": 13,
+      "n": 12,
       "claim_ids": [
         "claim:ambar-escaneo:e01:c1",
         "claim:ambar-escaneo:e02:c1",
@@ -448,53 +588,81 @@
         "claim:zafiro-sesion:e03:c2",
         "claim:zafiro-sesion:e04:c1",
         "claim:zafiro-sesion:e06:c1",
-        "claim:zafiro-sesion:e09:c1",
-        "claim:zafiro-sesion:e11:c1"
+        "claim:zafiro-sesion:e09:c1"
       ]
     }
   },
   "latency": {
     "unit": "ms",
-    "measured_calls": 40,
-    "real_calls_this_run": 40,
-    "mean": 33701.9,
-    "p95": 53684.7,
-    "max": 56404
+    "measured_calls": 41,
+    "real_calls_this_run": 1,
+    "mean": 34288.8,
+    "p95": 54230.0,
+    "max": 57762
   },
   "tokens": {
-    "prompt_tokens_total": 186505,
-    "completion_tokens_total": 14717,
-    "total_tokens": 201222,
+    "prompt_tokens_total": 191182,
+    "completion_tokens_total": 15301,
+    "total_tokens": 206483,
     "price_per_million_tokens_usd": null,
     "estimated_cost_usd_this_run": null
   },
   "cache": {
-    "path": "artifacts/gate4-program/b3-cache/responses.json",
-    "calls_real": 40,
-    "calls_failed": 2,
-    "calls_served_from_cache": 0,
-    "calls_missed_cache": 42
+    "path": "artifacts/agreement/cache/responses.json",
+    "calls_real": 1,
+    "calls_failed": 1,
+    "calls_served_from_cache": 40,
+    "calls_missed_cache": 2
   },
   "incidencias_api": {
-    "transport_retries_used": 31,
-    "hard_timeouts": 26,
-    "failed_calls": 2,
+    "transport_retries_used": 5,
+    "hard_timeouts": 4,
+    "failed_calls": 1,
     "distinct_errors": [
       "ProviderUnavailable"
     ]
   },
   "lectura_para_la_decision_del_operador": {
-    "precision_acuerdo": null,
-    "n_acuerdo": 0,
-    "recall_acuerdo_sobre_gold": 0.0,
-    "precision_solo_det": 0.5,
-    "n_solo_det": 16,
-    "precision_solo_nvidia": 0.4444,
-    "n_solo_nvidia": 9,
-    "n_discrepancia": 3,
-    "n_degradado_no_acuerdo": 15,
-    "n_sin_cubrir": 13,
+    "precision_acuerdo_contenido": 0.8667,
+    "n_acuerdo_contenido": 15,
+    "recall_acuerdo_contenido_sobre_gold": 0.2679,
+    "desglose_acuerdo_contenido_por_par_de_decisiones": {
+      "ABSTAIN/ABSTAIN": {
+        "n": 6,
+        "tp": 4,
+        "fp": 2,
+        "precision": 0.6667
+      },
+      "ABSTAIN/REVIEW": {
+        "n": 3,
+        "tp": 3,
+        "fp": 0,
+        "precision": 1.0
+      },
+      "ACCEPT/REVIEW": {
+        "n": 2,
+        "tp": 2,
+        "fp": 0,
+        "precision": 1.0
+      },
+      "REVIEW/REVIEW": {
+        "n": 4,
+        "tp": 4,
+        "fp": 0,
+        "precision": 1.0
+      }
+    },
+    "precision_acuerdo_con_accept_tautologico": null,
+    "n_acuerdo_con_accept_tautologico": 0,
+    "precision_solo_det": 0.4286,
+    "n_solo_det": 14,
+    "precision_solo_nvidia": 0.5,
+    "n_solo_nvidia": 10,
+    "n_polaridades_opuestas_activas": 0,
+    "n_abstain_vs_afirma": 5,
+    "n_predicado_incompatible": 0,
+    "n_sin_cubrir": 12,
     "evaluable_total": 56,
-    "nota": "cifras desnudas, sin recomendacion de politica: esa decision es del operador. n=56 evaluables es el mismo techo pequeno que ya declaro el programa de la puerta 4 (dev==test): cualquier precision de un subconjunto de este tamano tiene un intervalo ancho, no se trata como una cifra poblacional."
+    "nota": "cifras desnudas, sin recomendacion de politica: esa decision es del operador. n=56 evaluables es el mismo techo pequeno que ya declaro el programa de la puerta 4 (dev==test): cualquier precision de un subconjunto de este tamano tiene un intervalo ancho, no se trata como una cifra poblacional. La cifra 'estrella' de este bloque es `precision_acuerdo_contenido`, junto con su desglose por par de decisiones -- NO `precision_acuerdo_con_accept_tautologico`, conservada solo por trazabilidad con la primera version del bloque."
   }
 }

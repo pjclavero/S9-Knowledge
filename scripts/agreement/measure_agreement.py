@@ -69,14 +69,34 @@ regla.
 
 ## Lo que este script SI anade
 
-* La particion de las filas de AMBOS carriles (alineadas al MISMO
-  `gold_claim_id`, el sistema de coordenadas comun) en 4 conjuntos: acuerdo,
-  solo-det, solo-nvidia, discrepancia -- mas un quinto conjunto de
-  diagnostico (`degradado_no_acuerdo`) para los casos que coinciden en
-  sujeto/objeto/polaridad pero que el motor NO aceptaria en al menos un
-  carril (factividad o evidencia).
-* Precision y recall del conjunto ACUERDO contra el gold (la metrica
-  estrella del bloque), con el listado completo de casos de discrepancia.
+* El criterio PRINCIPAL de este bloque es el **acuerdo a nivel de
+  CONTENIDO**: mismo claim gold, predicado compatible, misma polaridad --
+  SIN exigir que ningun motor de decision (`ACCEPT`/`REVIEW`/`ABSTAIN`)
+  coincida. El par de decisiones de cada caso (`ACCEPT/ACCEPT`,
+  `REVIEW/REVIEW`, `ACCEPT/REVIEW`, `ABSTAIN/x`, ...) se publica como
+  ATRIBUTO (`decision_pair`) y se desglosa aparte: es esa tabla, no un
+  agregado, la que responde la pregunta del operador. El criterio ORIGINAL
+  de este bloque (exigir `ACCEPT` real en AMBOS carriles) se conserva como
+  vista SECUNDARIA (`acuerdo_con_accept`), **declarada tautologica por el
+  dictamen del revisor**: multiplica dos eventos ya raros del motor (la
+  puerta 4 mide un recall de autoaprobacion bajo), asi que su interseccion
+  tiende a vaciarse por construccion del filtro, no por la hipotesis medida.
+* Dentro de `discrepancia`, la separacion entre `polaridades_opuestas_
+  activas` (ambos carriles predicen algo activo, ninguno abstiene, y la
+  polaridad difiere -- la discrepancia semantica "dura") y `abstain_vs_
+  afirma` (un carril abstiene, el otro no): `ABSTAIN` da `negated=False`
+  por CONVENCION del programa (no una polaridad comprobada), asi que
+  mezclarlo con una discrepancia activa exagera el desacuerdo real.
+* Precision y recall del conjunto `acuerdo_contenido` contra el gold, con
+  el desglose completo por par de decisiones y el listado de casos de cada
+  conjunto.
+* Cache PROPIA del bloque (`artifacts/agreement/cache/` por defecto, NUNCA
+  compartida con `artifacts/gate4-program/b3-cache/` de B3): una corrida
+  `--mock` de este script y una de `measure_b3.py` escriben con la MISMA
+  clave (hash de `system+prompt+purpose`) si el prompt coincide, asi que
+  compartir directorio de cache entre bloques deja huella cruzada de
+  cualquiera de los dos -- la causa real de una contaminacion detectada por
+  el revisor en una version anterior de este artefacto (ver docs/v3/47).
 
 Uso (desde la raiz del repo):
 
@@ -84,10 +104,12 @@ Uso (desde la raiz del repo):
     export S9K_NVIDIA_API_KEY=...   # nunca en la linea de comandos ni commiteada
     PYTHONPATH=data-engine/app python3 scripts/agreement/measure_agreement.py \
         --out-dir artifacts/agreement --out-name agreement-shadow \
-        --cache artifacts/gate4-program/b3-cache --concurrency 2
+        --cache artifacts/agreement/cache --concurrency 2
 
 `--mock` sustituye NVIDIA por un puerto guionizado (sin red, sin key): sirve
-para probar el script y para los tests unitarios.
+para probar el script y para los tests unitarios. Los tests SIEMPRE apuntan
+`--cache` a un directorio temporal propio, nunca al de la corrida real, por
+la misma razon de arriba.
 """
 from __future__ import annotations
 
@@ -176,8 +198,27 @@ def _predicate_compatible(det: dict[str, Any], nvidia: dict[str, Any]) -> bool:
     return dp == np_
 
 
+#: `predicted_decision` que NO es una asercion activa: `build_rows` (runner
+#: congelado) da `negated=False` por CONVENCION cuando el motor abstiene
+#: (`decision.negated` no se establece de verdad para `ABSTAIN`), no porque el
+#: carril haya comprobado la polaridad. Tratar ese `False` como si fuera una
+#: prediccion de polaridad falsearia tanto las precisiones de `solo_det`/
+#: `solo_nvidia` como el criterio de "misma polaridad" del acuerdo -- de ahi
+#: que este modulo etiquete cada caso con `is_abstain` y lo declare en las
+#: notas en vez de dejarlo mezclado en silencio.
+_ABSTAIN = "ABSTAIN"
+
+
 # --------------------------------------------------------------------------
-# Los 4 (+1 diagnostico) conjuntos
+# Los conjuntos del bloque: acuerdo A NIVEL DE CONTENIDO (mismo claim +
+# predicado compatible + misma polaridad, SIN exigir ACCEPT de ambos motores)
+# como vista PRINCIPAL, con el par de decisiones (ACCEPT/ACCEPT, REVIEW/
+# REVIEW, ACCEPT/REVIEW, ABSTAIN/x...) publicado como ATRIBUTO de cada caso y
+# desglosado aparte. `acuerdo_con_accept` (el criterio original) se conserva
+# como vista SECUNDARIA, documentada como tautologica: exigir `ACCEPT` real
+# en ambos carriles multiplica dos eventos ya raros del motor (la puerta 4
+# mide un recall de autoaprobacion bajo), asi que su interseccion tiende a
+# vaciarse por construccion del filtro, no por la hipotesis del bloque.
 # --------------------------------------------------------------------------
 def compute_agreement(det_rows: dict[str, Any], nvidia_rows: dict[str, Any]) -> dict[str, Any]:
     gold_ids = sorted(det_rows.keys())
@@ -186,11 +227,12 @@ def compute_agreement(det_rows: dict[str, Any], nvidia_rows: dict[str, Any]) -> 
         "claim_id evaluables no puede diferir entre carriles"
     )
 
-    acuerdo: list[dict[str, Any]] = []
+    acuerdo_contenido: list[dict[str, Any]] = []
     solo_det: list[dict[str, Any]] = []
     solo_nvidia: list[dict[str, Any]] = []
-    discrepancia: list[dict[str, Any]] = []
-    degradado_no_acuerdo: list[dict[str, Any]] = []
+    polaridades_opuestas_activas: list[dict[str, Any]] = []
+    abstain_vs_afirma: list[dict[str, Any]] = []
+    predicado_incompatible: list[dict[str, Any]] = []
     sin_cubrir: list[str] = []
 
     for gid in gold_ids:
@@ -205,6 +247,7 @@ def compute_agreement(det_rows: dict[str, Any], nvidia_rows: dict[str, Any]) -> 
                 "claim_id": gid,
                 "negated": d["predicted_negated"],
                 "decision": d["predicted_decision"],
+                "is_abstain": d["predicted_decision"] == _ABSTAIN,
                 "correct": d["predicted_negated"] == gold_negated,
             })
             continue
@@ -213,14 +256,17 @@ def compute_agreement(det_rows: dict[str, Any], nvidia_rows: dict[str, Any]) -> 
                 "claim_id": gid,
                 "negated": n["predicted_negated"],
                 "decision": n["predicted_decision"],
+                "is_abstain": n["predicted_decision"] == _ABSTAIN,
                 "correct": n["predicted_negated"] == gold_negated,
             })
             continue
 
         # Ambos carriles cubren el mismo claim gold.
+        det_abstain = d["predicted_decision"] == _ABSTAIN
+        nvidia_abstain = n["predicted_decision"] == _ABSTAIN
         same_polarity = d["predicted_negated"] == n["predicted_negated"]
         pred_ok = _predicate_compatible(d, n)
-        both_accept = d["predicted_decision"] == "ACCEPT" and n["predicted_decision"] == "ACCEPT"
+        decision_pair = f"{d['predicted_decision']}/{n['predicted_decision']}"
 
         case = {
             "claim_id": gid,
@@ -228,25 +274,39 @@ def compute_agreement(det_rows: dict[str, Any], nvidia_rows: dict[str, Any]) -> 
             "nvidia_negated": n["predicted_negated"],
             "det_decision": d["predicted_decision"],
             "nvidia_decision": n["predicted_decision"],
+            "decision_pair": decision_pair,
             "det_predicate": d["predicted_predicate"],
             "nvidia_predicate": n["predicted_predicate"],
             "gold_negated": gold_negated,
         }
 
-        if same_polarity and pred_ok:
-            if both_accept:
-                case["correct"] = d["predicted_negated"] == gold_negated
-                acuerdo.append(case)
-            else:
-                # Mismo sujeto/objeto/polaridad, pero el motor NO aceptaria
-                # (al menos) uno de los dos: REVIEW/REJECT por factividad
-                # degradada o evidencia no verificada. Por diseno de la
-                # puerta 6, esto NUNCA entra en acuerdo.
-                case["reason"] = f"det={d['predicted_decision']} nvidia={n['predicted_decision']}"
-                degradado_no_acuerdo.append(case)
+        if not pred_ok:
+            case["reason"] = "predicado_incompatible"
+            predicado_incompatible.append(case)
+        elif same_polarity:
+            # ACUERDO A NIVEL DE CONTENIDO: mismo claim, predicado compatible,
+            # misma polaridad -- SIN exigir que ambos motores acepten. El par
+            # de decisiones queda publicado en `decision_pair` para que el
+            # desglose por celda (ACCEPT/ACCEPT, REVIEW/REVIEW, ABSTAIN/
+            # ABSTAIN, ...) sea la vista que responde la pregunta del
+            # operador, no un agregado que la esconde.
+            case["correct"] = d["predicted_negated"] == gold_negated
+            case["es_acuerdo_con_accept"] = decision_pair == "ACCEPT/ACCEPT"
+            case["ambos_abstienen"] = det_abstain and nvidia_abstain
+            acuerdo_contenido.append(case)
+        elif det_abstain != nvidia_abstain:
+            # Uno de los dos NO predice nada activo (ABSTAIN): la polaridad
+            # discrepante es, en parte, un artefacto del `negated=False` por
+            # convencion del lado que abstiene, no una discrepancia semantica
+            # real entre dos afirmaciones activas.
+            case["reason"] = "abstain_vs_afirma"
+            abstain_vs_afirma.append(case)
         else:
-            case["reason"] = "polaridad_incompatible" if not same_polarity else "predicado_incompatible"
-            discrepancia.append(case)
+            # Ninguno de los dos abstiene: polaridad realmente opuesta entre
+            # dos predicciones ACTIVAS -- la unica discrepancia "dura" del
+            # bloque.
+            case["reason"] = "polaridad_opuesta_activa"
+            polaridades_opuestas_activas.append(case)
 
     def _set_stats(cases: list[dict[str, Any]]) -> dict[str, Any]:
         tp = sum(1 for c in cases if c.get("correct"))
@@ -254,36 +314,82 @@ def compute_agreement(det_rows: dict[str, Any], nvidia_rows: dict[str, Any]) -> 
         n_cases = len(cases)
         return {"n": n_cases, "tp": tp, "fp": fp, "precision": round(tp / n_cases, 4) if n_cases else None}
 
+    def _breakdown_by_decision_pair(cases: list[dict[str, Any]]) -> dict[str, Any]:
+        pairs = sorted({c["decision_pair"] for c in cases})
+        return {
+            pair: _set_stats([c for c in cases if c["decision_pair"] == pair])
+            for pair in pairs
+        }
+
     evaluable_total = len(gold_ids)
+    acuerdo_con_accept = [c for c in acuerdo_contenido if c["es_acuerdo_con_accept"]]
+    discrepancia_activa_total = len(polaridades_opuestas_activas)
+    discrepancia_total = discrepancia_activa_total + len(abstain_vs_afirma) + len(predicado_incompatible)
+
     return {
         "evaluable_total": evaluable_total,
-        "acuerdo": {
-            **_set_stats(acuerdo), "cases": acuerdo,
-            "recall_sobre_gold": round(len(acuerdo) / evaluable_total, 4) if evaluable_total else None,
+        "acuerdo_contenido": {
+            **_set_stats(acuerdo_contenido), "cases": acuerdo_contenido,
+            "recall_sobre_gold": round(len(acuerdo_contenido) / evaluable_total, 4) if evaluable_total else None,
+            "desglose_por_par_de_decisiones": _breakdown_by_decision_pair(acuerdo_contenido),
+            "nota": (
+                "vista PRINCIPAL del bloque: mismo claim gold + predicado "
+                "compatible + misma polaridad, SIN exigir ACCEPT de ningun "
+                "motor. El par de decisiones (det/nvidia) de cada caso vive "
+                "en `decision_pair`; el desglose por celda es la respuesta a "
+                "la pregunta del operador, no el agregado. Los pares "
+                "ABSTAIN/ABSTAIN coinciden en polaridad por CONVENCION "
+                "(negated=False por defecto en ambos lados, no una "
+                "comprobacion real) -- ver `ambos_abstienen` en cada caso."
+            ),
         },
-        "solo_det": {**_set_stats(solo_det), "cases": solo_det},
-        "solo_nvidia": {**_set_stats(solo_nvidia), "cases": solo_nvidia},
+        "acuerdo_con_accept": {
+            **_set_stats(acuerdo_con_accept), "cases": acuerdo_con_accept,
+            "recall_sobre_gold": round(len(acuerdo_con_accept) / evaluable_total, 4) if evaluable_total else None,
+            "nota": (
+                "vista SECUNDARIA (criterio original de este bloque, "
+                "conservado por trazabilidad): subconjunto de "
+                "`acuerdo_contenido` donde AMBOS motores dan ACCEPT real. "
+                "DECLARADO TAUTOLOGICO por el dictamen del revisor: exigir "
+                "ACCEPT en los dos carriles multiplica dos eventos ya raros "
+                "del motor (la puerta 4 mide un recall de autoaprobacion "
+                "bajo), asi que la interseccion tiende a vaciarse por "
+                "construccion del filtro, no por la hipotesis medida. No "
+                "usar esta vista para leer 'el acuerdo no sirve': para eso "
+                "esta `acuerdo_contenido`."
+            ),
+        },
+        "solo_det": {
+            **_set_stats(solo_det), "cases": solo_det,
+            "nota_abstain": (
+                "las filas con `is_abstain=True` cuentan con `negated=False` "
+                "por convencion del programa (build_rows del runner "
+                "congelado), no porque el carril haya afirmado una polaridad "
+                "activa: su `correct` no debe leerse como precision de "
+                "aserciones activas."
+            ),
+        },
+        "solo_nvidia": {
+            **_set_stats(solo_nvidia), "cases": solo_nvidia,
+            "nota_abstain": (
+                "misma convencion que `solo_det`: `is_abstain=True` implica "
+                "`negated=False` por defecto, no una polaridad comprobada."
+            ),
+        },
         "discrepancia": {
-            "n": len(discrepancia),
-            "cases": discrepancia,
-            "nota": (
-                "mismo claim_id gold (sujeto/objeto), pero polaridad o "
-                "predicado incompatibles entre carriles; no hay una "
-                "'precision' unica del conjunto porque cada carril acierta o "
-                "falla por separado -- ver `gold_negated` de cada caso."
-            ),
-        },
-        "degradado_no_acuerdo": {
-            "n": len(degradado_no_acuerdo),
-            "cases": degradado_no_acuerdo,
-            "nota": (
-                "mismo claim_id gold y misma polaridad entre carriles, pero "
-                "excluido de ACUERDO porque el motor NO aceptaria (ACCEPT) "
-                "el claim en al menos un carril -- REVIEW o REJECT reales por "
-                "factividad degradada (puerta 6) o evidencia no verificada. "
-                "Muestra cuanto 'acuerdo de polaridad' pierde la politica al "
-                "exigir el mismo filtro que ya usa produccion."
-            ),
+            "n": discrepancia_total,
+            "polaridades_opuestas_activas": {
+                **_set_stats(polaridades_opuestas_activas), "cases": polaridades_opuestas_activas,
+                "nota": "ambos carriles predicen algo ACTIVO (ninguno abstiene) y la polaridad difiere: la unica discrepancia semantica 'dura' del bloque.",
+            },
+            "abstain_vs_afirma": {
+                "n": len(abstain_vs_afirma), "cases": abstain_vs_afirma,
+                "nota": "un carril abstiene (ABSTAIN, negated=False por convencion) y el otro predice algo activo con polaridad distinta: discrepancia parcialmente artefactual, no dos afirmaciones opuestas.",
+            },
+            "predicado_incompatible": {
+                "n": len(predicado_incompatible), "cases": predicado_incompatible,
+                "nota": "mismo claim gold, pero el predicado top-1 de cada carril difiere (ambos lo declaran).",
+            },
         },
         "sin_cubrir": {"n": len(sin_cubrir), "claim_ids": sin_cubrir},
     }
@@ -367,22 +473,35 @@ def build_report(
             },
         },
         "diseno": {
-            "criterio_acuerdo": (
-                "mismo claim_id del gold (alineado via episode_alignment + "
-                "mention_alignment + claim_alignment del runner congelado, "
-                "reutilizados por ruta), predicado top-1 compatible (o "
-                "ausente en algun carril), MISMA polaridad, Y AMBOS carriles "
-                "con predicted_decision=='ACCEPT' -- el veredicto REAL del "
-                "motor (engine/decision.py), que ya incorpora la puerta 6 "
-                "(review_required + hint epistemico degradado nunca ACCEPT) "
-                "y la verificacion de evidencia literal."
+            "criterio_acuerdo_contenido": (
+                "VISTA PRINCIPAL. mismo claim_id del gold (alineado via "
+                "episode_alignment + mention_alignment + claim_alignment del "
+                "runner congelado, reutilizados por ruta), predicado top-1 "
+                "compatible (o ausente en algun carril), MISMA polaridad. "
+                "NO exige ningun veredicto concreto del motor: el par de "
+                "decisiones (ACCEPT/ACCEPT, REVIEW/REVIEW, ACCEPT/REVIEW, "
+                "ABSTAIN/x...) se publica como atributo `decision_pair` de "
+                "cada caso y se desglosa aparte -- esa tabla es la que "
+                "responde la pregunta del operador."
+            ),
+            "criterio_acuerdo_con_accept": (
+                "VISTA SECUNDARIA (criterio original del bloque, conservado "
+                "por trazabilidad): subconjunto de acuerdo_contenido donde "
+                "AMBOS carriles reciben predicted_decision=='ACCEPT' real del "
+                "motor. DECLARADO TAUTOLOGICO por el dictamen del revisor: "
+                "exigir ACCEPT de ambos multiplica dos eventos ya raros del "
+                "motor (la puerta 4 mide un recall de autoaprobacion bajo), "
+                "asi que la interseccion tiende a vaciarse por construccion "
+                "del filtro, no por la hipotesis medida."
             ),
             "factividad": (
-                "un claim que el motor no aceptaria (REVIEW o REJECT reales) "
-                "en CUALQUIERA de los dos carriles NUNCA entra en acuerdo, "
-                "aunque ambos coincidan en polaridad: va a "
-                "'degradado_no_acuerdo', no a 'acuerdo'. Es la MISMA puerta "
-                "que produccion, no una reimplementacion paralela."
+                "la puerta 6 (review_required + hint epistemico degradado "
+                "nunca ACCEPT) sigue actuando dentro del motor real que "
+                "produce cada `predicted_decision`; este bloque no la "
+                "reimplementa. Lo que cambia respecto de la primera version "
+                "es que 'acuerdo' ya NO exige ACCEPT de ambos carriles para "
+                "existir: ese filtro se mueve a `acuerdo_con_accept`, la "
+                "vista secundaria."
             ),
             "denominador": "56 casos evaluables (convencion B0-B3: se excluye el unico ABSTAIN puro del gold, sin polaridad declarada).",
             "alineamiento_reutilizado": (
@@ -428,15 +547,19 @@ def build_report(
             "distinct_errors": incidents,
         },
         "lectura_para_la_decision_del_operador": {
-            "precision_acuerdo": agreement["acuerdo"]["precision"],
-            "n_acuerdo": agreement["acuerdo"]["n"],
-            "recall_acuerdo_sobre_gold": agreement["acuerdo"]["recall_sobre_gold"],
+            "precision_acuerdo_contenido": agreement["acuerdo_contenido"]["precision"],
+            "n_acuerdo_contenido": agreement["acuerdo_contenido"]["n"],
+            "recall_acuerdo_contenido_sobre_gold": agreement["acuerdo_contenido"]["recall_sobre_gold"],
+            "desglose_acuerdo_contenido_por_par_de_decisiones": agreement["acuerdo_contenido"]["desglose_por_par_de_decisiones"],
+            "precision_acuerdo_con_accept_tautologico": agreement["acuerdo_con_accept"]["precision"],
+            "n_acuerdo_con_accept_tautologico": agreement["acuerdo_con_accept"]["n"],
             "precision_solo_det": agreement["solo_det"]["precision"],
             "n_solo_det": agreement["solo_det"]["n"],
             "precision_solo_nvidia": agreement["solo_nvidia"]["precision"],
             "n_solo_nvidia": agreement["solo_nvidia"]["n"],
-            "n_discrepancia": agreement["discrepancia"]["n"],
-            "n_degradado_no_acuerdo": agreement["degradado_no_acuerdo"]["n"],
+            "n_polaridades_opuestas_activas": agreement["discrepancia"]["polaridades_opuestas_activas"]["n"],
+            "n_abstain_vs_afirma": agreement["discrepancia"]["abstain_vs_afirma"]["n"],
+            "n_predicado_incompatible": agreement["discrepancia"]["predicado_incompatible"]["n"],
             "n_sin_cubrir": agreement["sin_cubrir"]["n"],
             "evaluable_total": agreement["evaluable_total"],
             "nota": (
@@ -444,7 +567,11 @@ def build_report(
                 "es del operador. n=56 evaluables es el mismo techo pequeno que "
                 "ya declaro el programa de la puerta 4 (dev==test): cualquier "
                 "precision de un subconjunto de este tamano tiene un intervalo "
-                "ancho, no se trata como una cifra poblacional."
+                "ancho, no se trata como una cifra poblacional. La cifra "
+                "'estrella' de este bloque es `precision_acuerdo_contenido`, "
+                "junto con su desglose por par de decisiones -- NO "
+                "`precision_acuerdo_con_accept_tautologico`, conservada solo "
+                "por trazabilidad con la primera version del bloque."
             ),
         },
     }
@@ -466,44 +593,70 @@ def to_markdown(report: dict[str, Any]) -> str:
         "documento se escribe a mano. Modo SOMBRA pura: ningun carril escribe en Neo4j",
         "ni decide politica; esto SOLO mide.",
         "",
-        "## Los 4 (+1 diagnostico) conjuntos",
+        "## Vista PRINCIPAL: acuerdo a nivel de CONTENIDO, desglosado por par de decisiones",
+        "",
+        f"Mismo claim gold + predicado compatible + misma polaridad, SIN exigir ACCEPT de",
+        f"ningun motor. n={ag['acuerdo_contenido']['n']}, "
+        f"precision global={ag['acuerdo_contenido']['precision']}, "
+        f"recall sobre el gold={ag['acuerdo_contenido']['recall_sobre_gold']} "
+        f"({ag['acuerdo_contenido']['n']}/{ag['evaluable_total']}).",
+        "",
+        "| par de decisiones (det/nvidia) | n | tp | fp | precision |",
+        "| --- | ---: | ---: | ---: | ---: |",
+    ]
+    for pair, stats in ag["acuerdo_contenido"]["desglose_por_par_de_decisiones"].items():
+        lineas.append(f"| {pair} | {stats['n']} | {stats['tp']} | {stats['fp']} | {stats['precision']} |")
+    lineas += [
+        "",
+        f"nota: {ag['acuerdo_contenido']['nota']}",
+        "",
+        "## Vista SECUNDARIA (tautologica, conservada por trazabilidad): acuerdo_con_accept",
+        "",
+        f"n={ag['acuerdo_con_accept']['n']}, precision={ag['acuerdo_con_accept']['precision']}, "
+        f"recall sobre el gold={ag['acuerdo_con_accept']['recall_sobre_gold']}.",
+        "",
+        f"nota: {ag['acuerdo_con_accept']['nota']}",
+        "",
+        "## Otros conjuntos",
         "",
         "| conjunto | n | tp | fp | precision |",
         "| --- | ---: | ---: | ---: | ---: |",
-        f"| acuerdo | {ag['acuerdo']['n']} | {ag['acuerdo']['tp']} | {ag['acuerdo']['fp']} | {ag['acuerdo']['precision']} |",
         f"| solo-det | {ag['solo_det']['n']} | {ag['solo_det']['tp']} | {ag['solo_det']['fp']} | {ag['solo_det']['precision']} |",
         f"| solo-nvidia | {ag['solo_nvidia']['n']} | {ag['solo_nvidia']['tp']} | {ag['solo_nvidia']['fp']} | {ag['solo_nvidia']['precision']} |",
-        f"| discrepancia | {ag['discrepancia']['n']} | -- | -- | (ver nota) |",
-        f"| degradado_no_acuerdo (fuera del acuerdo por factividad/evidencia) | {ag['degradado_no_acuerdo']['n']} | -- | -- | -- |",
+        f"| discrepancia: polaridades opuestas ACTIVAS | {ag['discrepancia']['polaridades_opuestas_activas']['n']} | {ag['discrepancia']['polaridades_opuestas_activas']['tp']} | {ag['discrepancia']['polaridades_opuestas_activas']['fp']} | {ag['discrepancia']['polaridades_opuestas_activas']['precision']} |",
+        f"| discrepancia: abstain vs afirma | {ag['discrepancia']['abstain_vs_afirma']['n']} | -- | -- | -- |",
+        f"| discrepancia: predicado incompatible | {ag['discrepancia']['predicado_incompatible']['n']} | -- | -- | -- |",
         f"| sin_cubrir (ningun carril propuso nada emparejable) | {ag['sin_cubrir']['n']} | -- | -- | -- |",
         "",
-        f"**Recall del acuerdo sobre el gold**: {ag['acuerdo']['recall_sobre_gold']} "
-        f"({ag['acuerdo']['n']}/{ag['evaluable_total']} casos evaluables).",
+        f"- nota solo-det: {ag['solo_det']['nota_abstain']}",
+        f"- nota solo-nvidia: {ag['solo_nvidia']['nota_abstain']}",
         "",
         "## Diseno",
         "",
-        f"- criterio de acuerdo: {report['diseno']['criterio_acuerdo']}",
+        f"- criterio de acuerdo (vista principal): {report['diseno']['criterio_acuerdo_contenido']}",
+        f"- criterio de acuerdo_con_accept (vista secundaria, tautologica): {report['diseno']['criterio_acuerdo_con_accept']}",
         f"- factividad (puerta 6): {report['diseno']['factividad']}",
         f"- alineamiento reutilizado: {report['diseno']['alineamiento_reutilizado']}",
         "",
-        "## Casos de discrepancia (diagnostico)",
+        "## Casos: polaridades opuestas ACTIVAS (discrepancia semantica dura)",
         "",
-        "| claim_id | det negated | nvidia negated | gold negated | razon |",
-        "| --- | --- | --- | --- | --- |",
+        "| claim_id | det negated | nvidia negated | gold negated |",
+        "| --- | --- | --- | --- |",
     ]
-    for c in ag["discrepancia"]["cases"]:
-        lineas.append(
-            f"| {c['claim_id']} | {c['det_negated']} | {c['nvidia_negated']} | {c['gold_negated']} | {c['reason']} |"
-        )
+    for c in ag["discrepancia"]["polaridades_opuestas_activas"]["cases"]:
+        lineas.append(f"| {c['claim_id']} | {c['det_negated']} | {c['nvidia_negated']} | {c['gold_negated']} |")
     lineas += [
         "",
-        "## Casos excluidos por factividad/evidencia (mismo sujeto/objeto/polaridad, sin ACCEPT en ambos)",
+        "## Casos: abstain vs afirma (un carril abstiene, el otro predice algo activo)",
         "",
-        "| claim_id | det decision | nvidia decision |",
-        "| --- | --- | --- |",
+        "| claim_id | det decision | nvidia decision | det negated | nvidia negated | gold negated |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
-    for c in ag["degradado_no_acuerdo"]["cases"]:
-        lineas.append(f"| {c['claim_id']} | {c['det_decision']} | {c['nvidia_decision']} |")
+    for c in ag["discrepancia"]["abstain_vs_afirma"]["cases"]:
+        lineas.append(
+            f"| {c['claim_id']} | {c['det_decision']} | {c['nvidia_decision']} | "
+            f"{c['det_negated']} | {c['nvidia_negated']} | {c['gold_negated']} |"
+        )
     lineas += [
         "",
         "## Coste / latencia / cache de la pasada NVIDIA",
@@ -521,12 +674,14 @@ def to_markdown(report: dict[str, Any]) -> str:
         "",
         "## Lectura para la decision del operador (cifras desnudas, sin recomendacion)",
         "",
-        f"- precision del acuerdo: {lect['precision_acuerdo']} (n={lect['n_acuerdo']})",
-        f"- recall del acuerdo sobre el gold: {lect['recall_acuerdo_sobre_gold']} ({lect['n_acuerdo']}/{lect['evaluable_total']})",
+        f"- precision del acuerdo de CONTENIDO (vista principal): {lect['precision_acuerdo_contenido']} (n={lect['n_acuerdo_contenido']})",
+        f"- recall del acuerdo de contenido sobre el gold: {lect['recall_acuerdo_contenido_sobre_gold']} ({lect['n_acuerdo_contenido']}/{lect['evaluable_total']})",
+        f"- precision del acuerdo_con_accept (vista secundaria, tautologica): {lect['precision_acuerdo_con_accept_tautologico']} (n={lect['n_acuerdo_con_accept_tautologico']})",
         f"- precision solo-det: {lect['precision_solo_det']} (n={lect['n_solo_det']})",
         f"- precision solo-nvidia: {lect['precision_solo_nvidia']} (n={lect['n_solo_nvidia']})",
-        f"- discrepancias: {lect['n_discrepancia']}",
-        f"- excluidos del acuerdo por factividad/evidencia pese a coincidir en polaridad: {lect['n_degradado_no_acuerdo']}",
+        f"- polaridades opuestas activas (discrepancia dura): {lect['n_polaridades_opuestas_activas']}",
+        f"- abstain vs afirma: {lect['n_abstain_vs_afirma']}",
+        f"- predicado incompatible: {lect['n_predicado_incompatible']}",
         f"- sin cubrir por ningun carril: {lect['n_sin_cubrir']}",
         f"- nota: {lect['nota']}",
     ]
@@ -537,7 +692,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Medicion en sombra del subconjunto-acuerdo determinista+NVIDIA.")
     parser.add_argument("--out-dir", default=None)
     parser.add_argument("--out-name", default="agreement-shadow")
-    parser.add_argument("--cache", default="artifacts/gate4-program/b3-cache", help="dir de cache JSON (compartida con B3 para maximizar hits)")
+    parser.add_argument("--cache", default="artifacts/agreement/cache", help="dir de cache JSON PROPIO de este bloque (nunca compartido con artifacts/gate4-program/b3-cache/ de B3: ver docstring del modulo)")
     parser.add_argument("--mock", action="store_true", help="puerto guionizado (sin red, sin key)")
     parser.add_argument("--timeout-seconds", type=int, default=b3.EPISODE_TIMEOUT_SECONDS)
     parser.add_argument("--concurrency", type=int, default=2)
