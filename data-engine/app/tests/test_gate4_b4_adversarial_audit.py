@@ -95,19 +95,29 @@ def test_todas_las_formas_literales_pre_b4_siguen_en_scope_verbs():
 # 2. Guarda de cambio ortografico c->qu / g->gu / z->c (-car/-gar/-zar).
 # ---------------------------------------------------------------------------
 
-def test_ningun_lema_declarado_es_car_gar_zar():
-    """Hoy ningun lema de `REPORTING_LEMMAS_AR` termina en -car/-gar/-zar.
-    Es la razon real (no solo argumentada) por la que la clase de defecto
-    "cambio ortografico mal generado" no puede darse hoy: no hay verbo de
-    esa clase en la lista. Si este test empieza a fallar es porque alguien
-    anadio uno; en ese momento hay que revisar el siguiente test (verifica
-    que aunque se anada, las formas de 3a persona generadas siguen siendo
-    correctas) en vez de asumir que sigue valiendo sin comprobarlo.
+def test_ningun_lema_declarado_es_car_gar_zar_sin_revisar():
+    """La puerta 6 (B1, docs/v3/44) anadio "verificar" a `REPORTING_LEMMAS_AR`
+    (mismo criterio que "confirmar": verbo factivo/de reconocimiento regular
+    -AR, necesario para cerrar la familia NEGATION_OF_FACTIVE del corpus de
+    generalizacion composicional). Es justo el caso que este test avisaba
+    que llegaria: un lema -car. Se reviso el siguiente test
+    (`test_conjugar_un_verbo_car_gar_zar_no_declarado_es_correcto_en_3a_persona`,
+    que demuestra que el cambio ortografico c->qu SOLO afecta a la 1a
+    persona/subjuntivo, ninguno de los cuales genera este modulo) antes de
+    aceptar "verificar": la 3a persona ("verifica"/"verifico"/"verificaron")
+    no lleva "qu" y no hereda el defecto. Este test ya NO exige la lista
+    vacia; exige que la UNICA excepcion -car/-gar/-zar sea la revisada y
+    declarada aqui -- si aparece una lema DISTINTA sin pasar por esta
+    revision, el test rompe.
     """
     car_gar_zar = tuple(l for l in REPORTING_LEMMAS_AR if l.endswith(("car", "gar", "zar")))
-    assert car_gar_zar == (), (
+    assert car_gar_zar == ("verificar",), (
         f"lemas -car/-gar/-zar declarados sin verificar el cambio ortografico: {car_gar_zar!r}"
     )
+    # La propia excepcion, comprobada aqui otra vez (no solo en el test de
+    # abajo): la 3a persona de "verificar" no lleva "qu".
+    p = conjugate_regular_ar("verificar")
+    assert not any("qu" in forma for forma in p.all_forms())
 
 
 def test_conjugar_un_verbo_car_gar_zar_no_declarado_es_correcto_en_3a_persona():

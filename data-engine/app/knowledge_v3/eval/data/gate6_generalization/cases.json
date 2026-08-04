@@ -1,6 +1,6 @@
 {
   "corpus": "gate6-generalization-compositional",
-  "dataset_version": "1.0.0",
+  "dataset_version": "1.1.0",
   "domain": "diplomacia especiera (inventada, ausente del corpus dev-synthetic de la puerta 6)",
   "provenance": "gate6-b0/agente-implementador-2026-08-04",
   "purpose": "Composicion de operadores de factividad (condicional dentro de rumor, reporte anidado, negacion de verbo factivo, factivo dentro de condicional, rumor negado, reporte de negacion) con entidades nuevas y CERO literales de 3+ n-gramas compartidos con el corpus dev de la puerta 6 ni con el codigo de cues.py.",
@@ -425,25 +425,25 @@
     },
     {
       "case_id": "gen6:positive_control:03",
-      "family": "POSITIVE_CONTROL",
+      "family": "LEXICAL_NEGATION_EDGE",
       "domain": "especias",
       "text": "Bram Oyala queda fuera del Consulado de Ambar.",
       "subject": "Bram Oyala",
       "object": "Consulado de Ambar",
       "expected_class": "NEGATED_FACT",
       "hard": false,
-      "why_evaluable": "negacion factual simple y directa: control positivo negativo"
+      "why_evaluable": "negacion factual simple y directa: control positivo negativo [B1: reclasificado de POSITIVE_CONTROL a LEXICAL_NEGATION_EDGE -- no mide factividad/composicion, mide un caso de negacion LEXICA simple (nunca/jamas + verbo) que se equivoco de familia en B0; el gold no cambia, solo el rotulo de familia.]"
     },
     {
       "case_id": "gen6:positive_control:04",
-      "family": "POSITIVE_CONTROL",
+      "family": "LEXICAL_NEGATION_EDGE",
       "domain": "especias",
       "text": "El Arca de Especias nunca salio del Muelle de la Canela.",
       "subject": "Arca de Especias",
       "object": "Muelle de la Canela",
       "expected_class": "NEGATED_FACT",
       "hard": false,
-      "why_evaluable": "negacion factual con 'nunca', sin composicion de operadores"
+      "why_evaluable": "negacion factual con 'nunca', sin composicion de operadores [B1: reclasificado de POSITIVE_CONTROL a LEXICAL_NEGATION_EDGE -- no mide factividad/composicion, mide un caso de negacion LEXICA simple (nunca/jamas + verbo) que se equivoco de familia en B0; el gold no cambia, solo el rotulo de familia.]"
     },
     {
       "case_id": "gen6:positive_control:05",

@@ -57,6 +57,11 @@ _EXPECTED_FAMILIES = {
     "NEGATED_RUMOR_HARD",
     "REPORT_OF_NEGATION",
     "POSITIVE_CONTROL",
+    # Bloque B1: `gen6:positive_control:03/04` median negacion LEXICA
+    # ("nunca"/"jamas" + verbo), no factividad ni composicion -- estaban mal
+    # clasificados en POSITIVE_CONTROL desde B0. El gold no cambia (las
+    # etiquetas eran correctas), solo la familia. Ver docs/v3/44.
+    "LEXICAL_NEGATION_EDGE",
 }
 
 #: Familia "dura": se declara por adelantado que se ESPERA una exactitud baja

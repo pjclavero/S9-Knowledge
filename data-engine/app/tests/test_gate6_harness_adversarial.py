@@ -188,8 +188,20 @@ def test_family_desconocida_rompe_la_carga(tmp_path, monkeypatch):
 # --------------------------------------------------------------------------
 # 3. Frases nuevas de composicion, fuera de los dos corpus (documentadas)
 # --------------------------------------------------------------------------
-_ADVERSARIAL_COMPOSITIONAL_CASES = [
-    # (texto, ¿debe leerse como hecho del mundo?, descripcion)
+#: Bloque B0 (congelado, no se toca): las tres frases originales -- rumor +
+#: condicional excepcional anidado, reporte anidado ("declaro que"/"insistio
+#: en que") y negacion de un verbo factivo institucional ("reconocer") --
+#: ACERTABAN antes de B1 y las TRES pasan a acertar despues de B1 (el
+#: operador de discurso reportado por tercero y la extension de SCOPE_VERBS
+#: las cubren). Se conservan comentadas para que quede constancia de la
+#: mejora en evidencia EXTERNA (entidades y frases nunca vistas por ningun
+#: corpus ni por B1 al disenar el operador), no solo en los 42+100 casos de
+#: gold. La lista activa de abajo (`_ADVERSARIAL_COMPOSITIONAL_CASES`) se
+#: renueva en B1 con frases NUEVAS que apuntan a huecos que B1 documento
+#: como fuera de alcance (familia NEGATION_OF_FACTIVE con "nadie" en vez de
+#: "no", NEGATED_RUMOR_HARD con "el rumor de" interpuesto, y un patron nuevo
+#: de FACTIVE_IN_CONDITIONAL con "de resultar cierto que").
+_ADVERSARIAL_COMPOSITIONAL_CASES_B0_RESUELTAS_EN_B1 = [
     (
         "Se dice que, salvo que el veedor lo impida, Marín Costoya heredará el "
         "cargo de recaudador del muelle nuevo.",
@@ -201,23 +213,88 @@ _ADVERSARIAL_COMPOSITIONAL_CASES = [
         "administra el almacén de resinas.",
         False,
         "reporte anidado con verbos ('declaró que'/'insistió en que') fuera del "
-        "vocabulario de cues.py",
+        "vocabulario de cues.py (B0) -- CUBIERTO por el operador de reporte de B1",
     ),
     (
         "El tribunal no reconoció que Feles Ondarra hubiera pagado el tributo "
         "del embarcadero.",
         False,
-        "negacion de un verbo factivo institucional ('reconocer')",
+        "negacion de un verbo factivo institucional ('reconocer') -- CUBIERTO "
+        "por la extension de SCOPE_VERBS de B1",
     ),
 ]
+
+#: Bloque B1: frases NUEVAS (entidades y dominio propios, no en ningun
+#: corpus) que apuntan a huecos que B1 diagnostico pero decidio NO cerrar
+#: (fuera de la prioridad del encargo, o riesgo de sobreajuste): "nadie"
+#: como negador de un verbo factivo (NEGATION_OF_FACTIVE con "nadie" en vez
+#: de "no"/"nunca"/"jamas"/"tampoco"/"ni" -- `NEGATION_CUES` no incluye
+#: "nadie"), "el rumor de" interpuesto entre "no es cierto" y "que"
+#: (la misma trampa declarada HARD en `NEGATED_RUMOR_HARD`), y un patron de
+#: condicional-envuelve-factivo con "de resultar cierto que" que
+#: `CONDITIONAL_PHRASES`/`FALSITY_PHRASES` no cubren literalmente.
+_ADVERSARIAL_COMPOSITIONAL_CASES = [
+    (
+        "Nadie en el gremio confirmó que Silas Kerr custodiara el archivo "
+        "del puerto.",
+        False,
+        "negacion de un verbo factivo con 'nadie' en vez de 'no' -- "
+        "NEGATION_CUES no incluye 'nadie', fuera de prioridad de B1",
+    ),
+    (
+        "No es cierto el rumor de que Elin Doss trafica con seda en el "
+        "muelle norte.",
+        False,
+        "'el rumor de' interpuesto rompe el match literal de "
+        "FALSITY_PHRASES -- misma trampa declarada HARD en "
+        "NEGATED_RUMOR_HARD, fuera de prioridad de B1",
+    ),
+    (
+        "De resultar cierto que Iris Faber preside la asamblea de "
+        "vinateros, el consejo actuará.",
+        False,
+        "condicional envuelve un factivo con 'de resultar cierto que' -- "
+        "variante de FACTIVE_IN_CONDITIONAL no cubierta por las frases "
+        "literales de CONDITIONAL_PHRASES, fuera de prioridad de B1",
+    ),
+]
+
+
+def test_las_frases_adversariales_de_b0_ahora_aciertan_evidencia_externa_de_b1():
+    """Las tres frases adversariales de B0 (fuera de ambos corpus, con
+    entidades que B1 nunca vio al disenar el operador de reporte ni la
+    extension de SCOPE_VERBS) ahora se leen correctamente como NO-hecho.
+    Es evidencia EXTERNA de que la mejora de B1 generaliza mas alla de los
+    42+100 casos de gold: si esto empieza a fallar, alguien toco `cues.py`/
+    `factivity.py` de forma que revierte el operador de reporte o la
+    extension de verbos factivos de B1, y hay que re-medir el programa."""
+    from knowledge_v3.extraction.cues import analyze_raw_text as analyze
+
+    fails = []
+    for text, should_be_fact, description in (
+        _ADVERSARIAL_COMPOSITIONAL_CASES_B0_RESUELTAS_EN_B1
+    ):
+        verdict = analyze(text)
+        read_as_fact = verdict.factivity.factivity_class.value in (
+            "ASSERTED_FACT",
+            "NEGATED_FACT",
+        )
+        if read_as_fact != should_be_fact:
+            fails.append((text, description, verdict.factivity.factivity_class.value))
+    assert not fails, (
+        f"las frases que B1 declara resueltas volvieron a fallar: {fails} -- "
+        "si esto es real (no un bug del test), el operador de reporte o la "
+        "extension de SCOPE_VERBS de B1 se revirtieron parcialmente"
+    )
 
 
 def test_documenta_fallos_de_la_politica_en_composiciones_nuevas_fuera_de_corpus():
     """No es un gate que deba pasar en verde: documenta, como test ejecutable,
     cuantas de estas frases NUEVAS (ni en el corpus dev ni en el de
-    generalizacion de B0) la politica sigue leyendo mal. Sirve de evidencia
-    externa de que el baseline de generalizacion composicional no es un
-    artefacto de estos 42 casos concretos."""
+    generalizacion, ni en las resueltas por B1) la politica sigue leyendo
+    mal. Sirve de evidencia externa de que TODAVIA quedan huecos genuinos
+    fuera de la prioridad de B1 (no son un artefacto de los 42+100 casos de
+    gold ni de las frases que B1 ya soluciono)."""
     from knowledge_v3.extraction.cues import analyze_raw_text as analyze
 
     fails = []
@@ -231,15 +308,15 @@ def test_documenta_fallos_de_la_politica_en_composiciones_nuevas_fuera_de_corpus
             fails.append((text, description, verdict.factivity.factivity_class.value))
 
     # Se documenta el conteo real, no se exige un numero concreto: esto es
-    # evidencia externa, no un gate de aceptacion de B0 (B0 no toca la
-    # politica). Solo se exige que al menos una de las tres frases FALLE --
-    # si las tres empezaran a acertar, seria señal de que alguien ya cambio
-    # `cues.py`/`factivity.py` y el hallazgo de B0 necesita re-medirse.
+    # evidencia externa, no un gate de aceptacion. Solo se exige que al
+    # menos una de las tres frases FALLE -- si las tres empezaran a acertar,
+    # seria señal de que alguien ya cerro estos huecos y el programa de la
+    # puerta 6 deberia re-medirse (y este test, renovarse otra vez).
     assert fails, (
         "las tres frases adversariales de composicion, fuera de ambos "
         "corpus, acertaron: si esto es real (no un bug del test), la "
-        "politica de factividad ya no tiene el problema de composicion que "
-        "motiva el programa de la puerta 6 y B0 deberia re-medirse"
+        "politica de factividad ya no tiene los huecos que B1 dejo fuera "
+        "de prioridad y el programa de la puerta 6 deberia re-medirse"
     )
 
 
@@ -335,35 +412,49 @@ def test_read_as_world_fact_predice_exactamente_las_guardas_del_pipeline():
 
 
 # --------------------------------------------------------------------------
-# 6. Anomalia en POSITIVE_CONTROL: una frase negada SIN ningun operador
-#    compuesto (el control deliberadamente simple del corpus de
-#    generalizacion) sale UNKNOWN en vez de NEGATED_FACT. Esto no es el
-#    hallazgo de composicion que motiva B0 -- es un fallo de negacion LEXICA
-#    ("nunca salio de", sin marca de alcance ambiguo aparente) que conviene
-#    dejar registrado como regresion, no enterrado dentro del 0,667 de la
-#    tabla.
+# 6. Diagnostico B1 de la anomalia LEXICAL_NEGATION_EDGE (antes
+#    POSITIVE_CONTROL): "nunca salio del" sale UNKNOWN en vez de NEGATED_FACT.
+#    B1 investigo la causa (no es el hallazgo de composicion que motiva B0):
+#    `cessation_matches` reconoce "salio del" como CESSATION_PHRASES (misma
+#    familia lexica que "abandono"/"dimitio de"/"se separo de"), y
+#    `negated_cessation` trata CUALQUIER negacion pegada a una cesacion como
+#    DOBLE negacion ambigua ("no dejo de servir" = sigue sirviendo). Esa regla
+#    es CORRECTA para cesacion de pertenencia/cargo (negar el abandono afirma
+#    la continuidad de la relacion, y el motor no puede materializar esa
+#    relacion sin saber a que predicado positivo corresponde -- de ahi la
+#    prudencia de pedir revision) pero en este caso concreto el gold modela
+#    la frase como la negacion DIRECTA de un evento de partida, no como la
+#    cesacion (con flip) de una relacion de pertenencia. Las dos lecturas son
+#    indistinguibles con el vocabulario/patron actual sin arriesgar una
+#    regresion en las cesaciones de pertenencia genuinas (abandono, dimitio,
+#    fue expulsado...), que SI necesitan la ambiguedad para no inventar una
+#    relacion. B1 decide NO tocar `negated_cessation`/`cessation_matches`:
+#    es un limite arquitectonico documentado, no un bug puntual -- ver
+#    docs/v3/44. El caso se reclasifico de POSITIVE_CONTROL a
+#    LEXICAL_NEGATION_EDGE (mide negacion lexica, no factividad), gold
+#    intacto.
 # --------------------------------------------------------------------------
-def test_positive_control_04_sale_unknown_no_negated_fact_documentado():
+def test_positive_control_04_sale_unknown_limite_arquitectonico_documentado():
     """`gen6:positive_control:04` ('El Arca de Especias nunca salio del
-    Muelle de la Canela.', gold NEGATED_FACT) no es una composicion de dos
-    operadores -- es el caso mas simple del corpus, deliberadamente sin
-    operadores compuestos, para poder separar 'falla por vocabulario/dominio
-    nuevo' de 'falla por composicion'. Que salga UNKNOWN (alcance ambiguo)
-    en vez de NEGATED_FACT, en una frase con un solo verbo negado por
-    'nunca', apunta a una causa DISTINTA del hallazgo central de B0 (fallo de
-    precedencia plana al componer marcos): probablemente una interaccion
-    entre `classify_negation` y el dominio/vocabulario nuevo del corpus que
-    dispara `ambiguous_scope` sin que haya ambiguedad real. Se deja como
-    test de regresion explicito para que quien investigue el 0,667 de
-    POSITIVE_CONTROL en B1 no tenga que redescubrirlo desde cero."""
+    Muelle de la Canela.', gold NEGATED_FACT, familia LEXICAL_NEGATION_EDGE
+    desde B1) sigue en UNKNOWN. B1 diagnostico la causa real (ver comentario
+    de arriba): es la MISMA regla de `negated_cessation` que protege
+    correctamente "no abandono el clan"/"no dimitio de su cargo" de perder
+    la relacion de pertenencia -- aplicada aqui a un verbo de PARTIDA fisica
+    ("salio del") en vez de un verbo de PERTENENCIA. Corregir el patron para
+    este caso sin arriesgar las cesaciones genuinas exigiria distinguir
+    "cesacion de pertenencia" de "partida fisica" por semantica del
+    complemento, que el vocabulario cerrado actual no sabe hacer sin
+    inventar una heuristica ad-hoc sobre este caso concreto -- exactamente
+    lo que el encargo prohibe. Se deja como limite arquitectonico
+    documentado, no como regresion pendiente."""
     from knowledge_v3.extraction.cues import analyze_raw_text
 
     verdict = analyze_raw_text(
         "El Arca de Especias nunca salio del Muelle de la Canela."
     )
     assert verdict.factivity.factivity_class.value == "UNKNOWN", (
-        "si esto ya no es UNKNOWN, la anomalia documentada en el informe de "
-        "B0 (POSITIVE_CONTROL a 0,667 por un fallo de negacion lexica, no "
-        "de composicion) se ha corregido o ha cambiado de forma -- "
+        "si esto ya no es UNKNOWN, el limite arquitectonico documentado en "
+        "B1 (docs/v3/44) se ha corregido o ha cambiado de forma -- "
         "re-verificar el hallazgo antes de borrar este test"
     )
