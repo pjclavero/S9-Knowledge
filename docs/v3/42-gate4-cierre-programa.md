@@ -109,6 +109,10 @@ en B4:
   frontalizado): exige resolución de correferencia, no flexión verbal.
 - **1 caso — relación no cubierta**: "tiene sede" no está en
   `RELATION_RULES` (brecha de vocabulario, no de negación).
+- **1 caso — verbo factivo-negativo** (`bas:e04`, "desmentir que"): clase
+  semántica distinta de los verbos de reporte neutro del paradigma de B4;
+  pendiente de análisis propio (misma familia que el defecto de
+  clasificación de `cir:e14`, "negó que + subjuntivo").
 - **1 caso — doble negación**: irreducible por diseño, ver §4.
 - **1 caso — cuantificador negativo** ("Nadie ha afirmado que..."): el caso
   que motivó y a la vez delimitó el paradigma morfológico de B4; conjugar el
