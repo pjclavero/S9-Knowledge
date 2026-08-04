@@ -9,7 +9,7 @@ romper la precision? El carril NVIDIA es SIEMPRE SOMBRA: se compara contra el
 gold y contra el determinista, nunca escribe en Neo4j, nunca decide, nunca se
 activa en produccion. Ese contrato lo cumple el extractor semantico y su
 reconciliador, que este script REUTILIZA en vez de reimplementar (ver
-`test_b3_shadow_no_writer.py`).
+`tests/test_gate4_b3_nvidia_shadow.py`).
 
 Lo que se REUTILIZA sin tocar una linea:
 
@@ -38,7 +38,9 @@ Lo que este script SI anade (no existia antes de B3):
   ningun campo), para que repetir la medicion no vuelva a facturar.
 * La lectura de puertas en vocabulario de la puerta 4 (cobertura, recall de la
   familia SIMPLE, precision, falsos positivos) para las TRES vistas: NVIDIA
-  sola, determinista solo, union reconciliada -- `family_recall`, `b3_gates`.
+  sola, heuristico local del bench, y su union reconciliada -- `family_recall`,
+  `b3_gates`. El denominador sigue la convencion de B0-B2 (56 evaluables:
+  el ABSTAIN puro del gold queda fuera).
 
 Uso (desde la raiz del repo, con la API key en el entorno -- nunca en la
 linea de comandos ni en un fichero versionado):
@@ -272,10 +274,23 @@ def family_recall(gold: GoldDataset, bundle, config: MatchConfig) -> dict[str, A
     todo este programa mide.
     """
     gold_claims, gold_by_id, match, pred_by_id = _family_match(gold, bundle, config)
-    matched_gold = {g for g, _p in match.pairs}
+
+    # Convencion de B0-B2 (runner E2E congelado, `build_rows`): el unico
+    # ABSTAIN puro del gold (sin menciones de sujeto ni de objeto, sin
+    # polaridad declarada) es estructuralmente incoverable por cualquier
+    # extractor y se EXCLUYE del denominador. Dejarlo dentro inflaria el
+    # denominador de las tres vistas y romperia la comparabilidad con el
+    # "56 casos evaluables" de B0-B2.
+    gold_claims = [
+        c for c in gold_claims if c.get("subject_mentions") or c.get("object_mentions")
+    ]
+    matched_gold = {g for g, _p in match.pairs if g in {c["claim_id"] for c in gold_claims}}
+    evaluable_ids = {c["claim_id"] for c in gold_claims}
     correct_gold: set[str] = set()
     for g, p in match.pairs:
-        if bool(gold_by_id[g].get("negated")) == bool(pred_by_id[p].get("negated")):
+        if g in evaluable_ids and bool(gold_by_id[g].get("negated")) == bool(
+            pred_by_id[p].get("negated")
+        ):
             correct_gold.add(g)
 
     by_family: dict[str, Any] = {}
@@ -427,12 +442,35 @@ def build_report(
     )
 
     lanes: dict[str, Any] = {}
-    label = {"A": "determinista", "C2": "nvidia", "D-R": "union_reconciliada"}
+    # Etiquetas honestas: el sumando "determinista" de estas vistas es el
+    # pipeline HEURISTICO local del bench (config A de `semantic_bench`), NO
+    # el runner E2E de B0-B2 (el del 0.607). Ver `LANE_NOTES` y docs/v3/40.
+    label = {
+        "A": "heuristico_local_bench",
+        "C2": "nvidia",
+        "D-R": "nvidia_mas_heuristico_reconciliado",
+    }
+    notes = {
+        "A": (
+            "pipeline heuristico local de semantic_bench (config A); NO es el "
+            "runner E2E determinista de B0-B2 (cobertura 0.607). Sobre este "
+            "arnes de claims aporta estructuralmente 0."
+        ),
+        "C2": "carril semantico NVIDIA en SOMBRA (nunca escribe, nunca decide).",
+        "D-R": (
+            "union del heuristico local + NVIDIA pasada por el "
+            "ProposalReconciler de B2. Como el heuristico local aporta 0 en "
+            "este arnes, esta vista coincide con NVIDIA sola: NO es la union "
+            "con el determinista E2E de B2 (esa medicion es de un bloque "
+            "futuro, via pipeline.runner.run_one con external_port)."
+        ),
+    }
     for key in ("A", "C2", "D-R"):
         bundle = bench.to_bundle(results[key], ctx)
         metrics = family_recall(gold, bundle, match_config)
         lanes[label[key]] = {
             "config": key,
+            "nota": notes[key],
             "metrics": metrics,
             "gates": b3_gates(label[key], metrics),
             "wall_ms": results[key].wall_ms,
@@ -440,12 +478,23 @@ def build_report(
 
     calls = metering.calls
     real_calls = [c for c in calls if c["ok"]]
-    latencies = sorted(c["latency_ms"] for c in real_calls) if real_calls else []
-    prompt_tokens = sum(c.get("prompt_tokens", 0) for c in real_calls)
-    completion_tokens = sum(c.get("completion_tokens", 0) for c in real_calls)
-    total_tokens = sum(c.get("total_tokens", 0) for c in real_calls) or (prompt_tokens + completion_tokens)
+    # Tokens y latencia de la TANDA COMPLETA: la cache guarda `usage` y
+    # `latency_ms` de cada respuesta original, asi que una repuntuacion
+    # servida desde cache reporta el coste REAL de la tanda que la produjo,
+    # no solo el de las llamadas de hoy. Las llamadas reales de esta corrida
+    # se reportan aparte (seccion `cache` e `incidencias`).
+    tanda = list(getattr(port, "_data", {}).values()) or real_calls
+    latencies = sorted(int(c.get("latency_ms", 0)) for c in tanda) if tanda else []
+    def _usage(entry: dict, key: str) -> int:
+        usage = entry.get("usage")
+        if isinstance(usage, dict):
+            return int(usage.get(key, 0) or 0)
+        return int(entry.get(key, 0) or 0)
+    prompt_tokens = sum(_usage(c, "prompt_tokens") for c in tanda)
+    completion_tokens = sum(_usage(c, "completion_tokens") for c in tanda)
+    total_tokens = sum(_usage(c, "total_tokens") for c in tanda) or (prompt_tokens + completion_tokens)
     n_episodes = len(ctx.episodes)
-    tokens_per_episode = total_tokens / n_episodes if n_episodes and real_calls else None
+    tokens_per_episode = total_tokens / n_episodes if n_episodes and tanda else None
     extrapolation_1000 = tokens_per_episode * 1000 if tokens_per_episode is not None else None
 
     cost_note = (
@@ -483,7 +532,8 @@ def build_report(
         "lanes": lanes,
         "latency": {
             "unit": "ms",
-            "real_calls": len(real_calls),
+            "measured_calls": len(tanda),
+            "real_calls_this_run": len(real_calls),
             "mean": round(statistics.mean(latencies), 1) if latencies else None,
             "p95": round(_percentile(latencies, 0.95), 1) if latencies else None,
             "max": latencies[-1] if latencies else None,
@@ -520,6 +570,39 @@ def build_report(
             "distinct_errors": incidents,
         },
         "wall_ms": {"A": wall_a, "C2": wall_c2},
+        "datos_para_decision_de_adopcion": {
+            "coste": {
+                "price_per_million_tokens_usd": price_per_million_tokens_usd,
+                "nota": (
+                    "sin precio fiable documentado en el repo ni precio publico "
+                    "por token verificable para este modelo en NVIDIA NIM en el "
+                    "momento de la corrida; el coste real depende del contrato "
+                    "del operador. Los tokens medidos y la extrapolacion a 1000 "
+                    "episodios estan en la seccion `tokens`."
+                    if price_per_million_tokens_usd is None
+                    else "precio suministrado por el operador via CLI; NO viene del repo."
+                ),
+            },
+            "estabilidad": {
+                "transport_retries": (
+                    getattr(metering.inner, "retries_used", 0)
+                    if hasattr(metering.inner, "retries_used")
+                    else 0
+                ),
+                "hard_timeouts_60s": (
+                    getattr(metering.inner, "timeouts", 0)
+                    if hasattr(metering.inner, "timeouts")
+                    else 0
+                ),
+                "episodios_perdidos": len(calls) - len(real_calls),
+                "episodios_totales": n_episodes,
+                "advertencia": (
+                    "una sola corrida no distingue un pico puntual del "
+                    "comportamiento habitual del proveedor; antes de adoptar, "
+                    "repetir la medicion en dias/horas distintas."
+                ),
+            },
+        },
     }
     return report
 
@@ -583,9 +666,10 @@ def to_markdown(report: dict[str, Any]) -> str:
     inc = report["incidencias_api"]
     lineas += [
         "",
-        "## Latencia del carril NVIDIA (llamadas REALES, no servidas desde cache)",
+        "## Latencia del carril NVIDIA (tanda completa: cache + llamadas reales de hoy)",
         "",
-        f"- llamadas reales: {lat['real_calls']}",
+        f"- llamadas medidas (tanda completa): {lat['measured_calls']}",
+        f"- de ellas, reales en esta corrida: {lat['real_calls_this_run']}",
         f"- media: {lat['mean']} ms",
         f"- p95: {lat['p95']} ms",
         f"- maxima: {lat['max']} ms",
@@ -618,6 +702,32 @@ def to_markdown(report: dict[str, Any]) -> str:
         f"- timeouts duros ({EPISODE_TIMEOUT_SECONDS}s): {inc['hard_timeouts']}",
         f"- llamadas fallidas tras agotar reintentos: {inc['failed_calls']}",
         f"- errores distintos observados: {inc['distinct_errors'] or 'ninguno'}",
+    ]
+    decision = report.get("datos_para_decision_de_adopcion")
+    if decision:
+        est = decision["estabilidad"]
+        lineas += [
+            "",
+            "## Datos para la decision de adopcion (operador)",
+            "",
+            f"- coste: precio USD/millon = {decision['coste']['price_per_million_tokens_usd']}; "
+            f"{decision['coste']['nota']}",
+            f"- estabilidad: {est['transport_retries']} reintentos de transporte, "
+            f"{est['hard_timeouts_60s']} timeouts duros de 60s, "
+            f"{est['episodios_perdidos']}/{est['episodios_totales']} episodios perdidos "
+            f"({round(100 * est['episodios_perdidos'] / est['episodios_totales'], 1) if est['episodios_totales'] else 0}%).",
+            f"- advertencia: {est['advertencia']}",
+        ]
+    lineas += [
+        "",
+        "## Nota sobre las etiquetas de los carriles",
+        "",
+        "El carril `heuristico_local_bench` es el extractor heuristico local de",
+        "`semantic_bench` (config A), NO el determinista E2E de B0-B2 (0.607).",
+        "Como aporta estructuralmente 0 en este arnes de claims, la vista",
+        "`nvidia_mas_heuristico_reconciliado` coincide con `nvidia`. La cifra",
+        "comparable al 0.607 exige la via `pipeline.runner.run_one(...,",
+        "external_port=...)` y queda para un bloque futuro (ver docs/v3/40).",
     ]
     return "\n".join(lineas) + "\n"
 

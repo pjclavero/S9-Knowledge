@@ -12,9 +12,9 @@ Ataca cinco puntos concretos del carril NVIDIA en sombra
    de produccion;
 2. si el denominador de `family_recall` (B3) usa la MISMA convencion de
    "casos evaluables" que el runner congelado (B0-B2 excluyen el unico gold
-   ABSTAIN sin polaridad declarada: 56, no 57) -- se demuestra que NO: B3
-   cuenta 57, inflando el denominador con un caso que no puede emparejarse
-   jamas (`subject_mentions`/`object_mentions` vacios);
+   ABSTAIN sin polaridad declarada: 56, no 57) -- tras el dictamen del
+   revisor, family_recall EXCLUYE ese caso (sin `subject_mentions` ni
+   `object_mentions`) y este test fija el denominador en 56;
 3. que un episodio con fallo de proveedor (tras agotar reintentos) NO se
    excluye del denominador de cobertura -- se verifica que SI se cuenta como
    fallo, no como caso invisible;
@@ -113,8 +113,8 @@ def test_el_pipeline_general_acepta_un_proveedor_externo_sobre_el_mismo_split():
 
 
 # ---------------------------------------------------------------------------
-# Hallazgo 2: el denominador de B3 (57) no es el de B0-B2 (56) pese a que el
-# propio docstring de measure_b3.py declara "56 casos evaluables".
+# Hallazgo 2 (CORREGIDO): el denominador de B3 usa ahora la convencion de
+# B0-B2 (56 evaluables); este test fija esa convencion.
 # ---------------------------------------------------------------------------
 def test_family_recall_infla_el_denominador_con_el_unico_gold_abstain():
     """El gold de `negation` tiene 57 claims, 1 de ellos un ABSTAIN puro
@@ -129,15 +129,11 @@ def test_family_recall_infla_el_denominador_con_el_unico_gold_abstain():
     56 casos evaluables -- la misma cifra que cita el docstring de
     `measure_b3.py` ("57 claims / 56 casos evaluables que ya miden B0-B2").
 
-    Pero `family_recall` (B3) NO reproduce esa exclusion: usa
-    `total = len(gold_claims)` = 57. El resultado es que TODAS las cifras de
-    cobertura/recall de las TRES vistas de B3 (determinista, nvidia, union)
-    estan calculadas sobre un denominador un caso mas grande -- y ese caso de
-    mas es estructuralmente incoverable. Con los datos reales de la corrida
-    (20 casos cubiertos de NVIDIA), la diferencia es 0.3509 (20/57, lo
-    publicado) frente a 0.3571 (20/56, la convencion de B0-B2): no cambia el
-    veredicto de la puerta en esta corrida, pero rompe la comparabilidad
-    numerica directa que el propio docstring de B3 da por sentada.
+    Historia: la primera version de `family_recall` (B3) NO reproducia esa
+    exclusion (total=57), lo que daba 0.3509 (20/57) en vez de 0.3571
+    (20/56). Tras el dictamen del revisor, `family_recall` excluye el ABSTAIN
+    puro y este test FIJA la convencion de B0-B2 (56 evaluables) para que no
+    vuelva a divergir.
     """
     gold = load_dev_gold(verify=True)
     gold_claims = gold.claims_for("extractor")
@@ -163,11 +159,12 @@ def test_family_recall_infla_el_denominador_con_el_unico_gold_abstain():
 
     from knowledge_v3.benchmarks.matching import MatchConfig
 
+    # CORREGIDO tras el dictamen: `family_recall` excluye ahora el ABSTAIN
+    # puro del denominador, igual que el runner E2E congelado de B0-B2.
     metrics = b3.family_recall(gold, _BundleVacio(), MatchConfig(symmetric_predicates=gold.symmetric_predicates))
-    assert metrics["evaluable_cases"] == 57, (
-        "measure_b3.family_recall no excluye el ABSTAIN puro: su denominador "
-        "(57) NO coincide con el que B0-B2 declaran evaluable (56), pese a "
-        "que el docstring del propio script cita 56."
+    assert metrics["evaluable_cases"] == 56, (
+        "measure_b3.family_recall debe usar la convencion de B0-B2: 56 casos "
+        "evaluables (el ABSTAIN puro claim:ambar-escaneo:e07:c1 se excluye)."
     )
 
 
@@ -205,7 +202,12 @@ def test_episodio_con_fallo_de_proveedor_cuenta_como_fallo_no_se_excluye():
     metrics = b3.family_recall(gold, bundle, match_config)
 
     gold_claims = gold.claims_for("extractor")
-    assert metrics["evaluable_cases"] == len(gold_claims) == 57, (
+    assert len(gold_claims) == 57
+    # 56 = 57 menos el ABSTAIN puro (convencion de B0-B2, fijada tras el
+    # dictamen). Lo esencial del hallazgo sigue intacto: un proveedor que
+    # falla para TODOS los episodios NO reduce el denominador por debajo de
+    # esos 56 -- los fallos cuentan como casos no cubiertos, no desaparecen.
+    assert metrics["evaluable_cases"] == 56, (
         "un proveedor que falla para TODOS los episodios no debe reducir el "
         "denominador de evaluable_cases: los casos siguen contando, como "
         "fallo, no se excluyen"

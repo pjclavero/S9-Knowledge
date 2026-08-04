@@ -65,8 +65,17 @@ aqui explicitamente, con el mismo criterio que ya usa
 esconde, se dice. La cifra de "determinista" de B3 responde a la pregunta
 "¿que pasa si NVIDIA se compara con el otro extractor determinista del
 repo, en el arnes de matching de claims?", no a "¿mejora el 0.607 de B2?".
-Comparar B3 contra B2 exigiria conectar NVIDIA al MISMO runner E2E, que es
-un carril de integracion mas profundo y no es lo que este bloque midio.
+
+**Como obtener la cifra comparable al 0.607 (via designada, bloque futuro).**
+La conexion mecanica YA existe:
+`knowledge_v3.pipeline.runner.run_one(gold, "external_only", ..., external_port=puerto)`
+acepta un proveedor externo sobre este mismo split sin tocar produccion
+(demostrado con test ejecutable en
+`data-engine/app/tests/test_gate4_b3_adversarial.py`). Lo que queda como
+trabajo real para ese bloque es: envolver `NvidiaProviderPort` con el
+retry/metering/cache de B3 en esa ruta, y resolver la entrada raw-vs-episodes
+del runner. Esa corrida es cara (otra tanda completa contra la API) y es
+decision del orquestador; este bloque NO la ejecuto.
 
 ## Modo sombra: garantias verificadas, no solo declaradas
 
@@ -105,17 +114,27 @@ Cifras completas en `artifacts/gate4-program/b3-nvidia-shadow.{json,md}`,
 generadas de punta a punta por el script (nada transcrito a mano). Lectura
 honesta de la corrida:
 
-* El carril NVIDIA en sombra alcanza cobertura 0.3509 y recall SIMPLE 0.4545
-  en este arnes: **NO_CONFORME** contra los umbrales del programa (0.60 /
-  0.70). Precision 0.5758 con 14 falsos positivos.
-* La configuracion `A` (pipeline heuristico local) da 0.0 en este arnes de
-  claims sobre el split de negaciones: no propone claims emparejables. Esto
-  CONFIRMA la limitacion declarada arriba (no es el 0.607 de B2, que mide
-  otra cadena) y hace que la union reconciliada coincida con NVIDIA sola.
-* La API estuvo notablemente inestable durante la corrida: 50 reintentos de
-  transporte, 31 timeouts duros de 60s y 2 episodios perdidos tras agotar
-  reintentos. Latencia media 36.0s por llamada real, p95 53.4s.
-* Tokens: 239,602 de entrada + 19,140 de salida (258,742 totales) para 60
-  episodios; extrapolacion ~4.31M tokens por 1000 episodios. Sin precio
-  documentado en el repo, el coste queda como parametro
-  (`--price-per-million-tokens-usd`).
+* El carril NVIDIA en sombra alcanza cobertura **0.3571** (20/56 evaluables,
+  convencion de B0-B2: el ABSTAIN puro del gold se excluye del denominador,
+  correccion del dictamen) y recall SIMPLE **0.4545**: **NO_CONFORME** contra
+  los umbrales del programa (0.60 / 0.70). Precision 0.5588 con 15 falsos
+  positivos.
+* La configuracion `A` (etiquetada `heuristico_local_bench` en el artefacto)
+  da 0.0 en este arnes de claims: no propone claims emparejables. Por eso la
+  vista `nvidia_mas_heuristico_reconciliado` coincide con NVIDIA sola (la
+  nota de cada carril lo dice dentro del propio JSON).
+* Estabilidad de la API (tanda original, 2026-08-04 por la manana): 50
+  reintentos de transporte, 31 timeouts duros de 60s y 2 episodios perdidos
+  (3.3%) tras agotar reintentos; latencia media 36.0s por llamada, p95 53.4s.
+  Los 2 episodios perdidos se recuperaron en la regeneracion desde cache del
+  mismo dia (2 llamadas reales adicionales, ambas OK), por lo que el
+  artefacto final cubre 60/60 episodios y su seccion de incidencias refleja
+  la corrida de regeneracion, no la tanda original. **Advertencia**: una sola
+  corrida no distingue un pico puntual del comportamiento habitual del
+  proveedor.
+* Tokens (tanda completa, 60 llamadas): 247,851 de entrada + 19,811 de
+  salida = 267,662 totales (~4,461/episodio); extrapolacion ~4.46M tokens por
+  1000 episodios. No hay precio fiable documentado en el repo ni precio
+  publico por token verificable para este modelo en NVIDIA NIM: el coste
+  queda como parametro (`--price-per-million-tokens-usd`) y la decision de
+  adopcion debe tomarla el operador con su contrato en la mano.

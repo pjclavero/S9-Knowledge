@@ -10,35 +10,36 @@ decide; solo se compara contra el gold y contra el determinista.
 
 | carril | cobertura | recall_simple | recall_overall | precision | falsos positivos |
 | --- | --- | --- | --- | --- | --- |
-| determinista | 0.0 | 0.0 | 0.0 | None | 0 |
-| nvidia | 0.3509 | 0.4545 | 0.3333 | 0.5758 | 14 |
-| union_reconciliada | 0.3509 | 0.4545 | 0.3333 | 0.5758 | 14 |
+| heuristico_local_bench | 0.0 | 0.0 | 0.0 | None | 0 |
+| nvidia | 0.3571 | 0.4545 | 0.3393 | 0.5588 | 15 |
+| nvidia_mas_heuristico_reconciliado | 0.3571 | 0.4545 | 0.3393 | 0.5588 | 15 |
 
 ## Puertas (umbral del programa, no redefinido por B3)
 
 | carril | puerta | umbral | observado | veredicto |
 | --- | --- | --- | --- | --- |
-| determinista | cobertura_e2e_dev | 0.6 | 0.0 | NO_CONFORME |
-| determinista | recall_simple | 0.7 | 0.0 | NO_CONFORME |
-| nvidia | cobertura_e2e_dev | 0.6 | 0.3509 | NO_CONFORME |
+| heuristico_local_bench | cobertura_e2e_dev | 0.6 | 0.0 | NO_CONFORME |
+| heuristico_local_bench | recall_simple | 0.7 | 0.0 | NO_CONFORME |
+| nvidia | cobertura_e2e_dev | 0.6 | 0.3571 | NO_CONFORME |
 | nvidia | recall_simple | 0.7 | 0.4545 | NO_CONFORME |
-| union_reconciliada | cobertura_e2e_dev | 0.6 | 0.3509 | NO_CONFORME |
-| union_reconciliada | recall_simple | 0.7 | 0.4545 | NO_CONFORME |
+| nvidia_mas_heuristico_reconciliado | cobertura_e2e_dev | 0.6 | 0.3571 | NO_CONFORME |
+| nvidia_mas_heuristico_reconciliado | recall_simple | 0.7 | 0.4545 | NO_CONFORME |
 
-## Latencia del carril NVIDIA (llamadas REALES, no servidas desde cache)
+## Latencia del carril NVIDIA (tanda completa: cache + llamadas reales de hoy)
 
-- llamadas reales: 58
-- media: 36011.0 ms
-- p95: 53405.9 ms
+- llamadas medidas (tanda completa): 60
+- de ellas, reales en esta corrida: 0
+- media: 36075.7 ms
+- p95: 53320.6 ms
 - maxima: 58522 ms
 
 ## Tokens y extrapolacion
 
-- tokens de entrada (total): 239602
-- tokens de salida (total): 19140
-- tokens totales: 258742
-- tokens medios por episodio: 4312.4
-- extrapolacion a 1000 episodios (tokens): 4312366.7
+- tokens de entrada (total): 247851
+- tokens de salida (total): 19811
+- tokens totales: 267662
+- tokens medios por episodio: 4461.0
+- extrapolacion a 1000 episodios (tokens): 4461033.3
 - precio USD/millon de tokens: None
 - coste estimado de esta corrida: None
 - coste estimado por 1000 episodios: None
@@ -46,14 +47,29 @@ decide; solo se compara contra el gold y contra el determinista.
 
 ## Cache y llamadas reales vs servidas
 
-- servidas desde cache: 0
-- llamadas reales (miss de cache): 60
-- llamadas reales OK: 58
-- llamadas reales fallidas: 2
+- servidas desde cache: 60
+- llamadas reales (miss de cache): 0
+- llamadas reales OK: 0
+- llamadas reales fallidas: 0
 
 ## Incidencias con la API NVIDIA
 
-- reintentos de transporte usados: 50
-- timeouts duros (60s): 31
-- llamadas fallidas tras agotar reintentos: 2
-- errores distintos observados: ['ProviderUnavailable']
+- reintentos de transporte usados: 0
+- timeouts duros (60s): 0
+- llamadas fallidas tras agotar reintentos: 0
+- errores distintos observados: ninguno
+
+## Datos para la decision de adopcion (operador)
+
+- coste: precio USD/millon = None; sin precio fiable documentado en el repo ni precio publico por token verificable para este modelo en NVIDIA NIM en el momento de la corrida; el coste real depende del contrato del operador. Los tokens medidos y la extrapolacion a 1000 episodios estan en la seccion `tokens`.
+- estabilidad: 0 reintentos de transporte, 0 timeouts duros de 60s, 0/60 episodios perdidos (0.0%).
+- advertencia: una sola corrida no distingue un pico puntual del comportamiento habitual del proveedor; antes de adoptar, repetir la medicion en dias/horas distintas.
+
+## Nota sobre las etiquetas de los carriles
+
+El carril `heuristico_local_bench` es el extractor heuristico local de
+`semantic_bench` (config A), NO el determinista E2E de B0-B2 (0.607).
+Como aporta estructuralmente 0 en este arnes de claims, la vista
+`nvidia_mas_heuristico_reconciliado` coincide con `nvidia`. La cifra
+comparable al 0.607 exige la via `pipeline.runner.run_one(...,
+external_port=...)` y queda para un bloque futuro (ver docs/v3/40).

@@ -11,8 +11,9 @@
     "claims": 57
   },
   "lanes": {
-    "determinista": {
+    "heuristico_local_bench": {
       "config": "A",
+      "nota": "pipeline heuristico local de semantic_bench (config A); NO es el runner E2E determinista de B0-B2 (cobertura 0.607). Sobre este arnes de claims aporta estructuralmente 0.",
       "metrics": {
         "coverage": 0.0,
         "recall_overall": 0.0,
@@ -51,7 +52,7 @@
             "recall": 0.0
           },
           "QUESTION_CONDITIONAL_RUMOR": {
-            "cases": 4,
+            "cases": 3,
             "coverage": 0.0,
             "recall": 0.0
           },
@@ -66,11 +67,11 @@
             "recall": 0.0
           }
         },
-        "evaluable_cases": 57,
+        "evaluable_cases": 56,
         "covered_cases": 0
       },
       "gates": {
-        "lane": "determinista",
+        "lane": "heuristico_local_bench",
         "cobertura_e2e_dev": {
           "umbral": 0.6,
           "observado": 0.0,
@@ -86,12 +87,13 @@
     },
     "nvidia": {
       "config": "C2",
+      "nota": "carril semantico NVIDIA en SOMBRA (nunca escribe, nunca decide).",
       "metrics": {
-        "coverage": 0.3509,
-        "recall_overall": 0.3333,
+        "coverage": 0.3571,
+        "recall_overall": 0.3393,
         "recall_simple": 0.4545,
-        "precision": 0.5758,
-        "false_positives": 14,
+        "precision": 0.5588,
+        "false_positives": 15,
         "by_family": {
           "CESSATION": {
             "cases": 10,
@@ -124,9 +126,9 @@
             "recall": 0.5
           },
           "QUESTION_CONDITIONAL_RUMOR": {
-            "cases": 4,
-            "coverage": 0.5,
-            "recall": 0.5
+            "cases": 3,
+            "coverage": 0.6667,
+            "recall": 0.6667
           },
           "SCOPE_EMBEDDED": {
             "cases": 5,
@@ -139,14 +141,14 @@
             "recall": 0.4545
           }
         },
-        "evaluable_cases": 57,
+        "evaluable_cases": 56,
         "covered_cases": 20
       },
       "gates": {
         "lane": "nvidia",
         "cobertura_e2e_dev": {
           "umbral": 0.6,
-          "observado": 0.3509,
+          "observado": 0.3571,
           "veredicto": "NO_CONFORME"
         },
         "recall_simple": {
@@ -155,16 +157,17 @@
           "veredicto": "NO_CONFORME"
         }
       },
-      "wall_ms": 4416583
+      "wall_ms": 584
     },
-    "union_reconciliada": {
+    "nvidia_mas_heuristico_reconciliado": {
       "config": "D-R",
+      "nota": "union del heuristico local + NVIDIA pasada por el ProposalReconciler de B2. Como el heuristico local aporta 0 en este arnes, esta vista coincide con NVIDIA sola: NO es la union con el determinista E2E de B2 (esa medicion es de un bloque futuro, via pipeline.runner.run_one con external_port).",
       "metrics": {
-        "coverage": 0.3509,
-        "recall_overall": 0.3333,
+        "coverage": 0.3571,
+        "recall_overall": 0.3393,
         "recall_simple": 0.4545,
-        "precision": 0.5758,
-        "false_positives": 14,
+        "precision": 0.5588,
+        "false_positives": 15,
         "by_family": {
           "CESSATION": {
             "cases": 10,
@@ -197,9 +200,9 @@
             "recall": 0.5
           },
           "QUESTION_CONDITIONAL_RUMOR": {
-            "cases": 4,
-            "coverage": 0.5,
-            "recall": 0.5
+            "cases": 3,
+            "coverage": 0.6667,
+            "recall": 0.6667
           },
           "SCOPE_EMBEDDED": {
             "cases": 5,
@@ -212,14 +215,14 @@
             "recall": 0.4545
           }
         },
-        "evaluable_cases": 57,
+        "evaluable_cases": 56,
         "covered_cases": 20
       },
       "gates": {
-        "lane": "union_reconciliada",
+        "lane": "nvidia_mas_heuristico_reconciliado",
         "cobertura_e2e_dev": {
           "umbral": 0.6,
-          "observado": 0.3509,
+          "observado": 0.3571,
           "veredicto": "NO_CONFORME"
         },
         "recall_simple": {
@@ -228,23 +231,24 @@
           "veredicto": "NO_CONFORME"
         }
       },
-      "wall_ms": 4416598
+      "wall_ms": 599
     }
   },
   "latency": {
     "unit": "ms",
-    "real_calls": 58,
-    "mean": 36011.0,
-    "p95": 53405.9,
+    "measured_calls": 60,
+    "real_calls_this_run": 0,
+    "mean": 36075.7,
+    "p95": 53320.6,
     "max": 58522
   },
   "tokens": {
-    "prompt_tokens_total": 239602,
-    "completion_tokens_total": 19140,
-    "total_tokens": 258742,
+    "prompt_tokens_total": 247851,
+    "completion_tokens_total": 19811,
+    "total_tokens": 267662,
     "episodes_measured": 60,
-    "tokens_per_episode_mean": 4312.4,
-    "extrapolation_1000_episodes_tokens": 4312366.7,
+    "tokens_per_episode_mean": 4461.0,
+    "extrapolation_1000_episodes_tokens": 4461033.3,
     "price_per_million_tokens_usd": null,
     "estimated_cost_usd_this_run": null,
     "estimated_cost_usd_1000_episodes": null,
@@ -252,21 +256,32 @@
   },
   "cache": {
     "path": "artifacts/gate4-program/b3-cache/responses.json",
-    "calls_real": 58,
-    "calls_failed": 2,
-    "calls_served_from_cache": 0,
-    "calls_missed_cache": 60
+    "calls_real": 0,
+    "calls_failed": 0,
+    "calls_served_from_cache": 60,
+    "calls_missed_cache": 0
   },
   "incidencias_api": {
-    "transport_retries_used": 50,
-    "hard_timeouts": 31,
-    "failed_calls": 2,
-    "distinct_errors": [
-      "ProviderUnavailable"
-    ]
+    "transport_retries_used": 0,
+    "hard_timeouts": 0,
+    "failed_calls": 0,
+    "distinct_errors": []
   },
   "wall_ms": {
     "A": 15,
-    "C2": 4416584
+    "C2": 584
+  },
+  "datos_para_decision_de_adopcion": {
+    "coste": {
+      "price_per_million_tokens_usd": null,
+      "nota": "sin precio fiable documentado en el repo ni precio publico por token verificable para este modelo en NVIDIA NIM en el momento de la corrida; el coste real depende del contrato del operador. Los tokens medidos y la extrapolacion a 1000 episodios estan en la seccion `tokens`."
+    },
+    "estabilidad": {
+      "transport_retries": 0,
+      "hard_timeouts_60s": 0,
+      "episodios_perdidos": 0,
+      "episodios_totales": 60,
+      "advertencia": "una sola corrida no distingue un pico puntual del comportamiento habitual del proveedor; antes de adoptar, repetir la medicion en dias/horas distintas."
+    }
   }
 }
