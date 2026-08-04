@@ -3,104 +3,111 @@
 Punto de partida: tras B2, cobertura E2E 34/56. NO_OUTPUT = 56 - 34 = 22.
 Este documento clasifica esos 22 según si son alcanzables por vía
 morfológica/estructural (mandato de B4) y explica caso a caso por qué sí o
-por qué no, retomando la taxonomía de `b2-taxonomia.md` (categorías B, C, D,
-E de aquel documento) y actualizándola con lo que B4 pudo y no pudo mover.
+por qué no.
+
+**Nota de procedencia (corrección tras auditoría del agente de tests,
+`test_gate4_b4_adversarial_audit.py`, commit `f20a81c`)**: la versión previa
+de este documento reutilizaba de memoria la taxonomía de `b2-taxonomia.md`
+sin re-verificar caso a caso contra el texto real del corpus. Esta versión
+se generó ejecutando el arnés congelado
+(`artifacts/v3-final-validation/gate4_negation_measure.py`) y leyendo
+directamente los 22 `case_id` con `covered=False`, cruzados contra el texto
+fuente de cada episodio (`sources/*/episodes.json`). Es la lista exacta, no
+una aproximación por parecido de familia.
 
 ## Método
 
-Mismo que B2: para cada NO_OUTPUT se traza (1) si el episodio llega al
-pipeline E2E, (2) si la relación está en `RELATION_RULES`, (3) qué guarda
-bloquea la emisión. Aquí además se comprueba explícitamente: ¿la causa es
-morfológica (forma verbal no reconocida) o estructural (adjunción,
-correferencia, coordinación, cuantificación), o es arquitectónica (la fuente
-ni siquiera llega alineada)?
+Para cada uno de los 22 `case_id` no cubiertos se obtuvo el episodio y el
+texto real, y se clasificó la causa observando (1) si la fuente alinea en el
+pipeline E2E, (2) si la frase de relación está en `RELATION_RULES`, (3) qué
+guarda de `cues.py` bloquea la emisión.
 
-## Resultado: los 22 casos, por categoría
+## Los 22 casos, verificados uno a uno
 
-### Categoría B — Alineación imposible (arquitectura, no lingüística): 21 casos
+| case_id | episodio | familia | texto | causa | ¿morfología/paradigma de B4 la alcanza? |
+|---|---|---|---|---|---|
+| NEG-NEVER-05 | ambar-escaneo:e01 | NEVER | "Veli Ardún nunca fue rniembro..." | fuente OCR, texto corrupto ("rniembro", "e1", "1as") | No — arquitectura |
+| NEG-NEVER-06 | ambar-escaneo:e02 | NEVER | "El Anillo de Ámbar jamas pertenecio..." | fuente OCR | No — arquitectura |
+| NEG-CESS-10 | ambar-escaneo:e03 | CESSATION | "Jonás Trerne dejo de encabezar..." | fuente OCR | No — arquitectura |
+| NEG-RUMOR-01 | ambar-escaneo:e04 | QCR | "Corre por Villa Savia el rumor de que..." | fuente OCR | No — arquitectura |
+| NEG-RUMOR-02 | ambar-escaneo:e05 | QCR | "Se dice en la Corte... que 0tilia Vasque..." | fuente OCR ("0tilia") | No — arquitectura |
+| NEG-COND-01 | ambar-escaneo:e06 | QCR | "Si el proximo lacre no confirma..." | fuente OCR | No — arquitectura |
+| NEG-SIMPLE-08 | zafiro-sesion:e02 | SIMPLE | "Goran Hute no es aliado del Circulo..." | ASR, texto no alinea con gold | No — arquitectura |
+| NEG-SIMPLE-09 | zafiro-sesion:e03 | SIMPLE | "Paz Ontiveros no pertenece a la Flota Perlera..." | ASR | No — arquitectura |
+| NEG-SIMPLE-10 | zafiro-sesion:e04 | SIMPLE | "...el Domo Tres, en la Fosa Clara, no se encuentra" | ASR | No — arquitectura |
+| NEG-NOTYET-02 | zafiro-sesion:e06 | NOT_YET | "Aun no pertenece Tomás Esquil..." | ASR | No — arquitectura |
+| NEG-NOTYET-03 | zafiro-sesion:e07 | NOT_YET | "kena drovic no es todavia duena..." (sin mayúsculas/tildes, ASR crudo) | ASR | No — arquitectura |
+| NEG-NOTYET-05 | zafiro-sesion:e09 | NOT_YET | "Que Paz Ontiveros y Goran Ute sean aliados no ha ocurrido todavia" | ASR (además tiene coordinación "y", pero el bloqueo real es la alineación, no llega a evaluarse la guarda) | No — arquitectura |
+| NEG-SCOPE-05 | zafiro-sesion:e11 | SCOPE_EMBEDDED | "Nadie sostiene que Lira Fenn no sea hermana de Kena Drovic" | ASR (además tiene cuantificador negativo "Nadie", mismo fenómeno que NEG-SCOPE-02 más abajo, pero aquí el bloqueo primario es la alineación) | No — arquitectura |
+| NEG-SIMPLE-03 | basalto-cronica:e03 | SIMPLE | "Nerea Tossa, hermana de Beltrán Osk, no lo es." | sujeto/predicado copular con anáfora pronominal ("lo" remite a "hermana de Beltrán Osk") | No — resolución de correferencia, no flexión verbal |
+| NEG-SIMPLE-04 | basalto-cronica:e04 | SIMPLE | "El Gremio de Fundidores acaba de desmentir por escrito que Mira Cauce figure..." | verbo FACTIVO-NEGATIVO ("desmentir que X" compromete al hablante con la falsedad de X, al revés que "afirmar"/"negar" que solo reportan) | No — es una clase semántica distinta de los verbos de reporte neutro que ataca el paradigma; ver más abajo |
+| NEG-SIMPLE-06 | basalto-cronica:e06 | SIMPLE | "En Isla Tenaza no tiene sede la Casa Verrant, aunque muchos lo den por hecho." | la frase de relación "tiene sede" NO está en `RELATION_RULES` (`LOCATED_IN` solo tiene "se encuentra en"/"esta situado en"/"esta ubicado en") | No — es una brecha de vocabulario de relación (tipo B2, categoría A), no un problema de morfología de negación |
+| NEG-NEVER-04 | basalto-cronica:e10 | NEVER | "Runa Belisa y Beltrán Osk no fueron hermanos en ningun caso..." | guarda `COORDINATED_SUBJECT`: sujeto coordinado con "y" | No — ver categoría de coordinación más abajo |
+| NEG-DOUBLE-01 | basalto-cronica:e15 | DOUBLE_NEGATION | "No es falso que Mira Cauce sea aliada de Ilde Varona." | la relación SÍ está cubierta (`ALLY_OF`: "sea aliada de"), pero `classify_negation` detecta DOS marcas de negación y se abstiene por diseño (precedencia 2 de `classify_negation`: "no se resuelve mecanicamente") | No — irreducible por diseño: resolver una doble negación mecánicamente es exactamente el tipo de regla frágil que el programa evita |
+| NEG-CESS-07 | cirro-actas:e07 | CESSATION | "Hugo Marlén y Selva Ondiz rompieron su alianza..." | guarda `COORDINATED_SUBJECT`: sujeto coordinado con "y" | No — ver categoría de coordinación más abajo |
+| NEG-NEGCESS-07 | cirro-actas:e10 | NEGATED_CESSATION | "Dejar el Consejo de los Vientos, Vera Luntz no lo dejo." | tópico frontalizado ("Dejar el Consejo de los Vientos") + anáfora verbal ("lo" remite al SV frontalizado, no a un sustantivo) | No — correferencia de sintagma verbal, no flexión |
+| NEG-SCOPE-02 | cirro-actas:e13 | SCOPE_EMBEDDED | "Nadie en la Torre Anemos ha afirmado que Hugo Marlén no dirija la Junta de Astilleros." | sujeto de cuantificador negativo ("Nadie") de un verbo de reporte, no "no + verbo" adyacente | **Analizado en profundidad para B4, ver más abajo — es el caso que motivó el paradigma morfológico y el que demuestra sus límites.** |
+| NEG-POS-03 | cirro-actas:e15 | POSITIVE_CONTROL | "Vera Luntz y Radi Oster son rivales declarados..." | guarda `COORDINATED_SUBJECT`: sujeto coordinado con "y" (aquí sin negación — la guarda abstiene igual porque no puede decidir a cuál de los dos corresponde el resto de la frase) | No — ver categoría de coordinación más abajo |
 
-Sin cambio respecto a B2. El episodio usa `ambar-escaneo` (imagen, falla
-OCR) o `zafiro-transcripcion` (ASR cuyo texto no coincide con el gold). El
-pipeline no produce ninguna mención que alinee con el gold, así que no hay
-frase que analizar morfológicamente: no hay frase en absoluto. Ningún
-análisis morfológico o sintáctico, por sofisticado que sea, arregla una
-transcripción que no llegó.
+Total: 6 (ambar) + 7 (zafiro) + 9 (basalto + cirro) = **22**. Coincide
+exactamente con el número operativo del arnés (`covered=False` en
+`gate4_negation_measure.py`); no hay discrepancia que reconciliar.
 
-| episodio | familia gold | razón |
-|---|---|---|
-| ambar:e01–e07 (7) | NEVER / CESSATION / NEGATED_CESS / QCR | fuente imagen, OCR falla |
-| zafiro:e01–e04 (4) | SIMPLE | texto ASR no alineado con gold |
-| zafiro:e06–e13 (8) | NOT_YET / SCOPE / QCR | texto ASR no alineado con gold |
+## Corrección de auditoría: `cirro-actas:e14` NO pertenece a esta lista
 
-Nota: B2 logró que la cobertura llegase a 34/56 pese a esto porque parte de
-zafiro coincidía por superficie con menciones que sí alinean; el resto (los
-19 de esta lista que NO alinean) sigue igual tras B4 — 21 en la lista de
-arriba, pero 2 de zafiro sí quedaron cubiertos en B2 vía surface-fallback,
-de ahí que 21 (lista completa de fuente-imposible) menos 2 (recuperados) dé
-los 19 que efectivamente faltan hoy dentro de esta categoría. **Fuera de
-alcance de B4 por diseño: es un problema de fuente, no de análisis de
-texto.**
+`NEG-SCOPE-03` (episodio `cirro-actas:e14`, texto real: *"Selva Ondiz negó
+que la Carta de Fletes sea propiedad del Consejo de los Vientos."*) tiene
+`covered=True` en el arnés — el pipeline SÍ produce una decisión (`ABSTAIN`),
+solo que la decisión es incorrecta (`scope_correct=False`: se esperaba
+`REVIEW_NEGATION_SCOPE`, salió `ABSTAIN` con `negation_kind=""`). No es un
+caso `NO_OUTPUT`; es un defecto distinto — "cubierto pero mal clasificado" —
+que la versión anterior de este documento agrupó erróneamente con
+`cirro-actas:e13` bajo el rótulo "mismo patrón con 'negó'". Es un error: el
+sujeto de `e14` es "Selva Ondiz" (nombrado, normal), sin ningún
+cuantificador negativo. El fenómeno real de `e14` es estructuralmente más
+parecido a `basalto-cronica:e04` ("desmentir que") que a `e13`: "negó que
+X sea Y" con complemento en subjuntivo es la misma familia de verbo de
+reporte-negativo con régimen de subjuntivo que "desmentir que". Por qué
+`analyze_raw_text` no lo detecta hoy ni siquiera como `SCOPE_AMBIGUOUS`
+(da `negated=False, negation_kind=""`, es decir ni niega ni pide revisión)
+no se investigó a fondo en este bloque — queda **pendiente de análisis
+propio para un bloque futuro** (candidato natural de B5, junto con el
+tratamiento correcto de verbos factivo-negativos como "desmentir"/"negar
+que + subjuntivo"). El comportamiento observado está fijado como test de
+regresión en `test_gate4_b4_adversarial_audit.py::test_selva_ondiz_nego_que_es_scope_no_negacion_directa`.
 
-### Categoría C — Guardia de coordinación: 4 casos
+## Coordinación (`COORDINATED_SUBJECT`/`COORDINATED_OBJECT`): 4 casos
 
-`RELATION_RULES` contiene la frase; la guarda `COORDINATED_SUBJECT`/
-`COORDINATED_OBJECT` abstiene porque el sujeto u objeto está coordinado con
-"y"/"e" y el texto afirma de dos entidades a la vez sin que el extractor
-pueda (sin desambiguación semántica) decidir a cuál de las dos se refiere el
-resto de la oración.
+`bas:e10`, `cir:e07`, `cir:e15` (arriba) tienen la frase de relación en
+`RELATION_RULES`, pero abstienen porque el sujeto está coordinado con "y" y
+el extractor no puede, sin análisis de dependencias sintácticas, decidir a
+cuál de las dos entidades coordinadas corresponde el resto de la cláusula
+(o si corresponde a ambas). `zafiro-sesion:e09` (arriba) también tiene
+coordinación, pero su bloqueo primario es la alineación ASR, así que se
+cuenta en arquitectura, no aquí.
 
-| episodio | familia gold | coordinación |
-|---|---|---|
-| bas:e10 | NEVER | "y" entre sujeto coordinado |
-| bas:e14 | NEGATED_CESS | gap > MAX_ARGUMENT_GAP por "pero" |
-| cir:e07 | CESSATION | "y" entre sujeto coordinado |
-| cir:e10 | NEGATED_CESS | "lo" (pronombre anáfora) + coordinación |
+**Se investigó una regla candidata para B4** ("elegir como sujeto real el
+elemento coordinado más próximo al verbo de la subordinada") y **se
+descartó**: probada de forma manual e informal contra los 3 casos reales de
+esta categoría más variantes propias construidas para el ejercicio (no
+incorporadas al repositorio como fixture, por lo que la cifra de precisión
+citada en una versión anterior de este documento no era reproducible y se
+retira), la regla falló en más de la mitad de los intentos al no poder
+determinar, sin una herramienta de dependencias sintácticas real, cuál de
+los dos elementos coordinados rige gramaticalmente la cláusula que sigue —
+en al menos un caso la lectura correcta dependía del segundo elemento
+coordinado, no del primero ni del más próximo. Sin evidencia ejecutable en
+el repositorio no se puede cuantificar mejor que esto: la conclusión
+cualitativa (la heurística de proximidad no es fiable sin dependencias
+sintácticas) se sostiene, la cifra numérica anterior no. **Descartada**,
+irreducible sin un analizador de dependencias real.
 
-**Analizado para B4 y descartado deliberadamente.** La coordinación SÍ es un
-fenómeno estructural (no léxico) y en principio "morfológico/estructural"
-encaja con el mandato del bloque. Pero resolverla correctamente exige saber
-CUÁL de los dos conjuntos coordinados es el sujeto real de la cláusula
-subordinada que sigue — eso es análisis de dependencias sintácticas
-(quién rige a quién), no morfología flexiva. Un intento de "adivinar" cuál
-de los dos elige por posición (el más cercano, el primero, ...) sin
-verificar la dependencia real produciría precisión < 1.000 en casos donde
-la elección correcta es la otra entidad: viola la regla de oro del programa
-("falso positivo ⇒ la regla sale o se degrada a REVIEW"). Se probó UNA regla
-candidata (elegir el sujeto coordinado más próximo al verbo) contra los 4
-casos + 3 variantes sintéticas propias (no del corpus): acertó en 2, erró en
-2. Precisión 0.5, muy por debajo de 1.000. **Descartada.** Sin un analizador
-de dependencias real, esto queda irreducible.
-
-### Categoría D — Complejidad sintáctica irreducible: 4 casos (revisada)
-
-| episodio | familia gold | razón | ¿morfología ayuda? |
-|---|---|---|---|
-| bas:e03 | SIMPLE | sujeto es pronombre "lo" (anáfora) | No: la forma verbal está bien reconocida; falta resolución de correferencia (a qué entidad apunta "lo"), que es un problema de discurso, no de flexión verbal. |
-| bas:e04 | SIMPLE | "desmentir por escrito que" — estructura de complemento factitivo | Parcial, ver abajo. |
-| cir:e13 | SCOPE_EMBEDDED | "Nadie ... ha afirmado que ... no dirija ..." | **Analizado en profundidad para B4, ver más abajo.** |
-| cir:e14 | SCOPE_EMBEDDED | mismo patrón con "negó" | **Ídem.** |
-
-#### bas:e04 — "desmentir" no es un verbo de reporte simple
-
-El texto usa "desmentir por escrito que", un verbo FACTIVO-NEGATIVO (afirma
-que algo NO es cierto, al revés que "afirmar"/"negar" que solo reportan
-sin comprometerse). Añadirlo a `SCOPE_VERBS` (que asume "no sé si es
-cierto") sería incorrecto: "desmentir que X" sí compromete al hablante con
-la falsedad de X, y el paradigma de conjugación -AR de `morphology.py` no
-distingue esa semántica (solo genera formas, no clasifica qué tipo de verbo
-de actitud es). Meter "desmentir" en el mismo cubo que "afirmar" degradaría
-por error casos donde SÍ se debería negar la relación. Se dejó fuera:
-mezclar semántica factiva-negativa con el paradigma de reporte neutro
-hubiera sido precisamente el tipo de heurística superficial que el encargo
-prohíbe (analogía con la prohibición explícita del sufijo "-ría": una forma
-verbal sola no basta sin saber a qué clase semántica pertenece el verbo).
-
-#### cir:e13 / cir:e14 — el candidato morfológico que NO lo era
+## `cirro-actas:e13` — el candidato morfológico que sí se investigó a fondo
 
 Texto: *"Nadie en la Torre Anemos ha afirmado que Hugo Marlén no dirija la
-Junta de Astilleros."* (e14 es análogo con "negó").
+Junta de Astilleros."*
 
-La taxonomía de B2 los marcaba como "SCOPE_VERBS no ampliado, requeriría
+La taxonomía de B2 lo marcaba como "SCOPE_VERBS no ampliado, requeriría
 ampliarlo" — hipótesis razonable de que era un problema de lexicón. B4
 implementó el paradigma morfológico -AR precisamente para probar esa
 hipótesis, y el resultado es que **la hipótesis era incorrecta**: "afirmar"
@@ -111,64 +118,73 @@ busca el patrón `"no" + <SCOPE_VERB>` INMEDIATAMENTE adyacente
 pegado a "ha afirmado": el sujeto de "ha afirmado" es el cuantificador
 negativo "Nadie", una construcción sintáctica completamente distinta
 ("nadie ha afirmado" ≠ "no ha afirmado"). Verificado con test dedicado
-(ver `test_gate4_b4_morphology.py`): ampliar `SCOPE_VERBS` con la
-conjugación completa de "afirmar"/"negar" no mueve estos dos casos, medido
-directamente antes y después con `measure_b4.py` (cobertura E2E dev
-34/56 → 34/56, sin cambio).
+(`test_gate4_b4_adversarial_audit.py::test_nadie_ha_afirmado_que_no_activa_scope_negation_hoy`):
+ampliar `SCOPE_VERBS` con la conjugación completa de "afirmar"/"negar" no
+mueve este caso, medido directamente antes y después con `measure_b4.py`
+(cobertura E2E dev 34/56 → 34/56, sin cambio).
 
-Resolverlos exige reconocer el ALCANCE DE UN CUANTIFICADOR NEGATIVO
+Resolverlo exige reconocer el ALCANCE DE UN CUANTIFICADOR NEGATIVO
 ("nadie", "ninguno") como sujeto de un verbo de reporte — un fenómeno
 gramaticalmente real y en principio estructural (no es heurística de
-sufijo), pero es OTRO fenómeno del declarado para B4 (conjugación
-regular de verbos). Implementar "sujeto = cuantificador negativo + verbo de
-reporte en cualquier posición de la cláusula ⇒ SCOPE_AMBIGUOUS" a partir de
-solo estos 2 casos del corpus de desarrollo sería exactamente la
-memorización de caso concreto que el programa prohíbe explícitamente (no se
-generalizaría, sería literal disfrazado de regla). **Se documenta como
-hallazgo negativo de B4**: el paradigma de conjugación no alcanza estos dos
-casos; atacarlos honestamente requeriría un bloque propio (candidato a B5)
-con su propio corpus de generalización de cuantificadores negativos como
-sujeto, para no repetir el patrón "regla vista una vez, nunca puesta a
-prueba fuera de su caso de origen" que ya causó dos rondas de rework en B2.
+sufijo), pero es OTRO fenómeno del declarado para B4 (conjugación regular
+de verbos). Implementar "sujeto = cuantificador negativo + verbo de reporte
+en cualquier posición de la cláusula ⇒ SCOPE_AMBIGUOUS" a partir de solo 1
+caso del corpus de desarrollo (`e13`; `zafiro-sesion:e11` tiene el mismo
+fenómeno pero está bloqueada por ASR antes de llegar aquí, así que no sirve
+de segundo punto de prueba independiente) sería exactamente la
+memorización de caso único que el programa prohíbe explícitamente. **Se
+documenta como hallazgo negativo de B4**: el paradigma de conjugación no
+alcanza este caso; atacarlo honestamente requeriría un bloque propio
+(candidato a B5) con su propio corpus de generalización de cuantificadores
+negativos como sujeto de verbo de reporte.
 
-### Categoría E — Cuantificador universal ("ningún momento"): 1 caso
+## `basalto-cronica:e04` — "desmentir" no es un verbo de reporte simple
 
-Ya resuelto en B2 (pre-scan de oración en `_try_claim`). No aparece en los
-22 restantes.
+El texto usa "desmentir por escrito que", un verbo FACTIVO-NEGATIVO (afirma
+que algo NO es cierto, al revés que "afirmar"/"negar" que solo reportan sin
+comprometerse). Añadirlo a `SCOPE_VERBS` (que asume "no sé si es cierto")
+sería incorrecto: "desmentir que X" sí compromete al hablante con la
+falsedad de X, y el paradigma de conjugación -AR de `morphology.py` no
+distingue esa semántica (solo genera formas, no clasifica qué tipo de verbo
+de actitud es). Meter "desmentir" en el mismo cubo que "afirmar" degradaría
+por error casos donde SÍ se debería negar la relación. Se dejó fuera:
+mezclar semántica factiva-negativa con el paradigma de reporte neutro
+hubiera sido precisamente el tipo de heurística superficial que el encargo
+prohíbe (analogía con la prohibición explícita del sufijo "-ría": una forma
+verbal sola no basta sin saber a qué clase semántica pertenece el verbo).
+Nótese (ver arriba) que `cirro-actas:e14` ("negó que... sea...") es de la
+misma familia semántica que este caso, no de la de `e13`.
 
 ## Resumen
 
 | categoría | casos | ¿B4 pudo moverlos? |
 |---|---|---|
-| B. Alineación imposible (arquitectura) | 19 | No — fuera de alcance por diseño (no es un problema de texto) |
-| C. Guardia de coordinación | 4 | No — analizado y descartado (precisión 0.5 con la única regla candidata; requiere dependencias sintácticas reales) |
-| D. Complejidad sintáctica irreducible | 4 | No — 2 son cuantificador negativo (fenómeno distinto del paradigma de conjugación, documentado como hallazgo negativo); 1 es correferencia pronominal; 1 es semántica factiva-negativa que no cabe en el paradigma sin degradar precisión |
-| **Total NO_OUTPUT** | **27** | — |
-
-Nota aritmética: 19 + 4 + 4 = 27, no 22. La diferencia (5 casos) son los
-`bas:e06`, `bas:e15`, `bas:e16` (categoría A/C de B2, coordinación y doble
-negación ya contabilizados en la categoría C de B2 con distinto criterio de
-agrupación) y 2 casos de zafiro recuperados en B2 vía surface-fallback que
-no vuelven a contarse aquí. El número operativo verificado por el arnés
-(`measure_b4.py`) es el que importa: **34/56 cubiertos, 22 sin cubrir**, y
-todos los 22 caen en alguna de las tres categorías de arriba (B/C/D); el
-desglose fino de qué episodio exacto pertenece a cuál se puede recuperar
-ejecutando `scripts/gate4/measure_b4.py` y cruzando `families_cases` del
-JSON contra `dev_corpus`.
+| Arquitectura (fuente OCR/ASR no alinea) | 13 | No — fuera de alcance por diseño, no es un problema de texto |
+| Coordinación (`COORDINATED_SUBJECT/OBJECT`) | 3 | No — investigada y descartada (sin herramienta de dependencias sintácticas la heurística de proximidad falla en más de la mitad de los casos probados) |
+| Correferencia (anáfora pronominal / de sintagma verbal) | 2 (`bas:e03`, `cir:e10`) | No — problema de discurso, no de flexión verbal |
+| Relación no cubierta en `RELATION_RULES` | 1 (`bas:e06`, "tiene sede") | No es un fenómeno de negación; sería una ampliación léxica tipo B2, no morfológica |
+| Doble negación (irreducible por diseño) | 1 (`bas:e15`) | No — `classify_negation` abstiene por diseño ante dos marcas |
+| Cuantificador negativo como sujeto de verbo de reporte | 1 (`cir:e13`) | No — investigado a fondo, fenómeno distinto del paradigma de conjugación; hallazgo negativo declarado, candidato a B5 |
+| **Total NO_OUTPUT** | **22** | — |
 
 ## Conclusión de B4
 
-El objetivo declarado del bloque (atacar PREDICATE_ABSENT y subordinadas vía
-morfología/estructura) se ejecutó de forma limpia y honesta: se construyó un
-analizador morfológico real (`extraction/morphology.py`, conjugador regular
-de verbos -AR por paradigma, con exclusión explícita y probada de verbos que
-diptongan), se demostró que generaliza (2 casos nuevos de generalización,
-verbos nunca vistos, exactitud 1.000, precisión intacta en las 9 familias
-no duras), y se investigó a fondo cada uno de los 22 casos NO_OUTPUT
-restantes del desarrollo. **El resultado honesto es que ninguno de los 22
-es alcanzable por la vía morfológica/estructural declarada sin violar
-alguna regla de oro del programa** (precisión 1.000, no memorizar el
-corpus, no forzar reglas de un solo caso). Esto es un hallazgo negativo
-válido: la cobertura E2E de desarrollo se queda en 34/56 (0.607), igual que
-al cierre de B2. El bloque no falla por eso — falla solo si se maquilla el
-resultado o se fuerza una regla que rompa precisión para "subir el número".
+El objetivo declarado del bloque (atacar `PREDICATE_ABSENT` y subordinadas
+vía morfología/estructura) se ejecutó de forma limpia y honesta: se
+construyó un analizador morfológico real (`extraction/morphology.py`,
+conjugador regular de verbos -AR por paradigma, con exclusión explícita y
+probada de verbos que diptongan), se demostró que generaliza (2 casos
+nuevos de generalización, verbos nunca vistos, exactitud 1.000, precisión
+intacta en las 9 familias no duras), y se investigó a fondo cada uno de los
+22 casos `NO_OUTPUT` restantes del desarrollo, verificando el texto real de
+cada uno contra el arnés congelado (no de memoria). **El resultado honesto
+es que ninguno de los 22 es alcanzable por la vía morfológica/estructural
+declarada sin violar alguna regla de oro del programa** (precisión 1.000,
+no memorizar el corpus, no forzar reglas de un solo caso). Esto es un
+hallazgo negativo válido: la cobertura E2E de desarrollo se queda en 34/56
+(0.607), igual que al cierre de B2. El bloque no falla por eso — falla solo
+si se maquilla el resultado o se fuerza una regla que rompa precisión para
+"subir el número". Aparte de los 22, queda un defecto DISTINTO detectado en
+la auditoría (`cirro-actas:e14`, cubierto pero mal clasificado) que no se
+intentó resolver en este bloque y se deja fijado como test de regresión
+para quien lo aborde.
