@@ -52,6 +52,7 @@ from knowledge_v3.extraction import (  # noqa: E402
     normalize_predicate,
 )
 from knowledge_v3.extraction import deterministic as det_mod  # noqa: E402
+from knowledge_v3.extraction import cues as cues_mod  # noqa: E402
 from knowledge_v3.extraction.deterministic import DETERMINISTIC_INFO  # noqa: E402
 from knowledge_v3.extraction.text import tokenize  # noqa: E402
 
@@ -1056,8 +1057,32 @@ class TestMutations:
         assert claim.negated is False
 
     def test_mutar_las_marcas_epistemicas_convierte_un_rumor_en_afirmacion(self, monkeypatch):
+        """Mutacion en DOS capas (rework B2, puerta 6).
+
+        Antes del rework, el hint epistemico del extractor determinista tenia
+        una sola fuente: la lista local `deterministic.EPISTEMIC_CUES`. Vaciarla
+        bastaba para perder el rumor. Ahora el extractor consulta ADEMAS el
+        `verdict` de `cues.analyze_context` (la misma politica que usa el carril
+        de proveedor), asi que la mutacion de la lista local sola YA NO pierde
+        el rumor: hay que silenciar las dos fuentes. Eso es lo que este test
+        comprueba, y es una guarda mas fuerte que la anterior -- si alguien
+        desconecta el `verdict`, el primer bloque de aserciones falla.
+        """
         ctx, _ = single_context("ep:gold-4", GOLD_TEXTS["ep:gold-4"])
+
+        # 1. mutando solo la lista local, la politica de contexto lo sostiene.
         monkeypatch.setattr(det_mod, "EPISTEMIC_CUES", ())
+        claim = asserted(DeterministicExtractor().extract(ctx))[0]
+        assert claim.epistemic_status_hint == "RUMORED", (
+            "el verdict de `cues.analyze_context` debe seguir degradando el "
+            "rumor aunque la lista local del extractor este vacia"
+        )
+
+        # 2. silenciadas AMBAS fuentes (lista local + marcas y verbos de
+        #    reporte de `cues`), el rumor se pierde: las marcas hacen falta.
+        monkeypatch.setattr(cues_mod, "EPISTEMIC_CUES", ())
+        monkeypatch.setattr(cues_mod, "EPISTEMIC_PATTERNS", ())
+        monkeypatch.setattr(cues_mod, "REPORT_VERBS", frozenset())
         claim = asserted(DeterministicExtractor().extract(ctx))[0]
         assert claim.epistemic_status_hint == "ASSERTED"
 

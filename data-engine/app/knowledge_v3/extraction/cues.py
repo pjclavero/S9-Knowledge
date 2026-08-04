@@ -543,6 +543,55 @@ CLAUSE_PUNCTUATION = ",;:\n\r"
 #: convertiria cualquier "si" en una hipotesis.
 CONDITIONAL_SI = "si"
 
+#: Conectores que, INMEDIATAMENTE despues de un `SCOPE_VERB` negado, delatan
+#: que lo negado es la actitud epistemica y no la relacion: la completiva
+#: ("no reconocio QUE sirviera") y la interrogativa indirecta entera ("no sabe
+#: SI/CUANDO/DONDE/COMO/QUIEN/CUAL/CUANTO ...").
+#:
+#: Es una clase gramatical CERRADA del espanol (pronombres, adverbios y
+#: determinantes interrogativos), no vocabulario tomado de ningun corpus: la
+#: lista es la enumeracion completa de la clase, con sus variantes de genero y
+#: numero, ya normalizada (sin tilde, que es lo que produce `text.normalize`).
+#: B2 solo reconocia "que"/"si", los dos que los corpus de dev y de puerta 4
+#: exigieron; el resto de la clase es el MISMO fenomeno y caia en silencio al
+#: camino de negacion directa (NEGATED_FACT) -- una asercion sobre el mundo
+#: donde el texto solo dice que alguien ignora un dato.
+INDIRECT_QUESTION_CONNECTORS: frozenset = frozenset({
+    "que", "si",
+    "cuando", "donde", "adonde",
+    "como",
+    "quien", "quienes",
+    "cual", "cuales",
+    "cuanto", "cuanta", "cuantos", "cuantas",
+})
+
+#: Los miembros de la clase que ocupan DOS tokens: el tokenizador es `\w+`, asi
+#: que "por que" y "lo que" llegan partidos.
+INDIRECT_QUESTION_CONNECTOR_PAIRS: tuple[tuple[str, str], ...] = (
+    ("por", "que"),
+    ("lo", "que"),
+)
+
+
+def indirect_question_connector(
+    tokens: Sequence[Token], start: int, hi: int
+) -> Optional[str]:
+    """Conector de completiva/interrogativa indirecta que empieza en `start`.
+
+    Devuelve la forma normalizada (una o dos palabras) o `None`. No decide
+    nada: solo reconoce la clase gramatical.
+    """
+    if start >= hi:
+        return None
+    if start + 1 < hi:
+        par = (tokens[start].norm, tokens[start + 1].norm)
+        if par in INDIRECT_QUESTION_CONNECTOR_PAIRS:
+            return " ".join(par)
+    if tokens[start].norm in INDIRECT_QUESTION_CONNECTORS:
+        return tokens[start].norm
+    return None
+
+
 #: Signos que delatan una interrogativa. Una pregunta no afirma nada.
 INTERROGATIVE_MARKS = ("¿", "?")
 
@@ -904,7 +953,10 @@ def classify_negation(
 
     # 1. alcance: la negacion va pegada a un verbo de actitud o de reporte,
     #    Y el verbo introduce una subordinada completiva ("que ...") o una
-    #    interrogativa indirecta ("si ..."). Sin ninguno de los dos conectores
+    #    interrogativa indirecta ("si/cuando/donde/como/quien/cual/cuanto/
+    #    por que/lo que ...", clase gramatical cerrada declarada en
+    #    `INDIRECT_QUESTION_CONNECTORS`; el rework de B2 la completo, antes
+    #    solo miraba "que"/"si"). Sin ninguno de esos conectores
     #    inmediatos, el verbo toma un objeto directo y la negacion es DIRECTA
     #    (NEGATED_FACT), no de alcance ambiguo. Bloque B2 (puerta 6):
     #    "no reconocio el terreno" es una negacion directa, no SCOPE_AMBIGUOUS;
@@ -917,7 +969,7 @@ def classify_negation(
     #    SCOPE_AMBIGUOUS, pero "no sabia si llegaria" SI es SCOPE_AMBIGUOUS).
     for i in range(inicio, focus):
         if tokens[i].norm in marcas_negacion and i + 1 < hi and tokens[i + 1].norm in SCOPE_VERBS:
-            if i + 2 >= hi or tokens[i + 2].norm not in ("que", "si"):
+            if indirect_question_connector(tokens, i + 2, hi) is None:
                 continue
             return NegationVerdict(
                 False,
@@ -1200,6 +1252,10 @@ __all__ = [
     "EPISTEMIC_PATTERNS",
     "FALSITY_PHRASES",
     "FICTION_PHRASES",
+    "INDIRECT_QUESTION_CONNECTORS",
+    "INDIRECT_QUESTION_CONNECTOR_PAIRS",
+    "indirect_question_connector",
+    "INTERROGATIVE_MARKS",
     "INTERROGATIVE_PHRASES",
     "NEGATION_CUES",
     "REPORT_VERBS",

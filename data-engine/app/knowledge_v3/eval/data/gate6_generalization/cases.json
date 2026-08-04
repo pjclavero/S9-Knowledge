@@ -1,6 +1,6 @@
 {
   "corpus": "gate6-generalization-compositional",
-  "dataset_version": "1.1.0",
+  "dataset_version": "1.3.0",
   "domain": "diplomacia especiera (inventada, ausente del corpus dev-synthetic de la puerta 6)",
   "items": [
     {
@@ -530,6 +530,61 @@
       "subject": "El inspector",
       "text": "El inspector no verifico el catalogo que presento el Consejo Tintoreo.",
       "why_evaluable": "'verificar' con objeto directo ('el catalogo') sin 'que' inmediatamente tras el verbo; mismo patron que scope_verb_direct_obj:02: el 'que' de la clausula relativa no cuenta como completiva inmediata"
+    },
+    {
+      "case_id": "gen6:indirect_question_scope:01",
+      "domain": "cartografia fluvial",
+      "expected_class": "NON_FACTIVE",
+      "family": "INDIRECT_QUESTION_SCOPE",
+      "hard": false,
+      "object": "Compania del Vado",
+      "subject": "Solveig Marn",
+      "text": "El pontonero no recuerda cuando ingreso Solveig Marn en la Compania del Vado.",
+      "why_evaluable": "interrogativa indirecta con 'cuando' pegada a un SCOPE_VERB negado: el texto no dice que Solveig Marn no pertenezca a la Compania, dice que el pontonero ignora la fecha. Mismo alcance epistemico que 'no sabe si', que el corpus ya cubria; ejerce la clase gramatical completa de conectores (rework B2)"
+    },
+    {
+      "case_id": "gen6:indirect_question_scope:02",
+      "domain": "cartografia fluvial",
+      "expected_class": "NON_FACTIVE",
+      "family": "INDIRECT_QUESTION_SCOPE",
+      "hard": false,
+      "object": "Canal Bermejo",
+      "subject": "Ossian Brey",
+      "text": "El aduanero no sabe donde deposito Ossian Brey el sello del Canal Bermejo.",
+      "why_evaluable": "interrogativa indirecta con 'donde': lo ignorado es el lugar, no la relacion entre Ossian Brey y el Canal Bermejo; sin la clase completa de conectores esto caia a NEGATED_FACT (afirmar la negacion de una relacion que el texto no niega)"
+    },
+    {
+      "case_id": "gen6:indirect_question_scope:03",
+      "domain": "cartografia fluvial",
+      "expected_class": "NON_FACTIVE",
+      "family": "INDIRECT_QUESTION_SCOPE",
+      "hard": false,
+      "object": "Cofradia del Remo",
+      "subject": "Teodolina Vasch",
+      "text": "El escribano no confirmo por que abandono Teodolina Vasch la Cofradia del Remo.",
+      "why_evaluable": "conector de DOS tokens ('por que'): el tokenizador lo parte, asi que ejerce especificamente `INDIRECT_QUESTION_CONNECTOR_PAIRS`. Lo ignorado es el motivo del abandono, no si hubo abandono"
+    },
+    {
+      "case_id": "gen6:indirect_question_scope:04",
+      "domain": "cartografia fluvial",
+      "expected_class": "NON_FACTIVE",
+      "family": "INDIRECT_QUESTION_SCOPE",
+      "hard": false,
+      "object": "Cofradia del Remo",
+      "subject": "Solveig Marn",
+      "text": "El inspector no verifico lo que entrego Solveig Marn a la Cofradia del Remo.",
+      "why_evaluable": "segundo conector de dos tokens ('lo que'), con un SCOPE_VERB distinto ('verifico') del de los otros casos: comprueba que la clase de conectores no esta atada a un verbo concreto"
+    },
+    {
+      "case_id": "gen6:indirect_question_scope:05",
+      "domain": "cartografia fluvial",
+      "expected_class": "NON_FACTIVE",
+      "family": "INDIRECT_QUESTION_SCOPE",
+      "hard": false,
+      "object": "Cofradia del Remo",
+      "subject": "Teodolina Vasch",
+      "text": "El prefecto no sabia quien acompanaba a Teodolina Vasch en la Cofradia del Remo.",
+      "why_evaluable": "interrogativa indirecta con 'quien' y verbo en imperfecto: lo ignorado es la identidad del acompanante; la relacion de Teodolina Vasch con la Cofradia no se niega en ningun momento"
     }
   ],
   "provenance": "gate6-b0/agente-implementador-2026-08-04",

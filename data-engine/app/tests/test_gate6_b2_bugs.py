@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from knowledge_v3.extraction.cues import (
     COMPLEMENT_DETERMINERS,
+    INDIRECT_QUESTION_CONNECTORS,
+    INDIRECT_QUESTION_CONNECTOR_PAIRS,
     REPORT_VERB_NOUN_HOMOGRAPHS,
     REPORT_VERBS,
     analyze_raw_text,
@@ -204,3 +206,62 @@ def test_frase_factiva_simple_sigue_siendo_asserted_fact():
         "Aldric Venn dirige el Sindicato Vitivinicola desde el ano pasado."
     )
     assert verdict.factivity.factivity_class.value == "ASSERTED_FACT"
+
+
+# --------------------------------------------------------------------------
+# 4. Rework de B2: la clase COMPLETA de conectores de interrogativa indirecta.
+#
+#    B2 solo reconocia "que" y "si" -- los dos que los corpus (dev y puerta 4)
+#    exigieron. El resto de la clase gramatical ("cuando", "donde", "como",
+#    "quien", "cual", "cuanto", "por que", "lo que") es el MISMO fenomeno de
+#    alcance epistemico y caia en silencio a negacion directa, es decir, a
+#    afirmar la negacion de una relacion que el texto no niega.
+# --------------------------------------------------------------------------
+INTERROGATIVOS_INDIRECTOS = [
+    "El bodeguero no sabe cuando zarpo el carguero del muelle austral.",
+    "El bodeguero no sabe donde amarro el carguero del muelle austral.",
+    "El bodeguero no recuerda como llego el carguero al muelle austral.",
+    "El bodeguero no recuerda quien fleto el carguero del muelle austral.",
+    "El bodeguero no confirmo cual bodega alquilo el carguero del muelle austral.",
+    "El bodeguero no confirmo cuantos fardos descargo el carguero del muelle austral.",
+    "El bodeguero no verifico por que zarpo el carguero del muelle austral.",
+    "El bodeguero no verifico lo que descargo el carguero del muelle austral.",
+]
+
+
+def test_toda_la_clase_de_interrogativas_indirectas_da_alcance_ambiguo():
+    fallos = []
+    for texto in INTERROGATIVOS_INDIRECTOS:
+        verdict = analyze_raw_text(texto)
+        if verdict.negation_kind != "SCOPE_AMBIGUOUS":
+            fallos.append((texto, verdict.negation_kind))
+    assert not fallos, (
+        "conectores de la clase cerrada que no disparan alcance ambiguo: "
+        f"{fallos!r}"
+    )
+
+
+def test_la_clase_declarada_cubre_los_conectores_de_una_palabra():
+    """Guarda de completitud de la clase gramatical: si alguien recorta la
+    lista, este test lo dice por su nombre en vez de dejar que se note solo
+    como una cifra peor en el corpus."""
+    esperados = {
+        "que", "si", "cuando", "donde", "adonde", "como", "quien", "quienes",
+        "cual", "cuales", "cuanto", "cuanta", "cuantos", "cuantas",
+    }
+    assert esperados <= INDIRECT_QUESTION_CONNECTORS
+
+
+def test_los_conectores_de_dos_tokens_estan_declarados_aparte():
+    assert ("por", "que") in INDIRECT_QUESTION_CONNECTOR_PAIRS
+    assert ("lo", "que") in INDIRECT_QUESTION_CONNECTOR_PAIRS
+
+
+def test_un_objeto_directo_corriente_no_es_conector():
+    """El limite de la ampliacion: sin conector de la clase, la negacion sigue
+    siendo directa (es la correccion original de B2, que no se toca)."""
+    verdict = analyze_raw_text(
+        "El bodeguero no verifico las bodegas del carguero austral."
+    )
+    assert verdict.negation_kind == "SIMPLE"
+    assert verdict.factivity.factivity_class.value == "NEGATED_FACT"

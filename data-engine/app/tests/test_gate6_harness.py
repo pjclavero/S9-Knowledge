@@ -156,6 +156,9 @@ _EXPECTED_FAMILIES = {
     # Bloque B2 (puerta 6): familias nuevas que ejercen los bugs corregidos.
     "REPORT_FALSE_FRIEND",
     "SCOPE_VERB_DIRECT_OBJ",
+    # Rework de B2: interrogativas indirectas distintas de "que"/"si" tras un
+    # SCOPE_VERB negado (clase gramatical completa).
+    "INDIRECT_QUESTION_SCOPE",
 }
 
 

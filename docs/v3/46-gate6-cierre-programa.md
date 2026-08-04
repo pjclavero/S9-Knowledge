@@ -1,10 +1,24 @@
-# Puerta 6 — Cierre del Programa (B0 → B2)
+# Puerta 6 — Cierre del Programa (B0 → B2, con el rework de B2)
 
 **Documento de cierre** del programa de factividad composicional de la puerta
-6. Consolida los tres bloques (B0: medicion; B1: operadores; B2: backlog) y
-emite el dictamen de estado de la puerta. Las cifras vienen exclusivamente de
+6. Consolida los tres bloques (B0: medicion; B1: operadores; B2: backlog + el
+rework exigido por el dictamen del revisor) y emite el dictamen de estado de
+la puerta. Las cifras vienen exclusivamente de
 `artifacts/gate6-program/b2-final.{json,md}`; no hay ningun numero escrito a
 mano en este documento.
+
+> **Rework de B2 (dictamen NO CONFORME del revisor).** La primera version de
+> este cierre media UNA capa —el clasificador— y concluia sobre el sistema
+> entero. El revisor demostro con ejecucion independiente que el operador de
+> discurso reportado de B1/B2 era CODIGO MUERTO para el extractor determinista
+> de produccion: `deterministic.py` calculaba su hint epistemico con una lista
+> local anterior al programa y del `verdict` solo leia las acciones de aborto,
+> nunca `EMIT_EPISTEMIC_PROPOSAL`. "El heraldo dijo que Elara lidera la Orden
+> del Alba" salia del extractor real como ASSERTED con `review_required=False`.
+> El rework (a) conecta ese carril, (b) mide el invariante fail-closed
+> tambien contra la salida REAL del extractor, y (c) completa la clase de
+> conectores de interrogativa indirecta de `classify_negation`. Ver seccion
+> 1.4.
 
 ---
 
@@ -16,14 +30,19 @@ mano en este documento.
 | --- | ---: | ---: | ---: | ---: |
 | B0 | 0.790 | 42 | 0.381 | 40 |
 | B1 | 0.800 | 42 | 0.762 | 23 |
-| B2 | 0.800 | 48 | 0.792 | 23 |
+| B2 (con rework) | 0.800 | 53 | 0.811 | 23 |
 
-**Lectura honesta**: la generalizacion composicional paso de 0.381 (B0) a 0.792
-(B2) sobre el corpus ampliado de 48 casos. Las violaciones fail-closed bajaron
+Todas las cifras de esta tabla son de la capa `factivity_policy` (el
+clasificador). La capa del extractor real va aparte, en 1.4.
+
+**Lectura honesta**: la generalizacion composicional paso de 0.381 (B0) a 0.811
+sobre el corpus ampliado de 53 casos. Las violaciones fail-closed bajaron
 de 40 a 23 (reduccion del 42.5 %). El corpus dev se mantuvo en 0.800 (sin
-regresion respecto de B1). Los 6 casos nuevos de B2
-(REPORT_FALSE_FRIEND + SCOPE_VERB_DIRECT_OBJ) aciertan al 100 %: ejercen los
-bugs corregidos y no inflan artificialmente la cifra general.
+regresion respecto de B1). Los 11 casos nuevos anadidos en B2 y su rework
+(REPORT_FALSE_FRIEND, SCOPE_VERB_DIRECT_OBJ e INDIRECT_QUESTION_SCOPE)
+aciertan al 100 %: ejercen los bugs corregidos y no inflan artificialmente la
+cifra general — pero tampoco son evidencia de generalizacion mas alla de lo
+que corrigen, y por eso se declara la familia de cada uno.
 
 ### 1.2 Descripcion de lo implementado por bloque
 
@@ -60,6 +79,29 @@ bugs corregidos y no inflan artificialmente la cifra general.
   del Lino). Cero n-gramas ≥3 compartidos con el corpus dev ni con los 42 casos
   previos del corpus de generalizacion.
 
+**B2 (rework)** — lo que el dictamen del revisor exigio:
+- **P0, conexion del carril determinista**: `deterministic.py` reutiliza el
+  `verdict` que ya calculaba y aplica la MISMA degradacion que el carril de
+  proveedor (`payload.py`): `if verdict.hint != "ASSERTED" and hint ==
+  "ASSERTED": hint = verdict.hint`. No hay segunda pasada sobre el texto ni
+  logica duplicada. El hint local de `EPISTEMIC_CUES` sigue siendo la primera
+  fuente; el contexto solo DEGRADA, nunca reasciende nada a ASSERTED.
+  `review_required` ya dependia de `hint != "ASSERTED"`, asi que la marca de
+  revision viaja sola.
+- **Capa 2 de medicion** (`eval/gate6_extractor_layer.py`): el invariante
+  fail-closed medido contra la salida real de `DeterministicExtractor`, con
+  su cobertura publicada al lado. Ver 1.4.
+- **Clase completa de interrogativas indirectas**: `classify_negation` pasa de
+  reconocer "que"/"si" a la clase gramatical CERRADA del espanol
+  (`INDIRECT_QUESTION_CONNECTORS` + `INDIRECT_QUESTION_CONNECTOR_PAIRS`:
+  cuando/donde/adonde/como/quien(es)/cual(es)/cuanto(s)/cuanta(s)/por que/lo
+  que). No es vocabulario de corpus: es la enumeracion de una clase. +5 casos
+  de corpus (familia INDIRECT_QUESTION_SCOPE, dominio "cartografia fluvial",
+  dataset version 1.3.0, manifest resellado).
+- **Verificacion cruzada de la puerta 4**: `scripts/gate4/measure_b5.py`
+  reproduce `artifacts/gate4-program/b5-final.json` BYTE A BYTE tras el
+  rework; el eje de negacion de la puerta 4 no se mueve.
+
 ### 1.3 Generalizacion composicional B2 por familia
 
 | familia | casos | exactitud |
@@ -74,6 +116,43 @@ bugs corregidos y no inflan artificialmente la cifra general.
 | REPORT_FALSE_FRIEND | 3 | 1.000 |
 | REPORT_OF_NEGATION | 6 | 1.000 |
 | SCOPE_VERB_DIRECT_OBJ | 3 | 1.000 |
+| INDIRECT_QUESTION_SCOPE | 5 | 1.000 |
+
+### 1.4 Invariante fail-closed POR CAPA (rework de B2)
+
+Las dos capas se publican separadas y no se suman nunca, la misma disciplina
+que la puerta 4 uso con exito. La capa 1 contesta "¿la politica LEE bien la
+frase?"; la capa 2 contesta "¿el sistema la ESCRIBIRIA como hecho del mundo?",
+que es lo que la puerta protege.
+
+| capa | corpus | casos | cubiertos (emiten claim) | violaciones |
+| --- | --- | ---: | ---: | ---: |
+| factivity_policy | dev | 100 | n/a | 15 |
+| factivity_policy | generalizacion | 53 | n/a | 8 |
+| deterministic_extractor | dev | 100 | 4 | 0 |
+| deterministic_extractor | generalizacion | 53 | 4 | 2 |
+
+Lectura, con sus limites explicitos:
+
+- El extractor determinista solo emite cuando la frase de relacion esta en su
+  lista de reglas. La cobertura sobre estos dos corpus es por tanto BAJA
+  (4/100 y 4/53), y se publica al lado de las violaciones: **un cero sobre
+  pocos casos cubiertos no es la misma evidencia que un cero sobre muchos**.
+- De los casos cuyo gold PROHIBE materializar, solo 0/77 (dev) y 2/41
+  (generalizacion) llegan siquiera a producir un claim: son los unicos en los
+  que esta capa puede violar el invariante.
+- Las 2 violaciones de capa 2 (`gen6:factive_in_cond:06`,
+  `gen6:neg_rumor_hard:02`) son casos que el CLASIFICADOR ya lee mal y que ya
+  estaban contados en las 23 de capa 1: el extractor propaga el fallo de la
+  politica, no anade uno propio. Hay un test que congela esa propiedad
+  (`test_gate6_extractor_layer.py`), de modo que un fallo NUEVO del carril
+  determinista rompe la suite en vez de esconderse en un agregado.
+- El fallo P0 en si (discurso reportado) NO es visible en esta tabla: ninguno
+  de los casos cubiertos por las reglas del extractor es de esa familia. Su
+  cierre esta demostrado por prueba directa sobre el extractor real
+  (`test_gate6_b2_adversarial_review.py`, `test_gate6_extractor_layer.py`), no
+  por una cifra de corpus. Decirlo asi es parte del dictamen: la cifra de capa
+  2 mide poco, y lo que mide hay que leerlo con la cobertura delante.
 
 ---
 
@@ -178,9 +257,18 @@ Se propone sustituir el criterio NVIDIA por tres metricas deterministas:
 1. **policy_accuracy** sobre el corpus dev congelado (100 frases,
    `dev-synthetic/opus-2026-07-30`): B0=0.790, B1=0.800, B2=0.800.
 2. **overall_accuracy** sobre el corpus de generalizacion composicional
-   (48 frases en B2): B0=0.381, B1=0.762, B2=0.792.
-3. **invariante fail-closed**: ningun caso NON_FACTIVE se lee como hecho del
-   mundo: B0=40 violaciones, B1=23, B2=23.
+   (53 frases tras el rework de B2): B0=0.381, B1=0.762, B2=0.811.
+3. **invariante fail-closed, medido en LAS DOS CAPAS** (matiz del revisor
+   incorporado en el rework):
+   - capa `factivity_policy` (clasificador): B0=40 violaciones, B1=23, B2=23;
+   - capa `deterministic_extractor` (salida real del extractor, con su
+     cobertura declarada): 0 violaciones en dev y 2 en generalizacion, ambas
+     heredadas de fallos de la capa 1.
+
+   Un invariante medido solo sobre el clasificador no dice nada sobre lo que
+   el sistema escribe — que es exactamente el fallo P0 que motivo el rework.
+   El criterio sustituto de la puerta incluye por tanto la medicion de capa 2,
+   no solo las tres metricas de clasificador.
 
 **Razon**: el criterio NVIDIA mezcla la politica de factividad con la precision
 del extractor completo y con el comportamiento de un modelo externo que puede
@@ -209,11 +297,17 @@ restantes.
 
 **Lo que cumple**:
 - Dev: 0.800 (>= 0.790 del baseline F6-7). Sin regresion en ningun bloque.
-- Generalizacion composicional: 0.792 sobre 48 casos. Las 8 familias con al
-  menos un caso aciertan en todas, excepto las dos declaradas HARD desde B0
-  (NEGATED_RUMOR_HARD, LEXICAL_NEGATION_EDGE).
-- Las 6 correcciones de B2 aciertan al 100 % y no introducen regresion.
-- El arnés es determinista y reproducible sin proveedores externos.
+- Generalizacion composicional: 0.811 sobre 53 casos. Todas las familias
+  aciertan al 100 % o cerca, excepto las dos declaradas HARD desde B0
+  (NEGATED_RUMOR_HARD, LEXICAL_NEGATION_EDGE) y un caso suelto en
+  FACTIVE_IN_CONDITIONAL y otro en NEGATION_OF_FACTIVE.
+- Las 11 correcciones de B2 y su rework aciertan al 100 % y no introducen
+  regresion.
+- El carril determinista de PRODUCCION consulta ya la politica de factividad
+  para la rama RUMOR/`EMIT_EPISTEMIC_PROPOSAL` (P0 del revisor, cerrado): las
+  dos capas dan la misma lectura del discurso reportado.
+- El arnés es determinista y reproducible sin proveedores externos, y publica
+  ahora las DOS capas por separado.
 
 **Lo que no cumple**:
 - El invariante fail-closed tiene 23 violaciones abiertas (familias
@@ -224,6 +318,11 @@ restantes.
   arquitectura actual (vocabulario plano, sin analizador de alcance).
 - 4 violaciones en ALCANCE_COMPLEJO requeririan un analizador de estructura
   sintactica que el extractor determinista no tiene.
+- La capa 2 (extractor real) tiene 2 violaciones y, sobre todo, una COBERTURA
+  baja (8 de 153 casos emiten algun claim): la evidencia de que el sistema no
+  materializa lo que no debe es, a dia de hoy, mas fuerte por construccion
+  (el extractor prefiere no emitir) que por medicion. Se declara asi en 1.4 en
+  vez de presentar el "0 violaciones en dev" como un resultado limpio.
 
 **Por que no es NO CONFORME**: las violaciones restantes son limites
 arquitectonicos documentados y conocidos, no regresiones ni bugs nuevos. El

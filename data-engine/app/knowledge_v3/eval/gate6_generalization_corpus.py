@@ -74,6 +74,15 @@ _EXPECTED_FAMILIES = {
     # no de alcance ambiguo. Ejercen la correccion de B2 que exige "que"
     # inmediato tras el verbo para disparar SCOPE_AMBIGUOUS.
     "SCOPE_VERB_DIRECT_OBJ",
+    # Rework de B2 (puerta 6): la cara COMPLEMENTARIA de
+    # SCOPE_VERB_DIRECT_OBJ. Un SCOPE_VERB negado seguido de una
+    # interrogativa indirecta que NO es "que" ni "si"
+    # (cuando/donde/como/quien/cual/cuanto/por que/lo que): el sujeto ignora
+    # un dato sobre la relacion, no la niega. B2 solo reconocia dos
+    # conectores y estos casos caian a NEGATED_FACT -- violaciones del
+    # invariante fail-closed. Ejercen `cues.INDIRECT_QUESTION_CONNECTORS` y
+    # `INDIRECT_QUESTION_CONNECTOR_PAIRS`.
+    "INDIRECT_QUESTION_SCOPE",
 }
 
 #: Familia "dura": se declara por adelantado que se ESPERA una exactitud baja

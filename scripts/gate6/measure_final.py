@@ -7,6 +7,17 @@ sobre la politica corregida por B2 (guarda de homografo en
 y la compara contra los artefactos historicos de B0 y B1 para publicar la
 evolucion completa del programa: B0 -> B1 -> B2.
 
+Desde el rework de B2 publica DOS CAPAS, nunca mezcladas en un solo numero
+(la misma disciplina por capas que uso la puerta 4):
+
+* `factivity_policy`: el clasificador (`cues.analyze_raw_text`), que es lo
+  que median B0 y B1;
+* `deterministic_extractor`: la salida REAL de `DeterministicExtractor`
+  (`eval/gate6_extractor_layer.py`). El revisor de B2 demostro que las dos
+  capas podian discrepar -- el extractor no consultaba el resultado de la
+  politica para la rama RUMOR/EMIT_EPISTEMIC_PROPOSAL -- asi que el invariante
+  fail-closed se publica medido contra las dos.
+
 Uso (desde la raiz del repo):
 
     PYTHONPATH=data-engine/app python3 scripts/gate6/measure_final.py \\
@@ -21,6 +32,7 @@ import json
 from pathlib import Path
 from typing import Any, Optional
 
+from knowledge_v3.eval.gate6_extractor_layer import measure_extractor_layer
 from knowledge_v3.eval.gate6_harness import measure_gate6_program
 
 
@@ -225,6 +237,8 @@ def build_b2_report(
         current["corpora"]["generalization"]["metrics_by_family"]
     )
 
+    extractor_layer = measure_extractor_layer()
+
     return {
         "gate": "6",
         "block": "B2",
@@ -241,9 +255,20 @@ def build_b2_report(
             "los verbos de su respectiva lista (no solo a los de B1). Se "
             "anaden 6 nuevos casos al corpus de generalizacion composicional "
             "(familias REPORT_FALSE_FRIEND y SCOPE_VERB_DIRECT_OBJ, dataset "
-            "version 1.2.0). Criterio NVIDIA (79,17 %): ver seccion de notas."
+            "version 1.2.0). REWORK de B2 (dictamen del revisor): (a) el "
+            "extractor determinista de produccion queda CONECTADO al verdict "
+            "de la politica (rama EMIT_EPISTEMIC_PROPOSAL), que hasta ahora "
+            "era codigo muerto para ese carril; (b) el invariante fail-closed "
+            "se mide ademas contra la salida REAL de DeterministicExtractor "
+            "(capa `deterministic_extractor`, publicada al lado de la capa de "
+            "clasificador, nunca sumada con ella); (c) los conectores de "
+            "classify_negation se amplian de 'que'/'si' a la clase gramatical "
+            "cerrada de interrogativas indirectas del espanol, con 5 casos "
+            "nuevos de corpus (familia INDIRECT_QUESTION_SCOPE, dataset "
+            "version 1.3.0). Criterio NVIDIA (79,17 %): ver seccion de notas."
         ),
         "current": current,
+        "extractor_layer": extractor_layer,
         "dev_history": dev_history,
         "generalization_history": gen_history,
         "violations_history": violations_history,
@@ -278,9 +303,12 @@ def build_b2_report(
                 "mide y reproduce: (1) policy_accuracy sobre el corpus dev "
                 "congelado (100 frases, split dev-synthetic/opus-2026-07-30), "
                 "(2) overall_accuracy sobre el corpus de generalizacion "
-                "composicional (48 frases tras B2), y (3) el invariante "
-                "fail-closed (0 casos NON_FACTIVE que se lean como hecho del "
-                "mundo). Razon: el criterio NVIDIA mezcla la politica de "
+                "composicional (53 frases tras el rework de B2), y (3) el "
+                "invariante fail-closed medido en LAS DOS CAPAS -- la de "
+                "clasificador y la del extractor determinista real (matiz del "
+                "revisor: un invariante medido solo sobre el clasificador no "
+                "dice nada sobre lo que el sistema escribe, que es justo lo "
+                "que la puerta protege). Razon: el criterio NVIDIA mezcla la politica de "
                 "factividad con la precision del extractor completo y con el "
                 "comportamiento de un modelo externo que puede cambiar sin "
                 "aviso. Estas tres metricas son ortogonales, reproducibles y "
@@ -294,12 +322,44 @@ def build_b2_report(
         },
         "notes": [
             (
-                "El corpus de generalizacion composicional crece en B2 de 42 "
-                "(B0/B1) a 48 casos: +3 REPORT_FALSE_FRIEND (ejercen Bug 1) y "
-                "+3 SCOPE_VERB_DIRECT_OBJ (ejercen Bug 2). Las familias nuevas "
-                "no existian en B0/B1, por lo que la comparacion de overall_accuracy "
-                "no es directamente proporcional: B1 acertaba 32/42 = 0.762; B2 "
-                "acierta 38/48 = 0.792 sobre el corpus AMPLIADO."
+                "El corpus de generalizacion composicional crece de 42 casos "
+                "(B0/B1) a {gen_cases} tras B2 y su rework: +3 REPORT_FALSE_FRIEND "
+                "y +3 SCOPE_VERB_DIRECT_OBJ (bugs 1 y 2 de B2), +5 "
+                "INDIRECT_QUESTION_SCOPE (clase completa de interrogativas "
+                "indirectas, rework). Las familias nuevas no existian en B0/B1, "
+                "asi que la comparacion de overall_accuracy no es directamente "
+                "proporcional: B1 acertaba {b1_ok} sobre {b1_cases} casos "
+                "({b1_acc:.3f}); ahora se aciertan {b2_ok} sobre {gen_cases} "
+                "({b2_acc:.3f}) sobre el corpus AMPLIADO."
+            ).format(
+                gen_cases=current["corpora"]["generalization"]["cases"],
+                b1_cases=b1_current["corpora"]["generalization"]["cases"],
+                b1_ok=round(
+                    b1_current["corpora"]["generalization"]["metrics_global"][
+                        "overall_accuracy"
+                    ]
+                    * b1_current["corpora"]["generalization"]["cases"]
+                ),
+                b1_acc=b1_current["corpora"]["generalization"]["metrics_global"][
+                    "overall_accuracy"
+                ],
+                b2_ok=sum(
+                    1
+                    for r in current["corpora"]["generalization"]["rows"]
+                    if r["correct"]
+                ),
+                b2_acc=current["corpora"]["generalization"]["metrics_global"][
+                    "overall_accuracy"
+                ],
+            ),
+            (
+                "Capa 2 (`deterministic_extractor`): el extractor determinista "
+                "solo emite cuando la frase de relacion esta en su lista de "
+                "reglas, asi que la COBERTURA sobre estos dos corpus es baja y "
+                "se publica al lado del recuento de violaciones -- un cero de "
+                "violaciones sobre pocos casos cubiertos no es la misma "
+                "evidencia que sobre muchos. Ver `extractor_layer.corpora.*."
+                "coverage`."
             ),
             (
                 "NEGATED_RUMOR_HARD sigue en 0,0 % (6/6 fail): la construccion "
@@ -362,6 +422,54 @@ def to_markdown(report: dict[str, Any]) -> str:
     add("| --- | ---: |")
     for row in report["violations_history"]:
         add(f"| {row['block']} | {row['count']} |")
+    add("")
+
+    add("### 1.4 Invariante fail-closed POR CAPA (rework B2)")
+    add("")
+    add("Las dos capas se publican separadas y nunca se suman. La capa 1 dice")
+    add("si la politica LEE bien la frase; la capa 2 dice si el sistema la")
+    add("ESCRIBIRIA como hecho del mundo, que es lo que la puerta protege.")
+    add("")
+    ext = report["extractor_layer"]
+    add("| capa | corpus | casos | cubiertos (emiten claim) | violaciones |")
+    add("| --- | --- | ---: | ---: | ---: |")
+    cur = report["current"]
+    for corpus in ("dev", "generalization"):
+        casos = cur["corpora"][corpus]["cases"]
+        viol = sum(
+            1
+            for v in cur["fail_closed_invariant"]["violations"]
+            if v["corpus"] == corpus
+        )
+        add(f"| factivity_policy | {corpus} | {casos} | n/a | {viol} |")
+    for corpus in ("dev", "generalization"):
+        c = ext["corpora"][corpus]
+        cov = c["coverage"]
+        add(
+            f"| deterministic_extractor | {corpus} | {c['cases']} | "
+            f"{cov['cases_with_claims']} | {len(c['violations_asserted'])} |"
+        )
+    add("")
+    add(
+        f"- Casos cuyo gold PROHIBE materializar y que ademas llegan a producir "
+        f"algun claim (unicos en los que la capa 2 puede violar el invariante): "
+        f"dev {ext['corpora']['dev']['coverage']['gold_forbids_cases_with_claims']}"
+        f"/{ext['corpora']['dev']['coverage']['gold_forbids_cases']}, "
+        f"generalizacion "
+        f"{ext['corpora']['generalization']['coverage']['gold_forbids_cases_with_claims']}"
+        f"/{ext['corpora']['generalization']['coverage']['gold_forbids_cases']}."
+    )
+    add(
+        f"- Violaciones de capa 2 escritas SIN revision humana: "
+        f"{len(ext['violations_written_without_review'])}; con hint ASSERTED "
+        f"(con o sin revision): {len(ext['violations_asserted'])}. "
+        f"Estado: {ext['status']}."
+    )
+    for v in ext["violations_asserted"]:
+        add(f"  - `{v['case_id']}` ({v['corpus']})")
+    add("")
+    for caveat in ext["caveats"]:
+        add(f"- Salvedad: {caveat}")
     add("")
 
     add("## 2. Generalizacion composicional B2 por familia")

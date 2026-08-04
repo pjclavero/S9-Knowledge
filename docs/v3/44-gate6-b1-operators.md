@@ -1,5 +1,22 @@
 # 44 — Puerta 6, bloque B1: operador de discurso reportado por tercero
 
+> **Nota de alcance (retroactiva, anadida en el rework del bloque B2).**
+> Todas las cifras de este documento miden UNA capa: el CLASIFICADOR de
+> factividad (`extraction.cues.analyze_raw_text` / `classify_factivity`).
+> La revision de B2 demostro, con ejecucion independiente, que el extractor
+> determinista de produccion (`extraction/deterministic.py`) NO consultaba
+> ese resultado para la rama RUMOR / `EMIT_EPISTEMIC_PROPOSAL`: solo leia del
+> `verdict` las dos acciones de aborto (`EMIT_DIAGNOSTIC` y `REVIEW_SCOPE`) y
+> calculaba su hint epistemico con una lista local anterior al programa. Es
+> decir: estas cifras describian lo que la politica LEE, no lo que el sistema
+> ESCRIBE, y para el operador de discurso reportado ("El heraldo dijo que P")
+> las dos cosas no coincidian. El rework de B2 conecta los dos carriles y
+> publica desde entonces el invariante fail-closed medido tambien contra la
+> salida real de `DeterministicExtractor` (capa `deterministic_extractor`,
+> `knowledge_v3/eval/gate6_extractor_layer.py`), al lado de la capa de
+> clasificador y sin mezclar las dos en un solo numero.
+
+
 ## Contexto
 
 B0 (`docs/v3/43-gate6-b0-harness.md`) midio sin corregir: 40 violaciones
