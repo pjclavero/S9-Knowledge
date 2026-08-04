@@ -241,3 +241,129 @@ def test_documenta_fallos_de_la_politica_en_composiciones_nuevas_fuera_de_corpus
         "politica de factividad ya no tiene el problema de composicion que "
         "motiva el programa de la puerta 6 y B0 deberia re-medirse"
     )
+
+
+# --------------------------------------------------------------------------
+# 5. Las 40 violaciones fail-closed NO son un artefacto de medir la politica
+#    aislada: el arnes usa exactamente la misma señal (`FactivityClass` en
+#    `FACT_CLASSES`) que el pipeline real usa para decidir si aborta.
+# --------------------------------------------------------------------------
+def test_read_as_world_fact_predice_exactamente_las_guardas_del_pipeline():
+    """B3 de la puerta 4 encontro un comparador asimetrico que hacia que el
+    arnes reportase violaciones que el pipeline real no cometia (el arnes
+    media la politica sin las guardas que el motor si aplicaba). Aqui se
+    comprueba la hipotesis contraria para B0: `extraction/deterministic.py` y
+    `extraction/payload.py` SOLO abortan la escritura de un claim cuando
+    `verdict.factivity.action` es `EMIT_DIAGNOSTIC` o `REVIEW_SCOPE` (ver
+    `_drop_non_factive` / el `abstain(...)` de alcance ambiguo) -- no
+    reconsultan `cues.py` con mas contexto ni aplican ninguna guarda
+    adicional aguas abajo. La particion de `FactivityClass` que hace el arnes
+    (`predicted_class in FACT_CLASSES` == `{ASSERTED_FACT, NEGATED_FACT}`)
+    tiene que coincidir, clase a clase, con esa particion de accion: si algun
+    dia alguien cambia `classify_factivity` para que una clase no-factiva
+    mapee a una accion que el pipeline NO trata como aborto (o viceversa),
+    este test rompe antes de que el numero de violaciones del arnes deje de
+    significar lo que el informe de B0 dice que significa."""
+    from knowledge_v3.extraction.factivity import (
+        FactivityAction,
+        FactivityClass,
+        FactivitySignals,
+        classify_factivity,
+    )
+    from knowledge_v3.eval.gate6_dev_corpus import FACT_CLASSES
+
+    # Las acciones que el pipeline real trata como "no se escribe un claim
+    # afirmando el mundo": `_drop_non_factive` en deterministic.py/payload.py
+    # dispara con EMIT_DIAGNOSTIC; el abstain() de alcance ambiguo con
+    # REVIEW_SCOPE. Ninguna otra accion aborta la escritura.
+    PIPELINE_ABORT_ACTIONS = {FactivityAction.EMIT_DIAGNOSTIC, FactivityAction.REVIEW_SCOPE}
+
+    signal_field_by_class = {
+        FactivityClass.QUESTION: "question",
+        FactivityClass.COUNTERFACTUAL: "counterfactual",
+        FactivityClass.REPORTED_FALSEHOOD: "reported_falsehood",
+        FactivityClass.FICTION_WITHIN_FICTION: "fiction_within_fiction",
+        FactivityClass.DESIRE: "desire",
+        FactivityClass.COMMAND: "command",
+        FactivityClass.CONDITIONAL: "conditional",
+        FactivityClass.HYPOTHETICAL: "hypothetical",
+        FactivityClass.RUMOR: "rumor",
+    }
+
+    for klass, field in signal_field_by_class.items():
+        signals = FactivitySignals(**{field: True})
+        result = classify_factivity(signals)
+        assert result.factivity_class is klass
+        world_fact = klass.value in FACT_CLASSES
+        aborts = result.action in PIPELINE_ABORT_ACTIONS
+        if world_fact:
+            assert aborts is False, (
+                f"{klass}: el arnes lo cuenta como hecho del mundo pero su "
+                f"accion ({result.action}) SI aborta la escritura en el "
+                "pipeline -- el numero de violaciones estaria INFLADO"
+            )
+        elif klass is FactivityClass.RUMOR:
+            # RUMOR es la excepcion documentada: su accion
+            # (EMIT_EPISTEMIC_PROPOSAL) NO aborta la escritura en
+            # deterministic.py -- el claim SI se emite, pero con
+            # `epistemic_status_hint` degradado (no "ASSERTED"), no como
+            # hecho del mundo. read_as_world_fact tampoco lo cuenta como
+            # hecho (RUMOR no esta en FACT_CLASSES), asi que arnes y
+            # pipeline coinciden en el resultado observable (no se escribe
+            # un ASSERTED/NEGATED_FACT), aunque por mecanismos distintos
+            # (abstain vs. degradar el hint). Si esto deja de ser cierto --
+            # si algun consumidor aguas abajo empieza a tratar un claim con
+            # hint degradado como hecho del mundo -- la MEDICION seguiria
+            # siendo correcta pero dejaria de ser SUFICIENTE, y haria falta
+            # un tercer eje de medicion (el hint, no solo la clase).
+            assert result.action is FactivityAction.EMIT_EPISTEMIC_PROPOSAL
+        else:
+            assert aborts is True, (
+                f"{klass}: el arnes lo cuenta como NO-hecho (correctamente, "
+                "segun su gold) pero su accion "
+                f"({result.action}) NO aborta la escritura en el pipeline "
+                "real -- esto SI seria una violacion fail-closed genuina "
+                "que el arnes ya deberia estar viendo (si no la ve, hay un "
+                "bug en el arnes, no solo en la politica)"
+            )
+
+    # Alcance ambiguo: la unica via a REVIEW_SCOPE, y unica clase UNKNOWN.
+    ambiguous = classify_factivity(FactivitySignals(ambiguous_scope=True))
+    assert ambiguous.factivity_class is FactivityClass.UNKNOWN
+    assert ambiguous.action is FactivityAction.REVIEW_SCOPE
+    assert ambiguous.factivity_class.value not in FACT_CLASSES
+
+
+# --------------------------------------------------------------------------
+# 6. Anomalia en POSITIVE_CONTROL: una frase negada SIN ningun operador
+#    compuesto (el control deliberadamente simple del corpus de
+#    generalizacion) sale UNKNOWN en vez de NEGATED_FACT. Esto no es el
+#    hallazgo de composicion que motiva B0 -- es un fallo de negacion LEXICA
+#    ("nunca salio de", sin marca de alcance ambiguo aparente) que conviene
+#    dejar registrado como regresion, no enterrado dentro del 0,667 de la
+#    tabla.
+# --------------------------------------------------------------------------
+def test_positive_control_04_sale_unknown_no_negated_fact_documentado():
+    """`gen6:positive_control:04` ('El Arca de Especias nunca salio del
+    Muelle de la Canela.', gold NEGATED_FACT) no es una composicion de dos
+    operadores -- es el caso mas simple del corpus, deliberadamente sin
+    operadores compuestos, para poder separar 'falla por vocabulario/dominio
+    nuevo' de 'falla por composicion'. Que salga UNKNOWN (alcance ambiguo)
+    en vez de NEGATED_FACT, en una frase con un solo verbo negado por
+    'nunca', apunta a una causa DISTINTA del hallazgo central de B0 (fallo de
+    precedencia plana al componer marcos): probablemente una interaccion
+    entre `classify_negation` y el dominio/vocabulario nuevo del corpus que
+    dispara `ambiguous_scope` sin que haya ambiguedad real. Se deja como
+    test de regresion explicito para que quien investigue el 0,667 de
+    POSITIVE_CONTROL en B1 no tenga que redescubrirlo desde cero."""
+    from knowledge_v3.extraction.cues import analyze_raw_text
+
+    verdict = analyze_raw_text(
+        "El Arca de Especias nunca salio del Muelle de la Canela."
+    )
+    assert verdict.factivity.factivity_class.value == "UNKNOWN", (
+        "si esto ya no es UNKNOWN, la anomalia documentada en el informe de "
+        "B0 (POSITIVE_CONTROL a 0,667 por un fallo de negacion lexica, no "
+        "de composicion) se ha corregido o ha cambiado de forma -- "
+        "re-verificar el hallazgo antes de borrar este test"
+    )
