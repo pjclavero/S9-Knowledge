@@ -65,3 +65,8 @@ Thumbs.db
 *.backup
 *.bak
 state/external_ai_cache/
+
+# Gate4 B3: cache local de respuestas del proveedor NVIDIA (contenido de un
+# modelo de terceros bajo la clave del operador, no un artefacto del programa;
+# el resultado agregado versionado es artifacts/gate4-program/b3-nvidia-shadow.*)
+artifacts/gate4-program/b3-cache/
