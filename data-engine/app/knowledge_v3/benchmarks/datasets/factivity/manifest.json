@@ -1,0 +1,8 @@
+{
+  "corpus": "gate6-factivity-dev",
+  "dataset_version": "1.0.0",
+  "file_hashes": {
+    "cases.json": "f20146b436d7f2793331b71fb8e3d7fc5c709e9abd6027a3ddef5faab36bc41f"
+  },
+  "split": "dev-synthetic"
+}
