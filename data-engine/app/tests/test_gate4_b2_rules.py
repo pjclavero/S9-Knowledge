@@ -96,17 +96,22 @@ def test_bajo_el_control_del_confidence_fuerza_review():
         True,
         "no + pertenece a = negacion simple = negated True",
     ),
-    # "no + verbo_opinion + que + ... este en X": analyze_raw_text ve 'no' en ventana SIMPLE.
-    # El clasificador devuelve negated=True (SIMPLE) porque opera a nivel de oracion y el
-    # 'no' esta dentro de la ventana NEGATION_WINDOW=3 tokens antes del focus.
-    # Esto documenta la limitacion conocida: el clasificador no resuelve el alcance
-    # de actitudes epistemicas embebidas; ese caso (zafiro NEG-SCOPE-04) no es cubrible
-    # por reglas deterministas sin FP de precision.
+    # "no + verbo_opinion + que + ... este en X": ANTES de la puerta 6 (B1),
+    # "admite"/"admiten" no estaban en `cues.SCOPE_VERBS`, asi que el "no" caia
+    # en la ventana de negacion SIMPLE y el clasificador devolvia negated=True
+    # -- limitacion conocida (no resolvia el alcance de actitudes epistemicas
+    # embebidas). El bloque B1 de la puerta 6 (docs/v3/44) anadio "admite"/
+    # "admiten"/"admitio"/... a `SCOPE_VERBS` (misma clase que "confirma" ya
+    # cubierta) precisamente para cerrar la familia NEGATION_OF_FACTIVE de su
+    # corpus de generalizacion composicional; "no admite que" ahora entra por
+    # la regla de ALCANCE (1a en `classify_negation`) y da negated=False,
+    # kind=SCOPE_AMBIGUOUS -- el caso deja de ser una limitacion conocida.
     (
         "Andres Lupo no admite que la Sonda Madre este en el Domo Tres.",
         "el Domo Tres",
-        True,
-        "no + opinion + que: clasificador ve no en ventana -> negated True (limitacion conocida)",
+        False,
+        "no + admite + que: SCOPE_VERBS cubre 'admite' desde la puerta 6 B1 -> "
+        "alcance ambiguo, negated False (limitacion cerrada)",
     ),
     # Control positivo: sin negacion, negated=False
     (

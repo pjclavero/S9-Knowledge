@@ -110,6 +110,16 @@ REPORTING_LEMMAS_AR: tuple[str, ...] = (
     "declarar",
     "asegurar",
     "confirmar",
+    # Bloque B1 (puerta 6): "verificar" y "aceptar" son el mismo tipo de
+    # verbo factivo/de reconocimiento que "confirmar" (regulares -AR, sin
+    # diptongacion ni cambio ortografico), y su ausencia dejaba sin cubrir
+    # la mitad de la familia NEGATION_OF_FACTIVE del corpus de
+    # generalizacion composicional ("no verifico que", "no acepto que").
+    # Se declaran por el mismo criterio que los cuatro de arriba: lema de
+    # diccionario general, comprobado regular a mano, nunca copiado de una
+    # frase concreta del corpus.
+    "verificar",
+    "aceptar",
     "negar_IRREGULAR_SKIP",  # "negar" diptonga (niega/niego): no es regular, ver abajo
 )
 

@@ -1,0 +1,1933 @@
+{
+  "gate": "6",
+  "block": "B1",
+  "purpose": "Bloque B1: cierra, por prioridad del dictamen del revisor, el operador de discurso reportado por tercero (familias NESTED_REPORT + REPORT_OF_NEGATION, 12/40 violaciones de B0), 'mientras no' como condicional sin convertir usos temporales, y diagnostica (sin corregir, por riesgo de sobreajuste) el bug de 'nunca' con objeto locativo. Extiende ademas SCOPE_VERBS con verbos factivos/de reconocimiento (admitir/reconocer/verificar/aceptar), bonus de bajo riesgo sobre la misma familia arquitectonica ya cubierta por 'confirmar'. Compara fila a fila contra b0-baseline.json: ninguna cifra de esta comparacion esta escrita a mano.",
+  "current": {
+    "gate": "6",
+    "block": "B0",
+    "purpose": "Arnes de medicion de la factividad composicional: publica la exactitud de la politica de factualidad sobre el corpus dev congelado y sobre un corpus NUEVO de composicion de operadores, lado a lado, sin mezclarlas en un solo numero. No se toca `extraction/factivity.py` ni `cues.py` en este bloque: B0 mide, no corrige.",
+    "corpora": {
+      "dev": {
+        "split": "dev-synthetic",
+        "provenance": "dev-synthetic/opus-2026-07-30",
+        "layer": "factivity_policy",
+        "cases": 100,
+        "metrics_global": {
+          "policy_accuracy": 0.8
+        },
+        "metrics_by_family": {
+          "ALCANCE_COMPLEJO": {
+            "cases": 4,
+            "accuracy": 0.0
+          },
+          "CONDICIONAL": {
+            "cases": 10,
+            "accuracy": 0.8
+          },
+          "CONTRAFACTUAL": {
+            "cases": 10,
+            "accuracy": 0.6
+          },
+          "DESEO": {
+            "cases": 8,
+            "accuracy": 0.75
+          },
+          "FALSEDAD_ATRIBUIDA": {
+            "cases": 8,
+            "accuracy": 0.75
+          },
+          "FICCION_EN_FICCION": {
+            "cases": 8,
+            "accuracy": 1.0
+          },
+          "HECHO_AFIRMADO": {
+            "cases": 10,
+            "accuracy": 1.0
+          },
+          "HIPOTESIS": {
+            "cases": 10,
+            "accuracy": 1.0
+          },
+          "NEGACION_FACTUAL": {
+            "cases": 10,
+            "accuracy": 0.7
+          },
+          "ORDEN": {
+            "cases": 8,
+            "accuracy": 0.625
+          },
+          "PREGUNTA": {
+            "cases": 10,
+            "accuracy": 1.0
+          },
+          "RUMOR": {
+            "cases": 4,
+            "accuracy": 1.0
+          }
+        },
+        "rows": [
+          {
+            "case_id": "fact:hecho-afirmado:01",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:02",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:03",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:04",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:05",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:06",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:07",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:08",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:09",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:10",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:negacion-factual:01",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:negacion-factual:02",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:negacion-factual:03",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:negacion-factual:04",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": false
+          },
+          {
+            "case_id": "fact:negacion-factual:05",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:negacion-factual:06",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:negacion-factual:07",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:negacion-factual:08",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:negacion-factual:09",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:negacion-factual:10",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:01",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:02",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:03",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:04",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:05",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:06",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:07",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:08",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:09",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:10",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:01",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:02",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:03",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:04",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:05",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "COUNTERFACTUAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:06",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:07",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:condicional:08",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:09",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:10",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:contrafactual:01",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:contrafactual:02",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:contrafactual:03",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "DESIRE",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:contrafactual:04",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:contrafactual:05",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:contrafactual:06",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:contrafactual:07",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:contrafactual:08",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:contrafactual:09",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:contrafactual:10",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:01",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:02",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:03",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:04",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:05",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:06",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:07",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:08",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:09",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:10",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:deseo:01",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "DESIRE",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:deseo:02",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "DESIRE",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:deseo:03",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "DESIRE",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:deseo:04",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "DESIRE",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:deseo:05",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:deseo:06",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "DESIRE",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:deseo:07",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:deseo:08",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "DESIRE",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:orden:01",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:orden:02",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "COMMAND",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:orden:03",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:orden:04",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "COMMAND",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:orden:05",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:orden:06",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "COMMAND",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:orden:07",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "COMMAND",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:orden:08",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "COMMAND",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:01",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": false,
+            "predicted_class": "REPORTED_FALSEHOOD",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:02",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:03",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": false,
+            "predicted_class": "REPORTED_FALSEHOOD",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:04",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "REPORTED_FALSEHOOD",
+            "read_as_world_fact": false,
+            "correct": false
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:05",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": false,
+            "predicted_class": "REPORTED_FALSEHOOD",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:06",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": false,
+            "predicted_class": "REPORTED_FALSEHOOD",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:07",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "REPORTED_FALSEHOOD",
+            "read_as_world_fact": false,
+            "correct": false
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:08",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": false,
+            "predicted_class": "REPORTED_FALSEHOOD",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:01",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:02",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:03",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:04",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:05",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:06",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:07",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:08",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:rumor:01",
+            "family": "RUMOR",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:rumor:02",
+            "family": "RUMOR",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:rumor:03",
+            "family": "RUMOR",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:rumor:04",
+            "family": "RUMOR",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:alcance-complejo:01",
+            "family": "ALCANCE_COMPLEJO",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:alcance-complejo:02",
+            "family": "ALCANCE_COMPLEJO",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:alcance-complejo:03",
+            "family": "ALCANCE_COMPLEJO",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:alcance-complejo:04",
+            "family": "ALCANCE_COMPLEJO",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          }
+        ]
+      },
+      "generalization": {
+        "split": "gate6-generalization-compositional",
+        "layer": "factivity_policy",
+        "cases": 42,
+        "metrics_global": {
+          "overall_accuracy": 0.7619047619047619,
+          "hard_family_accuracy": 0.0,
+          "non_hard_accuracy": 0.8888888888888888
+        },
+        "metrics_by_family": {
+          "CONDITIONAL_IN_RUMOR": {
+            "cases": 6,
+            "accuracy": 1.0
+          },
+          "FACTIVE_IN_CONDITIONAL": {
+            "cases": 6,
+            "accuracy": 0.8333333333333334
+          },
+          "LEXICAL_NEGATION_EDGE": {
+            "cases": 2,
+            "accuracy": 0.0
+          },
+          "NEGATED_RUMOR_HARD": {
+            "cases": 6,
+            "accuracy": 0.0
+          },
+          "NEGATION_OF_FACTIVE": {
+            "cases": 6,
+            "accuracy": 0.8333333333333334
+          },
+          "NESTED_REPORT": {
+            "cases": 6,
+            "accuracy": 1.0
+          },
+          "POSITIVE_CONTROL": {
+            "cases": 4,
+            "accuracy": 1.0
+          },
+          "REPORT_OF_NEGATION": {
+            "cases": 6,
+            "accuracy": 1.0
+          }
+        },
+        "hard_families": [
+          "NEGATED_RUMOR_HARD"
+        ],
+        "rows": [
+          {
+            "case_id": "gen6:cond_in_rumor:01",
+            "family": "CONDITIONAL_IN_RUMOR",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:02",
+            "family": "CONDITIONAL_IN_RUMOR",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:03",
+            "family": "CONDITIONAL_IN_RUMOR",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:04",
+            "family": "CONDITIONAL_IN_RUMOR",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:05",
+            "family": "CONDITIONAL_IN_RUMOR",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:06",
+            "family": "CONDITIONAL_IN_RUMOR",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:nested_report:01",
+            "family": "NESTED_REPORT",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:nested_report:02",
+            "family": "NESTED_REPORT",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:nested_report:03",
+            "family": "NESTED_REPORT",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:nested_report:04",
+            "family": "NESTED_REPORT",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:nested_report:05",
+            "family": "NESTED_REPORT",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:nested_report:06",
+            "family": "NESTED_REPORT",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:neg_of_factive:01",
+            "family": "NEGATION_OF_FACTIVE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:neg_of_factive:02",
+            "family": "NEGATION_OF_FACTIVE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:neg_of_factive:03",
+            "family": "NEGATION_OF_FACTIVE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:neg_of_factive:04",
+            "family": "NEGATION_OF_FACTIVE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:neg_of_factive:05",
+            "family": "NEGATION_OF_FACTIVE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:neg_of_factive:06",
+            "family": "NEGATION_OF_FACTIVE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:factive_in_cond:01",
+            "family": "FACTIVE_IN_CONDITIONAL",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:factive_in_cond:02",
+            "family": "FACTIVE_IN_CONDITIONAL",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:factive_in_cond:03",
+            "family": "FACTIVE_IN_CONDITIONAL",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:factive_in_cond:04",
+            "family": "FACTIVE_IN_CONDITIONAL",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:factive_in_cond:05",
+            "family": "FACTIVE_IN_CONDITIONAL",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:factive_in_cond:06",
+            "family": "FACTIVE_IN_CONDITIONAL",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:01",
+            "family": "NEGATED_RUMOR_HARD",
+            "hard": true,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:02",
+            "family": "NEGATED_RUMOR_HARD",
+            "hard": true,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:03",
+            "family": "NEGATED_RUMOR_HARD",
+            "hard": true,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:04",
+            "family": "NEGATED_RUMOR_HARD",
+            "hard": true,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:05",
+            "family": "NEGATED_RUMOR_HARD",
+            "hard": true,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:06",
+            "family": "NEGATED_RUMOR_HARD",
+            "hard": true,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:report_of_neg:01",
+            "family": "REPORT_OF_NEGATION",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:report_of_neg:02",
+            "family": "REPORT_OF_NEGATION",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:report_of_neg:03",
+            "family": "REPORT_OF_NEGATION",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:report_of_neg:04",
+            "family": "REPORT_OF_NEGATION",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:report_of_neg:05",
+            "family": "REPORT_OF_NEGATION",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:report_of_neg:06",
+            "family": "REPORT_OF_NEGATION",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:positive_control:01",
+            "family": "POSITIVE_CONTROL",
+            "hard": false,
+            "expected_class": "ASSERTED_FACT",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:positive_control:02",
+            "family": "POSITIVE_CONTROL",
+            "hard": false,
+            "expected_class": "ASSERTED_FACT",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:positive_control:03",
+            "family": "LEXICAL_NEGATION_EDGE",
+            "hard": false,
+            "expected_class": "NEGATED_FACT",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:positive_control:04",
+            "family": "LEXICAL_NEGATION_EDGE",
+            "hard": false,
+            "expected_class": "NEGATED_FACT",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:positive_control:05",
+            "family": "POSITIVE_CONTROL",
+            "hard": false,
+            "expected_class": "ASSERTED_FACT",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:positive_control:06",
+            "family": "POSITIVE_CONTROL",
+            "hard": false,
+            "expected_class": "NEGATED_FACT",
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          }
+        ]
+      }
+    },
+    "fail_closed_invariant": {
+      "description": "ningun caso cuyo gold exige abstenerse (dev: ABSTAIN/DIAGNOSTIC; generalizacion: NON_FACTIVE) debe leerse como ASSERTED_FACT o NEGATED_FACT",
+      "violations": [
+        {
+          "corpus": "dev",
+          "case_id": "fact:condicional:07",
+          "family": "CONDICIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:condicional:10",
+          "family": "CONDICIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:02",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:05",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:06",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:07",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:deseo:05",
+          "family": "DESEO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:deseo:07",
+          "family": "DESEO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:01",
+          "family": "ORDEN",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:03",
+          "family": "ORDEN",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:05",
+          "family": "ORDEN",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:01",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:02",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:03",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:04",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_of_factive:04",
+          "family": "NEGATION_OF_FACTIVE",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:factive_in_cond:06",
+          "family": "FACTIVE_IN_CONDITIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:01",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:02",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:03",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:04",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:05",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:06",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "ASSERTED_FACT"
+        }
+      ],
+      "status": "NO CONFORME"
+    },
+    "notes": [
+      "El numero de desarrollo de este arnes (policy_accuracy sobre las 100 frases) reproduce F6-7 de `gate6-findings.md` ('79/100 correctas'), NO el 79,17 % de F6-3 (ese es acuerdo de ACCION entre carriles det+combined+nvidia, que exige un extractor completo y un proveedor NVIDIA en vivo -- no reproducible de forma determinista y sin red por este arnes). Ver docstring del modulo.",
+      "El corpus de generalizacion de este bloque mide un eje DISTINTO del de `factivity_generalization_probe.py` (0,231): aquel prueba vocabulario nuevo con UN operador por frase; este prueba COMPOSICION de operadores en su mayoria conocidos. Una exactitud baja aqui no es el mismo hallazgo que el 0,231 -- es un hallazgo relacionado, sobre el fallo de la precedencia plana al combinar marcos, no sobre el vocabulario ausente.",
+      "La familia `NEGATED_RUMOR_HARD` se declara HARD por adelantado: se espera una exactitud baja porque 'no es cierto el rumor de que' no es substring literal de ninguna FALSITY_PHRASE (la interposicion de 'el rumor de' rompe el match). El gold no se ajusto para que el sistema acertase.",
+      "Regla de aceptacion heredada de la fase 3 de la validacion V3: ninguna mejora futura de `cues.py`/`factivity.py` se acepta si solo sube el numero de desarrollo. La sonda de generalizacion (esta, y la de vocabulario) es el criterio de aceptacion, y debe ejecutarse ANTES de tocar la politica, no despues."
+    ]
+  },
+  "comparison_vs_b0": {
+    "dev": {
+      "corpus": "dev",
+      "metrics_before": {
+        "policy_accuracy": 0.79
+      },
+      "metrics_after": {
+        "policy_accuracy": 0.8
+      },
+      "regressions": [],
+      "improvements": [
+        {
+          "case_id": "fact:condicional:04",
+          "family": "CONDICIONAL",
+          "before": "NEGATED_FACT",
+          "after": "CONDITIONAL"
+        }
+      ],
+      "changed_class_same_verdict": []
+    },
+    "generalization": {
+      "corpus": "generalization",
+      "metrics_before": {
+        "overall_accuracy": 0.38095238095238093,
+        "hard_family_accuracy": 0.0,
+        "non_hard_accuracy": 0.4444444444444444
+      },
+      "metrics_after": {
+        "overall_accuracy": 0.7619047619047619,
+        "hard_family_accuracy": 0.0,
+        "non_hard_accuracy": 0.8888888888888888
+      },
+      "regressions": [],
+      "improvements": [
+        {
+          "case_id": "gen6:nested_report:01",
+          "family": "NESTED_REPORT",
+          "before": "ASSERTED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:nested_report:02",
+          "family": "NESTED_REPORT",
+          "before": "ASSERTED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:nested_report:03",
+          "family": "NESTED_REPORT",
+          "before": "ASSERTED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:nested_report:04",
+          "family": "NESTED_REPORT",
+          "before": "ASSERTED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:nested_report:05",
+          "family": "NESTED_REPORT",
+          "before": "ASSERTED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:nested_report:06",
+          "family": "NESTED_REPORT",
+          "before": "ASSERTED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:neg_of_factive:02",
+          "family": "NEGATION_OF_FACTIVE",
+          "before": "NEGATED_FACT",
+          "after": "UNKNOWN"
+        },
+        {
+          "case_id": "gen6:neg_of_factive:03",
+          "family": "NEGATION_OF_FACTIVE",
+          "before": "NEGATED_FACT",
+          "after": "UNKNOWN"
+        },
+        {
+          "case_id": "gen6:neg_of_factive:05",
+          "family": "NEGATION_OF_FACTIVE",
+          "before": "NEGATED_FACT",
+          "after": "UNKNOWN"
+        },
+        {
+          "case_id": "gen6:neg_of_factive:06",
+          "family": "NEGATION_OF_FACTIVE",
+          "before": "NEGATED_FACT",
+          "after": "UNKNOWN"
+        },
+        {
+          "case_id": "gen6:report_of_neg:01",
+          "family": "REPORT_OF_NEGATION",
+          "before": "NEGATED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:report_of_neg:02",
+          "family": "REPORT_OF_NEGATION",
+          "before": "NEGATED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:report_of_neg:03",
+          "family": "REPORT_OF_NEGATION",
+          "before": "NEGATED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:report_of_neg:04",
+          "family": "REPORT_OF_NEGATION",
+          "before": "NEGATED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:report_of_neg:05",
+          "family": "REPORT_OF_NEGATION",
+          "before": "NEGATED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:report_of_neg:06",
+          "family": "REPORT_OF_NEGATION",
+          "before": "NEGATED_FACT",
+          "after": "RUMOR"
+        }
+      ],
+      "changed_class_same_verdict": []
+    },
+    "fail_closed_violations": {
+      "count_before": 40,
+      "count_after": 23,
+      "resolved": [
+        {
+          "corpus": "dev",
+          "case_id": "fact:condicional:04",
+          "family": "CONDICIONAL",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_of_factive:02",
+          "family": "NEGATION_OF_FACTIVE",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_of_factive:03",
+          "family": "NEGATION_OF_FACTIVE",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_of_factive:05",
+          "family": "NEGATION_OF_FACTIVE",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_of_factive:06",
+          "family": "NEGATION_OF_FACTIVE",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:nested_report:01",
+          "family": "NESTED_REPORT",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:nested_report:02",
+          "family": "NESTED_REPORT",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:nested_report:03",
+          "family": "NESTED_REPORT",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:nested_report:04",
+          "family": "NESTED_REPORT",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:nested_report:05",
+          "family": "NESTED_REPORT",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:nested_report:06",
+          "family": "NESTED_REPORT",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:report_of_neg:01",
+          "family": "REPORT_OF_NEGATION",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:report_of_neg:02",
+          "family": "REPORT_OF_NEGATION",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:report_of_neg:03",
+          "family": "REPORT_OF_NEGATION",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:report_of_neg:04",
+          "family": "REPORT_OF_NEGATION",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:report_of_neg:05",
+          "family": "REPORT_OF_NEGATION",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:report_of_neg:06",
+          "family": "REPORT_OF_NEGATION",
+          "predicted_class": "NEGATED_FACT"
+        }
+      ],
+      "new": [],
+      "still_violating": [
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:01",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:02",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:03",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:04",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:condicional:07",
+          "family": "CONDICIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:condicional:10",
+          "family": "CONDICIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:02",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:05",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:06",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:07",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:deseo:05",
+          "family": "DESEO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:deseo:07",
+          "family": "DESEO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:01",
+          "family": "ORDEN",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:03",
+          "family": "ORDEN",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:05",
+          "family": "ORDEN",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:factive_in_cond:06",
+          "family": "FACTIVE_IN_CONDITIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_of_factive:04",
+          "family": "NEGATION_OF_FACTIVE",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:01",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:02",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:03",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:04",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:05",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:06",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "ASSERTED_FACT"
+        }
+      ]
+    }
+  }
+}

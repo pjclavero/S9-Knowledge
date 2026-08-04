@@ -152,6 +152,7 @@ _EXPECTED_FAMILIES = {
     "NEGATED_RUMOR_HARD",
     "REPORT_OF_NEGATION",
     "POSITIVE_CONTROL",
+    "LEXICAL_NEGATION_EDGE",
 }
 
 
@@ -214,15 +215,26 @@ def test_el_esquema_roto_rompe_la_carga(tmp_path, monkeypatch):
 # --------------------------------------------------------------------------
 # 5. Cifras honestas del baseline (fijadas por esta corrida, no a mano)
 # --------------------------------------------------------------------------
-def test_el_baseline_reproduce_la_cifra_historica_de_f6_7():
-    """`policy_accuracy` sobre el corpus dev tiene que ser 79/100 = 0.79,
-    la misma cifra que documenta `gate6-findings.md` (seccion F6-7: "la
-    politica, medida de verdad, acierta 79/100"). Si este test empieza a
-    fallar, NO se ajusta el numero a mano: significa que `cues.py` cambio (lo
-    cual puede ser legitimo, p.ej. tras B1+) y hay que volver a investigar y
-    documentar por que difiere, no forzar que vuelva a cuadrar."""
+def test_el_baseline_post_b1_sube_a_80_sobre_100_sin_bajar_de_f6_7():
+    """`policy_accuracy` sobre el corpus dev era 79/100 = 0.79 en B0 (misma
+    cifra que `gate6-findings.md`, F6-7). B1 anadio el operador de discurso
+    reportado por tercero, "mientras no" como condicional y la extension de
+    SCOPE_VERBS (admitir/reconocer/verificar/aceptar): la UNICA fila de dev
+    que cambia es `fact:condicional:04` (NEGATED_FACT -> CONDITIONAL,
+    correcto), sin ninguna regresion (verificado fila a fila en el informe
+    de B1, docs/v3/44) -- de ahi 80/100 = 0.80. Si este test empieza a
+    fallar POR DEBAJO de 0.79, es la regla de oro violada (regla del
+    encargo: ninguna mejora se acepta si baja `policy_accuracy` de dev);
+    si falla por encima o por debajo de 0.80 sin que nadie haya tocado
+    `cues.py`/`factivity.py` a proposito, hay que investigar y documentar
+    por que difiere, no forzar que vuelva a cuadrar."""
     report = measure_gate6_program()
-    assert report["corpora"]["dev"]["metrics_global"]["policy_accuracy"] == pytest.approx(0.79)
+    accuracy = report["corpora"]["dev"]["metrics_global"]["policy_accuracy"]
+    assert accuracy >= 0.79 - 1e-9, (
+        f"policy_accuracy de dev bajo de la cifra F6-7 (0.79): {accuracy} -- "
+        "regla de oro violada, ninguna mejora se acepta si hunde el numero de dev"
+    )
+    assert accuracy == pytest.approx(0.80)
 
 
 def test_la_familia_dura_de_generalizacion_no_se_fuerza_a_acertar():

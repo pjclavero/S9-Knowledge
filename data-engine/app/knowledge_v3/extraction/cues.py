@@ -33,7 +33,7 @@ import re
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
-from .morphology import reporting_verb_forms
+from .morphology import conjugate_regular_ar, reporting_verb_forms
 from .factivity import (
     FactivityAction,
     FactivityResult,
@@ -137,6 +137,24 @@ CONDITIONAL_PHRASES: tuple[str, ...] = (
     "a no ser que",
     "solo si",
     "puestos a imaginar",
+)
+
+#: Bloque B1 (puerta 6): "mientras" es AMBIGUO entre conjuncion TEMPORAL
+#: ("mientras cenaban, llego X" -- indicativo, no suspende nada) y
+#: CONDICIONAL ("mientras Toturi no rompa la tregua..." -- subjuntivo, "a
+#: menos que"). No se puede distinguir por texto llano sin un analizador
+#: morfologico de modo verbal completo, pero SI hay una regla gramatical
+#: cerrada y no ad-hoc que cubre el caso que produce ambiguedad real: en
+#: espanol, "mientras no" + verbo SIEMPRE toma subjuntivo (es la
+#: construccion "a menos que"/"hasta que no" -- nunca temporal-indicativo).
+#: `(?:\w+ ){0,4}` deja hueco para el sujeto interpuesto ("mientras Toturi
+#: no rompa"). Un "mientras" SIN "no" cercano se queda fuera a proposito
+#: (sigue leyendose como conjuncion de clausula en `CLAUSE_CONJUNCTIONS`,
+#: nunca como condicional): forzar esa lectura convertiria un "mientras"
+#: temporal en condicional, que es exactamente el falso positivo que este
+#: bloque tiene prohibido introducir.
+CONDITIONAL_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\bmientras (?:\w+ ){0,4}no\b"), "mientras <sujeto> no"),
 )
 
 # Preguntas indirectas sin signos de interrogacion.
@@ -409,7 +427,87 @@ SCOPE_VERBS: tuple[str, ...] = (
     "recordaba", "recuerda",
     "sabe", "sabia", "supo",
     "sospecha", "sospechaba",
+    # Bloque B1 (puerta 6): "admitir" (-IR) y "reconocer" (-ER) son verbos
+    # factivos/de reconocimiento de la MISMA clase que "confirmar" (ya
+    # cubierto via `reporting_verb_forms()`), pero ninguno es regular -AR, asi
+    # que no los genera `morphology.conjugate_regular_ar`. Se declaran a mano,
+    # solo 3a persona (singular/plural, presente/preterito/imperfecto/
+    # perfecto/pluscuamperfecto), mismo criterio que "decir"/"saber" arriba:
+    # paradigma de diccionario general, no una forma copiada de un caso de
+    # corpus. Sin ellos, "no admitio que"/"no reconocio que" no disparaban
+    # `CODE_NEGATION_SCOPE` y la familia NEGATION_OF_FACTIVE del corpus de
+    # generalizacion composicional se leia como hecho (violacion fail-closed).
+    "admite", "admiten", "admitio", "admitieron", "admitia", "admitian",
+    "ha admitido", "han admitido", "habia admitido", "habian admitido",
+    "reconoce", "reconocen", "reconocio", "reconocieron",
+    "reconocia", "reconocian",
+    "ha reconocido", "han reconocido", "habia reconocido", "habian reconocido",
     *reporting_verb_forms(),
+)
+
+# --------------------------------------------------------------------------
+# Bloque B1 (puerta 6): operador de DISCURSO REPORTADO POR TERCERO.
+# --------------------------------------------------------------------------
+#: Verbos de REPORTE (acto de habla que atribuye una afirmacion a un tercero),
+#: distintos de los verbos FACTIVOS/de reconocimiento de `SCOPE_VERBS`
+#: ("confirmar", "admitir", "reconocer", "verificar", "aceptar"): si alguien
+#: CONFIRMA/ADMITE/RECONOCE/VERIFICA/ACEPTA algo, el verbo presupone que lo
+#: dicho es cierto (son "factivos-implicativos"); si alguien DICE/AFIRMA/
+#: DECLARA/ASEGURA/SOSTIENE/COMENTA/RELATA/INFORMA/MENCIONA/INDICA/REPITE/
+#: INSISTE/ESCRIBE/CUENTA/CONFIESA algo, el texto solo atestigua el ACTO de
+#: decirlo, no la verdad de lo dicho -- por eso "confirmar" se queda fuera de
+#: esta lista y "decir"/"afirmar" entran aqui. Deliberadamente NO incluye
+#: "referir": el corpus dev (`fact:hecho-afirmado:08`, "El escriba refirio
+#: que ... y sus libros lo confirman", gold WRITE_POSITIVE) es un caso real
+#: donde un reporte SI se escribe como hecho porque el propio texto aporta
+#: corroboracion independiente en la misma frase; anadir "referir" aqui lo
+#: convertiria en una violacion nueva, asi que se excluye a proposito.
+#:
+#: Formas regulares -AR generadas por lema (nunca copiadas de un caso de
+#: corpus) mas las irregulares/-ER/-IR declaradas a mano, mismo criterio que
+#: `SCOPE_VERBS` de arriba.
+_REPORT_VERB_AR_LEMMAS: tuple[str, ...] = (
+    "afirmar", "declarar", "asegurar",
+    "comentar", "relatar", "informar", "mencionar", "indicar",
+)
+REPORT_VERB_HAND_FORMS: tuple[str, ...] = (
+    # decir (irregular): SCOPE_VERBS solo tenia el singular; aqui hacen falta
+    # tambien las formas plurales para el operador de reporte.
+    "dice", "dicen", "dijo", "dijeron", "decia", "decian",
+    # sostener (irregular, paradigma de "tener")
+    "sostiene", "sostienen", "sostuvo", "sostuvieron",
+    "sostenia", "sostenian",
+    "ha sostenido", "han sostenido", "habia sostenido", "habian sostenido",
+    # contar (irregular, diptongacion o->ue)
+    "cuenta", "cuentan", "conto", "contaron", "contaba", "contaban",
+    "ha contado", "han contado", "habia contado", "habian contado",
+    # repetir (irregular, e->i)
+    "repite", "repiten", "repitio", "repitieron", "repetia", "repetian",
+    "ha repetido", "han repetido", "habia repetido", "habian repetido",
+    # confesar (irregular, e->ie)
+    "confiesa", "confiesan", "confeso", "confesaron",
+    "confesaba", "confesaban",
+    "ha confesado", "han confesado", "habia confesado", "habian confesado",
+    # escribir (regular -IR salvo el participio irregular "escrito")
+    "escribe", "escriben", "escribio", "escribieron",
+    "escribia", "escribian",
+    "ha escrito", "han escrito", "habia escrito", "habian escrito",
+    # insistir (regular -IR)
+    "insiste", "insisten", "insistio", "insistieron",
+    "insistia", "insistian",
+    "ha insistido", "han insistido", "habia insistido", "habian insistido",
+)
+REPORT_VERBS: tuple[str, ...] = tuple(
+    dict.fromkeys(
+        [
+            *[
+                forma
+                for lemma in _REPORT_VERB_AR_LEMMAS
+                for forma in conjugate_regular_ar(lemma).all_forms()
+            ],
+            *REPORT_VERB_HAND_FORMS,
+        ]
+    )
 )
 
 #: Conjunciones que abren una clausula NUEVA. La negacion de la anterior no
@@ -446,6 +544,13 @@ CODE_DEONTIC = "DEONTIC_CONTEXT"
 CODE_DESIRE = "DESIRE_CONTEXT"
 #: El texto niega, pero el alcance de la negacion no es la relacion extraida.
 CODE_NEGATION_SCOPE = "REVIEW_NEGATION_SCOPE"
+#: Bloque B1 (puerta 6): el texto atribuye la afirmacion a un TERCERO
+#: ("X dijo/afirmo/declaro que P"). El acto de habla existe, pero P no esta
+#: verificado por el propio texto -- es del mismo tipo epistemico que un
+#: rumor (atribuido, no confirmado), asi que se trata con el MISMO
+#: mecanismo que RUMORED: degrada el hint epistemico si no hay ya uno mas
+#: fuerte, nunca se materializa como ASSERTED_FACT/NEGATED_FACT.
+CODE_REPORTED_SPEECH = "REPORTED_SPEECH_CONTEXT"
 #: La propuesta dice `negated=true` y la evidencia no lo respalda. Un proveedor
 #: no puede INVENTAR una negacion, igual que no puede borrarla.
 CODE_NEGATION_NOT_IN_EVIDENCE = "NEGATION_NOT_IN_EVIDENCE"
@@ -526,6 +631,22 @@ def _first_phrase(
     for phrase in phrases:
         if _has_phrase(tokens, phrase, lo, hi):
             return phrase
+    return None
+
+
+def _reported_speech_cue(
+    tokens: Sequence[Token], lo: int, hi: int
+) -> Optional[str]:
+    """Primer `<verbo de reporte> que` en `[lo, hi)`, si lo hay.
+
+    Igual que `scope_negation` busca `no <verbo de actitud>` pegados, esto
+    busca `<verbo de reporte> que` pegados: el hueco cerrado (0 tokens entre
+    verbo y "que") evita que un "que" remoto de otra subordinada dispare el
+    operador.
+    """
+    for i in range(lo, hi - 1):
+        if tokens[i].norm in REPORT_VERBS and tokens[i + 1].norm == "que":
+            return f"{tokens[i].text} que"
     return None
 
 
@@ -907,6 +1028,13 @@ def analyze_context(
             if code == CODE_COUNTERFACTUAL and CODE_CONDITIONAL not in reasons:
                 reasons.append(CODE_CONDITIONAL)
 
+    normalized_window_cond = " ".join(token.norm for token in tokens[lo:hi])
+    for pattern, cue in CONDITIONAL_PATTERNS:
+        if pattern.search(normalized_window_cond):
+            cues.append(cue)
+            if CODE_CONDITIONAL not in reasons:
+                reasons.append(CODE_CONDITIONAL)
+
     for phrase in FICTION_PHRASES:
         if _has_phrase(tokens, phrase, lo, hi):
             cues.append(phrase)
@@ -953,6 +1081,23 @@ def analyze_context(
             cues.append(cue)
             if hint == "ASSERTED":
                 hint = mapped
+
+    # Bloque B1 (puerta 6): discurso reportado por un tercero ("X dijo que
+    # P"). Se trata con el MISMO mecanismo que RUMORED -- degrada el hint si
+    # todavia esta en ASSERTED, nunca lo sube de rango si ya hay algo mas
+    # fuerte (falsedad, condicional-ya-convertido-en-hipotetico, etc.). Eso
+    # cubre gratis el reporte de una negacion ("X informo que Y no ..."): el
+    # hint pasa a RUMORED y `ContextVerdict.factivity` clasifica RUMOR antes
+    # de llegar al `if signals.negated` de reserva, asi que nunca se
+    # materializa como NEGATED_FACT solo porque la clausula reportada
+    # contenga un "no".
+    reported = _reported_speech_cue(tokens, lo, hi)
+    if reported:
+        cues.append(reported)
+        if CODE_REPORTED_SPEECH not in reasons:
+            reasons.append(CODE_REPORTED_SPEECH)
+        if hint == "ASSERTED":
+            hint = "RUMORED"
 
     if CODE_CONDITIONAL in reasons and hint == "ASSERTED":
         hint = "HYPOTHETICAL"
@@ -1005,6 +1150,8 @@ __all__ = [
     "CODE_NEGATION_NOT_IN_EVIDENCE",
     "CODE_NEGATION_SCOPE",
     "CODE_NON_FACTIVE",
+    "CODE_REPORTED_SPEECH",
+    "CONDITIONAL_PATTERNS",
     "CONDITIONAL_PHRASES",
     "DEONTIC_PHRASES",
     "DESIRE_PHRASES",
@@ -1014,6 +1161,8 @@ __all__ = [
     "FICTION_PHRASES",
     "INTERROGATIVE_PHRASES",
     "NEGATION_CUES",
+    "REPORT_VERBS",
+    "REPORT_VERB_HAND_FORMS",
     "NEGATION_KINDS",
     "NEGATION_KIND_CESSATION",
     "NEGATION_KIND_NEVER",
