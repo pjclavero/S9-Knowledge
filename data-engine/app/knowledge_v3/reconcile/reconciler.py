@@ -14,6 +14,7 @@ from .canonical import (
     canonical_trace,
     claim_key,
     claim_sort_key,
+    coreferent_claim_key,
     mention_key,
     mention_sort_key,
     sort_alternatives,
@@ -60,9 +61,17 @@ class ProposalReconciler:
         claim_merge_keys = {
             key for key, group in claim_groups.items() if len({c.claim_id for c in group}) > 1
         }
+        coreferent_pending = bool(
+            self._coreferent_groups_to_merge(preliminary_claims)
+        )
 
         duration = (time.perf_counter() - started) * 1000.0
-        if not mention_merge_keys and not claim_merge_keys and not orphan_diagnostics:
+        if (
+            not mention_merge_keys
+            and not claim_merge_keys
+            and not coreferent_pending
+            and not orphan_diagnostics
+        ):
             return ReconcileResult(
                 output=output,
                 stats=ReconcileStats(
@@ -116,6 +125,41 @@ class ProposalReconciler:
             else:
                 merged_claims.extend(group)
 
+        # SEGUNDO PASE: propuestas CO-REFERENTES. Las de arriba se funden por
+        # identidad literal; estas, por hablar de la misma relacion desde
+        # familias distintas. Ver `CoreferentClaimKey` para por que existe y por
+        # que el predicado NO entra en la clave.
+        coreferent_merges = 0
+        if self.config.merge_coreferent_claims:
+            a_fundir = self._coreferent_groups_to_merge(merged_claims)
+            if a_fundir:
+                resultado: list[ClaimProposal] = []
+                ya_fundidos: set[str] = set()
+                for claim in merged_claims:
+                    clave = coreferent_claim_key(claim)
+                    grupo = a_fundir.get(clave)
+                    if grupo is None:
+                        resultado.append(claim)
+                        continue
+                    if clave in ya_fundidos:
+                        continue
+                    ya_fundidos.add(clave)
+                    fundido, unknown = self._merge_claims(
+                        clave, grupo, base=self._most_authoritative(grupo)
+                    )
+                    unknown_families += unknown
+                    coreferent_merges += 1
+                    diagnostics.append(
+                        Diagnostic(
+                            "RECONCILE_COREFERENT_CLAIMS_MERGED",
+                            RECONCILE_STEP,
+                            fundido.episode_id,
+                            ",".join(sorted(c.claim_id for c in grupo)),
+                        )
+                    )
+                    resultado.append(fundido)
+                merged_claims = resultado
+
         if unknown_families:
             diagnostics.append(
                 Diagnostic(
@@ -146,7 +190,7 @@ class ProposalReconciler:
                 input_claims=len(output.claims),
                 output_claims=len(merged_claims),
                 mention_groups=len(mention_merge_keys),
-                claim_groups=len(claim_merge_keys),
+                claim_groups=len(claim_merge_keys) + coreferent_merges,
                 mentions_merged=len(output.mentions) - len(merged_mentions),
                 claims_merged=len(output.claims) - len(merged_claims),
                 preserved_ambiguous=0,
@@ -177,6 +221,42 @@ class ProposalReconciler:
             for mention in group:
                 out[mention.mention_id] = canonical_id if key in merge_keys else mention.mention_id
         return out
+
+    def _coreferent_groups_to_merge(self, claims: Iterable[ClaimProposal]) -> dict:
+        """Grupos de propuestas co-referentes que HAY que fundir.
+
+        Solo se devuelve un grupo si sus propuestas vienen de mas de una FAMILIA
+        de independencia. Dos claims del mismo extractor sobre el mismo par de
+        menciones no se tocan: ahi el reconciliador no tiene nada que arbitrar y
+        colapsarlos seria decidir por el extractor, que no es su papel.
+        """
+        if not self.config.merge_coreferent_claims:
+            return {}
+        grupos: dict = defaultdict(list)
+        for claim in claims:
+            grupos[coreferent_claim_key(claim)].append(claim)
+        salida: dict = {}
+        for clave, grupo in grupos.items():
+            if len({c.claim_id for c in grupo}) < 2:
+                continue
+            familias = {
+                self.config.independence_registry.origin_for(c)[0].family for c in grupo
+            }
+            if len(familias) < 2:
+                continue
+            # Solo se funden propuestas que YA piden revision. Una propuesta
+            # auto-aprobable lleva autoridad propia y tiene que conservar su
+            # decision: fundir un ACCEPT local con un REVIEW externo rebajaria
+            # el local por el mero hecho de que un proveedor externo hablo de lo
+            # mismo, que es exactamente al reves de como funciona esta cadena
+            # (ver `TestE2E02HechoSemantico`). Dos tarjetas de REVISION sobre la
+            # misma relacion, en cambio, no aportan nada: son una sola cosa que
+            # una persona tiene que mirar una vez.
+            if not all(bool(c.review_required) for c in grupo):
+                continue
+            grupo = sorted(grupo, key=claim_sort_key)
+            salida[clave] = grupo
+        return salida
 
     @staticmethod
     def _group_claims(claims: Iterable[ClaimProposal]) -> dict:
@@ -269,8 +349,29 @@ class ProposalReconciler:
             merged.validate()
         return merged, unknown
 
-    def _merge_claims(self, key, group: list[ClaimProposal]) -> tuple[ClaimProposal, int]:
-        base = group[0]
+    #: Orden de autoridad de un proveedor. Al fundir propuestas co-referentes,
+    #: `produced_by_step` se toma de la MAS externa del grupo: es la que decide
+    #: los hallazgos de autoridad del motor (`EXTERNAL_PROPOSAL`,
+    #: `OLLAMA_PROPOSAL`). Tomar la local, que es la que suele ordenar primero,
+    #: blanquearia una propuesta externa haciendola pasar por local -- justo lo
+    #: que la cadena existe para impedir.
+    _AUTHORITY_ORDER: tuple[str, ...] = ("external", "ollama")
+
+    @classmethod
+    def _most_authoritative(cls, group: list[ClaimProposal]) -> ClaimProposal:
+        def rango(claim: ClaimProposal) -> int:
+            provider = str(claim.producing_provider().get("provider") or "")
+            return (
+                cls._AUTHORITY_ORDER.index(provider)
+                if provider in cls._AUTHORITY_ORDER
+                else len(cls._AUTHORITY_ORDER)
+            )
+        return min(group, key=lambda c: (rango(c), claim_sort_key(c)))
+
+    def _merge_claims(
+        self, key, group: list[ClaimProposal], base: ClaimProposal | None = None
+    ) -> tuple[ClaimProposal, int]:
+        base = group[0] if base is None else base
         metadata, unknown = self._merged_metadata_with_unknowns(group, claim_id_getter)
         metadata[RECONCILIATION_METADATA_KEY]["predicate_candidate_origins"] = (
             self._candidate_origins(group, "predicate_candidates", "predicate", claim_id_getter)

@@ -234,3 +234,81 @@ La cobertura sube **pese a** haber quitado literales, porque los paradigmas
 generados cubren más formas que las conjugaciones sueltas que sustituyen. La
 única métrica que baja es `HARD_SCOPE_LITOTES`, y baja por la degradación
 deliberada de "sin que" a REVIEW descrita arriba.
+
+---
+
+# Adenda 2: defecto de INTEGRACIÓN (segunda ronda de rework)
+
+Dictamen: CONFORME CON OBSERVACIONES + un P0 nuevo. El aserto `fp == 0` que
+añadí en la ronda anterior medía la config `A` (determinista aislado) y no `D`
+ni `D-R`, así que no veía lo que pasaba en el pipeline real.
+
+## Medición honesta, pre-B2 vs post-B2
+
+Medido con el mismo script sobre dos árboles: `7fc9512` (pre-B2, detached
+worktree) y la rama.
+
+| config | pre-B2 (7fc9512) | B2 (19b5960) | tras esta ronda |
+|---|---|---|---|
+| A (determinista) | tp=0 fp=0 · 0 claims | tp=2 fp=0 | **tp=2 fp=0** |
+| C1 (semántico) | tp=8 fp=10 | tp=8 fp=10 | **tp=8 fp=10** |
+| D (unión CRUDA) | tp=0 fp=18 | tp=2 fp=18 | **tp=2 fp=18** |
+| D-R (reconciliada) | tp=8 fp=10 | tp=8 fp=**12** | **tp=8 fp=10** |
+
+## Causa raíz — son DOS cosas distintas, no una
+
+**1. El desplome de `D` es PREEXISTENTE y no lo causó B2.** `run_config("D")`
+es una unión cruda deliberada ("UNION, no fusion: duplicados incluidos"). Con
+dos extractores, las menciones del mismo tramo entran duplicadas; el arnés
+alinea menciones 1:1, las semánticas se quedan sin pareja y sus claims salen
+`_key = None`, es decir **inevaluables, que el arnés cuenta como fp**. Por eso
+la unión "pierde 8 tp y gana 16 fp respecto a la suma de sus partes". Se
+reprodujo sobre `7fc9512`, donde el determinista proponía CERO claims: D ya
+daba tp=0 / fp=18. B2 no lo empeoró — de hecho lo subió de tp=0 a tp=2. `D` no
+es una salida usable; para eso existe `D-R`.
+
+**2. Los 2 fp netos de `D-R` sí eran nuevos, y la causa es el reconciliador.**
+`ProposalReconciler` fusionaba menciones pero **no propuestas**: su `ClaimKey`
+incluye `relation_phrase`, la evidencia y la firma de metadatos, así que dos
+propuestas de la MISMA relación con distinta redacción no se tocaban:
+
+- `leyenda-crónica:e01` — det `"dirigió"` LEADS vs sem `"dirigió la Casa del
+  Ciervo desde el invierno…"` LEADS.
+- `kestrel-informe:e03` — det `"pertenece al"` MEMBER_OF vs sem `"pertenece al
+  Consorcio Halcyon desde el traslado"` LOCATED_IN.
+
+Tras reconciliar las menciones, ambas parejas apuntan al MISMO par
+sujeto/objeto. La clave de claims del arnés es `(episodio, sujeto, objeto)` —
+sin predicado — y empareja 1:1, así que la segunda propuesta de cada pareja es
+un falso positivo inevitable. Y no es sólo un artefacto de métrica: la cadena
+entregaba **dos tarjetas de revisión para una sola relación**.
+
+## Corrección
+
+Segundo pase en el reconciliador: `CoreferentClaimKey` (episodio + menciones de
+sujeto y objeto + `negated` + `abstained`; **sin predicado ni frase**) y fusión
+vía el `_merge_claims` que ya existía, que une `predicate_candidates` ordenados
+y conserva la procedencia. Tres guardas, cada una defendiendo un invariante ya
+probado del pipeline:
+
+1. **Sólo entre familias independientes distintas.** Dos claims del mismo
+   extractor no se tocan: ahí no hay nada que arbitrar.
+2. **Sólo si TODAS piden revisión.** Una propuesta auto-aprobable lleva
+   autoridad propia; fundir un `ACCEPT` local con un `REVIEW` externo rebajaría
+   la decisión local porque otro proveedor habló de lo mismo — exactamente al
+   revés de como funciona la cadena (`TestE2E02HechoSemantico`, que sigue verde
+   sin tocarlo).
+3. **`produced_by_step` se toma de la propuesta MÁS externa** del grupo. Con la
+   local (que ordena primero) se blanquearía una propuesta externa haciéndola
+   pasar por local y el motor dejaría de emitir `EXTERNAL_PROPOSAL`.
+
+El predicado NO entra en la clave a propósito: si dos extractores discrepan, la
+salida correcta es UNA propuesta con los dos `predicate_candidates` ordenados —
+que es lo que el motor sabe arbitrar (`PREDICATE_AMBIGUOUS`)— y no dos
+propuestas que tendría que desempatar sin saber que hablan de lo mismo.
+
+Flag `ReconcilerConfig.merge_coreferent_claims` (por defecto `True`), 4 tests
+nuevos en `test_knowledge_v3_reconcile.py`, y los asertos de
+`test_knowledge_v3_reconcile_validation.py` reescritos para comprobar **tp y fp
+de las cuatro configuraciones**, con `D` asertada tal cual (tp=2/fp=18) para que
+la degeneración de la unión cruda quede a la vista en vez de escondida.

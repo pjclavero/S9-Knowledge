@@ -18,6 +18,13 @@ class ReconcilerConfig:
     canonical_mention_prefix: str = "mention:reconciled"
     canonical_claim_prefix: str = "claim:reconciled"
     validate_output: bool = True
+    #: Funde en UNA las propuestas de FAMILIAS DISTINTAS que hablan de la misma
+    #: relacion (mismo episodio, mismas menciones de sujeto y objeto). Sin esto,
+    #: unir el extractor determinista y el semantico entrega dos propuestas
+    #: donde el texto sostiene una sola, y el motor recibe un empate que nadie
+    #: le ha explicado. Solo actua entre familias independientes distintas:
+    #: nunca colapsa la salida de un unico extractor.
+    merge_coreferent_claims: bool = True
 
 
 DEFAULT_RECONCILER_CONFIG = ReconcilerConfig()

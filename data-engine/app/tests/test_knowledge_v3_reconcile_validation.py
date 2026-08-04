@@ -112,16 +112,38 @@ def test_aceptacion_los_ocho_claims_de_c1_sobreviven_en_D_R():
     dr = run_config("D-R", ctx, prior={"D": d})
 
     assert port.hits == len(ctx.episodes) and port.misses == 0
+    a_claims = score(a, gold, ctx)["harness_extractor"]["claims"]
     c1_claims = score(c1, gold, ctx)["harness_extractor"]["claims"]
     d_claims = score(d, gold, ctx)["harness_extractor"]["claims"]
     dr_claims = score(dr, gold, ctx)["harness_extractor"]["claims"]
-    assert c1_claims["tp"] == 8
-    # B2 (puerta 4): el extractor DETERMINISTA dejo de acertar cero en dev. Con
-    # las reglas de B2 acierta 2 claims con precision 1.000 (fp=0): "dirigió"
-    # (leyenda-cronica:e01, emitido con review_required por ser liderazgo en
-    # pasado) y "pertenece al" (kestrel-informe:e03, rumor). No es un claim
-    # espurio: son verdaderos positivos contra el gold, y `fp` sigue en 0. La
-    # cifra anterior (0) era el baseline pre-B2, no una invariante.
-    assert d_claims["tp"] == 2
-    assert score(a, gold, ctx)["harness_extractor"]["claims"]["fp"] == 0
+    # Las cuatro configuraciones se comprueban con tp Y fp. La version anterior
+    # solo miraba `tp` de C1/D/D-R y `fp` de A, y esa combinacion enmascaro una
+    # regresion real de integracion: los falsos positivos que la union metia en
+    # D-R no los veia nadie. Aqui no hay ninguna metrica de precision sin su
+    # aserto.
+    assert c1_claims["tp"] == 8 and c1_claims["fp"] == 10
+    assert a_claims["tp"] == 2 and a_claims["fp"] == 0, (
+        "el extractor determinista propone 2 claims en dev desde B2, ambos "
+        "verdaderos positivos: si aparece un fp, es una regresion de precision"
+    )
+
+    # D es la UNION CRUDA, sin reconciliar (asi esta documentada en
+    # `run_config`): arrastra las menciones de los dos extractores duplicadas,
+    # el arnes no puede alinearlas 1:1 y casi todos los claims quedan
+    # inevaluables. NO es un defecto de B2 -- medido sobre 7fc9512 (pre-B2, con
+    # el determinista proponiendo CERO claims) D ya daba tp=0/fp=18. Se asierta
+    # tal cual para que quede a la vista que la union sin reconciliador no vale
+    # como salida, que es justo por lo que existe D-R.
+    assert d_claims["tp"] == 2 and d_claims["fp"] == 18
+
+    # D-R es la salida real del pipeline y es la que tiene que sostener la
+    # precision. Los 2 claims deterministas hablan de las MISMAS relaciones que
+    # dos claims semanticos; sin fundirlos, sobrevivian como duplicados y metian
+    # 2 fp netos nuevos (fp=12). Con la fusion de propuestas co-referentes del
+    # reconciliador vuelven a fp=10, el baseline pre-B2, sin perder ningun tp.
+    assert dr_claims["tp"] == 8 and dr_claims["fp"] == 10
+    assert dr_claims["fp"] <= c1_claims["fp"], (
+        "la union reconciliada no puede introducir falsos positivos netos "
+        "respecto al extractor semantico solo"
+    )
     assert dr_claims["tp"] >= c1_claims["tp"] == 8
