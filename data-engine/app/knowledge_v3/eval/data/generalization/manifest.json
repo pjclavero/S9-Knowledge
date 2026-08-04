@@ -1,7 +1,7 @@
 {
   "corpus": "gate4-generalization",
-  "dataset_version": "1.2.0",
+  "dataset_version": "1.3.0",
   "file_hashes": {
-    "generalization/cases.json": "3da14b68e91948f60c9ab555a14f109fcdc2cf4682701984834625529b40f7f6"
+    "generalization/cases.json": "fb71423cea7c05e3ade32e629a84be77c9e372b46295f50c525396d1b135688e"
   }
 }

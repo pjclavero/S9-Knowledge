@@ -1,14 +1,14 @@
 {
   "corpus": "gate4-generalization",
-  "dataset_version": "1.0.0",
-  "purpose": "Corpus de GENERALIZACION de la puerta 4 (B0). Frases nuevas, entidades nuevas, cuatro dominios ausentes del corpus de desarrollo (historia naval, gremios de oficio, linajes, archivos monasticos). Ninguna coincide en nombre propio o sintagma verbatim con el split `negation`. Sirve para distinguir generalizacion de memorizacion, tal y como exige la leccion del motor v2 (predicado 0.81 en dev==test, 0.24 en real). La familia HARD_SCOPE_LITOTES (anadida tras revision) mide construcciones DURAS de negacion espanola que `extraction.cues` no cubre hoy (subordinada exceptiva 'sin que', litotes correctiva 'no es que no...', cesacion perifrastica 'ha dejado atras', litotes cuantitativa 'no pocos'): se espera una exactitud BAJA ahi a proposito -- es el liston que los bloques B2/B4 (reglas, carril semantico) tienen que subir, no un fallo del arnes.",
+  "dataset_version": "1.3.0",
+  "purpose": "Corpus de GENERALIZACION de la puerta 4 (B0). Frases nuevas, entidades nuevas, cuatro dominios ausentes del corpus de desarrollo (historia naval, gremios de oficio, linajes, archivos monasticos). Ninguna coincide en nombre propio o sintagma verbatim con el split `negation`. Sirve para distinguir generalizacion de memorizacion, tal y como exige la leccion del motor v2 (predicado 0.81 en dev==test, 0.24 en real). La familia HARD_SCOPE_LITOTES (anadida tras revision) mide construcciones DURAS de negacion espanola que `extraction.cues` no cubre hoy (subordinada exceptiva 'sin que', litotes correctiva 'no es que no...', cesacion perifrastica 'ha dejado atras', litotes cuantitativa 'no pocos'): se espera una exactitud BAJA ahi a proposito -- es el liston que los bloques B2/B4 (reglas, carril semantico) tienen que subir, no un fallo del arnes. Bloque B4: se anadieron `gen:scope:05`/`gen:scope:06` (dataset_version 1.2.0 -> 1.3.0) con verbos de reporte REGULARES -AR generados por el paradigma morfologico nuevo (`extraction.morphology`), ausentes tanto del split de desarrollo como del resto de este corpus, para probar que la extension generaliza y no memoriza.",
   "families_quota": {
     "SIMPLE": 8,
     "NEVER": 4,
     "CESSATION": 8,
     "NEGATED_CESSATION": 4,
     "NOT_YET": 4,
-    "SCOPE_EMBEDDED": 4,
+    "SCOPE_EMBEDDED": 6,
     "QUESTION_CONDITIONAL_RUMOR": 4,
     "POSITIVE_CONTROL": 4,
     "DOUBLE_NEGATION": 2,
@@ -302,6 +302,24 @@
       "focus_anchor": "la Escuadra de Poniente",
       "gold": {"subject": "Ilan Bracer", "predicate": "SERVES_IN", "object": "la Escuadra de Poniente", "negated": false, "negation_kind": "SCOPE_AMBIGUOUS", "review_scope": true, "non_factive": false},
       "why_evaluable": "Verbo de opinion negado ('no considera que'), cuarta instancia de la familia."
+    },
+    {
+      "case_id": "gen:scope:05",
+      "family": "SCOPE_EMBEDDED",
+      "domain": "archivos",
+      "text": "El archivero Tolan Vesk no declaro que Irena Castell administre el Scriptorium de Piedra Fria.",
+      "focus_anchor": "el Scriptorium de Piedra Fria",
+      "gold": {"subject": "Irena Castell", "predicate": "GOVERNS", "object": "el Scriptorium de Piedra Fria", "negated": false, "negation_kind": "SCOPE_AMBIGUOUS", "review_scope": true, "non_factive": false},
+      "why_evaluable": "Bloque B4: verbo de reporte REGULAR -AR ('no declaro que'), generado por paradigma morfologico (`morphology.conjugate_regular_ar`), no por lexico literal; ejercita la generalizacion que B4 anadio a SCOPE_VERBS con un verbo ausente del corpus de desarrollo y del resto de este corpus."
+    },
+    {
+      "case_id": "gen:scope:06",
+      "family": "SCOPE_EMBEDDED",
+      "domain": "gremios",
+      "text": "Los oficiales del gremio no aseguran que Doria Kessel presida el Consulado de Tejedores.",
+      "focus_anchor": "el Consulado de Tejedores",
+      "gold": {"subject": "Doria Kessel", "predicate": "GOVERNS", "object": "el Consulado de Tejedores", "negated": false, "negation_kind": "SCOPE_AMBIGUOUS", "review_scope": true, "non_factive": false},
+      "why_evaluable": "Bloque B4: mismo fenomeno que gen:scope:05 con otro verbo del mismo paradigma ('no aseguran que', PLURAL) y sujeto coordinado plural fuera del foco -- comprueba que el paradigma generaliza a mas de una persona gramatical dentro de las que declara `reporting_verb_forms()`."
     },
     {
       "case_id": "gen:qcr:01",

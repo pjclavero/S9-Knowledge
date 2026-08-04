@@ -33,6 +33,7 @@ import re
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
+from .morphology import reporting_verb_forms
 from .factivity import (
     FactivityAction,
     FactivityResult,
@@ -390,8 +391,15 @@ ADJUNCT_PREPOSITIONS: frozenset[str] = frozenset({
 #: Verbos de ACTITUD o de REPORTE. Si la negacion va pegada a uno de ellos, lo
 #: negado es la creencia, no la relacion: "El magistrado no cree que Toturi
 #: pertenezca al clan" no dice que Toturi no pertenezca.
+#:
+#: Bloque B4 (puerta 4): las formas irregulares se quedan declaradas a mano
+#: aqui (son las excepciones que ninguna tabla regular cubre). Los verbos de
+#: reporte REGULARES -AR ("afirmar", "declarar", "asegurar", "confirmar" y
+#: "negar", este ultimo con su presente irregular declarado aparte) se
+#: generan por PARADIGMA morfologico en `morphology.py` y se anaden aqui via
+#: `reporting_verb_forms()`, para no tener que teclear cada conjugacion a
+#: mano verbo a verbo -- ver el docstring de ese modulo para el porque.
 SCOPE_VERBS: tuple[str, ...] = (
-    "afirma", "afirmaba", "afirmo",
     "consta", "considera", "consideraba",
     "cree", "creia", "creyo",
     "decia", "dice", "dijo",
@@ -401,6 +409,7 @@ SCOPE_VERBS: tuple[str, ...] = (
     "recordaba", "recuerda",
     "sabe", "sabia", "supo",
     "sospecha", "sospechaba",
+    *reporting_verb_forms(),
 )
 
 #: Conjunciones que abren una clausula NUEVA. La negacion de la anterior no
