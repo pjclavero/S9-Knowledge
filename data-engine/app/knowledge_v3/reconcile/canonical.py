@@ -60,6 +60,41 @@ class ClaimKey:
         return _hash_id(prefix, self)
 
 
+@dataclass(frozen=True, order=True)
+class CoreferentClaimKey:
+    """Clave GRUESA: "estas propuestas hablan de la MISMA relacion".
+
+    `ClaimKey` es deliberadamente estricta -- incluye la frase de relacion, la
+    evidencia y la firma de metadatos -- porque agrupa propuestas IDENTICAS. Eso
+    deja pasar un caso que solo aparece cuando se unen dos extractores: el
+    determinista y el semantico proponen la MISMA relacion (mismo episodio,
+    mismas menciones de sujeto y objeto) con distinta redaccion, y la union
+    entrega DOS propuestas donde el texto sostiene UNA.
+
+    Esta clave no mira la frase ni el predicado a proposito. El predicado NO
+    forma parte de ella: si dos extractores discrepan sobre el, la salida
+    correcta es una propuesta con los dos `predicate_candidates` ordenados -- que
+    es justo lo que hace `_merge_claims` -- y no dos propuestas que el motor
+    tendria que desempatar sin saber que hablan de lo mismo.
+
+    Si se distinguen `negated` y `abstained`: una abstencion y una asercion
+    sobre el mismo par NO son la misma propuesta, y fundirlas perderia la
+    abstencion.
+    """
+
+    workspace: str
+    source_asset_id: str
+    source_hash: str
+    episode_id: str
+    subject_mentions: tuple[str, ...]
+    object_mentions: tuple[str, ...]
+    negated: bool
+    abstained: bool
+
+    def hash_id(self, prefix: str) -> str:
+        return _hash_id(prefix, self)
+
+
 def _hash_id(prefix: str, key: object) -> str:
     digest = sha256_hash(asdict(key))["value"][:16]
     return f"{prefix}:{digest}"
@@ -121,6 +156,20 @@ def claim_key(claim: ClaimProposal) -> ClaimKey:
         metadata_signature=canonical_json(
             {k: meta.get(k) for k in _CLAIM_METADATA_SIGNATURE_FIELDS if k in meta}
         ),
+    )
+
+
+def coreferent_claim_key(claim: ClaimProposal) -> CoreferentClaimKey:
+    """Clave gruesa de co-referencia de propuestas (ver `CoreferentClaimKey`)."""
+    return CoreferentClaimKey(
+        workspace=claim.workspace,
+        source_asset_id=claim.source_asset_id,
+        source_hash=_source_hash_value(claim.source_hash),
+        episode_id=claim.episode_id,
+        subject_mentions=stable_unique(claim.subject_mentions),
+        object_mentions=stable_unique(claim.object_mentions),
+        negated=bool(claim.negated),
+        abstained=bool(claim.abstained),
     )
 
 
@@ -250,12 +299,14 @@ def claim_sort_key(claim: ClaimProposal) -> tuple:
 
 __all__ = [
     "ClaimKey",
+    "CoreferentClaimKey",
     "MentionKey",
     "RECONCILIATION_METADATA_KEY",
     "canonical_sequence",
     "canonical_trace",
     "claim_key",
     "claim_sort_key",
+    "coreferent_claim_key",
     "mention_key",
     "mention_sort_key",
     "sort_alternatives",

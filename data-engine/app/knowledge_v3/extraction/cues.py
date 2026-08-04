@@ -257,15 +257,83 @@ NOT_YET_PHRASES: tuple[str, ...] = (
 #: CESACION: hubo relacion y termina. Ojo: la mitad de estas frases NO llevan
 #: ninguna marca de negacion ("dejo de liderar", "abandono el clan"), asi que la
 #: cesacion no se puede detectar mirando solo `NEGATION_CUES`.
+#: Formas conjugadas del auxiliar `dejar` que abren una PERIFRASIS de cesacion.
+#: Se declaran como paradigma verbal, no como frases sueltas: las perifrasis
+#: `<dejar> de <infinitivo>` y `<dejar> atras <complemento>` se GENERAN a partir
+#: de aqui (ver `CESSATION_PERIPHRASIS_DE` / `_ATRAS`). Escribir a mano solo la
+#: conjugacion que aparecia en un caso de corpus es memorizar ese caso, no
+#: describir la lengua: ese fue el defecto P0 de B2 ("ha dejado atras").
+DEJAR_FORMS: tuple[str, ...] = (
+    "deja", "dejan",
+    "dejo", "dejaron",
+    "dejaba", "dejaban",
+    "dejara", "dejaran",
+    "dejase", "dejasen",
+    "ha dejado", "han dejado",
+    "habia dejado", "habian dejado",
+    "esta dejando", "estan dejando",
+)
+
+#: Mismo criterio para `cesar`.
+CESAR_FORMS: tuple[str, ...] = (
+    "cesa", "cesan", "ceso", "cesaron", "cesaba", "cesaban",
+    "ha cesado", "han cesado",
+)
+
+#: `<dejar|cesar> de <INFINITIVO>`. Solo es cesacion RELACIONAL si el infinitivo
+#: pertenece a `RELATIONAL_INFINITIVES`: "ha dejado de fumar" cierra un habito,
+#: no un vinculo con ninguna entidad.
+CESSATION_PERIPHRASIS_DE: tuple[str, ...] = tuple(
+    f"{forma} de" for forma in (*DEJAR_FORMS, *CESAR_FORMS)
+)
+
+#: `<dejar> atras <COMPLEMENTO>`. Solo es cesacion relacional si el complemento
+#: NOMBRA un vinculo (`RELATIONAL_COMPLEMENT_NOUNS`): "dejo atras el campamento"
+#: es desplazamiento fisico, no ruptura de relacion.
+CESSATION_PERIPHRASIS_ATRAS: tuple[str, ...] = tuple(
+    f"{forma} atras" for forma in DEJAR_FORMS
+)
+
+#: Infinitivos que denotan una RELACION o un CARGO. Vocabulario cerrado: es la
+#: guarda de complemento que separa "dejo de liderar el Conclave" (cesacion de
+#: una relacion) de "ha dejado de fumar" (cesacion de un habito).
+RELATIONAL_INFINITIVES: frozenset[str] = frozenset({
+    "pertenecer", "militar", "integrar", "formar", "figurar", "constar",
+    "liderar", "dirigir", "encabezar", "presidir", "capitanear", "comandar",
+    "gobernar", "reinar", "mandar",
+    "servir", "obedecer", "acatar", "apoyar", "colaborar", "cooperar",
+    "poseer", "ostentar", "regentar", "depender", "representar",
+    # copulas: "ha dejado de SER/ESTAR dirigida por X" es cesacion relacional.
+    "ser", "estar",
+})
+
+#: Sustantivos que NOMBRAN un vinculo o un cargo. Vocabulario cerrado: son los
+#: unicos complementos con los que `dejar atras` lee como cesacion relacional.
+RELATIONAL_COMPLEMENT_NOUNS: frozenset[str] = frozenset({
+    "alianza", "alianzas", "pacto", "pactos", "acuerdo", "acuerdos",
+    "vinculo", "vinculos", "lazo", "lazos", "union", "sociedad",
+    "amistad", "rivalidad", "enemistad", "servidumbre", "vasallaje",
+    "militancia", "pertenencia", "membresia", "afiliacion", "adscripcion",
+    "lealtad", "juramento", "compromiso", "obediencia", "fidelidad",
+    "cargo", "puesto", "presidencia", "direccion", "jefatura", "mando",
+    "liderazgo", "capitania", "regencia", "magistratura",
+})
+
+#: Determinantes y posesivos que se saltan para llegar al NUCLEO del
+#: complemento ("su alianza", "el campamento").
+COMPLEMENT_DETERMINERS: frozenset[str] = frozenset({
+    "el", "la", "lo", "los", "las", "un", "una", "unos", "unas",
+    "su", "sus", "mi", "mis", "tu", "tus", "nuestro", "nuestra",
+    "nuestros", "nuestras", "este", "esta", "estos", "estas",
+    "ese", "esa", "esos", "esas", "aquel", "aquella", "aquellos",
+    "aquellas", "toda", "todo", "todas", "todos", "cualquier",
+})
+
+#: CESACION: hubo relacion y termina.
 CESSATION_PHRASES: tuple[str, ...] = (
     "ya no",
-    "deja de",
-    "dejan de",
-    "dejo de",
-    "dejaron de",
-    "cesa de",
-    "ceso de",
-    "cesaron de",
+    *CESSATION_PERIPHRASIS_DE,
+    *CESSATION_PERIPHRASIS_ATRAS,
     "ceso en",
     "abandona",
     "abandono",
@@ -279,9 +347,45 @@ CESSATION_PHRASES: tuple[str, ...] = (
     "dimitio como",
     "fue expulsado de",
     "fue expulsada de",
+    "fue destituido de",
+    "fue destituida de",
+    "fue abandonada por",
+    "fue abandonado por",
     "se separo de",
     "perdio su puesto en",
+    "salio del",
 )
+
+#: Cuantificadores de litotes positivos: "no pocos" = "muchos". Cuando "no"
+#: va seguido inmediatamente de uno de estos cuantificadores, la negacion NO
+#: es una marca de negacion sobre la relacion: es un recurso retorico que
+#: intensifica la afirmacion. Suprimir "no" del recuento de marcas en ese caso.
+LITOTES_QUANTIFIERS: frozenset[str] = frozenset({"pocos", "pocas", "pocas"})
+
+#: Frases que abren una subordinada EXCEPTIVA. La clausula subordinada
+#: resultante esta negada con certeza ("sello el pacto sin que lo ratificara"
+#: = "no lo ratifico"). Se detectan como tokens ADYACENTES para no confundir
+#: con "sin dinero", "sin permiso", etc.
+EXCEPTIVE_SUBORDINATORS: tuple[tuple[str, str], ...] = (
+    ("sin", "que"),
+)
+
+#: Preposiciones que abren un ADJUNTO nuevo. Marcan el final del alcance SEGURO
+#: de la subordinada exceptiva: a partir de ahi el sintagma puede colgar del
+#: verbo principal o del subordinado, y esa ambiguedad de adjuncion no se
+#: resuelve con lexico. Compara:
+#:
+#:   "El emisario hablo sin que nadie lo interrumpiera sobre la Liga de Corvo"
+#:       -> "sobre la Liga" cuelga de "hablo": la Liga NO esta negada.
+#:   "El notario firmo el acta sin que el testigo la avalara ante el Concejo"
+#:       -> "ante el Concejo" cuelga de "avalara": el Concejo SI lo esta.
+#:
+#: Las dos frases son indistinguibles token a token. La regla, por tanto, no
+#: decide: dentro del tramo seguro niega; pasado el limite pide REVISION.
+ADJUNCT_PREPOSITIONS: frozenset[str] = frozenset({
+    "sobre", "ante", "para", "por", "desde", "hasta", "tras", "durante",
+    "contra", "segun", "mediante", "acerca", "respecto", "en",
+})
 
 #: Verbos de ACTITUD o de REPORTE. Si la negacion va pegada a uno de ellos, lo
 #: negado es la creencia, no la relacion: "El magistrado no cree que Toturi
@@ -421,6 +525,32 @@ def _first_phrase(
 CESSATION_NEGATION_WINDOW = 3
 
 
+def cessation_complement_ok(
+    tokens: Sequence[Token], phrase: str, last: int, hi: int
+) -> bool:
+    """¿El COMPLEMENTO de la perifrasis es una relacion, y no otra cosa?
+
+    Las perifrasis `dejar de <X>` y `dejar atras <X>` no son cesaciones por si
+    mismas: lo son o no segun QUE cierran. "Ha dejado de fumar" cierra un
+    habito y "ha dejado atras el campamento" describe un desplazamiento; ni una
+    ni otra dicen nada de la relacion entre el sujeto y la entidad focalizada, y
+    tratarlas como cesacion inventa el cierre de una relacion que el texto no
+    menciona (falso positivo de negacion, el error mas caro de este modulo).
+
+    Las demas frases de `CESSATION_PHRASES` llevan el complemento incorporado
+    ("dimitio de", "fue expulsado de") y no necesitan guarda.
+    """
+    if phrase in CESSATION_PERIPHRASIS_DE:
+        nxt = last + 1
+        return nxt < hi and tokens[nxt].norm in RELATIONAL_INFINITIVES
+    if phrase in CESSATION_PERIPHRASIS_ATRAS:
+        i = last + 1
+        while i < hi and tokens[i].norm in COMPLEMENT_DETERMINERS:
+            i += 1
+        return i < hi and tokens[i].norm in RELATIONAL_COMPLEMENT_NOUNS
+    return True
+
+
 def cessation_matches(
     tokens: Sequence[Token], lo: int, hi: int
 ) -> list[tuple[str, int, int]]:
@@ -431,6 +561,8 @@ def cessation_matches(
         if not needle:
             continue
         for first, last in find_phrase(tokens, needle, lo=lo, hi=hi):
+            if not cessation_complement_ok(tokens, phrase, last, hi):
+                continue
             encontradas.append((phrase, first, last))
     return sorted(encontradas, key=lambda m: (m[1], m[2]))
 
@@ -513,6 +645,45 @@ class NegationVerdict:
     reason_codes: tuple[str, ...] = ()
 
 
+def exceptive_scope(
+    tokens: Sequence[Token],
+    *,
+    inicio: int,
+    hi: int,
+    focus: int,
+    source_text: Optional[str] = None,
+) -> Optional[tuple[str, bool]]:
+    """`(marca, foco_dentro_del_alcance)` de la subordinada exceptiva, si la hay.
+
+    Devuelve `None` cuando no hay ninguna ("sin que" no aparece, o aparece
+    DESPUES del foco: un hecho de la clausula PRINCIPAL enunciado antes de
+    "sin que" no queda afectado por ella).
+
+    El alcance va desde el "que" hasta el primer limite: puntuacion, conjuncion
+    de clausula o preposicion de adjunto (`ADJUNCT_PREPOSITIONS`). Dentro del
+    alcance la negacion es segura; fuera, la adjuncion es ambigua y el segundo
+    elemento vale `False` para que quien llame pida REVISION en vez de decidir.
+    """
+    for t1, t2 in EXCEPTIVE_SUBORDINATORS:
+        for i in range(inicio, min(focus, hi) - 1):
+            if tokens[i].norm != t1 or tokens[i + 1].norm != t2:
+                continue
+            marca = f"{tokens[i].text} {tokens[i + 1].text}"
+            fin = i + 2
+            while fin < hi:
+                if tokens[fin].norm in ADJUNCT_PREPOSITIONS:
+                    break
+                if tokens[fin].norm in CLAUSE_CONJUNCTIONS:
+                    break
+                if source_text is not None and fin > i + 2:
+                    hueco = source_text[tokens[fin - 1].end : tokens[fin].start]
+                    if any(ch in CLAUSE_PUNCTUATION for ch in hueco):
+                        break
+                fin += 1
+            return marca, (i + 2 <= focus < fin)
+    return None
+
+
 def clause_start(
     tokens: Sequence[Token], *, lo: int, focus: int, source_text: Optional[str] = None
 ) -> int:
@@ -584,11 +755,37 @@ def classify_negation(
                 (CODE_NEGATION_SCOPE,),
             )
 
-    # 2. doble negacion: "ni"/"tampoco" no cuentan, son coordinacion de la misma
+    # 1b. subordinada exceptiva ("sin que"). Lo que esta negado es la
+    # SUBORDINADA, no la frase entera: hay que comprobar que el foco cae dentro
+    # de ella. B2 negaba en cuanto "sin que" aparecia antes del foco, lo que
+    # convertia "El emisario hablo sin que nadie lo interrumpiera sobre la Liga
+    # de Corvo" en una negacion de la Liga (falso positivo P0).
+    exceptiva = exceptive_scope(
+        tokens, inicio=inicio, hi=hi, focus=focus, source_text=source_text
+    )
+    if exceptiva is not None:
+        marca, dentro = exceptiva
+        if dentro:
+            return NegationVerdict(True, NEGATION_KIND_SIMPLE, (marca,), ())
+        return NegationVerdict(
+            False, NEGATION_KIND_SCOPE_AMBIGUOUS, (marca,), (CODE_NEGATION_SCOPE,)
+        )
+
+    # 2. doble negacion: "ni"/"tampoco" no cuentan, son coordinacion de la misma.
+    # "no pocos/pocas" es una litotes positiva: se suprime ese "no" del recuento.
+    def _es_litotes(i: int) -> bool:
+        return (
+            tokens[i].norm == "no"
+            and i + 1 < focus
+            and tokens[i + 1].norm in LITOTES_QUANTIFIERS
+        )
+
     marcas = [
         tokens[i].norm
         for i in range(inicio, focus)
-        if tokens[i].norm in marcas_negacion and tokens[i].norm not in ("ni", "tampoco")
+        if tokens[i].norm in marcas_negacion
+        and tokens[i].norm not in ("ni", "tampoco")
+        and not _es_litotes(i)
     ]
     cesaciones = cessation_matches(tokens, inicio, hi)
 
@@ -630,9 +827,12 @@ def classify_negation(
         return NegationVerdict(True, NEGATION_KIND_SIMPLE, tuple(marcas), ())
 
     # Solo quedan "ni" y "tampoco", que se excluyeron del recuento de doble
-    # negacion por ser coordinacion de la MISMA. Sueltas siguen negando.
+    # negacion por ser coordinacion de la MISMA. Sueltas siguen negando. Se
+    # excluyen tambien las litotes (ya filtradas en marcas arriba).
     sueltas = [
-        tokens[i].norm for i in range(inicio, focus) if tokens[i].norm in marcas_negacion
+        tokens[i].norm
+        for i in range(inicio, focus)
+        if tokens[i].norm in marcas_negacion and not _es_litotes(i)
     ]
     if sueltas:
         return NegationVerdict(True, NEGATION_KIND_SIMPLE, tuple(sueltas), ())
@@ -773,7 +973,17 @@ def analyze_raw_text(text: str, *, focus_char: Optional[int] = None) -> ContextV
 
 
 __all__ = [
+    "ADJUNCT_PREPOSITIONS",
+    "CESAR_FORMS",
+    "CESSATION_PERIPHRASIS_ATRAS",
+    "CESSATION_PERIPHRASIS_DE",
     "CESSATION_PHRASES",
+    "COMPLEMENT_DETERMINERS",
+    "DEJAR_FORMS",
+    "RELATIONAL_COMPLEMENT_NOUNS",
+    "RELATIONAL_INFINITIVES",
+    "cessation_complement_ok",
+    "exceptive_scope",
     "CLAUSE_CONJUNCTIONS",
     "CODE_CONDITIONAL",
     "CODE_COUNTERFACTUAL",

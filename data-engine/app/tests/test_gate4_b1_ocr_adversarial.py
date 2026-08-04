@@ -138,27 +138,54 @@ def _run_measure(tmp_path: Path, extra_args: list[str]) -> tuple[Path, Path]:
     return tmp_path / f"{out_name}.json", tmp_path / f"{out_name}.md"
 
 
-def test_b0_baseline_byte_identical_to_committed_artifact_without_flag(tmp_path):
+def test_committed_b0_baseline_artifact_is_unchanged_history(tmp_path):
+    """b0-baseline.json es un artefacto HISTORICO congelado (la foto de B0 en
+    el momento en que se cerro ese bloque). No debe compararse contra una
+    corrida fresca de measure.py: cualquier mejora legitima del extractor
+    (B1, B2, ...) cambiara metricas y volvera esa comparacion incompatible
+    con el propio proposito del programa (mejorar el extractor).
+
+    Lo unico que este test debe garantizar es que el FICHERO COMMITTEADO no
+    ha sido editado a mano ni pisado por error: se fija su hash. Si cambia
+    de verdad (p.ej. una re-congelacion deliberada de B0), el hash se
+    actualiza a proposito en el mismo commit que lo justifica.
+    """
+    import hashlib
+
     committed = REPO_ROOT / "artifacts" / "gate4-program" / "b0-baseline.json"
     assert committed.exists()
-    json_path, _ = _run_measure(tmp_path, [])
-    assert json_path.read_bytes() == committed.read_bytes()
+    digest = hashlib.sha256(committed.read_bytes()).hexdigest()
+    assert digest == "cfcdce896bd3ac3790f10c1e75a5292fd549fe26a2597e66193b7baa0d36cfae", (
+        "b0-baseline.json cambio de contenido respecto al hash fijado. Si es "
+        "una re-congelacion deliberada, actualiza este hash en el mismo "
+        f"commit que la justifica. Hash actual: {digest}"
+    )
 
 
-def test_with_ocr_flag_only_adds_corpora_ocr_lane_leaves_b0_untouched(tmp_path):
-    committed = REPO_ROOT / "artifacts" / "gate4-program" / "b0-baseline.json"
-    baseline = json.loads(committed.read_bytes())
-    json_path, _ = _run_measure(tmp_path, ["--with-ocr"])
-    with_ocr = json.loads(json_path.read_text())
+def test_with_ocr_flag_only_adds_corpora_ocr_lane_same_run(tmp_path):
+    """El flag --with-ocr no debe alterar ninguna metrica fuera de
+    corpora.ocr_lane. Se verifica comparando DOS corridas del MISMO codigo en
+    el MISMO momento (con y sin el flag), no contra un artefacto congelado de
+    otro momento del programa: eso confundiria "mejora legitima del
+    extractor" con "regresion del flag OCR", que es justo lo que este test
+    debe distinguir.
+    """
+    without_path, _ = _run_measure(tmp_path, [])
+    without = json.loads(without_path.read_text())
 
+    with_path, _ = _run_measure(tmp_path, ["--with-ocr"])
+    with_ocr = json.loads(with_path.read_text())
+
+    assert "ocr_lane" not in without["corpora"]
     assert "ocr_lane" in with_ocr["corpora"]
+
     # Todo lo demas del informe (incluido el resto de `corpora`) debe ser
-    # identico al baseline B0, campo a campo.
+    # identico byte a byte entre las dos corridas, tras quitar ocr_lane.
     stripped_corpora = dict(with_ocr["corpora"])
     del stripped_corpora["ocr_lane"]
     stripped_report = dict(with_ocr)
     stripped_report["corpora"] = stripped_corpora
-    assert stripped_report == baseline
+    assert stripped_report == without
 
 
 # ---------------------------------------------------------------------------

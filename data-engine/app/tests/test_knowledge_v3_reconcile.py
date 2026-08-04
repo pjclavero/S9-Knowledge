@@ -254,3 +254,81 @@ def test_aceptacion_la_union_no_puede_destruir_los_claims_del_semantico(gold, re
 
     assert len(salida.mentions) == 4, "las menciones duplicadas deben alinearse"
     assert len(salida.claims) == 1, "el claim del semantico no puede perderse"
+
+
+# --------------------------------------------------------------------------
+# Propuestas CO-REFERENTES (mismo par de menciones, distinta redaccion)
+# --------------------------------------------------------------------------
+# Defecto de INTEGRACION detectado en la puerta 4 (bloque B2): al unir el
+# extractor determinista con el semantico, ambos proponian la misma relacion
+# sobre el mismo par de menciones con frases distintas. `ClaimKey` no las funde
+# (la frase forma parte de la clave), asi que la cadena entregaba DOS tarjetas
+# de revision para UNA sola relacion.
+def _par_coreferente(base: dict, **campos_sem):
+    """Dos propuestas de la misma relacion, con redaccion distinta."""
+    det = _claim(base, "det", "det", relation_phrase="lidera", review_required=True)
+    sem = _claim(
+        base, "sem", "sem",
+        relation_phrase="lidera la casa desde el invierno",
+        review_required=True,
+        **campos_sem,
+    )
+    return ExtractionOutput(claims=(det, sem))
+
+
+def test_dos_propuestas_de_la_misma_relacion_en_revision_se_funden(gold, reconciler):
+    base = next(c for c in gold.claims if not c.get("abstained"))
+    salida = reconciler.reconcile(_par_coreferente(base))
+
+    assert len(salida.claims) == 1, (
+        "dos propuestas de la MISMA relacion sobre el mismo par de menciones, "
+        "ambas pendientes de revision, son una sola cosa que revisar"
+    )
+    assert _soporte(salida.claims[0])["independent_families"] == 2, (
+        "la fusion tiene que conservar que hay dos familias independientes "
+        "detras: es el dato con el que el motor pondera el apoyo"
+    )
+    assert "RECONCILE_COREFERENT_CLAIMS_MERGED" in salida.codes()
+
+
+def test_los_predicados_rivales_del_mismo_par_llegan_juntos_al_motor(gold, reconciler):
+    """La fusion NO decide el predicado: entrega los dos candidatos ordenados."""
+    base = next(c for c in gold.claims if not c.get("abstained"))
+    propio = base["predicate_candidates"][0]["predicate"]
+    rival = "MEMBER_OF" if propio != "MEMBER_OF" else "LEADS"
+    salida = reconciler.reconcile(
+        _par_coreferente(base, predicate_candidates=[{"predicate": rival, "confidence": 0.9}])
+    )
+
+    assert len(salida.claims) == 1
+    predicados = [c["predicate"] for c in salida.claims[0].predicate_candidates]
+    assert set(predicados) == {propio, rival}, predicados
+
+
+def test_una_propuesta_auto_aprobable_nunca_se_funde(gold, reconciler):
+    """Una propuesta que NO pide revision lleva autoridad propia.
+
+    Fundirla con una externa que si la pide rebajaria la decision local por el
+    mero hecho de que otro proveedor hablo de lo mismo. La cadena funciona al
+    reves: cada carril responde de su propia decision.
+    """
+    base = next(c for c in gold.claims if not c.get("abstained"))
+    entrada = _par_coreferente(base)
+    entrada.claims[0].review_required = False
+
+    salida = reconciler.reconcile(entrada)
+
+    assert len(salida.claims) == 2
+
+
+def test_la_fusion_coreferente_no_blanquea_la_autoridad_externa(gold, reconciler):
+    """`produced_by_step` se toma de la propuesta MAS externa del grupo.
+
+    Si se tomase la local (que suele ordenar primero), el motor dejaria de ver
+    que detras hay un proveedor externo y no emitiria `EXTERNAL_PROPOSAL`.
+    """
+    base = next(c for c in gold.claims if not c.get("abstained"))
+    salida = reconciler.reconcile(_par_coreferente(base))
+
+    proveedor = salida.claims[0].producing_provider().get("provider")
+    assert proveedor != "local", salida.claims[0].produced_by_step
