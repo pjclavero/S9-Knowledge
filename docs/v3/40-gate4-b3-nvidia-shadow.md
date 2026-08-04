@@ -99,9 +99,23 @@ versionada (ver `.gitignore` del bloque): son respuestas de un modelo de
 terceros bajo la clave del operador, no un artefacto de programa; el
 resultado agregado que si se versiona es `b3-nvidia-shadow.{json,md}`.
 
-## Resultados
+## Resultados (corrida real del 2026-08-04)
 
-Ver `artifacts/gate4-program/b3-nvidia-shadow.md` (y su `.json` hermano, del
-que sale cada cifra de esta seccion sin trascribirlas a mano). Resumen del
-veredicto y de las incidencias de la corrida real: ver el informe de cierre
-del bloque en el historial de PRs de `feat/gate4-b3-nvidia-shadow`.
+Cifras completas en `artifacts/gate4-program/b3-nvidia-shadow.{json,md}`,
+generadas de punta a punta por el script (nada transcrito a mano). Lectura
+honesta de la corrida:
+
+* El carril NVIDIA en sombra alcanza cobertura 0.3509 y recall SIMPLE 0.4545
+  en este arnes: **NO_CONFORME** contra los umbrales del programa (0.60 /
+  0.70). Precision 0.5758 con 14 falsos positivos.
+* La configuracion `A` (pipeline heuristico local) da 0.0 en este arnes de
+  claims sobre el split de negaciones: no propone claims emparejables. Esto
+  CONFIRMA la limitacion declarada arriba (no es el 0.607 de B2, que mide
+  otra cadena) y hace que la union reconciliada coincida con NVIDIA sola.
+* La API estuvo notablemente inestable durante la corrida: 50 reintentos de
+  transporte, 31 timeouts duros de 60s y 2 episodios perdidos tras agotar
+  reintentos. Latencia media 36.0s por llamada real, p95 53.4s.
+* Tokens: 239,602 de entrada + 19,140 de salida (258,742 totales) para 60
+  episodios; extrapolacion ~4.31M tokens por 1000 episodios. Sin precio
+  documentado en el repo, el coste queda como parametro
+  (`--price-per-million-tokens-usd`).

@@ -1,0 +1,272 @@
+{
+  "gate": "4",
+  "block": "B3",
+  "titulo": "Carril semantico NVIDIA en modo sombra (nunca escribe, nunca decide)",
+  "generado_por": "scripts/gate4/measure_b3.py",
+  "split": "negation",
+  "mock": false,
+  "concurrency_requested": 2,
+  "gold": {
+    "episodes": 60,
+    "claims": 57
+  },
+  "lanes": {
+    "determinista": {
+      "config": "A",
+      "metrics": {
+        "coverage": 0.0,
+        "recall_overall": 0.0,
+        "recall_simple": 0.0,
+        "precision": null,
+        "false_positives": 0,
+        "by_family": {
+          "CESSATION": {
+            "cases": 10,
+            "coverage": 0.0,
+            "recall": 0.0
+          },
+          "DOUBLE_NEGATION": {
+            "cases": 2,
+            "coverage": 0.0,
+            "recall": 0.0
+          },
+          "NEGATED_CESSATION": {
+            "cases": 8,
+            "coverage": 0.0,
+            "recall": 0.0
+          },
+          "NEVER": {
+            "cases": 6,
+            "coverage": 0.0,
+            "recall": 0.0
+          },
+          "NOT_YET": {
+            "cases": 5,
+            "coverage": 0.0,
+            "recall": 0.0
+          },
+          "POSITIVE_CONTROL": {
+            "cases": 6,
+            "coverage": 0.0,
+            "recall": 0.0
+          },
+          "QUESTION_CONDITIONAL_RUMOR": {
+            "cases": 4,
+            "coverage": 0.0,
+            "recall": 0.0
+          },
+          "SCOPE_EMBEDDED": {
+            "cases": 5,
+            "coverage": 0.0,
+            "recall": 0.0
+          },
+          "SIMPLE": {
+            "cases": 11,
+            "coverage": 0.0,
+            "recall": 0.0
+          }
+        },
+        "evaluable_cases": 57,
+        "covered_cases": 0
+      },
+      "gates": {
+        "lane": "determinista",
+        "cobertura_e2e_dev": {
+          "umbral": 0.6,
+          "observado": 0.0,
+          "veredicto": "NO_CONFORME"
+        },
+        "recall_simple": {
+          "umbral": 0.7,
+          "observado": 0.0,
+          "veredicto": "NO_CONFORME"
+        }
+      },
+      "wall_ms": 15
+    },
+    "nvidia": {
+      "config": "C2",
+      "metrics": {
+        "coverage": 0.3509,
+        "recall_overall": 0.3333,
+        "recall_simple": 0.4545,
+        "precision": 0.5758,
+        "false_positives": 14,
+        "by_family": {
+          "CESSATION": {
+            "cases": 10,
+            "coverage": 0.4,
+            "recall": 0.4
+          },
+          "DOUBLE_NEGATION": {
+            "cases": 2,
+            "coverage": 0.0,
+            "recall": 0.0
+          },
+          "NEGATED_CESSATION": {
+            "cases": 8,
+            "coverage": 0.375,
+            "recall": 0.25
+          },
+          "NEVER": {
+            "cases": 6,
+            "coverage": 0.1667,
+            "recall": 0.1667
+          },
+          "NOT_YET": {
+            "cases": 5,
+            "coverage": 0.4,
+            "recall": 0.4
+          },
+          "POSITIVE_CONTROL": {
+            "cases": 6,
+            "coverage": 0.5,
+            "recall": 0.5
+          },
+          "QUESTION_CONDITIONAL_RUMOR": {
+            "cases": 4,
+            "coverage": 0.5,
+            "recall": 0.5
+          },
+          "SCOPE_EMBEDDED": {
+            "cases": 5,
+            "coverage": 0.0,
+            "recall": 0.0
+          },
+          "SIMPLE": {
+            "cases": 11,
+            "coverage": 0.4545,
+            "recall": 0.4545
+          }
+        },
+        "evaluable_cases": 57,
+        "covered_cases": 20
+      },
+      "gates": {
+        "lane": "nvidia",
+        "cobertura_e2e_dev": {
+          "umbral": 0.6,
+          "observado": 0.3509,
+          "veredicto": "NO_CONFORME"
+        },
+        "recall_simple": {
+          "umbral": 0.7,
+          "observado": 0.4545,
+          "veredicto": "NO_CONFORME"
+        }
+      },
+      "wall_ms": 4416583
+    },
+    "union_reconciliada": {
+      "config": "D-R",
+      "metrics": {
+        "coverage": 0.3509,
+        "recall_overall": 0.3333,
+        "recall_simple": 0.4545,
+        "precision": 0.5758,
+        "false_positives": 14,
+        "by_family": {
+          "CESSATION": {
+            "cases": 10,
+            "coverage": 0.4,
+            "recall": 0.4
+          },
+          "DOUBLE_NEGATION": {
+            "cases": 2,
+            "coverage": 0.0,
+            "recall": 0.0
+          },
+          "NEGATED_CESSATION": {
+            "cases": 8,
+            "coverage": 0.375,
+            "recall": 0.25
+          },
+          "NEVER": {
+            "cases": 6,
+            "coverage": 0.1667,
+            "recall": 0.1667
+          },
+          "NOT_YET": {
+            "cases": 5,
+            "coverage": 0.4,
+            "recall": 0.4
+          },
+          "POSITIVE_CONTROL": {
+            "cases": 6,
+            "coverage": 0.5,
+            "recall": 0.5
+          },
+          "QUESTION_CONDITIONAL_RUMOR": {
+            "cases": 4,
+            "coverage": 0.5,
+            "recall": 0.5
+          },
+          "SCOPE_EMBEDDED": {
+            "cases": 5,
+            "coverage": 0.0,
+            "recall": 0.0
+          },
+          "SIMPLE": {
+            "cases": 11,
+            "coverage": 0.4545,
+            "recall": 0.4545
+          }
+        },
+        "evaluable_cases": 57,
+        "covered_cases": 20
+      },
+      "gates": {
+        "lane": "union_reconciliada",
+        "cobertura_e2e_dev": {
+          "umbral": 0.6,
+          "observado": 0.3509,
+          "veredicto": "NO_CONFORME"
+        },
+        "recall_simple": {
+          "umbral": 0.7,
+          "observado": 0.4545,
+          "veredicto": "NO_CONFORME"
+        }
+      },
+      "wall_ms": 4416598
+    }
+  },
+  "latency": {
+    "unit": "ms",
+    "real_calls": 58,
+    "mean": 36011.0,
+    "p95": 53405.9,
+    "max": 58522
+  },
+  "tokens": {
+    "prompt_tokens_total": 239602,
+    "completion_tokens_total": 19140,
+    "total_tokens": 258742,
+    "episodes_measured": 60,
+    "tokens_per_episode_mean": 4312.4,
+    "extrapolation_1000_episodes_tokens": 4312366.7,
+    "price_per_million_tokens_usd": null,
+    "estimated_cost_usd_this_run": null,
+    "estimated_cost_usd_1000_episodes": null,
+    "note": "sin precio documentado en el repo: se reporta solo tokens; pasa --price-per-million-tokens-usd para estimar coste"
+  },
+  "cache": {
+    "path": "artifacts/gate4-program/b3-cache/responses.json",
+    "calls_real": 58,
+    "calls_failed": 2,
+    "calls_served_from_cache": 0,
+    "calls_missed_cache": 60
+  },
+  "incidencias_api": {
+    "transport_retries_used": 50,
+    "hard_timeouts": 31,
+    "failed_calls": 2,
+    "distinct_errors": [
+      "ProviderUnavailable"
+    ]
+  },
+  "wall_ms": {
+    "A": 15,
+    "C2": 4416584
+  }
+}
