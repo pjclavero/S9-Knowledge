@@ -1,5 +1,22 @@
 # Puerta 6 — B1: operadores (discurso reportado, 'mientras no', extension de SCOPE_VERBS)
 
+> **Nota de alcance (retroactiva, anadida en el rework del bloque B2).**
+> Todas las cifras de este documento miden UNA capa: el CLASIFICADOR de
+> factividad (`extraction.cues.analyze_raw_text` / `classify_factivity`).
+> La revision de B2 demostro, con ejecucion independiente, que el extractor
+> determinista de produccion (`extraction/deterministic.py`) NO consultaba
+> ese resultado para la rama RUMOR / `EMIT_EPISTEMIC_PROPOSAL`: solo leia del
+> `verdict` las dos acciones de aborto (`EMIT_DIAGNOSTIC` y `REVIEW_SCOPE`) y
+> calculaba su hint epistemico con una lista local anterior al programa. Es
+> decir: estas cifras describian lo que la politica LEE, no lo que el sistema
+> ESCRIBE, y para el operador de discurso reportado ("El heraldo dijo que P")
+> las dos cosas no coincidian. El rework de B2 conecta los dos carriles y
+> publica desde entonces el invariante fail-closed medido tambien contra la
+> salida real de `DeterministicExtractor` (capa `deterministic_extractor`,
+> `knowledge_v3/eval/gate6_extractor_layer.py`), al lado de la capa de
+> clasificador y sin mezclar las dos en un solo numero.
+
+
 Bloque B1: cierra, por prioridad del dictamen del revisor, el operador de discurso reportado por tercero (familias NESTED_REPORT + REPORT_OF_NEGATION, 12/40 violaciones de B0), 'mientras no' como condicional sin convertir usos temporales, y diagnostica (sin corregir, por riesgo de sobreajuste) el bug de 'nunca' con objeto locativo. Extiende ademas SCOPE_VERBS con verbos factivos/de reconocimiento (admitir/reconocer/verificar/aceptar), bonus de bajo riesgo sobre la misma familia arquitectonica ya cubierta por 'confirmar'. Compara fila a fila contra b0-baseline.json: ninguna cifra de esta comparacion esta escrita a mano.
 
 ## 1. Cifras globales, antes (B0) / despues (B1)

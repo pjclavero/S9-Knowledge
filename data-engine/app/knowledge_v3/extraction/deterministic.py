@@ -774,6 +774,34 @@ class DeterministicExtractor(Extractor):
         if policy.action is _cues.FactivityAction.REVIEW_SCOPE:
             abstain([_cues.CODE_NEGATION_SCOPE], [subject_id], [object_id])
             return
+
+        # EMIT_EPISTEMIC_PROPOSAL y demas degradaciones del contexto.
+        #
+        # Hasta el rework de B2 (puerta 6) este carril solo consultaba del
+        # `verdict` las dos acciones de ABORTO (EMIT_DIAGNOSTIC y
+        # REVIEW_SCOPE): todo lo que no abortaba se emitia con el `hint`
+        # calculado arriba a partir de `EPISTEMIC_CUES`, una lista de marcas
+        # FIJAS ("se dice que", "segun los rumores"...). Los operadores
+        # PRODUCTIVOS que B0/B1/B2 anadieron a `cues.py` -- en particular el
+        # discurso reportado por verbo ("El heraldo dijo que P"), que
+        # `classify_factivity` clasifica RUMOR y resuelve con
+        # `EMIT_EPISTEMIC_PROPOSAL` -- no llegaban nunca aqui: "El heraldo
+        # dijo que Elara lidera la Orden" salia ASSERTED con
+        # `review_required=False`, es decir, el reporte de un tercero escrito
+        # como hecho del mundo.
+        #
+        # La conexion reutiliza el `verdict` YA calculado arriba (no hay una
+        # segunda pasada sobre el texto ni una copia de la politica) y aplica
+        # el MISMO mecanismo que el carril de proveedor en `payload.py`: el
+        # contexto solo DEGRADA. Si la lista local ya vio algo no-ASSERTED, se
+        # respeta; si no vio nada y el contexto si, manda el contexto. Nunca
+        # al reves: ningun camino puede reascender un hint a "ASSERTED".
+        # `review` (mas abajo) ya depende de `hint != "ASSERTED"`, asi que la
+        # degradacion arrastra la marca de revision sin logica aparte.
+        if verdict.hint != "ASSERTED" and hint == "ASSERTED":
+            hint = verdict.hint
+            cues.extend(c for c in verdict.cues if c not in cues)
+
         temporal = []
         extra_trace = []
         if self.attach_temporal:

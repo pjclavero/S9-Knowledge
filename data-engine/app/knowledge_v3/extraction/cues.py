@@ -510,6 +510,20 @@ REPORT_VERBS: tuple[str, ...] = tuple(
     )
 )
 
+#: Formas de REPORT_VERBS que son TAMBIEN sustantivos frecuentes en espanol.
+#: Bloque B2 (puerta 6): `_reported_speech_cue` compara tokens por norma
+#: contra REPORT_VERBS sin ninguna guarda de categoria gramatical. "cuenta"
+#: (factura/relacion de gastos) normaliza igual que la 3a persona singular de
+#: "contar" declarada en REPORT_VERB_HAND_FORMS; "cuentan" (3a plural de
+#: "contar") puede aparecer como verbo factual ("las fichas que cuentan").
+#: "relato" (narracion) normaliza igual que la 3a persona singular de
+#: preterito de "relatar" (relato -> relato sin tilde en normalizacion).
+#: Si alguno de estos tokens aparece PRECEDIDO de un determinante de
+#: COMPLEMENT_DETERMINERS, es un sintagma nominal ("la cuenta que presento"),
+#: no un verbo de reporte ("cuenta que presento el mercader = informa que
+#: presento"), y el operador NO debe disparar.
+REPORT_VERB_NOUN_HOMOGRAPHS: frozenset[str] = frozenset({"cuenta", "cuentan", "relato"})
+
 #: Conjunciones que abren una clausula NUEVA. La negacion de la anterior no
 #: viaja: "Kael no llego a tiempo, pero Mira pertenece al Gremio".
 CLAUSE_CONJUNCTIONS: tuple[str, ...] = (
@@ -528,6 +542,55 @@ CLAUSE_PUNCTUATION = ",;:\n\r"
 #: "si" (afirmacion) son la misma cadena una vez normalizada, y confundirlas
 #: convertiria cualquier "si" en una hipotesis.
 CONDITIONAL_SI = "si"
+
+#: Conectores que, INMEDIATAMENTE despues de un `SCOPE_VERB` negado, delatan
+#: que lo negado es la actitud epistemica y no la relacion: la completiva
+#: ("no reconocio QUE sirviera") y la interrogativa indirecta entera ("no sabe
+#: SI/CUANDO/DONDE/COMO/QUIEN/CUAL/CUANTO ...").
+#:
+#: Es una clase gramatical CERRADA del espanol (pronombres, adverbios y
+#: determinantes interrogativos), no vocabulario tomado de ningun corpus: la
+#: lista es la enumeracion completa de la clase, con sus variantes de genero y
+#: numero, ya normalizada (sin tilde, que es lo que produce `text.normalize`).
+#: B2 solo reconocia "que"/"si", los dos que los corpus de dev y de puerta 4
+#: exigieron; el resto de la clase es el MISMO fenomeno y caia en silencio al
+#: camino de negacion directa (NEGATED_FACT) -- una asercion sobre el mundo
+#: donde el texto solo dice que alguien ignora un dato.
+INDIRECT_QUESTION_CONNECTORS: frozenset = frozenset({
+    "que", "si",
+    "cuando", "donde", "adonde",
+    "como",
+    "quien", "quienes",
+    "cual", "cuales",
+    "cuanto", "cuanta", "cuantos", "cuantas",
+})
+
+#: Los miembros de la clase que ocupan DOS tokens: el tokenizador es `\w+`, asi
+#: que "por que" y "lo que" llegan partidos.
+INDIRECT_QUESTION_CONNECTOR_PAIRS: tuple[tuple[str, str], ...] = (
+    ("por", "que"),
+    ("lo", "que"),
+)
+
+
+def indirect_question_connector(
+    tokens: Sequence[Token], start: int, hi: int
+) -> Optional[str]:
+    """Conector de completiva/interrogativa indirecta que empieza en `start`.
+
+    Devuelve la forma normalizada (una o dos palabras) o `None`. No decide
+    nada: solo reconoce la clase gramatical.
+    """
+    if start >= hi:
+        return None
+    if start + 1 < hi:
+        par = (tokens[start].norm, tokens[start + 1].norm)
+        if par in INDIRECT_QUESTION_CONNECTOR_PAIRS:
+            return " ".join(par)
+    if tokens[start].norm in INDIRECT_QUESTION_CONNECTORS:
+        return tokens[start].norm
+    return None
+
 
 #: Signos que delatan una interrogativa. Una pregunta no afirma nada.
 INTERROGATIVE_MARKS = ("¿", "?")
@@ -643,9 +706,22 @@ def _reported_speech_cue(
     busca `<verbo de reporte> que` pegados: el hueco cerrado (0 tokens entre
     verbo y "que") evita que un "que" remoto de otra subordinada dispare el
     operador.
+
+    Bloque B2 (puerta 6): guarda de HOMOGRAFO. Las formas de `REPORT_VERBS`
+    declaradas en `REPORT_VERB_NOUN_HOMOGRAPHS` ("cuenta", "cuentan",
+    "relato") coinciden con sustantivos frecuentes del espanol. Si el token
+    en cuestion va PRECEDIDO de un determinante de `COMPLEMENT_DETERMINERS`,
+    es un sintagma nominal ("la cuenta que presento el mercader"), no un
+    verbo de reporte completivo, y el operador NO debe disparar.
     """
     for i in range(lo, hi - 1):
         if tokens[i].norm in REPORT_VERBS and tokens[i + 1].norm == "que":
+            if (
+                tokens[i].norm in REPORT_VERB_NOUN_HOMOGRAPHS
+                and i > lo
+                and tokens[i - 1].norm in COMPLEMENT_DETERMINERS
+            ):
+                continue
             return f"{tokens[i].text} que"
     return None
 
@@ -875,9 +951,26 @@ def classify_negation(
         else lo
     )
 
-    # 1. alcance: la negacion va pegada a un verbo de actitud o de reporte
+    # 1. alcance: la negacion va pegada a un verbo de actitud o de reporte,
+    #    Y el verbo introduce una subordinada completiva ("que ...") o una
+    #    interrogativa indirecta ("si/cuando/donde/como/quien/cual/cuanto/
+    #    por que/lo que ...", clase gramatical cerrada declarada en
+    #    `INDIRECT_QUESTION_CONNECTORS`; el rework de B2 la completo, antes
+    #    solo miraba "que"/"si"). Sin ninguno de esos conectores
+    #    inmediatos, el verbo toma un objeto directo y la negacion es DIRECTA
+    #    (NEGATED_FACT), no de alcance ambiguo. Bloque B2 (puerta 6):
+    #    "no reconocio el terreno" es una negacion directa, no SCOPE_AMBIGUOUS;
+    #    "no reconocio que sirviera" y "no sabe si dirige" SI son alcance
+    #    ambiguo. Esto corrige el exceso de superficie de SCOPE_VERBS anadido
+    #    en B1 (admitir/reconocer/aceptar/verificar tienen un uso frecuente con
+    #    objeto directo sin "que"/"si" que no es alcance epistemico), y
+    #    generaliza la misma correccion a los verbos preexistentes de
+    #    SCOPE_VERBS (p. ej. "no sabia el camino" es NEGATED_FACT, no
+    #    SCOPE_AMBIGUOUS, pero "no sabia si llegaria" SI es SCOPE_AMBIGUOUS).
     for i in range(inicio, focus):
         if tokens[i].norm in marcas_negacion and i + 1 < hi and tokens[i + 1].norm in SCOPE_VERBS:
+            if indirect_question_connector(tokens, i + 2, hi) is None:
+                continue
             return NegationVerdict(
                 False,
                 NEGATION_KIND_SCOPE_AMBIGUOUS,
@@ -1159,10 +1252,15 @@ __all__ = [
     "EPISTEMIC_PATTERNS",
     "FALSITY_PHRASES",
     "FICTION_PHRASES",
+    "INDIRECT_QUESTION_CONNECTORS",
+    "INDIRECT_QUESTION_CONNECTOR_PAIRS",
+    "indirect_question_connector",
+    "INTERROGATIVE_MARKS",
     "INTERROGATIVE_PHRASES",
     "NEGATION_CUES",
     "REPORT_VERBS",
     "REPORT_VERB_HAND_FORMS",
+    "REPORT_VERB_NOUN_HOMOGRAPHS",
     "NEGATION_KINDS",
     "NEGATION_KIND_CESSATION",
     "NEGATION_KIND_NEVER",

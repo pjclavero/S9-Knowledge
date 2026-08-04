@@ -1,0 +1,3683 @@
+{
+  "gate": "6",
+  "block": "B2",
+  "purpose": "Bloque B2-FINAL: cierra el backlog diagnosticado en B1. Correccion 1 (Bug homografo): guarda de determinante en _reported_speech_cue para formas de REPORT_VERBS que son tambien sustantivos ('cuenta', 'relato') -- impide que 'la cuenta que presento' se lea como reporte de tercero. Correccion 2 (Bug scope sin 'que'): se exige un 'que' completivo inmediato tras los verbos de SCOPE_VERBS para disparar SCOPE_AMBIGUOUS -- 'no reconocio el terreno' es ahora NEGATED_FACT, no UNKNOWN. Ambas correcciones generalizan a todos los verbos de su respectiva lista (no solo a los de B1). Se anaden 6 nuevos casos al corpus de generalizacion composicional (familias REPORT_FALSE_FRIEND y SCOPE_VERB_DIRECT_OBJ, dataset version 1.2.0). REWORK de B2 (dictamen del revisor): (a) el extractor determinista de produccion queda CONECTADO al verdict de la politica (rama EMIT_EPISTEMIC_PROPOSAL), que hasta ahora era codigo muerto para ese carril; (b) el invariante fail-closed se mide ademas contra la salida REAL de DeterministicExtractor (capa `deterministic_extractor`, publicada al lado de la capa de clasificador, nunca sumada con ella); (c) los conectores de classify_negation se amplian de 'que'/'si' a la clase gramatical cerrada de interrogativas indirectas del espanol, con 5 casos nuevos de corpus (familia INDIRECT_QUESTION_SCOPE, dataset version 1.3.0). Criterio NVIDIA (79,17 %): ver seccion de notas.",
+  "current": {
+    "gate": "6",
+    "block": "B0",
+    "purpose": "Arnes de medicion de la factividad composicional: publica la exactitud de la politica de factualidad sobre el corpus dev congelado y sobre un corpus NUEVO de composicion de operadores, lado a lado, sin mezclarlas en un solo numero. No se toca `extraction/factivity.py` ni `cues.py` en este bloque: B0 mide, no corrige.",
+    "corpora": {
+      "dev": {
+        "split": "dev-synthetic",
+        "provenance": "dev-synthetic/opus-2026-07-30",
+        "layer": "factivity_policy",
+        "cases": 100,
+        "metrics_global": {
+          "policy_accuracy": 0.8
+        },
+        "metrics_by_family": {
+          "ALCANCE_COMPLEJO": {
+            "cases": 4,
+            "accuracy": 0.0
+          },
+          "CONDICIONAL": {
+            "cases": 10,
+            "accuracy": 0.8
+          },
+          "CONTRAFACTUAL": {
+            "cases": 10,
+            "accuracy": 0.6
+          },
+          "DESEO": {
+            "cases": 8,
+            "accuracy": 0.75
+          },
+          "FALSEDAD_ATRIBUIDA": {
+            "cases": 8,
+            "accuracy": 0.75
+          },
+          "FICCION_EN_FICCION": {
+            "cases": 8,
+            "accuracy": 1.0
+          },
+          "HECHO_AFIRMADO": {
+            "cases": 10,
+            "accuracy": 1.0
+          },
+          "HIPOTESIS": {
+            "cases": 10,
+            "accuracy": 1.0
+          },
+          "NEGACION_FACTUAL": {
+            "cases": 10,
+            "accuracy": 0.7
+          },
+          "ORDEN": {
+            "cases": 8,
+            "accuracy": 0.625
+          },
+          "PREGUNTA": {
+            "cases": 10,
+            "accuracy": 1.0
+          },
+          "RUMOR": {
+            "cases": 4,
+            "accuracy": 1.0
+          }
+        },
+        "rows": [
+          {
+            "case_id": "fact:hecho-afirmado:01",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:02",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:03",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:04",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:05",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:06",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:07",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:08",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:09",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hecho-afirmado:10",
+            "family": "HECHO_AFIRMADO",
+            "expected": "WRITE_POSITIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:negacion-factual:01",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:negacion-factual:02",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:negacion-factual:03",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:negacion-factual:04",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": false
+          },
+          {
+            "case_id": "fact:negacion-factual:05",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:negacion-factual:06",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:negacion-factual:07",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:negacion-factual:08",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:negacion-factual:09",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:negacion-factual:10",
+            "family": "NEGACION_FACTUAL",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:01",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:02",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:03",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:04",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:05",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:06",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:07",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:08",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:09",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:pregunta:10",
+            "family": "PREGUNTA",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "QUESTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:01",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:02",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:03",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:04",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:05",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "COUNTERFACTUAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:06",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:07",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:condicional:08",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:09",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:condicional:10",
+            "family": "CONDICIONAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:contrafactual:01",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:contrafactual:02",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:contrafactual:03",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "DESIRE",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:contrafactual:04",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:contrafactual:05",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:contrafactual:06",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:contrafactual:07",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:contrafactual:08",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:contrafactual:09",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:contrafactual:10",
+            "family": "CONTRAFACTUAL",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:01",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:02",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:03",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:04",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:05",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:06",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:07",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:08",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:09",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:hipotesis:10",
+            "family": "HIPOTESIS",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "HYPOTHETICAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:deseo:01",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "DESIRE",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:deseo:02",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "DESIRE",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:deseo:03",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "DESIRE",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:deseo:04",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "DESIRE",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:deseo:05",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:deseo:06",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "DESIRE",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:deseo:07",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:deseo:08",
+            "family": "DESEO",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "DESIRE",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:orden:01",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:orden:02",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "COMMAND",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:orden:03",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:orden:04",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "COMMAND",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:orden:05",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:orden:06",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "COMMAND",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:orden:07",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "COMMAND",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:orden:08",
+            "family": "ORDEN",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "COMMAND",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:01",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": false,
+            "predicted_class": "REPORTED_FALSEHOOD",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:02",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:03",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": false,
+            "predicted_class": "REPORTED_FALSEHOOD",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:04",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "REPORTED_FALSEHOOD",
+            "read_as_world_fact": false,
+            "correct": false
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:05",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": false,
+            "predicted_class": "REPORTED_FALSEHOOD",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:06",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": false,
+            "predicted_class": "REPORTED_FALSEHOOD",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:07",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "WRITE_NEGATIVE",
+            "world_fact_gold": true,
+            "predicted_class": "REPORTED_FALSEHOOD",
+            "read_as_world_fact": false,
+            "correct": false
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:08",
+            "family": "FALSEDAD_ATRIBUIDA",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": false,
+            "predicted_class": "REPORTED_FALSEHOOD",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:01",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:02",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:03",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:04",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:05",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:06",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:07",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:08",
+            "family": "FICCION_EN_FICCION",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "FICTION_WITHIN_FICTION",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:rumor:01",
+            "family": "RUMOR",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:rumor:02",
+            "family": "RUMOR",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:rumor:03",
+            "family": "RUMOR",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:rumor:04",
+            "family": "RUMOR",
+            "expected": "ABSTAIN",
+            "world_fact_gold": false,
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "fact:alcance-complejo:01",
+            "family": "ALCANCE_COMPLEJO",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:alcance-complejo:02",
+            "family": "ALCANCE_COMPLEJO",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:alcance-complejo:03",
+            "family": "ALCANCE_COMPLEJO",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": true,
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "fact:alcance-complejo:04",
+            "family": "ALCANCE_COMPLEJO",
+            "expected": "DIAGNOSTIC",
+            "world_fact_gold": true,
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          }
+        ]
+      },
+      "generalization": {
+        "split": "gate6-generalization-compositional",
+        "layer": "factivity_policy",
+        "cases": 53,
+        "metrics_global": {
+          "overall_accuracy": 0.8113207547169812,
+          "hard_family_accuracy": 0.0,
+          "non_hard_accuracy": 0.9148936170212766
+        },
+        "metrics_by_family": {
+          "CONDITIONAL_IN_RUMOR": {
+            "cases": 6,
+            "accuracy": 1.0
+          },
+          "FACTIVE_IN_CONDITIONAL": {
+            "cases": 6,
+            "accuracy": 0.8333333333333334
+          },
+          "INDIRECT_QUESTION_SCOPE": {
+            "cases": 5,
+            "accuracy": 1.0
+          },
+          "LEXICAL_NEGATION_EDGE": {
+            "cases": 2,
+            "accuracy": 0.0
+          },
+          "NEGATED_RUMOR_HARD": {
+            "cases": 6,
+            "accuracy": 0.0
+          },
+          "NEGATION_OF_FACTIVE": {
+            "cases": 6,
+            "accuracy": 0.8333333333333334
+          },
+          "NESTED_REPORT": {
+            "cases": 6,
+            "accuracy": 1.0
+          },
+          "POSITIVE_CONTROL": {
+            "cases": 4,
+            "accuracy": 1.0
+          },
+          "REPORT_FALSE_FRIEND": {
+            "cases": 3,
+            "accuracy": 1.0
+          },
+          "REPORT_OF_NEGATION": {
+            "cases": 6,
+            "accuracy": 1.0
+          },
+          "SCOPE_VERB_DIRECT_OBJ": {
+            "cases": 3,
+            "accuracy": 1.0
+          }
+        },
+        "hard_families": [
+          "NEGATED_RUMOR_HARD"
+        ],
+        "rows": [
+          {
+            "case_id": "gen6:cond_in_rumor:01",
+            "family": "CONDITIONAL_IN_RUMOR",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:02",
+            "family": "CONDITIONAL_IN_RUMOR",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:03",
+            "family": "CONDITIONAL_IN_RUMOR",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:04",
+            "family": "CONDITIONAL_IN_RUMOR",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:05",
+            "family": "CONDITIONAL_IN_RUMOR",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:06",
+            "family": "CONDITIONAL_IN_RUMOR",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:nested_report:01",
+            "family": "NESTED_REPORT",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:nested_report:02",
+            "family": "NESTED_REPORT",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:nested_report:03",
+            "family": "NESTED_REPORT",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:nested_report:04",
+            "family": "NESTED_REPORT",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:nested_report:05",
+            "family": "NESTED_REPORT",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:nested_report:06",
+            "family": "NESTED_REPORT",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:neg_of_factive:01",
+            "family": "NEGATION_OF_FACTIVE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:neg_of_factive:02",
+            "family": "NEGATION_OF_FACTIVE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:neg_of_factive:03",
+            "family": "NEGATION_OF_FACTIVE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:neg_of_factive:04",
+            "family": "NEGATION_OF_FACTIVE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:neg_of_factive:05",
+            "family": "NEGATION_OF_FACTIVE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:neg_of_factive:06",
+            "family": "NEGATION_OF_FACTIVE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:factive_in_cond:01",
+            "family": "FACTIVE_IN_CONDITIONAL",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:factive_in_cond:02",
+            "family": "FACTIVE_IN_CONDITIONAL",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:factive_in_cond:03",
+            "family": "FACTIVE_IN_CONDITIONAL",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:factive_in_cond:04",
+            "family": "FACTIVE_IN_CONDITIONAL",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:factive_in_cond:05",
+            "family": "FACTIVE_IN_CONDITIONAL",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "CONDITIONAL",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:factive_in_cond:06",
+            "family": "FACTIVE_IN_CONDITIONAL",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:01",
+            "family": "NEGATED_RUMOR_HARD",
+            "hard": true,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:02",
+            "family": "NEGATED_RUMOR_HARD",
+            "hard": true,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:03",
+            "family": "NEGATED_RUMOR_HARD",
+            "hard": true,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:04",
+            "family": "NEGATED_RUMOR_HARD",
+            "hard": true,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:05",
+            "family": "NEGATED_RUMOR_HARD",
+            "hard": true,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:06",
+            "family": "NEGATED_RUMOR_HARD",
+            "hard": true,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:report_of_neg:01",
+            "family": "REPORT_OF_NEGATION",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:report_of_neg:02",
+            "family": "REPORT_OF_NEGATION",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:report_of_neg:03",
+            "family": "REPORT_OF_NEGATION",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:report_of_neg:04",
+            "family": "REPORT_OF_NEGATION",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:report_of_neg:05",
+            "family": "REPORT_OF_NEGATION",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:report_of_neg:06",
+            "family": "REPORT_OF_NEGATION",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "RUMOR",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:positive_control:01",
+            "family": "POSITIVE_CONTROL",
+            "hard": false,
+            "expected_class": "ASSERTED_FACT",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:positive_control:02",
+            "family": "POSITIVE_CONTROL",
+            "hard": false,
+            "expected_class": "ASSERTED_FACT",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:positive_control:03",
+            "family": "LEXICAL_NEGATION_EDGE",
+            "hard": false,
+            "expected_class": "NEGATED_FACT",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:positive_control:04",
+            "family": "LEXICAL_NEGATION_EDGE",
+            "hard": false,
+            "expected_class": "NEGATED_FACT",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": false
+          },
+          {
+            "case_id": "gen6:positive_control:05",
+            "family": "POSITIVE_CONTROL",
+            "hard": false,
+            "expected_class": "ASSERTED_FACT",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:positive_control:06",
+            "family": "POSITIVE_CONTROL",
+            "hard": false,
+            "expected_class": "NEGATED_FACT",
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:report_false_friend:01",
+            "family": "REPORT_FALSE_FRIEND",
+            "hard": false,
+            "expected_class": "ASSERTED_FACT",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:report_false_friend:02",
+            "family": "REPORT_FALSE_FRIEND",
+            "hard": false,
+            "expected_class": "ASSERTED_FACT",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:report_false_friend:03",
+            "family": "REPORT_FALSE_FRIEND",
+            "hard": false,
+            "expected_class": "ASSERTED_FACT",
+            "predicted_class": "ASSERTED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:scope_verb_direct_obj:01",
+            "family": "SCOPE_VERB_DIRECT_OBJ",
+            "hard": false,
+            "expected_class": "NEGATED_FACT",
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:scope_verb_direct_obj:02",
+            "family": "SCOPE_VERB_DIRECT_OBJ",
+            "hard": false,
+            "expected_class": "NEGATED_FACT",
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:scope_verb_direct_obj:03",
+            "family": "SCOPE_VERB_DIRECT_OBJ",
+            "hard": false,
+            "expected_class": "NEGATED_FACT",
+            "predicted_class": "NEGATED_FACT",
+            "read_as_world_fact": true,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:indirect_question_scope:01",
+            "family": "INDIRECT_QUESTION_SCOPE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:indirect_question_scope:02",
+            "family": "INDIRECT_QUESTION_SCOPE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:indirect_question_scope:03",
+            "family": "INDIRECT_QUESTION_SCOPE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:indirect_question_scope:04",
+            "family": "INDIRECT_QUESTION_SCOPE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          },
+          {
+            "case_id": "gen6:indirect_question_scope:05",
+            "family": "INDIRECT_QUESTION_SCOPE",
+            "hard": false,
+            "expected_class": "NON_FACTIVE",
+            "predicted_class": "UNKNOWN",
+            "read_as_world_fact": false,
+            "correct": true
+          }
+        ]
+      }
+    },
+    "fail_closed_invariant": {
+      "description": "ningun caso cuyo gold exige abstenerse (dev: ABSTAIN/DIAGNOSTIC; generalizacion: NON_FACTIVE) debe leerse como ASSERTED_FACT o NEGATED_FACT",
+      "violations": [
+        {
+          "corpus": "dev",
+          "case_id": "fact:condicional:07",
+          "family": "CONDICIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:condicional:10",
+          "family": "CONDICIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:02",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:05",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:06",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:07",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:deseo:05",
+          "family": "DESEO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:deseo:07",
+          "family": "DESEO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:01",
+          "family": "ORDEN",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:03",
+          "family": "ORDEN",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:05",
+          "family": "ORDEN",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:01",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:02",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:03",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:04",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_of_factive:04",
+          "family": "NEGATION_OF_FACTIVE",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:factive_in_cond:06",
+          "family": "FACTIVE_IN_CONDITIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:01",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:02",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:03",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:04",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:05",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:06",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "ASSERTED_FACT"
+        }
+      ],
+      "status": "NO CONFORME"
+    },
+    "notes": [
+      "El numero de desarrollo de este arnes (policy_accuracy sobre las 100 frases) reproduce F6-7 de `gate6-findings.md` ('79/100 correctas'), NO el 79,17 % de F6-3 (ese es acuerdo de ACCION entre carriles det+combined+nvidia, que exige un extractor completo y un proveedor NVIDIA en vivo -- no reproducible de forma determinista y sin red por este arnes). Ver docstring del modulo.",
+      "El corpus de generalizacion de este bloque mide un eje DISTINTO del de `factivity_generalization_probe.py` (0,231): aquel prueba vocabulario nuevo con UN operador por frase; este prueba COMPOSICION de operadores en su mayoria conocidos. Una exactitud baja aqui no es el mismo hallazgo que el 0,231 -- es un hallazgo relacionado, sobre el fallo de la precedencia plana al combinar marcos, no sobre el vocabulario ausente.",
+      "La familia `NEGATED_RUMOR_HARD` se declara HARD por adelantado: se espera una exactitud baja porque 'no es cierto el rumor de que' no es substring literal de ninguna FALSITY_PHRASE (la interposicion de 'el rumor de' rompe el match). El gold no se ajusto para que el sistema acertase.",
+      "Regla de aceptacion heredada de la fase 3 de la validacion V3: ninguna mejora futura de `cues.py`/`factivity.py` se acepta si solo sube el numero de desarrollo. La sonda de generalizacion (esta, y la de vocabulario) es el criterio de aceptacion, y debe ejecutarse ANTES de tocar la politica, no despues."
+    ]
+  },
+  "extractor_layer": {
+    "layer": "deterministic_extractor",
+    "description": "invariante fail-closed medido contra la salida REAL de DeterministicExtractor (no contra el clasificador): ningun caso cuyo gold exige abstenerse debe producir un claim no abstenido con epistemic_status_hint=ASSERTED",
+    "corpora": {
+      "dev": {
+        "cases": 100,
+        "coverage": {
+          "cases_with_claims": 4,
+          "cases_total": 100,
+          "gold_forbids_cases": 77,
+          "gold_forbids_cases_with_claims": 0
+        },
+        "violations_written_without_review": [],
+        "violations_asserted": [],
+        "rows": [
+          {
+            "case_id": "fact:hecho-afirmado:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hecho-afirmado:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hecho-afirmado:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hecho-afirmado:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hecho-afirmado:05",
+            "claims_emitted": 0,
+            "abstentions": 1,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hecho-afirmado:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hecho-afirmado:07",
+            "claims_emitted": 1,
+            "abstentions": 0,
+            "epistemic_hints": [
+              "ASSERTED"
+            ],
+            "asserted_claims": 1,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hecho-afirmado:08",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hecho-afirmado:09",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hecho-afirmado:10",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:negacion-factual:01",
+            "claims_emitted": 1,
+            "abstentions": 0,
+            "epistemic_hints": [
+              "ASSERTED"
+            ],
+            "asserted_claims": 1,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:negacion-factual:02",
+            "claims_emitted": 1,
+            "abstentions": 0,
+            "epistemic_hints": [
+              "ASSERTED"
+            ],
+            "asserted_claims": 1,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:negacion-factual:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:negacion-factual:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:negacion-factual:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:negacion-factual:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:negacion-factual:07",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:negacion-factual:08",
+            "claims_emitted": 1,
+            "abstentions": 0,
+            "epistemic_hints": [
+              "ASSERTED"
+            ],
+            "asserted_claims": 1,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:negacion-factual:09",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:negacion-factual:10",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:pregunta:01",
+            "claims_emitted": 0,
+            "abstentions": 1,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:pregunta:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:pregunta:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:pregunta:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:pregunta:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:pregunta:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:pregunta:07",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:pregunta:08",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:pregunta:09",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:pregunta:10",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:condicional:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:condicional:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:condicional:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:condicional:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:condicional:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:condicional:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:condicional:07",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:condicional:08",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:condicional:09",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:condicional:10",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:contrafactual:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:contrafactual:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:contrafactual:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:contrafactual:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:contrafactual:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:contrafactual:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:contrafactual:07",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:contrafactual:08",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:contrafactual:09",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:contrafactual:10",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hipotesis:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hipotesis:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hipotesis:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hipotesis:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hipotesis:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hipotesis:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hipotesis:07",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hipotesis:08",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hipotesis:09",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:hipotesis:10",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:deseo:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:deseo:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:deseo:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:deseo:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:deseo:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:deseo:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:deseo:07",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:deseo:08",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:orden:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:orden:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:orden:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:orden:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:orden:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:orden:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:orden:07",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:orden:08",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:01",
+            "claims_emitted": 0,
+            "abstentions": 1,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:02",
+            "claims_emitted": 0,
+            "abstentions": 1,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:07",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:falsedad-atribuida:08",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:07",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:ficcion-en-ficcion:08",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:rumor:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:rumor:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:rumor:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:rumor:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:alcance-complejo:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:alcance-complejo:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:alcance-complejo:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "fact:alcance-complejo:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          }
+        ],
+        "split": "dev-synthetic",
+        "provenance": "dev-synthetic/opus-2026-07-30",
+        "layer": "deterministic_extractor"
+      },
+      "generalization": {
+        "cases": 53,
+        "coverage": {
+          "cases_with_claims": 4,
+          "cases_total": 53,
+          "gold_forbids_cases": 41,
+          "gold_forbids_cases_with_claims": 2
+        },
+        "violations_written_without_review": [
+          "gen6:factive_in_cond:06",
+          "gen6:neg_rumor_hard:02"
+        ],
+        "violations_asserted": [
+          "gen6:factive_in_cond:06",
+          "gen6:neg_rumor_hard:02"
+        ],
+        "rows": [
+          {
+            "case_id": "gen6:cond_in_rumor:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:cond_in_rumor:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:nested_report:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:nested_report:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:nested_report:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:nested_report:04",
+            "claims_emitted": 0,
+            "abstentions": 1,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:nested_report:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:nested_report:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:neg_of_factive:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:neg_of_factive:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:neg_of_factive:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:neg_of_factive:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:neg_of_factive:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:neg_of_factive:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:factive_in_cond:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:factive_in_cond:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:factive_in_cond:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:factive_in_cond:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:factive_in_cond:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:factive_in_cond:06",
+            "claims_emitted": 1,
+            "abstentions": 0,
+            "epistemic_hints": [
+              "ASSERTED"
+            ],
+            "asserted_claims": 1,
+            "asserted_without_review": 1
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:02",
+            "claims_emitted": 1,
+            "abstentions": 0,
+            "epistemic_hints": [
+              "ASSERTED"
+            ],
+            "asserted_claims": 1,
+            "asserted_without_review": 1
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:neg_rumor_hard:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:report_of_neg:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:report_of_neg:02",
+            "claims_emitted": 0,
+            "abstentions": 1,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:report_of_neg:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:report_of_neg:04",
+            "claims_emitted": 0,
+            "abstentions": 1,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:report_of_neg:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:report_of_neg:06",
+            "claims_emitted": 0,
+            "abstentions": 1,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:positive_control:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:positive_control:02",
+            "claims_emitted": 1,
+            "abstentions": 0,
+            "epistemic_hints": [
+              "ASSERTED"
+            ],
+            "asserted_claims": 1,
+            "asserted_without_review": 1
+          },
+          {
+            "case_id": "gen6:positive_control:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:positive_control:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:positive_control:05",
+            "claims_emitted": 1,
+            "abstentions": 0,
+            "epistemic_hints": [
+              "ASSERTED"
+            ],
+            "asserted_claims": 1,
+            "asserted_without_review": 1
+          },
+          {
+            "case_id": "gen6:positive_control:06",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:report_false_friend:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:report_false_friend:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:report_false_friend:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:scope_verb_direct_obj:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:scope_verb_direct_obj:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:scope_verb_direct_obj:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:indirect_question_scope:01",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:indirect_question_scope:02",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:indirect_question_scope:03",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:indirect_question_scope:04",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          },
+          {
+            "case_id": "gen6:indirect_question_scope:05",
+            "claims_emitted": 0,
+            "abstentions": 0,
+            "epistemic_hints": [],
+            "asserted_claims": 0,
+            "asserted_without_review": 0
+          }
+        ],
+        "split": "gate6-generalization-compositional",
+        "layer": "deterministic_extractor"
+      }
+    },
+    "violations_written_without_review": [
+      {
+        "corpus": "generalization",
+        "case_id": "gen6:factive_in_cond:06"
+      },
+      {
+        "corpus": "generalization",
+        "case_id": "gen6:neg_rumor_hard:02"
+      }
+    ],
+    "violations_asserted": [
+      {
+        "corpus": "generalization",
+        "case_id": "gen6:factive_in_cond:06"
+      },
+      {
+        "corpus": "generalization",
+        "case_id": "gen6:neg_rumor_hard:02"
+      }
+    ],
+    "status": "NO CONFORME",
+    "caveats": [
+      "las menciones se anclan con un lexico construido por caso a partir de nombres propios de superficie (`proper_name_candidates`): es andamiaje de medicion, no parte del extractor",
+      "la cobertura (`coverage`) se publica al lado de las violaciones: un cero sobre pocos casos cubiertos no es la misma evidencia que un cero sobre muchos"
+    ]
+  },
+  "dev_history": [
+    {
+      "block": "B0",
+      "policy_accuracy": 0.79
+    },
+    {
+      "block": "B1",
+      "policy_accuracy": 0.8
+    },
+    {
+      "block": "B2",
+      "policy_accuracy": 0.8
+    }
+  ],
+  "generalization_history": [
+    {
+      "block": "B0",
+      "overall_accuracy": 0.38095238095238093,
+      "cases": 42
+    },
+    {
+      "block": "B1",
+      "overall_accuracy": 0.7619047619047619,
+      "cases": 42
+    },
+    {
+      "block": "B2",
+      "overall_accuracy": 0.8113207547169812,
+      "cases": 53
+    }
+  ],
+  "violations_history": [
+    {
+      "block": "B0",
+      "count": 40
+    },
+    {
+      "block": "B1",
+      "count": 23
+    },
+    {
+      "block": "B2",
+      "count": 23
+    }
+  ],
+  "remaining_violations_by_family": {
+    "CONDICIONAL": [
+      "fact:condicional:07",
+      "fact:condicional:10"
+    ],
+    "CONTRAFACTUAL": [
+      "fact:contrafactual:02",
+      "fact:contrafactual:05",
+      "fact:contrafactual:06",
+      "fact:contrafactual:07"
+    ],
+    "DESEO": [
+      "fact:deseo:05",
+      "fact:deseo:07"
+    ],
+    "ORDEN": [
+      "fact:orden:01",
+      "fact:orden:03",
+      "fact:orden:05"
+    ],
+    "ALCANCE_COMPLEJO": [
+      "fact:alcance-complejo:01",
+      "fact:alcance-complejo:02",
+      "fact:alcance-complejo:03",
+      "fact:alcance-complejo:04"
+    ],
+    "NEGATION_OF_FACTIVE": [
+      "gen6:neg_of_factive:04"
+    ],
+    "FACTIVE_IN_CONDITIONAL": [
+      "gen6:factive_in_cond:06"
+    ],
+    "NEGATED_RUMOR_HARD": [
+      "gen6:neg_rumor_hard:01",
+      "gen6:neg_rumor_hard:02",
+      "gen6:neg_rumor_hard:03",
+      "gen6:neg_rumor_hard:04",
+      "gen6:neg_rumor_hard:05",
+      "gen6:neg_rumor_hard:06"
+    ]
+  },
+  "generalization_by_family_b2": [
+    {
+      "family": "CONDITIONAL_IN_RUMOR",
+      "cases": 6,
+      "accuracy": 1.0
+    },
+    {
+      "family": "FACTIVE_IN_CONDITIONAL",
+      "cases": 6,
+      "accuracy": 0.8333333333333334
+    },
+    {
+      "family": "INDIRECT_QUESTION_SCOPE",
+      "cases": 5,
+      "accuracy": 1.0
+    },
+    {
+      "family": "LEXICAL_NEGATION_EDGE",
+      "cases": 2,
+      "accuracy": 0.0
+    },
+    {
+      "family": "NEGATED_RUMOR_HARD",
+      "cases": 6,
+      "accuracy": 0.0
+    },
+    {
+      "family": "NEGATION_OF_FACTIVE",
+      "cases": 6,
+      "accuracy": 0.8333333333333334
+    },
+    {
+      "family": "NESTED_REPORT",
+      "cases": 6,
+      "accuracy": 1.0
+    },
+    {
+      "family": "POSITIVE_CONTROL",
+      "cases": 4,
+      "accuracy": 1.0
+    },
+    {
+      "family": "REPORT_FALSE_FRIEND",
+      "cases": 3,
+      "accuracy": 1.0
+    },
+    {
+      "family": "REPORT_OF_NEGATION",
+      "cases": 6,
+      "accuracy": 1.0
+    },
+    {
+      "family": "SCOPE_VERB_DIRECT_OBJ",
+      "cases": 3,
+      "accuracy": 1.0
+    }
+  ],
+  "comparison_vs_b0": {
+    "dev": {
+      "corpus": "dev",
+      "metrics_before": {
+        "policy_accuracy": 0.79
+      },
+      "metrics_after": {
+        "policy_accuracy": 0.8
+      },
+      "regressions": [],
+      "improvements": [
+        {
+          "case_id": "fact:condicional:04",
+          "family": "CONDICIONAL",
+          "before": "NEGATED_FACT",
+          "after": "CONDITIONAL"
+        }
+      ],
+      "changed_class_same_verdict": []
+    },
+    "generalization": {
+      "corpus": "generalization",
+      "metrics_before": {
+        "overall_accuracy": 0.38095238095238093,
+        "hard_family_accuracy": 0.0,
+        "non_hard_accuracy": 0.4444444444444444
+      },
+      "metrics_after": {
+        "overall_accuracy": 0.8113207547169812,
+        "hard_family_accuracy": 0.0,
+        "non_hard_accuracy": 0.9148936170212766
+      },
+      "regressions": [],
+      "improvements": [
+        {
+          "case_id": "gen6:nested_report:01",
+          "family": "NESTED_REPORT",
+          "before": "ASSERTED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:nested_report:02",
+          "family": "NESTED_REPORT",
+          "before": "ASSERTED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:nested_report:03",
+          "family": "NESTED_REPORT",
+          "before": "ASSERTED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:nested_report:04",
+          "family": "NESTED_REPORT",
+          "before": "ASSERTED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:nested_report:05",
+          "family": "NESTED_REPORT",
+          "before": "ASSERTED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:nested_report:06",
+          "family": "NESTED_REPORT",
+          "before": "ASSERTED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:neg_of_factive:02",
+          "family": "NEGATION_OF_FACTIVE",
+          "before": "NEGATED_FACT",
+          "after": "UNKNOWN"
+        },
+        {
+          "case_id": "gen6:neg_of_factive:03",
+          "family": "NEGATION_OF_FACTIVE",
+          "before": "NEGATED_FACT",
+          "after": "UNKNOWN"
+        },
+        {
+          "case_id": "gen6:neg_of_factive:05",
+          "family": "NEGATION_OF_FACTIVE",
+          "before": "NEGATED_FACT",
+          "after": "UNKNOWN"
+        },
+        {
+          "case_id": "gen6:neg_of_factive:06",
+          "family": "NEGATION_OF_FACTIVE",
+          "before": "NEGATED_FACT",
+          "after": "UNKNOWN"
+        },
+        {
+          "case_id": "gen6:report_of_neg:01",
+          "family": "REPORT_OF_NEGATION",
+          "before": "NEGATED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:report_of_neg:02",
+          "family": "REPORT_OF_NEGATION",
+          "before": "NEGATED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:report_of_neg:03",
+          "family": "REPORT_OF_NEGATION",
+          "before": "NEGATED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:report_of_neg:04",
+          "family": "REPORT_OF_NEGATION",
+          "before": "NEGATED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:report_of_neg:05",
+          "family": "REPORT_OF_NEGATION",
+          "before": "NEGATED_FACT",
+          "after": "RUMOR"
+        },
+        {
+          "case_id": "gen6:report_of_neg:06",
+          "family": "REPORT_OF_NEGATION",
+          "before": "NEGATED_FACT",
+          "after": "RUMOR"
+        }
+      ],
+      "changed_class_same_verdict": []
+    },
+    "fail_closed_violations": {
+      "count_before": 40,
+      "count_after": 23,
+      "resolved": [
+        {
+          "corpus": "dev",
+          "case_id": "fact:condicional:04",
+          "family": "CONDICIONAL",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_of_factive:02",
+          "family": "NEGATION_OF_FACTIVE",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_of_factive:03",
+          "family": "NEGATION_OF_FACTIVE",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_of_factive:05",
+          "family": "NEGATION_OF_FACTIVE",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_of_factive:06",
+          "family": "NEGATION_OF_FACTIVE",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:nested_report:01",
+          "family": "NESTED_REPORT",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:nested_report:02",
+          "family": "NESTED_REPORT",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:nested_report:03",
+          "family": "NESTED_REPORT",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:nested_report:04",
+          "family": "NESTED_REPORT",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:nested_report:05",
+          "family": "NESTED_REPORT",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:nested_report:06",
+          "family": "NESTED_REPORT",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:report_of_neg:01",
+          "family": "REPORT_OF_NEGATION",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:report_of_neg:02",
+          "family": "REPORT_OF_NEGATION",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:report_of_neg:03",
+          "family": "REPORT_OF_NEGATION",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:report_of_neg:04",
+          "family": "REPORT_OF_NEGATION",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:report_of_neg:05",
+          "family": "REPORT_OF_NEGATION",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:report_of_neg:06",
+          "family": "REPORT_OF_NEGATION",
+          "predicted_class": "NEGATED_FACT"
+        }
+      ],
+      "new": [],
+      "still_violating": [
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:01",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:02",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:03",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:04",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:condicional:07",
+          "family": "CONDICIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:condicional:10",
+          "family": "CONDICIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:02",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:05",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:06",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:07",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:deseo:05",
+          "family": "DESEO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:deseo:07",
+          "family": "DESEO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:01",
+          "family": "ORDEN",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:03",
+          "family": "ORDEN",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:05",
+          "family": "ORDEN",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:factive_in_cond:06",
+          "family": "FACTIVE_IN_CONDITIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_of_factive:04",
+          "family": "NEGATION_OF_FACTIVE",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:01",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:02",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:03",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:04",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:05",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:06",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "ASSERTED_FACT"
+        }
+      ]
+    }
+  },
+  "comparison_vs_b1": {
+    "dev": {
+      "corpus": "dev",
+      "metrics_before": {
+        "policy_accuracy": 0.8
+      },
+      "metrics_after": {
+        "policy_accuracy": 0.8
+      },
+      "regressions": [],
+      "improvements": [],
+      "changed_class_same_verdict": []
+    },
+    "generalization": {
+      "corpus": "generalization",
+      "metrics_before": {
+        "overall_accuracy": 0.7619047619047619,
+        "hard_family_accuracy": 0.0,
+        "non_hard_accuracy": 0.8888888888888888
+      },
+      "metrics_after": {
+        "overall_accuracy": 0.8113207547169812,
+        "hard_family_accuracy": 0.0,
+        "non_hard_accuracy": 0.9148936170212766
+      },
+      "regressions": [],
+      "improvements": [],
+      "changed_class_same_verdict": []
+    },
+    "fail_closed_violations": {
+      "count_before": 23,
+      "count_after": 23,
+      "resolved": [],
+      "new": [],
+      "still_violating": [
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:01",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:02",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:03",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:alcance-complejo:04",
+          "family": "ALCANCE_COMPLEJO",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:condicional:07",
+          "family": "CONDICIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:condicional:10",
+          "family": "CONDICIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:02",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:05",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:06",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:contrafactual:07",
+          "family": "CONTRAFACTUAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:deseo:05",
+          "family": "DESEO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:deseo:07",
+          "family": "DESEO",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:01",
+          "family": "ORDEN",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:03",
+          "family": "ORDEN",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "dev",
+          "case_id": "fact:orden:05",
+          "family": "ORDEN",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:factive_in_cond:06",
+          "family": "FACTIVE_IN_CONDITIONAL",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_of_factive:04",
+          "family": "NEGATION_OF_FACTIVE",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:01",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:02",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:03",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:04",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "ASSERTED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:05",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "NEGATED_FACT"
+        },
+        {
+          "corpus": "generalization",
+          "case_id": "gen6:neg_rumor_hard:06",
+          "family": "NEGATED_RUMOR_HARD",
+          "predicted_class": "ASSERTED_FACT"
+        }
+      ]
+    }
+  },
+  "nvidia_criterion": {
+    "original": "El criterio historico F6-3 de la validacion V3 era 'acuerdo con juez semantico NVIDIA >= 79,17 %'. Ese numero mide el ACUERDO DE ACCION entre los carriles det+combined+nvidia sobre el corpus dev: requiere un extractor completo, un reconciliador y credenciales NVIDIA activas. No es reproducible de forma determinista y sin red, como exige el programa de la puerta 6. El arnes de este programa mide la POLITICA SOLA contra el corpus dev (79/100 en B0, 80/100 en B1 y B2), que SI es determinista y reproducible sin proveedores externos.",
+    "propuesta_del_implementador": "POSTURA_A",
+    "razonamiento": "Se propone ABANDONAR FORMALMENTE el criterio NVIDIA (79,17 %) y sustituirlo por tres metricas deterministas que el arnes ya mide y reproduce: (1) policy_accuracy sobre el corpus dev congelado (100 frases, split dev-synthetic/opus-2026-07-30), (2) overall_accuracy sobre el corpus de generalizacion composicional (53 frases tras el rework de B2), y (3) el invariante fail-closed medido en LAS DOS CAPAS -- la de clasificador y la del extractor determinista real (matiz del revisor: un invariante medido solo sobre el clasificador no dice nada sobre lo que el sistema escribe, que es justo lo que la puerta protege). Razon: el criterio NVIDIA mezcla la politica de factividad con la precision del extractor completo y con el comportamiento de un modelo externo que puede cambiar sin aviso. Estas tres metricas son ortogonales, reproducibles y no dependen de ningun proveedor. Si en el futuro se integra un ciclo de validacion con el juez NVIDIA, debe tratarse como un cuarto eje de medicion anadido, no como sustituto de los tres deterministicos. NOTA: esta propuesta la ratifica el operador humano con el dictamen del revisor -- el implementador solo propone."
+  },
+  "notes": [
+    "El corpus de generalizacion composicional crece de 42 casos (B0/B1) a 53 tras B2 y su rework: +3 REPORT_FALSE_FRIEND y +3 SCOPE_VERB_DIRECT_OBJ (bugs 1 y 2 de B2), +5 INDIRECT_QUESTION_SCOPE (clase completa de interrogativas indirectas, rework). Las familias nuevas no existian en B0/B1, asi que la comparacion de overall_accuracy no es directamente proporcional: B1 acertaba 32 sobre 42 casos (0.762); ahora se aciertan 43 sobre 53 (0.811) sobre el corpus AMPLIADO.",
+    "Capa 2 (`deterministic_extractor`): el extractor determinista solo emite cuando la frase de relacion esta en su lista de reglas, asi que la COBERTURA sobre estos dos corpus es baja y se publica al lado del recuento de violaciones -- un cero de violaciones sobre pocos casos cubiertos no es la misma evidencia que sobre muchos. Ver `extractor_layer.corpora.*.coverage`.",
+    "NEGATED_RUMOR_HARD sigue en 0,0 % (6/6 fail): la construccion 'no es cierto el rumor de que' no es substring literal de ninguna FALSITY_PHRASE porque 'el rumor de' se interpone. Es un limite arquitectonico documentado desde B0. No se toca: corregirlo requeriria una busqueda con hueco ('no es cierto ... que') que aumentaria el riesgo de falsos positivos en otros contextos.",
+    "LEXICAL_NEGATION_EDGE sigue en 0,0 % (2/2 fail): 'nunca salio del' entra en negated_cessation (CESSATION_PHRASES incluye 'salio del') y el gold modela la frase como NEGATED_FACT directo. Corregirlo sin arriesgar las cesaciones genuinas requiere distinguir 'salida fisica' de 'pertenencia', que el vocabulario cerrado actual no hace. Documentado como limite arquitectonico desde B1 (docs/v3/44).",
+    "gen6:neg_of_factive:04 ('Nadie en la Camara confirmo que...') sigue en ASSERTED_FACT: 'nadie' no esta en NEGATION_CUES, por lo que la logica de scope_negation no detecta la negacion universal. Aniadir 'nadie' a NEGATION_CUES afectaria a muchos casos no relacionados. Queda diagnosticado como techo restante."
+  ]
+}
