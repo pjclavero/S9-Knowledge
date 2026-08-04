@@ -70,13 +70,93 @@ class RelationRule:
     symmetric: bool = False
     subject_types: tuple[str, ...] = ()
     object_types: tuple[str, ...] = ()
+    #: Tokens que, INMEDIATAMENTE antes de la frase, la descartan. Existe por
+    #: las formas que son verbo y sustantivo a la vez: "abandono la Escuela" es
+    #: una cesacion de pertenencia; "el abandono de la Escuela" es un
+    #: sustantivo y no afirma que nadie perteneciera a nada.
+    blocked_prev: frozenset = frozenset()
 
     def token_phrases(self) -> list[tuple[str, ...]]:
         return [phrase_tokens(p) for p in self.phrases]
 
 
-#: Reglas curadas a mano. Cortas y muy literales a proposito: cada frase que se
-#: añade aqui es una apuesta de precision que el benchmark tendra que pagar.
+# -- generadores de paradigma -------------------------------------------------
+#
+# Las frases de relacion NO se copian a mano de los episodios: se GENERAN a
+# partir de paradigmas declarados. Una frase copiada del corpus sube la metrica
+# de desarrollo sin describir nada de la lengua, y es exactamente el sobreajuste
+# que la puerta 4 existe para detectar (PR #106: predicado 0.81 en dev==test,
+# 0.24 en material real).
+
+#: Adverbios que se intercalan entre el auxiliar y el participio sin cambiar la
+#: relacion: "esta dirigida por" / "esta AUN dirigida por".
+INTERPOSED_ADVERBS: tuple[str, ...] = ("aun", "ya", "todavia", "siempre")
+
+
+def _with_interposed_adverbs(phrases: Sequence[str]) -> tuple[str, ...]:
+    """`<aux> <participio> por` + su variante con adverbio intercalado."""
+    out: list[str] = []
+    for phrase in phrases:
+        out.append(phrase)
+        partes = phrase.split()
+        if len(partes) < 2:
+            continue
+        for adverbio in INTERPOSED_ADVERBS:
+            out.append(" ".join([partes[0], adverbio, *partes[1:]]))
+    return tuple(dict.fromkeys(out))
+
+
+def _cessation_of(*infinitives: str) -> tuple[str, ...]:
+    """`<dejar|cesar> de <infinitivo>` en TODO el paradigma de `cues.DEJAR_FORMS`.
+
+    Sustituye a las tres conjugaciones sueltas que B2 habia copiado de los
+    episodios ("dejo de liderar", "dejo de dirigir", "dejo de servir a").
+    """
+    formas = (*_cues.DEJAR_FORMS, *_cues.CESAR_FORMS)
+    return tuple(f"{forma} de {inf}" for inf in infinitives for forma in formas)
+
+
+#: Cargos de liderazgo, con su articulo. Las frases de cargo se generan del
+#: producto `plantilla x cargo`: sin esto, "fue destituido de la presidencia de"
+#: seria un literal del acta `cirro-actas:e04`.
+LEADERSHIP_OFFICES: tuple[tuple[str, str], ...] = (
+    ("la", "presidencia"), ("la", "direccion"), ("la", "jefatura"),
+    ("el", "mando"), ("el", "liderazgo"), ("la", "capitania"),
+    ("la", "regencia"), ("la", "magistratura"),
+)
+
+#: Plantillas de cargo. TODAS producen reglas de confianza baja (ver
+#: `_REVIEW_ONLY_CONFIDENCE`): un cargo mencionado no dice si sigue vigente.
+OFFICE_TEMPLATES: tuple[str, ...] = (
+    "en {art} {cargo} de",
+    "fue destituido de {art} {cargo} de",
+    "fue destituida de {art} {cargo} de",
+    "ha cedido {art} {cargo} de",
+    "cedio {art} {cargo} de",
+    "asumio {art} {cargo} de",
+    "ostenta {art} {cargo} de",
+    "renuncio a {art} {cargo} de",
+)
+
+
+def _office_phrases() -> tuple[str, ...]:
+    return tuple(
+        plantilla.format(art=art, cargo=cargo)
+        for plantilla in OFFICE_TEMPLATES
+        for art, cargo in LEADERSHIP_OFFICES
+    )
+
+
+#: Confianza de las reglas AMBIGUAS EN VIGENCIA (cargo mencionado, liderazgo en
+#: pasado). `clamp` divide por 0.9, asi que cualquier valor < 0.54 deja el claim
+#: por debajo de 0.6 y fuerza `review_required=True`: nunca auto-aprueban.
+_REVIEW_ONLY_CONFIDENCE = 0.50
+
+
+#: Reglas curadas a mano. Cada frase que se añade aqui es una apuesta de
+#: precision que el benchmark tendra que pagar. Las familias PRODUCTIVAS
+#: (perifrasis de cesacion, cargos, pasiva con adverbio intercalado) no se
+#: escriben una a una: se generan de los paradigmas de arriba.
 RELATION_RULES: tuple[RelationRule, ...] = (
     # Las formas en PLURAL entran a proposito: son las que aparecen en frases
     # coordinadas ("Elara y Kael viven en Valdor"), y sin ellas la guarda de
@@ -92,33 +172,43 @@ RELATION_RULES: tuple[RelationRule, ...] = (
                                # formas de pasado (pertenecia, pertenecio):
                                "pertenecia a", "pertenecia al",
                                "pertenecio a", "pertenecio al",
-                               "dejo de pertenecer a", "dejo de pertenecer al",
+                               *_cessation_of("pertenecer a", "pertenecer al"),
                                "haya abandonado",
-                               "ceso en su condicion de miembro de",
-                               # cesacion lexica: abandono (CESSATION clasifica via CESSATION_PHRASES):
-                               "abandono"),
+                               "ceso en su condicion de miembro de"),
                  confidence=0.75, object_types=("Faction",)),
+    # "abandono" es verbo (cesacion de pertenencia) o sustantivo ("el abandono
+    # de la Escuela"). `blocked_prev` descarta la lectura nominal, que no afirma
+    # ninguna pertenencia y que en B2 podia inventarla.
+    RelationRule("MEMBER_OF", ("abandona", "abandono", "abandonaron",
+                               "abandonase", "abandonaba"),
+                 confidence=0.75, object_types=("Faction",),
+                 blocked_prev=frozenset({
+                     "el", "la", "los", "las", "un", "una", "su", "sus",
+                     "este", "ese", "aquel", "del", "al", "de", "tras",
+                 })),
     RelationRule("LEADS", ("lidera", "es lider de", "capitanea", "comanda",
-                            # formas perfectivas y de pasado:
-                            "dirige", "dirigio", "ha dirigido", "han dirigido",
-                            # cesacion de liderazgo:
-                            "ha cedido la presidencia de",
-                            "dejo de liderar", "dejo de dirigir",
-                            # 'en la direccion de' = en el cargo de liderazgo
-                            "en la direccion de", "en la presidencia de",
-                            # destitución activa:
-                            "fue destituido de la presidencia de",
-                            "fue destituida de la presidencia de"),
+                            "dirige",
+                            # cesacion de liderazgo, paradigma completo:
+                            *_cessation_of("liderar", "dirigir", "encabezar",
+                                           "presidir", "capitanear", "comandar")),
                  confidence=0.72),
+    # Liderazgo en PASADO o mencionado por el CARGO: el texto no dice si sigue
+    # vigente. Se emite, pero siempre con revision (confianza < 0.54): asertarlo
+    # como vigente creaba claims espurios (regresion cruzada del dictamen B2,
+    # `leyenda-cronica:e01`, "dirigio la Casa del Ciervo ... hasta la caida").
+    RelationRule("LEADS", ("dirigio", "ha dirigido", "han dirigido",
+                            "lidero", "encabezo", "presidio",
+                            *_office_phrases()),
+                 confidence=_REVIEW_ONLY_CONFIDENCE),
     # LEADS en voz pasiva: argumento ANTES = entidad liderada, DESPUES = lider.
     # El gold sigue el orden textual (entidad-antes=subject, entidad-despues=object).
-    RelationRule("LEADS", ("es dirigida por", "es dirigido por",
-                            "esta dirigida por", "esta dirigido por",
-                            "esta aun dirigida por", "esta aun dirigido por",
-                            "fue dirigida por", "fue dirigido por",
+    RelationRule("LEADS", (*_with_interposed_adverbs((
+                                "es dirigida por", "es dirigido por",
+                                "esta dirigida por", "esta dirigido por",
+                                "fue dirigida por", "fue dirigido por")),
                             # cesacion negada en voz pasiva:
-                            "ha dejado de estar dirigida por",
-                            "ha dejado de estar dirigido por"),
+                            *_cessation_of("estar dirigida por",
+                                           "estar dirigido por")),
                  direction="OBJECT_TO_SUBJECT", confidence=0.72),
     RelationRule("RULES", ("gobierna", "reina en", "gobierna en"), confidence=0.68),
     RelationRule("LIVES_IN", ("vive en", "viven en", "reside en", "residen en", "habita en"),
@@ -139,7 +229,8 @@ RELATION_RULES: tuple[RelationRule, ...] = (
     RelationRule("ENEMY_OF", ("es enemigo de", "es enemiga de", "se enfrenta a",
                                "es rival de"), confidence=0.68, symmetric=True),
     RelationRule("SERVES", ("sirve a", "jura lealtad a", "obedece a",
-                             "dejo de servir a", "dejo de servir al"), confidence=0.68),
+                             *_cessation_of("servir a", "servir al")),
+                 confidence=0.68),
     RelationRule("OWNS", ("posee", "empuna", "porta",
                            "estuvo en manos del", "estuvo en manos de",
                            # frase predicativa de propiedad:
@@ -474,6 +565,12 @@ class DeterministicExtractor(Extractor):
                 if not needle:
                     continue
                 for first, last in find_phrase(tokens, needle):
+                    if (
+                        rule.blocked_prev
+                        and first > 0
+                        and tokens[first - 1].norm in rule.blocked_prev
+                    ):
+                        continue
                     self._try_claim(
                         ctx, episode, index, mentions, rule, first, last, text,
                         profile_predicates, out,

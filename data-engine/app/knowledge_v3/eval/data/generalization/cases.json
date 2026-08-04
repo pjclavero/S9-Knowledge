@@ -415,10 +415,10 @@
       "case_id": "gen:hard:03",
       "family": "HARD_SCOPE_LITOTES",
       "domain": "archivos",
-      "text": "La curadora Livia Sanz ha dejado atras su alianza con la Orden de las Actas Grises.",
-      "focus_anchor": "la Orden de las Actas Grises",
-      "gold": {"subject": "Livia Sanz", "predicate": "ALLY_OF", "object": "la Orden de las Actas Grises", "negated": true, "negation_kind": "CESSATION", "review_scope": false, "non_factive": false, "expected_asserted_fact": true},
-      "why_evaluable": "Cesacion perifrastica 'ha dejado atras', equivalente semantico de 'dejo de' pero fuera de `CESSATION_PHRASES`: el clasificador no la reconoce como cesacion y lee ASSERTED_FACT liso, afirmando por error una alianza que el texto cierra. Caso propio, entidades nuevas."
+      "text": "El maestre Anselmo Rueda dejaba atras sus lazos con el Colegio de Cifras Rotas.",
+      "focus_anchor": "el Colegio de Cifras Rotas",
+      "gold": {"subject": "Anselmo Rueda", "predicate": "ALLY_OF", "object": "el Colegio de Cifras Rotas", "negated": true, "negation_kind": "CESSATION", "review_scope": false, "non_factive": false, "expected_asserted_fact": true},
+      "why_evaluable": "Cesacion perifrastica con 'dejar atras' un vinculo, equivalente semantico de 'dejo de' pero sin ninguna marca de `NEGATION_CUES`. REDACTADO DE NUEVO en la ronda de rework de B2: la version anterior ('ha dejado atras su alianza con la Orden de las Actas Grises') habia sido memorizada por el codigo, que anadio la conjugacion exacta 'ha dejado atras' a `CESSATION_PHRASES`. Esta version usa otra conjugacion ('dejaba atras'), otro sustantivo de vinculo ('lazos') y entidades nuevas; ninguno de sus n-gramas de 3 o mas palabras aparece como literal en `cues.py` ni en `deterministic.py` (las perifrasis se generan desde el paradigma `DEJAR_FORMS`, no se copian del corpus)."
     },
     {
       "case_id": "gen:hard:04",

@@ -143,15 +143,30 @@ def test_documenta_fallos_del_clasificador_en_frases_nuevas_fuera_de_corpus():
         f"  - [{fenom}] {t!r} -> negated={neg} kind={kind!r}"
         for t, fenom, neg, kind in fallos
     )
-    # Aserto exacto sobre el numero de fallos conocido hoy (1 de 8, tras B2): si baja,
-    # es una mejora real que hay que celebrar y actualizar; si sube, es una
+    # Aserto exacto sobre el numero de fallos conocido hoy (2 de 8): si baja, es
+    # una mejora real que hay que celebrar y actualizar; si sube, es una
     # regresion que este test debe atrapar de inmediato.
-    # B2 corrigio 3 de los 4 fallos originales: exceptiva 'sin que', cesacion
-    # perifrastica 'ha dejado atras' y litotes cuantitativa 'no pocos'.
-    # El fallo restante es la litotes correctiva 'no es que no...' (SCOPE_AMBIGUOUS).
-    assert len(fallos) == 1, (
-        f"el numero de fallos adversariales cambio de 1 a {len(fallos)} -- "
+    #
+    # Historia de la cifra: 4 (B0) -> 1 (B2) -> 2 (rework de B2). La subida de 1
+    # a 2 NO es una regresion de precision, es lo contrario: la frase con "sin
+    # que" tiene la subordinada exceptiva seguida de un sintagma preposicional
+    # ("...lo supervisara EN el Gremio de Toneleros") que puede colgar del verbo
+    # principal o del subordinado, y esa ambiguedad de adjuncion no se resuelve
+    # con lexico. B2 la resolvia siempre a favor de la negacion, lo que producia
+    # falsos positivos demostrados (ver test_gate4_b2_adversarial.py). El rework
+    # deja de decidir ahi: devuelve SCOPE_AMBIGUOUS -> REVIEW_NEGATION_SCOPE. En
+    # esta bateria eso cuenta como "fallo" porque solo mira `negated`, pero es
+    # una abstencion, no una asercion equivocada.
+    #
+    # Los 2 fallos son: (a) exceptiva 'sin que' + adjunto ambiguo -> abstencion;
+    # (b) litotes correctiva 'no es que no...' -> SCOPE_AMBIGUOUS.
+    assert len(fallos) == 2, (
+        f"el numero de fallos adversariales cambio de 2 a {len(fallos)} -- "
         f"revisar si es mejora o regresion:\n{detalle}"
+    )
+    assert all(kind == "SCOPE_AMBIGUOUS" for _t, _f, _n, kind in fallos), (
+        "los fallos restantes deben ser ABSTENCIONES (SCOPE_AMBIGUOUS), nunca "
+        f"aserciones con el sentido invertido:\n{detalle}"
     )
 
 

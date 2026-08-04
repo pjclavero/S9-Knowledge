@@ -116,5 +116,12 @@ def test_aceptacion_los_ocho_claims_de_c1_sobreviven_en_D_R():
     d_claims = score(d, gold, ctx)["harness_extractor"]["claims"]
     dr_claims = score(dr, gold, ctx)["harness_extractor"]["claims"]
     assert c1_claims["tp"] == 8
-    assert d_claims["tp"] == 0
+    # B2 (puerta 4): el extractor DETERMINISTA dejo de acertar cero en dev. Con
+    # las reglas de B2 acierta 2 claims con precision 1.000 (fp=0): "dirigió"
+    # (leyenda-cronica:e01, emitido con review_required por ser liderazgo en
+    # pasado) y "pertenece al" (kestrel-informe:e03, rumor). No es un claim
+    # espurio: son verdaderos positivos contra el gold, y `fp` sigue en 0. La
+    # cifra anterior (0) era el baseline pre-B2, no una invariante.
+    assert d_claims["tp"] == 2
+    assert score(a, gold, ctx)["harness_extractor"]["claims"]["fp"] == 0
     assert dr_claims["tp"] >= c1_claims["tp"] == 8

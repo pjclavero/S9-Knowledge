@@ -111,3 +111,126 @@ Con cobertura actual 8/56 y techo estructural 35/56, alcanzar ≥ 34/56 requiere
 Objetivo realista con reglas lingüísticas: 27-30/56 (0.48-0.54) en desarrollo,
 con posible contribución zafiro hasta ~34/56 (0.607) si las menciones de
 superficie coinciden.
+
+---
+
+# Adenda: ronda de REWORK de B2 (dictamen NO CONFORME)
+
+El revisor emitió NO CONFORME sobre la primera entrega de B2. Esta adenda
+documenta qué se cambió, con qué criterio y qué costó. Las cifras están en
+`b2-resultado.json`, generado **de punta a punta** por
+`scripts/gate4/measure_b2.py` (antes se ensamblaban a mano; era el P1 de
+reproducibilidad del dictamen).
+
+## Principio aplicado
+
+Ninguna frase de relación ni marcador de negación se copia ya de un episodio.
+Las familias productivas se **generan desde un paradigma declarado**:
+
+- `cues.DEJAR_FORMS` / `CESAR_FORMS` → perífrasis `<dejar|cesar> de <inf>` y
+  `<dejar> atrás <compl>` (`CESSATION_PERIPHRASIS_DE` / `_ATRAS`).
+- `deterministic._cessation_of(...)` → las formas de cesación de cada relación
+  (`dejo de liderar`, `ha dejado de pertenecer al`, …) en todo el paradigma.
+- `deterministic._office_phrases()` → producto `plantilla × cargo`
+  (`LEADERSHIP_OFFICES`), en lugar de `"fue destituido de la presidencia de"`
+  copiado del acta `cirro-actas:e04`.
+- `deterministic._with_interposed_adverbs(...)` → `esta [aún|ya|todavía|siempre]
+  dirigida por`, en lugar del literal `"esta aun dirigida por"` copiado de
+  `zafiro-sesion:e08`.
+
+## P0-1 — alcance real de "sin que"
+
+`cues.exceptive_scope()` delimita la subordinada desde el `que` hasta el primer
+límite (puntuación, conjunción de cláusula o preposición de adjunto). Si el foco
+cae dentro, se niega; si cae fuera, **se pide revisión** (`SCOPE_AMBIGUOUS` /
+`REVIEW_NEGATION_SCOPE`) en vez de decidir.
+
+Decisión discutible, declarada: estas dos frases son indistinguibles token a
+token y tienen lecturas opuestas —
+
+- `"…habló sin que nadie lo interrumpiera **sobre** la Liga de Corvo"` → la Liga
+  NO está negada (el SP cuelga del verbo principal).
+- `"…firmó el acta sin que el testigo la avalara **ante** el Concejo"` → el
+  Concejo SÍ lo está.
+
+Es ambigüedad de adjunción, irresoluble con léxico. Se aplicó la regla de oro
+("un falso positivo ⇒ la regla sale o se degrada a REVIEW") y se degradó.
+**Coste declarado:** `gen:hard:01` pasa de acierto a abstención y
+`HARD_SCOPE_LITOTES` baja de 0.750 a 0.500. Es pérdida de cobertura, no de
+precisión.
+
+## P0-2 — memorización
+
+Se eliminaron los literales `"ha dejado atras"` y `"ha dejado atraes"`.
+`gen:hard:03` se rerredactó por completo (nueva conjugación, nuevo sustantivo de
+vínculo, entidades nuevas) y el manifiesto sha256 del corpus se actualizó
+(`dataset_version` 1.1.0 → 1.2.0).
+
+Auditoría del resto del corpus de generalización (n-gramas ≥ 3 palabras contra
+los literales de **código** de `cues.py`/`deterministic.py`, excluyendo
+docstrings y comentarios): quedan 5 coincidencias —`es aliada de`,
+`fue expulsada de`, `perdio su puesto en`, `se separo de`, `en caso de que`—
+**todas anteriores a B2** (verificado contra `2ae6a78^`). No son memorización:
+son los marcadores de lengua del propio fenómeno que la familia mide, y un
+clasificador léxico no puede medir "cesación" sin reconocer ningún marcador de
+cesación. La memorización que sí hubo (marcador añadido *después* de ver el
+caso) era exactamente una: `ha dejado atrás`, ya eliminada.
+
+## P0-3 — guarda de complemento
+
+`cues.cessation_complement_ok()`:
+
+- `<dejar|cesar> de X` sólo es cesación relacional si `X ∈
+  RELATIONAL_INFINITIVES` (vocabulario cerrado). `"ha dejado de fumar"` ya no
+  niega nada.
+- `<dejar> atrás X` sólo lo es si el núcleo de `X ∈
+  RELATIONAL_COMPLEMENT_NOUNS`. `"ha dejado atrás el campamento"` es
+  desplazamiento físico, no ruptura.
+- `abandono` suelto en `MEMBER_OF` pasó a una regla con `blocked_prev`
+  (determinantes/preposiciones): descarta la lectura **nominal** ("el abandono
+  de la Escuela"), que no afirma ninguna pertenencia.
+
+## P0-4 — regresión cruzada
+
+- `test_knowledge_v3_e2e.py::…no_deja_rastro_en_el_ledger`: la causa era
+  `"dirigio"` con confianza 0.72, que auto-aprobaba un liderazgo **pasado**
+  (`leyenda-crónica:e01`, "dirigió … hasta la caída"). Las formas de pasado y
+  las de cargo se movieron a una regla con `confidence=0.50`
+  (`_REVIEW_ONLY_CONFIDENCE`): `0.50/0.9 = 0.556 < 0.6` ⇒ `review_required=True`
+  siempre, nunca auto-aprueba. Ledger vuelve a 0.
+- `test_knowledge_v3_reconcile_validation.py::…los_ocho_claims_de_c1…`: aquí el
+  dictamen suponía claims espurios y **no lo eran**. Los 2 claims de la config D
+  son verdaderos positivos contra el gold (`fp = 0`, precisión 1.000): `dirigió`
+  (ahora con revisión) y `pertenece al` (rumor). El `assert tp == 0` era el
+  baseline pre-B2, no una invariante; se actualizó a 2 y se añadió un
+  `assert fp == 0` que sí es la invariante real.
+
+## P1-5 — reglas literales de la taxonomía
+
+Ver "Principio aplicado". Además, todas las reglas de **cargo** y de
+**liderazgo en pasado** se emiten con `review_required=True`: un cargo
+mencionado no dice si sigue vigente.
+
+## P1-6 — reproducibilidad
+
+`scripts/gate4/measure_b2.py` llama al mismo arnés que B0, lee el baseline
+congelado `b0-baseline.json` y **deriva** los veredictos de cada puerta
+comparando umbral contra observado. `b2-resultado.{json,md}` se regeneran con
+él; ninguna cifra se escribe a mano.
+
+## Cifras: antes y después del rework
+
+| métrica | B0 | B2 (entrega) | B2 (rework) |
+|---|---|---|---|
+| cobertura dev (E2E) | 0.143 (8/56) | 0.589 (33/56) | **0.607 (34/56)** |
+| `HARD_SCOPE_LITOTES` | 0.000 | 0.750 | **0.500** |
+| otras 9 familias de generalización | 1.000 | 1.000 | **1.000** |
+| `recall_simple` | 1.000 | 1.000 | **1.000** |
+| invariantes de precisión | 1.000 / fp=0 | 1.000 / fp=0 | **1.000 / fp=0** |
+| batería adversarial del arnés | 4 fallos | 1 fallo | **2 (ambos abstenciones)** |
+| `xfail(strict)` de defectos P0 | — | 6 | **0** |
+
+La cobertura sube **pese a** haber quitado literales, porque los paradigmas
+generados cubren más formas que las conjugaciones sueltas que sustituyen. La
+única métrica que baja es `HARD_SCOPE_LITOTES`, y baja por la degradación
+deliberada de "sin que" a REVIEW descrita arriba.
