@@ -1,7 +1,7 @@
 {
   "corpus": "gate6-generalization-compositional",
-  "dataset_version": "1.1.0",
+  "dataset_version": "1.2.0",
   "file_hashes": {
-    "cases.json": "cb2c9006afd7caea83c4b5339601dcf9d6b28aebfc8b70166bf1d0579a93075f"
+    "cases.json": "7794229a91ab4a78b247c3b2a9c8c3b969089eb1d556b45b5dee1d25a10004be"
   }
 }

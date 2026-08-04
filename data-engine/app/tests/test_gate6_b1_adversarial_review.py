@@ -77,18 +77,19 @@ def test_cobertura_de_la_lista_no_reportiva_incluye_los_15_lemas():
 def test_HALLAZGO_cuenta_que_relativo_se_confunde_con_reporte_completivo():
     """`cuenta` (sustantivo, 'factura') + 'que' RELATIVO ('que presento') no
     es ningun acto de habla de un tercero: es una frase factiva simple sobre
-    el importe de una factura. El operador de B1 la trata igual que 'dijo
-    que' y la degrada a RUMOR. Se congela el comportamiento ACTUAL (bug, no
-    deseado) para que quede citado como evidencia."""
+    el importe de una factura. Bloque B2 (puerta 6): el bug de homografo se
+    corrigio con la guarda de determinante en `_reported_speech_cue`
+    (REPORT_VERB_NOUN_HOMOGRAPHS). La frase ahora se lee como ASSERTED_FACT."""
     verdict = analyze_raw_text(
         "La cuenta que presento el mercader asciende a diez monedas de plata."
     )
-    assert verdict.cues == ("cuenta que",)
-    assert verdict.factivity.factivity_class.value == "RUMOR", (
-        "si este assert empieza a fallar es porque el bug de homografo "
-        "'cuenta' (sustantivo) vs 'cuenta'/'cuentan' (verbo de "
-        "REPORT_VERB_HAND_FORMS) se corrigio -- actualizar el test a "
-        "ASSERTED_FACT y retirar esta nota"
+    assert "cuenta que" not in verdict.cues, (
+        "la guarda de homografo de B2 deberia haber suprimido 'cuenta que' "
+        "cuando 'cuenta' va precedido de un determinante ('La')"
+    )
+    assert verdict.factivity.factivity_class.value == "ASSERTED_FACT", (
+        "tras la correccion de B2, 'la cuenta que presento el mercader' "
+        "debe leerse como ASSERTED_FACT, no como RUMOR"
     )
 
 
@@ -119,47 +120,55 @@ def test_HALLAZGO_no_reconocio_el_terreno_sentido_no_factivo_se_trata_como_alcan
     """'reconocer' en sentido militar/perceptivo ('explorar', 'identificar
     visualmente') no toma complemento con 'que': 'no reconocio el terreno'
     es una negacion factual DIRECTA y simple, no una actitud epistemica con
-    alcance ambiguo. El bonus de B1 la trata igual que 'no admitio que...'."""
+    alcance ambiguo. Bloque B2 (puerta 6): el bug se corrigio exigiendo 'que'
+    despues del verbo de alcance; ahora se lee como NEGATED_FACT."""
     verdict = analyze_raw_text(
         "La patrulla no reconocio el terreno antes del ataque al fuerte."
     )
-    assert verdict.negation_kind == "SCOPE_AMBIGUOUS"
-    assert verdict.factivity.factivity_class.value == "UNKNOWN"
+    assert verdict.negation_kind != "SCOPE_AMBIGUOUS", (
+        "B2 corrigio este caso: 'no reconocio <objeto_directo>' sin 'que' "
+        "ya no debe ser SCOPE_AMBIGUOUS"
+    )
+    assert verdict.factivity.factivity_class.value == "NEGATED_FACT"
 
 
 def test_HALLAZGO_no_reconocio_a_alguien_sentido_no_factivo_se_trata_como_alcance_ambiguo():
+    """Bloque B2: 'no reconocio a Renata Solf' (objeto directo, sin 'que')
+    se lee ahora como NEGATED_FACT, no como SCOPE_AMBIGUOUS."""
     verdict = analyze_raw_text(
         "El escuadron no reconocio a Renata Solf entre los prisioneros del "
         "fuerte."
     )
-    assert verdict.negation_kind == "SCOPE_AMBIGUOUS"
-    assert verdict.factivity.factivity_class.value == "UNKNOWN"
+    assert verdict.factivity.factivity_class.value == "NEGATED_FACT"
 
 
 def test_HALLAZGO_no_acepto_el_paquete_sentido_no_factivo_se_trata_como_alcance_ambiguo():
-    """'aceptar' con objeto directo (recibir/tomar algo) tampoco toma 'que':
-    'no acepto el paquete' es una negacion directa, no una actitud
-    epistemica embebida."""
+    """'aceptar' con objeto directo (recibir/tomar algo) no toma 'que':
+    'no acepto el paquete' es una negacion directa. Bloque B2: ahora se lee
+    como NEGATED_FACT, no como SCOPE_AMBIGUOUS."""
     verdict = analyze_raw_text(
         "El guardia no acepto el paquete que trajo el mensajero del gremio."
     )
-    assert verdict.negation_kind == "SCOPE_AMBIGUOUS"
-    assert verdict.factivity.factivity_class.value == "UNKNOWN"
+    assert verdict.negation_kind != "SCOPE_AMBIGUOUS", (
+        "B2 corrigio este caso: 'no acepto <objeto_directo>' sin 'que' "
+        "inmediato ya no debe ser SCOPE_AMBIGUOUS"
+    )
+    assert verdict.factivity.factivity_class.value == "NEGATED_FACT"
 
 
 def test_control_no_admitio_visitantes_sentido_no_factivo_ya_era_ambiguo_antes_de_b1():
-    """Control de honestidad: esta perdida de precision NO es exclusiva de
-    los 4 verbos del bonus. `scope_negation` ya tenia el mismo problema con
-    los verbos preexistentes de `SCOPE_VERBS` (p. ej. 'sabe'): 'no sabia el
-    camino' tambien cae en alcance ambiguo pese a ser una negacion directa.
-    Este test documenta que B1 EXTENDIO una limitacion preexistente a mas
-    vocabulario (mas superficie de la clase de negacion perdida), no que
-    inventase una clase de bug nueva."""
+    """Bloque B2: la correccion de exigir 'que' tras el verbo de alcance
+    generaliza a todos los verbos de SCOPE_VERBS, incluidos los preexistentes
+    a B1. 'no sabia el camino' (objeto directo, sin 'que') se lee ahora como
+    NEGATED_FACT. B1 habia documentado este caso como una limitacion
+    preexistente; B2 la cierra con la misma regla que corrige los verbos de B1."""
     verdict = analyze_raw_text(
         "El explorador no sabia el camino hacia el campamento del norte."
     )
-    assert verdict.negation_kind == "SCOPE_AMBIGUOUS"
-    assert verdict.factivity.factivity_class.value == "UNKNOWN"
+    assert verdict.factivity.factivity_class.value == "NEGATED_FACT", (
+        "B2 generalizo la correccion a todos los SCOPE_VERBS: 'no sabia el "
+        "camino' (sin 'que') debe leerse como NEGATED_FACT"
+    )
 
 
 # --------------------------------------------------------------------------

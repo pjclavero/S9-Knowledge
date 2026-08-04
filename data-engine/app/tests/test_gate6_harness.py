@@ -153,12 +153,15 @@ _EXPECTED_FAMILIES = {
     "REPORT_OF_NEGATION",
     "POSITIVE_CONTROL",
     "LEXICAL_NEGATION_EDGE",
+    # Bloque B2 (puerta 6): familias nuevas que ejercen los bugs corregidos.
+    "REPORT_FALSE_FRIEND",
+    "SCOPE_VERB_DIRECT_OBJ",
 }
 
 
 def test_el_corpus_de_generalizacion_cubre_al_menos_cuarenta_casos():
     items = load_generalization()
-    assert len(items) >= 40
+    assert len(items) >= 40  # B0: 42; B1: 42; B2: 48
 
 
 def test_el_corpus_de_generalizacion_cubre_las_familias_exigidas():

@@ -62,6 +62,18 @@ _EXPECTED_FAMILIES = {
     # clasificados en POSITIVE_CONTROL desde B0. El gold no cambia (las
     # etiquetas eran correctas), solo la familia. Ver docs/v3/44.
     "LEXICAL_NEGATION_EDGE",
+    # Bloque B2 (puerta 6): dos familias nuevas que ejercen los bugs
+    # corregidos.
+    # REPORT_FALSE_FRIEND: formas de REPORT_VERBS que son tambien sustantivos
+    # frecuentes ("cuenta", "relato") precedidas de determinante -- el
+    # operador de reporte no debe disparar. Ejercen la guarda de homografo
+    # de `_reported_speech_cue` (REPORT_VERB_NOUN_HOMOGRAPHS).
+    "REPORT_FALSE_FRIEND",
+    # SCOPE_VERB_DIRECT_OBJ: verbos de alcance (SCOPE_VERBS) con objeto
+    # directo sin completiva "que" -- la negacion es DIRECTA (NEGATED_FACT),
+    # no de alcance ambiguo. Ejercen la correccion de B2 que exige "que"
+    # inmediato tras el verbo para disparar SCOPE_AMBIGUOUS.
+    "SCOPE_VERB_DIRECT_OBJ",
 }
 
 #: Familia "dura": se declara por adelantado que se ESPERA una exactitud baja
