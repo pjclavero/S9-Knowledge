@@ -162,6 +162,7 @@ misma familia semántica que este caso, no de la de `e13`.
 | Arquitectura (fuente OCR/ASR no alinea) | 13 | No — fuera de alcance por diseño, no es un problema de texto |
 | Coordinación (`COORDINATED_SUBJECT/OBJECT`) | 3 | No — investigada y descartada (sin herramienta de dependencias sintácticas la heurística de proximidad falla en más de la mitad de los casos probados) |
 | Correferencia (anáfora pronominal / de sintagma verbal) | 2 (`bas:e03`, `cir:e10`) | No — problema de discurso, no de flexión verbal |
+| Verbo factivo-negativo ("desmentir que") | 1 (`bas:e04`) | No — clase semántica distinta del reporte neutro; pendiente de análisis propio (misma familia que el defecto de clasificación de `cir:e14`) |
 | Relación no cubierta en `RELATION_RULES` | 1 (`bas:e06`, "tiene sede") | No es un fenómeno de negación; sería una ampliación léxica tipo B2, no morfológica |
 | Doble negación (irreducible por diseño) | 1 (`bas:e15`) | No — `classify_negation` abstiene por diseño ante dos marcas |
 | Cuantificador negativo como sujeto de verbo de reporte | 1 (`cir:e13`) | No — investigado a fondo, fenómeno distinto del paradigma de conjugación; hallazgo negativo declarado, candidato a B5 |
