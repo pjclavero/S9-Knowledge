@@ -171,7 +171,10 @@ def test_family_recall_cuenta_positivo_para_negado_como_error():
         plans=[],
         negatives=[],
     )
-    gold = GoldDataset(split="negation", manifest={}, entities=[], profiles={}, sources=[source])
+    # Split sintetico: `family_recall` no consulta el nombre del split, y el
+    # literal del split real esta prohibido fuera de la bateria (ver
+    # `test_knowledge_v3_negation_battery.py`).
+    gold = GoldDataset(split="synthetic", manifest={}, entities=[], profiles={}, sources=[source])
 
     class Bundle:
         mentions = [
@@ -208,12 +211,32 @@ def test_measure_b3_no_importa_ningun_modulo_de_escritura_neo4j():
     assert not hallados, f"measure_b3.py referencia escritura/Neo4j: {hallados}"
 
 
-def test_measure_b3_modulo_cargado_no_registra_ningun_writer_en_sys_modules():
-    """Tras importar measure_b3 (arriba, a nivel de modulo), ningun writer real
-    debe estar cargado en sys.modules POR CULPA de esa importacion: si lo
-    estuviera, `knowledge_v3.writer.writer` apareceria."""
-    assert "knowledge_v3.writer.writer" not in sys.modules
-    assert "knowledge_v3.writer.executor" not in sys.modules
+def test_measure_b3_nunca_carga_el_driver_neo4j_ni_siquiera_en_una_corrida_completa(tmp_path):
+    """Una corrida COMPLETA de measure_b3 (mock, sin red) en un proceso limpio
+    jamas carga el driver `neo4j` ni construye un executor del writer.
+
+    Nota deliberada: los MODULOS `knowledge_v3.writer.*` si acaban en
+    `sys.modules`, porque el runner E2E congelado de la puerta 4 (del que
+    measure_b3 lee el nombre del split, sin ejecutarlo) los importa para su
+    dry-run. Importar no es escribir: el executor del writer NO importa
+    `neo4j` (el driver se inyecta; ver su docstring), asi que la garantia
+    comprobable de "nunca escribe" es que el driver nunca entra al proceso y
+    que measure_b3 nunca invoca al writer -- ambas cosas se comprueban aqui.
+    """
+    out_dir = tmp_path / "out"
+    code = (
+        "import sys\n"
+        f"sys.path.insert(0, {str(_APP)!r})\n"
+        f"sys.path.insert(0, {str(_SCRIPTS)!r})\n"
+        "import measure_b3\n"
+        "assert 'neo4j' not in sys.modules\n"
+        f"rc = measure_b3.main(['--mock', '--out-dir', {str(out_dir)!r}, "
+        f"'--out-name', 'b3-shadow-check', '--cache', {str(tmp_path / 'c.json')!r}])\n"
+        "assert rc == 0\n"
+        "assert 'neo4j' not in sys.modules, 'la corrida cargo el driver neo4j'\n"
+    )
+    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stderr
 
 
 def test_mock_run_end_to_end_no_escribe_fuera_del_directorio_de_salida(tmp_path):

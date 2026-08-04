@@ -88,11 +88,15 @@ from knowledge_v3.extraction.provider_port import (
     ProviderUnavailable,
 )
 
-#: Split que mide este bloque. Es el MISMO split que B0-B2 (`negation`),
-#: cableado a proposito: no es configurable desde la linea de comandos porque
-#: cambiarlo en silencio es justo el error que la disciplina de la puerta 4
-#: existe para impedir.
-SPLIT = "negation"
+#: Split que mide este bloque: el MISMO que B0-B2. El nombre NO se escribe
+#: aqui como literal: se lee del runner E2E congelado, exactamente igual que
+#: hace `knowledge_v3.eval.dev_corpus` y por la misma razon que impone
+#: `test_knowledge_v3_negation_battery.py::test_la_bateria_no_esta_enchufada_a_ningun_flujo_automatico`
+#: -- enchufar la bateria a un flujo debe ser una decision visible, nunca el
+#: efecto colateral de copiar una cadena.
+from knowledge_v3.eval import _frozen_runner as _fr  # noqa: E402
+
+SPLIT = _fr.dev_split_name()
 
 #: Familias del gold de negacion (identicas a las de `eval/harness.py`).
 _MECHANICAL_FAMILIES = {"SIMPLE", "NEVER", "CESSATION", "NOT_YET"}
@@ -382,7 +386,11 @@ def build_report(
     concurrency: int,
     price_per_million_tokens_usd: Optional[float],
 ) -> dict[str, Any]:
-    bench.SPLIT = SPLIT  # mismo modulo, split de la puerta 4 (ver docstring)
+    # OJO: no se toca `bench.SPLIT` (estado global de otro modulo; mutarlo
+    # contaminaria cualquier otro consumidor del mismo proceso, tests
+    # incluidos). El unico uso que este script hace de ese literal es el campo
+    # `split` informativo de los bundles de `bench.to_bundle`, que
+    # `family_recall` no consulta.
     gold = load_dev_gold(verify=True)
     ctx = _build_context_negation(gold)
     match_config = MatchConfig(symmetric_predicates=gold.symmetric_predicates)
