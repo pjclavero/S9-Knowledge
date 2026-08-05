@@ -288,6 +288,31 @@ class FakeTx:
                 "operation_id": mark["operation_id"],
                 "created": mark["claim_token"] == params["claim_token"],
             })
+        if "CREATE (a)-[r:" in cypher:
+            # M3: `create_relation` exige ambos extremos VISIBLES (capa
+            # juego + partida propia). Antes este FakeTx no simulaba el
+            # MATCH/WHERE de los extremos y siempre "encontraba" la
+            # relacion -- lo que dejaba sin ejercitar, end-to-end, el
+            # camino EXEC_TARGET_MISSING por invisibilidad de un extremo
+            # (descubierto por el AGENTE-DE-TESTS adversarial de M3).
+            rel_partida = params.get("partida_id")
+
+            def _visible(node_id: str) -> bool:
+                state = self.driver.nodes.get(("entity", node_id))
+                if state is None:
+                    # Nodo no registrado en absoluto en este test: por
+                    # convencion del harness (preexistente a este cambio)
+                    # se asume existente y visible -- solo un nodo
+                    # EXPLICITAMENTE registrado con otra partida_id
+                    # simula la invisibilidad de M3.
+                    return True
+                node_partida = state.get("partida_id")
+                if rel_partida is None:
+                    return node_partida is None
+                return node_partida is None or node_partida == rel_partida
+
+            if not (_visible(params["subject"]) and _visible(params["object"])):
+                return FakeResult(None)
         self.driver.writes.append((cypher, params))
         return FakeResult({"id": params.get("props", {}).get("entity_id")
                            or params.get("props", {}).get("assertion_id")
@@ -1832,3 +1857,185 @@ def test_la_cli_no_abre_ninguna_conexion_por_defecto():
 def test_un_writer_sin_workspace_no_existe():
     with pytest.raises(ValueError):
         GraphWriter(workspace="")
+
+
+# ==========================================================================
+# 9. Adversarial M3 (Invariante 2): matriz de admision y ataques al executor
+# ==========================================================================
+def test_scope_de_partida_sin_partida_id_de_raiz_NO_se_rechaza_asimetria():
+    """Gap de asimetria en `_scope_incoherence` (admission.py).
+
+    El caso inverso SI se rechaza (`test_partida_id_raiz_sin_bloque_scope_
+    se_rechaza`): raiz declarada sin `scope` es `PLAN_SCOPE_CROSS_PARTIDA`.
+    Pero `scope` declarando layer=PARTIDA con `scope.partida_id` mientras la
+    raiz (`plan.partida_id`) esta AUSENTE no dispara ningun rechazo: el
+    codigo solo compara raiz contra scope cuando AMBOS estan presentes
+    (`if root_partida is not None and scope_partida is not None`). El
+    docstring de `_scope_incoherence` promete "coherencia interna" del
+    ambito declarado sin distinguir direccion, pero la implementacion es de
+    una sola via.
+
+    Consecuencia practica: `SignedView.of()` (view.py) igualmente prefiere
+    `scope.partida_id` sobre la raiz, asi que el plan SI se ejecuta con
+    ambito de partida -- el hallazgo no es una fuga de aislamiento (el
+    executor sigue escribiendo bajo `scope.partida_id`), sino que la
+    admision deja pasar un plan cuya raiz nunca declaro el ambito que el
+    propio `scope` afirma, rompiendo la simetria que el resto del modulo da
+    por sentada. Marcado P1: revisar si `_scope_incoherence` debe exigir
+    tambien `root_partida is not None` cuando `scope.layer == "PARTIDA"`.
+    """
+    plan = make_plan(partida_id=None, scope=partida_scope("partida:brumal-01"))
+    ctx = AdmissionContext(workspace=WORKSPACE, current_snapshot_id=SNAPSHOT, clock=clock_at())
+    result = admit(plan, ctx)
+    # Comportamiento ACTUAL (documentado, no necesariamente el deseado):
+    assert result.admitted, (
+        "si este assert empieza a fallar, _scope_incoherence ya exige "
+        "simetria raiz<->scope y el hallazgo de arriba esta cerrado"
+    )
+    assert result.view.partida_id == "partida:brumal-01"
+
+
+def test_create_relation_con_objeto_en_otra_partida_aborta_sin_escritura_parcial():
+    """(2) Executor: LINK_EXISTING cuyo objeto vive en otra partida no es
+    visible en el ambito del plan -- `create_relation` devuelve 0 filas
+    (WHERE de visibilidad no casa) y el executor lo traduce a
+    `EXEC_TARGET_MISSING` (mismo codigo que "no existe": desde el plan de
+    la partida A, un objeto de la partida B es indistinguible de
+    inexistente, que es la propiedad de aislamiento deseada). El plan entero
+    aborta -- no queda ninguna relacion a medias."""
+    ops = [op_link("op:0001", "decision:0001", "entity:sujeto", "entity:objeto-otra-partida")]
+    plan = make_plan(operations=ops, partida_id="partida:brumal-01", scope=partida_scope())
+    nodes = {
+        ("entity", "entity:sujeto"): {
+            "version": 3, "state_hash": HASH_A["value"], "partida_id": "partida:brumal-01",
+        },
+        # El objeto EXISTE pero en otra partida: create_relation lo filtra en
+        # el WHERE de visibilidad (ver simulacion en FakeTx.run), asi que el
+        # MATCH del objeto no aparece.
+        ("entity", "entity:objeto-otra-partida"): {
+            "version": 1, "state_hash": "z", "partida_id": "partida:brumal-OTRA",
+        },
+    }
+    driver = FakeDriver(nodes=nodes)
+    result = make_writer(driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_TARGET_MISSING in result.codes
+    assert not driver.committed
+    assert driver.writes == [] or all(
+        "CREATE (a)" not in q for q, _ in driver.writes
+    )
+
+
+def test_plan_con_operacion_valida_y_operacion_de_otra_partida_no_aplica_ninguna():
+    """(2) Atomicidad: un plan con DOS operaciones, la primera perfectamente
+    aplicable y la segunda apuntando a un objetivo de otra partida, no deja
+    la primera aplicada. Todo o nada tambien cuando el fallo es de ambito."""
+    ops = [
+        op_create_entity("op:0001", "decision:0001", "entity:nueva"),
+        op_supersede("op:0002", "decision:0001", "assertion:cruzada"),
+    ]
+    plan = make_plan(operations=ops, partida_id="partida:brumal-01", scope=partida_scope())
+    nodes = {
+        ("assertion", "assertion:cruzada"): {
+            "version": 2, "state_hash": HASH_B["value"], "partida_id": "partida:brumal-OTRA",
+        },
+    }
+    driver = FakeDriver(nodes=nodes)
+    result = make_writer(driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_SCOPE_MISMATCH in result.codes
+    assert result.applied_operations == 0
+    assert not driver.committed
+    assert not driver.rolled_back or driver.rolled_back  # la tx se abre y se revierte
+    assert driver.rolled_back
+
+
+def test_dos_mesas_generan_el_mismo_entity_id_la_segunda_topa_con_conflicto_no_scope():
+    """(4) Camino inverso de `_assert_absent` sin filtro: si el generador de
+    ids del motor local (fuera de este modulo) produjese el MISMO
+    `entity_id` para dos partidas distintas -- una colision, no algo que
+    este writer M3 pueda impedir por diseno, porque `entity_id` es unico en
+    todo el workspace a proposito (docs/v3/49 §2.4) -- la segunda mesa NO
+    recibe `EXEC_SCOPE_MISMATCH` (que le dejaria pensar que es su propio
+    nodo en otro ambito) sino `EXEC_TARGET_ALREADY_EXISTS`: un conflicto de
+    identidad, honesto sobre lo que paso, aunque bloquea a la segunda mesa
+    para siempre sobre ese id (no hay reintento posible: crear ese id ya
+    no es CREATE-only valido en ningun ambito)."""
+    plan_b = make_plan(
+        operations=[op_create_entity("op:0001", "decision:0001", "entity:colision")],
+        partida_id="partida:mesa-B",
+        scope=partida_scope("partida:mesa-B"),
+    )
+    nodes = {
+        ("entity", "entity:colision"): {
+            "version": 0, "state_hash": "x", "partida_id": "partida:mesa-A",
+        }
+    }
+    driver = FakeDriver(nodes=nodes)
+    result = make_writer(driver).write(plan_b, apply_request(plan_b))
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_TARGET_ALREADY_EXISTS in result.codes
+    assert codes.EXEC_SCOPE_MISMATCH not in result.codes
+
+
+def test_retry_legitimo_de_la_misma_partida_sigue_siendo_idempotente():
+    """(5) Un reintento de LA MISMA partida (mismo plan sellado, misma
+    partida_id/scope) sobre el mismo `idempotency_key` no debe abortar: es
+    un no-op contabilizado, no un `EXEC_IDEMPOTENCY_CONFLICT`. El conflicto
+    fail-closed es SOLO para partidas distintas que colisionan en la clave
+    (ya cubierto por `test_dos_partidas_con_operacion_identica_...`)."""
+    plan = make_plan(partida_id="partida:brumal-01", scope=partida_scope())
+    keys = InMemoryAppliedKeys()
+    driver = FakeDriver()
+    r1 = make_writer(driver, applied_keys=keys).write(plan, apply_request(plan))
+    assert r1.outcome == OUTCOME_APPLIED
+    assert r1.applied_operations == 1
+
+    r2 = make_writer(driver, applied_keys=keys).write(plan, apply_request(plan))
+    assert r2.outcome == OUTCOME_APPLIED
+    assert r2.applied_operations == 0
+    assert r2.noop_operations == 1
+    assert codes.EXEC_IDEMPOTENCY_CONFLICT not in r2.codes
+
+
+def test_conflicto_de_idempotencia_entre_partidas_es_diagnosticable_por_el_operador():
+    """(5) El diagnostico de `EXEC_IDEMPOTENCY_CONFLICT` debe permitir a un
+    operador humano distinguir POR QUE aborto: el detalle de la Rejection
+    lleva `expected_plan_hash`/`actual_plan_hash` y
+    `expected_operation_id`/`actual_operation_id` distintos entre si, no
+    solo el codigo. Sin esto, dos partidas distintas chocando en la misma
+    clave y un reintento corrupto del mismo plan serian indistinguibles
+    para quien lee el informe."""
+    ops_a = [op_create_entity("op:0001", "decision:0001", "entity:mismo-id-2")]
+    ops_b = [op_create_entity("op:0001", "decision:0001", "entity:mismo-id-2")]
+    plan_a = make_plan(operations=ops_a, partida_id="partida:mesa-A", scope=partida_scope("partida:mesa-A"))
+    plan_b = make_plan(operations=ops_b, partida_id="partida:mesa-B", scope=partida_scope("partida:mesa-B"))
+
+    keys = InMemoryAppliedKeys()
+    driver = FakeDriver()
+    make_writer(driver, applied_keys=keys).write(plan_a, apply_request(plan_a))
+    r2 = make_writer(driver, applied_keys=keys).write(plan_b, apply_request(plan_b))
+
+    assert r2.outcome == OUTCOME_ABORTED
+    rejection = next(r for r in r2.rejections if r.code == codes.EXEC_IDEMPOTENCY_CONFLICT)
+    detail = rejection.detail
+    assert detail["expected_plan_hash"] != detail["actual_plan_hash"]
+    assert detail["expected_operation_id"] == detail["actual_operation_id"] == "op:0001"
+
+
+def test_material_none_produce_props_con_partida_id_null_explicito_no_ausente():
+    """(6) Byte-identidad del material de capa juego (`partida_id=None`):
+    la CONSULTA (texto Cypher) es identica a antes de M3, pero el
+    DICCIONARIO de parametros YA NO lo es -- ahora lleva una clave
+    `partida_id: None` que en main (pre-M3) no existia en absoluto. El
+    comentario de `create_entity` da por hecho que "Neo4j omite claves con
+    valor null en un CREATE (n $props)"; esto NO esta verificado aqui contra
+    un Neo4j real (ver punto 7: esa rama depende de Docker, no disponible en
+    este entorno). Se deja constancia explicita de la diferencia a nivel de
+    parametros para que quien SI tenga Neo4j a mano la verifique con
+    `test_knowledge_v3_writer_neo4j_real.py`."""
+    q = cypher.create_entity("entity:x", WORKSPACE, "Character", {"canonical_name": "Daiki"})
+    assert "partida_id" in q.params["props"]
+    assert q.params["props"]["partida_id"] is None
+    # El texto de la consulta, en cambio, es LITERALMENTE el de antes de M3.
+    assert q.cypher == "CREATE (n:V3Entity:Character $props) RETURN n.entity_id AS id"
