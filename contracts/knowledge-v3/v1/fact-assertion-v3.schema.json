@@ -67,6 +67,10 @@
     },
     "supersedes": { "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null" },
     "superseded_by": { "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null" },
+    "local_override_of": {
+      "$ref": "_common-v3.schema.json#/$defs/stable_id_or_null",
+      "description": "M4 (docs/v3/49): puntero NO DESTRUCTIVO al assertion_id de capa juego del que esta afirmacion de partida diverge (razon LOCAL_DIVERGENCE). A diferencia de superseded_by, jamas implica una mutacion del documento apuntado."
+    },
     "negated": {
       "type": "boolean",
       "description": "Obligatorio y explicito: la ausencia de negacion no puede quedar implicita en un contrato de hechos."

@@ -375,6 +375,7 @@ aflojan. Se dice en vez de fingir que las 32 son igual de alcanzables.
 | `PLAN_SNAPSHOT_UNDECLARED` | El operador no declaró el snapshot vigente: sin testigo externo no se escribe (R2). | directo |
 | `PLAN_SNAPSHOT_STALE` | El plan se calculó sobre un snapshot que ya no es el vigente. | directo |
 | `PLAN_NO_OPERATIONS` | Plan sin operaciones: no hay nada que escribir. | directo |
+| `PLAN_LOCAL_OVERRIDE_FROM_GAME_LAYER` | M4 (docs/v3/49 §2.5): una operación `CREATE_ASSERTION` declara `local_override_of` pero el plan entero es de capa juego (sin `partida_id` efectivo). Solo una PARTIDA puede declarar una divergencia local. Error duro, estructural. | directo |
 
 ### 7.2. Gate de operador (`GATE_*`)
 
@@ -411,6 +412,10 @@ aflojan. Se dice en vez de fingir que las 32 son igual de alcanzables.
 | `EXEC_DRIVER_FAILURE` | El driver falló, se pidió APPLY sin driver, o la fábrica de driver no devolvió ninguno. La transacción se revierte. | directo |
 | `EXEC_IDEMPOTENCY_CONFLICT` | La clave ya fue aplicada en el workspace por un plan u operación incompatibles. | directo |
 | `EXEC_DESTRUCTIVE_QUERY_BLOCKED` | Guardia interna: la consulta generada contenía una construcción destructiva. | **inalcanzable por los caminos públicos del writer** — ningún builder de `cypher.py` puede producir hoy una consulta destructiva, porque las etiquetas van validadas y los `SET` llevan lista blanca. Es la red para el próximo builder que alguien añada con prisa, y se prueba construyendo una `Query` destructiva a mano. |
+| `EXEC_LOCAL_OVERRIDE_TARGET_MISSING` | M4 (docs/v3/49 §2.5): `local_override_of` apunta a un `assertion_id` que no existe en ningún ámbito de este workspace. | directo |
+| `EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER` | M4: el `assertion_id` apuntado por `local_override_of` existe, pero no es de capa juego — pertenece a una partida (la propia, otra, o una cadena de overrides). Cubre a la vez el cruce "partida→juego indebido" y el cruce "cross-partida". | directo |
+| `EXEC_LOCAL_OVERRIDE_REASON_INVALID` | M4: `local_override_of` presente sin el `reason_code` canónico `LOCAL_DIVERGENCE` (R1 del ledger). | directo |
+| `EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED` | M4 (rework): la misma partida ya tiene una divergencia local declarada sobre ese mismo hecho de capa juego. Unicidad estricta `(workspace, partida_id, local_override_of)`: el segundo intento es un conflicto, no una fusión ni una cadena — mismo criterio CREATE-only que `EXEC_TARGET_ALREADY_EXISTS`. | directo |
 
 ---
 

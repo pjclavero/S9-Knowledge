@@ -494,6 +494,10 @@ def _semantic_checks(doc: dict[str, Any]) -> None:  # noqa: C901 - un bloque por
         for k in ("supersedes", "superseded_by"):
             if doc[k] is not None and doc[k] == doc["assertion_id"]:
                 raise ContractV3Error(f"{k} no puede apuntar a la propia afirmacion")
+        # M4 (docs/v3/49 §2.5): mismo chequeo de autoreferencia que
+        # supersedes/superseded_by, para el puntero NO destructivo nuevo.
+        if doc.get("local_override_of") is not None and doc.get("local_override_of") == doc["assertion_id"]:
+            raise ContractV3Error("local_override_of no puede apuntar a la propia afirmacion")
         if doc["status"] != "SUPERSEDED" and doc["superseded_by"] is not None:
             raise ContractV3Error("superseded_by presente con status != SUPERSEDED")
         if doc["subject_entity_id"] == doc["object_entity_id"]:
