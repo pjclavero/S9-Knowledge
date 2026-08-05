@@ -271,7 +271,13 @@ def test_18_autor_y_perspectiva_se_conservan_separados():
 
 
 def test_19_contratos_congelados_mantienen_su_hash():
-    frozen_ref = "v3-contracts-frozen-1.0.0"
+    # M0 (docs/v3/49-multipartida-diseno.md §8): `partida_id`/`scope` se
+    # anadieron de forma aditiva a los contratos v1 (SourceAsset,
+    # ClaimProposal, GraphMutationPlan). El tag `v3-contracts-frozen-1.0.0`
+    # sigue existiendo e intacto para quien ancle contra el estado previo;
+    # este test avanza deliberadamente al checkpoint posterior a ese cambio
+    # sancionado, `v3-contracts-frozen-1.0.0-m0`.
+    frozen_ref = "v3-contracts-frozen-1.0.0-m0"
     roots = [
         _REPO_ROOT / "contracts/knowledge-v3/v1",
         _REPO_ROOT / "data-engine/app/knowledge_v3/contracts",

@@ -45,6 +45,10 @@ class SourceAsset(V3Document):
     """Raiz de la procedencia: su `content_hash` es el `source_hash` de la cadena."""
 
     CONTRACT_ID: ClassVar[str] = "source-asset/v3-internal-v1"
+    #: M0 (docs/v3/49-multipartida-diseno.md): `partida_id` es opcional y se
+    #: omite del documento serializado cuando vale `None`, igual que
+    #: `metadata` — asi el material existente sigue siendo byte-identico.
+    OMIT_IF_NONE: ClassVar[frozenset[str]] = frozenset({"metadata", "partida_id"})
 
     contract_version: str
     workspace: str
@@ -67,6 +71,10 @@ class SourceAsset(V3Document):
     privacy_class: str
     copyright_class: str
     processing_policy: dict
+    #: M0: ambito de partida (nullable). `None` = capa juego compartida.
+    #: Transportado por la cadena de procedencia, sin logica que lo use aun
+    #: (docs/v3/49-multipartida-diseno.md §2.2, bloque M0).
+    partida_id: Optional[str] = None
     metadata: Optional[dict[str, Any]] = None
 
     def allows_external_providers(self) -> bool:

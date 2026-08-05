@@ -124,6 +124,7 @@
       "description": "El extractor puede abstenerse. Abstenerse es una salida valida y preferible a inventar."
     },
     "review_required": { "type": "boolean" },
+    "partida_id": { "$ref": "_common-v3.schema.json#/$defs/partida_id_or_null" },
     "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" }
   },
   "allOf": [

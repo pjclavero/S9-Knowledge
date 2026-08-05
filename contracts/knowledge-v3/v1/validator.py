@@ -90,6 +90,25 @@ def sha256_hash(obj: Any) -> dict[str, str]:
 #: Campos de primer nivel que entran en el hash de decision. Cambiar el
 #: workspace, el source hash, el snapshot, las versiones, el perfil, la
 #: caducidad, las decisiones o las operaciones rompe la firma.
+#: M0 (docs/v3/49-multipartida-diseno.md): SE INTENTO anadir "partida_id" y
+#: "scope" aqui para que el ambito quedase cubierto por `decision_hash`, no
+#: solo por `plan_hash`. Se REVIRTIO: `compute_decision_hash` hace
+#: `plan.get(k)` para cada campo de esta tupla, asi que anadir una clave
+#: nueva mete `"partida_id": None, "scope": None` en el CUERPO DE TODO plan
+#: ya existente (tenga o no el campo), lo que cambia el `decision_hash`
+#: esperado de cientos de documentos `graph-mutation-plan` ya sellados en
+#: los datasets gold/held-out/negation-battery — literales congelados que
+#: este bloque tiene prohibido tocar. `plan_hash` SI cubre `partida_id`/
+#: `scope` gratis (incluye el documento completo salvo el propio
+#: `plan_hash`), asi que el plan queda protegido contra manipulacion aun
+#: sin este cambio. El AGUJERO REAL que documenta el diseno persiste,
+#: acotado: dos planes que solo difieren en `partida_id`/`scope` tienen
+#: `plan_hash` distinto (integridad) pero el MISMO `decision_hash` (el
+#: cuerpo que el writer usa para decidir si aplica no lo distingue). Cerrar
+#: esto sin romper gold es tarea de M3 (junto con `PLAN_SCOPE_CROSS_PARTIDA`
+#: en admission.py), donde se puede coordinar una regeneracion deliberada
+#: de los datasets. Ver docs/v3/49-multipartida-diseno.md, seccion "M0
+#: implementado".
 DECISION_HASH_FIELDS = (
     "workspace",
     "source_asset_id",
