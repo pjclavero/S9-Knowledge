@@ -729,3 +729,183 @@ justificado arriba).
    cualquier bloque posterior (M1+) que vuelva a tocar estos ficheros deberá
    repetir el mismo patrón (nuevo tag, nuevo `frozen_ref`) en vez de mover
    este de nuevo.
+
+## 9. Política de versión de contratos v1 del programa
+
+Recomendación del revisor de M0, formalizada aquí porque M2 ya la necesita
+(vuelve a tocar `contracts/knowledge-v3/v1/` y `data-engine/app/knowledge_v3/
+contracts/`, esta vez en `EntityMention`/`EntityResolution`). No es una regla
+nueva: es la que M0 aplicó dos veces (schema + freeze) escrita para que M3 y
+sucesivos no tengan que redescubrirla.
+
+**Criterio aditivo-sin-bump vs. bump-mayor.** Un cambio a un contrato
+`v3-internal-v1` **NO** necesita bump de `CONTRACT_VERSION` (`base.py`,
+sigue en `"1.0.0"`) cuando se cumplen las tres condiciones a la vez:
+
+1. El campo nuevo se añade a `properties` **fuera** de `required`, con
+   `default=None` en el dataclass Python y en `OMIT_IF_NONE` — el material
+   existente (`partida_id` ausente) serializa byte a byte igual que antes.
+2. `additionalProperties: false` se mantiene intacto salvo por la clave
+   nueva: no se relaja la cerradura del contrato para nada más.
+3. Ningún dato ya sellado (fixture, ejemplo congelado, dataset
+   `heldout`/`negation-battery`/`benchmarks`) necesita regenerarse para
+   seguir validando. Si regenerar 264+ ficheros es el precio de un bump, el
+   bump no compensa (M0, §8) — la variante aditiva es preferible mientras
+   exista.
+
+Un bump **MAYOR** (`1.0.0` → `2.0.0`) solo procede cuando el campo nuevo pasa
+a ser **obligatorio** en `required`, o cuando `additionalProperties` deja de
+poder proteger el contrato sin el campo (p. ej. una regla semántica que exige
+`partida_id` para action=`CREATE_*` dentro de una partida). Eso es una
+decisión de M3 (admisión: `layer`/`partida_id` coherentes), no de M0 ni de
+M2 — ninguno de los dos bloques introduce una regla de rechazo por su
+ausencia.
+
+**Patrón de tags de freeze.** `test_19_contratos_congelados_mantienen_su_hash`
+(`test_knowledge_v3_handwritten_transcription.py`) hashea byte a byte
+`contracts/knowledge-v3/v1/` + `data-engine/app/knowledge_v3/contracts/`
+contra un tag git fijo (`frozen_ref`). Cualquier bloque que modifique esos
+ficheros de forma aditiva y sancionada debe:
+
+1. Completar el cambio y su commit en la rama del bloque.
+2. Crear un tag anotado nuevo `v3-contracts-frozen-1.0.0-m<N>` (`<N>` = número
+   de bloque, p. ej. `-m0`, `-m2`) apuntando a ese commit, con mensaje
+   `Freeze checkpoint post-M<N> (docs/v3/49): <resumen de una línea>`.
+3. Actualizar `frozen_ref` en `test_19_contratos_congelados_mantienen_su_hash`
+   al tag nuevo, con un comentario que explique qué cambió y por qué es
+   aditivo.
+4. **Nunca** borrar ni mover un tag de freeze anterior: cada uno sigue siendo
+   un ancla válida para quien necesite reproducir el estado exacto de ese
+   punto del programa. La cadena de tags (`...-1.0.0` → `...-1.0.0-m0` →
+   `...-1.0.0-m2` → …) es, en sí misma, el historial de evolución aditiva del
+   contrato.
+5. Es la **única** modificación de test existente que este patrón autoriza
+   sin que cuente como "test movido": el valor de la constante cambia, la
+   aserción y su intención (congelación byte a byte) no.
+
+**Cuándo M3 podrá tocar datasets congelados.** M0 dejó abierto y documentado
+(§8, decisión discutible 1) que `local_approval.decision_hash`
+(`DECISION_HASH_FIELDS`, `validator.py`) no distingue `partida_id`/`scope`
+aunque `plan_hash` sí. Cerrar ese hueco añadiendo esas claves a
+`DECISION_HASH_FIELDS` cambia el `decision_hash` esperado de **todo**
+`GraphMutationPlan` ya sellado en `heldout`/`negation-battery`/`benchmarks` —
+literales congelados que M0 y M2 tienen prohibido tocar. La condición para que
+M3 pueda hacerlo es que exista ya un **consumidor real** de `partida_id`/
+`scope` en la lógica de admisión (el propio M3: rechazo en admisión de planes
+con ámbito incoherente, §2.2) — hasta entonces cerrar el hueco no compra
+ninguna garantía porque nada decide todavía en función del campo. Cuando M3
+llegue a ese punto, regenerar los datasets es una operación explícita y
+aparte (no un efecto colateral de tocar `validator.py`), con su propio tag de
+freeze de datasets si el programa lo pide.
+
+## 10. M2 implementado
+
+Rama `feat/multipartida-m2-resolver`, sobre `main` con M0 ya mergeado
+(`ccf0fe4`). Alcance: el resolutor de identidad (`resolution/`) hace cumplir
+el Invariante 1 también para `partida_id`, con el mismo patrón de doble
+cerradura que ya sostenía `workspace`. M1 (mapeo de carpetas) sigue bloqueado
+por Nextcloud y no hace falta para M2: basta con que `partida_id` llegue por
+el contrato, no con que nadie lo derive todavía de una ruta real.
+
+**Hallazgo previo al diseño de la solución:** `partida_id` (M0) llegaba hasta
+`SourceAsset`/`ClaimProposal`/`GraphMutationPlan`, pero **no** hasta
+`EntityMention` ni `EntityResolution` — el resolutor vive entre esos dos
+contratos y ninguno de los dos lo declaraba. Fue necesario propagarlo un tramo
+más, de la misma forma aditiva (ver §9): campo opcional, `OMIT_IF_NONE`, sin
+bump de `CONTRACT_VERSION`.
+
+**Ficheros tocados:**
+
+- `contracts/knowledge-v3/v1/entity-mention-v3.schema.json`,
+  `entity-resolution-v3.schema.json`: propiedad `partida_id` (reutilizando
+  `partida_id_or_null` de `_common-v3.schema.json`, ya definido por M0) fuera
+  de `required`.
+- `data-engine/app/knowledge_v3/contracts/mention.py`, `resolution.py`: campo
+  `partida_id: Optional[str] = None`, añadido a `OMIT_IF_NONE`.
+- `data-engine/app/knowledge_v3/resolution/catalog.py`: `CatalogEntity` gana
+  `partida_id: str | None = None` (validación simétrica a `workspace`:
+  rechaza `""`, admite `None`). `EntityCatalog.entities()`/`get()` ganan
+  `partida_scope: str | None = None` — visible ⟺ `partida_id is None` o
+  `partida_id == partida_scope`; por defecto (`partida_scope=None`) el
+  comportamiento es **idéntico** al de antes de M2 porque todo el material
+  existente tiene `partida_id=None`. `InMemoryEntityCatalog.get()` queda
+  **deliberadamente sin filtrar** por `partida_scope` (ver su docstring): lo
+  necesita la segunda cerradura del historial para conocer la propiedad real
+  de un `entity_id` ya conocido, no la vista recortada de la cascada.
+- `data-engine/app/knowledge_v3/resolution/history.py`: `HistoryEntry` gana
+  `partida_id`; la clave del índice pasa de `(workspace, superficie)` a
+  `(workspace, partida_id, superficie)` (con `""` como representación
+  ordenable de `None` — ver `_key`). Sin esto, dos partidas mencionando la
+  misma superficie compartirían ranura de historial y la segunda heredaría
+  silenciosamente la identidad de la primera: un camino de fuga que el propio
+  catálogo no cubre. `lookup()` combina dos claves (ámbito propio + capa
+  juego) con dirección única (ver más abajo).
+- `data-engine/app/knowledge_v3/resolution/cascade.py`: `filter_partida_scope`
+  (gemela de `filter_workspace`), aplicada en `run_cascade` justo después del
+  filtro de workspace. `CascadeContext.partida_scope`. `history_entry_allowed`
+  gana dos comprobaciones nuevas (además de las dos de workspace ya
+  existentes): que la entrada declare una partida visible, y que el catálogo,
+  si conoce la entidad, no la atribuya a una partida ajena — la cerradura
+  gemela exacta que el diseño pedía. Nuevo código de razón
+  `PARTIDA_ISOLATED` y campo `CascadeResult.discarded_other_partida`.
+- `data-engine/app/knowledge_v3/resolution/resolver.py`: `_read_envelope`
+  exige `partida_id` uniforme en el grupo de menciones (igual que ya exigía
+  `workspace`); `_build_context` propaga `partida_scope`;
+  `catalog.entities(...)`/`history.record(...)` reciben el ámbito; la
+  `EntityResolution` emitida declara `partida_id` heredado de las menciones.
+- Tests: `test_knowledge_v3_resolution.py` (`TestCatalogo`, `TestHistorial`,
+  `TestPartida` nueva), `test_knowledge_v3_resolution_fixtures.py`
+  (`PARTIDA_A`/`PARTIDA_B`/`PARTIDA_ENTITIES`/`catalog_with_partidas`, y
+  `partida_id` en el fixture `mention()`), `test_knowledge_v3_resolution_
+  mutations.py` (`TestMutacionPartida`, gemela completa de
+  `TestMutacionWorkspace`, incluido `test_invariante_resolutor_ciego_entre_
+  partidas`). Las firmas de `LeakyCatalog.entities`/`LeakyHistory.lookup`/
+  `ReversedCatalog.entities` (mocks de test, no producción) se actualizaron
+  para aceptar el `partida_scope` nuevo — mecánico, no cambia qué prueban.
+
+**La dirección única del Invariante 1 (la sutileza del bloque):** una mención
+de la partida Y ve la capa juego (`partida_id=None`) además de sus propias
+entidades — es el propósito de la capa compartida. Una mención de la capa
+juego (`partida_id=None`, p. ej. ingesta de lore) **NO** ve ninguna entidad de
+ninguna partida, ni siquiera con nombre idéntico: el lore no puede "capturar"
+una entidad de mesa. Implementado en tres sitios independientes y probado en
+cada uno (`filter_partida_scope`, `EntityCatalog.entities`, `ResolutionHistory.
+lookup`): los tres tratan `partida_scope=None` como "solo capa juego", nunca
+como comodín.
+
+**Caminos del resolutor cubiertos por el invariante (adversariales
+propios):** catálogo (`filter_partida_scope`, defensa en profundidad sobre lo
+que `entities()` ya debería haber filtrado — probado con `LeakyCatalog`, que
+ignora `partida_scope` a propósito), historial (`history_entry_allowed`,
+doble comprobación: valor de la entrada + verdad del catálogo — probado con
+`LeakyHistory` y con una entrada que MIENTE su `partida_id` apuntando a una
+entidad de otra partida), y la dirección juego→partida en los tres puntos de
+filtrado a la vez. El glosario no necesita filtro propio: no emite
+identidades, solo traduce superficie a término canónico, y el término se
+contrasta contra `ctx.entities`, que ya llega acotado.
+
+**Recuento de suite:** `python3 -m pytest -p no:randomly -q` desde la raíz:
+**6423 passed, 51 skipped, 4 xfailed, 0 failed** (incluye 36 tests nuevos de
+M2: 178 en el subsistema de resolución frente a los 142 de antes de M2, más
+`test_19` re-anclado). Segunda modificación deliberada de un test existente
+autorizada por §9 (`frozen_ref` → `v3-contracts-frozen-1.0.0-m2`); ningún
+otro test existente se movió.
+
+**Decisiones discutibles para revisión:**
+
+1. `InMemoryEntityCatalog.get()` ignora `partida_scope` a propósito (búsqueda
+   directa por id, sin restringir ámbito) porque lo necesita la segunda
+   cerradura del historial para conocer la verdad completa de un `entity_id`
+   ya conocido. Es coherente con el mismo patrón que `EntityCatalog.locate()`
+   (no filtra por workspace tampoco, con el mismo razonamiento), pero es una
+   asimetría respecto a `entities()` que vale la pena que un revisor
+   confirme explícitamente.
+2. `ResolutionHistory.lookup()` con ámbito de partida devuelve la entrada
+   PROPIA de la partida si existe, y si no, cae a la de capa juego — nunca
+   las dos a la vez ni un tercer estado de "ambiguo entre las dos". Es una
+   simplificación deliberada (el historial es una señal barata, no la
+   decisión final; un empate real entre capa juego y partida para la misma
+   superficie es un caso raro no cubierto explícitamente por este bloque) y
+   queda anotado para si M3/M4 lo encuentran en corpus real.
+3. No se ha tocado `writer/`, `admission.py` ni `policies/`: siguen siendo
+   M3/M4, según el diseño original. M2 es estrictamente el resolutor.

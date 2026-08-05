@@ -14,6 +14,15 @@ sin revisar de una ingesta a la siguiente, que es exactamente el fallo que
 
 Aislamiento por workspace: la clave del indice EMPIEZA por el workspace. No es
 un filtro posterior que se pueda olvidar, es parte de la clave.
+
+Aislamiento por partida (M2, docs/v3/49-multipartida-diseno.md, INVARIANTE 1):
+la clave incluye TAMBIEN `partida_id` (`None` para la capa juego). Sin esto,
+"Ilya" resuelta en la partida Y compartiria entrada de indice con "Ilya" de la
+partida Z del mismo juego, y la segunda mencion de la partida Z heredaria
+silenciosamente la identidad de una partida ajena — precisamente lo que el
+Invariante 1 prohibe. `lookup()` combina dos claves (la propia del ambito que
+pregunta, y la de la capa juego) porque la capa juego SI es visible desde una
+partida; la partida NO es visible desde la capa juego (ver `lookup`).
 """
 from __future__ import annotations
 
@@ -29,6 +38,19 @@ BINDING_ACTIONS: frozenset[str] = frozenset(
 )
 
 
+def _key(workspace: str, partida_id: str | None, normalized_surface: str) -> tuple[str, str, str]:
+    """Clave del indice. `partida_id=None` se representa como `""`.
+
+    `""` esta fuera del alfabeto valido de `partida_id` (el patron del schema
+    exige `minLength: 1`), asi que no puede colisionar con un valor real, y
+    ordena antes que cualquiera de ellos — mantiene `sorted()` totalmente
+    determinista sin mezclar `None` y `str` en la comparacion de tuplas (lo que
+    lanzaria `TypeError` en cuanto dos entradas de la misma superficie
+    difiriesen en partida).
+    """
+    return (workspace, partida_id or "", normalized_surface)
+
+
 @dataclass(frozen=True)
 class HistoryEntry:
     """Identidad ya fijada para una superficie dentro de un workspace."""
@@ -40,6 +62,9 @@ class HistoryEntry:
     action: str
     confidence: float
     resolution_id: str
+    #: Ambito de partida de la decision que fijo esta entrada (M2). `None` =
+    #: capa juego compartida.
+    partida_id: str | None = None
 
     @property
     def provisional(self) -> bool:
@@ -56,13 +81,13 @@ class ResolutionHistory:
     """
 
     def __init__(self, *, entries: Sequence[HistoryEntry] = ()) -> None:
-        self._entries: dict[tuple[str, str], HistoryEntry] = {}
+        self._entries: dict[tuple[str, str, str], HistoryEntry] = {}
         for entry in entries:
             self._put(entry)
 
     # -- Escritura ---------------------------------------------------------
     def _put(self, entry: HistoryEntry) -> bool:
-        key = (entry.workspace, entry.normalized_surface)
+        key = _key(entry.workspace, entry.partida_id, entry.normalized_surface)
         current = self._entries.get(key)
         if current is not None:
             if entry.entity_id == current.entity_id:
@@ -83,12 +108,17 @@ class ResolutionHistory:
         confidence: float,
         resolution_id: str,
         min_confidence: float = 0.0,
+        partida_id: str | None = None,
     ) -> int:
         """Memoriza una identidad para todas las superficies del grupo.
 
         Devuelve cuantas superficies se han indexado. Ignora acciones que no
         fijan identidad y confianzas por debajo del minimo: recordar una
         decision debil convertiria una duda en un precedente.
+
+        `partida_id` (M2) entra en la CLAVE del indice, no solo en el valor: una
+        entrada de la partida Y y una de la partida Z para la misma superficie
+        del mismo workspace son entradas DISTINTAS, nunca la misma ranura.
         """
         if action not in BINDING_ACTIONS or not entity_id:
             return 0
@@ -107,24 +137,39 @@ class ResolutionHistory:
                 action=action,
                 confidence=float(confidence),
                 resolution_id=resolution_id,
+                partida_id=partida_id,
             )
             if self._put(entry):
                 written += 1
         return written
 
     # -- Lectura -----------------------------------------------------------
-    def lookup(self, workspace: str, surface: str) -> HistoryEntry | None:
-        """Identidad memorizada para esa superficie en ESE workspace.
+    def lookup(
+        self, workspace: str, surface: str, *, partida_scope: str | None = None
+    ) -> HistoryEntry | None:
+        """Identidad memorizada para esa superficie, VISIBLE desde `partida_scope`.
 
         No se comprueba aqui la compatibilidad de tipos a proposito: el
         historial informa, el paso de tipos decide. Si "Umbra" quedo ligada a
         una `Faction` y ahora aparece como `Location`, queremos ver el conflicto
         y mandarlo a `REVIEW`, no que el historial lo oculte devolviendo `None`.
+
+        Direccion UNICA (M2, INVARIANTE 1): desde una partida se ve tambien la
+        entrada de la capa juego para esa superficie (si no hay una propia mas
+        especifica); desde la capa juego (`partida_scope=None`) NUNCA se
+        consulta una entrada de partida — el lore no puede "capturar" una
+        identidad fijada dentro de una mesa concreta.
         """
-        return self._entries.get((workspace, normalize_surface(surface)))
+        norm = normalize_surface(surface)
+        own = self._entries.get(_key(workspace, partida_scope, norm))
+        if own is not None:
+            return own
+        if partida_scope is None:
+            return None
+        return self._entries.get(_key(workspace, None, norm))
 
     def entries(self) -> tuple[HistoryEntry, ...]:
-        """Entradas en orden estable (workspace, superficie)."""
+        """Entradas en orden estable (workspace, partida_id, superficie)."""
         return tuple(self._entries[k] for k in sorted(self._entries))
 
     def __len__(self) -> int:
@@ -134,9 +179,12 @@ class ResolutionHistory:
         return iter(self.entries())
 
     # -- Invalidacion ------------------------------------------------------
-    def invalidate_surface(self, workspace: str, surface: str) -> int:
-        """Olvida una superficie concreta. Devuelve cuantas entradas cayeron."""
-        return 1 if self._entries.pop((workspace, normalize_surface(surface)), None) else 0
+    def invalidate_surface(
+        self, workspace: str, surface: str, *, partida_id: str | None = None
+    ) -> int:
+        """Olvida una superficie concreta de un ambito. Devuelve cuantas cayeron."""
+        key = _key(workspace, partida_id, normalize_surface(surface))
+        return 1 if self._entries.pop(key, None) else 0
 
     def invalidate_entity(self, workspace: str, entity_id: str) -> int:
         """Olvida TODAS las superficies ligadas a una entidad.

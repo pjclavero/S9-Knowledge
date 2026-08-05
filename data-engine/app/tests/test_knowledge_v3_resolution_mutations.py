@@ -115,6 +115,67 @@ def check_aislamiento_del_historial(history=None) -> None:
     assert out.resolution.selected_entity_id is None
 
 
+def check_aislamiento_de_partida() -> None:
+    """Un homonimo de OTRA partida del mismo juego nunca es candidato ni resultado.
+
+    INVARIANTE 1 de M2 (docs/v3/49-multipartida-diseno.md), gemelo exacto de
+    `check_aislamiento_de_workspace`. Se prueba contra `LeakyCatalog` (que
+    ignora `partida_scope`, ver su docstring) porque la garantia no puede
+    depender de que la fuente de datos filtre bien: la sostiene
+    `filter_partida_scope`, defensa en profundidad en la cascada.
+    """
+    catalog = F.LeakyCatalog((*F.CATALOG_ENTITIES, *F.PARTIDA_ENTITIES))
+    res = EntityResolver(catalog, glossary=NullGlossarySource())
+    out = res.resolve(
+        ResolutionRequest.of(F.mention("mention:1", "Aldric", partida_id=F.PARTIDA_A))
+    )
+    assert "entity:aldric-beta" not in out.resolution.candidate_entity_ids
+    assert out.resolution.selected_entity_id == "entity:aldric-alpha"
+
+
+def check_aislamiento_del_historial_de_partida(history=None) -> None:
+    """Lo decidido en una partida no condiciona a otra partida del mismo juego.
+
+    Gemelo de `check_aislamiento_del_historial`. `LeakyHistory` ignora tambien
+    `partida_scope` (ver su docstring): la garantia la sostiene
+    `history_entry_allowed`, no el indice.
+    """
+    history = F.LeakyHistory() if history is None else history
+    history.record(
+        workspace=WS, surfaces=["Ex Nihilo"], entity_id="entity:intruso-partida",
+        entity_type="Character", action="LINK_EXISTING", confidence=0.99,
+        resolution_id="resolution:y", partida_id=F.PARTIDA_B,
+    )
+    res = EntityResolver(F.catalog_with_partidas(), glossary=NullGlossarySource(), history=history)
+    out = res.resolve(
+        ResolutionRequest.of(F.mention("mention:1", "Ex Nihilo", partida_id=F.PARTIDA_A))
+    )
+    assert "entity:intruso-partida" not in out.resolution.candidate_entity_ids
+    assert out.resolution.selected_entity_id is None
+
+
+def check_juego_no_captura_entidad_de_partida() -> None:
+    """La capa juego (partida_id=None) NUNCA ve una entidad nacida en una partida.
+
+    Direccion UNICA del Invariante 1: al reves SI hay visibilidad (partida ve
+    capa juego), pero el lore compartido no puede "capturar" una entidad de
+    mesa por que comparta nombre.
+    """
+    res = EntityResolver(F.catalog_with_partidas(), glossary=NullGlossarySource())
+    out = res.resolve(ResolutionRequest.of(F.mention("mention:1", "Aldric", partida_id=None)))
+    assert "entity:aldric-alpha" not in out.resolution.candidate_entity_ids
+    assert "entity:aldric-beta" not in out.resolution.candidate_entity_ids
+    assert out.resolution.action != "LINK_EXISTING"
+
+
+def check_partida_ve_capa_juego() -> None:
+    """Una partida SI ve (y puede enlazar con) la capa juego compartida."""
+    res = EntityResolver(F.catalog_with_partidas(), glossary=F.glossary())
+    out = res.resolve(ResolutionRequest.of(F.mention("mention:1", "Daiki", partida_id=F.PARTIDA_A)))
+    assert out.resolution.action == "LINK_EXISTING"
+    assert out.resolution.selected_entity_id == "entity:daiki"
+
+
 def check_respeto_de_tipos() -> None:
     """Una mencion `Location` no se enlaza con una `Faction` aunque el nombre sea exacto."""
     res = EntityResolver(F.catalog(), glossary=F.glossary())
@@ -156,6 +217,10 @@ ALL_CHECKS = (
     check_aislamiento_de_workspace,
     check_aislamiento_del_glosario,
     check_aislamiento_del_historial,
+    check_aislamiento_de_partida,
+    check_aislamiento_del_historial_de_partida,
+    check_juego_no_captura_entidad_de_partida,
+    check_partida_ve_capa_juego,
     check_respeto_de_tipos,
     check_estabilidad_de_provisionales,
     check_ambiguedad_no_se_resuelve_a_dedo,
@@ -254,6 +319,143 @@ class TestMutacionWorkspace:
         )
         check_respeto_de_tipos()
         check_estabilidad_de_provisionales()
+
+
+# ==========================================================================
+# 1b. Mutacion: quitar el filtro de PARTIDA (M2, INVARIANTE 1)
+# ==========================================================================
+class TestMutacionPartida:
+    """Gemela exacta de `TestMutacionWorkspace`, para el segundo eje de M2.
+
+    Cada mutacion aqui repite, campo por campo, una mutacion de workspace de
+    mas arriba: es literalmente el mismo patron de doble cerradura clonado
+    (docs/v3/49-multipartida-diseno.md #2.3), y las pruebas lo demuestran
+    rompiendolo de la misma manera.
+    """
+
+    def test_sin_filtro_de_partida_en_la_cascada_se_pone_rojo(self, monkeypatch):
+        """La mutacion canonica: `filter_partida_scope` deja de filtrar."""
+        monkeypatch.setattr(
+            cascade_mod, "filter_partida_scope", lambda entities, partida_scope: tuple(entities)
+        )
+        with pytest.raises(AssertionError):
+            check_aislamiento_de_partida()
+
+    def test_sin_filtro_el_homonimo_de_otra_partida_entra_como_candidato(self, monkeypatch):
+        """Se comprueba QUE rompe la mutacion, no solo que rompe algo."""
+        monkeypatch.setattr(
+            cascade_mod, "filter_partida_scope", lambda entities, partida_scope: tuple(entities)
+        )
+        catalog = F.LeakyCatalog((*F.CATALOG_ENTITIES, *F.PARTIDA_ENTITIES))
+        res = EntityResolver(catalog, glossary=NullGlossarySource())
+        out = res.resolve(
+            ResolutionRequest.of(F.mention("mention:1", "Aldric", partida_id=F.PARTIDA_A))
+        )
+        assert "entity:aldric-beta" in out.resolution.candidate_entity_ids
+
+    def test_sin_filtro_de_partida_la_capa_juego_tampoco_se_defiende(self, monkeypatch):
+        """La misma mutacion tambien rompe la direccion juego -> partida.
+
+        Usa `LeakyCatalog` (no `catalog_with_partidas()`): con el catalogo REAL
+        el filtro ya ocurre en `EntityCatalog.entities(partida_scope=...)`
+        antes de que la cascada vea nada, asi que mutar solo
+        `filter_partida_scope` no bastaria para demostrar nada con el. La
+        defensa en profundidad se demuestra con la fuente que NO filtra.
+        """
+        monkeypatch.setattr(
+            cascade_mod, "filter_partida_scope", lambda entities, partida_scope: tuple(entities)
+        )
+        catalog = F.LeakyCatalog((*F.CATALOG_ENTITIES, *F.PARTIDA_ENTITIES))
+        res = EntityResolver(catalog, glossary=NullGlossarySource())
+        out = res.resolve(ResolutionRequest.of(F.mention("mention:1", "Aldric", partida_id=None)))
+        assert "entity:aldric-alpha" in out.resolution.candidate_entity_ids
+
+    def test_un_historial_defectuoso_no_rompe_el_aislamiento_de_partida(self):
+        """Linea base explicita: con `LeakyHistory` la garantia se sostiene."""
+        check_aislamiento_del_historial_de_partida()
+
+    def test_sin_la_cerradura_del_historial_se_pone_rojo_para_partida(self, monkeypatch):
+        """La mutacion canonica: `history_entry_allowed` deja pasar todo."""
+        monkeypatch.setattr(
+            cascade_mod, "history_entry_allowed", lambda entry, ctx, catalog: True
+        )
+        with pytest.raises(AssertionError):
+            check_aislamiento_del_historial_de_partida()
+
+    def test_sin_la_cerradura_el_intruso_de_otra_partida_llega_a_enlazarse(self, monkeypatch):
+        """Que rompe exactamente la mutacion: un LINK_EXISTING entre partidas."""
+        monkeypatch.setattr(
+            cascade_mod, "history_entry_allowed", lambda entry, ctx, catalog: True
+        )
+        history = F.LeakyHistory()
+        history.record(
+            workspace=WS, surfaces=["Ex Nihilo"], entity_id="entity:intruso-partida",
+            entity_type="Character", action="LINK_EXISTING", confidence=0.99,
+            resolution_id="resolution:y", partida_id=F.PARTIDA_B,
+        )
+        res = EntityResolver(
+            F.catalog_with_partidas(), glossary=NullGlossarySource(), history=history
+        )
+        out = res.resolve(
+            ResolutionRequest.of(F.mention("mention:1", "Ex Nihilo", partida_id=F.PARTIDA_A))
+        )
+        assert out.resolution.selected_entity_id == "entity:intruso-partida"
+
+    def test_la_cuarta_comprobacion_usa_el_catalogo_no_solo_la_entrada(self):
+        """Una entrada que MIENTE sobre su partida tampoco basta.
+
+        `history_entry_allowed` no se fia solo de `entry.partida_id` (chequeo
+        2): tambien coteja contra `catalog.get(...).partida_id` (chequeo 4).
+        Aqui la entrada dice `partida_id=PARTIDA_A` pero apunta a una entidad
+        que el catalogo real atribuye a `PARTIDA_B` — la mentira en el VALOR de
+        la entrada no debe bastar para colarse.
+        """
+        history = ResolutionHistory()
+        history.record(
+            workspace=WS, surfaces=["Aldric"], entity_id="entity:aldric-beta",
+            entity_type="Character", action="LINK_EXISTING", confidence=0.99,
+            resolution_id="resolution:z", partida_id=F.PARTIDA_A,
+        )
+        res = EntityResolver(
+            F.catalog_with_partidas(), glossary=NullGlossarySource(), history=history
+        )
+        out = res.resolve(
+            ResolutionRequest.of(F.mention("mention:1", "Aldric", partida_id=F.PARTIDA_A))
+        )
+        assert "entity:aldric-beta" not in out.resolution.candidate_entity_ids
+
+    def test_la_mutacion_de_partida_no_afecta_a_las_demas_reglas(self, monkeypatch):
+        """Una mutacion de partida no debe romper comprobaciones ajenas."""
+        monkeypatch.setattr(
+            cascade_mod, "filter_partida_scope", lambda entities, partida_scope: tuple(entities)
+        )
+        check_aislamiento_de_workspace()
+        check_respeto_de_tipos()
+        check_estabilidad_de_provisionales()
+
+    def test_invariante_resolutor_ciego_entre_partidas(self):
+        """EL test del invariante: dos partidas, mismo nombre, CERO fusion.
+
+        Codigo intacto, sin mutar nada: es la propia definicion operativa del
+        Invariante 1 de M2 — "una entidad nacida en una partida JAMAS se
+        fusiona con una entidad de otra partida" — comprobada en las dos
+        direcciones a la vez.
+        """
+        catalog = F.catalog_with_partidas()
+
+        out_a = EntityResolver(catalog, glossary=NullGlossarySource()).resolve(
+            ResolutionRequest.of(F.mention("mention:1", "Aldric", partida_id=F.PARTIDA_A))
+        )
+        assert out_a.resolution.selected_entity_id == "entity:aldric-alpha"
+        assert "entity:aldric-beta" not in out_a.resolution.candidate_entity_ids
+
+        out_b = EntityResolver(catalog, glossary=NullGlossarySource()).resolve(
+            ResolutionRequest.of(F.mention("mention:2", "Aldric", partida_id=F.PARTIDA_B))
+        )
+        assert out_b.resolution.selected_entity_id == "entity:aldric-beta"
+        assert "entity:aldric-alpha" not in out_b.resolution.candidate_entity_ids
+
+        assert out_a.resolution.selected_entity_id != out_b.resolution.selected_entity_id
 
 
 # ==========================================================================
@@ -426,8 +628,10 @@ class TestMutacionAmbiguedad:
         )
 
         class ReversedCatalog(InMemoryEntityCatalog):
-            def entities(self, workspace):
-                return tuple(reversed(super().entities(workspace)))
+            def entities(self, workspace, *, partida_scope=None):
+                return tuple(
+                    reversed(super().entities(workspace, partida_scope=partida_scope))
+                )
 
         flipped = EntityResolver(
             ReversedCatalog(F.CATALOG_ENTITIES), glossary=F.glossary()

@@ -74,7 +74,11 @@
         "items": { "$ref": "_common-v3.schema.json#/$defs/stable_id" }
       }
     },
-    "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" }
+    "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" },
+    "partida_id": {
+      "$ref": "_common-v3.schema.json#/$defs/partida_id_or_null",
+      "description": "M2 (docs/v3/49-multipartida-diseno.md): ambito de partida de la decision, heredado de las menciones que la originan. Opcional, sin bump de contract_version. null = capa juego."
+    }
   },
   "allOf": [
     {

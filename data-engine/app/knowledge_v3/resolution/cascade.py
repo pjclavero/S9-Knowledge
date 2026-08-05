@@ -14,6 +14,11 @@ decision, no en los pesos:
 
   1. WORKSPACE: un candidato de otro workspace jamas entra en la cascada. Se
      aplica en el catalogo, en el glosario y en el historial, por separado.
+     Desde M2 (docs/v3/49-multipartida-diseno.md) el mismo invariante se
+     extiende a PARTIDA: un candidato de otra partida (ni la propia ni la capa
+     juego) jamas entra, con el mismo patron de doble cerradura (`catalogo` +
+     `historial`) que ya usaba workspace. Ver `filter_partida_scope` y la
+     segunda cerradura en `history_entry_allowed`.
   2. TIPOS: no hay enlace entre tipos incompatibles; lo que hay es `REVIEW`.
 
 Precision importante sobre el segundo (corregida tras revision independiente):
@@ -52,6 +57,9 @@ R_TYPE_COMPATIBLE = "TYPE_COMPATIBLE"
 R_TYPE_CONFLICT = "TYPE_CONFLICT"
 R_TYPE_UNKNOWN = "TYPE_UNKNOWN"
 R_WORKSPACE_ISOLATED = "WORKSPACE_ISOLATED"
+#: INVARIANTE 1 de M2 (docs/v3/49-multipartida-diseno.md): un candidato de otra
+#: partida (ni la misma, ni la capa juego) jamas entra en la cascada.
+R_PARTIDA_ISOLATED = "PARTIDA_ISOLATED"
 R_NO_CANDIDATE = "NO_CANDIDATE"
 R_AMBIGUOUS = "AMBIGUOUS_CANDIDATES"
 R_WEAK_MATCH = "WEAK_MATCH"
@@ -133,6 +141,9 @@ class CascadeContext:
     mention_confidence: float
     context_entity_ids: tuple[str, ...] = ()
     entities: tuple[CatalogEntity, ...] = ()
+    #: Ambito de partida de la mencion que se resuelve (M2). `None` = capa
+    #: juego compartida. Ver `filter_partida_scope` para la regla exacta.
+    partida_scope: str | None = None
 
     @property
     def primary_surface(self) -> str:
@@ -154,6 +165,10 @@ class CascadeResult:
     steps_run: tuple[str, ...]
     short_circuited: bool
     discarded_other_workspace: int
+    #: M2: candidatos descartados por pertenecer a otra partida (ni la propia
+    #: ni la capa juego). Cuenta aparte de `discarded_other_workspace` porque
+    #: son invariantes distintos con causas distintas.
+    discarded_other_partida: int = 0
 
 
 # -- Tipos ------------------------------------------------------------------
@@ -185,32 +200,69 @@ def filter_workspace(
     return tuple(e for e in entities if e.workspace == workspace)
 
 
+def filter_partida_scope(
+    entities: Sequence[CatalogEntity], partida_scope: str | None
+) -> tuple[CatalogEntity, ...]:
+    """Deja SOLO las entidades visibles desde `partida_scope` (M2, INVARIANTE 1).
+
+    Visible <=> `entity.partida_id is None` (capa juego compartida) O
+    `entity.partida_id == partida_scope`. Igual que `filter_workspace`: se
+    aplica aunque quien construyo `ctx.entities` (tipicamente
+    `EntityCatalog.entities(..., partida_scope=...)`) prometa haber filtrado ya
+    — defensa en profundidad, no redundancia inutil.
+
+    Direccion UNICA, deliberada: `partida_scope=None` (resolviendo la capa
+    juego) deja pasar SOLO entidades con `partida_id is None`. Una entidad
+    nacida en una partida NUNCA es candidata para una mencion de la capa
+    juego — el lore compartido no puede "capturar" una entidad de mesa. En
+    cambio una mencion de la partida Y SI ve la capa juego (`partida_id is
+    None`) ademas de sus propias entidades (`partida_id == "partida:Y"`).
+    """
+    return tuple(
+        e for e in entities if e.partida_id is None or e.partida_id == partida_scope
+    )
+
+
 def history_entry_allowed(
     entry: "HistoryEntry", ctx: "CascadeContext", catalog: EntityCatalog | None
 ) -> bool:
-    """Cerradura de workspace del HISTORIAL (INVARIANTE 1, segunda puerta).
+    """Cerradura de workspace Y partida del HISTORIAL (INVARIANTE 1, segunda puerta).
 
     Existe porque la primera no bastaba. Que el indice del historial este
-    tecleado por `(workspace, superficie)` protege del uso normal, pero no de
-    una entrada mal construida ni de una implementacion de `lookup` que ignore
-    el argumento: en ambos casos salia un `LINK_EXISTING` entre bovedas. Es el
-    equivalente exacto de `filter_workspace` para el catalogo, y esta aqui por
-    el mismo motivo — una garantia que depende de que nadie se equivoque aguas
-    arriba no es una garantia.
+    tecleado por `(workspace, partida_id, superficie)` protege del uso normal,
+    pero no de una entrada mal construida ni de una implementacion de `lookup`
+    que ignore el argumento: en ambos casos salia un `LINK_EXISTING` entre
+    bovedas o entre partidas. Es el equivalente exacto de `filter_workspace`/
+    `filter_partida_scope` para el catalogo, y esta aqui por el mismo motivo —
+    una garantia que depende de que nadie se equivoque aguas arriba no es una
+    garantia.
 
-    Dos comprobaciones:
+    Cuatro comprobaciones (dos pares de cerradura gemela: workspace y partida):
 
     1. la entrada declara el workspace que se esta resolviendo;
-    2. el catalogo, SI puede responder, no atribuye esa entidad a otra boveda.
+    2. la entrada declara una partida visible desde `ctx.partida_scope`
+       (`None` o la propia — misma regla que `filter_partida_scope`, aplicada
+       al VALOR de la entrada, no solo a la clave por la que se llego a ella);
+    3. el catalogo, SI puede responder, no atribuye esa entidad a otra boveda.
        `locate` devolviendo `None` significa "no me consta" y no bloquea: una
-       provisional recien creada no esta en el catalogo y es legitima.
+       provisional recien creada no esta en el catalogo y es legitima;
+    4. el catalogo, SI conoce la entidad, no la atribuye a una partida ajena
+       a `ctx.partida_scope` (gemela de 3, para partida en vez de workspace).
     """
     if entry.workspace != ctx.workspace:
         return False
+    if entry.partida_id is not None and entry.partida_id != ctx.partida_scope:
+        return False
     if catalog is not None:
-        owner = catalog.locate(entry.entity_id)
-        if owner is not None and owner != ctx.workspace:
-            return False
+        owner_workspace = catalog.locate(entry.entity_id)
+        if owner_workspace is not None:
+            if owner_workspace != ctx.workspace:
+                return False
+            owner = catalog.get(owner_workspace, entry.entity_id)
+            if owner is not None and owner.partida_id is not None and (
+                owner.partida_id != ctx.partida_scope
+            ):
+                return False
     return True
 
 
@@ -343,7 +395,7 @@ def step_history(
     hits: list[SignalHit] = []
     seen: set[str] = set()
     for surface in ctx.normalized_surfaces:
-        entry = history.lookup(ctx.workspace, surface)
+        entry = history.lookup(ctx.workspace, surface, partida_scope=ctx.partida_scope)
         if entry is None or entry.entity_id in seen:
             continue
         if not history_entry_allowed(entry, ctx, catalog):
@@ -383,8 +435,10 @@ def run_cascade(
 ) -> CascadeResult:
     """Ejecuta los pasos y devuelve los candidatos puntuados y ordenados."""
     all_entities = tuple(ctx.entities)
-    scoped = filter_workspace(all_entities, ctx.workspace)
-    discarded = len(all_entities) - len(scoped)
+    ws_scoped = filter_workspace(all_entities, ctx.workspace)
+    discarded = len(all_entities) - len(ws_scoped)
+    scoped = filter_partida_scope(ws_scoped, ctx.partida_scope)
+    discarded_partida = len(ws_scoped) - len(scoped)
     ctx.entities = scoped
 
     by_entity: dict[str, list[SignalHit]] = {}
@@ -408,7 +462,9 @@ def run_cascade(
     types = {e.entity_id: e.entity_type for e in scoped}
     if history is not None:
         for entry in history.entries():
-            if entry.workspace == ctx.workspace:
+            if entry.workspace == ctx.workspace and (
+                entry.partida_id is None or entry.partida_id == ctx.partida_scope
+            ):
                 types.setdefault(entry.entity_id, entry.entity_type)
     known_ids = {e.entity_id for e in scoped}
 
@@ -474,6 +530,7 @@ def run_cascade(
         steps_run=tuple(steps_run),
         short_circuited=short_circuited,
         discarded_other_workspace=discarded,
+        discarded_other_partida=discarded_partida,
     )
 
 
@@ -679,6 +736,7 @@ __all__ = [
     "GENERATORS",
     "types_compatible",
     "filter_workspace",
+    "filter_partida_scope",
     "history_entry_allowed",
     "run_cascade",
     "decide",

@@ -22,7 +22,9 @@ class EntityResolution(V3Document):
     """`CREATE_PROVISIONAL` evita fabricar nodos definitivos por errores de ASR/OCR."""
 
     CONTRACT_ID: ClassVar[str] = "entity-resolution/v3-internal-v1"
-    OMIT_IF_NONE: ClassVar[frozenset[str]] = frozenset({"metadata", "split_groups"})
+    #: M2 (docs/v3/49-multipartida-diseno.md): `partida_id` opcional, mismo
+    #: criterio aditivo que M0 (base.py) — sin bump de contract_version.
+    OMIT_IF_NONE: ClassVar[frozenset[str]] = frozenset({"metadata", "split_groups", "partida_id"})
 
     contract_version: str
     workspace: str
@@ -43,6 +45,7 @@ class EntityResolution(V3Document):
     game_profile: str
     split_groups: Optional[list] = None
     metadata: Optional[dict[str, Any]] = None
+    partida_id: Optional[str] = None
 
     def is_provisional(self) -> bool:
         return self.action == ResolutionAction.CREATE_PROVISIONAL.value

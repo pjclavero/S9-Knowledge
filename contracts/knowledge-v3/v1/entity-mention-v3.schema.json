@@ -56,6 +56,10 @@
       "description": "Una mencion sin evidencia anclada no existe.",
       "items": { "$ref": "_common-v3.schema.json#/$defs/stable_id" }
     },
-    "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" }
+    "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" },
+    "partida_id": {
+      "$ref": "_common-v3.schema.json#/$defs/partida_id_or_null",
+      "description": "M2 (docs/v3/49-multipartida-diseno.md): ambito de partida de la mencion. Opcional, sin bump de contract_version (mismo criterio aditivo que M0): null = capa juego, valor = partida privada. El resolutor lo usa para acotar el ambito visible del catalogo/historial."
+    }
   }
 }
