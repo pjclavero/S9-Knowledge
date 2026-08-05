@@ -402,6 +402,67 @@ def close_assertion_validity(
     )
 
 
+# --- Lectura con enmascarado de supersesion LOCAL (M4: docs/v3/49 §2.5) ----
+def list_visible_assertions_query(
+    workspace: str,
+    partida_id: str | None,
+    *,
+    subject_entity_id: str | None = None,
+) -> Query:
+    """Aserciones VISIBLES desde `partida_id`, con el override de M4 aplicado.
+
+    Visibilidad = capa juego + partida propia (`_visible_predicate`, el mismo
+    criterio que ya usan los dos extremos de `create_relation` en M3).
+    Enmascarado: una asercion de capa juego se OCULTA de esta lista si, en el
+    mismo ambito de lectura, existe una asercion de la PROPIA partida con
+    `local_override_of` apuntando a ella. El nodo de capa juego no se toca en
+    absoluto: sigue existiendo, intacto, y sigue apareciendo en cualquier
+    lectura que no sea la de esa partida (otra partida, o la propia capa
+    juego).
+
+    DECISION DE COSTE (explicita, no implicita): el enmascarado se resuelve
+    con un `WHERE NOT EXISTS { ... }` correlacionado por fila, en Cypher,
+    acotado a `workspace` + `partida_id` -- los mismos dos campos que ya
+    indexa `schema.py` para `_scoped_match`. Se descarta la alternativa de
+    traer todo el conjunto visible a Python y filtrar ahi (el patron que ya
+    usa `PolicyFilteredProvider` en el visor, con su propio comentario de
+    coste conocido, `_ALL = 10_000_000`): esa alternativa duplica en Python
+    una regla de visibilidad que el propio Cypher ya expresa, y multiplica el
+    trafico de red por cada asercion candidata. La subconsulta de esta
+    funcion es barata porque el volumen esperado de overrides POR PARTIDA es
+    pequeno frente al volumen del ambito (una partida diverge del lore en
+    puntos concretos, no en bloque) -- si eso deja de ser cierto, el punto de
+    escalar es anadir un indice compuesto sobre
+    `(workspace, partida_id, local_override_of)`, no cambiar de sitio el
+    filtro.
+
+    No se usa por `execute_plan` ni por `admission.py`: es una lectura de
+    solo consulta (ver `writer/reads.py`), no una decision de escritura.
+    """
+    where = [_visible_predicate("n", partida_id), "n.workspace = $ws"]
+    params: dict[str, Any] = {"ws": workspace}
+    if subject_entity_id is not None:
+        where.append("n.subject_entity_id = $subject")
+        params["subject"] = subject_entity_id
+    if partida_id is not None:
+        # Solo una PARTIDA puede tener declarado un `local_override_of`
+        # (Invariante 2, M4): la capa juego (`partida_id=None`) nunca
+        # necesita enmascarar nada, y por eso el `NOT EXISTS` solo se anade
+        # cuando la lectura es de una partida concreta.
+        params["partida_id"] = partida_id
+        mask = (
+            f"NOT EXISTS {{ MATCH (o:{LABEL_ASSERTION}) WHERE o.workspace = $ws "
+            "AND o.partida_id = $partida_id AND o.local_override_of = n.assertion_id }"
+        )
+        where.append(mask)
+    return Query(
+        f"MATCH (n:{LABEL_ASSERTION}) WHERE {' AND '.join(where)} "
+        "RETURN n.assertion_id AS assertion_id, n AS props "
+        "ORDER BY n.assertion_id",
+        params,
+    )
+
+
 __all__ = [
     "Query",
     "assert_safe",
@@ -416,6 +477,7 @@ __all__ = [
     "create_relation",
     "close_entity_validity",
     "close_assertion_validity",
+    "list_visible_assertions_query",
     "LABEL_ENTITY",
     "LABEL_ASSERTION",
     "ALLOWED_UPDATE_PROPS",

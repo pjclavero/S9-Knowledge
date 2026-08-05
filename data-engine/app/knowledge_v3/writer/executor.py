@@ -26,10 +26,22 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from ..ledger.entries import LedgerOperation
+from ..ledger.supersession import CANONICAL_REASONS as _LEDGER_CANONICAL_REASONS
 from . import codes, cypher
 from .errors import WriterAbort
 from .idempotency import AppliedKeyStore
 from .view import SignedView
+
+#: M4 (docs/v3/49 §2.5): catalogo COMPARTIDO con el ledger local -- una sola
+#: fuente de verdad para los motivos canonicos de un ASSERT, en vez de
+#: duplicar la lista aqui. `LOCAL_DIVERGENCE` es el unico motivo admisible
+#: para una operacion que trae `local_override_of`: los otros tres motivos de
+#: la misma familia (`INITIAL_ASSERTION`, `NEW_EVIDENCE`,
+#: `REINSTATED_AFTER_REVIEW`) describen una asercion CORRIENTE, no una
+#: divergencia local, y aceptarlos aqui confundiria las dos cosas.
+_LOCAL_DIVERGENCE_REASON = "LOCAL_DIVERGENCE"
+assert _LOCAL_DIVERGENCE_REASON in _LEDGER_CANONICAL_REASONS[LedgerOperation.ASSERT]
 
 #: `\Z` y no `$`: `$` tambien casa antes de un `\n` final.
 _REASON_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}\Z")
@@ -203,6 +215,65 @@ def _assert_absent(tx: Any, op: dict, workspace: str, target_id: str, is_asserti
         )
 
 
+def _check_local_override(tx: Any, op: dict, payload: dict, workspace: str) -> None:
+    """M4 (docs/v3/49 §2.5): el otro filo del Invariante 2 para `local_override_of`.
+
+    `admission.py` (`_local_override_incoherence`) ya rechazo, sin tocar
+    Neo4j, el caso estructural (capa juego declarando un override). Lo que
+    solo se sabe leyendo el grafo es si el `assertion_id` apuntado es de
+    verdad de CAPA JUEGO -- ni de la propia partida (una cadena de
+    overrides), ni de otra partida (el cruce cross-partida). Ambos casos
+    ilegitimos comparten un solo chequeo: leer el objetivo ACOTADO a capa
+    juego (`partida_id=None`, la misma `_scoped_match` de M3) y, si no
+    aparece ahi, distinguir "no existe en ningun ambito" de "existe, pero no
+    es de capa juego" -- exactamente el mismo patron MISSING/SCOPE_MISMATCH
+    que ya usa `_check_expected_state`.
+
+    SEMANTICA DE CADENAS (decision explicita de M4): un override SIEMPRE
+    apunta a capa juego, nunca a otro override. Overridear un override ya
+    existente cae en la misma rama que overridear el hecho de otra partida:
+    `EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER`. Se elige "sin cadenas" y no
+    "colapsar al original" ni "resolver al ultimo de la cadena" porque
+    cualquiera de esas dos exigiria que el writer recorriera un grafo de
+    punteros para decidir una escritura -- justo el tipo de logica que este
+    modulo evita a proposito (fail-closed simple, sin inferencia). Quien
+    quiera corregir una divergencia local ya escrita debe hacerlo sobre ESA
+    afirmacion de partida (via el ciclo de vida normal: confirmar, contradecir
+    o retractar), no encadenando un override sobre otro.
+    """
+    target = payload.get("local_override_of")
+    if not target:
+        return
+    reason = payload.get("reason_code")
+    if reason != _LOCAL_DIVERGENCE_REASON:
+        raise WriterAbort(
+            codes.EXEC_LOCAL_OVERRIDE_REASON_INVALID,
+            f"la operacion {op['operation_id']} declara local_override_of sin el "
+            f"reason_code canonico {_LOCAL_DIVERGENCE_REASON!r} (R1 del ledger)",
+            {"operation_id": op["operation_id"], "reason_code": reason},
+        )
+    # Acotado a capa juego (`partida_id=None`), NUNCA al ambito del plan: un
+    # override siempre apunta al lore compartido, jamas a la propia partida
+    # ni a otra.
+    game_state = _single(tx, cypher.read_assertion_state(target, workspace, None))
+    if game_state is not None:
+        return
+    if _single(tx, cypher.read_assertion_state_any_scope(target, workspace)) is not None:
+        raise WriterAbort(
+            codes.EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER,
+            f"la operacion {op['operation_id']} declara local_override_of={target!r}, "
+            "que existe pero no es de capa juego (pertenece a una partida, la "
+            "propia u otra): un override solo puede apuntar al lore compartido",
+            {"operation_id": op["operation_id"], "local_override_of": target},
+        )
+    raise WriterAbort(
+        codes.EXEC_LOCAL_OVERRIDE_TARGET_MISSING,
+        f"la operacion {op['operation_id']} declara local_override_of={target!r}, "
+        "que no existe en ningun ambito de este workspace",
+        {"operation_id": op["operation_id"], "local_override_of": target},
+    )
+
+
 def _require(value: Any, op: dict, what: str) -> Any:
     if not value:
         raise WriterAbort(
@@ -327,6 +398,7 @@ def execute_operation(
     if op_type == "CREATE_ASSERTION":
         assertion_id = _require(op.get("assertion_id"), op, "assertion_id")
         _assert_absent(tx, op, ws, assertion_id, is_assertion=True)
+        _check_local_override(tx, op, payload, ws)
         record = _single(
             tx,
             cypher.create_assertion(assertion_id, ws, {**props, **prov}, partida_id),

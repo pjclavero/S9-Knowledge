@@ -176,6 +176,53 @@ def _scope_incoherence(plan: GraphMutationPlan) -> Optional[tuple[str, dict[str,
     return None
 
 
+def _effective_partida_id(plan: GraphMutationPlan) -> Optional[str]:
+    """Ambito efectivo del plan (misma regla que `SignedView.of`, `view.py`).
+
+    Se duplica aqui deliberadamente en vez de importar `SignedView`: admision
+    juzga el `GraphMutationPlan` ANTES de saber si el plan es admisible, y
+    `SignedView` solo se construye para un plan ya admitido. La regla es de
+    una linea y admision ya la aplica dentro de `_scope_incoherence` (donde
+    exige que, si ambos existen, coincidan) -- aqui solo se lee el que haya.
+    """
+    scope = plan.scope
+    scope_partida = scope.get("partida_id") if isinstance(scope, dict) else None
+    return scope_partida if scope_partida is not None else plan.partida_id
+
+
+def _local_override_incoherence(plan: GraphMutationPlan) -> Optional[tuple[str, dict[str, Any]]]:
+    """M4 (docs/v3/49 §2.5): quien declara una divergencia local debe ser PARTIDA.
+
+    Estructural, como `_scope_incoherence`: no lee el grafo. Si el plan
+    entero es de capa juego (`partida_id` efectivo ausente) pero alguna
+    operacion `CREATE_ASSERTION` lleva `local_override_of` en su payload, es
+    la capa juego intentando declararse a si misma en divergencia de una
+    partida -- el cruce "juego->partida" que el Invariante 2 prohibe.
+
+    Que el `assertion_id` apuntado sea de verdad capa juego (o pertenezca a
+    OTRA partida -- el cruce "cross-partida") NO es decidible aqui: ese es el
+    otro filo, contra el ESTADO real, cerrado en ejecucion
+    (`EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER`, `writer/executor.py`),
+    exactamente el mismo reparto de responsabilidades que ya usa
+    `_scope_incoherence`/`EXEC_SCOPE_MISMATCH` en M3.
+    """
+    effective_partida = _effective_partida_id(plan)
+    if effective_partida is not None:
+        return None
+    for op in plan.mutation_operations:
+        if op.get("operation_type") != "CREATE_ASSERTION":
+            continue
+        payload = op.get("payload") or {}
+        if payload.get("local_override_of"):
+            return (
+                "operacion CREATE_ASSERTION declara local_override_of pero el "
+                "plan es de capa juego: solo una PARTIDA puede declarar una "
+                "divergencia local (Invariante 2, cruce juego->partida)",
+                {"operation_id": op.get("operation_id")},
+            )
+    return None
+
+
 def admit(plan_doc: dict[str, Any], ctx: AdmissionContext) -> AdmissionResult:
     """Juzga un documento como plan admisible. No escribe ni consulta nada."""
     rejections: list[Rejection] = []
@@ -305,6 +352,13 @@ def admit(plan_doc: dict[str, Any], ctx: AdmissionContext) -> AdmissionResult:
     if scope_issue is not None:
         message, detail = scope_issue
         _reject(rejections, codes.PLAN_SCOPE_CROSS_PARTIDA, message, **detail)
+
+    # 9.6. Divergencia local (M4, docs/v3/49 §2.5): solo una PARTIDA puede
+    #      declarar `local_override_of`. Error duro, estructural.
+    override_issue = _local_override_incoherence(plan)
+    if override_issue is not None:
+        message, detail = override_issue
+        _reject(rejections, codes.PLAN_LOCAL_OVERRIDE_FROM_GAME_LAYER, message, **detail)
 
     # 10. Snapshot vigente declarado por el operador (R2: testigo externo).
     if not ctx.current_snapshot_id:

@@ -1153,3 +1153,225 @@ momento.
 failed** (+2 skipped respecto al recuento anterior de M3, por los dos tests
 reales nuevos gated; el resto del delta es el test renombrado/invertido, sin
 cambio de cardinalidad neta en `passed`).
+
+## 12. M4 implementado
+
+Rama `feat/multipartida-m4-override`, sobre `main` con M0+M2+M3 ya mergeados
+(`7c8c286`). Alcance: supersesión LOCAL (`local_override_of`) — el hecho de
+partida diverge del lore de capa juego sin mutarlo jamás. NO se ha tocado
+`pipeline/`, `resolution/`, `extraction/`, `engine/` ni `eval/gate6_*`: como
+en M3, la superficie que Puerta 6 tiene en obra queda intacta. En particular,
+**no** se ha tocado `engine/planner.py` (que hoy construye el `FactAssertion`
+real vía la matriz de supersesión temporal, `ledger/supersession.py`,
+`close_validity`) — el diseño original (§2.5) señalaba ese módulo como el
+lugar "más delicado"; la implementación real evita tocarlo del todo
+manteniendo `local_override_of` como un campo puramente aditivo (default
+`None`) que ningún generador existente necesita poblar para seguir
+funcionando exactamente igual que antes.
+
+**Ficheros tocados:**
+
+- `data-engine/app/knowledge_v3/contracts/assertion.py`: `FactAssertion` gana
+  `local_override_of: Optional[str] = None`, añadido a `OMIT_IF_NONE` (mismo
+  patrón aditivo que `calendar_id`/`metadata`).
+- `contracts/knowledge-v3/v1/fact-assertion-v3.schema.json`: propiedad
+  `local_override_of` (reutilizando `stable_id_or_null` de
+  `_common-v3.schema.json`), fuera de `required`.
+- `contracts/knowledge-v3/v1/validator.py`: chequeo semántico de
+  autoreferencia (`local_override_of` no puede apuntar a la propia
+  afirmación), gemelo del que ya existía para `supersedes`/`superseded_by`.
+- `data-engine/app/knowledge_v3/ledger/supersession.py`: nuevo motivo
+  canónico `LOCAL_DIVERGENCE` en `CANONICAL_REASONS[LedgerOperation.ASSERT]`
+  — la afirmación de partida que diverge nace como un `ASSERT` normal, no
+  como un `SUPERSEDE` (el hecho de capa juego no se sustituye).
+- `data-engine/app/knowledge_v3/writer/codes.py`: `PLAN_LOCAL_OVERRIDE_FROM_
+  GAME_LAYER` (admisión), `EXEC_LOCAL_OVERRIDE_TARGET_MISSING`,
+  `EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER`,
+  `EXEC_LOCAL_OVERRIDE_REASON_INVALID` (ejecución).
+- `data-engine/app/knowledge_v3/writer/admission.py`: `_local_override_
+  incoherence` (punto "9.6. Divergencia local"), estructural, sin tocar
+  Neo4j — gemela de `_scope_incoherence` (M3).
+- `data-engine/app/knowledge_v3/writer/executor.py`: `_check_local_override`,
+  invocada dentro de la rama `CREATE_ASSERTION` de `execute_operation`;
+  import de `ledger.supersession.CANONICAL_REASONS`/`LedgerOperation` para
+  compartir una única fuente de verdad del motivo canónico con el ledger
+  local (en vez de duplicar la cadena `"LOCAL_DIVERGENCE"` sin verificación
+  cruzada).
+- `data-engine/app/knowledge_v3/writer/cypher.py`: `list_visible_assertions_
+  query` — nueva función de LISTADO (las demás funciones de `cypher.py` son
+  de un único objetivo, orientadas a `_single()`).
+- `data-engine/app/knowledge_v3/writer/reads.py` (nuevo): `list_visible_
+  assertions`, envoltorio de solo lectura sobre la consulta anterior.
+  Exportado desde `writer/__init__.py`.
+- `docs/v3/09-writer.md`: tabla de códigos ampliada con los siete códigos
+  nuevos.
+- `data-engine/app/tests/test_knowledge_v3_writer_local_override.py`
+  (nuevo): 19 tests.
+- `data-engine/app/tests/test_knowledge_v3_handwritten_transcription.py`:
+  `frozen_ref` movido de `v3-contracts-frozen-1.0.0-m3` a
+  `v3-contracts-frozen-1.0.0-m4` (mismo patrón de §9, cuarta vez que se
+  aplica).
+
+### Por qué el puntero es una PROPIEDAD, no una relación de grafo
+
+El diseño (§2.5) dejaba abierto si `local_override_of` se estampa "como
+relación o propiedad". Se eligió **propiedad plana** en el nodo
+`V3Assertion` nuevo, por el mismo criterio que ya usa `superseded_by` en el
+propio contrato (`fact-assertion/v3-internal-v1`): un `assertion_id` en
+texto, no una arista. Razones:
+
+1. **Coherencia con lo existente.** `superseded_by`/`supersedes` ya son
+   propiedades, no relaciones, en el mismo nodo. Introducir una relación
+   real solo para `local_override_of` habría creado dos representaciones
+   distintas del mismo tipo de puntero ("esta afirmación se relaciona con
+   esa otra") dentro del mismo contrato, sin necesidad semántica.
+2. **Coste de escritura.** Una propiedad se escribe en el mismo `CREATE`
+   que ya crea el nodo (cero consultas adicionales); una relación exigiría
+   un `MATCH` extra sobre el objetivo antes de poder crear la arista —
+   exactamente el coste que `create_relation` ya paga por los DOS extremos
+   de una relación de entidades, pero que aquí no hace falta duplicar,
+   porque el chequeo de "el objetivo es de capa juego" (`_check_local_
+   override`) ya hace ese `MATCH` con otro propósito (la validación del
+   Invariante 2) y puede reutilizarse en vez de escribir un segundo builder
+   Cypher solo para la arista.
+3. **Coste de lectura.** `list_visible_assertions_query` puede resolver el
+   enmascarado con una comparación de propiedades (`o.local_override_of =
+   n.assertion_id`) dentro de un `EXISTS {}` correlacionado, sin necesitar
+   atravesar una arista. Si en el futuro se necesita navegación nativa de
+   grafo sobre la cadena de overrides (p. ej. para un panel de
+   administración que liste "todas las divergencias de esta partida" de
+   forma eficiente sobre volumen alto), añadir una relación proyectada
+   además de la propiedad es un cambio aditivo puro — no exige deshacer
+   esta decisión, solo complementarla.
+
+**Coste explícito de la lectura enmascarada (decisión pedida por el
+encargo):** `list_visible_assertions_query` resuelve el enmascarado con
+`WHERE NOT EXISTS { MATCH (o:V3Assertion) WHERE o.workspace = $ws AND
+o.partida_id = $partida_id AND o.local_override_of = n.assertion_id }`, es
+decir, un filtro que vive en Cypher, evaluado por fila, acotado a
+`workspace`+`partida_id` (los mismos dos campos que ya indexa
+`writer/schema.py` para `_scoped_match`, M3). Se descartó explícitamente la
+alternativa de traer todo el conjunto visible a Python y filtrar ahí — el
+patrón que ya usa `PolicyFilteredProvider` en el visor, con su propio
+comentario de coste conocido (`_ALL = 10_000_000`, §6 punto 2 de este mismo
+documento) — porque esa alternativa duplicaría en Python una regla que el
+propio Cypher ya expresa con una comparación de igualdad, y multiplicaría el
+tráfico de red por cada asercion candidata en vez de una sola subconsulta
+indexada. El trade-off aceptado: el coste crece con el número de
+`local_override_of` declarados POR PARTIDA (no con el tamaño total del
+ámbito), que se espera pequeño porque una partida diverge del lore en puntos
+concretos, no en bloque; si esa suposición deja de sostenerse en producción,
+el punto de escalar es un índice compuesto
+`(workspace, partida_id, local_override_of)`, no mover el filtro a Python.
+
+### Semántica de cadenas de override (decisión explícita, requisito 5.d)
+
+**Elegida: sin cadenas.** Un `local_override_of` debe apuntar SIEMPRE
+directamente a una afirmación de CAPA JUEGO (`partida_id IS NULL`). Intentar
+overridear una afirmación que ya es en sí misma un override (o cualquier
+afirmación de partida, propia o ajena) se rechaza con el mismo código que
+cualquier otro objetivo no-capa-juego: `EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_
+LAYER` — no hay un código distinto para "cadena" porque, para el writer, una
+cadena es simplemente un caso más de "el objetivo no es de capa juego".
+
+Se descartaron las otras dos opciones que planteaba el encargo:
+
+- **"Colapsar al original"** (seguir la cadena de overrides hasta encontrar
+  la capa juego y apuntar ahí en su lugar) exigiría que el writer
+  recorriera un grafo de punteros ANTES de decidir una escritura — el tipo
+  de inferencia que este módulo evita a propósito (fail-closed simple,
+  nunca "arregla" un plan). Además desplazaría a Neo4j una decisión que hoy
+  toma el motor local (quién es el destino real de la divergencia), lo que
+  contradice el principio general del writer: "no interpreta, no corrige".
+- **"Resolver al último de la cadena"** tiene el mismo problema de fondo, y
+  añade el riesgo de un ciclo (`chain_from`, en `ledger/supersession.py`,
+  ya tiene que defenderse explícitamente de ciclos en la cadena de
+  `superseded_by` — abrir una segunda cadena, la de `local_override_of`,
+  reintroduciría ese mismo riesgo sin necesidad).
+
+La consecuencia práctica: quien quiera corregir una divergencia local YA
+escrita no encadena un segundo override sobre el primero — actúa sobre ESA
+afirmación de partida con su ciclo de vida normal (confirmar, contradecir o
+retractar, vía `CONFIRM`/`CONTRADICT`/`RETRACT` del ledger local). El hecho
+de capa juego, mientras tanto, sigue disponible sin límite como objetivo
+válido de un nuevo `CREATE_ASSERTION` con override, si la partida necesita
+reafirmar una divergencia distinta sobre el mismo hecho de lore.
+
+### Matriz de rechazos en admisión/ejecución
+
+| Caso | Dónde se decide | Código | Test |
+|---|---|---|---|
+| Capa juego declara `local_override_of` | Admisión (estructural) | `PLAN_LOCAL_OVERRIDE_FROM_GAME_LAYER` | `test_admision_rechaza_override_declarado_desde_capa_juego`, `test_admision_rechaza_override_sin_scope_declarado_ni_partida_id` |
+| Partida declara `local_override_of` (coherente en sí mismo) | Admisión (estructural) | admitido | `test_admision_admite_override_declarado_desde_partida` |
+| Objetivo no existe en ningún ámbito | Ejecución (lectura) | `EXEC_LOCAL_OVERRIDE_TARGET_MISSING` | `test_override_a_objetivo_inexistente_aborta_target_missing` |
+| Objetivo existe, pertenece a OTRA partida (cross-partida) | Ejecución (lectura) | `EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER` | `test_override_a_objetivo_de_otra_partida_cross_partida_rechazado` |
+| Objetivo existe, pertenece a la PROPIA partida (juego←partida indebido) | Ejecución (lectura) | `EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER` | `test_override_a_objetivo_de_la_propia_partida_juego_indebido_rechazado` |
+| Objetivo es a su vez un override (cadena) | Ejecución (lectura) | `EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER` | `test_override_de_un_override_ya_existente_es_rechazado_como_no_capa_juego` |
+| `reason_code` ausente | Ejecución | `EXEC_LOCAL_OVERRIDE_REASON_INVALID` | `test_override_sin_reason_code_canonico_rechazado` |
+| `reason_code` presente pero no `LOCAL_DIVERGENCE` | Ejecución | `EXEC_LOCAL_OVERRIDE_REASON_INVALID` | `test_override_con_reason_code_incorrecto_rechazado` |
+| Objetivo de capa juego, `reason_code` correcto, partida coherente | Ejecución | aplicado, sin tocar el hecho de juego | `test_override_partida_a_capa_juego_aplica_y_no_toca_el_hecho_de_juego` |
+
+### Revisión humana (`review_required`)
+
+El encargo de M4 pide que la propuesta de override llegue con
+`review_required=True` por defecto — campo que ya existe en `ClaimProposal`
+(`contracts/claim.py`, desde antes de M0) y que el flujo de revisión
+existente ya consume. **No se ha tocado ningún generador de
+`ClaimProposal`** (eso vive en `extraction/`/`engine/`, fuera de alcance de
+M4): la verificación de este bloque es que el campo y el flujo de revisión
+ya existen y no necesitan UI nueva para mostrar una razón `LOCAL_DIVERGENCE`
+— `review_required` es un booleano genérico del contrato, no interpreta el
+valor de `reason_codes`, así que una propuesta de divergencia local pasa por
+el mismo camino de revisión que cualquier otra propuesta marcada para
+revisión humana, sin caso especial. Construir un panel dedicado que explique
+"¿divergencia real de mesa o error de extracción?" al revisor es,
+explícitamente, trabajo de M5 (fuera de alcance de M4).
+
+### Retrocompatibilidad verificada
+
+Material sin `local_override_of` (el 100% del material anterior a M4)
+produce exactamente el mismo comportamiento que antes: `_check_local_
+override` retorna inmediatamente (`if not target: return`) sin tocar el
+driver, sin leer nada, sin cambiar ninguna consulta ya generada. Ningún test
+existente de `test_knowledge_v3_writer.py`/`test_knowledge_v3_writer_
+mutation.py`/`test_knowledge_v3_contracts.py` se modificó de comportamiento;
+el único cambio deliberado de un test ya existente es, otra vez, el
+`frozen_ref` de `test_19_contratos_congelados_mantienen_su_hash` (patrón de
+§9, cuarta vez).
+
+**Recuento de suite:** `python3 -m pytest -p no:randomly -q` desde la raíz,
+en primer plano — ver cifra exacta al cierre de este bloque en el commit
+correspondiente (19 tests nuevos en `test_knowledge_v3_writer_local_
+override.py`; ningún otro test existente cambió de resultado salvo el
+`frozen_ref` re-anclado).
+
+**Decisiones discutibles para revisión:**
+
+1. `writer/reads.py` es una API de solo lectura que HOY no consume ningún
+   camino de producción (ni `execute_plan`, ni `admission.py`): existe para
+   demostrar el enmascarado con un test y para que M5 (el visor) tenga un
+   lugar del que copiar la disciplina "filtrado en Cypher", no una
+   dependencia que M5 esté obligado a usar tal cual. Un revisor podría
+   preferir no añadir código de producción sin consumidor real; se optó por
+   añadirlo de todos modos porque el encargo pedía explícitamente demostrar
+   el enmascarado de lectura, y no hacerlo habría dejado ese requisito sin
+   ninguna prueba ejecutable contra una superficie de listado real.
+2. `_check_local_override` reutiliza `read_assertion_state`/`read_
+   assertion_state_any_scope` (M3) en vez de un builder Cypher dedicado. En
+   el camino feliz (objetivo de capa juego, todo correcto) esto cuesta UNA
+   lectura extra (la acotada a capa juego, que ya basta para confirmar el
+   éxito); solo el camino de rechazo paga la segunda lectura `any_scope`
+   para distinguir `TARGET_MISSING` de `NOT_GAME_LAYER` — mismo reparto de
+   coste que `EXEC_SCOPE_MISMATCH` en M3 (la lectura de diagnóstico solo se
+   paga cuando algo ya iba a abortar). Queda anotado por si el volumen de
+   creación de overrides en producción hace conveniente fusionar la lectura
+   feliz con la escritura en una sola ida a Neo4j.
+3. El catálogo de motivos (`LOCAL_DIVERGENCE`) vive en
+   `ledger/supersession.py`, no en `writer/codes.py` ni en
+   `contracts/knowledge-v3/v1/validator.py` (`CANONICAL_REASON_CODES`, que
+   gobierna los `reason_codes` de las DECISIONES del plan, un catálogo
+   distinto y ya existente). Son dos catálogos de motivos con propósitos
+   diferentes (motivo de una decisión del motor vs. motivo de una
+   transición del ledger); mezclarlos habría sido más confuso que tener dos
+   catálogos pequeños y bien nombrados. Un revisor debe confirmar que esta
+   distinción está justificada y no es una duplicación accidental.

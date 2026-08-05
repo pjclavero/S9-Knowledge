@@ -48,6 +48,7 @@ from .gate import (
 )
 from .gate import evaluate as evaluate_gate
 from .idempotency import AppliedKeyStore, InMemoryAppliedKeys, JsonlAppliedKeys
+from .reads import VisibleAssertion, list_visible_assertions
 from .rollback import RollbackDocument, RollbackInstruction, build_rollback
 from .schema import (
     APPLIED_OPERATION_CONSTRAINT,
@@ -113,6 +114,9 @@ __all__ = [
     "AppliedKeyStore",
     "InMemoryAppliedKeys",
     "JsonlAppliedKeys",
+    # lecturas (M4: enmascarado de supersesion local)
+    "VisibleAssertion",
+    "list_visible_assertions",
     # auditoria
     "AuditRecord",
     "AuditSink",

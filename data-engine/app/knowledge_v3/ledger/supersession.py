@@ -75,7 +75,18 @@ OPERATION_TARGET_STATUS: Dict[LedgerOperation, AssertionStatus] = {
 #: criterio que `CANONICAL_REASON_CODES` del validador de contratos).
 CANONICAL_REASONS: Dict[LedgerOperation, FrozenSet[str]] = {
     LedgerOperation.ASSERT: frozenset(
-        {"INITIAL_ASSERTION", "NEW_EVIDENCE", "REINSTATED_AFTER_REVIEW"}
+        {
+            "INITIAL_ASSERTION",
+            "NEW_EVIDENCE",
+            "REINSTATED_AFTER_REVIEW",
+            #: M4 (docs/v3/49-multipartida-diseno.md §2.5): la afirmacion de
+            #: partida que diverge del lore de capa juego nace como un ASSERT
+            #: normal -- no un SUPERSEDE, porque el hecho de capa juego no se
+            #: sustituye, sigue vivo para cualquier otra partida. Este es el
+            #: motivo canonico que la distingue de una asercion inicial
+            #: corriente.
+            "LOCAL_DIVERGENCE",
+        }
     ),
     LedgerOperation.CONFIRM: frozenset(
         {"CORROBORATING_EVIDENCE", "SECOND_SOURCE", "HUMAN_REVIEW_CONFIRMED"}

@@ -49,6 +49,11 @@ PLAN_NO_OPERATIONS = "PLAN_NO_OPERATIONS"
 #: capa juego/partida de forma indebida. Error duro, nunca warning: un plan
 #: cuyo ambito no se sostiene a si mismo no se admite, ni siquiera a dry-run.
 PLAN_SCOPE_CROSS_PARTIDA = "PLAN_SCOPE_CROSS_PARTIDA"
+#: M4 (docs/v3/49 §2.5): una operacion CREATE_ASSERTION declara
+#: `local_override_of` en su payload pero el plan entero es de capa juego
+#: (sin `partida_id` efectivo). Solo una PARTIDA puede declarar una
+#: divergencia local -- error duro, estructural, sin tocar Neo4j.
+PLAN_LOCAL_OVERRIDE_FROM_GAME_LAYER = "PLAN_LOCAL_OVERRIDE_FROM_GAME_LAYER"
 
 #: Orden de evaluacion de la admision (documentado y probado).
 ADMISSION_CODES = (
@@ -63,6 +68,7 @@ ADMISSION_CODES = (
     PLAN_EXPIRED,
     PLAN_WORKSPACE_MISMATCH,
     PLAN_SCOPE_CROSS_PARTIDA,
+    PLAN_LOCAL_OVERRIDE_FROM_GAME_LAYER,
     PLAN_SNAPSHOT_UNDECLARED,
     PLAN_SNAPSHOT_STALE,
     PLAN_NO_OPERATIONS,
@@ -126,6 +132,19 @@ EXEC_DRIVER_FAILURE = "EXEC_DRIVER_FAILURE"
 EXEC_IDEMPOTENCY_CONFLICT = "EXEC_IDEMPOTENCY_CONFLICT"
 #: Guardia interna: la consulta generada contenia una construccion destructiva.
 EXEC_DESTRUCTIVE_QUERY_BLOCKED = "EXEC_DESTRUCTIVE_QUERY_BLOCKED"
+#: M4 (docs/v3/49 §2.5): una operacion CREATE_ASSERTION con `local_override_of`
+#: apunta a un `assertion_id` que no existe en NINGUN ambito de este workspace.
+EXEC_LOCAL_OVERRIDE_TARGET_MISSING = "EXEC_LOCAL_OVERRIDE_TARGET_MISSING"
+#: M4: el `assertion_id` apuntado por `local_override_of` existe, pero NO es
+#: de capa juego (`partida_id IS NULL`) -- pertenece a una partida (la propia
+#: u otra). Cubre a la vez "partida->juego indebido" (el objetivo es de
+#: partida, no de juego) y "cruce cross-partida" (el objetivo es de OTRA
+#: partida): en ambos casos el objetivo no es capa juego, mismo codigo.
+EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER = "EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER"
+#: M4: `local_override_of` presente sin el `reason_code` canonico
+#: `LOCAL_DIVERGENCE` (R1 del ledger, catalogo compartido con
+#: `ledger.supersession.CANONICAL_REASONS[ASSERT]`).
+EXEC_LOCAL_OVERRIDE_REASON_INVALID = "EXEC_LOCAL_OVERRIDE_REASON_INVALID"
 
 # --- Auditoria ------------------------------------------------------------
 #: El sink se declaro disponible pero `append` fallo. No impide que lo ya
@@ -146,6 +165,9 @@ EXECUTION_CODES = (
     EXEC_DRIVER_FAILURE,
     EXEC_IDEMPOTENCY_CONFLICT,
     EXEC_DESTRUCTIVE_QUERY_BLOCKED,
+    EXEC_LOCAL_OVERRIDE_TARGET_MISSING,
+    EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER,
+    EXEC_LOCAL_OVERRIDE_REASON_INVALID,
 )
 
 ALL_CODES = ADMISSION_CODES + GATE_CODES + AUDIT_CODES + EXECUTION_CODES
