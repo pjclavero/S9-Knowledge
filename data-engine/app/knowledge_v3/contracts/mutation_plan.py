@@ -67,6 +67,24 @@ class GraphMutationPlan(V3Document):
     """Plan local firmado. El writer no interpreta: solo ejecuta o rechaza."""
 
     CONTRACT_ID: ClassVar[str] = "graph-mutation-plan/v3-internal-v1"
+    #: M0 (docs/v3/49-multipartida-diseno.md §2.2): `partida_id` y `scope`
+    #: son opcionales y se omiten del documento serializado cuando valen
+    #: `None`, igual que `metadata` — el material existente sigue siendo
+    #: byte-identico.
+    #:
+    #: VERIFICACION DEL HASH (no asumida): `partida_id`/`scope` SI entran en
+    #: `plan_hash` gratis (cubre el documento completo salvo el propio
+    #: `plan_hash`). NO entran en `local_approval.decision_hash`:
+    #: `DECISION_HASH_FIELDS` (validator.py) es una lista CURADA y cerrada
+    #: de campos, no "todo el documento" — anadir claves ahi habria
+    #: cambiado el `decision_hash` esperado de todo plan gold/held-out ya
+    #: sellado (`plan.get(k)` para una clave nueva mete `None` en el cuerpo
+    #: de planes que nunca declararon `partida_id`), rompiendo datasets que
+    #: este bloque tiene prohibido tocar. Revertido deliberadamente: el
+    #: agujero (dos planes que solo difieren en ambito comparten
+    #: `decision_hash`) queda documentado y pendiente de M3, no cerrado en
+    #: M0. Ver docs/v3/49-multipartida-diseno.md, seccion "M0 implementado".
+    OMIT_IF_NONE: ClassVar[frozenset[str]] = frozenset({"metadata", "partida_id", "scope"})
 
     contract_version: str
     workspace: str
@@ -86,6 +104,13 @@ class GraphMutationPlan(V3Document):
     decisions: list
     mutation_operations: list
     local_approval: dict
+    #: M0: ambito de partida (nullable) y bloque de ambito declarado del
+    #: plan (docs/v3/49-multipartida-diseno.md §2.2). El chequeo de
+    #: admision que rechaza cruces de ambito (`PLAN_SCOPE_CROSS_PARTIDA`)
+    #: es de M3, no de este bloque: aqui el campo solo viaja y queda
+    #: cubierto por la firma.
+    partida_id: Optional[str] = None
+    scope: Optional[dict] = None
     metadata: Optional[dict[str, Any]] = None
 
     # -- Firma -------------------------------------------------------------

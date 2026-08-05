@@ -51,6 +51,8 @@
       "items": { "$ref": "#/$defs/mutation_operation" }
     },
     "local_approval": { "$ref": "#/$defs/local_approval" },
+    "partida_id": { "$ref": "_common-v3.schema.json#/$defs/partida_id_or_null" },
+    "scope": { "$ref": "_common-v3.schema.json#/$defs/mutation_plan_scope_or_null" },
     "metadata": { "$ref": "_common-v3.schema.json#/$defs/metadata" }
   },
   "allOf": [

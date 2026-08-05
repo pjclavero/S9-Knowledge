@@ -498,3 +498,115 @@ def test_htr_evidence_is_its_own_media_type():
     """H11 — el manuscrito ya no tiene que disfrazarse de OCR."""
     frag = EvidenceFragment.from_dict(doc("evidence_fragment_htr"))
     assert frag.media_type == "HTR_TEXT"
+
+
+# --------------------------------------------------------------------------
+# M0 — docs/v3/49-multipartida-diseno.md: `partida_id` en SourceAsset,
+# ClaimProposal y GraphMutationPlan (+ bloque `scope` en el plan). Bajo
+# riesgo declarado: campo opcional, sin logica que lo use aun.
+# --------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "name,cls",
+    [
+        ("source_asset_pdf", SourceAsset),
+        ("claim_proposal", ClaimProposal),
+    ],
+)
+def test_m0_partida_id_defaults_to_none_and_is_omitted(name, cls):
+    """(b) retrocompatibilidad: material existente sin `partida_id` carga tal cual."""
+    data = doc(name)
+    assert "partida_id" not in data
+    obj = cls.from_dict(data)
+    assert obj.partida_id is None
+    assert "partida_id" not in obj.to_dict()
+    assert obj.to_dict() == data
+
+
+def test_m0_plan_partida_id_and_scope_default_to_none_and_are_omitted():
+    data = doc("graph_mutation_plan_approved")
+    assert "partida_id" not in data and "scope" not in data
+    plan = GraphMutationPlan.from_dict(data)
+    assert plan.partida_id is None and plan.scope is None
+    assert "partida_id" not in plan.to_dict() and "scope" not in plan.to_dict()
+    assert plan.to_dict() == data
+
+
+@pytest.mark.parametrize(
+    "name,cls",
+    [
+        ("source_asset_pdf", SourceAsset),
+        ("claim_proposal", ClaimProposal),
+    ],
+)
+def test_m0_partida_id_travels_through_roundtrip(name, cls):
+    """(a) el campo viaja intacto: se fija, se serializa y vuelve igual."""
+    data = doc(name)
+    data["partida_id"] = "partida:brumal-01"
+    obj = cls.from_dict(data)
+    assert obj.partida_id == "partida:brumal-01"
+    assert obj.to_dict()["partida_id"] == "partida:brumal-01"
+    assert cls.from_json(obj.to_json()) == obj
+
+
+def test_m0_plan_partida_id_and_scope_travel_through_roundtrip():
+    data = doc("graph_mutation_plan_approved")
+    data["partida_id"] = "partida:brumal-01"
+    data["scope"] = {"layer": "PARTIDA", "game_id": data["workspace"], "partida_id": "partida:brumal-01"}
+    sealed = seal_plan(data)
+    plan = GraphMutationPlan.from_dict(sealed)
+    assert plan.partida_id == "partida:brumal-01"
+    assert plan.scope == {"layer": "PARTIDA", "game_id": data["workspace"], "partida_id": "partida:brumal-01"}
+    assert GraphMutationPlan.from_json(plan.to_json()) == plan
+
+
+def test_m0_two_plans_differing_only_in_partida_id_have_different_plan_hash():
+    """(c) — verificacion del hash, no asuncion (docs/v3/49 §2.2).
+
+    `plan_hash` cubre el documento completo salvo el propio `plan_hash`, asi
+    que SI distingue `partida_id` gratis: sella y valida. `decision_hash` NO
+    lo distingue (`DECISION_HASH_FIELDS` es una lista curada y cerrada que
+    M0 decide NO tocar para no romper `decision_hash` ya congelados en
+    datasets gold/held-out) — ese hueco queda documentado como pendiente de
+    M3 en `contracts/knowledge-v3/v1/validator.py` y en
+    `data-engine/app/knowledge_v3/contracts/mutation_plan.py`, no oculto.
+    """
+    base = doc("graph_mutation_plan_approved")
+    base.pop("plan_hash", None)
+    base["local_approval"].pop("decision_hash", None)
+
+    plan_a = seal_plan({**base, "partida_id": "partida:brumal-01"})
+    plan_b = seal_plan({**base, "partida_id": "partida:brumal-02"})
+
+    assert plan_a["plan_hash"] != plan_b["plan_hash"]
+    # Agujero conocido y documentado, no cerrado en M0 (ver docstring):
+    assert plan_a["local_approval"]["decision_hash"] == plan_b["local_approval"]["decision_hash"]
+
+    GraphMutationPlan.from_dict(plan_a)
+    GraphMutationPlan.from_dict(plan_b)
+
+
+def test_m0_two_plans_differing_only_in_scope_have_different_plan_hash():
+    base = doc("graph_mutation_plan_approved")
+    base.pop("plan_hash", None)
+    base["local_approval"].pop("decision_hash", None)
+
+    scope_a = {"layer": "PARTIDA", "game_id": base["workspace"], "partida_id": "partida:brumal-01"}
+    scope_b = {"layer": "PARTIDA", "game_id": base["workspace"], "partida_id": "partida:brumal-02"}
+
+    plan_a = seal_plan({**base, "scope": scope_a})
+    plan_b = seal_plan({**base, "scope": scope_b})
+
+    assert plan_a["plan_hash"] != plan_b["plan_hash"]
+    assert plan_a["local_approval"]["decision_hash"] == plan_b["local_approval"]["decision_hash"]
+
+
+def test_m0_plan_none_partida_id_matches_a_plan_never_declaring_it():
+    """None explicito y ausencia total del campo deben producir el mismo hash:
+    `to_dict()` omite el campo cuando vale `None` (mismo patron que `metadata`)."""
+    import dataclasses
+
+    without = doc("graph_mutation_plan_approved")
+    plan_without = GraphMutationPlan.from_dict(without)
+    with_none = dataclasses.replace(plan_without, partida_id=None)
+    assert plan_without.to_dict() == with_none.to_dict()
+    assert plan_without.expected_plan_hash() == with_none.expected_plan_hash()

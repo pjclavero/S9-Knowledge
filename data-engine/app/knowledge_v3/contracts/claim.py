@@ -34,6 +34,8 @@ class ClaimProposal(V3Document):
     """No decide el predicado canonico ni la identidad. Puede abstenerse."""
 
     CONTRACT_ID: ClassVar[str] = "claim-proposal/v3-internal-v1"
+    #: M0 (docs/v3/49-multipartida-diseno.md): mismo patron que SourceAsset.
+    OMIT_IF_NONE: ClassVar[frozenset[str]] = frozenset({"metadata", "partida_id"})
 
     contract_version: str
     workspace: str
@@ -58,6 +60,9 @@ class ClaimProposal(V3Document):
     alternatives: list
     abstained: bool
     review_required: bool
+    #: M0: ambito de partida (nullable), transportado desde `SourceAsset` por
+    #: la cadena de procedencia. Sin logica que lo use aun.
+    partida_id: Optional[str] = None
     metadata: Optional[dict[str, Any]] = None
 
     # -- Consultas de conveniencia ----------------------------------------

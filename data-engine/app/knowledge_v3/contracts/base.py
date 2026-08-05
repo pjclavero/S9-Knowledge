@@ -54,6 +54,19 @@ seal_plan = schema_validator.seal_plan
 producing_step = schema_validator.producing_step
 
 #: Version de contrato que emite esta rama del codigo.
+#: M0 (docs/v3/49-multipartida-diseno.md) NO bumpea esta constante. El diseno
+#: (§2.2) sugeria un bump MAYOR asumiendo que `partida_id` seria "un campo
+#: nuevo obligatorio en el esquema JSON Schema congelado" — pero se decidio
+#: la variante ADITIVA y conservadora (§5, tabla M0: "campo opcional, todo
+#: el codigo existente sigue funcionando con partida_id=None"): NO esta en
+#: `required` de ningun `.schema.json`, `additionalProperties` sigue en
+#: `false` solo para claves de verdad desconocidas. `_check_major_version`
+#: (validator.py) acepta sin cambios cualquier `1.x.y` con o sin el campo
+#: nuevo, y `test_contract_version_is_the_v1_of_la_v3_family` fija que TODAS
+#: las fixtures declaran literalmente esta constante: bumpearla a 1.1.0
+#: habria obligado a regenerar 264+ fixtures/goldens sin ganar nada (mover
+#: tests existentes esta prohibido en M0). Documentos que SI quieran declarar
+#: `partida_id` pueden seguir usando "1.0.0": el esquema ya lo admite.
 CONTRACT_VERSION = "1.0.0"
 CONTRACT_FAMILY = schema_validator.CONTRACT_FAMILY
 

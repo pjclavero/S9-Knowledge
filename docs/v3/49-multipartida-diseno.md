@@ -582,3 +582,150 @@ explícitamente por el operador. Se listan aquí con su efecto en el diseño:
    implementación multi-partida ya no está gateada a su cierre (ver
    encabezado del documento). Se señala el piloto del acuerdo ratificado
    (`docs/v3/48`) para que ningún bloque que toque ingesta colisione con él.
+
+## 8. M0 implementado
+
+Rama `feat/multipartida-m0-contracts`. Alcance ejecutado, deliberadamente
+ceñido a "contratos" (§5, tabla M0: "sin lógica que lo use aún"): NO se ha
+tocado `pipeline/`, `engine/`, `extraction/`, `writer/` ni `resolution/` —
+eso es M1-M4. El campo viaja porque los tres contratos que lo declaran son
+exactamente los que forman la cadena de procedencia (`SourceAsset` →
+`ClaimProposal` → `GraphMutationPlan`), no porque se haya cableado ningún
+constructor intermedio.
+
+**Ficheros tocados:**
+
+- `contracts/knowledge-v3/v1/_common-v3.schema.json`: defs nuevas
+  `partida_id`, `partida_id_or_null`, `mutation_plan_scope`,
+  `mutation_plan_scope_or_null`. `partida_id` usa el patrón de `stable_id`
+  (admite `:`, como `partida:Y`), no el de `workspace` — es un identificador
+  lógico, no un nombre de bóveda.
+- `contracts/knowledge-v3/v1/source-asset-v3.schema.json`,
+  `claim-proposal-v3.schema.json`, `graph-mutation-plan-v3.schema.json`:
+  propiedad `partida_id` (y `scope` solo en el plan) añadida a `properties`,
+  **fuera** de `required` — aditiva, `additionalProperties: false` se
+  mantiene intacto.
+- `contracts/knowledge-v3/v1/tests/generate_examples.py` (ejecutado, no
+  editado): regenerados los 21 ejemplos tras el primer intento de cambio de
+  `validator.py` y de nuevo tras revertirlo; el estado final es
+  byte-idéntico al de `main` (`git status` sobre `examples/` limpio).
+- `data-engine/app/knowledge_v3/contracts/source_asset.py`, `claim.py`,
+  `mutation_plan.py`: campo `partida_id: Optional[str] = None` (y `scope:
+  Optional[dict] = None` en `GraphMutationPlan`), añadido a `OMIT_IF_NONE`
+  en cada clase (mismo patrón que `metadata`) para que el material existente
+  serialice byte a byte igual.
+- `data-engine/app/knowledge_v3/contracts/base.py`: sin cambio funcional —
+  se evaluó bumpear `CONTRACT_VERSION` y se revirtió (ver decisión de
+  versión más abajo); queda un comentario explicando por qué.
+- `data-engine/app/tests/test_knowledge_v3_contracts.py`: 9 tests nuevos
+  (prefijo `test_m0_`) — retrocompatibilidad, viaje del campo, comparación
+  de `plan_hash` y `decision_hash`.
+- `data-engine/app/tests/test_knowledge_v3_handwritten_transcription.py`:
+  `frozen_ref` de `test_19_contratos_congelados_mantienen_su_hash` movido de
+  `v3-contracts-frozen-1.0.0` a `v3-contracts-frozen-1.0.0-m0` (ver más
+  abajo — es el único test que sí se ha movido a propósito, y por qué).
+
+**Decisión de evolución de schema v1 — aditiva, sin bump de versión:**
+
+El diseño (§2.2) sugería un bump MAYOR de `contract_version` razonando que
+`partida_id` sería "un campo nuevo obligatorio en el esquema JSON Schema
+congelado". Se comprobó contra el código real y se optó por la variante más
+conservadora, ya prevista como alternativa por la propia tabla de bloques
+(§5, M0: "campo opcional, todo el código existente sigue funcionando con
+`partida_id=None` en todas partes"):
+
+- `partida_id`/`scope` son propiedades añadidas a `properties`, **fuera**
+  de `required`, en los tres schemas. `additionalProperties: false` sigue
+  rechazando claves de verdad desconocidas.
+- `_check_major_version` (`validator.py`) solo compara el dígito mayor —
+  cualquier `1.x.y` pasa igual, con o sin el campo. No hacía falta bump para
+  que el mecanismo de versión siguiese protegiendo contra planes
+  incompatibles.
+- Bumpear `CONTRACT_VERSION` (base.py) de `"1.0.0"` a `"1.1.0"` se probó y
+  se revirtió: rompía `test_contract_version_is_the_v1_of_the_v3_family`
+  (exige que TODAS las fixtures declaren literalmente la constante viva) y
+  habría obligado a regenerar 264+ ficheros de fixtures/goldens sin ganar
+  ninguna garantía adicional — mover un test existente sin necesidad
+  semántica está prohibido para este bloque.
+- Conclusión: **campo opcional con default `null`**, sin bump de versión.
+  Documentos que declaren `partida_id` siguen anunciando `contract_version:
+  "1.0.0"` legítimamente; el esquema ya lo admite.
+
+**Verificación del hash del plan (comprobada, no asumida):**
+
+El diseño afirmaba que `partida_id`/`scope` quedarían "cubiertos gratis" por
+el hash existente. Se verificó que el `GraphMutationPlan` tiene **dos**
+hashes con cobertura distinta:
+
+- `plan_hash` (`compute_plan_hash`) SÍ los cubre gratis: es el sha256 del
+  documento completo salvo el propio `plan_hash`, así que cualquier campo
+  nuevo presente en el dict entra automáticamente. Confirmado con test:
+  `test_m0_two_plans_differing_only_in_partida_id_have_different_plan_hash`
+  y su equivalente de `scope`.
+- `local_approval.decision_hash` (`compute_decision_hash`) NO los cubre:
+  `DECISION_HASH_FIELDS` es una lista curada y cerrada de campos de primer
+  nivel, no "el documento completo" — un campo nuevo no entra ahí solo por
+  existir. Este es el agujero que el diseño advertía que había que
+  verificar: dos planes que solo difieren en `partida_id`/`scope` tienen
+  `plan_hash` distinto pero el mismo `decision_hash`.
+- Se intentó cerrar el agujero añadiendo `"partida_id"` y `"scope"` a
+  `DECISION_HASH_FIELDS`. Se revirtió de inmediato: `compute_decision_hash`
+  hace `plan.get(k)` para cada campo de la tupla, así que añadir una clave
+  nueva mete `"partida_id": None, "scope": None` en el cuerpo de todo plan
+  existente (los que jamás declaran el campo incluidos), lo que cambia el
+  `decision_hash` esperado de todos los `GraphMutationPlan` ya sellados en
+  los datasets `heldout`/`negation-battery`/`benchmarks` — literales
+  congelados que este bloque tiene prohibido tocar. La suite completa lo
+  confirmó: con el cambio, `test_knowledge_v3_heldout_dataset.py`,
+  `test_knowledge_v3_negation_battery.py` y
+  `test_knowledge_v3_benchmarks_dataset.py` empezaban a fallar.
+- Decisión final: revertido y documentado, no cerrado. El agujero queda
+  anotado en `validator.py` (junto a `DECISION_HASH_FIELDS`) y en
+  `mutation_plan.py` (junto a los campos nuevos) como pendiente explícito de
+  M3, que es donde vive la lógica de admisión que de verdad decide si un
+  plan cruza de ámbito — ese es el momento natural para decidir si conviene
+  regenerar los datasets gold/held-out a la vez que se cierra el hueco.
+
+**El freeze de contratos v1 (`test_19_contratos_congelados_mantienen_su_hash`):**
+
+Hallazgo no anticipado por el diseño: `data-engine/app/tests/test_knowledge_v3_handwritten_transcription.py`
+tiene un test que hashea el contenido byte a byte de todo
+`contracts/knowledge-v3/v1/` y `data-engine/app/knowledge_v3/contracts/`
+contra el tag git `v3-contracts-frozen-1.0.0`, y falla ante cualquier
+modificación de esos ficheros — es, literalmente, el freeze que 13+
+documentos citan como base de todo el programa de extracción/resolución/
+motor local. M0 modifica exactamente esos ficheros a propósito (es su
+objetivo declarado). Se creó un tag nuevo `v3-contracts-frozen-1.0.0-m0`
+apuntando al commit de este bloque y se actualizó `frozen_ref` en ese único
+test para apuntar a él — el tag original `v3-contracts-frozen-1.0.0` no se
+toca ni se borra, sigue siendo válido para cualquier rama que ancle contra
+el estado pre-M0. Esta es la única modificación deliberada de un test
+existente en este bloque: no es señal de cambio de comportamiento, es la
+actualización explícita del punto de congelación para reflejar una
+evolución aditiva sancionada por el propio diseño (§5, M0). A partir de M0
+el punto de referencia vigente para "contratos congelados" es
+`v3-contracts-frozen-1.0.0-m0`, no el original.
+
+**Recuento de suite:** `python3 -m pytest -p no:randomly -q` desde la raíz:
+**6365 passed, 51 skipped, 3 xfailed, 0 failed** (incluye los 9 tests nuevos
+de M0; ningún test existente se movió salvo el `frozen_ref` de test 19,
+justificado arriba).
+
+**Decisiones discutibles para revisión:**
+
+1. No tocar `DECISION_HASH_FIELDS` deja un hueco real y documentado
+   (`decision_hash` no distingue ámbito) durante todo el tiempo que pase
+   hasta M3. Es un hueco de integridad de decisión, no de plan: `plan_hash`
+   sí detecta manipulación del campo; lo que no detecta `decision_hash` es
+   que el cuerpo que el writer usa para decidir si aplica sea indistinguible
+   entre ámbitos — pero en M0 nada consume `partida_id`/`scope` para decidir
+   nada todavía, así que no hay writer real expuesto a este hueco hasta M3,
+   que es precisamente donde se cierra.
+2. `scope` se modeló como `dict` en el dataclass (no una clase propia) —
+   mismo nivel de tipado laxo que `local_approval`/`payload` en el mismo
+   contrato; una clase dedicada es evaluable en M3 si la lógica de admisión
+   lo pide.
+3. El freeze `v3-contracts-frozen-1.0.0-m0` es un tag nuevo, no una rama:
+   cualquier bloque posterior (M1+) que vuelva a tocar estos ficheros deberá
+   repetir el mismo patrón (nuevo tag, nuevo `frozen_ref`) en vez de mover
+   este de nuevo.

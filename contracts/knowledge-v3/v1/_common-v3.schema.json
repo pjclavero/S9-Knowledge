@@ -225,6 +225,36 @@
       "type": "object",
       "description": "EXCEPCION DOCUMENTADA a additionalProperties:false. Metadatos no sensibles, extensibles por definicion; el validador prohibe claves sensibles dentro. Es el unico bloque abierto de la familia v3-internal-v1.",
       "additionalProperties": true
+    },
+    "partida_id": {
+      "type": "string",
+      "description": "Ambito de partida dentro de un juego (workspace). Ortogonal a workspace, propiedad plana igual que el (M0, docs/v3/49-multipartida-diseno.md #1): NULL = capa juego compartida (lore), valor = partida privada concreta. Mismo patron que `stable_id` (admite ':', como 'partida:Y' en el diseno) porque, a diferencia de `workspace`, `partida_id` es un identificador logico, no un nombre de boveda. M0 solo transporta el campo por la cadena de procedencia; el resolutor/writer aun no lo interpretan (eso es M2/M3).",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "partida_id_or_null": {
+      "anyOf": [
+        { "$ref": "#/$defs/partida_id" },
+        { "type": "null" }
+      ]
+    },
+    "mutation_plan_scope": {
+      "type": "object",
+      "description": "Ambito declarado de un GraphMutationPlan (docs/v3/49-multipartida-diseno.md #2.2). M0: forma transportada y cubierta por la firma del plan; la validacion de coherencia layer/partida_id en admision es de M3, no de este contrato.",
+      "additionalProperties": false,
+      "required": ["layer", "game_id", "partida_id"],
+      "properties": {
+        "layer": { "type": "string", "enum": ["GAME", "PARTIDA"] },
+        "game_id": { "$ref": "#/$defs/workspace" },
+        "partida_id": { "$ref": "#/$defs/partida_id_or_null" }
+      }
+    },
+    "mutation_plan_scope_or_null": {
+      "anyOf": [
+        { "$ref": "#/$defs/mutation_plan_scope" },
+        { "type": "null" }
+      ]
     }
   }
 }

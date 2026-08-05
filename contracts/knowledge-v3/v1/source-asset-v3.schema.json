@@ -54,6 +54,7 @@
     },
     "privacy_class": { "type": "string", "enum": ["PUBLIC", "INTERNAL", "PERSONAL_DATA", "RESTRICTED"] },
     "copyright_class": { "type": "string", "enum": ["OWN", "LICENSED", "COPYRIGHTED", "UNKNOWN"] },
+    "partida_id": { "$ref": "_common-v3.schema.json#/$defs/partida_id_or_null" },
     "processing_policy": {
       "type": "object",
       "additionalProperties": false,
