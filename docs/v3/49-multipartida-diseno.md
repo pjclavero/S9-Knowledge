@@ -1065,12 +1065,17 @@ comportamiento; el único ajuste fue extender el driver falso compartido
 ya declara (mecánico, no cambia qué prueban los tests existentes).
 
 **Recuento de suite:** `python3 -m pytest -p no:randomly -q` desde la raíz:
-**ver resultado exacto en el informe del bloque** (suite completa 0 failed,
-incluye ~34 tests nuevos de M3 en la sección de writer más el test M0
-convertido). Ningún test existente se movió salvo el ya mencionado (M0,
-`frozen_ref`) y la conversión explícita del test M0 sobre coherencia
-raíz/scope (autorizada porque documentaba un gap que este mismo bloque
-cierra).
+**6489 passed, 51 skipped, 4 xfailed, 0 failed** (incluye los tests nuevos
+de M3: 126 en `test_knowledge_v3_writer.py`, más el test M0 convertido en
+`test_m0_partida_id_adversarial.py` y el refuerzo de comentario en
+`test_m2_partida_isolation_adversarial.py`). Dos modificaciones
+deliberadas de tests existentes, ambas autorizadas explícitamente:
+`frozen_ref` → `v3-contracts-frozen-1.0.0-m3` (tercera vez que se aplica el
+patrón de §9; comentarios aditivos en `validator.py`/`mutation_plan.py`
+mueven el hash byte a byte) y la conversión del test M0 sobre coherencia
+raíz/scope de "gap documentado" a "rechazo verificado" (documentaba
+exactamente el hueco que este bloque cierra). Ningún otro test existente
+se movió ni cambió de comportamiento.
 
 **Decisiones discutibles para revisión:**
 
