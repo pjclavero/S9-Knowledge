@@ -1862,37 +1862,25 @@ def test_un_writer_sin_workspace_no_existe():
 # ==========================================================================
 # 9. Adversarial M3 (Invariante 2): matriz de admision y ataques al executor
 # ==========================================================================
-def test_scope_de_partida_sin_partida_id_de_raiz_NO_se_rechaza_asimetria():
-    """Gap de asimetria en `_scope_incoherence` (admission.py).
+def test_scope_de_partida_sin_partida_id_de_raiz_se_rechaza_simetria():
+    """Simetria cerrada en `_scope_incoherence` (admission.py), ronda de
+    revision del bloque M3.
 
-    El caso inverso SI se rechaza (`test_partida_id_raiz_sin_bloque_scope_
+    El caso inverso ya se rechazaba (`test_partida_id_raiz_sin_bloque_scope_
     se_rechaza`): raiz declarada sin `scope` es `PLAN_SCOPE_CROSS_PARTIDA`.
-    Pero `scope` declarando layer=PARTIDA con `scope.partida_id` mientras la
-    raiz (`plan.partida_id`) esta AUSENTE no dispara ningun rechazo: el
-    codigo solo compara raiz contra scope cuando AMBOS estan presentes
-    (`if root_partida is not None and scope_partida is not None`). El
-    docstring de `_scope_incoherence` promete "coherencia interna" del
-    ambito declarado sin distinguir direccion, pero la implementacion es de
-    una sola via.
-
-    Consecuencia practica: `SignedView.of()` (view.py) igualmente prefiere
-    `scope.partida_id` sobre la raiz, asi que el plan SI se ejecuta con
-    ambito de partida -- el hallazgo no es una fuga de aislamiento (el
-    executor sigue escribiendo bajo `scope.partida_id`), sino que la
-    admision deja pasar un plan cuya raiz nunca declaro el ambito que el
-    propio `scope` afirma, rompiendo la simetria que el resto del modulo da
-    por sentada. Marcado P1: revisar si `_scope_incoherence` debe exigir
-    tambien `root_partida is not None` cuando `scope.layer == "PARTIDA"`.
+    Hasta esta ronda, `scope` declarando layer=PARTIDA con `scope.partida_id`
+    mientras la raiz (`plan.partida_id`) estaba AUSENTE no disparaba ningun
+    rechazo -- el codigo solo comparaba raiz contra scope cuando AMBOS
+    estaban presentes. El revisor confirmo que no hay generador legado que
+    produzca scope-con-partida-sin-raiz (el campo y el bloque nacieron
+    juntos en M0), asi que exigir la simetria no rompe retrocompatibilidad
+    real: es la misma incoherencia estructural, en sentido inverso.
     """
     plan = make_plan(partida_id=None, scope=partida_scope("partida:brumal-01"))
     ctx = AdmissionContext(workspace=WORKSPACE, current_snapshot_id=SNAPSHOT, clock=clock_at())
     result = admit(plan, ctx)
-    # Comportamiento ACTUAL (documentado, no necesariamente el deseado):
-    assert result.admitted, (
-        "si este assert empieza a fallar, _scope_incoherence ya exige "
-        "simetria raiz<->scope y el hallazgo de arriba esta cerrado"
-    )
-    assert result.view.partida_id == "partida:brumal-01"
+    assert not result.admitted
+    assert codes.PLAN_SCOPE_CROSS_PARTIDA in result.codes
 
 
 def test_create_relation_con_objeto_en_otra_partida_aborta_sin_escritura_parcial():

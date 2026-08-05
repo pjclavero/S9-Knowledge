@@ -137,6 +137,18 @@ def _scope_incoherence(plan: GraphMutationPlan) -> Optional[tuple[str, dict[str,
             {"layer": layer, "scope_partida_id": scope_partida},
         )
 
+    if layer == "PARTIDA" and scope_partida and root_partida is None:
+        # Espejo de la regla "partida_id raiz sin bloque scope" de arriba:
+        # el campo y el bloque nacieron juntos en M0 (verificado, no hay
+        # generador legado que produzca scope-con-partida sin raiz), asi
+        # que un scope de partida sin partida_id en la raiz es la misma
+        # incoherencia estructural en sentido inverso, no un caso legitimo.
+        return (
+            "scope.layer=PARTIDA con scope.partida_id exige partida_id en "
+            "la raiz del plan: ambito incoherente (asimetria)",
+            {"layer": layer, "scope_partida_id": scope_partida, "root_partida_id": root_partida},
+        )
+
     if layer == "GAME" and scope_partida is not None:
         return (
             "scope.layer=GAME no admite scope.partida_id: partida colandose "

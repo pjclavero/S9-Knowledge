@@ -1108,3 +1108,48 @@ se movió ni cambió de comportamiento.
    relación (limitación preexistente a M3, no introducida por este
    bloque), así que el camino "objeto invisible aborta con
    `EXEC_TARGET_MISSING`" no tiene un test mockeado dedicado end-to-end.
+
+### Ronda de revisión: CONFORME CON OBSERVACIONES → corrección acotada
+
+Dictamen del revisor: el Invariante 2 queda validado (incluidos ataques
+propios del revisor), y la decisión de `_assert_absent` sin filtro de
+ámbito se confirmó **necesaria con ejecución real**: `derive_entity_id` no
+incluye `partida_id` en el hash de identidad, así que dos mesas con un
+personaje homónimo colisionan hoy en el mismo `entity_id` — demostrado por
+el revisor, no solo argumentado. Queda anotado para que un bloque futuro
+valore incorporar `partida_id` al hash de identidad en origen (fuera de
+alcance de M3: eso es superficie de `resolution`/generación de ids, no del
+writer).
+
+**Corrección aplicada — asimetría en `_scope_incoherence` (`admission.py`):**
+la regla "`partida_id` raíz sin bloque `scope` → rechazo" no tenía su
+espejo: un `scope.layer=PARTIDA` con `scope.partida_id` declarado mientras
+la raíz (`plan.partida_id`) estaba AUSENTE pasaba admisión sin protesta (el
+código solo comparaba raíz contra `scope.partida_id` cuando ambos estaban
+presentes). El revisor verificó que no existe ningún generador legado que
+produzca esa combinación — el campo raíz y el bloque `scope` nacieron
+juntos en M0 — así que no hay retrocompatibilidad real que proteger.
+Añadida la rama simétrica en `_scope_incoherence`: `layer=PARTIDA` +
+`scope.partida_id` truthy + `root_partida is None` → `PLAN_SCOPE_CROSS_
+PARTIDA`. Test `test_scope_de_partida_sin_partida_id_de_raiz_NO_se_rechaza_
+asimetria` (que documentaba el gap como comportamiento actual) renombrado a
+`test_scope_de_partida_sin_partida_id_de_raiz_se_rechaza_simetria` e
+invertido: ahora afirma el rechazo, no la admisión.
+
+**Recomendación no bloqueante aplicada — verificación real diferida:**
+`test_knowledge_v3_writer_neo4j_real.py` gana dos tests nuevos (gated por
+Docker, `skipped` en esta suite): `test_m3_create_entity_de_capa_juego_
+no_escribe_la_propiedad_partida_id` (un `CREATE` con `partida_id=None`
+deja el nodo SIN la propiedad presente en absoluto — comprobado con `"clave"
+not in props`, no con `props.get(...) is None`, que no distinguiría
+ausencia de `null` explícito) y su gemelo en positivo,
+`test_m3_create_entity_de_partida_estampa_partida_id_real`. Se activarán
+solas contra un Neo4j real (`S9K_WRITER_NEO4J_REAL=1`, p. ej. el despliegue
+V3 en VM105) sin depender de que alguien se acuerde de añadirlas en ese
+momento.
+
+**Recuento de suite tras la corrección:** `python3 -m pytest -p no:randomly
+-q` desde la raíz, en primer plano: **6496 passed, 53 skipped, 4 xfailed, 0
+failed** (+2 skipped respecto al recuento anterior de M3, por los dos tests
+reales nuevos gated; el resto del delta es el test renombrado/invertido, sin
+cambio de cardinalidad neta en `passed`).

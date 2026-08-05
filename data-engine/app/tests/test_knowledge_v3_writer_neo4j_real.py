@@ -402,6 +402,8 @@ def make_plan(
     workspace: str = WORKSPACE,
     decisions: list[dict] | None = None,
     plan_id: str | None = None,
+    partida_id: str | None = None,
+    scope: dict | None = None,
 ) -> dict:
     if decisions is None:
         decisions = [
@@ -447,6 +449,10 @@ def make_plan(
             "approved_by": {"provider": "local", "name": "s9k.engine.local", "version": "3.0.0"},
         },
     }
+    if partida_id is not None:
+        doc["partida_id"] = partida_id
+    if scope is not None:
+        doc["scope"] = scope
     return seal_plan(doc)
 
 
@@ -841,3 +847,48 @@ def test_gate_global_no_hay_parejas_de_idempotencia_duplicadas(graph: GraphProbe
 
     assert duplicates == []
     assert mutations_without_mark == []
+
+
+# ==========================================================================
+# M3 (docs/v3/49 SS2.4/SS11): ambito de partida contra un Neo4j real
+# ==========================================================================
+def test_m3_create_entity_de_capa_juego_no_escribe_la_propiedad_partida_id(graph: GraphProbe):
+    """Pendiente senalada por el revisor de M3: verificar contra un Neo4j
+    REAL, no solo contra el driver mockeado, que un CREATE con
+    `partida_id=None` deja el nodo BYTE-IDENTICO a como quedaba antes de
+    M3 -- sin la propiedad presente en absoluto (Neo4j omite claves `null`
+    en un `CREATE (n $props)`), no con un `null` explicito.
+
+    Gated por Docker (`S9K_WRITER_NEO4J_REAL=1`): en el resto de la suite
+    queda `skipped`, y se activa sola en cuanto haya un Neo4j real
+    disponible (p. ej. el despliegue V3 en VM105), sin depender de que
+    nadie se acuerde de anadirla a mano en ese momento.
+    """
+    plan = make_plan([create_entity("op:m3-game-layer", "entity:m3-game", "Capa juego")])
+
+    result = writer(graph.driver).write(plan, apply_request(plan))
+
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+    props = graph.node("V3Entity", "entity_id", "entity:m3-game")
+    assert props is not None
+    # La propiedad no esta presente EN ABSOLUTO -- ni como None/null, ni con
+    # ningun otro valor. `dict.get` devolveria None tanto si faltase como si
+    # valiese null; `in` es la unica forma de distinguir "ausente" de "nulo".
+    assert "partida_id" not in props
+
+
+def test_m3_create_entity_de_partida_estampa_partida_id_real(graph: GraphProbe):
+    """Gemelo en positivo del anterior: una partida SI deja la propiedad,
+    con el valor exacto declarado por `scope.partida_id`."""
+    plan = make_plan(
+        [create_entity("op:m3-partida", "entity:m3-partida", "De partida")],
+        partida_id="partida:brumal-01",
+        scope={"layer": "PARTIDA", "game_id": WORKSPACE, "partida_id": "partida:brumal-01"},
+    )
+
+    result = writer(graph.driver).write(plan, apply_request(plan))
+
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+    props = graph.node("V3Entity", "entity_id", "entity:m3-partida")
+    assert props is not None
+    assert props["partida_id"] == "partida:brumal-01"
