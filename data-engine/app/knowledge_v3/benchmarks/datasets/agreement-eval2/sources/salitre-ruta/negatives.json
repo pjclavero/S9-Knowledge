@@ -1,0 +1,53 @@
+{
+  "benchmark_file": "negatives",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "case_id": "AE2-NOCLAIM-03",
+      "end": 79,
+      "episode_id": "episode:salitre-ruta:e14",
+      "family": "NO_CLAIM",
+      "forbidden_predicates": [
+        "MEMBER_OF"
+      ],
+      "kind": "QUESTION",
+      "literal_text": "¿Sigue Matias Hurel en la Orden del Polvo, o ya se paso al Sindicato de la Sal?",
+      "must_not_produce": [
+        "MEMBER_OF(Matias Hurel, Orden del Polvo)",
+        "MEMBER_OF(Matias Hurel, Sindicato de la Sal)"
+      ],
+      "negative_id": "negative:salitre-ruta:ae2-noclaim-03",
+      "rationale": "Interrogativa: no afirma ninguna pertenencia, solo pregunta.",
+      "split": "agreement-eval2",
+      "start": 0,
+      "traps": [
+        "pregunta disyuntiva que menciona dos facciones sin afirmar ninguna"
+      ]
+    },
+    {
+      "case_id": "AE2-NOCLAIM-04",
+      "end": 100,
+      "episode_id": "episode:salitre-ruta:e15",
+      "family": "NO_CLAIM",
+      "forbidden_predicates": [
+        "LEADS"
+      ],
+      "kind": "FICTION_WITHIN_FICTION",
+      "literal_text": "En la copla que cantan los arrieros, Iva Brontes dirige media caravana desde una duna que no existe.",
+      "must_not_produce": [
+        "LEADS(Iva Brontes, *)"
+      ],
+      "negative_id": "negative:salitre-ruta:ae2-noclaim-04",
+      "rationale": "Ficcion enmarcada: el texto describe una copla, no un hecho del mundo narrado.",
+      "split": "agreement-eval2",
+      "start": 0,
+      "traps": [
+        "marco de ficcion dentro de la ficcion ('en la copla que cantan')"
+      ]
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "salitre-ruta",
+  "split": "agreement-eval2",
+  "world": "salitre"
+}

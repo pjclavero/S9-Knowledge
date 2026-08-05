@@ -1,0 +1,430 @@
+{
+  "benchmark_file": "assertions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "assertion_id": "assertion:salitre:ae2-simple-07-1",
+      "calendar_id": "calendar:salitre",
+      "collection_id": "collection:salitre",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:salitre-ruta:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e01:f003"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "entity:salitre:deza-corvel|MEMBER_OF|entity:salitre:sindicato-sal|SUBJECT_TO_OBJECT|False",
+        "negation": {
+          "case_id": "AE2-SIMPLE-07",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:salitre:sindicato-sal",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:salitre:deza-corvel",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "assertion_id": "assertion:salitre:ae2-simple-08-1",
+      "calendar_id": "calendar:salitre",
+      "collection_id": "collection:salitre",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:salitre-ruta:e02"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e02:f006"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "entity:salitre:matias-hurel|MEMBER_OF|entity:salitre:orden-polvo|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "AE2-SIMPLE-08",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:salitre:orden-polvo",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:salitre:matias-hurel",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "assertion_id": "assertion:salitre:ae2-simple-09-1",
+      "calendar_id": "calendar:salitre",
+      "collection_id": "collection:salitre",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:salitre-ruta:e03"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e03:f010"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "entity:salitre:iva-brontes|SIBLING_OF|entity:salitre:orell-cascan|UNDIRECTED|False",
+        "negation": {
+          "case_id": "AE2-SIMPLE-09",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:salitre:orell-cascan",
+      "ontology_version": "core-1.4.0",
+      "predicate": "SIBLING_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:salitre:iva-brontes",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "assertion_id": "assertion:salitre:ae2-simple-10-1",
+      "calendar_id": "calendar:salitre",
+      "collection_id": "collection:salitre",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:salitre-ruta:e04"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e04:f013"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "entity:salitre:petra-lumis|MEMBER_OF|entity:salitre:caravana-blanca|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "AE2-SIMPLE-10",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:salitre:caravana-blanca",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:salitre:petra-lumis",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "assertion_id": "assertion:salitre:ae2-pos-03-1",
+      "calendar_id": "calendar:salitre",
+      "collection_id": "collection:salitre",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:salitre-ruta:e12"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e12:f039"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "entity:salitre:petra-lumis|OWNS|entity:salitre:carro-plomo|SUBJECT_TO_OBJECT|False",
+        "negation": {
+          "case_id": "AE2-POS-03",
+          "family": "POSITIVE_CONTROL",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:salitre:carro-plomo",
+      "ontology_version": "core-1.4.0",
+      "predicate": "OWNS",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:salitre:petra-lumis",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "assertion_id": "assertion:salitre:ae2-pos-04-1",
+      "calendar_id": "calendar:salitre",
+      "collection_id": "collection:salitre",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:salitre-ruta:e13"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e13:f042"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "entity:salitre:tobal-mencia|LOCATED_IN|entity:salitre:pozo-hondo|SUBJECT_TO_OBJECT|False",
+        "negation": {
+          "case_id": "AE2-POS-04",
+          "family": "POSITIVE_CONTROL",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:salitre:pozo-hondo",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LOCATED_IN",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:salitre:tobal-mencia",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "salitre-ruta",
+  "split": "agreement-eval2",
+  "world": "salitre"
+}

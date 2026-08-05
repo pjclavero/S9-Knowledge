@@ -1,0 +1,1186 @@
+{
+  "benchmark_file": "mentions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 12,
+      "episode_id": "episode:brumal-bitacora:e01",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e01:f001"
+      ],
+      "mention_id": "mention:brumal-bitacora:e01:m001",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Edda Solveig",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "surface": "Edda Solveig",
+      "time_end": 28.0,
+      "time_start": 0.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 52,
+      "episode_id": "episode:brumal-bitacora:e01",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e01:f002"
+      ],
+      "mention_id": "mention:brumal-bitacora:e01:m002",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Cofradia de la Niebla",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 31,
+      "surface": "Cofradia de la Niebla",
+      "time_end": 28.0,
+      "time_start": 0.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 10,
+      "episode_id": "episode:brumal-bitacora:e02",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e02:f004"
+      ],
+      "mention_id": "mention:brumal-bitacora:e02:m003",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Janek Orum",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "surface": "Janek Orum",
+      "time_end": 58.0,
+      "time_start": 30.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 54,
+      "episode_id": "episode:brumal-bitacora:e02",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e02:f005"
+      ],
+      "mention_id": "mention:brumal-bitacora:e02:m004",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Orden del Faro Negro",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 34,
+      "surface": "Orden del Faro Negro",
+      "time_end": 58.0,
+      "time_start": 30.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 10,
+      "episode_id": "episode:brumal-bitacora:e03",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e03:f007"
+      ],
+      "mention_id": "mention:brumal-bitacora:e03:m005",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Lys Kordan",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "surface": "Lys Kordan",
+      "time_end": 88.0,
+      "time_start": 60.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 49,
+      "episode_id": "episode:brumal-bitacora:e03",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e03:f008"
+      ],
+      "mention_id": "mention:brumal-bitacora:e03:m006",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Consejo del Paramo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 31,
+      "surface": "Consejo del Paramo",
+      "time_end": 88.0,
+      "time_start": 60.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 12,
+      "episode_id": "episode:brumal-bitacora:e04",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e04:f010"
+      ],
+      "mention_id": "mention:brumal-bitacora:e04:m007",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Garret Eisen",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "surface": "Garret Eisen",
+      "time_end": 118.0,
+      "time_start": 90.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 55,
+      "episode_id": "episode:brumal-bitacora:e04",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e04:f011"
+      ],
+      "mention_id": "mention:brumal-bitacora:e04:m008",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Cofradia de la Niebla",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 34,
+      "surface": "Cofradia de la Niebla",
+      "time_end": 118.0,
+      "time_start": 90.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 13,
+      "episode_id": "episode:brumal-bitacora:e05",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e05:f013"
+      ],
+      "mention_id": "mention:brumal-bitacora:e05:m009",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Sonia Halvard",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "surface": "Sonia Halvard",
+      "time_end": 148.0,
+      "time_start": 120.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 42,
+      "episode_id": "episode:brumal-bitacora:e05",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e05:f014"
+      ],
+      "mention_id": "mention:brumal-bitacora:e05:m010",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Faro Ceniciento",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 27,
+      "surface": "Faro Ceniciento",
+      "time_end": 148.0,
+      "time_start": 120.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 13,
+      "episode_id": "episode:brumal-bitacora:e06",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e06:f016"
+      ],
+      "mention_id": "mention:brumal-bitacora:e06:m011",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Torvald Arild",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "surface": "Torvald Arild",
+      "time_end": 178.0,
+      "time_start": 150.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 47,
+      "episode_id": "episode:brumal-bitacora:e06",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e06:f017"
+      ],
+      "mention_id": "mention:brumal-bitacora:e06:m012",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Puente de Neblina",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 30,
+      "surface": "Puente de Neblina",
+      "time_end": 178.0,
+      "time_start": 150.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 40,
+      "episode_id": "episode:brumal-bitacora:e07",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e07:f019"
+      ],
+      "mention_id": "mention:brumal-bitacora:e07:m013",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Mira Eskuld",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 29,
+      "surface": "Mira Eskuld",
+      "time_end": 208.0,
+      "time_start": 180.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 83,
+      "episode_id": "episode:brumal-bitacora:e07",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e07:f020"
+      ],
+      "mention_id": "mention:brumal-bitacora:e07:m014",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Cofradia de la Niebla",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 62,
+      "surface": "Cofradia de la Niebla",
+      "time_end": 208.0,
+      "time_start": 180.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 33,
+      "episode_id": "episode:brumal-bitacora:e08",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e08:f022"
+      ],
+      "mention_id": "mention:brumal-bitacora:e08:m015",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Janek Orum",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 23,
+      "surface": "Janek Orum",
+      "time_end": 238.0,
+      "time_start": 210.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 75,
+      "episode_id": "episode:brumal-bitacora:e08",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e08:f023"
+      ],
+      "mention_id": "mention:brumal-bitacora:e08:m016",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Consejo del Paramo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 57,
+      "surface": "Consejo del Paramo",
+      "time_end": 238.0,
+      "time_start": 210.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 23,
+      "episode_id": "episode:brumal-bitacora:e09",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e09:f025"
+      ],
+      "mention_id": "mention:brumal-bitacora:e09:m017",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Sonia Halvard",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 10,
+      "surface": "Sonia Halvard",
+      "time_end": 268.0,
+      "time_start": 240.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 12,
+      "episode_id": "episode:brumal-bitacora:e10",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e10:f026"
+      ],
+      "mention_id": "mention:brumal-bitacora:e10:m018",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Garret Eisen",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "surface": "Garret Eisen",
+      "time_end": 298.0,
+      "time_start": 270.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 46,
+      "episode_id": "episode:brumal-bitacora:e10",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e10:f027"
+      ],
+      "mention_id": "mention:brumal-bitacora:e10:m019",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Edda Solveig",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 34,
+      "surface": "Edda Solveig",
+      "time_end": 298.0,
+      "time_start": 270.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 11,
+      "episode_id": "episode:brumal-bitacora:e11",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e11:f029"
+      ],
+      "mention_id": "mention:brumal-bitacora:e11:m020",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Mira Eskuld",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "surface": "Mira Eskuld",
+      "time_end": 328.0,
+      "time_start": 300.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 45,
+      "episode_id": "episode:brumal-bitacora:e11",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e11:f030"
+      ],
+      "mention_id": "mention:brumal-bitacora:e11:m021",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Faro Ceniciento",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 30,
+      "surface": "Faro Ceniciento",
+      "time_end": 328.0,
+      "time_start": 300.0,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "brumal-bitacora",
+  "split": "agreement-eval2",
+  "world": "brumal"
+}

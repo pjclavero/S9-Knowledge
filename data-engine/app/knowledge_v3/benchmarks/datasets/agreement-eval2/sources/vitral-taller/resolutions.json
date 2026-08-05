@@ -1,0 +1,1540 @@
+{
+  "benchmark_file": "resolutions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:camara-vidrio"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:vitral-taller:e01:f002"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e01:m002"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e01:camara-vidrio",
+      "selected_entity_id": "entity:vitral:camara-vidrio",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:ilan-boreta"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e01:f001"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e01:m001"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e01:ilan-boreta",
+      "selected_entity_id": "entity:vitral:ilan-boreta",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:terraza-cristal"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:vitral-taller:e01:f003"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e01:m003"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e01:terraza-cristal",
+      "selected_entity_id": "entity:vitral:terraza-cristal",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:liga-sopladores"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:vitral-taller:e02:f006"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e02:m005"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e02:liga-sopladores",
+      "selected_entity_id": "entity:vitral:liga-sopladores",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:nadia-ferrus"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e02:f005"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e02:m004"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e02:nadia-ferrus",
+      "selected_entity_id": "entity:vitral:nadia-ferrus",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:costas-delmira"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e03:f008"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e03:m006"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e03:costas-delmira",
+      "selected_entity_id": "entity:vitral:costas-delmira",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:ronda-faroles"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:vitral-taller:e03:f009"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e03:m007"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e03:ronda-faroles",
+      "selected_entity_id": "entity:vitral:ronda-faroles",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:camara-vidrio"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:vitral-taller:e04:f012"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e04:m009"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e04:camara-vidrio",
+      "selected_entity_id": "entity:vitral:camara-vidrio",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:renzo-aubier"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e04:f011"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e04:m008"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e04:renzo-aubier",
+      "selected_entity_id": "entity:vitral:renzo-aubier",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:ossian-vetra"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e05:f015"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e05:m011"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e05:ossian-vetra",
+      "selected_entity_id": "entity:vitral:ossian-vetra",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:tilde-marconne"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e05:f014"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e05:m010"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e05:tilde-marconne",
+      "selected_entity_id": "entity:vitral:tilde-marconne",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:calla-rindin"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e06:f017"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e06:m012"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e06:calla-rindin",
+      "selected_entity_id": "entity:vitral:calla-rindin",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:uxue-somara"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e06:f018"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e06:m013"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e06:uxue-somara",
+      "selected_entity_id": "entity:vitral:uxue-somara",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:bram-oletti"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e07:f020"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e07:m014"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e07:bram-oletti",
+      "selected_entity_id": "entity:vitral:bram-oletti",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:liga-sopladores"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:vitral-taller:e07:f021"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e07:m015"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e07:liga-sopladores",
+      "selected_entity_id": "entity:vitral:liga-sopladores",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:camara-vidrio"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:vitral-taller:e08:f024"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e08:m017"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e08:camara-vidrio",
+      "selected_entity_id": "entity:vitral:camara-vidrio",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:serin-vaudal"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e08:f023"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e08:m016"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e08:serin-vaudal",
+      "selected_entity_id": "entity:vitral:serin-vaudal",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:ronda-faroles"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:vitral-taller:e09:f027"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e09:m019"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e09:ronda-faroles",
+      "selected_entity_id": "entity:vitral:ronda-faroles",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:uxue-somara"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e09:f026"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e09:m018"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e09:uxue-somara",
+      "selected_entity_id": "entity:vitral:uxue-somara",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:camara-vidrio"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:vitral-taller:e10:f030"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e10:m021"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e10:camara-vidrio",
+      "selected_entity_id": "entity:vitral:camara-vidrio",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:ilan-boreta"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e10:f029"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e10:m020"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e10:ilan-boreta",
+      "selected_entity_id": "entity:vitral:ilan-boreta",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:liga-sopladores"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:vitral-taller:e11:f033"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e11:m023"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e11:liga-sopladores",
+      "selected_entity_id": "entity:vitral:liga-sopladores",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:nadia-ferrus"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e11:f032"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e11:m022"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e11:nadia-ferrus",
+      "selected_entity_id": "entity:vitral:nadia-ferrus",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:costas-delmira"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e12:f035"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e12:m024"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e12:costas-delmira",
+      "selected_entity_id": "entity:vitral:costas-delmira",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:muelle-prisma"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:vitral-taller:e12:f037"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e12:m026"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e12:muelle-prisma",
+      "selected_entity_id": "entity:vitral:muelle-prisma",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:ronda-faroles"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:vitral-taller:e12:f036"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e12:m025"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e12:ronda-faroles",
+      "selected_entity_id": "entity:vitral:ronda-faroles",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:ossian-vetra"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e13:f039"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e13:m027"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e13:ossian-vetra",
+      "selected_entity_id": "entity:vitral:ossian-vetra",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:terraza-cristal"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:vitral-taller:e13:f040"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e13:m028"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e13:terraza-cristal",
+      "selected_entity_id": "entity:vitral:terraza-cristal",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:bram-oletti"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:vitral-taller:e14:f042"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e14:m029"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e14:bram-oletti",
+      "selected_entity_id": "entity:vitral:bram-oletti",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:vitral:copa-alba"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Object",
+      "evidence": [
+        "fragment:vitral-taller:e14:f043"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:vitral-taller:e14:m030"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:vitral-taller:e14:copa-alba",
+      "selected_entity_id": "entity:vitral:copa-alba",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "vitral-taller",
+  "split": "agreement-eval2",
+  "world": "vitral"
+}

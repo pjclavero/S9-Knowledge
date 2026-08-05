@@ -1,0 +1,859 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "ab56484f040f33824572473e834cef33711ff64783d1ba6a97b01e61daa5fa93"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-SIMPLE-07",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:salitre-ruta:e02",
+      "page": null,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "Deza Corvel milita en el Sindicato de la Sal, segun consta en el diario de ruta de este ciclo.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "455b9c1a8c58e1cd0e489c6ece279153e13794cad772365fe0512f2f13a2636c"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-SIMPLE-08",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:salitre-ruta:e03",
+      "page": null,
+      "previous_episode_id": "episode:salitre-ruta:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "Matias Hurel no milita en la Orden del Polvo, contra lo que se comento en el ultimo relevo.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "b93665255ccc6019dfd7c8166199d6b64e93b42735e9b5dff025b5234e202c6d"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-SIMPLE-09",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:salitre-ruta:e04",
+      "page": null,
+      "previous_episode_id": "episode:salitre-ruta:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "Iva Brontes es hermana de Orell Cascan, y ambos comparten carro desde Pozo Hondo.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "ca9bab68a7309e07aacf7c217cd95009b2f8268d91093b18d51f8bb0974c43ce"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e04",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-SIMPLE-10",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:salitre-ruta:e05",
+      "page": null,
+      "previous_episode_id": "episode:salitre-ruta:e03",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 4,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "Petra Lumis, veedora de la Caravana Blanca desde el paso anterior, no lo es ya.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "54674de083532d77d5323f9672ae2f966158f226491bfbb06ab70b6090823790"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e05",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-CESS-03",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "CESSATION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:salitre-ruta:e06",
+      "page": null,
+      "previous_episode_id": "episode:salitre-ruta:e04",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 5,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "Hakon Driel dejo de servir a la Orden del Polvo cuando el convoy cruzo el Paso del Cuarzo.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "53db64951cc3afce4c025354e75c0d292e4556149062558c1a0a59ce777d6208"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e06",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-CESS-04",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "CESSATION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:salitre-ruta:e07",
+      "page": null,
+      "previous_episode_id": "episode:salitre-ruta:e05",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 6,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "Noor Alcaz dejo de pertenecer al Sindicato de la Sal tras el reparto del ultimo cargamento.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "fdeedc16afad9cfd658f5b7614b474ca03bfcd5d577d35e950520bc30bf77a3a"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e07",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-CESS-05",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "CESSATION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:salitre-ruta:e08",
+      "page": null,
+      "previous_episode_id": "episode:salitre-ruta:e06",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 7,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "Tobal Mencia dejo de dirigir la Caravana Blanca despues de perder dos carros en la travesia.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "66d4f869d9b7e819a3533aca797bfc1095f7b50b3b2eb22f9297e4dc52257d58"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e08",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-NEGCESS-03",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:salitre-ruta:e09",
+      "page": null,
+      "previous_episode_id": "episode:salitre-ruta:e07",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 8,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "Deza Corvel no dejo de pertenecer al Sindicato de la Sal, pese al rumor que corrio en Pozo Hondo.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "91a909b7a804d0012612621a726afd93ac34bab53f6b8125597433a804a22339"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e09",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-NEGCESS-04",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:salitre-ruta:e10",
+      "page": null,
+      "previous_episode_id": "episode:salitre-ruta:e08",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 9,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "Orell Cascan no ceso de servir al Sindicato de la Sal ni cuando cambio de carro.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "73c810fe8c346fd1581fe23c6f2aff78050f1d91956d4dcbff778106b57a37cc"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e10",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-SCOPE-01",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "SCOPE_EMBEDDED"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:salitre-ruta:e11",
+      "page": null,
+      "previous_episode_id": "episode:salitre-ruta:e09",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 10,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "El veedor anoto que no cree que Hakon Driel pertenezca al Sindicato de la Sal, aunque el propio Hakon lo firmara el ciclo pasado.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "5b04e3835eeb6924fdba5fd19ca3554dbab3d8fde20efeb327ae22567c3d62a3"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e11",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-SCOPE-02",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "SCOPE_EMBEDDED"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:salitre-ruta:e12",
+      "page": null,
+      "previous_episode_id": "episode:salitre-ruta:e10",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 11,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "No es que Noor Alcaz no sirva al Sindicato de la Sal; es que reparte su tiempo tambien con la Orden del Polvo.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "8b1d48bd34b7de304f0cf21fea3005a856ee7b44733b178a357682eb89d16193"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e12",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-POS-03",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:salitre-ruta:e13",
+      "page": null,
+      "previous_episode_id": "episode:salitre-ruta:e11",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 12,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "Petra Lumis posee el Carro de Plomo desde que lo gano en la subasta del ultimo relevo.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "f321f503a154f7814ef1e8153628f409fa4d6f1b40e317e2c144f9aad81c1a29"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e13",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-POS-04",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:salitre-ruta:e14",
+      "page": null,
+      "previous_episode_id": "episode:salitre-ruta:e12",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 13,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "Tobal Mencia se encuentra en Pozo Hondo desde que el convoy hizo alto para reponer agua.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "ab292d4e42b3928628005bbf87f65d413ec62383379ceb8bf039f18a8ab28d07"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e14",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-NOCLAIM-03",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "NO_CLAIM",
+          "QUESTION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:salitre-ruta:e15",
+      "page": null,
+      "previous_episode_id": "episode:salitre-ruta:e13",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 14,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "¿Sigue Matias Hurel en la Orden del Polvo, o ya se paso al Sindicato de la Sal?",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:salitre-ruta",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "e6a31e1bf8cca458ea6192977afd3ac18f85ab2ae4674ee90231af5d3583c3d4"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:salitre-ruta:e15",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "negation_case_id": "AE2-NOCLAIM-04",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "FICTION_WITHIN_FICTION",
+          "NO_CLAIM"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": null,
+      "page": null,
+      "previous_episode_id": "episode:salitre-ruta:e14",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 15,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "text": "En la copla que cantan los arrieros, Iva Brontes dirige media caravana desde una duna que no existe.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "salitre-ruta",
+  "split": "agreement-eval2",
+  "world": "salitre"
+}

@@ -1,0 +1,54 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:brumal-bitacora:e01",
+      "text": "Edda Solveig nunca sirvio a la Cofradia de la Niebla, y eso que se lo ofrecieron dos veces."
+    },
+    {
+      "episode_id": "episode:brumal-bitacora:e02",
+      "text": "Janek Orum jamas fue aliado de la Orden del Faro Negro, ni cuando compartian ronda."
+    },
+    {
+      "episode_id": "episode:brumal-bitacora:e03",
+      "text": "Lys Kordan aun no pertenece al Consejo del Paramo, aunque ya la proponen para el proximo relevo."
+    },
+    {
+      "episode_id": "episode:brumal-bitacora:e04",
+      "text": "Garret Eisen todavia no dirige la Cofradia de la Niebla, aunque ya firma media correspondencia."
+    },
+    {
+      "episode_id": "episode:brumal-bitacora:e05",
+      "text": "Sonia Halvard reside en el Faro Ceniciento desde que releva a los guardianes heridos."
+    },
+    {
+      "episode_id": "episode:brumal-bitacora:e06",
+      "text": "Torvald Arild no reside en el Puente de Neblina, contra lo que anoto el ultimo relevo."
+    },
+    {
+      "episode_id": "episode:brumal-bitacora:e07",
+      "text": "Por el paramo se rumorea que Mira Eskuld lidera en secreto la Cofradia de la Niebla."
+    },
+    {
+      "episode_id": "episode:brumal-bitacora:e08",
+      "text": "Si el faro se apagara, Janek Orum tendria que dirigir el Consejo del Paramo, dijo el vigia."
+    },
+    {
+      "episode_id": "episode:brumal-bitacora:e09",
+      "text": "Dicen que Sonia Halvard curo a un guardian que nunca existio, segun la copla del faro."
+    },
+    {
+      "episode_id": "episode:brumal-bitacora:e10",
+      "text": "Garret Eisen nunca fue enemigo de Edda Solveig, ni siquiera cuando discutian por el turno de campana."
+    },
+    {
+      "episode_id": "episode:brumal-bitacora:e11",
+      "text": "Mira Eskuld aun no vive en el Faro Ceniciento, aunque ya guarda turno alli tres noches por semana."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "brumal-bitacora",
+  "split": "agreement-eval2",
+  "world": "brumal"
+}

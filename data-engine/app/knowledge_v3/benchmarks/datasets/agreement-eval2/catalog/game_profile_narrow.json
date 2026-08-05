@@ -1,0 +1,160 @@
+{
+  "benchmark_file": "catalog/game_profile_narrow",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "aliases": [],
+      "ambiguous_terms": [],
+      "calendars": [
+        {
+          "calendar_id": "calendar:vitral",
+          "epoch_label": "Cuenta del Taller",
+          "units": [
+            "temporada",
+            "censo"
+          ]
+        },
+        {
+          "calendar_id": "calendar:salitre",
+          "epoch_label": "Cuenta de Ruta",
+          "units": [
+            "ciclo",
+            "relevo"
+          ]
+        },
+        {
+          "calendar_id": "calendar:brumal",
+          "epoch_label": "Cuenta del Paramo",
+          "units": [
+            "ano",
+            "relevo"
+          ]
+        }
+      ],
+      "contract_id": "game-profile/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "core_ontology_version": "core-1.4.0",
+      "entity_types": [
+        "Character",
+        "Location",
+        "Faction",
+        "Object",
+        "Event",
+        "Concept"
+      ],
+      "evaluation_examples": [],
+      "factions": [],
+      "identity_rules": [],
+      "learned_adapter": null,
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "catalog",
+          "split": "agreement-eval2",
+          "world": "all"
+        }
+      },
+      "predicates": [
+        {
+          "domain": [
+            "Character"
+          ],
+          "functional": false,
+          "inverse_of": "HAS_MEMBER",
+          "predicate": "MEMBER_OF",
+          "range": [
+            "Faction"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": "MEMBER_OF",
+          "predicate": "HAS_MEMBER",
+          "range": [
+            "Character"
+          ],
+          "symmetric": false,
+          "transitive": false
+        },
+        {
+          "domain": [
+            "Character",
+            "Object",
+            "Location",
+            "Event",
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": null,
+          "predicate": "LOCATED_IN",
+          "range": [
+            "Location"
+          ],
+          "symmetric": false,
+          "transitive": true
+        },
+        {
+          "domain": [
+            "Character",
+            "Faction"
+          ],
+          "functional": false,
+          "inverse_of": null,
+          "predicate": "ALLY_OF",
+          "range": [
+            "Character",
+            "Faction"
+          ],
+          "symmetric": true,
+          "transitive": false
+        }
+      ],
+      "produced_by_step": "gold.profile",
+      "profile_id": "narrow",
+      "profile_version": "1.0.0",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicates",
+            "entity_types"
+          ],
+          "provider": "local",
+          "step": "gold.profile",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "profile:narrow",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "72fd562d8b4ab92177616a46cf31ec4c4144c794132d6140b295c7a3bc70b067"
+      },
+      "source_priorities": [
+        {
+          "priority": 60,
+          "source_kind": "MARKDOWN"
+        },
+        {
+          "priority": 40,
+          "source_kind": "AUDIO"
+        },
+        {
+          "priority": 30,
+          "source_kind": "IMAGE"
+        }
+      ],
+      "titles": [],
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "catalog",
+  "split": "agreement-eval2",
+  "world": "all"
+}

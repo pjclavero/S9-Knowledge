@@ -1,0 +1,639 @@
+{
+  "titulo": "ACUERDO-2: precision del subconjunto-acuerdo determinista ∧ NVIDIA sobre corpus NUEVO (medicion en SOMBRA)",
+  "generado_por": "scripts/agreement/measure_agreement2.py",
+  "split": "agreement-eval2",
+  "workspace": "bench-agreement-eval2",
+  "mock": false,
+  "gold": {
+    "episodes": 42,
+    "claims": 37
+  },
+  "carriles": {
+    "determinista": {
+      "ablation": "local_only",
+      "wall_ms": 2078,
+      "alineamiento": {
+        "episodes_aligned": 32,
+        "episodes_predicted": 37,
+        "mentions_span_tp": 61,
+        "mentions_span_fp": 7,
+        "mentions_span_fn": 19,
+        "mentions_surface_fallback": 19,
+        "claims_matched": 30,
+        "rows": 35,
+        "covered_rows": 30
+      }
+    },
+    "nvidia": {
+      "ablation": "external_only",
+      "wall_ms": 3538205,
+      "alineamiento": {
+        "episodes_aligned": 32,
+        "episodes_predicted": 37,
+        "mentions_span_tp": 61,
+        "mentions_span_fp": 15,
+        "mentions_span_fn": 19,
+        "mentions_surface_fallback": 19,
+        "claims_matched": 34,
+        "rows": 35,
+        "covered_rows": 34
+      }
+    }
+  },
+  "agreement": {
+    "evaluable_total": 35,
+    "acuerdo_contenido": {
+      "n": 21,
+      "tp": 20,
+      "fp": 1,
+      "precision": 0.9524,
+      "cases": [
+        {
+          "claim_id": "claim:brumal-bitacora:e05:c1",
+          "det_negated": false,
+          "nvidia_negated": false,
+          "det_decision": "ACCEPT",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "ACCEPT/REVIEW",
+          "det_predicate": "LIVES_IN",
+          "nvidia_predicate": "LIVES_IN",
+          "gold_negated": false,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e01:c1",
+          "det_negated": false,
+          "nvidia_negated": false,
+          "det_decision": "ACCEPT",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "ACCEPT/REVIEW",
+          "det_predicate": "MEMBER_OF",
+          "nvidia_predicate": "MEMBER_OF",
+          "gold_negated": false,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e03:c1",
+          "det_negated": false,
+          "nvidia_negated": false,
+          "det_decision": "ABSTAIN",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "ABSTAIN/REVIEW",
+          "det_predicate": null,
+          "nvidia_predicate": "SIBLING_OF",
+          "gold_negated": false,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e05:c1",
+          "det_negated": true,
+          "nvidia_negated": true,
+          "det_decision": "REVIEW",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "REVIEW/REVIEW",
+          "det_predicate": "SERVES",
+          "nvidia_predicate": "SERVES",
+          "gold_negated": true,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e06:c1",
+          "det_negated": true,
+          "nvidia_negated": true,
+          "det_decision": "REVIEW",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "REVIEW/REVIEW",
+          "det_predicate": "MEMBER_OF",
+          "nvidia_predicate": "MEMBER_OF",
+          "gold_negated": true,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e07:c1",
+          "det_negated": true,
+          "nvidia_negated": true,
+          "det_decision": "REVIEW",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "REVIEW/REVIEW",
+          "det_predicate": "LEADS",
+          "nvidia_predicate": "LEADS",
+          "gold_negated": true,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e08:c1",
+          "det_negated": false,
+          "nvidia_negated": false,
+          "det_decision": "ABSTAIN",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "ABSTAIN/REVIEW",
+          "det_predicate": null,
+          "nvidia_predicate": "MEMBER_OF",
+          "gold_negated": false,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e09:c1",
+          "det_negated": false,
+          "nvidia_negated": false,
+          "det_decision": "ABSTAIN",
+          "nvidia_decision": "ABSTAIN",
+          "decision_pair": "ABSTAIN/ABSTAIN",
+          "det_predicate": null,
+          "nvidia_predicate": null,
+          "gold_negated": false,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": true
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e10:c1",
+          "det_negated": false,
+          "nvidia_negated": false,
+          "det_decision": "ABSTAIN",
+          "nvidia_decision": "ABSTAIN",
+          "decision_pair": "ABSTAIN/ABSTAIN",
+          "det_predicate": null,
+          "nvidia_predicate": null,
+          "gold_negated": true,
+          "correct": false,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": true
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e12:c1",
+          "det_negated": false,
+          "nvidia_negated": false,
+          "det_decision": "ACCEPT",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "ACCEPT/REVIEW",
+          "det_predicate": "OWNS",
+          "nvidia_predicate": "OWNS",
+          "gold_negated": false,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:vitral-taller:e01:c1",
+          "det_negated": true,
+          "nvidia_negated": true,
+          "det_decision": "REVIEW",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "REVIEW/REVIEW",
+          "det_predicate": "MEMBER_OF",
+          "nvidia_predicate": "MEMBER_OF",
+          "gold_negated": true,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:vitral-taller:e02:c1",
+          "det_negated": false,
+          "nvidia_negated": false,
+          "det_decision": "ACCEPT",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "ACCEPT/REVIEW",
+          "det_predicate": "MEMBER_OF",
+          "nvidia_predicate": "MEMBER_OF",
+          "gold_negated": false,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:vitral-taller:e03:c1",
+          "det_negated": false,
+          "nvidia_negated": false,
+          "det_decision": "ACCEPT",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "ACCEPT/REVIEW",
+          "det_predicate": "LEADS",
+          "nvidia_predicate": "LEADS",
+          "gold_negated": false,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:vitral-taller:e05:c1",
+          "det_negated": false,
+          "nvidia_negated": false,
+          "det_decision": "ACCEPT",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "ACCEPT/REVIEW",
+          "det_predicate": "ALLY_OF",
+          "nvidia_predicate": "ALLY_OF",
+          "gold_negated": false,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:vitral-taller:e07:c1",
+          "det_negated": true,
+          "nvidia_negated": true,
+          "det_decision": "REVIEW",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "REVIEW/REVIEW",
+          "det_predicate": "MEMBER_OF",
+          "nvidia_predicate": "MEMBER_OF",
+          "gold_negated": true,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:vitral-taller:e09:c1",
+          "det_negated": false,
+          "nvidia_negated": false,
+          "det_decision": "ABSTAIN",
+          "nvidia_decision": "ABSTAIN",
+          "decision_pair": "ABSTAIN/ABSTAIN",
+          "det_predicate": null,
+          "nvidia_predicate": null,
+          "gold_negated": false,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": true
+        },
+        {
+          "claim_id": "claim:vitral-taller:e10:c1",
+          "det_negated": false,
+          "nvidia_negated": false,
+          "det_decision": "ABSTAIN",
+          "nvidia_decision": "ABSTAIN",
+          "decision_pair": "ABSTAIN/ABSTAIN",
+          "det_predicate": null,
+          "nvidia_predicate": null,
+          "gold_negated": false,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": true
+        },
+        {
+          "claim_id": "claim:vitral-taller:e11:c1",
+          "det_negated": true,
+          "nvidia_negated": true,
+          "det_decision": "REVIEW",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "REVIEW/REVIEW",
+          "det_predicate": "MEMBER_OF",
+          "nvidia_predicate": "MEMBER_OF",
+          "gold_negated": true,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:vitral-taller:e12:c1",
+          "det_negated": true,
+          "nvidia_negated": true,
+          "det_decision": "REVIEW",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "REVIEW/REVIEW",
+          "det_predicate": "LEADS",
+          "nvidia_predicate": "LEADS",
+          "gold_negated": true,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:vitral-taller:e13:c1",
+          "det_negated": false,
+          "nvidia_negated": false,
+          "det_decision": "ACCEPT",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "ACCEPT/REVIEW",
+          "det_predicate": "LIVES_IN",
+          "nvidia_predicate": "LIVES_IN",
+          "gold_negated": false,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        },
+        {
+          "claim_id": "claim:vitral-taller:e14:c1",
+          "det_negated": false,
+          "nvidia_negated": false,
+          "det_decision": "ACCEPT",
+          "nvidia_decision": "REVIEW",
+          "decision_pair": "ACCEPT/REVIEW",
+          "det_predicate": "OWNS",
+          "nvidia_predicate": "OWNS",
+          "gold_negated": false,
+          "correct": true,
+          "es_acuerdo_con_accept": false,
+          "ambos_abstienen": false
+        }
+      ],
+      "recall_sobre_gold": 0.6,
+      "desglose_por_par_de_decisiones": {
+        "ABSTAIN/ABSTAIN": {
+          "n": 4,
+          "tp": 3,
+          "fp": 1,
+          "precision": 0.75
+        },
+        "ABSTAIN/REVIEW": {
+          "n": 2,
+          "tp": 2,
+          "fp": 0,
+          "precision": 1.0
+        },
+        "ACCEPT/REVIEW": {
+          "n": 8,
+          "tp": 8,
+          "fp": 0,
+          "precision": 1.0
+        },
+        "REVIEW/REVIEW": {
+          "n": 7,
+          "tp": 7,
+          "fp": 0,
+          "precision": 1.0
+        }
+      },
+      "nota": "vista PRINCIPAL del bloque: mismo claim gold + predicado compatible + misma polaridad, SIN exigir ACCEPT de ningun motor. El par de decisiones (det/nvidia) de cada caso vive en `decision_pair`; el desglose por celda es la respuesta a la pregunta del operador, no el agregado. Los pares ABSTAIN/ABSTAIN coinciden en polaridad por CONVENCION (negated=False por defecto en ambos lados, no una comprobacion real) -- ver `ambos_abstienen` en cada caso."
+    },
+    "acuerdo_con_accept": {
+      "n": 0,
+      "tp": 0,
+      "fp": 0,
+      "precision": null,
+      "cases": [],
+      "recall_sobre_gold": 0.0,
+      "nota": "vista SECUNDARIA (criterio original de este bloque, conservado por trazabilidad): subconjunto de `acuerdo_contenido` donde AMBOS motores dan ACCEPT real. DECLARADO TAUTOLOGICO por el dictamen del revisor: exigir ACCEPT en los dos carriles multiplica dos eventos ya raros del motor (la puerta 4 mide un recall de autoaprobacion bajo), asi que la interseccion tiende a vaciarse por construccion del filtro, no por la hipotesis medida. No usar esta vista para leer 'el acuerdo no sirve': para eso esta `acuerdo_contenido`."
+    },
+    "solo_det": {
+      "n": 1,
+      "tp": 1,
+      "fp": 0,
+      "precision": 1.0,
+      "cases": [
+        {
+          "claim_id": "claim:vitral-taller:e08:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": true
+        }
+      ],
+      "nota_abstain": "las filas con `is_abstain=True` cuentan con `negated=False` por convencion del programa (build_rows del runner congelado), no porque el carril haya afirmado una polaridad activa: su `correct` no debe leerse como precision de aserciones activas."
+    },
+    "solo_nvidia": {
+      "n": 5,
+      "tp": 4,
+      "fp": 1,
+      "precision": 0.8,
+      "cases": [
+        {
+          "claim_id": "claim:brumal-bitacora:e01:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": false
+        },
+        {
+          "claim_id": "claim:brumal-bitacora:e02:c1",
+          "negated": true,
+          "decision": "REVIEW",
+          "is_abstain": false,
+          "correct": true
+        },
+        {
+          "claim_id": "claim:brumal-bitacora:e10:c1",
+          "negated": true,
+          "decision": "REVIEW",
+          "is_abstain": false,
+          "correct": true
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e04:c1",
+          "negated": true,
+          "decision": "REVIEW",
+          "is_abstain": false,
+          "correct": true
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e11:c1",
+          "negated": false,
+          "decision": "ABSTAIN",
+          "is_abstain": true,
+          "correct": true
+        }
+      ],
+      "nota_abstain": "misma convencion que `solo_det`: `is_abstain=True` implica `negated=False` por defecto, no una polaridad comprobada."
+    },
+    "discrepancia": {
+      "n": 8,
+      "polaridades_opuestas_activas": {
+        "n": 0,
+        "tp": 0,
+        "fp": 0,
+        "precision": null,
+        "cases": [],
+        "nota": "ambos carriles predicen algo ACTIVO (ninguno abstiene) y la polaridad difiere: la unica discrepancia semantica 'dura' del bloque."
+      },
+      "abstain_vs_afirma": {
+        "n": 7,
+        "cases": [
+          {
+            "claim_id": "claim:brumal-bitacora:e03:c1",
+            "det_negated": true,
+            "nvidia_negated": false,
+            "det_decision": "REVIEW",
+            "nvidia_decision": "ABSTAIN",
+            "decision_pair": "REVIEW/ABSTAIN",
+            "det_predicate": "MEMBER_OF",
+            "nvidia_predicate": null,
+            "gold_negated": true,
+            "reason": "abstain_vs_afirma"
+          },
+          {
+            "claim_id": "claim:brumal-bitacora:e04:c1",
+            "det_negated": true,
+            "nvidia_negated": false,
+            "det_decision": "REVIEW",
+            "nvidia_decision": "ABSTAIN",
+            "decision_pair": "REVIEW/ABSTAIN",
+            "det_predicate": "LEADS",
+            "nvidia_predicate": null,
+            "gold_negated": true,
+            "reason": "abstain_vs_afirma"
+          },
+          {
+            "claim_id": "claim:brumal-bitacora:e06:c1",
+            "det_negated": true,
+            "nvidia_negated": false,
+            "det_decision": "REVIEW",
+            "nvidia_decision": "ABSTAIN",
+            "decision_pair": "REVIEW/ABSTAIN",
+            "det_predicate": "LIVES_IN",
+            "nvidia_predicate": null,
+            "gold_negated": true,
+            "reason": "abstain_vs_afirma"
+          },
+          {
+            "claim_id": "claim:brumal-bitacora:e11:c1",
+            "det_negated": true,
+            "nvidia_negated": false,
+            "det_decision": "REVIEW",
+            "nvidia_decision": "ABSTAIN",
+            "decision_pair": "REVIEW/ABSTAIN",
+            "det_predicate": "LIVES_IN",
+            "nvidia_predicate": null,
+            "gold_negated": true,
+            "reason": "abstain_vs_afirma"
+          },
+          {
+            "claim_id": "claim:salitre-ruta:e02:c1",
+            "det_negated": true,
+            "nvidia_negated": false,
+            "det_decision": "REVIEW",
+            "nvidia_decision": "ABSTAIN",
+            "decision_pair": "REVIEW/ABSTAIN",
+            "det_predicate": "MEMBER_OF",
+            "nvidia_predicate": null,
+            "gold_negated": true,
+            "reason": "abstain_vs_afirma"
+          },
+          {
+            "claim_id": "claim:vitral-taller:e04:c1",
+            "det_negated": true,
+            "nvidia_negated": false,
+            "det_decision": "REVIEW",
+            "nvidia_decision": "ABSTAIN",
+            "decision_pair": "REVIEW/ABSTAIN",
+            "det_predicate": "LEADS",
+            "nvidia_predicate": null,
+            "gold_negated": true,
+            "reason": "abstain_vs_afirma"
+          },
+          {
+            "claim_id": "claim:vitral-taller:e06:c1",
+            "det_negated": true,
+            "nvidia_negated": false,
+            "det_decision": "REVIEW",
+            "nvidia_decision": "ABSTAIN",
+            "decision_pair": "REVIEW/ABSTAIN",
+            "det_predicate": "ALLY_OF",
+            "nvidia_predicate": null,
+            "gold_negated": true,
+            "reason": "abstain_vs_afirma"
+          }
+        ],
+        "nota": "un carril abstiene (ABSTAIN, negated=False por convencion) y el otro predice algo activo con polaridad distinta: discrepancia parcialmente artefactual, no dos afirmaciones opuestas."
+      },
+      "predicado_incompatible": {
+        "n": 1,
+        "cases": [
+          {
+            "claim_id": "claim:salitre-ruta:e13:c1",
+            "det_negated": false,
+            "nvidia_negated": false,
+            "det_decision": "ACCEPT",
+            "nvidia_decision": "REVIEW",
+            "decision_pair": "ACCEPT/REVIEW",
+            "det_predicate": "LOCATED_IN",
+            "nvidia_predicate": "LIVES_IN",
+            "gold_negated": false,
+            "reason": "predicado_incompatible"
+          }
+        ],
+        "nota": "mismo claim gold, pero el predicado top-1 de cada carril difiere (ambos lo declaran)."
+      }
+    },
+    "sin_cubrir": {
+      "n": 0,
+      "claim_ids": []
+    }
+  },
+  "latency": {
+    "unit": "ms",
+    "measured_calls": 38,
+    "real_calls_this_run": 38,
+    "mean": 37627.2,
+    "p95": 56734.5,
+    "max": 59585
+  },
+  "tokens": {
+    "prompt_tokens_total": 179423,
+    "completion_tokens_total": 13936,
+    "total_tokens": 193359,
+    "price_per_million_tokens_usd": null,
+    "estimated_cost_usd_this_run": null
+  },
+  "cache": {
+    "path": "artifacts/agreement/cache2/responses.json",
+    "calls_real": 38,
+    "calls_failed": 0,
+    "calls_served_from_cache": 0,
+    "calls_missed_cache": 38
+  },
+  "incidencias_api": {
+    "transport_retries_used": 40,
+    "hard_timeouts": 29,
+    "failed_calls": 0,
+    "distinct_errors": []
+  },
+  "lectura_para_la_decision_del_operador": {
+    "precision_acuerdo_contenido": 0.9524,
+    "n_acuerdo_contenido": 21,
+    "recall_acuerdo_contenido_sobre_gold": 0.6,
+    "desglose_acuerdo_contenido_por_par_de_decisiones": {
+      "ABSTAIN/ABSTAIN": {
+        "n": 4,
+        "tp": 3,
+        "fp": 1,
+        "precision": 0.75
+      },
+      "ABSTAIN/REVIEW": {
+        "n": 2,
+        "tp": 2,
+        "fp": 0,
+        "precision": 1.0
+      },
+      "ACCEPT/REVIEW": {
+        "n": 8,
+        "tp": 8,
+        "fp": 0,
+        "precision": 1.0
+      },
+      "REVIEW/REVIEW": {
+        "n": 7,
+        "tp": 7,
+        "fp": 0,
+        "precision": 1.0
+      }
+    },
+    "precision_acuerdo_con_accept_tautologico": null,
+    "n_acuerdo_con_accept_tautologico": 0,
+    "precision_solo_det": 1.0,
+    "n_solo_det": 1,
+    "precision_solo_nvidia": 0.8,
+    "n_solo_nvidia": 5,
+    "n_polaridades_opuestas_activas": 0,
+    "n_abstain_vs_afirma": 7,
+    "n_predicado_incompatible": 1,
+    "n_sin_cubrir": 0,
+    "evaluable_total": 35,
+    "nota": "corpus NUEVO (42 casos / 37 claims evaluables): frases y entidades nunca vistas en ningun otro split del repo. Ninguna cifra se escribe a mano. No se recomienda politica: eso es del operador."
+  }
+}

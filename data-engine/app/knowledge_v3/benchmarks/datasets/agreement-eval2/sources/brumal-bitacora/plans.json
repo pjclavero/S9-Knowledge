@@ -1,0 +1,388 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:brumal",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-08-05T09:15:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:brumal-bitacora:e01:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:brumal-bitacora:e01:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e01:f003"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:brumal:cofradia-niebla",
+          "predicate": "SERVES",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:brumal:edda-solveig"
+        },
+        {
+          "claim_id": "claim:brumal-bitacora:e02:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:brumal-bitacora:e02:c1",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e02:f006"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:brumal:orden-faro-negro",
+          "predicate": "ALLY_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:brumal:janek-orum"
+        },
+        {
+          "claim_id": "claim:brumal-bitacora:e03:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:brumal-bitacora:e03:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e03:f009"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:brumal:consejo-paramo",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:brumal:lys-kordan"
+        },
+        {
+          "claim_id": "claim:brumal-bitacora:e04:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:brumal-bitacora:e04:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e04:f012"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:brumal:cofradia-niebla",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:brumal:garret-eisen"
+        },
+        {
+          "claim_id": "claim:brumal-bitacora:e05:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:brumal-bitacora:e05:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e05:f015"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:brumal:faro-ceniciento",
+          "predicate": "LIVES_IN",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:brumal:sonia-halvard"
+        },
+        {
+          "claim_id": "claim:brumal-bitacora:e06:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:brumal-bitacora:e06:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e06:f018"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:brumal:puente-neblina",
+          "predicate": "LIVES_IN",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:brumal:token-arild"
+        },
+        {
+          "claim_id": "claim:brumal-bitacora:e07:c1",
+          "confidence": 0.5,
+          "decision": "ABSTAIN",
+          "decision_id": "decision:claim:brumal-bitacora:e07:c1",
+          "direction": null,
+          "epistemic_status": "UNKNOWN",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e07:f021"
+          ],
+          "negated": false,
+          "object_entity_id": null,
+          "predicate": null,
+          "reason_codes": [
+            "AMBIGUOUS_SEMANTICS"
+          ],
+          "subject_entity_id": null
+        },
+        {
+          "claim_id": "claim:brumal-bitacora:e08:c1",
+          "confidence": 0.5,
+          "decision": "ABSTAIN",
+          "decision_id": "decision:claim:brumal-bitacora:e08:c1",
+          "direction": null,
+          "epistemic_status": "UNKNOWN",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e08:f024"
+          ],
+          "negated": false,
+          "object_entity_id": null,
+          "predicate": null,
+          "reason_codes": [
+            "AMBIGUOUS_SEMANTICS"
+          ],
+          "subject_entity_id": null
+        },
+        {
+          "claim_id": "claim:brumal-bitacora:e10:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:brumal-bitacora:e10:c1",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e10:f028"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:brumal:edda-solveig",
+          "predicate": "ENEMY_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:brumal:garret-eisen"
+        },
+        {
+          "claim_id": "claim:brumal-bitacora:e11:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:brumal-bitacora:e11:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e11:f031"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:brumal:faro-ceniciento",
+          "predicate": "LIVES_IN",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:brumal:mira-eskuld"
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-08-06T09:15:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": false,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-08-05T09:15:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "46659553e787b083896d695c55bde44641bd7015628e38290af58c60ed963dc2"
+        },
+        "key_id": null,
+        "signature": null,
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "ontology",
+            "version": "core-1.4.0"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:brumal:ae2-never-01-1",
+          "decision_id": "decision:claim:brumal-bitacora:e01:c1",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e01:f003"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:4186328c8037d75fde90fdd698032ab43b98da509fdc6fefcfd68b25661c8788",
+          "operation_id": "op:brumal-bitacora:ae2-never-01-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:brumal:cofradia-niebla",
+            "predicate": "SERVES",
+            "subject_entity_id": "entity:brumal:edda-solveig",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:brumal:ae2-never-02-1",
+          "decision_id": "decision:claim:brumal-bitacora:e02:c1",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e02:f006"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:97f8ba49df3a55c2b4e98bced3215c4f3397bbb24c91d30b9de0f8392d977a2a",
+          "operation_id": "op:brumal-bitacora:ae2-never-02-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "UNDIRECTED",
+            "negated": true,
+            "object_entity_id": "entity:brumal:orden-faro-negro",
+            "predicate": "ALLY_OF",
+            "subject_entity_id": "entity:brumal:janek-orum",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:brumal:ae2-simple-11-1",
+          "decision_id": "decision:claim:brumal-bitacora:e05:c1",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e05:f015"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:fdf0a66480a8015361ed2e92d440b60375e6430eb9fc226738b7c5c4714bc7b7",
+          "operation_id": "op:brumal-bitacora:ae2-simple-11-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": false,
+            "object_entity_id": "entity:brumal:faro-ceniciento",
+            "predicate": "LIVES_IN",
+            "subject_entity_id": "entity:brumal:sonia-halvard",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:brumal:ae2-simple-12-1",
+          "decision_id": "decision:claim:brumal-bitacora:e06:c1",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e06:f018"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:b8a520773c4cfb84769ed3aab3d0c6ac0f0e7ec790899cf02d7fec7b937c72cb",
+          "operation_id": "op:brumal-bitacora:ae2-simple-12-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:brumal:puente-neblina",
+            "predicate": "LIVES_IN",
+            "subject_entity_id": "entity:brumal:token-arild",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:brumal:ae2-never-03-1",
+          "decision_id": "decision:claim:brumal-bitacora:e10:c1",
+          "evidence_fragment_ids": [
+            "fragment:brumal-bitacora:e10:f028"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:0c8aa1dc4472afb4ec4a91028348ae1bb2733e6d306e43a930ee5993c3ed1475",
+          "operation_id": "op:brumal-bitacora:ae2-never-03-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "UNDIRECTED",
+            "negated": true,
+            "object_entity_id": "entity:brumal:edda-solveig",
+            "predicate": "ENEMY_OF",
+            "subject_entity_id": "entity:brumal:garret-eisen",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "fee1563235a40296796783efcbe0f78874916b045220d0e498e599ab2d9ded10"
+      },
+      "plan_id": "plan:brumal-bitacora:0001",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:bench:brumal-bitacora",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "brumal-bitacora",
+  "split": "agreement-eval2",
+  "world": "brumal"
+}

@@ -1,0 +1,734 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:brumal-bitacora",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "a321e616f05ba88e32043b1012223bd57d597268d2762a352208ed6228623750"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:brumal-bitacora:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "negation_case_id": "AE2-NEVER-01",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "ASR_NOISE",
+          "NEVER"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:brumal-bitacora:e02",
+      "page": null,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:brumal:s2"
+      },
+      "text": "Edda Solveig nunca sirvio a la Cofradia de la Niebla, y eso que se lo ofrecieron dos veces.",
+      "time_end": 28.0,
+      "time_start": 0.0,
+      "turn": 1,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:brumal-bitacora",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "7d48faad9f440ff09d8d12fd349f479fc42dbcb00bd88040748ee9bdc4d0cec3"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:brumal-bitacora:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "negation_case_id": "AE2-NEVER-02",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "ASR_NOISE",
+          "NEVER"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:brumal-bitacora:e03",
+      "page": null,
+      "previous_episode_id": "episode:brumal-bitacora:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:brumal:s3"
+      },
+      "text": "Janek Orum jamas fue aliado de la Orden del Faro Negro, ni cuando compartian ronda.",
+      "time_end": 58.0,
+      "time_start": 30.0,
+      "turn": 2,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:brumal-bitacora",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "1b392c7f2646b8f305a09650c05babf3086bb4dae8d9ff0a51af569a9c5e6aba"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:brumal-bitacora:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "negation_case_id": "AE2-NOTYET-01",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "ASR_NOISE",
+          "NOT_YET"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:brumal-bitacora:e04",
+      "page": null,
+      "previous_episode_id": "episode:brumal-bitacora:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:brumal:s1"
+      },
+      "text": "Lys Kordan aun no pertenece al Consejo del Paramo, aunque ya la proponen para el proximo relevo.",
+      "time_end": 88.0,
+      "time_start": 60.0,
+      "turn": 3,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:brumal-bitacora",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "22d27f482980dbfdb8ae67c068bd7d5f826157ce2544b46c91b8d73bc951c7bb"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:brumal-bitacora:e04",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "negation_case_id": "AE2-NOTYET-02",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "ASR_NOISE",
+          "NOT_YET"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:brumal-bitacora:e05",
+      "page": null,
+      "previous_episode_id": "episode:brumal-bitacora:e03",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 4,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:brumal:s2"
+      },
+      "text": "Garret Eisen todavia no dirige la Cofradia de la Niebla, aunque ya firma media correspondencia.",
+      "time_end": 118.0,
+      "time_start": 90.0,
+      "turn": 4,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:brumal-bitacora",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "42d0b099e6d2d2c8543270d1820700f6028b88e507a8f69e35076320e5556d36"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:brumal-bitacora:e05",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "negation_case_id": "AE2-SIMPLE-11",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "ASR_NOISE",
+          "SIMPLE"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:brumal-bitacora:e06",
+      "page": null,
+      "previous_episode_id": "episode:brumal-bitacora:e04",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 5,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:brumal:s3"
+      },
+      "text": "Sonia Halvard reside en el Faro Ceniciento desde que releva a los guardianes heridos.",
+      "time_end": 148.0,
+      "time_start": 120.0,
+      "turn": 5,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:brumal-bitacora",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "5819e68a10183d7ad7bbab9380c24e45c3841813b6ca9677b9d3bda85c50c361"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:brumal-bitacora:e06",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "negation_case_id": "AE2-SIMPLE-12",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "ASR_NOISE",
+          "SIMPLE"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:brumal-bitacora:e07",
+      "page": null,
+      "previous_episode_id": "episode:brumal-bitacora:e05",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 6,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:brumal:s1"
+      },
+      "text": "Torvald Arild no reside en el Puente de Neblina, contra lo que anoto el ultimo relevo.",
+      "time_end": 178.0,
+      "time_start": 150.0,
+      "turn": 6,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:brumal-bitacora",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "6b256c4feefefd0e53a25d70da6b38f77c85ea04f40ec66adaf6179e8e9fec29"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:brumal-bitacora:e07",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "negation_case_id": "AE2-RUMOR-01",
+        "phenomena": [
+          "ABSTENTION",
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "ASR_NOISE",
+          "QUESTION_CONDITIONAL_RUMOR",
+          "SIMPLE"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:brumal-bitacora:e08",
+      "page": null,
+      "previous_episode_id": "episode:brumal-bitacora:e06",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 7,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:brumal:s2"
+      },
+      "text": "Por el paramo se rumorea que Mira Eskuld lidera en secreto la Cofradia de la Niebla.",
+      "time_end": 208.0,
+      "time_start": 180.0,
+      "turn": 7,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:brumal-bitacora",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "15653fbd22787d19c09162b6d1983267e9ea592aa0887874dcfe7b36b97a7a03"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:brumal-bitacora:e08",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "negation_case_id": "AE2-COND-01",
+        "phenomena": [
+          "ABSTENTION",
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "ASR_NOISE",
+          "QUESTION_CONDITIONAL_RUMOR",
+          "SIMPLE"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:brumal-bitacora:e09",
+      "page": null,
+      "previous_episode_id": "episode:brumal-bitacora:e07",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 8,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:brumal:s3"
+      },
+      "text": "Si el faro se apagara, Janek Orum tendria que dirigir el Consejo del Paramo, dijo el vigia.",
+      "time_end": 238.0,
+      "time_start": 210.0,
+      "turn": 8,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:brumal-bitacora",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "ae84336560a7930f2285230db63028e5ab51c957a7f68cd4b97db2b6372ef27d"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:brumal-bitacora:e09",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "negation_case_id": "AE2-RUMOR-02",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "ASR_NOISE",
+          "QUESTION_CONDITIONAL_RUMOR"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:brumal-bitacora:e10",
+      "page": null,
+      "previous_episode_id": "episode:brumal-bitacora:e08",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 9,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:brumal:s1"
+      },
+      "text": "Dicen que Sonia Halvard curo a un guardian que nunca existio, segun la copla del faro.",
+      "time_end": 268.0,
+      "time_start": 240.0,
+      "turn": 9,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:brumal-bitacora",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "d64ee4b88fdd2961a793fa5dadc581bb38c7f66732f3e7f3c515b9ba9ce95154"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:brumal-bitacora:e10",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "negation_case_id": "AE2-NEVER-03",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "ASR_NOISE",
+          "NEVER"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": "episode:brumal-bitacora:e11",
+      "page": null,
+      "previous_episode_id": "episode:brumal-bitacora:e09",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 10,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:brumal:s2"
+      },
+      "text": "Garret Eisen nunca fue enemigo de Edda Solveig, ni siquiera cuando discutian por el turno de campana.",
+      "time_end": 298.0,
+      "time_start": 270.0,
+      "turn": 10,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:brumal-bitacora",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "d6b1826df96b15d75d499253f55bcee51e9928dd8456d7ee658c516fb200d98a"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:brumal-bitacora:e11",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "negation_case_id": "AE2-NOTYET-03",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "ASR_NOISE",
+          "NOT_YET"
+        ]
+      },
+      "modality": "SPEAKER_TURN",
+      "next_episode_id": null,
+      "page": null,
+      "previous_episode_id": "episode:brumal-bitacora:e10",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [
+          "TRANSCRIPTION_NOISE"
+        ],
+        "score": 0.72
+      },
+      "sequence": 11,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "speaker": {
+        "confidence": 0.9,
+        "label": null,
+        "speaker_id": "speaker:brumal:s3"
+      },
+      "text": "Mira Eskuld aun no vive en el Faro Ceniciento, aunque ya guarda turno alli tres noches por semana.",
+      "time_end": 328.0,
+      "time_start": 300.0,
+      "turn": 11,
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "brumal-bitacora",
+  "split": "agreement-eval2",
+  "world": "brumal"
+}

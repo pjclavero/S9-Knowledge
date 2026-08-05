@@ -1,0 +1,1081 @@
+{
+  "benchmark_file": "resolutions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:cofradia-niebla"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:brumal-bitacora:e01:f002"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e01:m002"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e01:cofradia-niebla",
+      "selected_entity_id": "entity:brumal:cofradia-niebla",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:edda-solveig"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:brumal-bitacora:e01:f001"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e01:m001"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e01:edda-solveig",
+      "selected_entity_id": "entity:brumal:edda-solveig",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:janek-orum"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:brumal-bitacora:e02:f004"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e02:m003"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e02:janek-orum",
+      "selected_entity_id": "entity:brumal:janek-orum",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:orden-faro-negro"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:brumal-bitacora:e02:f005"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e02:m004"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e02:orden-faro-negro",
+      "selected_entity_id": "entity:brumal:orden-faro-negro",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:consejo-paramo"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:brumal-bitacora:e03:f008"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e03:m006"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e03:consejo-paramo",
+      "selected_entity_id": "entity:brumal:consejo-paramo",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:lys-kordan"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:brumal-bitacora:e03:f007"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e03:m005"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e03:lys-kordan",
+      "selected_entity_id": "entity:brumal:lys-kordan",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:cofradia-niebla"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:brumal-bitacora:e04:f011"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e04:m008"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e04:cofradia-niebla",
+      "selected_entity_id": "entity:brumal:cofradia-niebla",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:garret-eisen"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:brumal-bitacora:e04:f010"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e04:m007"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e04:garret-eisen",
+      "selected_entity_id": "entity:brumal:garret-eisen",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:faro-ceniciento"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:brumal-bitacora:e05:f014"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e05:m010"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e05:faro-ceniciento",
+      "selected_entity_id": "entity:brumal:faro-ceniciento",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:sonia-halvard"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:brumal-bitacora:e05:f013"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e05:m009"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e05:sonia-halvard",
+      "selected_entity_id": "entity:brumal:sonia-halvard",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:puente-neblina"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:brumal-bitacora:e06:f017"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e06:m012"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e06:puente-neblina",
+      "selected_entity_id": "entity:brumal:puente-neblina",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:token-arild"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:brumal-bitacora:e06:f016"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e06:m011"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e06:token-arild",
+      "selected_entity_id": "entity:brumal:token-arild",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:cofradia-niebla"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:brumal-bitacora:e07:f020"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e07:m014"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e07:cofradia-niebla",
+      "selected_entity_id": "entity:brumal:cofradia-niebla",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:mira-eskuld"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:brumal-bitacora:e07:f019"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e07:m013"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e07:mira-eskuld",
+      "selected_entity_id": "entity:brumal:mira-eskuld",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:consejo-paramo"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Faction",
+      "evidence": [
+        "fragment:brumal-bitacora:e08:f023"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e08:m016"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e08:consejo-paramo",
+      "selected_entity_id": "entity:brumal:consejo-paramo",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:janek-orum"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:brumal-bitacora:e08:f022"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e08:m015"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e08:janek-orum",
+      "selected_entity_id": "entity:brumal:janek-orum",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:sonia-halvard"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:brumal-bitacora:e09:f025"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e09:m017"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e09:sonia-halvard",
+      "selected_entity_id": "entity:brumal:sonia-halvard",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:edda-solveig"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:brumal-bitacora:e10:f027"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e10:m019"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e10:edda-solveig",
+      "selected_entity_id": "entity:brumal:edda-solveig",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:garret-eisen"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:brumal-bitacora:e10:f026"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e10:m018"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e10:garret-eisen",
+      "selected_entity_id": "entity:brumal:garret-eisen",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:faro-ceniciento"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Location",
+      "evidence": [
+        "fragment:brumal-bitacora:e11:f030"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e11:m021"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e11:faro-ceniciento",
+      "selected_entity_id": "entity:brumal:faro-ceniciento",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "action": "LINK_EXISTING",
+      "assigned_entity_id": null,
+      "candidate_entity_ids": [
+        "entity:brumal:mira-eskuld"
+      ],
+      "confidence": 0.95,
+      "contract_id": "entity-resolution/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "entity_type": "Character",
+      "evidence": [
+        "fragment:brumal-bitacora:e11:f029"
+      ],
+      "game_profile": "generic",
+      "mention_ids": [
+        "mention:brumal-bitacora:e11:m020"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "produced_by_step": "gold.resolve",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "action",
+            "selected_entity_id"
+          ],
+          "provider": "local",
+          "step": "gold.resolve",
+          "version": "1.0.0"
+        }
+      ],
+      "reason_codes": [
+        "EXACT_NAME_MATCH"
+      ],
+      "resolution_id": "resolution:brumal-bitacora:e11:mira-eskuld",
+      "selected_entity_id": "entity:brumal:mira-eskuld",
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "brumal-bitacora",
+  "split": "agreement-eval2",
+  "world": "brumal"
+}

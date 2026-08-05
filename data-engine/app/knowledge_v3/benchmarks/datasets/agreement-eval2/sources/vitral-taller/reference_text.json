@@ -1,0 +1,74 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:vitral-taller:e01",
+      "text": "Que quede escrito para que nadie lo dude en la proxima inspeccion: Ilan Boreta no pertenece a la Camara del Vidrio, por mas que su banco de trabajo siga en Terraza Cristal."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e02",
+      "text": "Nadia Ferrus pertenece a la Liga de Sopladores desde el ultimo censo del taller."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e03",
+      "text": "Costas Delmira lidera la Ronda de los Faroles, y el libro de guardias asi lo asienta cada noche."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e04",
+      "text": "Renzo Aubier no lidera la Camara del Vidrio, y todo tasador nuevo lo confunde al llegar."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e05",
+      "text": "Tilde Marconne es aliada de Ossian Vetra desde que ambos entraron de aprendices."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e06",
+      "text": "Calla Rindin no es aliada de Uxue Somara, aunque compartan mesa en cada asamblea."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e07",
+      "text": "Nadie puede negar que Bram Oletti no pertenece a la Liga de Sopladores; el registro del taller lo repite cada temporada."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e08",
+      "text": "No es cierto que Serin Vaudal no sirve a la Camara del Vidrio: firma sus actas cada equinoccio."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e09",
+      "text": "Uxue Somara no dejo de servir a la Ronda de los Faroles, ni siquiera cuando cambio de taller."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e10",
+      "text": "Ilan Boreta no ceso de liderar la Camara del Vidrio pese a los rumores del ultimo censo."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e11",
+      "text": "Nadia Ferrus dejo de pertenecer a la Liga de Sopladores tras el cierre del ultimo horno."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e12",
+      "text": "Costas Delmira dejo de dirigir la Ronda de los Faroles cuando se traslado a Muelle Prisma."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e13",
+      "text": "Ossian Vetra vive en Terraza Cristal desde que se hizo cargo del archivo del taller."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e14",
+      "text": "Bram Oletti posee la Copa del Alba desde que la rescato del horno viejo."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e15",
+      "text": "Templa el vidrio antes de que el horno pierda calor, y no dejes sola la pieza."
+    },
+    {
+      "episode_id": "episode:vitral-taller:e16",
+      "text": "Si Renzo Aubier hubiera pertenecido a la Camara del Vidrio, otro habria firmado el tasado."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "vitral-taller",
+  "split": "agreement-eval2",
+  "world": "vitral"
+}

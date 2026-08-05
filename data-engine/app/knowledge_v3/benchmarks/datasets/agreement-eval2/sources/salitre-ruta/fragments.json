@@ -1,0 +1,1942 @@
+{
+  "benchmark_file": "fragments",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:salitre-ruta:e01",
+      "fragment_id": "fragment:salitre-ruta:e01:f001",
+      "frame_id": null,
+      "literal_text": "Deza Corvel",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Deza Corvel",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 44,
+      "episode_id": "episode:salitre-ruta:e01",
+      "fragment_id": "fragment:salitre-ruta:e01:f002",
+      "frame_id": null,
+      "literal_text": "Sindicato de la Sal",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Sindicato de la Sal",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 25,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 44,
+      "episode_id": "episode:salitre-ruta:e01",
+      "fragment_id": "fragment:salitre-ruta:e01:f003",
+      "frame_id": null,
+      "literal_text": "Deza Corvel milita en el Sindicato de la Sal",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Deza Corvel milita en el Sindicato de la Sal",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 12,
+      "episode_id": "episode:salitre-ruta:e02",
+      "fragment_id": "fragment:salitre-ruta:e02:f004",
+      "frame_id": null,
+      "literal_text": "Matias Hurel",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Matias Hurel",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 44,
+      "episode_id": "episode:salitre-ruta:e02",
+      "fragment_id": "fragment:salitre-ruta:e02:f005",
+      "frame_id": null,
+      "literal_text": "Orden del Polvo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Orden del Polvo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 29,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 44,
+      "episode_id": "episode:salitre-ruta:e02",
+      "fragment_id": "fragment:salitre-ruta:e02:f006",
+      "frame_id": null,
+      "literal_text": "Matias Hurel no milita en la Orden del Polvo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Matias Hurel no milita en la Orden del Polvo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:salitre-ruta:e03",
+      "fragment_id": "fragment:salitre-ruta:e03:f007",
+      "frame_id": null,
+      "literal_text": "Iva Brontes",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Iva Brontes",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 38,
+      "episode_id": "episode:salitre-ruta:e03",
+      "fragment_id": "fragment:salitre-ruta:e03:f008",
+      "frame_id": null,
+      "literal_text": "Orell Cascan",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Orell Cascan",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 26,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 80,
+      "episode_id": "episode:salitre-ruta:e03",
+      "fragment_id": "fragment:salitre-ruta:e03:f009",
+      "frame_id": null,
+      "literal_text": "Pozo Hondo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Pozo Hondo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 70,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 38,
+      "episode_id": "episode:salitre-ruta:e03",
+      "fragment_id": "fragment:salitre-ruta:e03:f010",
+      "frame_id": null,
+      "literal_text": "Iva Brontes es hermana de Orell Cascan",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Iva Brontes es hermana de Orell Cascan",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:salitre-ruta:e04",
+      "fragment_id": "fragment:salitre-ruta:e04:f011",
+      "frame_id": null,
+      "literal_text": "Petra Lumis",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Petra Lumis",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 42,
+      "episode_id": "episode:salitre-ruta:e04",
+      "fragment_id": "fragment:salitre-ruta:e04:f012",
+      "frame_id": null,
+      "literal_text": "Caravana Blanca",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Caravana Blanca",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 27,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 78,
+      "episode_id": "episode:salitre-ruta:e04",
+      "fragment_id": "fragment:salitre-ruta:e04:f013",
+      "frame_id": null,
+      "literal_text": "Petra Lumis, veedora de la Caravana Blanca desde el paso anterior, no lo es ya",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Petra Lumis, veedora de la Caravana Blanca desde el paso anterior, no lo es ya",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:salitre-ruta:e05",
+      "fragment_id": "fragment:salitre-ruta:e05:f014",
+      "frame_id": null,
+      "literal_text": "Hakon Driel",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Hakon Driel",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 47,
+      "episode_id": "episode:salitre-ruta:e05",
+      "fragment_id": "fragment:salitre-ruta:e05:f015",
+      "frame_id": null,
+      "literal_text": "Orden del Polvo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Orden del Polvo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 32,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 89,
+      "episode_id": "episode:salitre-ruta:e05",
+      "fragment_id": "fragment:salitre-ruta:e05:f016",
+      "frame_id": null,
+      "literal_text": "Paso del Cuarzo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Paso del Cuarzo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 74,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 47,
+      "episode_id": "episode:salitre-ruta:e05",
+      "fragment_id": "fragment:salitre-ruta:e05:f017",
+      "frame_id": null,
+      "literal_text": "Hakon Driel dejo de servir a la Orden del Polvo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Hakon Driel dejo de servir a la Orden del Polvo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 10,
+      "episode_id": "episode:salitre-ruta:e06",
+      "fragment_id": "fragment:salitre-ruta:e06:f018",
+      "frame_id": null,
+      "literal_text": "Noor Alcaz",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Noor Alcaz",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 52,
+      "episode_id": "episode:salitre-ruta:e06",
+      "fragment_id": "fragment:salitre-ruta:e06:f019",
+      "frame_id": null,
+      "literal_text": "Sindicato de la Sal",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Sindicato de la Sal",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 33,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 52,
+      "episode_id": "episode:salitre-ruta:e06",
+      "fragment_id": "fragment:salitre-ruta:e06:f020",
+      "frame_id": null,
+      "literal_text": "Noor Alcaz dejo de pertenecer al Sindicato de la Sal",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Noor Alcaz dejo de pertenecer al Sindicato de la Sal",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 12,
+      "episode_id": "episode:salitre-ruta:e07",
+      "fragment_id": "fragment:salitre-ruta:e07:f021",
+      "frame_id": null,
+      "literal_text": "Tobal Mencia",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Tobal Mencia",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 47,
+      "episode_id": "episode:salitre-ruta:e07",
+      "fragment_id": "fragment:salitre-ruta:e07:f022",
+      "frame_id": null,
+      "literal_text": "Caravana Blanca",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Caravana Blanca",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 32,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 47,
+      "episode_id": "episode:salitre-ruta:e07",
+      "fragment_id": "fragment:salitre-ruta:e07:f023",
+      "frame_id": null,
+      "literal_text": "Tobal Mencia dejo de dirigir la Caravana Blanca",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Tobal Mencia dejo de dirigir la Caravana Blanca",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:salitre-ruta:e08",
+      "fragment_id": "fragment:salitre-ruta:e08:f024",
+      "frame_id": null,
+      "literal_text": "Deza Corvel",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Deza Corvel",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 56,
+      "episode_id": "episode:salitre-ruta:e08",
+      "fragment_id": "fragment:salitre-ruta:e08:f025",
+      "frame_id": null,
+      "literal_text": "Sindicato de la Sal",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Sindicato de la Sal",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 37,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 96,
+      "episode_id": "episode:salitre-ruta:e08",
+      "fragment_id": "fragment:salitre-ruta:e08:f026",
+      "frame_id": null,
+      "literal_text": "Pozo Hondo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Pozo Hondo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 86,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 56,
+      "episode_id": "episode:salitre-ruta:e08",
+      "fragment_id": "fragment:salitre-ruta:e08:f027",
+      "frame_id": null,
+      "literal_text": "Deza Corvel no dejo de pertenecer al Sindicato de la Sal",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Deza Corvel no dejo de pertenecer al Sindicato de la Sal",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 12,
+      "episode_id": "episode:salitre-ruta:e09",
+      "fragment_id": "fragment:salitre-ruta:e09:f028",
+      "frame_id": null,
+      "literal_text": "Orell Cascan",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Orell Cascan",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 53,
+      "episode_id": "episode:salitre-ruta:e09",
+      "fragment_id": "fragment:salitre-ruta:e09:f029",
+      "frame_id": null,
+      "literal_text": "Sindicato de la Sal",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Sindicato de la Sal",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 34,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 53,
+      "episode_id": "episode:salitre-ruta:e09",
+      "fragment_id": "fragment:salitre-ruta:e09:f030",
+      "frame_id": null,
+      "literal_text": "Orell Cascan no ceso de servir al Sindicato de la Sal",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Orell Cascan no ceso de servir al Sindicato de la Sal",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 43,
+      "episode_id": "episode:salitre-ruta:e10",
+      "fragment_id": "fragment:salitre-ruta:e10:f031",
+      "frame_id": null,
+      "literal_text": "Hakon Driel",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Hakon Driel",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 32,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 77,
+      "episode_id": "episode:salitre-ruta:e10",
+      "fragment_id": "fragment:salitre-ruta:e10:f032",
+      "frame_id": null,
+      "literal_text": "Sindicato de la Sal",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Sindicato de la Sal",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 58,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 77,
+      "episode_id": "episode:salitre-ruta:e10",
+      "fragment_id": "fragment:salitre-ruta:e10:f033",
+      "frame_id": null,
+      "literal_text": "no cree que Hakon Driel pertenezca al Sindicato de la Sal",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "no cree que Hakon Driel pertenezca al Sindicato de la Sal",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 20,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 20,
+      "episode_id": "episode:salitre-ruta:e11",
+      "fragment_id": "fragment:salitre-ruta:e11:f034",
+      "frame_id": null,
+      "literal_text": "Noor Alcaz",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Noor Alcaz",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 10,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 52,
+      "episode_id": "episode:salitre-ruta:e11",
+      "fragment_id": "fragment:salitre-ruta:e11:f035",
+      "frame_id": null,
+      "literal_text": "Sindicato de la Sal",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Sindicato de la Sal",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 33,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 52,
+      "episode_id": "episode:salitre-ruta:e11",
+      "fragment_id": "fragment:salitre-ruta:e11:f036",
+      "frame_id": null,
+      "literal_text": "No es que Noor Alcaz no sirva al Sindicato de la Sal",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "No es que Noor Alcaz no sirva al Sindicato de la Sal",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:salitre-ruta:e12",
+      "fragment_id": "fragment:salitre-ruta:e12:f037",
+      "frame_id": null,
+      "literal_text": "Petra Lumis",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Petra Lumis",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 35,
+      "episode_id": "episode:salitre-ruta:e12",
+      "fragment_id": "fragment:salitre-ruta:e12:f038",
+      "frame_id": null,
+      "literal_text": "Carro de Plomo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Carro de Plomo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 21,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 35,
+      "episode_id": "episode:salitre-ruta:e12",
+      "fragment_id": "fragment:salitre-ruta:e12:f039",
+      "frame_id": null,
+      "literal_text": "Petra Lumis posee el Carro de Plomo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Petra Lumis posee el Carro de Plomo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 12,
+      "episode_id": "episode:salitre-ruta:e13",
+      "fragment_id": "fragment:salitre-ruta:e13:f040",
+      "frame_id": null,
+      "literal_text": "Tobal Mencia",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Tobal Mencia",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 39,
+      "episode_id": "episode:salitre-ruta:e13",
+      "fragment_id": "fragment:salitre-ruta:e13:f041",
+      "frame_id": null,
+      "literal_text": "Pozo Hondo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Pozo Hondo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 29,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 39,
+      "episode_id": "episode:salitre-ruta:e13",
+      "fragment_id": "fragment:salitre-ruta:e13:f042",
+      "frame_id": null,
+      "literal_text": "Tobal Mencia se encuentra en Pozo Hondo",
+      "media_type": "EMBEDDED_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "normalized_text": "Tobal Mencia se encuentra en Pozo Hondo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "salitre-ruta",
+  "split": "agreement-eval2",
+  "world": "salitre"
+}
