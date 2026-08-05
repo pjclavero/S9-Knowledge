@@ -1,0 +1,370 @@
+{
+  "benchmark_file": "catalog/entities",
+  "dataset_version": "1.0.0",
+  "entities": [
+    {
+      "aliases": [],
+      "entity_id": "entity:vitral:ilan-boreta",
+      "name": "Ilan Boreta",
+      "note": "maestro vidriero",
+      "type": "Character",
+      "world": "vitral"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:vitral:nadia-ferrus",
+      "name": "Nadia Ferrus",
+      "note": "templadora",
+      "type": "Character",
+      "world": "vitral"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:vitral:costas-delmira",
+      "name": "Costas Delmira",
+      "note": "cristalera",
+      "type": "Character",
+      "world": "vitral"
+    },
+    {
+      "aliases": [
+        "Renzo Aubièr"
+      ],
+      "entity_id": "entity:vitral:renzo-aubier",
+      "name": "Renzo Aubier",
+      "note": "tasador",
+      "type": "Character",
+      "world": "vitral"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:vitral:tilde-marconne",
+      "name": "Tilde Marconne",
+      "note": "vigilante",
+      "type": "Character",
+      "world": "vitral"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:vitral:ossian-vetra",
+      "name": "Ossian Vetra",
+      "note": "archivero",
+      "type": "Character",
+      "world": "vitral"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:vitral:calla-rindin",
+      "name": "Calla Rindin",
+      "note": "aprendiza",
+      "type": "Character",
+      "world": "vitral"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:vitral:uxue-somara",
+      "name": "Uxue Somara",
+      "note": "portavoz",
+      "type": "Character",
+      "world": "vitral"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:vitral:bram-oletti",
+      "name": "Bram Oletti",
+      "note": "fundidor",
+      "type": "Character",
+      "world": "vitral"
+    },
+    {
+      "aliases": [
+        "Serín Vaudal"
+      ],
+      "entity_id": "entity:vitral:serin-vaudal",
+      "name": "Serin Vaudal",
+      "note": "notaria",
+      "type": "Character",
+      "world": "vitral"
+    },
+    {
+      "aliases": [
+        "Cámara del Vidrio"
+      ],
+      "entity_id": "entity:vitral:camara-vidrio",
+      "name": "Camara del Vidrio",
+      "note": "gremio rector",
+      "type": "Faction",
+      "world": "vitral"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:vitral:ronda-faroles",
+      "name": "Ronda de los Faroles",
+      "note": "guardia nocturna",
+      "type": "Faction",
+      "world": "vitral"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:vitral:liga-sopladores",
+      "name": "Liga de Sopladores",
+      "note": "liga de oficio",
+      "type": "Faction",
+      "world": "vitral"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:vitral:terraza-cristal",
+      "name": "Terraza Cristal",
+      "note": "plaza elevada",
+      "type": "Location",
+      "world": "vitral"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:vitral:muelle-prisma",
+      "name": "Muelle Prisma",
+      "note": "muelle",
+      "type": "Location",
+      "world": "vitral"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:vitral:copa-alba",
+      "name": "Copa del Alba",
+      "note": "reliquia de taller",
+      "type": "Object",
+      "world": "vitral"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:salitre:deza-corvel",
+      "name": "Deza Corvel",
+      "note": "guia de caravana",
+      "type": "Character",
+      "world": "salitre"
+    },
+    {
+      "aliases": [
+        "Matías Hurel"
+      ],
+      "entity_id": "entity:salitre:matias-hurel",
+      "name": "Matias Hurel",
+      "note": "cargador",
+      "type": "Character",
+      "world": "salitre"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:salitre:iva-brontes",
+      "name": "Iva Brontes",
+      "note": "rastreadora",
+      "type": "Character",
+      "world": "salitre"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:salitre:orell-cascan",
+      "name": "Orell Cascan",
+      "note": "mercader",
+      "type": "Character",
+      "world": "salitre"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:salitre:petra-lumis",
+      "name": "Petra Lumis",
+      "note": "veedora",
+      "type": "Character",
+      "world": "salitre"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:salitre:hakon-driel",
+      "name": "Hakon Driel",
+      "note": "arriero",
+      "type": "Character",
+      "world": "salitre"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:salitre:noor-alcaz",
+      "name": "Noor Alcaz",
+      "note": "escriba de ruta",
+      "type": "Character",
+      "world": "salitre"
+    },
+    {
+      "aliases": [
+        "Tobal Mencía"
+      ],
+      "entity_id": "entity:salitre:tobal-mencia",
+      "name": "Tobal Mencia",
+      "note": "capataz",
+      "type": "Character",
+      "world": "salitre"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:salitre:caravana-blanca",
+      "name": "Caravana Blanca",
+      "note": "convoy",
+      "type": "Faction",
+      "world": "salitre"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:salitre:sindicato-sal",
+      "name": "Sindicato de la Sal",
+      "note": "sindicato",
+      "type": "Faction",
+      "world": "salitre"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:salitre:orden-polvo",
+      "name": "Orden del Polvo",
+      "note": "orden itinerante",
+      "type": "Faction",
+      "world": "salitre"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:salitre:paso-cuarzo",
+      "name": "Paso del Cuarzo",
+      "note": "desfiladero",
+      "type": "Location",
+      "world": "salitre"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:salitre:pozo-hondo",
+      "name": "Pozo Hondo",
+      "note": "pozo de agua",
+      "type": "Location",
+      "world": "salitre"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:salitre:carro-plomo",
+      "name": "Carro de Plomo",
+      "note": "carro blindado",
+      "type": "Object",
+      "world": "salitre"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:brumal:edda-solveig",
+      "name": "Edda Solveig",
+      "note": "farera",
+      "type": "Character",
+      "world": "brumal"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:brumal:janek-orum",
+      "name": "Janek Orum",
+      "note": "guardian",
+      "type": "Character",
+      "world": "brumal"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:brumal:lys-kordan",
+      "name": "Lys Kordan",
+      "note": "cartografa",
+      "type": "Character",
+      "world": "brumal"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:brumal:garret-eisen",
+      "name": "Garret Eisen",
+      "note": "campanero",
+      "type": "Character",
+      "world": "brumal"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:brumal:sonia-halvard",
+      "name": "Sonia Halvard",
+      "note": "medica de paramo",
+      "type": "Character",
+      "world": "brumal"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:brumal:token-arild",
+      "name": "Torvald Arild",
+      "note": "batelero",
+      "type": "Character",
+      "world": "brumal"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:brumal:mira-eskuld",
+      "name": "Mira Eskuld",
+      "note": "vigia de faro",
+      "type": "Character",
+      "world": "brumal"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:brumal:orden-faro-negro",
+      "name": "Orden del Faro Negro",
+      "note": "orden de guardianes",
+      "type": "Faction",
+      "world": "brumal"
+    },
+    {
+      "aliases": [
+        "Cofradía de la Niebla"
+      ],
+      "entity_id": "entity:brumal:cofradia-niebla",
+      "name": "Cofradia de la Niebla",
+      "note": "cofradia",
+      "type": "Faction",
+      "world": "brumal"
+    },
+    {
+      "aliases": [
+        "Consejo del Páramo"
+      ],
+      "entity_id": "entity:brumal:consejo-paramo",
+      "name": "Consejo del Paramo",
+      "note": "consejo",
+      "type": "Faction",
+      "world": "brumal"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:brumal:faro-ceniciento",
+      "name": "Faro Ceniciento",
+      "note": "faro",
+      "type": "Location",
+      "world": "brumal"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:brumal:puente-neblina",
+      "name": "Puente de Neblina",
+      "note": "puente",
+      "type": "Location",
+      "world": "brumal"
+    },
+    {
+      "aliases": [],
+      "entity_id": "entity:brumal:campana-honda",
+      "name": "Campana Honda",
+      "note": "campana ritual",
+      "type": "Object",
+      "world": "brumal"
+    }
+  ],
+  "split": "agreement-eval2",
+  "worlds": [
+    "brumal",
+    "salitre",
+    "vitral"
+  ]
+}

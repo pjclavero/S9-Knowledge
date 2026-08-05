@@ -1,0 +1,1302 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:vitral-taller:e01:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:vitral-taller:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e01:f004"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "AE2-SIMPLE-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Ilan Boreta no pertenece a la Camara del Vidrio",
+          "case_id": "AE2-SIMPLE-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:vitral:camara-vidrio",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:vitral:ilan-boreta",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Negacion simple canonica, una marca, alcance cerrado.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "clausula final que menciona el taller sin afirmar pertenencia"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:vitral-taller:e01:m002"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Ilan Boreta no pertenece a la Camara del Vidrio",
+      "review_required": false,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "subject_mentions": [
+        "mention:vitral-taller:e01:m001"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:vitral-taller:e02:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:vitral-taller:e02",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e02:f007"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "AE2-SIMPLE-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "Nadia Ferrus pertenece a la Liga de Sopladores",
+          "case_id": "AE2-SIMPLE-02",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:vitral:liga-sopladores",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:vitral:nadia-ferrus",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Control afirmativo de la misma familia lexica.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:vitral-taller:e02:m005"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Nadia Ferrus pertenece a la Liga de Sopladores",
+      "review_required": false,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "subject_mentions": [
+        "mention:vitral-taller:e02:m004"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:vitral-taller:e03:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:vitral-taller:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e03:f010"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "AE2-SIMPLE-03:PRIMARY",
+        "negation": {
+          "anchor_quote": "Costas Delmira lidera la Ronda de los Faroles",
+          "case_id": "AE2-SIMPLE-03",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:vitral:ronda-faroles",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:vitral:costas-delmira",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Afirmativo simple, predicado funcional LEADS.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:vitral-taller:e03:m007"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Costas Delmira lidera la Ronda de los Faroles",
+      "review_required": false,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "subject_mentions": [
+        "mention:vitral-taller:e03:m006"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:vitral-taller:e04:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:vitral-taller:e04",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e04:f013"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "AE2-SIMPLE-04:PRIMARY",
+        "negation": {
+          "anchor_quote": "Renzo Aubier no lidera la Camara del Vidrio",
+          "case_id": "AE2-SIMPLE-04",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:vitral:camara-vidrio",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:vitral:renzo-aubier",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Negacion simple sobre predicado funcional.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "clausula final irrelevante tras la negacion"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:vitral-taller:e04:m009"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Renzo Aubier no lidera la Camara del Vidrio",
+      "review_required": false,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "subject_mentions": [
+        "mention:vitral-taller:e04:m008"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:vitral-taller:e05:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:vitral-taller:e05",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e05:f016"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "AE2-SIMPLE-05:PRIMARY",
+        "negation": {
+          "anchor_quote": "Tilde Marconne es aliada de Ossian Vetra",
+          "case_id": "AE2-SIMPLE-05",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": false,
+          "expected_object": "entity:vitral:ossian-vetra",
+          "expected_predicate": "ALLY_OF",
+          "expected_subject": "entity:vitral:tilde-marconne",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Predicado simetrico, control afirmativo.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:vitral-taller:e05:m011"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "ALLY_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Tilde Marconne es aliada de Ossian Vetra",
+      "review_required": false,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "subject_mentions": [
+        "mention:vitral-taller:e05:m010"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:vitral-taller:e06:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:vitral-taller:e06",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e06:f019"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "AE2-SIMPLE-06:PRIMARY",
+        "negation": {
+          "anchor_quote": "Calla Rindin no es aliada de Uxue Somara",
+          "case_id": "AE2-SIMPLE-06",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": true,
+          "expected_object": "entity:vitral:uxue-somara",
+          "expected_predicate": "ALLY_OF",
+          "expected_subject": "entity:vitral:calla-rindin",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Negacion simple sobre predicado simetrico.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "concesiva que sugiere cercania sin afirmar alianza"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:vitral-taller:e06:m013"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "ALLY_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Calla Rindin no es aliada de Uxue Somara",
+      "review_required": false,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "subject_mentions": [
+        "mention:vitral-taller:e06:m012"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:vitral-taller:e07:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:vitral-taller:e07",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e07:f022"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "AE2-DOUBLE-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Nadie puede negar que Bram Oletti no pertenece a la Liga de Sopladores",
+          "case_id": "AE2-DOUBLE-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:vitral:liga-sopladores",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:vitral:bram-oletti",
+          "family": "DOUBLE_NEGATION",
+          "negation_kind": "DOUBLE_NEGATION",
+          "rationale": "Doble negacion: la negacion externa reafirma la interna, resultado neto negado.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "negacion externa (nadie puede negar) mas negacion interna (no pertenece)"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "DOUBLE_NEGATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:vitral-taller:e07:m015"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Nadie puede negar que Bram Oletti no pertenece a la Liga de Sopladores",
+      "review_required": false,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "subject_mentions": [
+        "mention:vitral-taller:e07:m014"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:vitral-taller:e08:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:vitral-taller:e08",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e08:f025"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "AE2-DOUBLE-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "No es cierto que Serin Vaudal no sirve a la Camara del Vidrio",
+          "case_id": "AE2-DOUBLE-02",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:vitral:camara-vidrio",
+          "expected_predicate": "SERVES",
+          "expected_subject": "entity:vitral:serin-vaudal",
+          "family": "DOUBLE_NEGATION",
+          "negation_kind": "DOUBLE_NEGATION",
+          "rationale": "Doble negacion que se cancela: la relacion queda AFIRMADA, no negada.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "negacion externa cancela la interna: resultado neto afirmativo"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "DOUBLE_NEGATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:vitral-taller:e08:m017"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "SERVES"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "No es cierto que Serin Vaudal no sirve a la Camara del Vidrio",
+      "review_required": false,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "subject_mentions": [
+        "mention:vitral-taller:e08:m016"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:vitral-taller:e09:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:vitral-taller:e09",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e09:f028"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "AE2-NEGCESS-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Uxue Somara no dejo de servir a la Ronda de los Faroles",
+          "case_id": "AE2-NEGCESS-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:vitral:ronda-faroles",
+          "expected_predicate": "SERVES",
+          "expected_subject": "entity:vitral:uxue-somara",
+          "family": "NEGATED_CESSATION",
+          "negation_kind": "NEGATED_CESSATION",
+          "rationale": "'No dejo de X' niega el cese: la relacion continua, va a revision por temporalidad.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "negacion de cesacion: la relacion sigue vigente"
+          ],
+          "verb_form": "PRETERITO_MAS_INFINITIVO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:vitral-taller:e09:m019"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "SERVES"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Uxue Somara no dejo de servir a la Ronda de los Faroles",
+      "review_required": false,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "subject_mentions": [
+        "mention:vitral-taller:e09:m018"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:vitral-taller:e10:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:vitral-taller:e10",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e10:f031"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "AE2-NEGCESS-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "Ilan Boreta no ceso de liderar la Camara del Vidrio",
+          "case_id": "AE2-NEGCESS-02",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:vitral:camara-vidrio",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:vitral:ilan-boreta",
+          "family": "NEGATED_CESSATION",
+          "negation_kind": "NEGATED_CESSATION",
+          "rationale": "Misma familia con verbo cesar y predicado funcional.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "PRETERITO_MAS_INFINITIVO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:vitral-taller:e10:m021"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Ilan Boreta no ceso de liderar la Camara del Vidrio",
+      "review_required": false,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "subject_mentions": [
+        "mention:vitral-taller:e10:m020"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:vitral-taller:e11:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:vitral-taller:e11",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e11:f034"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "AE2-CESS-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Nadia Ferrus dejo de pertenecer a la Liga de Sopladores",
+          "case_id": "AE2-CESS-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:vitral:liga-sopladores",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:vitral:nadia-ferrus",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "Cesacion: la relacion estuvo vigente y ya no.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "PRETERITO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "CESSATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:vitral-taller:e11:m023"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Nadia Ferrus dejo de pertenecer a la Liga de Sopladores",
+      "review_required": false,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "subject_mentions": [
+        "mention:vitral-taller:e11:m022"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:vitral-taller:e12:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:vitral-taller:e12",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e12:f038"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "AE2-CESS-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "Costas Delmira dejo de dirigir la Ronda de los Faroles",
+          "case_id": "AE2-CESS-02",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:vitral:ronda-faroles",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:vitral:costas-delmira",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "Cesacion de liderazgo, con complemento locativo tras la marca.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "PRETERITO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "CESSATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:vitral-taller:e12:m025"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Costas Delmira dejo de dirigir la Ronda de los Faroles",
+      "review_required": false,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "subject_mentions": [
+        "mention:vitral-taller:e12:m024"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:vitral-taller:e13:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:vitral-taller:e13",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e13:f041"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "AE2-POS-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Ossian Vetra vive en Terraza Cristal",
+          "case_id": "AE2-POS-01",
+          "cue_position": "NONE",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:vitral:terraza-cristal",
+          "expected_predicate": "LIVES_IN",
+          "expected_subject": "entity:vitral:ossian-vetra",
+          "family": "POSITIVE_CONTROL",
+          "negation_kind": "NONE",
+          "rationale": "Control positivo sin negacion, LIVES_IN.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "POSITIVE_CONTROL"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:vitral-taller:e13:m028"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LIVES_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Ossian Vetra vive en Terraza Cristal",
+      "review_required": false,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "subject_mentions": [
+        "mention:vitral-taller:e13:m027"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:vitral-taller:e14:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:vitral-taller:e14",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e14:f044"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "AE2-POS-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "Bram Oletti posee la Copa del Alba",
+          "case_id": "AE2-POS-02",
+          "cue_position": "NONE",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:vitral:copa-alba",
+          "expected_predicate": "OWNS",
+          "expected_subject": "entity:vitral:bram-oletti",
+          "family": "POSITIVE_CONTROL",
+          "negation_kind": "NONE",
+          "rationale": "Control positivo, OWNS.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "POSITIVE_CONTROL"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:vitral-taller:e14:m030"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "OWNS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Bram Oletti posee la Copa del Alba",
+      "review_required": false,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "subject_mentions": [
+        "mention:vitral-taller:e14:m029"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "vitral-taller",
+  "split": "agreement-eval2",
+  "world": "vitral"
+}

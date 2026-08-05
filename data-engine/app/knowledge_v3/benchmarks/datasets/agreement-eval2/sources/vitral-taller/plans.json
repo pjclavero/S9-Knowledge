@@ -1,0 +1,576 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:vitral",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-08-05T09:15:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:vitral-taller:e01:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:vitral-taller:e01:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e01:f004"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:vitral:camara-vidrio",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:vitral:ilan-boreta"
+        },
+        {
+          "claim_id": "claim:vitral-taller:e02:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:vitral-taller:e02:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e02:f007"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:vitral:liga-sopladores",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:vitral:nadia-ferrus"
+        },
+        {
+          "claim_id": "claim:vitral-taller:e03:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:vitral-taller:e03:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e03:f010"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:vitral:ronda-faroles",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:vitral:costas-delmira"
+        },
+        {
+          "claim_id": "claim:vitral-taller:e04:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:vitral-taller:e04:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e04:f013"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:vitral:camara-vidrio",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:vitral:renzo-aubier"
+        },
+        {
+          "claim_id": "claim:vitral-taller:e05:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:vitral-taller:e05:c1",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e05:f016"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:vitral:ossian-vetra",
+          "predicate": "ALLY_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:vitral:tilde-marconne"
+        },
+        {
+          "claim_id": "claim:vitral-taller:e06:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:vitral-taller:e06:c1",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e06:f019"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:vitral:uxue-somara",
+          "predicate": "ALLY_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:vitral:calla-rindin"
+        },
+        {
+          "claim_id": "claim:vitral-taller:e07:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:vitral-taller:e07:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e07:f022"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:vitral:liga-sopladores",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:vitral:bram-oletti"
+        },
+        {
+          "claim_id": "claim:vitral-taller:e08:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:vitral-taller:e08:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e08:f025"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:vitral:camara-vidrio",
+          "predicate": "SERVES",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:vitral:serin-vaudal"
+        },
+        {
+          "claim_id": "claim:vitral-taller:e09:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:vitral-taller:e09:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e09:f028"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:vitral:ronda-faroles",
+          "predicate": "SERVES",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:vitral:uxue-somara"
+        },
+        {
+          "claim_id": "claim:vitral-taller:e10:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:vitral-taller:e10:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e10:f031"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:vitral:camara-vidrio",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:vitral:ilan-boreta"
+        },
+        {
+          "claim_id": "claim:vitral-taller:e11:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:vitral-taller:e11:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e11:f034"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:vitral:liga-sopladores",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:vitral:nadia-ferrus"
+        },
+        {
+          "claim_id": "claim:vitral-taller:e12:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:vitral-taller:e12:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e12:f038"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:vitral:ronda-faroles",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:vitral:costas-delmira"
+        },
+        {
+          "claim_id": "claim:vitral-taller:e13:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:vitral-taller:e13:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e13:f041"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:vitral:terraza-cristal",
+          "predicate": "LIVES_IN",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:vitral:ossian-vetra"
+        },
+        {
+          "claim_id": "claim:vitral-taller:e14:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:vitral-taller:e14:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e14:f044"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:vitral:copa-alba",
+          "predicate": "OWNS",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:vitral:bram-oletti"
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-08-06T09:15:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": false,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-08-05T09:15:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "1351e35daf11a9c5ff80e619a358e0e50ab59c49ff3fe15ac4d8334589937aba"
+        },
+        "key_id": null,
+        "signature": null,
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "ontology",
+            "version": "core-1.4.0"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:vitral:ae2-simple-01-1",
+          "decision_id": "decision:claim:vitral-taller:e01:c1",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e01:f004"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:44813bcc4b048ab91ebf832e9b086b049ff21141dd3187ed36630b220fb18e0a",
+          "operation_id": "op:vitral-taller:ae2-simple-01-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:vitral:camara-vidrio",
+            "predicate": "MEMBER_OF",
+            "subject_entity_id": "entity:vitral:ilan-boreta",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:vitral:ae2-simple-02-1",
+          "decision_id": "decision:claim:vitral-taller:e02:c1",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e02:f007"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:8478b1b0c48fe0e0a0096f20463daab1aa64d9074916dbd59c0b5597a6438d50",
+          "operation_id": "op:vitral-taller:ae2-simple-02-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": false,
+            "object_entity_id": "entity:vitral:liga-sopladores",
+            "predicate": "MEMBER_OF",
+            "subject_entity_id": "entity:vitral:nadia-ferrus",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:vitral:ae2-simple-03-1",
+          "decision_id": "decision:claim:vitral-taller:e03:c1",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e03:f010"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:4d9a023b3721cfc95e3185ecdc7571af0b810498db0993129f5e8a8b0d9d66af",
+          "operation_id": "op:vitral-taller:ae2-simple-03-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": false,
+            "object_entity_id": "entity:vitral:ronda-faroles",
+            "predicate": "LEADS",
+            "subject_entity_id": "entity:vitral:costas-delmira",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:vitral:ae2-simple-04-1",
+          "decision_id": "decision:claim:vitral-taller:e04:c1",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e04:f013"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:918a2f44bd2ab35e4d08f01567fb3b31a120e47a4ef9616295783123f4aba8d1",
+          "operation_id": "op:vitral-taller:ae2-simple-04-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:vitral:camara-vidrio",
+            "predicate": "LEADS",
+            "subject_entity_id": "entity:vitral:renzo-aubier",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:vitral:ae2-simple-05-1",
+          "decision_id": "decision:claim:vitral-taller:e05:c1",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e05:f016"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:a48d9e7aa47cacec843957a4ce3c19c256eddc909b7dc901669961269849a2d1",
+          "operation_id": "op:vitral-taller:ae2-simple-05-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "UNDIRECTED",
+            "negated": false,
+            "object_entity_id": "entity:vitral:ossian-vetra",
+            "predicate": "ALLY_OF",
+            "subject_entity_id": "entity:vitral:tilde-marconne",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:vitral:ae2-simple-06-1",
+          "decision_id": "decision:claim:vitral-taller:e06:c1",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e06:f019"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:f6d1da51bf8792a52d65c55da45e9779bb297410951b86c35cea0aee99bdee03",
+          "operation_id": "op:vitral-taller:ae2-simple-06-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "UNDIRECTED",
+            "negated": true,
+            "object_entity_id": "entity:vitral:uxue-somara",
+            "predicate": "ALLY_OF",
+            "subject_entity_id": "entity:vitral:calla-rindin",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:vitral:ae2-double-01-1",
+          "decision_id": "decision:claim:vitral-taller:e07:c1",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e07:f022"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:fe9b4e7eff3e878007574a7af9c9a112eb84096677a057c1372aa4a19163545c",
+          "operation_id": "op:vitral-taller:ae2-double-01-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:vitral:liga-sopladores",
+            "predicate": "MEMBER_OF",
+            "subject_entity_id": "entity:vitral:bram-oletti",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:vitral:ae2-double-02-1",
+          "decision_id": "decision:claim:vitral-taller:e08:c1",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e08:f025"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:35260e6bf9b87f9f002c91594f81fe735be1715b88fc26a9438452e8cce7050e",
+          "operation_id": "op:vitral-taller:ae2-double-02-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": false,
+            "object_entity_id": "entity:vitral:camara-vidrio",
+            "predicate": "SERVES",
+            "subject_entity_id": "entity:vitral:serin-vaudal",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:vitral:ae2-pos-01-1",
+          "decision_id": "decision:claim:vitral-taller:e13:c1",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e13:f041"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:9d03aef93f8b68169d0c7424ab77a86687bf05607a0b9523bf1f9f5021c4b872",
+          "operation_id": "op:vitral-taller:ae2-pos-01-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": false,
+            "object_entity_id": "entity:vitral:terraza-cristal",
+            "predicate": "LIVES_IN",
+            "subject_entity_id": "entity:vitral:ossian-vetra",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:vitral:ae2-pos-02-1",
+          "decision_id": "decision:claim:vitral-taller:e14:c1",
+          "evidence_fragment_ids": [
+            "fragment:vitral-taller:e14:f044"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:7441e1845954e4d858491508126e94ccae85a0652c270df72a5b1869b57003e4",
+          "operation_id": "op:vitral-taller:ae2-pos-02-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": false,
+            "object_entity_id": "entity:vitral:copa-alba",
+            "predicate": "OWNS",
+            "subject_entity_id": "entity:vitral:bram-oletti",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "152bed455ec6241d50a2a1842f37f4d76f65b51d44ed55393d0f0d47cfa02d69"
+      },
+      "plan_id": "plan:vitral-taller:0001",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:bench:vitral-taller",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "vitral-taller",
+  "split": "agreement-eval2",
+  "world": "vitral"
+}

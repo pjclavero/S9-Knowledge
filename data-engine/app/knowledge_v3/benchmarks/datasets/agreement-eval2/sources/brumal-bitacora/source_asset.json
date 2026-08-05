@@ -1,0 +1,65 @@
+{
+  "benchmark_file": "source_asset",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:brumal-bitacora",
+      "byte_size": 996,
+      "collection_id": "collection:brumal",
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "contract_id": "source-asset/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "copyright_class": "OWN",
+      "created_at": "2026-08-05T09:00:00Z",
+      "game_profile": "generic",
+      "ingested_at": "2026-08-05T09:05:00Z",
+      "language_hint": "es",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "title": "Bitacora hablada del Faro Ceniciento"
+      },
+      "mime_type": "audio/ogg",
+      "original_location": "bench://agreement-eval2/brumal-bitacora",
+      "original_name": "brumal-bitacora.bench",
+      "privacy_class": "PUBLIC",
+      "processing_policy": {
+        "allow_external_providers": false,
+        "allow_media_persistence": true,
+        "retention_days": null
+      },
+      "produced_by_step": "gold.asset",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "content_hash",
+            "original_name"
+          ],
+          "provider": "local",
+          "step": "gold.asset",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "source_kind": "AUDIO",
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "brumal-bitacora",
+  "split": "agreement-eval2",
+  "world": "brumal"
+}

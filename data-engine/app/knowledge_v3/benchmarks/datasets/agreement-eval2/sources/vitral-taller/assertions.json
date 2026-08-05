@@ -1,0 +1,712 @@
+{
+  "benchmark_file": "assertions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "assertion_id": "assertion:vitral:ae2-simple-01-1",
+      "calendar_id": "calendar:vitral",
+      "collection_id": "collection:vitral",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:vitral-taller:e01"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e01:f004"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "entity:vitral:ilan-boreta|MEMBER_OF|entity:vitral:camara-vidrio|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "AE2-SIMPLE-01",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:vitral:camara-vidrio",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:vitral:ilan-boreta",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "assertion_id": "assertion:vitral:ae2-simple-02-1",
+      "calendar_id": "calendar:vitral",
+      "collection_id": "collection:vitral",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:vitral-taller:e02"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e02:f007"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "entity:vitral:nadia-ferrus|MEMBER_OF|entity:vitral:liga-sopladores|SUBJECT_TO_OBJECT|False",
+        "negation": {
+          "case_id": "AE2-SIMPLE-02",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:vitral:liga-sopladores",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:vitral:nadia-ferrus",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "assertion_id": "assertion:vitral:ae2-simple-03-1",
+      "calendar_id": "calendar:vitral",
+      "collection_id": "collection:vitral",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:vitral-taller:e03"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e03:f010"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "entity:vitral:costas-delmira|LEADS|entity:vitral:ronda-faroles|SUBJECT_TO_OBJECT|False",
+        "negation": {
+          "case_id": "AE2-SIMPLE-03",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:vitral:ronda-faroles",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LEADS",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:vitral:costas-delmira",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "assertion_id": "assertion:vitral:ae2-simple-04-1",
+      "calendar_id": "calendar:vitral",
+      "collection_id": "collection:vitral",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:vitral-taller:e04"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e04:f013"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "entity:vitral:renzo-aubier|LEADS|entity:vitral:camara-vidrio|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "AE2-SIMPLE-04",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:vitral:camara-vidrio",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LEADS",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:vitral:renzo-aubier",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "assertion_id": "assertion:vitral:ae2-simple-05-1",
+      "calendar_id": "calendar:vitral",
+      "collection_id": "collection:vitral",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:vitral-taller:e05"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e05:f016"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "entity:vitral:ossian-vetra|ALLY_OF|entity:vitral:tilde-marconne|UNDIRECTED|False",
+        "negation": {
+          "case_id": "AE2-SIMPLE-05",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:vitral:ossian-vetra",
+      "ontology_version": "core-1.4.0",
+      "predicate": "ALLY_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:vitral:tilde-marconne",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "assertion_id": "assertion:vitral:ae2-simple-06-1",
+      "calendar_id": "calendar:vitral",
+      "collection_id": "collection:vitral",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "UNDIRECTED",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:vitral-taller:e06"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e06:f019"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "entity:vitral:calla-rindin|ALLY_OF|entity:vitral:uxue-somara|UNDIRECTED|True",
+        "negation": {
+          "case_id": "AE2-SIMPLE-06",
+          "family": "SIMPLE",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:vitral:uxue-somara",
+      "ontology_version": "core-1.4.0",
+      "predicate": "ALLY_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:vitral:calla-rindin",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "assertion_id": "assertion:vitral:ae2-double-01-1",
+      "calendar_id": "calendar:vitral",
+      "collection_id": "collection:vitral",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:vitral-taller:e07"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e07:f022"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "entity:vitral:bram-oletti|MEMBER_OF|entity:vitral:liga-sopladores|SUBJECT_TO_OBJECT|True",
+        "negation": {
+          "case_id": "AE2-DOUBLE-01",
+          "family": "DOUBLE_NEGATION",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "DOUBLE_NEGATION"
+        ]
+      },
+      "negated": true,
+      "object_entity_id": "entity:vitral:liga-sopladores",
+      "ontology_version": "core-1.4.0",
+      "predicate": "MEMBER_OF",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:vitral:bram-oletti",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "assertion_id": "assertion:vitral:ae2-double-02-1",
+      "calendar_id": "calendar:vitral",
+      "collection_id": "collection:vitral",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:vitral-taller:e08"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e08:f025"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "entity:vitral:serin-vaudal|SERVES|entity:vitral:camara-vidrio|SUBJECT_TO_OBJECT|False",
+        "negation": {
+          "case_id": "AE2-DOUBLE-02",
+          "family": "DOUBLE_NEGATION",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "DOUBLE_NEGATION"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:vitral:camara-vidrio",
+      "ontology_version": "core-1.4.0",
+      "predicate": "SERVES",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:vitral:serin-vaudal",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "assertion_id": "assertion:vitral:ae2-pos-01-1",
+      "calendar_id": "calendar:vitral",
+      "collection_id": "collection:vitral",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:vitral-taller:e13"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e13:f041"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "entity:vitral:ossian-vetra|LIVES_IN|entity:vitral:terraza-cristal|SUBJECT_TO_OBJECT|False",
+        "negation": {
+          "case_id": "AE2-POS-01",
+          "family": "POSITIVE_CONTROL",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:vitral:terraza-cristal",
+      "ontology_version": "core-1.4.0",
+      "predicate": "LIVES_IN",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:vitral:ossian-vetra",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "assertion_id": "assertion:vitral:ae2-pos-02-1",
+      "calendar_id": "calendar:vitral",
+      "collection_id": "collection:vitral",
+      "confidence": 0.9,
+      "contract_id": "fact-assertion/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction": "SUBJECT_TO_OBJECT",
+      "engine_version": "3.0.0-bench",
+      "episode_ids": [
+        "episode:vitral-taller:e14"
+      ],
+      "epistemic_status": "ASSERTED",
+      "event_time": "2026-08-05T09:00:00Z",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e14:f044"
+      ],
+      "game_profile": "generic",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "gold_key": "entity:vitral:bram-oletti|OWNS|entity:vitral:copa-alba|SUBJECT_TO_OBJECT|False",
+        "negation": {
+          "case_id": "AE2-POS-02",
+          "family": "POSITIVE_CONTROL",
+          "knowledge_horizon": null
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "negated": false,
+      "object_entity_id": "entity:vitral:copa-alba",
+      "ontology_version": "core-1.4.0",
+      "predicate": "OWNS",
+      "produced_by_step": "gold.assert",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "predicate",
+            "direction",
+            "status"
+          ],
+          "provider": "local",
+          "step": "gold.assert",
+          "version": "1.0.0"
+        }
+      ],
+      "recorded_at": "2026-08-05T09:10:00Z",
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "state": "ACTIVE",
+      "status": "ASSERTED",
+      "subject_entity_id": "entity:vitral:bram-oletti",
+      "superseded_by": null,
+      "supersedes": null,
+      "valid_from": null,
+      "valid_to": null,
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "vitral-taller",
+  "split": "agreement-eval2",
+  "world": "vitral"
+}

@@ -1,0 +1,1212 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:salitre-ruta:e01:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:salitre-ruta:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e01:f003"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "AE2-SIMPLE-07:PRIMARY",
+        "negation": {
+          "anchor_quote": "Deza Corvel milita en el Sindicato de la Sal",
+          "case_id": "AE2-SIMPLE-07",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:salitre:sindicato-sal",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:salitre:deza-corvel",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Afirmativo con verbo 'militar en'.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:salitre-ruta:e01:m002"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Deza Corvel milita en el Sindicato de la Sal",
+      "review_required": false,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "subject_mentions": [
+        "mention:salitre-ruta:e01:m001"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:salitre-ruta:e02:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:salitre-ruta:e02",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e02:f006"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "AE2-SIMPLE-08:PRIMARY",
+        "negation": {
+          "anchor_quote": "Matias Hurel no milita en la Orden del Polvo",
+          "case_id": "AE2-SIMPLE-08",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:salitre:orden-polvo",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:salitre:matias-hurel",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Negacion simple, misma familia lexica que AE2-SIMPLE-07.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "referencia a un comentario ajeno tras la negacion"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:salitre-ruta:e02:m004"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Matias Hurel no milita en la Orden del Polvo",
+      "review_required": false,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "subject_mentions": [
+        "mention:salitre-ruta:e02:m003"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:salitre-ruta:e03:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:salitre-ruta:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e03:f010"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "AE2-SIMPLE-09:PRIMARY",
+        "negation": {
+          "anchor_quote": "Iva Brontes es hermana de Orell Cascan",
+          "case_id": "AE2-SIMPLE-09",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": false,
+          "expected_object": "entity:salitre:orell-cascan",
+          "expected_predicate": "SIBLING_OF",
+          "expected_subject": "entity:salitre:iva-brontes",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Control afirmativo, predicado simetrico.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:salitre-ruta:e03:m006"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "SIBLING_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Iva Brontes es hermana de Orell Cascan",
+      "review_required": false,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "subject_mentions": [
+        "mention:salitre-ruta:e03:m005"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:salitre-ruta:e04:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:salitre-ruta:e04",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e04:f013"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "AE2-SIMPLE-10:PRIMARY",
+        "negation": {
+          "anchor_quote": "Petra Lumis, veedora de la Caravana Blanca desde el paso anterior, no lo es ya",
+          "case_id": "AE2-SIMPLE-10",
+          "cue_position": "AFTER_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:salitre:caravana-blanca",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:salitre:petra-lumis",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Topicalizacion con negacion final: leer solo el inciso invierte la lectura.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "negacion final con pronombre atono tras un inciso afirmativo"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:salitre-ruta:e04:m009"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Petra Lumis, veedora de la Caravana Blanca desde el paso anterior, no lo es ya",
+      "review_required": false,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "subject_mentions": [
+        "mention:salitre-ruta:e04:m008"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:salitre-ruta:e05:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:salitre-ruta:e05",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e05:f017"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "AE2-CESS-03:PRIMARY",
+        "negation": {
+          "anchor_quote": "Hakon Driel dejo de servir a la Orden del Polvo",
+          "case_id": "AE2-CESS-03",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:salitre:orden-polvo",
+          "expected_predicate": "SERVES",
+          "expected_subject": "entity:salitre:hakon-driel",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "Cesacion con SERVES.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "PRETERITO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "CESSATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:salitre-ruta:e05:m011"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "SERVES"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Hakon Driel dejo de servir a la Orden del Polvo",
+      "review_required": false,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "subject_mentions": [
+        "mention:salitre-ruta:e05:m010"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:salitre-ruta:e06:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:salitre-ruta:e06",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e06:f020"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "AE2-CESS-04:PRIMARY",
+        "negation": {
+          "anchor_quote": "Noor Alcaz dejo de pertenecer al Sindicato de la Sal",
+          "case_id": "AE2-CESS-04",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:salitre:sindicato-sal",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:salitre:noor-alcaz",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "Cesacion con forma 'pertenecer al'.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "PRETERITO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "CESSATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:salitre-ruta:e06:m014"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Noor Alcaz dejo de pertenecer al Sindicato de la Sal",
+      "review_required": false,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "subject_mentions": [
+        "mention:salitre-ruta:e06:m013"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:salitre-ruta:e07:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:salitre-ruta:e07",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e07:f023"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "AE2-CESS-05:PRIMARY",
+        "negation": {
+          "anchor_quote": "Tobal Mencia dejo de dirigir la Caravana Blanca",
+          "case_id": "AE2-CESS-05",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:salitre:caravana-blanca",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:salitre:tobal-mencia",
+          "family": "CESSATION",
+          "negation_kind": "CESSATION",
+          "rationale": "Cesacion de liderazgo.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "PRETERITO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "CESSATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:salitre-ruta:e07:m016"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Tobal Mencia dejo de dirigir la Caravana Blanca",
+      "review_required": false,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "subject_mentions": [
+        "mention:salitre-ruta:e07:m015"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:salitre-ruta:e08:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:salitre-ruta:e08",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e08:f027"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "AE2-NEGCESS-03:PRIMARY",
+        "negation": {
+          "anchor_quote": "Deza Corvel no dejo de pertenecer al Sindicato de la Sal",
+          "case_id": "AE2-NEGCESS-03",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:salitre:sindicato-sal",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:salitre:deza-corvel",
+          "family": "NEGATED_CESSATION",
+          "negation_kind": "NEGATED_CESSATION",
+          "rationale": "Negacion de cesacion: la relacion continua vigente.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "mencion de un rumor sin que el texto lo confirme"
+          ],
+          "verb_form": "PRETERITO_MAS_INFINITIVO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:salitre-ruta:e08:m018"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Deza Corvel no dejo de pertenecer al Sindicato de la Sal",
+      "review_required": false,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "subject_mentions": [
+        "mention:salitre-ruta:e08:m017"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:salitre-ruta:e09:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:salitre-ruta:e09",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e09:f030"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "AE2-NEGCESS-04:PRIMARY",
+        "negation": {
+          "anchor_quote": "Orell Cascan no ceso de servir al Sindicato de la Sal",
+          "case_id": "AE2-NEGCESS-04",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_CESSATION",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:salitre:sindicato-sal",
+          "expected_predicate": "SERVES",
+          "expected_subject": "entity:salitre:orell-cascan",
+          "family": "NEGATED_CESSATION",
+          "negation_kind": "NEGATED_CESSATION",
+          "rationale": "Negacion de cesacion con verbo cesar.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "PRETERITO_MAS_INFINITIVO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:salitre-ruta:e09:m021"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "SERVES"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Orell Cascan no ceso de servir al Sindicato de la Sal",
+      "review_required": false,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "subject_mentions": [
+        "mention:salitre-ruta:e09:m020"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:salitre-ruta:e10:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:salitre-ruta:e10",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e10:f033"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "AE2-SCOPE-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "no cree que Hakon Driel pertenezca al Sindicato de la Sal",
+          "case_id": "AE2-SCOPE-01",
+          "cue_position": "EMBEDDED",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:salitre:sindicato-sal",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:salitre:hakon-driel",
+          "family": "SCOPE_EMBEDDED",
+          "negation_kind": "SCOPE_EMBEDDED",
+          "rationale": "El alcance de la negacion es dudoso: niega la CREENCIA del veedor, no necesariamente el hecho, y el propio texto lo contradice a continuacion. Caso disenado para discrepancia potencial entre carriles.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "negacion de un verbo de opinion ajena sobre una subordinada",
+            "clausula final que contradice la opinion negada"
+          ],
+          "verb_form": "SUBJUNTIVO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "SCOPE_EMBEDDED"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:salitre-ruta:e10:m023"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "no cree que Hakon Driel pertenezca al Sindicato de la Sal",
+      "review_required": false,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "subject_mentions": [
+        "mention:salitre-ruta:e10:m022"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:salitre-ruta:e11:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:salitre-ruta:e11",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e11:f036"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "AE2-SCOPE-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "No es que Noor Alcaz no sirva al Sindicato de la Sal",
+          "case_id": "AE2-SCOPE-02",
+          "cue_position": "EMBEDDED",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:salitre:sindicato-sal",
+          "expected_predicate": "SERVES",
+          "expected_subject": "entity:salitre:noor-alcaz",
+          "family": "SCOPE_EMBEDDED",
+          "negation_kind": "SCOPE_EMBEDDED",
+          "rationale": "Correccion metalinguistica: cancela la negacion, la relacion se mantiene AFIRMADA.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [
+            "negacion metalinguistica de una negacion implicita ('no es que no')",
+            "segunda relacion (Orden del Polvo) sugerida pero no asertada"
+          ],
+          "verb_form": "INDICATIVO",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "SCOPE_EMBEDDED"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:salitre-ruta:e11:m025"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "SERVES"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "No es que Noor Alcaz no sirva al Sindicato de la Sal",
+      "review_required": false,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "subject_mentions": [
+        "mention:salitre-ruta:e11:m024"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:salitre-ruta:e12:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:salitre-ruta:e12",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e12:f039"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "AE2-POS-03:PRIMARY",
+        "negation": {
+          "anchor_quote": "Petra Lumis posee el Carro de Plomo",
+          "case_id": "AE2-POS-03",
+          "cue_position": "NONE",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:salitre:carro-plomo",
+          "expected_predicate": "OWNS",
+          "expected_subject": "entity:salitre:petra-lumis",
+          "family": "POSITIVE_CONTROL",
+          "negation_kind": "NONE",
+          "rationale": "Control positivo, OWNS.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "POSITIVE_CONTROL"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:salitre-ruta:e12:m027"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "OWNS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Petra Lumis posee el Carro de Plomo",
+      "review_required": false,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "subject_mentions": [
+        "mention:salitre-ruta:e12:m026"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:salitre-ruta:e13:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:salitre-ruta:e13",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e13:f042"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "gold_key": "AE2-POS-04:PRIMARY",
+        "negation": {
+          "anchor_quote": "Tobal Mencia se encuentra en Pozo Hondo",
+          "case_id": "AE2-POS-04",
+          "cue_position": "NONE",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:salitre:pozo-hondo",
+          "expected_predicate": "LOCATED_IN",
+          "expected_subject": "entity:salitre:tobal-mencia",
+          "family": "POSITIVE_CONTROL",
+          "negation_kind": "NONE",
+          "rationale": "Control positivo, LOCATED_IN.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "NONE",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "POSITIVE_CONTROL"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:salitre-ruta:e13:m029"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LOCATED_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Tobal Mencia se encuentra en Pozo Hondo",
+      "review_required": false,
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "subject_mentions": [
+        "mention:salitre-ruta:e13:m028"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "salitre-ruta",
+  "split": "agreement-eval2",
+  "world": "salitre"
+}

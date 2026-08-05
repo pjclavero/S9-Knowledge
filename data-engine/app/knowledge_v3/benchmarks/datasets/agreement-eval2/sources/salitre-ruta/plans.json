@@ -1,0 +1,469 @@
+{
+  "benchmark_file": "plans",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "collection_id": "collection:salitre",
+      "contract_id": "graph-mutation-plan/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "created_at": "2026-08-05T09:15:00Z",
+      "decisions": [
+        {
+          "claim_id": "claim:salitre-ruta:e01:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:salitre-ruta:e01:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e01:f003"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:salitre:sindicato-sal",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:salitre:deza-corvel"
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e02:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:salitre-ruta:e02:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e02:f006"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:salitre:orden-polvo",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:salitre:matias-hurel"
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e03:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:salitre-ruta:e03:c1",
+          "direction": "UNDIRECTED",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e03:f010"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:salitre:orell-cascan",
+          "predicate": "SIBLING_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:salitre:iva-brontes"
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e04:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:salitre-ruta:e04:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e04:f013"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:salitre:caravana-blanca",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:salitre:petra-lumis"
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e05:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:salitre-ruta:e05:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e05:f017"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:salitre:orden-polvo",
+          "predicate": "SERVES",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:salitre:hakon-driel"
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e06:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:salitre-ruta:e06:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e06:f020"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:salitre:sindicato-sal",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:salitre:noor-alcaz"
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e07:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:salitre-ruta:e07:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e07:f023"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:salitre:caravana-blanca",
+          "predicate": "LEADS",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:salitre:tobal-mencia"
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e08:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:salitre-ruta:e08:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e08:f027"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:salitre:sindicato-sal",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:salitre:deza-corvel"
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e09:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:salitre-ruta:e09:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e09:f030"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:salitre:sindicato-sal",
+          "predicate": "SERVES",
+          "reason_codes": [
+            "REVIEW_TEMPORALITY",
+            "REVIEW_NEGATION_CESSATION"
+          ],
+          "subject_entity_id": "entity:salitre:orell-cascan"
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e10:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:salitre-ruta:e10:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e10:f033"
+          ],
+          "negated": true,
+          "object_entity_id": "entity:salitre:sindicato-sal",
+          "predicate": "MEMBER_OF",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:salitre:hakon-driel"
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e11:c1",
+          "confidence": 0.5,
+          "decision": "REVIEW",
+          "decision_id": "decision:claim:salitre-ruta:e11:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e11:f036"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:salitre:sindicato-sal",
+          "predicate": "SERVES",
+          "reason_codes": [
+            "REVIEW_PREDICATE",
+            "REVIEW_NEGATION_SCOPE"
+          ],
+          "subject_entity_id": "entity:salitre:noor-alcaz"
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e12:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:salitre-ruta:e12:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e12:f039"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:salitre:carro-plomo",
+          "predicate": "OWNS",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:salitre:petra-lumis"
+        },
+        {
+          "claim_id": "claim:salitre-ruta:e13:c1",
+          "confidence": 0.9,
+          "decision": "ACCEPT",
+          "decision_id": "decision:claim:salitre-ruta:e13:c1",
+          "direction": "SUBJECT_TO_OBJECT",
+          "epistemic_status": "ASSERTED",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e13:f042"
+          ],
+          "negated": false,
+          "object_entity_id": "entity:salitre:pozo-hondo",
+          "predicate": "LOCATED_IN",
+          "reason_codes": [
+            "LOCAL_APPROVED"
+          ],
+          "subject_entity_id": "entity:salitre:tobal-mencia"
+        }
+      ],
+      "engine_version": "3.0.0-bench",
+      "expires_at": "2026-08-06T09:15:00Z",
+      "game_profile": "generic",
+      "local_approval": {
+        "approved": false,
+        "approved_by": {
+          "name": "s9k.engine.local",
+          "provider": "local",
+          "version": "3.0.0-bench"
+        },
+        "created_at": "2026-08-05T09:15:00Z",
+        "decision_hash": {
+          "algorithm": "sha256",
+          "value": "a2b1445e8129ecd81294bf7913d49549692ae553594c071dc3bcbb72474c2732"
+        },
+        "key_id": null,
+        "signature": null,
+        "validator_chain": [
+          {
+            "result": "PASS",
+            "validator": "structural",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "semantic",
+            "version": "3.0.0-bench"
+          },
+          {
+            "result": "PASS",
+            "validator": "ontology",
+            "version": "core-1.4.0"
+          }
+        ]
+      },
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        }
+      },
+      "mutation_operations": [
+        {
+          "assertion_id": "assertion:salitre:ae2-simple-07-1",
+          "decision_id": "decision:claim:salitre-ruta:e01:c1",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e01:f003"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:4658ba36c40f36770340d95a00ad43b147c3d3de9d79ebb1f687a71c836f56df",
+          "operation_id": "op:salitre-ruta:ae2-simple-07-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": false,
+            "object_entity_id": "entity:salitre:sindicato-sal",
+            "predicate": "MEMBER_OF",
+            "subject_entity_id": "entity:salitre:deza-corvel",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:salitre:ae2-simple-08-1",
+          "decision_id": "decision:claim:salitre-ruta:e02:c1",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e02:f006"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:57a6b024b665627a3133371bdfab962dc8b5ff125248be393f7fa815ef307c0e",
+          "operation_id": "op:salitre-ruta:ae2-simple-08-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:salitre:orden-polvo",
+            "predicate": "MEMBER_OF",
+            "subject_entity_id": "entity:salitre:matias-hurel",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:salitre:ae2-simple-09-1",
+          "decision_id": "decision:claim:salitre-ruta:e03:c1",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e03:f010"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:4d7d4f56767d60c9d1278336cc6cf214d0f06abb199cf76d7212d966769b4626",
+          "operation_id": "op:salitre-ruta:ae2-simple-09-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "UNDIRECTED",
+            "negated": false,
+            "object_entity_id": "entity:salitre:orell-cascan",
+            "predicate": "SIBLING_OF",
+            "subject_entity_id": "entity:salitre:iva-brontes",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:salitre:ae2-simple-10-1",
+          "decision_id": "decision:claim:salitre-ruta:e04:c1",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e04:f013"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:74709f1aeaa43f02abb561ee53a4d286eaca670627ad4cec6c7df45206042b16",
+          "operation_id": "op:salitre-ruta:ae2-simple-10-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": true,
+            "object_entity_id": "entity:salitre:caravana-blanca",
+            "predicate": "MEMBER_OF",
+            "subject_entity_id": "entity:salitre:petra-lumis",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:salitre:ae2-pos-03-1",
+          "decision_id": "decision:claim:salitre-ruta:e12:c1",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e12:f039"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:cd61c46415f640ebb44674ff9d5e323441835d7987ad3ceecfd47238c2f6434d",
+          "operation_id": "op:salitre-ruta:ae2-pos-03-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": false,
+            "object_entity_id": "entity:salitre:carro-plomo",
+            "predicate": "OWNS",
+            "subject_entity_id": "entity:salitre:petra-lumis",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        },
+        {
+          "assertion_id": "assertion:salitre:ae2-pos-04-1",
+          "decision_id": "decision:claim:salitre-ruta:e13:c1",
+          "evidence_fragment_ids": [
+            "fragment:salitre-ruta:e13:f042"
+          ],
+          "expected_hash": null,
+          "expected_state": "WOULD_CREATE",
+          "expected_version": null,
+          "idempotency_key": "idem:sha256:ab82e3174b926513455965687434a0d3a06a91adb5f73c4df06b9895a812c1b9",
+          "operation_id": "op:salitre-ruta:ae2-pos-04-1",
+          "operation_type": "CREATE_ASSERTION",
+          "payload": {
+            "direction": "SUBJECT_TO_OBJECT",
+            "negated": false,
+            "object_entity_id": "entity:salitre:pozo-hondo",
+            "predicate": "LOCATED_IN",
+            "subject_entity_id": "entity:salitre:tobal-mencia",
+            "valid_from": null,
+            "valid_to": null
+          },
+          "target_entity_id": null
+        }
+      ],
+      "ontology_version": "core-1.4.0",
+      "plan_hash": {
+        "algorithm": "sha256",
+        "value": "0a7caaa0f77ffcd83addaa11ec559b7b71d1e56f82333c2f17b9e34866b0361b"
+      },
+      "plan_id": "plan:salitre-ruta:0001",
+      "produced_by_step": "gold.plan",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "decisions",
+            "mutation_operations"
+          ],
+          "provider": "local",
+          "step": "gold.plan",
+          "version": "1.0.0"
+        }
+      ],
+      "snapshot_id": "snapshot:bench:salitre-ruta",
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "salitre-ruta",
+  "split": "agreement-eval2",
+  "world": "salitre"
+}

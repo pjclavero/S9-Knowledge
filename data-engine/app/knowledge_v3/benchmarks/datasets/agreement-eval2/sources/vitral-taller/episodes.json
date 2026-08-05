@@ -1,0 +1,914 @@
+{
+  "benchmark_file": "episodes",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "e0371a6d9aa2430fc2ad5728d31d0fad6ed7ec12b37bbe377647f724d2654f84"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e01",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-SIMPLE-01",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e02",
+      "page": null,
+      "previous_episode_id": null,
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 1,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Que quede escrito para que nadie lo dude en la proxima inspeccion: Ilan Boreta no pertenece a la Camara del Vidrio, por mas que su banco de trabajo siga en Terraza Cristal.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "e16e4d2ba9e3f15251760b46bcb24ccda6a2e75cf68fe9c24f349026fa11cfbe"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e02",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-SIMPLE-02",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e03",
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e01",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 2,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Nadia Ferrus pertenece a la Liga de Sopladores desde el ultimo censo del taller.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "99251bb72ebd03c05b8674ed22e691fb4bd166a88e49836acc423a1ca6171118"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e03",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-SIMPLE-03",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e04",
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e02",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 3,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Costas Delmira lidera la Ronda de los Faroles, y el libro de guardias asi lo asienta cada noche.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "ac8fa6c7e543b6cf21eb7f83540ce266bfe281d3d9479471b4fd99b40e2dafc4"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e04",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-SIMPLE-04",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e05",
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e03",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 4,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Renzo Aubier no lidera la Camara del Vidrio, y todo tasador nuevo lo confunde al llegar.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "268bccfb298a20f50c4059e14226149bc4139d7b32561cd1726158d2f71c1a0e"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e05",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-SIMPLE-05",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e06",
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e04",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 5,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Tilde Marconne es aliada de Ossian Vetra desde que ambos entraron de aprendices.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "a63a7beefd1e13c8c5689c32df0dd11c5c691fc624669d7e5bba88c0dbf3d857"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e06",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-SIMPLE-06",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "SIMPLE"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e07",
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e05",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 6,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Calla Rindin no es aliada de Uxue Somara, aunque compartan mesa en cada asamblea.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "a3d7c671efdf1eea0b601d0f7f200722142a39e09e7a66be20fa1100a14e39d4"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e07",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-DOUBLE-01",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "DOUBLE_NEGATION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e08",
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e06",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 7,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Nadie puede negar que Bram Oletti no pertenece a la Liga de Sopladores; el registro del taller lo repite cada temporada.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "4e53caa89a51a560e5152182cdd42a7cc8c079cdb03f364c2258e0aa5d1bdd5f"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e08",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-DOUBLE-02",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "DOUBLE_NEGATION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e09",
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e07",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 8,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "No es cierto que Serin Vaudal no sirve a la Camara del Vidrio: firma sus actas cada equinoccio.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "cf8cdf4d1053e7ed1ac9796d81aa68ea69ce2b032ec5aea94f8c5019a0094907"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e09",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-NEGCESS-01",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e10",
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e08",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 9,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Uxue Somara no dejo de servir a la Ronda de los Faroles, ni siquiera cuando cambio de taller.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "1a42a297c3a161c6458b23b54c9407a1343903e5f2330dde194768c7728ee02a"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e10",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-NEGCESS-02",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "NEGATED_CESSATION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e11",
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e09",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 10,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Ilan Boreta no ceso de liderar la Camara del Vidrio pese a los rumores del ultimo censo.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "23ff90f1c07f784cfb291e296ad5ddf54fddcc47302fd15af70836b750139af7"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e11",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-CESS-01",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "CESSATION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e12",
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e10",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 11,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Nadia Ferrus dejo de pertenecer a la Liga de Sopladores tras el cierre del ultimo horno.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "13fbc3477ec86d3d19c314a9b98d4cbbd97ca642a1b9d8e35e26a7d080f80b0f"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e12",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-CESS-02",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "CESSATION"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e13",
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e11",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 12,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Costas Delmira dejo de dirigir la Ronda de los Faroles cuando se traslado a Muelle Prisma.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "e5e539c19086143e2487f6cae71239af63c35514e31db3a2cb0b024aaff4670c"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e13",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-POS-01",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e14",
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e12",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 13,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Ossian Vetra vive en Terraza Cristal desde que se hizo cargo del archivo del taller.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "c92bce5c4971c46261f00b24be416706122dde7750df96e9d828bbc0f80356fb"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e14",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-POS-02",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "POSITIVE_CONTROL"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e15",
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e13",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 14,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Bram Oletti posee la Copa del Alba desde que la rescato del horno viejo.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "0d17a6db46226b1b09fd45063588834e0305f08d63ca21804f57198ec056b165"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e15",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-NOCLAIM-01",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "IMPERATIVE",
+          "NO_CLAIM"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": "episode:vitral-taller:e16",
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e14",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 15,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Templa el vidrio antes de que el horno pierda calor, y no dejes sola la pieza.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "asset_id": "asset:vitral-taller",
+      "bbox": null,
+      "content_hash": {
+        "algorithm": "sha256",
+        "value": "c37bff0a816fc44183d2d305ff2e09f72e3b9461cbdbe765ff1da2111c8dd636"
+      },
+      "contract_id": "source-episode/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "episode_id": "episode:vitral-taller:e16",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "negation_case_id": "AE2-NOCLAIM-02",
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "COUNTERFACTUAL",
+          "NO_CLAIM"
+        ]
+      },
+      "modality": "TEXT",
+      "next_episode_id": null,
+      "page": null,
+      "previous_episode_id": "episode:vitral-taller:e15",
+      "produced_by_step": "gold.segment",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "text",
+            "content_hash"
+          ],
+          "provider": "local",
+          "step": "gold.segment",
+          "version": "1.0.0"
+        }
+      ],
+      "quality": {
+        "flags": [],
+        "score": 0.95
+      },
+      "sequence": 16,
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "text": "Si Renzo Aubier hubiera pertenecido a la Camara del Vidrio, otro habria firmado el tasado.",
+      "time_end": null,
+      "time_start": null,
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "vitral-taller",
+  "split": "agreement-eval2",
+  "world": "vitral"
+}

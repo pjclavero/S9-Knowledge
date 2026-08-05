@@ -1,0 +1,380 @@
+{
+  "benchmark_file": "manifest",
+  "catalog_files": [
+    "catalog/entities.json",
+    "catalog/game_profile_generic.json",
+    "catalog/game_profile_narrow.json"
+  ],
+  "dataset_version": "1.0.0",
+  "decision_counts": {
+    "ABSTAIN": 2,
+    "AUTO_APPROVE": 21,
+    "NO_DECISION": 5,
+    "REVIEW_NEGATION_CESSATION": 9,
+    "REVIEW_NEGATION_SCOPE": 5
+  },
+  "family_counts": {
+    "CESSATION": 5,
+    "DOUBLE_NEGATION": 2,
+    "NEGATED_CESSATION": 4,
+    "NEVER": 3,
+    "NOT_YET": 3,
+    "NO_CLAIM": 4,
+    "POSITIVE_CONTROL": 4,
+    "QUESTION_CONDITIONAL_RUMOR": 3,
+    "SCOPE_EMBEDDED": 2,
+    "SIMPLE": 12
+  },
+  "family_quota": {
+    "CESSATION": 6,
+    "DOUBLE_NEGATION": 2,
+    "NEGATED_CESSATION": 5,
+    "NEVER": 4,
+    "NOT_YET": 4,
+    "NO_CLAIM": 4,
+    "POSITIVE_CONTROL": 8,
+    "QUESTION_CONDITIONAL_RUMOR": 5,
+    "SCOPE_EMBEDDED": 4,
+    "SIMPLE": 8
+  },
+  "file_hashes": {
+    "agreement-eval2/catalog/entities.json": "0cb49d8624ce66876f61307a80fe9fe9814b604da4b9bbc85c908a5a4302f39e",
+    "agreement-eval2/catalog/game_profile_generic.json": "cf400f6591d1081721eee8685ab4bacf909a22fcc5a8aecb475c466a5a0009de",
+    "agreement-eval2/catalog/game_profile_narrow.json": "f2095dbe5bd07cfa854dd15c05c94cf404dfc47718f5c75c18a522f51d99d8c5",
+    "agreement-eval2/sources/brumal-bitacora/assertions.json": "188412c1b73cdb7d1b31f650317e21801c95bbbd9b29aa8ecb4c697db74a75f3",
+    "agreement-eval2/sources/brumal-bitacora/claims.json": "6716f7629674781f5cbbce6889b35916a64b4392f68f55977985e3503b8bc394",
+    "agreement-eval2/sources/brumal-bitacora/episodes.json": "b7c13a028e5e67bcae785d710fdbe987eb3d96b36a8b29cea5b07e8c9df9d660",
+    "agreement-eval2/sources/brumal-bitacora/fragments.json": "11ada99308cf891383f69480ce2c0b8315f548aef887a8f00c7620b35870bc98",
+    "agreement-eval2/sources/brumal-bitacora/mentions.json": "fbbb987a342305159b9aaebb455ee265039f21fd865737007c109ba138ffa0e0",
+    "agreement-eval2/sources/brumal-bitacora/negatives.json": "68a837a514c642d1617d8009434b2669a7962e1d6ac6bf00316eab0e24625bf2",
+    "agreement-eval2/sources/brumal-bitacora/plans.json": "63eada2acde347a66fa84a57a4b7339532d157649b2dbe6d7172c3fc815023c9",
+    "agreement-eval2/sources/brumal-bitacora/reference_text.json": "d1393542abf6c8d8c0062e03140611a2961c4de98b6b8a30d26786d5ffd859b5",
+    "agreement-eval2/sources/brumal-bitacora/resolutions.json": "25e7e2437ee8c45e5180150ee7558fe3ee2ab24f257fd237a2bf59af4a7e004b",
+    "agreement-eval2/sources/brumal-bitacora/source_asset.json": "e17d406bfd37e75b593427b9b3d042a872cd09baaf809dbfc4cc81625d29f43d",
+    "agreement-eval2/sources/salitre-ruta/assertions.json": "812297eeed00b1594369db39b20c08c9b4e9dc95022122dabcb7a45394246d67",
+    "agreement-eval2/sources/salitre-ruta/claims.json": "3692f1cadcbfc936f8f8089f558dd48cdb67d7235cbeb5e683ee089005faa5ac",
+    "agreement-eval2/sources/salitre-ruta/episodes.json": "a54de9fc8c3d91005316f4491eb433211f098c0d463843a9d2e22977e69c765e",
+    "agreement-eval2/sources/salitre-ruta/fragments.json": "33161c21bd6368f67dd85204cde6968ccccebfdb6aed5a1eb037fd491855301a",
+    "agreement-eval2/sources/salitre-ruta/mentions.json": "19ebefdb80f6c7566958cc64342dae1c72bf6530d44b709c37c857781fe91107",
+    "agreement-eval2/sources/salitre-ruta/negatives.json": "268191aa6c33b321186bb527eede92488d84909f7db7258709d79575294792a5",
+    "agreement-eval2/sources/salitre-ruta/plans.json": "f2dc04ea1acb1a712d6d80cbd6bdafad1cf1a6909b58e84e0cda5da8d154d98d",
+    "agreement-eval2/sources/salitre-ruta/reference_text.json": "8d105b63d4e59faf84fd032bd88d87b9c821a59f40e8d790350ec81bf6dc67e0",
+    "agreement-eval2/sources/salitre-ruta/resolutions.json": "a189e5ad378f5b71e49b6d3450b9375e525e61318e2562b156cc424941221d3e",
+    "agreement-eval2/sources/salitre-ruta/source_asset.json": "203d461d08a23e8941c652210944615bdc9a4053974961842527832dae5bce24",
+    "agreement-eval2/sources/vitral-taller/assertions.json": "c8bcaf17a31f52ce500ccdac2e71a23d6074bf36c85812e2f185a9edd7323a6e",
+    "agreement-eval2/sources/vitral-taller/claims.json": "280fe65859b0f111610effe10132729478655b61b1ecbaa0d3d8578ced693693",
+    "agreement-eval2/sources/vitral-taller/episodes.json": "1dfeded0f1467f62fa829945f6001021eb9a9d6a8bd8ada25cb9f8c52e0275bb",
+    "agreement-eval2/sources/vitral-taller/fragments.json": "78687642d2af6400865da612a2c81eb1e38c9b62bec72261a9c505743583f5ba",
+    "agreement-eval2/sources/vitral-taller/mentions.json": "cedd80441aa65a0ef2cfd4bc5d804ab7ccdb019f33656cb92f6c1bd3fcbbc02c",
+    "agreement-eval2/sources/vitral-taller/negatives.json": "e9be91a7f03bd8eb55b8c7f9e221560def37e2f14db1ed3000577800415f774b",
+    "agreement-eval2/sources/vitral-taller/plans.json": "d20407fd8073d10ed5041a6d889f584254a14fb82ec092ae54c730a923a7834c",
+    "agreement-eval2/sources/vitral-taller/reference_text.json": "794b19b52788c0c5058c5834bf75fe0acfff570570742080005cc763202884ca",
+    "agreement-eval2/sources/vitral-taller/resolutions.json": "99dd156bb5923833d712cb161a3d4af15d6878a99dcea2d577ad01d9b283585c",
+    "agreement-eval2/sources/vitral-taller/source_asset.json": "2f4556908478f8882316fb4593afd0fdc5373d1ce28d8d0aa15d6c0d21f16e50"
+  },
+  "format_version": "1.0.0",
+  "independence": {
+    "escrito_por": "AGENTE-IMPLEMENTADOR del bloque ACUERDO-2",
+    "leidos": [
+      "contracts/knowledge-v3/v1/ (schemas y validador congelados)",
+      "docs/v3/18-politica-de-aprobacion-de-negaciones.md",
+      "negation/_authoring/cases.py y build_negation.py (formato de contrato, NO contenido)"
+    ],
+    "no_leidos": [
+      "data-engine/app/knowledge_v3/extraction/cues.py (solo se citaron marcas ya documentadas en docs/v3/18)",
+      "data-engine/app/knowledge_v3/extraction/deterministic.py (solo se citaron superficies literales de RELATION_RULES, publicadas como vocabulario de dominio permitido por el encargo)"
+    ],
+    "no_reutiliza_mundos_de": [
+      "basalto",
+      "cirro",
+      "zafiro",
+      "ambar",
+      "leyenda",
+      "mareas",
+      "kestrel",
+      "ferrovia",
+      "micelio",
+      "liga"
+    ]
+  },
+  "negation_kinds": [
+    "NONE",
+    "SIMPLE",
+    "NEVER",
+    "CESSATION",
+    "NEGATED_CESSATION",
+    "NOT_YET",
+    "SCOPE_EMBEDDED",
+    "DOUBLE_NEGATION"
+  ],
+  "phenomena_index": {
+    "ABSTENTION": [
+      "AE2-COND-01",
+      "AE2-RUMOR-01"
+    ],
+    "AGREEMENT_EVAL2": [
+      "AE2-CESS-01",
+      "AE2-CESS-02",
+      "AE2-CESS-03",
+      "AE2-CESS-04",
+      "AE2-CESS-05",
+      "AE2-COND-01",
+      "AE2-DOUBLE-01",
+      "AE2-DOUBLE-02",
+      "AE2-NEGCESS-01",
+      "AE2-NEGCESS-02",
+      "AE2-NEGCESS-03",
+      "AE2-NEGCESS-04",
+      "AE2-NEVER-01",
+      "AE2-NEVER-02",
+      "AE2-NEVER-03",
+      "AE2-NOCLAIM-01",
+      "AE2-NOCLAIM-02",
+      "AE2-NOCLAIM-03",
+      "AE2-NOCLAIM-04",
+      "AE2-NOTYET-01",
+      "AE2-NOTYET-02",
+      "AE2-NOTYET-03",
+      "AE2-POS-01",
+      "AE2-POS-02",
+      "AE2-POS-03",
+      "AE2-POS-04",
+      "AE2-RUMOR-01",
+      "AE2-RUMOR-02",
+      "AE2-SCOPE-01",
+      "AE2-SCOPE-02",
+      "AE2-SIMPLE-01",
+      "AE2-SIMPLE-02",
+      "AE2-SIMPLE-03",
+      "AE2-SIMPLE-04",
+      "AE2-SIMPLE-05",
+      "AE2-SIMPLE-06",
+      "AE2-SIMPLE-07",
+      "AE2-SIMPLE-08",
+      "AE2-SIMPLE-09",
+      "AE2-SIMPLE-10",
+      "AE2-SIMPLE-11",
+      "AE2-SIMPLE-12"
+    ],
+    "AMBIGUOUS_SCOPE": [
+      "AE2-CESS-01",
+      "AE2-CESS-02",
+      "AE2-CESS-03",
+      "AE2-CESS-04",
+      "AE2-CESS-05",
+      "AE2-COND-01",
+      "AE2-DOUBLE-01",
+      "AE2-DOUBLE-02",
+      "AE2-NEGCESS-01",
+      "AE2-NEGCESS-02",
+      "AE2-NEGCESS-03",
+      "AE2-NEGCESS-04",
+      "AE2-NOTYET-01",
+      "AE2-NOTYET-02",
+      "AE2-NOTYET-03",
+      "AE2-RUMOR-01",
+      "AE2-SCOPE-01",
+      "AE2-SCOPE-02"
+    ],
+    "ASR_NOISE": [
+      "AE2-COND-01",
+      "AE2-NEVER-01",
+      "AE2-NEVER-02",
+      "AE2-NEVER-03",
+      "AE2-NOTYET-01",
+      "AE2-NOTYET-02",
+      "AE2-NOTYET-03",
+      "AE2-RUMOR-01",
+      "AE2-RUMOR-02",
+      "AE2-SIMPLE-11",
+      "AE2-SIMPLE-12"
+    ],
+    "CESSATION": [
+      "AE2-CESS-01",
+      "AE2-CESS-02",
+      "AE2-CESS-03",
+      "AE2-CESS-04",
+      "AE2-CESS-05"
+    ],
+    "COUNTERFACTUAL": [
+      "AE2-NOCLAIM-02"
+    ],
+    "DOUBLE_NEGATION": [
+      "AE2-DOUBLE-01",
+      "AE2-DOUBLE-02"
+    ],
+    "FICTION_WITHIN_FICTION": [
+      "AE2-NOCLAIM-04"
+    ],
+    "IMPERATIVE": [
+      "AE2-NOCLAIM-01"
+    ],
+    "NEGATED_CESSATION": [
+      "AE2-NEGCESS-01",
+      "AE2-NEGCESS-02",
+      "AE2-NEGCESS-03",
+      "AE2-NEGCESS-04"
+    ],
+    "NEVER": [
+      "AE2-NEVER-01",
+      "AE2-NEVER-02",
+      "AE2-NEVER-03"
+    ],
+    "NOT_YET": [
+      "AE2-NOTYET-01",
+      "AE2-NOTYET-02",
+      "AE2-NOTYET-03"
+    ],
+    "NO_CLAIM": [
+      "AE2-NOCLAIM-01",
+      "AE2-NOCLAIM-02",
+      "AE2-NOCLAIM-03",
+      "AE2-NOCLAIM-04"
+    ],
+    "POSITIVE_CONTROL": [
+      "AE2-POS-01",
+      "AE2-POS-02",
+      "AE2-POS-03",
+      "AE2-POS-04"
+    ],
+    "QUESTION": [
+      "AE2-NOCLAIM-03"
+    ],
+    "QUESTION_CONDITIONAL_RUMOR": [
+      "AE2-COND-01",
+      "AE2-RUMOR-01",
+      "AE2-RUMOR-02"
+    ],
+    "SCOPE_EMBEDDED": [
+      "AE2-SCOPE-01",
+      "AE2-SCOPE-02"
+    ],
+    "SIMPLE": [
+      "AE2-COND-01",
+      "AE2-RUMOR-01",
+      "AE2-SIMPLE-01",
+      "AE2-SIMPLE-02",
+      "AE2-SIMPLE-03",
+      "AE2-SIMPLE-04",
+      "AE2-SIMPLE-05",
+      "AE2-SIMPLE-06",
+      "AE2-SIMPLE-07",
+      "AE2-SIMPLE-08",
+      "AE2-SIMPLE-09",
+      "AE2-SIMPLE-10",
+      "AE2-SIMPLE-11",
+      "AE2-SIMPLE-12"
+    ]
+  },
+  "purpose": "Corpus de evaluacion NUEVO del bloque ACUERDO-2: amplia el n=56 del gold negation (docs/v3/47) con frases y entidades NUNCA VISTAS, para medir si el acuerdo determinista∧NVIDIA (9/9 activos, 1.000) se sostiene con n mayor. Gold, no medicion: este split no se ejecuta contra ningun extractor en este bloque, la medicion vive en scripts/agreement/measure_agreement.py --gold-split agreement-eval2.",
+  "sources": [
+    {
+      "collection_id": "collection:vitral",
+      "counts": {
+        "assertions": 10,
+        "cases": 16,
+        "claims": 14,
+        "decisions": 14,
+        "episodes": 16,
+        "fragments": 44,
+        "mentions": 30,
+        "negatives": 2,
+        "operations": 10,
+        "plans": 1,
+        "resolutions": 30
+      },
+      "description": "Prosa de taller. Negacion simple, cesacion, doble negacion y control positivo.",
+      "families": [
+        "CESSATION",
+        "DOUBLE_NEGATION",
+        "NEGATED_CESSATION",
+        "NO_CLAIM",
+        "POSITIVE_CONTROL",
+        "SIMPLE"
+      ],
+      "modalities": [
+        "TEXT"
+      ],
+      "source_id": "vitral-taller",
+      "source_kind": "MARKDOWN",
+      "title": "Cuadernos del taller de vitral",
+      "world": "vitral"
+    },
+    {
+      "collection_id": "collection:salitre",
+      "counts": {
+        "assertions": 6,
+        "cases": 15,
+        "claims": 13,
+        "decisions": 13,
+        "episodes": 15,
+        "fragments": 42,
+        "mentions": 29,
+        "negatives": 2,
+        "operations": 6,
+        "plans": 1,
+        "resolutions": 29
+      },
+      "description": "Diario administrativo. Cesaciones, negacion de cesacion, alcance ambiguo.",
+      "families": [
+        "CESSATION",
+        "NEGATED_CESSATION",
+        "NO_CLAIM",
+        "POSITIVE_CONTROL",
+        "SCOPE_EMBEDDED",
+        "SIMPLE"
+      ],
+      "modalities": [
+        "TEXT"
+      ],
+      "source_id": "salitre-ruta",
+      "source_kind": "MARKDOWN",
+      "title": "Diario de ruta de la Caravana Blanca",
+      "world": "salitre"
+    },
+    {
+      "collection_id": "collection:brumal",
+      "counts": {
+        "assertions": 5,
+        "cases": 11,
+        "claims": 10,
+        "decisions": 10,
+        "episodes": 11,
+        "fragments": 31,
+        "mentions": 21,
+        "negatives": 0,
+        "operations": 5,
+        "plans": 1,
+        "resolutions": 21
+      },
+      "description": "Turnos de habla transcritos por ASR. NEVER, NOT_YET, rumor y condicional.",
+      "families": [
+        "NEVER",
+        "NOT_YET",
+        "QUESTION_CONDITIONAL_RUMOR",
+        "SIMPLE"
+      ],
+      "modalities": [
+        "SPEAKER_TURN"
+      ],
+      "source_id": "brumal-bitacora",
+      "source_kind": "AUDIO",
+      "title": "Bitacora hablada del Faro Ceniciento",
+      "world": "brumal"
+    }
+  ],
+  "split": "agreement-eval2",
+  "totals": {
+    "assertions": 21,
+    "cases": 42,
+    "claims": 37,
+    "decisions": 37,
+    "episodes": 42,
+    "fragments": 117,
+    "mentions": 80,
+    "negatives": 4,
+    "operations": 21,
+    "plans": 3,
+    "resolutions": 80
+  }
+}

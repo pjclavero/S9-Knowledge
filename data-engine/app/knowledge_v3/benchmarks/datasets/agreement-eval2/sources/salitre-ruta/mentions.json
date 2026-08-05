@@ -1,0 +1,1634 @@
+{
+  "benchmark_file": "mentions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 11,
+      "episode_id": "episode:salitre-ruta:e01",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e01:f001"
+      ],
+      "mention_id": "mention:salitre-ruta:e01:m001",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Deza Corvel",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "surface": "Deza Corvel",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 44,
+      "episode_id": "episode:salitre-ruta:e01",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e01:f002"
+      ],
+      "mention_id": "mention:salitre-ruta:e01:m002",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Sindicato de la Sal",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 25,
+      "surface": "Sindicato de la Sal",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 12,
+      "episode_id": "episode:salitre-ruta:e02",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e02:f004"
+      ],
+      "mention_id": "mention:salitre-ruta:e02:m003",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Matias Hurel",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "surface": "Matias Hurel",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 44,
+      "episode_id": "episode:salitre-ruta:e02",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e02:f005"
+      ],
+      "mention_id": "mention:salitre-ruta:e02:m004",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Orden del Polvo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 29,
+      "surface": "Orden del Polvo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 11,
+      "episode_id": "episode:salitre-ruta:e03",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e03:f007"
+      ],
+      "mention_id": "mention:salitre-ruta:e03:m005",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Iva Brontes",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "surface": "Iva Brontes",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 38,
+      "episode_id": "episode:salitre-ruta:e03",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e03:f008"
+      ],
+      "mention_id": "mention:salitre-ruta:e03:m006",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Orell Cascan",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 26,
+      "surface": "Orell Cascan",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 80,
+      "episode_id": "episode:salitre-ruta:e03",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e03:f009"
+      ],
+      "mention_id": "mention:salitre-ruta:e03:m007",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Pozo Hondo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 70,
+      "surface": "Pozo Hondo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 11,
+      "episode_id": "episode:salitre-ruta:e04",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e04:f011"
+      ],
+      "mention_id": "mention:salitre-ruta:e04:m008",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Petra Lumis",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "surface": "Petra Lumis",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 42,
+      "episode_id": "episode:salitre-ruta:e04",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e04:f012"
+      ],
+      "mention_id": "mention:salitre-ruta:e04:m009",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Caravana Blanca",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 27,
+      "surface": "Caravana Blanca",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 11,
+      "episode_id": "episode:salitre-ruta:e05",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e05:f014"
+      ],
+      "mention_id": "mention:salitre-ruta:e05:m010",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Hakon Driel",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "surface": "Hakon Driel",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 47,
+      "episode_id": "episode:salitre-ruta:e05",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e05:f015"
+      ],
+      "mention_id": "mention:salitre-ruta:e05:m011",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Orden del Polvo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 32,
+      "surface": "Orden del Polvo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 89,
+      "episode_id": "episode:salitre-ruta:e05",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e05:f016"
+      ],
+      "mention_id": "mention:salitre-ruta:e05:m012",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Paso del Cuarzo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 74,
+      "surface": "Paso del Cuarzo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 10,
+      "episode_id": "episode:salitre-ruta:e06",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e06:f018"
+      ],
+      "mention_id": "mention:salitre-ruta:e06:m013",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Noor Alcaz",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "surface": "Noor Alcaz",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 52,
+      "episode_id": "episode:salitre-ruta:e06",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e06:f019"
+      ],
+      "mention_id": "mention:salitre-ruta:e06:m014",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Sindicato de la Sal",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 33,
+      "surface": "Sindicato de la Sal",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 12,
+      "episode_id": "episode:salitre-ruta:e07",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e07:f021"
+      ],
+      "mention_id": "mention:salitre-ruta:e07:m015",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Tobal Mencia",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "surface": "Tobal Mencia",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 47,
+      "episode_id": "episode:salitre-ruta:e07",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e07:f022"
+      ],
+      "mention_id": "mention:salitre-ruta:e07:m016",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Caravana Blanca",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 32,
+      "surface": "Caravana Blanca",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 11,
+      "episode_id": "episode:salitre-ruta:e08",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e08:f024"
+      ],
+      "mention_id": "mention:salitre-ruta:e08:m017",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Deza Corvel",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "surface": "Deza Corvel",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 56,
+      "episode_id": "episode:salitre-ruta:e08",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e08:f025"
+      ],
+      "mention_id": "mention:salitre-ruta:e08:m018",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Sindicato de la Sal",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 37,
+      "surface": "Sindicato de la Sal",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 96,
+      "episode_id": "episode:salitre-ruta:e08",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e08:f026"
+      ],
+      "mention_id": "mention:salitre-ruta:e08:m019",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Pozo Hondo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 86,
+      "surface": "Pozo Hondo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 12,
+      "episode_id": "episode:salitre-ruta:e09",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e09:f028"
+      ],
+      "mention_id": "mention:salitre-ruta:e09:m020",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Orell Cascan",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "surface": "Orell Cascan",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 53,
+      "episode_id": "episode:salitre-ruta:e09",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e09:f029"
+      ],
+      "mention_id": "mention:salitre-ruta:e09:m021",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Sindicato de la Sal",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 34,
+      "surface": "Sindicato de la Sal",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 43,
+      "episode_id": "episode:salitre-ruta:e10",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e10:f031"
+      ],
+      "mention_id": "mention:salitre-ruta:e10:m022",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Hakon Driel",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 32,
+      "surface": "Hakon Driel",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 77,
+      "episode_id": "episode:salitre-ruta:e10",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e10:f032"
+      ],
+      "mention_id": "mention:salitre-ruta:e10:m023",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Sindicato de la Sal",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 58,
+      "surface": "Sindicato de la Sal",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 20,
+      "episode_id": "episode:salitre-ruta:e11",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e11:f034"
+      ],
+      "mention_id": "mention:salitre-ruta:e11:m024",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Noor Alcaz",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 10,
+      "surface": "Noor Alcaz",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 52,
+      "episode_id": "episode:salitre-ruta:e11",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e11:f035"
+      ],
+      "mention_id": "mention:salitre-ruta:e11:m025",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Sindicato de la Sal",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 33,
+      "surface": "Sindicato de la Sal",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 11,
+      "episode_id": "episode:salitre-ruta:e12",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e12:f037"
+      ],
+      "mention_id": "mention:salitre-ruta:e12:m026",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Petra Lumis",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "surface": "Petra Lumis",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 35,
+      "episode_id": "episode:salitre-ruta:e12",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e12:f038"
+      ],
+      "mention_id": "mention:salitre-ruta:e12:m027",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Carro de Plomo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 21,
+      "surface": "Carro de Plomo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Object"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 12,
+      "episode_id": "episode:salitre-ruta:e13",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e13:f040"
+      ],
+      "mention_id": "mention:salitre-ruta:e13:m028",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Tobal Mencia",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 0,
+      "surface": "Tobal Mencia",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 39,
+      "episode_id": "episode:salitre-ruta:e13",
+      "evidence_fragment_ids": [
+        "fragment:salitre-ruta:e13:f041"
+      ],
+      "mention_id": "mention:salitre-ruta:e13:m029",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "salitre-ruta",
+          "split": "agreement-eval2",
+          "world": "salitre"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Pozo Hondo",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:salitre-ruta",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "1314ebd35d41ad9ab791daa05f0e789d49c7a1b6efc0b9e2659e6fd8a2fdf4a0"
+      },
+      "start": 29,
+      "surface": "Pozo Hondo",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "salitre-ruta",
+  "split": "agreement-eval2",
+  "world": "salitre"
+}

@@ -1,0 +1,1690 @@
+{
+  "benchmark_file": "mentions",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 78,
+      "episode_id": "episode:vitral-taller:e01",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e01:f001"
+      ],
+      "mention_id": "mention:vitral-taller:e01:m001",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Ilan Boreta",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 67,
+      "surface": "Ilan Boreta",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 114,
+      "episode_id": "episode:vitral-taller:e01",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e01:f002"
+      ],
+      "mention_id": "mention:vitral-taller:e01:m002",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Camara del Vidrio",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 97,
+      "surface": "Camara del Vidrio",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 171,
+      "episode_id": "episode:vitral-taller:e01",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e01:f003"
+      ],
+      "mention_id": "mention:vitral-taller:e01:m003",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Terraza Cristal",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 156,
+      "surface": "Terraza Cristal",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 12,
+      "episode_id": "episode:vitral-taller:e02",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e02:f005"
+      ],
+      "mention_id": "mention:vitral-taller:e02:m004",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Nadia Ferrus",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 0,
+      "surface": "Nadia Ferrus",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 46,
+      "episode_id": "episode:vitral-taller:e02",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e02:f006"
+      ],
+      "mention_id": "mention:vitral-taller:e02:m005",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Liga de Sopladores",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 28,
+      "surface": "Liga de Sopladores",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 14,
+      "episode_id": "episode:vitral-taller:e03",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e03:f008"
+      ],
+      "mention_id": "mention:vitral-taller:e03:m006",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Costas Delmira",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 0,
+      "surface": "Costas Delmira",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 45,
+      "episode_id": "episode:vitral-taller:e03",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e03:f009"
+      ],
+      "mention_id": "mention:vitral-taller:e03:m007",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Ronda de los Faroles",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 25,
+      "surface": "Ronda de los Faroles",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 12,
+      "episode_id": "episode:vitral-taller:e04",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e04:f011"
+      ],
+      "mention_id": "mention:vitral-taller:e04:m008",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Renzo Aubier",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 0,
+      "surface": "Renzo Aubier",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 43,
+      "episode_id": "episode:vitral-taller:e04",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e04:f012"
+      ],
+      "mention_id": "mention:vitral-taller:e04:m009",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Camara del Vidrio",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 26,
+      "surface": "Camara del Vidrio",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 14,
+      "episode_id": "episode:vitral-taller:e05",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e05:f014"
+      ],
+      "mention_id": "mention:vitral-taller:e05:m010",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Tilde Marconne",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 0,
+      "surface": "Tilde Marconne",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 40,
+      "episode_id": "episode:vitral-taller:e05",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e05:f015"
+      ],
+      "mention_id": "mention:vitral-taller:e05:m011",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Ossian Vetra",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 28,
+      "surface": "Ossian Vetra",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 12,
+      "episode_id": "episode:vitral-taller:e06",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e06:f017"
+      ],
+      "mention_id": "mention:vitral-taller:e06:m012",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Calla Rindin",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 0,
+      "surface": "Calla Rindin",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 40,
+      "episode_id": "episode:vitral-taller:e06",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e06:f018"
+      ],
+      "mention_id": "mention:vitral-taller:e06:m013",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Uxue Somara",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 29,
+      "surface": "Uxue Somara",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 33,
+      "episode_id": "episode:vitral-taller:e07",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e07:f020"
+      ],
+      "mention_id": "mention:vitral-taller:e07:m014",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Bram Oletti",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 22,
+      "surface": "Bram Oletti",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 70,
+      "episode_id": "episode:vitral-taller:e07",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e07:f021"
+      ],
+      "mention_id": "mention:vitral-taller:e07:m015",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Liga de Sopladores",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 52,
+      "surface": "Liga de Sopladores",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 29,
+      "episode_id": "episode:vitral-taller:e08",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e08:f023"
+      ],
+      "mention_id": "mention:vitral-taller:e08:m016",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Serin Vaudal",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 17,
+      "surface": "Serin Vaudal",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 61,
+      "episode_id": "episode:vitral-taller:e08",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e08:f024"
+      ],
+      "mention_id": "mention:vitral-taller:e08:m017",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Camara del Vidrio",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 44,
+      "surface": "Camara del Vidrio",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 11,
+      "episode_id": "episode:vitral-taller:e09",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e09:f026"
+      ],
+      "mention_id": "mention:vitral-taller:e09:m018",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Uxue Somara",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 0,
+      "surface": "Uxue Somara",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 55,
+      "episode_id": "episode:vitral-taller:e09",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e09:f027"
+      ],
+      "mention_id": "mention:vitral-taller:e09:m019",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Ronda de los Faroles",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 35,
+      "surface": "Ronda de los Faroles",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 11,
+      "episode_id": "episode:vitral-taller:e10",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e10:f029"
+      ],
+      "mention_id": "mention:vitral-taller:e10:m020",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Ilan Boreta",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 0,
+      "surface": "Ilan Boreta",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 51,
+      "episode_id": "episode:vitral-taller:e10",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e10:f030"
+      ],
+      "mention_id": "mention:vitral-taller:e10:m021",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Camara del Vidrio",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 34,
+      "surface": "Camara del Vidrio",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 12,
+      "episode_id": "episode:vitral-taller:e11",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e11:f032"
+      ],
+      "mention_id": "mention:vitral-taller:e11:m022",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Nadia Ferrus",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 0,
+      "surface": "Nadia Ferrus",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 55,
+      "episode_id": "episode:vitral-taller:e11",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e11:f033"
+      ],
+      "mention_id": "mention:vitral-taller:e11:m023",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Liga de Sopladores",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 37,
+      "surface": "Liga de Sopladores",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 14,
+      "episode_id": "episode:vitral-taller:e12",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e12:f035"
+      ],
+      "mention_id": "mention:vitral-taller:e12:m024",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Costas Delmira",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 0,
+      "surface": "Costas Delmira",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 54,
+      "episode_id": "episode:vitral-taller:e12",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e12:f036"
+      ],
+      "mention_id": "mention:vitral-taller:e12:m025",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Ronda de los Faroles",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 34,
+      "surface": "Ronda de los Faroles",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Faction"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 89,
+      "episode_id": "episode:vitral-taller:e12",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e12:f037"
+      ],
+      "mention_id": "mention:vitral-taller:e12:m026",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Muelle Prisma",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 76,
+      "surface": "Muelle Prisma",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 12,
+      "episode_id": "episode:vitral-taller:e13",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e13:f039"
+      ],
+      "mention_id": "mention:vitral-taller:e13:m027",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Ossian Vetra",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 0,
+      "surface": "Ossian Vetra",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 36,
+      "episode_id": "episode:vitral-taller:e13",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e13:f040"
+      ],
+      "mention_id": "mention:vitral-taller:e13:m028",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Terraza Cristal",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 21,
+      "surface": "Terraza Cristal",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Location"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 11,
+      "episode_id": "episode:vitral-taller:e14",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e14:f042"
+      ],
+      "mention_id": "mention:vitral-taller:e14:m029",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Bram Oletti",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 0,
+      "surface": "Bram Oletti",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Character"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.93,
+      "contract_id": "entity-mention/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "coreference_candidates": [],
+      "end": 34,
+      "episode_id": "episode:vitral-taller:e14",
+      "evidence_fragment_ids": [
+        "fragment:vitral-taller:e14:f043"
+      ],
+      "mention_id": "mention:vitral-taller:e14:m030",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "vitral-taller",
+          "split": "agreement-eval2",
+          "world": "vitral"
+        },
+        "mention_kind": "PROPER_NAME",
+        "surface_degraded": false
+      },
+      "normalized_surface": "Copa del Alba",
+      "produced_by_step": "gold.mention",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "surface",
+            "start",
+            "end",
+            "type_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.mention",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:vitral-taller",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "7e0d1d0a8c6fa67c04ec2921dbd424c0b2b2c7afc21b34dd5dfb296dfa6e14da"
+      },
+      "start": 21,
+      "surface": "Copa del Alba",
+      "time_end": null,
+      "time_start": null,
+      "type_candidates": [
+        {
+          "confidence": 0.93,
+          "type": "Object"
+        }
+      ],
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "vitral-taller",
+  "split": "agreement-eval2",
+  "world": "vitral"
+}

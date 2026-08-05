@@ -1,0 +1,919 @@
+{
+  "benchmark_file": "claims",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:brumal-bitacora:e01:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:brumal-bitacora:e01",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e01:f003"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "gold_key": "AE2-NEVER-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Edda Solveig nunca sirvio a la Cofradia de la Niebla",
+          "case_id": "AE2-NEVER-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:brumal:cofradia-niebla",
+          "expected_predicate": "SERVES",
+          "expected_subject": "entity:brumal:edda-solveig",
+          "family": "NEVER",
+          "negation_kind": "NEVER",
+          "rationale": "NEVER canonico: niega la relacion en todo momento.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "ASR",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "ASR_NOISE",
+          "NEVER"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:brumal-bitacora:e01:m002"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "SERVES"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Edda Solveig nunca sirvio a la Cofradia de la Niebla",
+      "review_required": false,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "subject_mentions": [
+        "mention:brumal-bitacora:e01:m001"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:brumal-bitacora:e02:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:brumal-bitacora:e02",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e02:f006"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "gold_key": "AE2-NEVER-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "Janek Orum jamas fue aliado de la Orden del Faro Negro",
+          "case_id": "AE2-NEVER-02",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": true,
+          "expected_object": "entity:brumal:orden-faro-negro",
+          "expected_predicate": "ALLY_OF",
+          "expected_subject": "entity:brumal:janek-orum",
+          "family": "NEVER",
+          "negation_kind": "NEVER",
+          "rationale": "NEVER con predicado simetrico.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "ASR",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "ASR_NOISE",
+          "NEVER"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:brumal-bitacora:e02:m004"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "ALLY_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Janek Orum jamas fue aliado de la Orden del Faro Negro",
+      "review_required": false,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "subject_mentions": [
+        "mention:brumal-bitacora:e02:m003"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:brumal-bitacora:e03:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:brumal-bitacora:e03",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e03:f009"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "gold_key": "AE2-NOTYET-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Lys Kordan aun no pertenece al Consejo del Paramo",
+          "case_id": "AE2-NOTYET-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:brumal:consejo-paramo",
+          "expected_predicate": "MEMBER_OF",
+          "expected_subject": "entity:brumal:lys-kordan",
+          "family": "NOT_YET",
+          "negation_kind": "NOT_YET",
+          "rationale": "NOT_YET: niega el presente pero deja abierta la expectativa futura.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "ASR",
+          "traps": [
+            "clausula final que sugiere que la relacion es inminente"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "ASR_NOISE",
+          "NOT_YET"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:brumal-bitacora:e03:m006"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "MEMBER_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Lys Kordan aun no pertenece al Consejo del Paramo",
+      "review_required": false,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "subject_mentions": [
+        "mention:brumal-bitacora:e03:m005"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:brumal-bitacora:e04:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:brumal-bitacora:e04",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e04:f012"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "gold_key": "AE2-NOTYET-02:PRIMARY",
+        "negation": {
+          "anchor_quote": "Garret Eisen todavia no dirige la Cofradia de la Niebla",
+          "case_id": "AE2-NOTYET-02",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:brumal:cofradia-niebla",
+          "expected_predicate": "LEADS",
+          "expected_subject": "entity:brumal:garret-eisen",
+          "family": "NOT_YET",
+          "negation_kind": "NOT_YET",
+          "rationale": "NOT_YET sobre predicado funcional.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "ASR",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "ASR_NOISE",
+          "NOT_YET"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:brumal-bitacora:e04:m008"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LEADS"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Garret Eisen todavia no dirige la Cofradia de la Niebla",
+      "review_required": false,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "subject_mentions": [
+        "mention:brumal-bitacora:e04:m007"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:brumal-bitacora:e05:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:brumal-bitacora:e05",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e05:f015"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "gold_key": "AE2-SIMPLE-11:PRIMARY",
+        "negation": {
+          "anchor_quote": "Sonia Halvard reside en el Faro Ceniciento",
+          "case_id": "AE2-SIMPLE-11",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": false,
+          "expected_object": "entity:brumal:faro-ceniciento",
+          "expected_predicate": "LIVES_IN",
+          "expected_subject": "entity:brumal:sonia-halvard",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Afirmativo simple, LIVES_IN.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "ASR",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "ASR_NOISE",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [
+        "mention:brumal-bitacora:e05:m010"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LIVES_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Sonia Halvard reside en el Faro Ceniciento",
+      "review_required": false,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "subject_mentions": [
+        "mention:brumal-bitacora:e05:m009"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:brumal-bitacora:e06:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:brumal-bitacora:e06",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e06:f018"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "gold_key": "AE2-SIMPLE-12:PRIMARY",
+        "negation": {
+          "anchor_quote": "Torvald Arild no reside en el Puente de Neblina",
+          "case_id": "AE2-SIMPLE-12",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:brumal:puente-neblina",
+          "expected_predicate": "LIVES_IN",
+          "expected_subject": "entity:brumal:token-arild",
+          "family": "SIMPLE",
+          "negation_kind": "SIMPLE",
+          "rationale": "Negacion simple, LIVES_IN.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "ASR",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "ASR_NOISE",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:brumal-bitacora:e06:m012"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LIVES_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Torvald Arild no reside en el Puente de Neblina",
+      "review_required": false,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "subject_mentions": [
+        "mention:brumal-bitacora:e06:m011"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": true,
+      "alternatives": [],
+      "claim_id": "claim:brumal-bitacora:e07:c1",
+      "confidence": 0,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [],
+      "episode_id": "episode:brumal-bitacora:e07",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e07:f021"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "gold_key": "AE2-RUMOR-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "se rumorea que Mira Eskuld lidera en secreto la Cofradia de la Niebla",
+          "case_id": "AE2-RUMOR-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "ABSTAIN",
+          "expected_direction": null,
+          "expected_negated": null,
+          "expected_object": null,
+          "expected_predicate": null,
+          "expected_subject": null,
+          "family": "QUESTION_CONDITIONAL_RUMOR",
+          "negation_kind": "SIMPLE",
+          "rationale": "Rumor puro: no debe autoaprobarse aunque el hecho sea plausible y este bien anclado.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "ASR",
+          "traps": [
+            "marca epistemica RUMORED sobre una relacion de liderazgo verosimil"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "ABSTENTION",
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "ASR_NOISE",
+          "QUESTION_CONDITIONAL_RUMOR",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [],
+      "predicate_candidates": [],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "se rumorea que Mira Eskuld lidera en secreto la Cofradia de la Niebla",
+      "review_required": false,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "subject_mentions": [],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": true,
+      "alternatives": [],
+      "claim_id": "claim:brumal-bitacora:e08:c1",
+      "confidence": 0,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [],
+      "episode_id": "episode:brumal-bitacora:e08",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "UNKNOWN",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e08:f024"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "gold_key": "AE2-COND-01:PRIMARY",
+        "negation": {
+          "anchor_quote": "Si el faro se apagara, Janek Orum tendria que dirigir el Consejo del Paramo",
+          "case_id": "AE2-COND-01",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "ABSTAIN",
+          "expected_direction": null,
+          "expected_negated": null,
+          "expected_object": null,
+          "expected_predicate": null,
+          "expected_subject": null,
+          "family": "QUESTION_CONDITIONAL_RUMOR",
+          "negation_kind": "SIMPLE",
+          "rationale": "Condicional puro, nunca escribible: el liderazgo depende de una hipotesis no cumplida.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "ASR",
+          "traps": [
+            "condicional hipotetico presentado como cita de un tercero"
+          ],
+          "verb_form": "CONDICIONAL",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "ABSTENTION",
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "ASR_NOISE",
+          "QUESTION_CONDITIONAL_RUMOR",
+          "SIMPLE"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": false,
+      "object_mentions": [],
+      "predicate_candidates": [],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Si el faro se apagara, Janek Orum tendria que dirigir el Consejo del Paramo",
+      "review_required": false,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "subject_mentions": [],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:brumal-bitacora:e10:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "UNDIRECTED"
+        }
+      ],
+      "episode_id": "episode:brumal-bitacora:e10",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e10:f028"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "gold_key": "AE2-NEVER-03:PRIMARY",
+        "negation": {
+          "anchor_quote": "Garret Eisen nunca fue enemigo de Edda Solveig",
+          "case_id": "AE2-NEVER-03",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "AUTO_APPROVE",
+          "expected_direction": "UNDIRECTED",
+          "expected_negated": true,
+          "expected_object": "entity:brumal:edda-solveig",
+          "expected_predicate": "ENEMY_OF",
+          "expected_subject": "entity:brumal:garret-eisen",
+          "family": "NEVER",
+          "negation_kind": "NEVER",
+          "rationale": "NEVER con predicado simetrico ENEMY_OF.",
+          "role_in_case": "PRIMARY",
+          "scope": "UNAMBIGUOUS",
+          "transcription_noise": "ASR",
+          "traps": [
+            "clausula final que sugiere friccion sin afirmar enemistad"
+          ],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "ASR_NOISE",
+          "NEVER"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:brumal-bitacora:e10:m019"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "ENEMY_OF"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Garret Eisen nunca fue enemigo de Edda Solveig",
+      "review_required": false,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "subject_mentions": [
+        "mention:brumal-bitacora:e10:m018"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "abstained": false,
+      "alternatives": [],
+      "claim_id": "claim:brumal-bitacora:e11:c1",
+      "confidence": 0.88,
+      "contract_id": "claim-proposal/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "direction_candidates": [
+        {
+          "confidence": 0.9,
+          "direction": "SUBJECT_TO_OBJECT"
+        }
+      ],
+      "episode_id": "episode:brumal-bitacora:e11",
+      "epistemic_cues": [],
+      "epistemic_status_hint": "ASSERTED",
+      "evidence_fragment_ids": [
+        "fragment:brumal-bitacora:e11:f031"
+      ],
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        },
+        "gold_key": "AE2-NOTYET-03:PRIMARY",
+        "negation": {
+          "anchor_quote": "Mira Eskuld aun no vive en el Faro Ceniciento",
+          "case_id": "AE2-NOTYET-03",
+          "cue_position": "BEFORE_FOCUS",
+          "expected_decision": "REVIEW_NEGATION_SCOPE",
+          "expected_direction": "SUBJECT_TO_OBJECT",
+          "expected_negated": true,
+          "expected_object": "entity:brumal:faro-ceniciento",
+          "expected_predicate": "LIVES_IN",
+          "expected_subject": "entity:brumal:mira-eskuld",
+          "family": "NOT_YET",
+          "negation_kind": "NOT_YET",
+          "rationale": "NOT_YET sobre LIVES_IN.",
+          "role_in_case": "PRIMARY",
+          "scope": "AMBIGUOUS",
+          "transcription_noise": "ASR",
+          "traps": [],
+          "verb_form": "INDICATIVO_PRESENTE",
+          "voice": "ACTIVE"
+        },
+        "phenomena": [
+          "AGREEMENT_EVAL2",
+          "AMBIGUOUS_SCOPE",
+          "ASR_NOISE",
+          "NOT_YET"
+        ],
+        "role": "EXTRACTOR_AND_ENGINE"
+      },
+      "negated": true,
+      "object_mentions": [
+        "mention:brumal-bitacora:e11:m021"
+      ],
+      "predicate_candidates": [
+        {
+          "confidence": 0.9,
+          "predicate": "LIVES_IN"
+        }
+      ],
+      "produced_by_step": "gold.claim",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "relation_phrase",
+            "predicate_candidates"
+          ],
+          "provider": "local",
+          "step": "gold.claim",
+          "version": "1.0.0"
+        }
+      ],
+      "qualifiers": [],
+      "relation_phrase": "Mira Eskuld aun no vive en el Faro Ceniciento",
+      "review_required": false,
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "subject_mentions": [
+        "mention:brumal-bitacora:e11:m020"
+      ],
+      "temporal_expressions": [],
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "brumal-bitacora",
+  "split": "agreement-eval2",
+  "world": "brumal"
+}

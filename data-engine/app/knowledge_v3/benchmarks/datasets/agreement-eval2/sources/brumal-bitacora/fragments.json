@@ -1,0 +1,1436 @@
+{
+  "benchmark_file": "fragments",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 12,
+      "episode_id": "episode:brumal-bitacora:e01",
+      "fragment_id": "fragment:brumal-bitacora:e01:f001",
+      "frame_id": null,
+      "literal_text": "Edda Solveig",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Edda Solveig",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 28.0,
+      "time_start": 0.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 52,
+      "episode_id": "episode:brumal-bitacora:e01",
+      "fragment_id": "fragment:brumal-bitacora:e01:f002",
+      "frame_id": null,
+      "literal_text": "Cofradia de la Niebla",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Cofradia de la Niebla",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 31,
+      "time_end": 28.0,
+      "time_start": 0.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 52,
+      "episode_id": "episode:brumal-bitacora:e01",
+      "fragment_id": "fragment:brumal-bitacora:e01:f003",
+      "frame_id": null,
+      "literal_text": "Edda Solveig nunca sirvio a la Cofradia de la Niebla",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Edda Solveig nunca sirvio a la Cofradia de la Niebla",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 28.0,
+      "time_start": 0.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 10,
+      "episode_id": "episode:brumal-bitacora:e02",
+      "fragment_id": "fragment:brumal-bitacora:e02:f004",
+      "frame_id": null,
+      "literal_text": "Janek Orum",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Janek Orum",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 58.0,
+      "time_start": 30.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 54,
+      "episode_id": "episode:brumal-bitacora:e02",
+      "fragment_id": "fragment:brumal-bitacora:e02:f005",
+      "frame_id": null,
+      "literal_text": "Orden del Faro Negro",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Orden del Faro Negro",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 34,
+      "time_end": 58.0,
+      "time_start": 30.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 54,
+      "episode_id": "episode:brumal-bitacora:e02",
+      "fragment_id": "fragment:brumal-bitacora:e02:f006",
+      "frame_id": null,
+      "literal_text": "Janek Orum jamas fue aliado de la Orden del Faro Negro",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Janek Orum jamas fue aliado de la Orden del Faro Negro",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 58.0,
+      "time_start": 30.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 10,
+      "episode_id": "episode:brumal-bitacora:e03",
+      "fragment_id": "fragment:brumal-bitacora:e03:f007",
+      "frame_id": null,
+      "literal_text": "Lys Kordan",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Lys Kordan",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 88.0,
+      "time_start": 60.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 49,
+      "episode_id": "episode:brumal-bitacora:e03",
+      "fragment_id": "fragment:brumal-bitacora:e03:f008",
+      "frame_id": null,
+      "literal_text": "Consejo del Paramo",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Consejo del Paramo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 31,
+      "time_end": 88.0,
+      "time_start": 60.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 49,
+      "episode_id": "episode:brumal-bitacora:e03",
+      "fragment_id": "fragment:brumal-bitacora:e03:f009",
+      "frame_id": null,
+      "literal_text": "Lys Kordan aun no pertenece al Consejo del Paramo",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Lys Kordan aun no pertenece al Consejo del Paramo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 88.0,
+      "time_start": 60.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 12,
+      "episode_id": "episode:brumal-bitacora:e04",
+      "fragment_id": "fragment:brumal-bitacora:e04:f010",
+      "frame_id": null,
+      "literal_text": "Garret Eisen",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Garret Eisen",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 118.0,
+      "time_start": 90.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 55,
+      "episode_id": "episode:brumal-bitacora:e04",
+      "fragment_id": "fragment:brumal-bitacora:e04:f011",
+      "frame_id": null,
+      "literal_text": "Cofradia de la Niebla",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Cofradia de la Niebla",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 34,
+      "time_end": 118.0,
+      "time_start": 90.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 55,
+      "episode_id": "episode:brumal-bitacora:e04",
+      "fragment_id": "fragment:brumal-bitacora:e04:f012",
+      "frame_id": null,
+      "literal_text": "Garret Eisen todavia no dirige la Cofradia de la Niebla",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Garret Eisen todavia no dirige la Cofradia de la Niebla",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 118.0,
+      "time_start": 90.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 13,
+      "episode_id": "episode:brumal-bitacora:e05",
+      "fragment_id": "fragment:brumal-bitacora:e05:f013",
+      "frame_id": null,
+      "literal_text": "Sonia Halvard",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Sonia Halvard",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 148.0,
+      "time_start": 120.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 42,
+      "episode_id": "episode:brumal-bitacora:e05",
+      "fragment_id": "fragment:brumal-bitacora:e05:f014",
+      "frame_id": null,
+      "literal_text": "Faro Ceniciento",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Faro Ceniciento",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 27,
+      "time_end": 148.0,
+      "time_start": 120.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 42,
+      "episode_id": "episode:brumal-bitacora:e05",
+      "fragment_id": "fragment:brumal-bitacora:e05:f015",
+      "frame_id": null,
+      "literal_text": "Sonia Halvard reside en el Faro Ceniciento",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Sonia Halvard reside en el Faro Ceniciento",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 148.0,
+      "time_start": 120.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 13,
+      "episode_id": "episode:brumal-bitacora:e06",
+      "fragment_id": "fragment:brumal-bitacora:e06:f016",
+      "frame_id": null,
+      "literal_text": "Torvald Arild",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Torvald Arild",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 178.0,
+      "time_start": 150.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 47,
+      "episode_id": "episode:brumal-bitacora:e06",
+      "fragment_id": "fragment:brumal-bitacora:e06:f017",
+      "frame_id": null,
+      "literal_text": "Puente de Neblina",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Puente de Neblina",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 30,
+      "time_end": 178.0,
+      "time_start": 150.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 47,
+      "episode_id": "episode:brumal-bitacora:e06",
+      "fragment_id": "fragment:brumal-bitacora:e06:f018",
+      "frame_id": null,
+      "literal_text": "Torvald Arild no reside en el Puente de Neblina",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Torvald Arild no reside en el Puente de Neblina",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 178.0,
+      "time_start": 150.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 40,
+      "episode_id": "episode:brumal-bitacora:e07",
+      "fragment_id": "fragment:brumal-bitacora:e07:f019",
+      "frame_id": null,
+      "literal_text": "Mira Eskuld",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Mira Eskuld",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 29,
+      "time_end": 208.0,
+      "time_start": 180.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 83,
+      "episode_id": "episode:brumal-bitacora:e07",
+      "fragment_id": "fragment:brumal-bitacora:e07:f020",
+      "frame_id": null,
+      "literal_text": "Cofradia de la Niebla",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Cofradia de la Niebla",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 62,
+      "time_end": 208.0,
+      "time_start": 180.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 83,
+      "episode_id": "episode:brumal-bitacora:e07",
+      "fragment_id": "fragment:brumal-bitacora:e07:f021",
+      "frame_id": null,
+      "literal_text": "se rumorea que Mira Eskuld lidera en secreto la Cofradia de la Niebla",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "se rumorea que Mira Eskuld lidera en secreto la Cofradia de la Niebla",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 14,
+      "time_end": 208.0,
+      "time_start": 180.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 33,
+      "episode_id": "episode:brumal-bitacora:e08",
+      "fragment_id": "fragment:brumal-bitacora:e08:f022",
+      "frame_id": null,
+      "literal_text": "Janek Orum",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Janek Orum",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 23,
+      "time_end": 238.0,
+      "time_start": 210.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 75,
+      "episode_id": "episode:brumal-bitacora:e08",
+      "fragment_id": "fragment:brumal-bitacora:e08:f023",
+      "frame_id": null,
+      "literal_text": "Consejo del Paramo",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Consejo del Paramo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 57,
+      "time_end": 238.0,
+      "time_start": 210.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 75,
+      "episode_id": "episode:brumal-bitacora:e08",
+      "fragment_id": "fragment:brumal-bitacora:e08:f024",
+      "frame_id": null,
+      "literal_text": "Si el faro se apagara, Janek Orum tendria que dirigir el Consejo del Paramo",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Si el faro se apagara, Janek Orum tendria que dirigir el Consejo del Paramo",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 238.0,
+      "time_start": 210.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 23,
+      "episode_id": "episode:brumal-bitacora:e09",
+      "fragment_id": "fragment:brumal-bitacora:e09:f025",
+      "frame_id": null,
+      "literal_text": "Sonia Halvard",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Sonia Halvard",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 10,
+      "time_end": 268.0,
+      "time_start": 240.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 12,
+      "episode_id": "episode:brumal-bitacora:e10",
+      "fragment_id": "fragment:brumal-bitacora:e10:f026",
+      "frame_id": null,
+      "literal_text": "Garret Eisen",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Garret Eisen",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 298.0,
+      "time_start": 270.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 46,
+      "episode_id": "episode:brumal-bitacora:e10",
+      "fragment_id": "fragment:brumal-bitacora:e10:f027",
+      "frame_id": null,
+      "literal_text": "Edda Solveig",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Edda Solveig",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 34,
+      "time_end": 298.0,
+      "time_start": 270.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 46,
+      "episode_id": "episode:brumal-bitacora:e10",
+      "fragment_id": "fragment:brumal-bitacora:e10:f028",
+      "frame_id": null,
+      "literal_text": "Garret Eisen nunca fue enemigo de Edda Solveig",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Garret Eisen nunca fue enemigo de Edda Solveig",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 298.0,
+      "time_start": 270.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 11,
+      "episode_id": "episode:brumal-bitacora:e11",
+      "fragment_id": "fragment:brumal-bitacora:e11:f029",
+      "frame_id": null,
+      "literal_text": "Mira Eskuld",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Mira Eskuld",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 328.0,
+      "time_start": 300.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 45,
+      "episode_id": "episode:brumal-bitacora:e11",
+      "fragment_id": "fragment:brumal-bitacora:e11:f030",
+      "frame_id": null,
+      "literal_text": "Faro Ceniciento",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Faro Ceniciento",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 30,
+      "time_end": 328.0,
+      "time_start": 300.0,
+      "workspace": "bench-agreement-eval2"
+    },
+    {
+      "bbox": null,
+      "confidence": 0.95,
+      "contract_id": "evidence-fragment/v3-internal-v1",
+      "contract_version": "1.0.0",
+      "end": 45,
+      "episode_id": "episode:brumal-bitacora:e11",
+      "fragment_id": "fragment:brumal-bitacora:e11:f031",
+      "frame_id": null,
+      "literal_text": "Mira Eskuld aun no vive en el Faro Ceniciento",
+      "media_type": "ASR_TEXT",
+      "metadata": {
+        "benchmark": {
+          "dataset_version": "1.0.0",
+          "source_id": "brumal-bitacora",
+          "split": "agreement-eval2",
+          "world": "brumal"
+        }
+      },
+      "normalized_text": "Mira Eskuld aun no vive en el Faro Ceniciento",
+      "page": null,
+      "produced_by_step": "gold.anchor",
+      "provider_trace": [
+        {
+          "model": null,
+          "name": "s9k.benchmarks.agreement_eval2",
+          "produced": [
+            "literal_text",
+            "start",
+            "end"
+          ],
+          "provider": "local",
+          "step": "gold.anchor",
+          "version": "1.0.0"
+        }
+      ],
+      "source_asset_id": "asset:brumal-bitacora",
+      "source_hash": {
+        "algorithm": "sha256",
+        "value": "84b627a5b2703ec8e6bc75c6da7923e4d23993f1ba3f9b1463579c5799e71cfe"
+      },
+      "start": 0,
+      "time_end": 328.0,
+      "time_start": 300.0,
+      "workspace": "bench-agreement-eval2"
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "brumal-bitacora",
+  "split": "agreement-eval2",
+  "world": "brumal"
+}

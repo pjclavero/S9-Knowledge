@@ -1,0 +1,70 @@
+{
+  "benchmark_file": "reference_text",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "episode_id": "episode:salitre-ruta:e01",
+      "text": "Deza Corvel milita en el Sindicato de la Sal, segun consta en el diario de ruta de este ciclo."
+    },
+    {
+      "episode_id": "episode:salitre-ruta:e02",
+      "text": "Matias Hurel no milita en la Orden del Polvo, contra lo que se comento en el ultimo relevo."
+    },
+    {
+      "episode_id": "episode:salitre-ruta:e03",
+      "text": "Iva Brontes es hermana de Orell Cascan, y ambos comparten carro desde Pozo Hondo."
+    },
+    {
+      "episode_id": "episode:salitre-ruta:e04",
+      "text": "Petra Lumis, veedora de la Caravana Blanca desde el paso anterior, no lo es ya."
+    },
+    {
+      "episode_id": "episode:salitre-ruta:e05",
+      "text": "Hakon Driel dejo de servir a la Orden del Polvo cuando el convoy cruzo el Paso del Cuarzo."
+    },
+    {
+      "episode_id": "episode:salitre-ruta:e06",
+      "text": "Noor Alcaz dejo de pertenecer al Sindicato de la Sal tras el reparto del ultimo cargamento."
+    },
+    {
+      "episode_id": "episode:salitre-ruta:e07",
+      "text": "Tobal Mencia dejo de dirigir la Caravana Blanca despues de perder dos carros en la travesia."
+    },
+    {
+      "episode_id": "episode:salitre-ruta:e08",
+      "text": "Deza Corvel no dejo de pertenecer al Sindicato de la Sal, pese al rumor que corrio en Pozo Hondo."
+    },
+    {
+      "episode_id": "episode:salitre-ruta:e09",
+      "text": "Orell Cascan no ceso de servir al Sindicato de la Sal ni cuando cambio de carro."
+    },
+    {
+      "episode_id": "episode:salitre-ruta:e10",
+      "text": "El veedor anoto que no cree que Hakon Driel pertenezca al Sindicato de la Sal, aunque el propio Hakon lo firmara el ciclo pasado."
+    },
+    {
+      "episode_id": "episode:salitre-ruta:e11",
+      "text": "No es que Noor Alcaz no sirva al Sindicato de la Sal; es que reparte su tiempo tambien con la Orden del Polvo."
+    },
+    {
+      "episode_id": "episode:salitre-ruta:e12",
+      "text": "Petra Lumis posee el Carro de Plomo desde que lo gano en la subasta del ultimo relevo."
+    },
+    {
+      "episode_id": "episode:salitre-ruta:e13",
+      "text": "Tobal Mencia se encuentra en Pozo Hondo desde que el convoy hizo alto para reponer agua."
+    },
+    {
+      "episode_id": "episode:salitre-ruta:e14",
+      "text": "¿Sigue Matias Hurel en la Orden del Polvo, o ya se paso al Sindicato de la Sal?"
+    },
+    {
+      "episode_id": "episode:salitre-ruta:e15",
+      "text": "En la copla que cantan los arrieros, Iva Brontes dirige media caravana desde una duna que no existe."
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "salitre-ruta",
+  "split": "agreement-eval2",
+  "world": "salitre"
+}

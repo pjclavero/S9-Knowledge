@@ -1,0 +1,54 @@
+{
+  "benchmark_file": "negatives",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "case_id": "AE2-NOCLAIM-01",
+      "end": 78,
+      "episode_id": "episode:vitral-taller:e15",
+      "family": "NO_CLAIM",
+      "forbidden_predicates": [
+        "MEMBER_OF",
+        "LEADS",
+        "ALLY_OF"
+      ],
+      "kind": "IMPERATIVE",
+      "literal_text": "Templa el vidrio antes de que el horno pierda calor, y no dejes sola la pieza.",
+      "must_not_produce": [
+        "cualquier relacion entre personas o facciones"
+      ],
+      "negative_id": "negative:vitral-taller:ae2-noclaim-01",
+      "rationale": "Instruccion de taller, sin sujeto ni relacion asertable.",
+      "split": "agreement-eval2",
+      "start": 0,
+      "traps": [
+        "imperativo con negacion final que no niega ninguna relacion"
+      ]
+    },
+    {
+      "case_id": "AE2-NOCLAIM-02",
+      "end": 90,
+      "episode_id": "episode:vitral-taller:e16",
+      "family": "NO_CLAIM",
+      "forbidden_predicates": [
+        "MEMBER_OF"
+      ],
+      "kind": "COUNTERFACTUAL",
+      "literal_text": "Si Renzo Aubier hubiera pertenecido a la Camara del Vidrio, otro habria firmado el tasado.",
+      "must_not_produce": [
+        "MEMBER_OF(Renzo Aubier, Camara del Vidrio)"
+      ],
+      "negative_id": "negative:vitral-taller:ae2-noclaim-02",
+      "rationale": "Contrafactico: el texto afirma justo lo contrario de lo que el condicional describe.",
+      "split": "agreement-eval2",
+      "start": 0,
+      "traps": [
+        "condicional contrafactico con la misma frase de relacion que AE2-SIMPLE-01/02"
+      ]
+    }
+  ],
+  "format_version": "1.0.0",
+  "source_id": "vitral-taller",
+  "split": "agreement-eval2",
+  "world": "vitral"
+}
