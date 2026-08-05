@@ -12,7 +12,10 @@ su detalle (tablas completas, comandos, cifras exactas). Este documento es una
 tener que abrir 57 archivos.
 
 No se han tocado los subdirectorios `docs/v3/`, `docs/current/` ni
-`docs/experiments/`: siguen donde estaban.
+`docs/experiments/`: siguen donde estaban. Única excepción: el capítulo 11,
+añadido el 2026-08-05 como nota de continuidad breve — no una síntesis
+detallada — para que quien lea solo este documento sepa que el desarrollo
+siguió después del 2026-07-27 y dónde está la fuente viva.
 
 ## Índice
 
@@ -26,6 +29,7 @@ No se han tocado los subdirectorios `docs/v3/`, `docs/current/` ni
 8. [Operaciones, backup y healthchecks](#cap8)
 9. [Despliegues RC y regresiones de despliegue](#cap9)
 10. [Auditoría, onboarding y dosier del proyecto](#cap10)
+11. [Nota de continuidad — desarrollo posterior a este consolidado (V3)](#cap11)
 
 ---
 
@@ -1553,3 +1557,60 @@ confirmado — todo esto coincide con y está desarrollado en detalle en
 docs/24 y docs/30 (capítulo 2). El resto de contenido factual (estado por
 componente, prioridades, historial) está recogido y actualizado en los
 capítulos 2 a 9 de este documento consolidado.
+
+---
+
+<a id="cap11"></a>
+## 11. Nota de continuidad — desarrollo posterior a este consolidado (V3)
+
+*Añadida: 2026-08-05. Este capítulo no sintetiza informes archivados como los
+anteriores: es un puntero breve al estado vivo, para que este documento no
+quede leyéndose como si el proyecto se hubiera detenido el 2026-07-27. El
+detalle completo, con cifras y artefactos, vive en `docs/v3/` (ver su índice,
+[`docs/v3/README.md`](v3/README.md)) y en el `README.md` de la raíz del
+repositorio, ambos actualizados junto con esta nota.*
+
+Después del cierre de este consolidado, sobre la línea V3 ya mergeada en
+`main` (capítulos anteriores no la cubren: es posterior a los informes que
+sintetizan), se cerraron dos programas de calidad más y avanza un tercero:
+
+- **Puerta 4 — cobertura del extractor** (PRs #124-#130,
+  `docs/v3/42-gate4-cierre-programa.md`): veredicto **PARCIAL**. Cobertura
+  E2E de desarrollo 0.607 (conforme, umbral ≥0.60); recall de
+  auto-aprobación SIMPLE 0.10 (no conforme, umbral ≥0.70); carril semántico
+  NVIDIA en sombra insuficiente (0.357); invariantes de precisión intactos.
+  Carril OCR validado con Tesseract 5.5.0 real en VM105
+  (`docs/v3/39-carril-ocr.md`); Tesseract queda documentado como requisito
+  de instalación adicional (`docs/v3/28-requisitos-de-instalacion.md`).
+- **Puerta 6 — factividad composicional** (PRs #131-#133 y #136,
+  `docs/v3/46-gate6-cierre-programa.md`): veredicto **CONFORME CON
+  RESERVAS**, ratificado por el operador el 2026-08-05. El rework del
+  bloque B2 conectó el operador de discurso reportado al extractor real de
+  producción (estaba desconectado — código muerto para el extractor
+  determinista — hasta ese rework). El criterio de "acuerdo
+  determinista∧NVIDIA" se abandonó para esta puerta (Postura A del
+  operador).
+- **Medición del acuerdo determinista∧NVIDIA** (PRs #134-#135,
+  `docs/v3/47-acuerdo-det-nvidia.md`, `docs/v3/48-acuerdo-eval2.md`):
+  acuerdo activo 27/27 en la primera medición, 1.000 en un corpus de
+  evaluación ampliado. El operador ratificó un **piloto controlado** (se
+  ejercita la política con datos reales sin reducir todavía la revisión
+  humana); pasar de piloto a reducción real queda **gateado al despliegue de
+  V3 y a la primera ingesta autorizada**.
+- **Programa multi-partida** (separación juego/partida, PR #137 de diseño +
+  bloque M0 en PR #138, `docs/v3/49-multipartida-diseno.md`): **en curso**.
+  M0 (contratos, `partida_id` en la tubería) mergeado en `main` (`ccf0fe4`).
+  M1 (mapeo de ingesta Nextcloud→ámbito) bloqueado a que Nextcloud vuelva a
+  estar disponible. M2 (resolutor) en desarrollo en una rama separada — no
+  documentado todavía en este repositorio al momento de escribir esta nota.
+- **Dependencias**: aiohttp actualizado a 3.14.3 por CVE-2026-59881/69243/69244
+  (PR #128); httpx, argon2-cffi, fastapi, jinja2 y pytest actualizados vía
+  Dependabot (PRs #119-#123).
+
+**Estado operativo (sin cambios respecto al capítulo 2 de este documento):**
+producción en VM105 sigue en `deploy-v0.3.0-rc5.1`; V3 **no** está desplegada
+todavía; el timer/ingesta reales siguen sin autorizar; Nextcloud está caído
+(no afecta al repositorio, sí bloquea el bloque M1 de multi-partida). No
+tomar ninguna cifra de este capítulo como definitiva sin comprobarla contra
+el documento fuente citado — es, deliberadamente, un resumen y no una
+síntesis exhaustiva.
