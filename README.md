@@ -44,6 +44,49 @@ de las políticas graduadas requiere medición en sombra; el despliegue V3 sigue
 pendiente. El plan vigente es
 [`docs/v3/32-plan-consolidado-extractor-y-nucleo.md`](docs/v3/32-plan-consolidado-extractor-y-nucleo.md).
 
+### Estado de las puertas de calidad V3 (actualizado 2026-08-05)
+
+Tras el merge de V3 en `main` (cadena PRs #116-#118) se ejecutaron dos
+programas de calidad adicionales, ambos cerrados:
+
+- **Puerta 4 — cobertura del extractor** (PRs #124-#130): veredicto
+  **PARCIAL**. Cobertura E2E de desarrollo 0.607 (umbral ≥0.60, conforme);
+  recall de auto-aprobación SIMPLE 0.10 (umbral ≥0.70, no conforme); el
+  carril semántico NVIDIA en sombra resultó insuficiente (0.357); invariantes
+  de precisión intactos en todo el programa. El carril OCR quedó validado
+  con Tesseract 5.5.0 real en VM105 — Tesseract es un requisito de
+  instalación adicional, no incluido por defecto (ver
+  [`docs/v3/28-requisitos-de-instalacion.md`](docs/v3/28-requisitos-de-instalacion.md)
+  y [`docs/v3/42-gate4-cierre-programa.md`](docs/v3/42-gate4-cierre-programa.md)).
+- **Puerta 6 — factividad composicional** (PRs #131-#133, #136): veredicto
+  **CONFORME CON RESERVAS**, ratificado por el operador el 2026-08-05. El
+  operador de discurso reportado quedó conectado al extractor real de
+  producción (el rework de B2 corrigió una desconexión detectada por
+  revisión); el invariante fail-closed se mide en dos capas. El criterio de
+  "acuerdo determinista∧NVIDIA" se abandonó para esta puerta (Postura A del
+  operador). Ver
+  [`docs/v3/46-gate6-cierre-programa.md`](docs/v3/46-gate6-cierre-programa.md).
+- **Medición del acuerdo determinista∧NVIDIA** (PRs #134-#135): el acuerdo
+  activo (ambos carriles predicen contenido sin abstenerse) se sostiene en
+  27/27 y en 1.000 sobre un corpus de evaluación ampliado. El operador
+  ratificó un **piloto controlado**: el subconjunto en acuerdo activo se
+  ejercitará con datos reales sin reducir todavía la revisión humana, y la
+  decisión de reducirla queda **gateada al despliegue de V3 y a la primera
+  ingesta autorizada**. Ver
+  [`docs/v3/47-acuerdo-det-nvidia.md`](docs/v3/47-acuerdo-det-nvidia.md) y
+  [`docs/v3/48-acuerdo-eval2.md`](docs/v3/48-acuerdo-eval2.md).
+
+Programa **multi-partida** (separación juego/partida, PR #137 de diseño +
+bloque M0 de contratos en PR #138, `main` `ccf0fe4`): en curso. M1 (mapeo de
+ingesta Nextcloud→ámbito) está bloqueado a que Nextcloud vuelva a estar
+disponible; M2 (resolutor) se está trabajando en una rama separada. Ver
+[`docs/v3/49-multipartida-diseno.md`](docs/v3/49-multipartida-diseno.md) y el
+índice [`docs/v3/README.md`](docs/v3/README.md).
+
+Dependencias mantenidas al día vía Dependabot: aiohttp actualizado a 3.14.3
+por CVE-2026-59881/69243/69244 (PR #128); httpx, argon2-cffi, fastapi,
+jinja2 y pytest actualizados (PRs #119-#123).
+
 ### Legacy v1/v2
 
 El pipeline RPG v1/v2, sus benchmarks de extractor, el review/ingest anterior y
