@@ -235,3 +235,18 @@ failed** (`pytest -p no:randomly`, ~4m17s).
 - 0 discrepancias activas duras encontradas en 91 casos evaluables
   agregados.
 - Ninguna recomendacion de politica: esa decision es del operador.
+
+## Decision del operador (2026-08-05)
+
+**RATIFICADO**: se aprueba el **piloto controlado** recomendado por el
+revisor — cuando arranque la primera ingesta real de produccion, los claims
+en acuerdo activo (ningun carril abstiene, mismo contenido y polaridad) se
+auto-aprobaran, PERO con **auditoria humana del 100% de esos casos** durante
+el periodo del piloto (la revision no se reduce todavia: se ejercita la
+politica con datos reales y se acumula n). Condiciones para pasar de piloto a
+politica definitiva (dictamen del revisor): n de varios cientos sobre datos
+reales, precision sostenida, y la brecha ABSTAIN/ABSTAIN≠acuerdo cerrada. El
+piloto queda **gateado al despliegue de V3 y a la primera ingesta autorizada**
+(pendientes de orden del operador); su implementacion (carril NVIDIA en la
+ingesta + marca de auditoria en el visor) se disenara como bloque propio en
+ese momento.

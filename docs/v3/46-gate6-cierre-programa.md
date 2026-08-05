@@ -282,6 +282,14 @@ multi-carril, que es una propiedad distinta de la exactitud de la politica sola.
 **Nota**: esta propuesta la ratifica el operador humano con el dictamen del
 revisor; el implementador solo propone.
 
+**RATIFICADO POR EL OPERADOR (2026-08-05)**: la Postura A queda adoptada
+formalmente. El criterio de la Puerta 6 pasa a ser: policy_accuracy sobre el
+dev congelado + generalización composicional + invariante fail-closed medido
+en dos capas (clasificador y extractor determinista real). El criterio
+histórico de acuerdo con juez NVIDIA (79.17%) queda abandonado como criterio
+de puerta. Estado final de la puerta: **CONFORME CON RESERVAS** (dictamen del
+revisor del 2026-08-04, PR #133).
+
 ---
 
 ## 5. Recomendacion de estado de la puerta
