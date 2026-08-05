@@ -474,6 +474,72 @@ def test_override_superseded_dentro_de_la_partida_deja_lore_enmascarado_y_solo_B
     assert ids == {"assertion:divergencia-B"}
 
 
+def test_LIMITE_retracted_deja_zona_muerta_lore_enmascarado_y_sin_reoverride():
+    """LIMITE CONOCIDO Y ACEPTADO DE M4 -- se resuelve en M5, no aqui.
+
+    Este test NO afirma que el comportamiento sea correcto: FIJA el estado
+    actual para que nadie lo "arregle" por accidente sin una decision
+    explicita de diseno.
+
+    Escenario: `partida A` declaro una divergencia sobre un hecho de lore y
+    despues la RETRACTO (`status=RETRACTED`, el lore sigue `ASSERTED`).
+    Resultado hoy:
+
+    - `list_visible_assertions` devuelve CONJUNTO VACIO para esa partida: el
+      override ya no es vigente (filtro de status) pero sigue enmascarando el
+      lore, porque el `NOT EXISTS` mira el PUNTERO, no el status.
+    - `find_local_override` tampoco filtra status, asi que la partida NO puede
+      declarar un override nuevo sobre ese hecho: choca contra el registro
+      retractado (`EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED`).
+
+    Zona muerta: quien retracta su divergencia deja de ver NADA de ese hecho,
+    para siempre. La semantica correcta distingue dos cosas que M4 trata
+    igual: RETRACTAR es "retiro mi divergencia" (el lore deberia reaparecer y
+    la unicidad deberia liberarse) mientras que SUPERSEDER es "sigo
+    divergiendo, con otro contenido" (enmascarado correcto, ver el test de
+    A->B). Implementar esa distincion exige el ciclo de vida completo de la
+    divergencia, que es M5 -- no un parche aqui.
+    """
+    graph = {
+        "assertion:lore-daiki-vivo": {
+            "partida_id": None, "subject_entity_id": "entity:daiki", "status": "ASSERTED",
+        },
+        "assertion:divergencia-A": {
+            "partida_id": PARTIDA_A, "subject_entity_id": "entity:daiki",
+            "local_override_of": "assertion:lore-daiki-vivo", "status": "RETRACTED",
+        },
+    }
+    driver = _FakeReadDriver(graph)
+    rows = list_visible_assertions(driver, WORKSPACE, PARTIDA_A)
+    # Ni el lore (enmascarado por el puntero) ni la divergencia (no vigente).
+    assert rows == []
+    # Otra partida y la capa juego siguen viendo el lore intacto: el limite
+    # solo afecta a quien retracto.
+    assert {r.assertion_id for r in list_visible_assertions(driver, WORKSPACE, PARTIDA_B)} == {
+        "assertion:lore-daiki-vivo"
+    }
+
+    # Y la partida tampoco puede volver a declarar un override de ese hecho.
+    ops = [
+        op_local_override(
+            "op:0002", "decision:0002", "assertion:divergencia-A2",
+            "entity:daiki", "entity:casa-del-ciervo", "assertion:lore-daiki-vivo",
+        )
+    ]
+    plan = make_plan(operations=ops, partida_id=PARTIDA_A, scope=partida_scope(PARTIDA_A))
+    nodes = {
+        ("assertion", "assertion:lore-daiki-vivo"): lore_node(),
+        ("assertion", "assertion:divergencia-A"): {
+            "version": 2, "state_hash": HASH_B["value"], "partida_id": PARTIDA_A,
+            "local_override_of": "assertion:lore-daiki-vivo", "status": "RETRACTED",
+        },
+    }
+    write_driver = FakeDriver(nodes=nodes)
+    result = make_writer_for(write_driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED in result.codes
+
+
 # ==========================================================================
 # 8. Direccion unica: capa juego jamas ve material de partida via reads.py.
 # ==========================================================================

@@ -1478,7 +1478,36 @@ transacción —igual que Neo4j—), y los dos ficheros de tests de M4.
 | `test_hecho_de_capa_juego_ya_superseded_sigue_visible_porque_la_query_no_filtra_status` → `…_deja_de_estar_visible` | lo `SUPERSEDED` aparecía | solo aparece la versión vigente | P1 nº3 corregido |
 | `test_override_superseded_dentro_de_la_partida_…_ambas_versiones_visibles` → `…_solo_B_visible` | A y B visibles a la vez | lore enmascarado, solo B visible | P1 nº3 + semántica elegida |
 
-**Tests nuevos del rework (10):** los dos filos del vacío desde PARTIDA
+### Límite conocido de M4: RETRACTAR una divergencia deja zona muerta (→ M5)
+
+Aceptado y documentado en el dictamen final (CONFORME CON OBSERVACIONES), **no
+se corrige en M4**. Con `{lore: ASSERTED, override_A: RETRACTED}`:
+
+- `list_visible_assertions` devuelve **conjunto vacío** para esa partida: el
+  override ya no es vigente (filtro de status) pero **sigue enmascarando** el
+  lore, porque el `NOT EXISTS` mira el puntero y no el status.
+- `find_local_override` tampoco filtra status, así que la partida **no puede
+  declarar un override nuevo** sobre ese hecho: choca contra el registro
+  retractado (`EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED`).
+
+Quien retracta su divergencia deja de ver *nada* de ese hecho, para siempre.
+La causa es que M4 trata igual dos cosas que semánticamente no lo son:
+**RETRACTAR** es "retiro mi divergencia" —el lore debería reaparecer y la
+unicidad debería liberarse— mientras que **SUPERSEDER** es "sigo divergiendo,
+con otro contenido" —enmascarado correcto, y la unicidad debe seguir cerrada,
+que es justo la semántica elegida arriba—. La distinción exige el ciclo de
+vida completo de la divergencia (qué hace cada transición del ledger con el
+puntero y con la unicidad), y eso es **M5**, no un parche aquí.
+
+Semántica esperada para M5, para que quede fijada antes de implementarla:
+`RETRACTED` levanta el enmascarado (el lore vuelve a verse en esa partida) y
+libera la unicidad (la partida puede volver a divergir de ese hecho);
+`SUPERSEDED` no hace ninguna de las dos cosas. Mientras tanto el estado actual
+queda **fijado por un test** —
+`test_LIMITE_retracted_deja_zona_muerta_lore_enmascarado_y_sin_reoverride`—
+para que nadie lo "arregle" por accidente sin esa decisión de diseño.
+
+**Tests nuevos del rework (11, uno de ellos el del límite anterior):** los dos filos del vacío desde PARTIDA
 (objetivo inexistente y `reason_code`), la unicidad en un plan posterior y su
 carácter por-partida, la consulta de unicidad y el filtro de vigencia a nivel
 de Cypher, `CONTRADICTED` que sigue visible frente a `RETRACTED` que no, y las
@@ -1486,6 +1515,6 @@ tres de la marca de revisión (aplicada, ausente en una creación normal, y
 anunciada en dry-run).
 
 **Recuento exacto de suite** (`python3 -m pytest -p no:randomly -q` desde la
-raíz del worktree, primer plano): **6536 passed, 53 skipped, 4 xfailed,
-0 failed** (10 tests nuevos netos sobre los 6526 de la ronda anterior;
+raíz del worktree, primer plano): **6537 passed, 53 skipped, 4 xfailed,
+0 failed** (11 tests nuevos netos sobre los 6526 de la ronda anterior;
 5 invertidos en el sitio).
