@@ -291,7 +291,14 @@ def test_19_contratos_congelados_mantienen_su_hash():
     # huecos heredados de M0 se dejan abiertos en M3 (writer/admission.py ya
     # consume partida_id/scope, pero ningun dataset congelado lo declara
     # hoy). Nuevo checkpoint: `v3-contracts-frozen-1.0.0-m3`.
-    frozen_ref = "v3-contracts-frozen-1.0.0-m3"
+    #
+    # M4 (docs/v3/49-multipartida-diseno.md SS12 "M4 implementado"):
+    # `FactAssertion` gana `local_override_of` (aditivo, opcional, mismo
+    # patron que M0/M2) en `contracts/assertion.py` y en
+    # `fact-assertion-v3.schema.json`, mas un chequeo semantico de
+    # autoreferencia en `validator.py`. Nuevo checkpoint:
+    # `v3-contracts-frozen-1.0.0-m4`.
+    frozen_ref = "v3-contracts-frozen-1.0.0-m4"
     roots = [
         _REPO_ROOT / "contracts/knowledge-v3/v1",
         _REPO_ROOT / "data-engine/app/knowledge_v3/contracts",
