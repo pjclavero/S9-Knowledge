@@ -1,8 +1,22 @@
-# 44 — Diseño: separación de partidas por ámbitos (multi-partida)
+# 49 — Diseño: separación de partidas por ámbitos (multi-partida)
 
-Estado: DISEÑO, sin código de producción. Arranque de implementación gateado al
-cierre del programa Puerta 6 (rama `feat/...` en curso sobre `factivity`/`gate6`,
-no tocada por este documento). Autor: AGENTE-DISEÑADOR. Base: `main` 37f8341.
+Estado: DISEÑO, sin código de producción. **La Puerta 6 está CERRADA y
+ratificada** (`main` `cbf461d`, ver `docs/v3/46-gate6-cierre-programa.md` y la
+ratificación del operador) — la implementación de este programa **ya no está
+gateada** a su cierre; puede arrancar cuando el operador lo autorice. Sigue
+vigente, no obstante, la advertencia de no tocar `extraction/`, `engine/`
+(factividad, shadow, temporal, negación, decisión) ni `eval/gate6_*` (§5): esa
+superficie sigue siendo del programa de extracción, no de este. Además existe
+un **piloto en curso del acuerdo determinista∧NVIDIA ratificado**
+(`docs/v3/47`, `docs/v3/48-acuerdo-eval2.md`): si algún bloque de este
+programa (p. ej. M1, mapeo de ingesta) llega a tocar el camino de ingesta real,
+debe verificarse contra ese diseño para no colisionar con él — ninguno de los
+bloques M0-M5b tal como están descompuestos lo toca hoy.
+
+Autor: AGENTE-DISEÑADOR. Base original: `main` 37f8341. Revisión con
+decisiones del operador: `main` cbf461d (renumerado de `docs/v3/44` a
+`docs/v3/49`; el 44 fue tomado por `gate6-B1` en main mientras esta rama
+estaba abierta).
 
 ## 0. Resumen ejecutivo
 
@@ -94,11 +108,32 @@ valores de la ruta de carpeta en vez de uno:
   distingue "reglas/lore compartido" de "partida concreta" (p.ej.
   `Juego-X/00-Reglas-y-Lore/...` → `partida_id=None`;
   `Juego-X/Partida-Y/...` → `partida_id="partida:Y"`). La convención exacta de
-  nombres de carpeta es una decisión operativa (§4), no de este diseño, pero el
+  nombres de carpeta es una decisión operativa, no de este diseño, pero el
   *mecanismo* de mapeo entra en `SourceAsset` como campo nuevo `partida_id:
   Optional[str]`, transportado igual que `workspace` por toda la cadena
   (`source_asset_id → episode → claim → plan`, ver `provider_trace`/
   `produced_by_step` que ya viajan documento a documento en `contracts/base.py`).
+
+  **Prerequisito de M1 — plantilla de bóveda pendiente de lectura.** Entre las
+  5 bóvedas montadas por rclone en VM105 (`leyenda`, `mundo de tinieblas`,
+  `trudbang`, `vampiro carcasone`, **`plantilla bovedas`**) existe una
+  plantilla explícita para la estructura de carpetas
+  (`docs/archivados/24-vm105-baseline-and-verification.md:344`), pero
+  **Nextcloud está caído** en el momento de este diseño: no se ha podido leer
+  su contenido real. Lo único documentado sobre estructura de carpetas son (a)
+  un diseño futuro no implementado,
+  `00_fuentes / 10_transcripciones / 20_glosario / 30_pipeline / 40_exports /
+  50_informes / 90_archivo` (`docs/archivados/22-installation-and-replicability.md:61-62`,
+  explícitamente marcado "NO implementado aún"), y (b) la ruta real usada hoy
+  en el runbook de ingesta controlada, plana por bóveda sin distinción de
+  partida: `/mnt/nextcloud-rol/leyenda/transcripciones/FICHERO.mp3`
+  (`docs/archivados/27-controlled-ingest-runbook.md:101`). Ninguna de las dos
+  fuentes confirma si existe ya una subcarpeta por partida dentro de una
+  bóveda de juego. **M1 queda formalmente bloqueado a leer `plantilla
+  bovedas` en cuanto Nextcloud vuelva** — es lo que fija la convención real
+  carpeta→(`workspace`,`partida_id`); hasta entonces M1 puede avanzar en el
+  mecanismo de mapeo (código genérico, parametrizable) pero no en la
+  convención de nombres concreta.
 - El `GameProfile` (`contracts/game_profile.py`) sigue siendo por `workspace`
   (= por juego): reglas y ontología del juego se comparten entre todas sus
   partidas por diseño, coherente con el requisito "comparten libros de reglas y
@@ -220,7 +255,7 @@ noción de cadena con `chain_from`):
    (partida sustituye a partida, o juego sustituye a juego). La relación
    juego→partida es un puntero de "override", una relación distinta.
 
-### 2.6 Visor (`viewer/app/`)
+### 2.6 Visor — M5a: selector de partida + aislamiento entre partidas (`viewer/app/`)
 
 - `policies/models.py`: `ViewerContext` gana `active_partida: str | None` y
   `allowed_partida_ids: frozenset[str]` (patrón idéntico a
@@ -242,9 +277,14 @@ noción de cadena con `chain_from`):
   para que el usuario logueado elija partida entre las que su rol permite; (b)
   esa elección puebla `active_partida` en el contexto de sesión (igual que hoy
   se resuelve `role` desde `request.state.user`, `authz/dependencies.py:26`).
-  Las partidas visibles para un usuario son metadato de autorización nuevo
-  (fuera del alcance de este documento definir el modelo de "usuario → partidas
-  permitidas"; se apunta como bloque M4/decisión abierta).
+  **El modelo "usuario → partidas permitidas" queda resuelto** (decisión del
+  operador, §7 punto 4): es `user_character_link`
+  (`data-engine/app/access/access_store.py`), extendido con `partida_id` —
+  las partidas visibles para un usuario logueado son aquellas donde tiene un
+  enlace de personaje activo (`is_active_for_workspace` análogo, ahora por
+  `(workspace, partida_id)`) o, para el admin/narrador, las que
+  `user_workspace_permission` habilite explícitamente sin personaje. Detalle
+  completo del reaprovechamiento en §2.7.
 - `authz/filtered_provider.py`: los métodos que hoy toman un único `workspace`
   (`graph`, `list_entities`, `search`, `counts`, `quality_metrics`...) necesitan
   operar sobre la **unión** de la capa juego + la capa de la partida activa. La
@@ -256,8 +296,110 @@ noción de cadena con `chain_from`):
   ocurrir sobre el conjunto completo antes de paginar). Esto funciona sin tocar
   `GraphProvider.graph(workspace)` porque el ámbito de juego sigue siendo
   `workspace` — la partida es un sub-filtro dentro de ese mismo workspace, no
-  una fuente adicional. **Válido en v1 mientras "un juego = un `workspace`"
-  siga siendo cierto** (ver decisión abierta §4 sobre múltiples juegos).
+  una fuente adicional. **Cerrado por decisión del operador (§7 punto 3): no
+  hay crossovers** — una partida pertenece exactamente a un juego, nunca al
+  revés, así que esta forma de filtrado (workspace único + sub-filtro de
+  partida) es la definitiva, no una limitación de v1 a revisar más tarde.
+
+### 2.7 Visor — M5b: visibilidad por conocimiento de personaje dentro de la partida (fog of war)
+
+Ampliación grande del operador (§7 punto 4): dentro de una partida ya
+aislada por M5a, cada usuario no ve todo lo de esa partida — ve **la partida
+donde tiene personaje, y dentro de ella lo que su personaje sabe o el grupo
+de jugadores**. Existe un diseño previo completo de la era v1/v2 para esto
+que **se recupera**, no se reinventa:
+`docs/archivados/00-vision.md` ("Modelar el conocimiento por personaje"),
+`docs/archivados/07-users-permissions.md`,
+`docs/current/USERS_CHARACTERS_DESIGN.md` y
+`docs/current/KNOWLEDGE_VISIBILITY_DESIGN.md`, con una implementación parcial
+real en `data-engine/app/access/access_store.py` (SQLite, selftest OK).
+
+**Modelo recuperado, en dos piezas independientes:**
+
+1. **Usuario ↔ personaje y permisos por bóveda** (quién es quién):
+   `user_character_link` (tabla intermedia, estados
+   `pending/approved/rejected/revoked/assigned`, un activo por
+   usuario+workspace) y `user_workspace_permission` (permisos por bóveda:
+   tipos de entidad visibles, `max_visible_session`, flags de
+   secret/narrator/future/reference).
+2. **Visibilidad en dos niveles** (qué ve, una vez sabido quién es): nivel 1
+   por sesión/campaña (público/grupo hasta la sesión visible — esto es
+   literalmente el mismo nivel que ya implementa
+   `VisibilityPolicy.can_view` puntos 3-5 en `viewer/app/policies/engine.py`);
+   nivel 2 por conocimiento de personaje (solo entidades que el personaje
+   conoce/presenció/le contaron, vía relaciones `KNOWS_ABOUT`, `HAS_SEEN`,
+   `HAS_FOUGHT`, `TELLS`/`TELLS_ABOUT`, `SHARED_WITH`, etc. — nunca
+   `secret`/`narrator`/`future` sin permiso explícito).
+
+**Veredicto de reutilización — evidencia leída, no supuesta:**
+
+- **`access_store.py` (pieza 1, usuario↔personaje↔permisos) es reutilizable
+  tal cual, con una extensión mínima.** Es un almacén SQLite independiente
+  del grafo: sus tablas (`user_character_link`,
+  `user_workspace_permission`, `access_audit_log`) están todas indexadas por
+  `(username, workspace)` como cadena plana (`access_store.py:62,84,116` y
+  el `UNIQUE(username, workspace)` de la línea 106) — no conocen Neo4j, no
+  conocen `partida_id` porque no existían partidas cuando se escribió. La
+  extensión necesaria es mecánica y de la misma forma que el resto de este
+  documento: añadir una columna `partida_id` (nullable) a
+  `user_character_link` y `user_workspace_permission`, y cambiar la clave
+  única de `(username, workspace)` a `(username, workspace, partida_id)` —
+  mismo patrón "ortogonal, columna nueva, sin tocar semántica existente" que
+  el resto del programa. Ningún rediseño de esta pieza.
+- **Las propiedades de grafo que el diseño de visibilidad (pieza 2) da por
+  existentes NO existen en V3 — esto NO es "conectar filtros que ya
+  están", requiere trabajo de escritura nuevo.** El propio
+  `docs/archivados/07-users-permissions.md` dice literalmente: "el grafo ya
+  guarda las propiedades necesarias (`known_by_scope`, `knowledge_quality`,
+  `known_from_session`, `visibility`, etc.)" — eso era cierto para el
+  pipeline legacy (`rpg_schema.py` 1.4+), pero **se comprobó en el código V3
+  actual que no lo es**: `ClaimProposal`
+  (`data-engine/app/knowledge_v3/contracts/claim.py`) no tiene ningún campo
+  `known_by_scope`, `party`, `visibility`, `session_index` ni relaciones de
+  conocimiento (`KNOWS_ABOUT`/`HAS_SEEN`/...); `writer/cypher.py` escribe
+  props genéricos (`create_entity`/`create_assertion` aceptan un `dict`
+  arbitrario, así que técnicamente *podría* llevar esas propiedades) pero
+  **nada en el pipeline V3 actual las produce** — ni extracción ni el motor
+  local derivan relaciones de "quién sabe qué" de un claim. `grep` de
+  `known_by_scope|known_from_session|visibility|party` en
+  `contracts/*.py` y `writer/schema.py` no devuelve nada.
+- **Lo curioso, y una buena noticia parcial: el visor YA tiene media pieza 2
+  construida, de forma independiente.** `viewer/app/policies/engine.py` y
+  `policies/models.py` (slice "RC6 E2") ya implementan un motor de
+  visibilidad con esta forma casi exacta: `ViewerContext` ya trae
+  `allowed_workspaces`, `party_membership`, `character_knowledge`,
+  `max_visible_session`, `can_view_secret/future/reference`, `admin_full`,
+  `session_public`; `VisibilityPolicy.can_view` ya evalúa `node["visibility"]`
+  (`player/narrator/secret/reference`), `node["party"]`, `node["session_index"]`
+  y `node["known_by"]`/`known_by_characters` en cascada deny-by-default. Es
+  el motor de decisión de la pieza 2 del diseño legacy, ya escrito y
+  probado — pero **nada en el writer V3 escribe esas propiedades en los
+  nodos reales**, así que hoy evalúa siempre sobre nodos donde
+  `visibility`/`party`/`session_index`/`known_by` están ausentes (deny/allow
+  por defecto genérico, nunca por conocimiento real de personaje). Confirma
+  la frase de `07-users-permissions.md`: "aplicación real de los filtros:
+  pendiente".
+
+**Conclusión de M5b**: no es "activar un interruptor". Se divide en tres
+piezas de trabajo reales:
+
+(a) Extender `access_store.py` con `partida_id` (mecánico, bajo riesgo, ya
+evaluado arriba).
+
+(b) Extender los contratos V3 (`ClaimProposal`, `GraphMutationPlan`/props de
+`create_entity`/`create_assertion`) con las propiedades que
+`VisibilityPolicy` ya sabe leer (`visibility`, `party`, `session_index`,
+`known_by`/`known_by_characters`) — mismo mecanismo de "campo opcional nuevo,
+hashea gratis en la firma" que `partida_id` en M0.
+
+(c) La pieza que **no existe en ningún sitio todavía**: lógica de extracción
+o del motor local que **derive** esas propiedades de conocimiento a partir
+del texto/claims (quién presenció qué, quién se lo contó a quién — la tabla
+de patrones de `KNOWLEDGE_VISIBILITY_DESIGN.md §12` es la especificación de
+referencia, pero no hay código V3 que la implemente). Esto es trabajo de
+extracción nuevo, de superficie comparable a un carril de extracción propio
+— es el motivo de que M5b se mantenga como bloque separado y de riesgo alto,
+no una tarea menor colgada de M5a.
 
 ## 3. Los dos invariantes como tests concretos
 
@@ -303,33 +445,35 @@ noción de cadena con `chain_from`):
   — solo aparece el nuevo puntero `local_override_of` en la afirmación de
   partida.
 
-## 4. Plan de migración
+## 4. Plan de migración — SIMPLIFICADO (decisión del operador, ver §7)
 
-El contenido actual no tiene `partida_id` (campo inexistente = `NULL`
-implícito). Dos opciones para el operador, mutuamente excluyentes, aplicables
-por *workspace* existente (no hace falta decidir una sola vez para todo el
-grafo si conviven varios juegos con distinto criterio):
+**Ya no hay plan de migración real.** El operador ha confirmado que el
+contenido que hoy vive en el grafo es **de prueba**: no representa partidas
+reales que deban preservarse con un mapeo cuidadoso a `juego`/`partida`. Las
+dos opciones A/B que barajaba la versión anterior de este documento (todo a
+capa juego vs. todo a una partida legacy, con sus riesgos de mezclar hechos de
+sesión con lore) quedan descartadas por innecesarias: no hay contenido de
+producción real que migrar hoy.
 
-- **Opción A — todo a capa juego.** No se toca ningún nodo/relación existente
-  (`partida_id` ya es `NULL` por ausencia). Efecto: todo lo ingerido hasta hoy
-  pasa a ser lore compartido, visible por cualquier partida futura de ese
-  `workspace`. Riesgo: si en el contenido actual hay hechos que en realidad
-  pertenecían a una sesión de juego concreta (no a reglas/lore), esos hechos
-  quedan compartidos con partidas nuevas que no deberían verlos.
-- **Opción B — todo a una partida legacy.** Migración explícita: `UPDATE` que
-  fija `partida_id="partida:legacy"` en todo nodo/relación de ese `workspace`
-  creado antes del corte. Efecto: el contenido actual queda aislado como si
-  fuera una partida más; ninguna partida nueva lo ve automáticamente. Requiere
-  decidir aparte qué, si acaso, se "sube" manualmente a capa juego (reglas,
-  perfiles de personaje reutilizables).
+Lo que sí hace falta, al desplegar V3 con `partida_id` activo, es una decisión
+operativa simple y de una sola vía — **limpiar o marcar el contenido de
+prueba**:
 
-Mecanismo técnico (independiente de la opción, bloque M1, ver §5): script de
-migración de una sola pasada sobre Neo4j, `SET n.partida_id = ...` condicionado
-por `workspace` y fecha de creación (`created_at`/`ingested_at`), con
-`dry-run` obligatorio primero (mismo patrón que ya usa el resto del sistema:
-todo camino de escritura tiene dry-run antes de apply). El script en sí requiere
-aprobación operativa explícita de producción — no se ejecuta como parte de
-ningún bloque de este programa.
+- **Limpiar**: borrar el contenido de prueba existente antes de activar
+  ingesta real con ámbito de partida, dejando el grafo vacío para arrancar
+  limpio con `workspace`/`partida_id` bien formados desde el primer documento
+  real.
+- **Marcar**: dejarlo pero etiquetado explícitamente como ámbito de prueba
+  (p. ej. `partida_id="partida:test"` bajo un `workspace` de prueba, o un flag
+  dedicado), para que nunca se confunda con contenido real de una partida ni
+  contamine catálogos/resolutor de partidas reales.
+
+Cualquiera de las dos requiere **aprobación explícita del operador antes de
+ejecutarse** (política ya vigente: "ningún cambio en prod sin confirmar") y
+sigue el mismo patrón técnico que cualquier escritura masiva del sistema:
+script de una sola pasada con `dry-run` obligatorio primero. No se ejecuta
+como parte de ningún bloque de implementación de este programa; es una
+operación aparte, gateada a esa aprobación (ver M6 simplificado en §5).
 
 ## 5. Descomposición en bloques implementables
 
@@ -340,12 +484,13 @@ hasta que el visor y el writer lo entiendan ambos).
 | Bloque | Contenido | Riesgo |
 |---|---|---|
 | **M0** | Contratos: `partida_id` en `SourceAsset`/`ClaimProposal`/`GraphMutationPlan` + bloque `scope`; bump de `contract_version`; JSON Schema congelado actualizado; sin lógica que lo use aún (campo opcional, todo el código existente sigue funcionando con `partida_id=None` en todas partes). | Bajo. Solo contratos + fixtures de test. |
-| **M1** | Ingesta: mapeo carpeta→(`workspace`,`partida_id`) en el punto de construcción de `SourceAsset` (camino V3 real, `pipeline/sources.py` y su equivalente de producción fuera de `pipeline/`, no en `ingest_rpg.py` salvo el flag de carpeta). Script de migración (dry-run) para Opción A/B, sin ejecutarlo. | Medio. Toca el único punto de entrada de procedencia; requiere fixtures nuevas de carpeta Nextcloud. |
+| **M1** | Ingesta: mapeo carpeta→(`workspace`,`partida_id`) en el punto de construcción de `SourceAsset` (camino V3 real, `pipeline/sources.py` y su equivalente de producción fuera de `pipeline/`, no en `ingest_rpg.py` salvo el flag de carpeta). **Bloqueado a leer `plantilla bovedas` en Nextcloud** para fijar la convención de nombres real (§2.1); el mecanismo genérico de mapeo sí puede implementarse antes. Ya no lleva script de migración (§4 simplificado — se elimina de este bloque). | Medio. Toca el único punto de entrada de procedencia; depende de un prerequisito externo (Nextcloud arriba) fuera del control del programa. |
 | **M2** | Resolutor: `filter_partida_scope`, `CascadeContext.partida_scope`, doble cerradura en `history_entry_allowed`, `CatalogEntity.partida_id`. Tests del Invariante 1 (§3). | Medio-alto. Es el núcleo del Invariante 1; requiere no romper ninguno de los tests existentes de `discarded_other_workspace` (deben seguir pasando sin `partida_id`). |
 | **M3** | Writer: `admission.py` (punto de ámbito, código `PLAN_SCOPE_CROSS_PARTIDA`), `cypher.py` (props + lectura con `partida_id`), `schema.py` (índice). Tests del Invariante 2 (§3, primeros dos). **No** incluye supersesión local todavía. | Alto. Es la puerta física al grafo; cualquier fallo aquí es el que el operador más teme (escritura fuera de ámbito). Revisor debe verificar fail-closed explícitamente en cada rama nueva. |
 | **M4** | Supersesión local: campo `local_override_of`, razón `LOCAL_DIVERGENCE`, lógica de enmascarado en lectura (provider). Test `test_local_override_does_not_mutate_game_layer`. | Alto. Semántica nueva no derivable mecánicamente de lo existente (§2.5); mayor superficie de error humano en el diseño de la propuesta concreta de operación de escritura. |
-| **M5** | Visor: `ViewerContext.allowed_partida_ids`/`active_partida`, regla nueva en `VisibilityPolicy.can_view`, selector de partida (UI + endpoint), `PolicyFilteredProvider` aplicando el sub-filtro. Test permanente "cero claims cross-partida" en `tests/integration/`. | Medio. Reutiliza casi al pie de la letra el patrón `allowed_workspaces` ya probado; el riesgo real es el modelo "usuario → partidas permitidas" (decisión abierta, no resuelta aquí). |
-| **M6** | Migración real ejecutada en producción (Opción A o B, según decisión del operador) + cierre de la brecha de compatibilidad (planes/fuentes sin `contract_version` nuevo dejan de admitirse). | Operativo, no de código. Requiere aprobación explícita previa (política ya vigente: "ningún cambio en prod sin confirmar"). |
+| **M5a** | Visor — aislamiento entre partidas: `ViewerContext.allowed_partida_ids`/`active_partida`, regla nueva en `VisibilityPolicy.can_view` (barrera dura, §2.6), selector de partida (UI + endpoint) poblado desde `user_character_link` extendido con `partida_id` (§2.7), `PolicyFilteredProvider` aplicando el sub-filtro. Test permanente "cero claims cross-partida" en `tests/integration/`. | Medio. Reutiliza casi al pie de la letra el patrón `allowed_workspaces` ya probado. El modelo "usuario → partidas permitidas" ya no es una decisión abierta (§7 punto 4: `user_character_link`), así que el riesgo que tenía este bloque en la versión anterior del diseño queda cerrado. |
+| **M5b** | Visor — fog of war (visibilidad por conocimiento de personaje dentro de la partida, §2.7): (a) extender `access_store.py` con `partida_id`; (b) extender contratos V3 con `visibility`/`party`/`session_index`/`known_by`(`_characters`) que `VisibilityPolicy` ya sabe evaluar; (c) lógica de extracción/motor que **derive** esas propiedades y relaciones de conocimiento (`KNOWS_ABOUT`, `HAS_SEEN`, `TELLS`, ...) de los claims — no existe hoy en V3, es la pieza nueva real de este bloque. | Alto. (a) y (b) son mecánicos y de bajo riesgo (mismo patrón que M0); (c) es superficie de extracción nueva comparable a un carril propio, con riesgo de falsos negativos (personaje "no sabe" algo que debería) y falsos positivos (fuga de información que el personaje no debería tener) si la derivación es imprecisa. Debe tratarse como su propio sub-programa con criterios de aceptación explícitos, no como una tarea dentro de M5a. |
+| **M6** | Limpieza u marcado del contenido de prueba existente en el grafo (§4 simplificado) — ya no es "migración" de datos reales, es housekeeping antes de activar `partida_id` en serio. Opción limpiar vs. marcar, decisión operativa simple. | Operativo, no de código. Requiere aprobación explícita previa (política ya vigente: "ningún cambio en prod sin confirmar"). Riesgo bajo — no hay contenido real que se pueda perder por definición (es contenido de prueba), pero sigue exigiendo confirmación antes de tocar producción. |
 
 **Qué NO tocar hasta que Puerta 6 cierre:** todo lo que vive bajo
 `data-engine/app/knowledge_v3/extraction/`, `engine/` (factivity, shadow,
@@ -355,45 +500,85 @@ módulos (el diseño de ámbito es ortogonal a la extracción/factividad), pero 
 revisor de cada bloque debe verificar en el diff que ningún bloque se acerca a
 esos directorios antes de que Puerta 6 cierre.
 
-## 6. Riesgos y decisiones abiertas para el operador
+## 6. Riesgos y huecos que quedan abiertos
 
-1. **Ámbito por defecto de la migración (Opción A vs B, §4)** — decisión
-   explícita pendiente, posiblemente distinta por `workspace` si conviven
-   varios juegos con historiales de contenido distintos.
-2. **Fuentes ya ingeridas que mezclan juego y partida en el mismo documento**
-   (p.ej. un PDF de sesión que también reafirma reglas del manual): el mapeo
-   carpeta→ámbito (M1) es por fuente completa, no por fragmento/episodio. Si
-   existen documentos así, hace falta o (a) trocearlos manualmente en Nextcloud
-   antes de re-ingerir, o (b) aceptar que quedan enteros en un ámbito y vivir
-   con la imprecisión. No hay mecanismo de partición automática de una fuente
-   entre dos ámbitos en este diseño.
-3. **¿La capa juego admite más de un juego desde el día 1?** Sí, técnicamente
-   — `workspace` ya es el identificador de juego y ya soporta N valores
-   distintos hoy (`writer/schema.py`, catálogo, etc. son todos genéricos en
-   `workspace`). Lo que **no** está resuelto es si una partida puede pertenecer
-   a más de un juego simultáneamente (crossover) — el diseño actual asume
-   partida → exactamente un juego (`workspace` único por partida). Si el
-   operador quiere crossovers, `ViewerContext.allowed_workspaces` ya es un
-   `frozenset` (soporta varios), pero el resolutor (`CascadeContext.workspace`,
-   singular) y el writer (`GraphWriter.__init__`: "un writer, un workspace")
-   NO lo soportan hoy y requerirían rediseño adicional fuera de este documento.
-4. **Modelo "usuario → partidas permitidas"** (bloque M5): este documento
-   asume que existe o existirá una fuente de verdad para qué partidas puede
-   seleccionar cada usuario logueado, pero no la diseña — el visor "ya tiene
-   login/usuarios/admin" según el encargo, pero la tabla de pertenencia
-   usuario↔partida no se ha localizado en el código auditado y puede no
-   existir todavía. Bloqueante real para M5 si no existe.
-5. **Coste de `PolicyFilteredProvider` materializando en memoria.** El patrón
+Las seis decisiones abiertas de la versión anterior de este documento han
+sido resueltas por el operador (§7). Lo que queda no son decisiones
+pendientes de arquitectura sino **riesgos operativos y huecos de
+información** — cosas que este diseño no puede cerrar por sí solo:
+
+1. **Convención real de carpeta Nextcloud (M1), pendiente de leer.** No es ya
+   una decisión de diseño abierta: es un hueco de información bloqueado a que
+   Nextcloud vuelva y se pueda leer `plantilla bovedas` (§2.1). El *mecanismo*
+   de mapeo carpeta→ámbito está diseñado; el *patrón de nombres* concreto no
+   se puede fijar sin esa lectura.
+2. **Coste de `PolicyFilteredProvider` materializando en memoria.** El patrón
    actual ya trae *todo* el workspace a memoria antes de filtrar y paginar
-   (`_ALL = 10_000_000`). Añadir el sub-filtro de partida no cambia el orden de
-   magnitud del problema, pero si el volumen de contenido por juego crece
-   (varias partidas activas sobre el mismo juego, cada una generando su propio
-   volumen de hechos locales), este diseño puede necesitar empujar el filtro de
-   `partida_id` a la query base de Neo4j en vez de solo a la capa de política —
-   optimización de rendimiento fuera de alcance de v1 pero señalada aquí porque
-   el propio comentario del código ya advierte del coste ("el filtro debe
-   ocurrir sobre el conjunto completo, no sobre una página ya recortada").
-6. **Nombre y forma exacta de la convención de carpeta Nextcloud** (M1): este
-   documento no fija el patrón de nombres (`Juego-X/00-Reglas/...` vs. otra
-   convención); es una decisión operativa a acordar con quien organiza
-   Nextcloud, no una decisión de arquitectura de datos.
+   (`_ALL = 10_000_000`). Añadir el sub-filtro de partida (M5a) y, sobre todo,
+   el filtro de conocimiento de personaje (M5b, potencialmente evaluado por
+   entidad y por usuario) no cambia el orden de magnitud del problema, pero si
+   el volumen de contenido por juego crece (varias partidas activas, cada una
+   generando su propio volumen de hechos locales y de relaciones de
+   conocimiento), este diseño puede necesitar empujar los filtros a la query
+   base de Neo4j en vez de solo a la capa de política — optimización de
+   rendimiento fuera de alcance de v1 pero señalada aquí porque el propio
+   comentario del código ya advierte del coste ("el filtro debe ocurrir sobre
+   el conjunto completo, no sobre una página ya recortada").
+3. **M5b (c) es el hueco más grande del programa: no existe diseño de
+   extracción para derivar conocimiento de personaje.** El documento legacy
+   (`KNOWLEDGE_VISIBILITY_DESIGN.md §12`) da patrones lingüísticos de ejemplo
+   ("Asuka vio al Oni" → `HAS_SEEN`), pero no hay código V3 ni especificación
+   de contrato para esa derivación — ni un `ClaimProposal` con campo de
+   "relación de conocimiento", ni un extractor dedicado. Antes de implementar
+   M5b (c) hace falta una ronda de diseño propia (fuera del alcance de esta
+   actualización) que decida si se extrae automáticamente, se marca a mano
+   desde un panel (`/control/visibility`, ya especificado en el diseño
+   legacy §11), o ambos con automático como sugerencia y manual como
+   confirmación.
+4. **Volumen y forma exacta del panel de administración** (`/control/users`,
+   `/control/visibility` en el diseño legacy): quedan como especificación de
+   referencia recuperada, no auditados contra el código actual del visor V3
+   más allá de `policies/engine.py`/`models.py` — puede haber piezas de UI a
+   construir desde cero que este documento no dimensiona (es diseño de datos
+   y de motor de política, no de interfaz).
+
+## 7. Decisiones del operador resueltas (2026-08-04/05)
+
+Todas las decisiones abiertas de la versión anterior de este documento
+(`docs/v3/44-multipartida-diseno.md` original) han sido resueltas
+explícitamente por el operador. Se listan aquí con su efecto en el diseño:
+
+1. **Migración.** El contenido actual del grafo es de prueba, no producción
+   real. No hay plan de migración A/B (§4 de la versión anterior queda
+   descartado). M6 se simplifica a limpiar o marcar el contenido de prueba al
+   desplegar V3, con aprobación explícita del operador — ver §4 y §5 (M6)
+   actuales.
+2. **Documentos mixtos.** No existen: en Nextcloud el lore va por un lado y
+   las notas de partida por otro. Se elimina la decisión abierta
+   correspondiente (antes punto 2 de §6): M1 no necesita partición
+   automática de una fuente entre dos ámbitos.
+3. **Crossovers.** No — un juego puede tener varias partidas, pero una
+   partida nunca pertenece a más de un juego. Cierra la decisión abierta
+   (antes punto 3 de §6): el diseño asume, de forma definitiva y no
+   provisional, workspace único por partida (§2.6).
+4. **Visibilidad por usuario — ampliación grande.** El operador quiere que
+   cada usuario vea la partida donde tiene personaje y, dentro de ella, solo
+   lo que su personaje sabe o el grupo de jugadores. Se recupera el diseño
+   v1/v2 (`docs/archivados/00-vision.md`, `07-users-permissions.md`,
+   `docs/current/USERS_CHARACTERS_DESIGN.md`,
+   `docs/current/KNOWLEDGE_VISIBILITY_DESIGN.md`,
+   `data-engine/app/access/access_store.py`). Efecto en este documento: M5 se
+   divide en M5a (selector de partida + aislamiento entre partidas, §2.6) y
+   M5b (fog of war por conocimiento de personaje, §2.7); el modelo
+   "usuario → partidas permitidas" (antes punto 4 de §6) queda resuelto con
+   `user_character_link` extendido con `partida_id`. Veredicto de
+   reutilización de `access_store.py` con evidencia de código: ver §2.7.
+5. **Plantilla Nextcloud.** Existe la bóveda "plantilla bovedas" entre las 5
+   montadas en VM105. Nextcloud está caído en el momento de este diseño: se
+   deja el mapeo carpeta→ámbito (M1) atado a leerla en cuanto Nextcloud
+   vuelva, con lo que se sabe hoy de estructura de carpetas por los docs
+   archivados citado en §2.1.
+6. **Estado de gates.** Puerta 6 cerrada y ratificada (`main` `cbf461d`): la
+   implementación multi-partida ya no está gateada a su cierre (ver
+   encabezado del documento). Se señala el piloto del acuerdo ratificado
+   (`docs/v3/48`) para que ningún bloque que toque ingesta colisione con él.
