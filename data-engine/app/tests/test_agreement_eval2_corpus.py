@@ -86,7 +86,15 @@ def test_measure_agreement2_mock_run_end_to_end_no_escribe_fuera_del_directorio_
     assert result.returncode == 0, result.stderr
     after = {p for p in _REPO_ROOT.rglob("*") if ".git" not in p.parts and "worktrees" not in p.parts}
     nuevos = after - before
-    inesperados = [p for p in nuevos if _REPO_ROOT in p.parents and out_dir not in p.parents and cache_dir not in p.parents]
+    inesperados = [
+        p
+        for p in nuevos
+        if _REPO_ROOT in p.parents
+        and out_dir not in p.parents
+        and cache_dir not in p.parents
+        # bytecode generado por el propio import de Python, no una escritura del script
+        and "__pycache__" not in p.parts
+    ]
     assert inesperados == [], f"la corrida en sombra escribio ficheros inesperados: {inesperados}"
     payload = json.loads((out_dir / "mock-run.json").read_text(encoding="utf-8"))
     assert payload["mock"] is True
