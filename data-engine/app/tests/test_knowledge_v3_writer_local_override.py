@@ -323,6 +323,73 @@ def test_aplicar_el_mismo_override_dos_veces_es_idempotente():
 
 
 # ==========================================================================
+# 5-bis. Marca de revision (M4 rework: exigencia minima del dictamen)
+# ==========================================================================
+def _plan_override_simple():
+    ops = [
+        op_local_override(
+            "op:0001", "decision:0001", "assertion:divergencia",
+            "entity:daiki", "entity:casa-del-ciervo", "assertion:lore-daiki-vivo",
+        )
+    ]
+    return make_plan(operations=ops, partida_id=PARTIDA, scope=partida_scope(PARTIDA))
+
+
+def test_escribir_una_divergencia_deja_marca_de_revision_en_el_resultado():
+    """La divergencia se ESCRIBE (no se bloquea: la aprobacion humana es M5),
+    pero el resultado la anuncia con un codigo consultable, sin obligar a
+    nadie a saber buscar `local_override_of IS NOT NULL` en el grafo."""
+    plan = _plan_override_simple()
+    nodes = {("assertion", "assertion:lore-daiki-vivo"): lore_node()}
+    driver = FakeDriver(nodes=nodes)
+    result = make_writer_for(driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+    assert result.review_marks == [
+        {
+            "operation_id": "op:0001",
+            "assertion_id": "assertion:divergencia",
+            "code": codes.LOCAL_DIVERGENCE_PENDING_REVIEW,
+            "local_override_of": "assertion:lore-daiki-vivo",
+            "partida_id": PARTIDA,
+        }
+    ]
+    # La marca NO es un rechazo: no contamina `rejections` ni el desenlace.
+    assert result.rejections == []
+    assert result.to_dict()["review_marks"] == result.review_marks
+    # Y viaja tambien al rastro de auditoria del desenlace.
+    assert result.audit_record["detail"]["review_marks"] == result.review_marks
+
+
+def test_una_creacion_normal_no_deja_ninguna_marca_de_revision():
+    """Solo la divergencia se marca: una asercion corriente de partida no
+    tiene nada que revisar por este concepto."""
+    ops = [
+        op_create_assertion(
+            "op:0001", "decision:0001", "assertion:normal",
+            "entity:daiki", "entity:casa-del-ciervo",
+        )
+    ]
+    plan = make_plan(operations=ops, partida_id=PARTIDA, scope=partida_scope(PARTIDA))
+    driver = FakeDriver(nodes={})
+    result = make_writer_for(driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+    assert result.review_marks == []
+
+
+def test_el_dry_run_tambien_anuncia_la_divergencia_sin_escribir_nada():
+    """Quien simula antes de aplicar tiene que poder ver que ESTE plan trae
+    una divergencia local, sin aplicarlo."""
+    plan = _plan_override_simple()
+    driver = FakeDriver(nodes={})
+    result = make_writer_for(driver).write(plan, apply_request(plan, apply=False))
+    assert result.ok, result.codes
+    assert [m["code"] for m in result.review_marks] == [
+        codes.LOCAL_DIVERGENCE_PENDING_REVIEW
+    ]
+    assert driver.writes == []
+
+
+# ==========================================================================
 # 6. Cypher: el enmascarado de lectura (decision de coste, M4 §2.5)
 # ==========================================================================
 def test_query_de_capa_juego_no_lleva_enmascarado():
@@ -339,6 +406,40 @@ def test_query_de_partida_lleva_enmascarado_acotado_a_su_propio_ambito():
     assert "o.partida_id = $partida_id" in q.cypher
     assert "o.local_override_of = n.assertion_id" in q.cypher
     assert q.params["partida_id"] == PARTIDA
+
+
+def test_query_filtra_vigencia_con_el_catalogo_del_ledger():
+    """M4 rework (P1 del dictamen): "visible" incluye AHORA la vigencia. El
+    catalogo no se copia a mano: es `LIVE_STATUSES` del ledger, asi que
+    `SUPERSEDED`/`RETRACTED` quedan fuera y `CONTRADICTED` dentro (una
+    contradiccion marca, no destruye)."""
+    from knowledge_v3.ledger.supersession import LIVE_STATUSES
+
+    q = cypher.list_visible_assertions_query(WORKSPACE, PARTIDA)
+    assert "n.status IN $live_statuses" in q.cypher
+    assert set(q.params["live_statuses"]) == {s.value for s in LIVE_STATUSES}
+    assert "SUPERSEDED" not in q.params["live_statuses"]
+    assert "RETRACTED" not in q.params["live_statuses"]
+    assert "CONTRADICTED" in q.params["live_statuses"]
+    # Tambien en capa juego: la vigencia no es cosa de partidas.
+    assert "n.status IN $live_statuses" in cypher.list_visible_assertions_query(
+        WORKSPACE, None
+    ).cypher
+
+
+def test_query_de_unicidad_acota_workspace_partida_y_objetivo():
+    """M4 rework: la unicidad se resuelve en Cypher, acotada a los tres
+    campos que la definen, y es una LECTURA (`MATCH ... RETURN`, `LIMIT 1`)."""
+    q = cypher.find_local_override(WORKSPACE, PARTIDA, "assertion:lore-daiki-vivo")
+    assert "n.workspace = $ws" in q.cypher
+    assert "n.partida_id = $partida_id" in q.cypher
+    assert "n.local_override_of = $override_target" in q.cypher
+    assert "LIMIT 1" in q.cypher
+    assert q.params == {
+        "ws": WORKSPACE,
+        "partida_id": PARTIDA,
+        "override_target": "assertion:lore-daiki-vivo",
+    }
 
 
 def test_query_filtra_por_sujeto_cuando_se_declara():
@@ -376,10 +477,18 @@ class _FakeReadSession:
     def run(self, cypher_text: str, params: dict):
         partida_id = params.get("partida_id")
         subject = params.get("subject")
+        live = set(params.get("live_statuses") or ())
         visible = {
             aid: props
             for aid, props in self.graph.items()
             if props.get("partida_id") is None or props.get("partida_id") == partida_id
+        }
+        # M4 (rework): la consulta real filtra vigencia en el WHERE. El fake
+        # honra el MISMO criterio -- y estrictamente: un nodo sin `status` no
+        # es "vigente demostrable", igual que en Cypher `NULL IN [...]` no es
+        # true.
+        visible = {
+            aid: props for aid, props in visible.items() if props.get("status") in live
         }
         if subject is not None:
             visible = {

@@ -190,6 +190,28 @@ def _effective_partida_id(plan: GraphMutationPlan) -> Optional[str]:
     return scope_partida if scope_partida is not None else plan.partida_id
 
 
+def declares_local_override(payload: dict[str, Any]) -> bool:
+    """True si el payload DECLARA una divergencia local, valga lo que valga.
+
+    M4 (rework, P1 del dictamen): la comprobacion original era
+    `if payload.get("local_override_of")` -- truthiness. Una cadena VACIA es
+    falsy en Python exactamente igual que `None` o que la clave ausente, asi
+    que `local_override_of=""` esquivaba a la vez este rechazo estructural y
+    el chequeo de ejecucion, y acababa escrita tal cual en el nodo, sin
+    exigir siquiera `reason_code`.
+
+    La frontera se normaliza aqui, en un solo sitio compartido con
+    `executor._check_local_override`, y en direccion FAIL-CLOSED: declarar el
+    campo con cualquier valor distinto de `None` cuenta como intencion de
+    declarar override. El vacio NO se normaliza a "ausente" (eso lo dejaria
+    pasar y escrito): se trata como declaracion invalida y muere en el
+    chequeo que corresponda -- estructural aqui, contra el estado real en
+    ejecucion (`EXEC_LOCAL_OVERRIDE_TARGET_MISSING`: la cadena vacia no es
+    ningun `assertion_id` existente).
+    """
+    return payload.get("local_override_of") is not None
+
+
 def _local_override_incoherence(plan: GraphMutationPlan) -> Optional[tuple[str, dict[str, Any]]]:
     """M4 (docs/v3/49 §2.5): quien declara una divergencia local debe ser PARTIDA.
 
@@ -213,7 +235,7 @@ def _local_override_incoherence(plan: GraphMutationPlan) -> Optional[tuple[str, 
         if op.get("operation_type") != "CREATE_ASSERTION":
             continue
         payload = op.get("payload") or {}
-        if payload.get("local_override_of"):
+        if declares_local_override(payload):
             return (
                 "operacion CREATE_ASSERTION declara local_override_of pero el "
                 "plan es de capa juego: solo una PARTIDA puede declarar una "
@@ -393,6 +415,7 @@ __all__ = [
     "AdmissionContext",
     "AdmissionResult",
     "admit",
+    "declares_local_override",
     "parse_iso_utc",
     "utc_now",
     "SUPPORTED_CONTRACT_MAJOR",

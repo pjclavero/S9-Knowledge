@@ -58,13 +58,15 @@ def partida_node(partida_id: str, version: int = 2, state_hash: str = HASH_B["va
 # 1. El filo FALSY: `if payload.get("local_override_of")` no distingue
 #    "ausente" de "presente pero vacio" -- ambos casos saltan el chequeo.
 # ==========================================================================
-def test_override_vacio_bypassa_el_rechazo_estructural_de_capa_juego():
-    """BUG (P1): `local_override_of=""` en un plan de CAPA JUEGO no dispara
-    `PLAN_LOCAL_OVERRIDE_FROM_GAME_LAYER`, porque `_local_override_incoherence`
-    comprueba `if payload.get("local_override_of")` -- una cadena vacia es
-    falsy en Python, exactamente igual que `None` o la clave ausente. El plan
-    se ADMITE cuando la intencion (declarar una divergencia local desde capa
-    juego) es precisamente la que M4 dice prohibir."""
+def test_override_vacio_ya_no_bypassa_el_rechazo_estructural_de_capa_juego():
+    """INVERTIDO en el rework (bug P1 corregido). Antes: `local_override_of=""`
+    en un plan de CAPA JUEGO NO disparaba `PLAN_LOCAL_OVERRIDE_FROM_GAME_LAYER`,
+    porque `_local_override_incoherence` comprobaba truthiness
+    (`if payload.get(...)`) y la cadena vacia es falsy igual que `None` o que
+    la clave ausente. Ahora la frontera es `declares_local_override()`
+    (`... is not None`): declarar el campo con CUALQUIER valor cuenta como
+    intencion de declarar divergencia, y la capa juego no puede declarar
+    ninguna."""
     ops = [
         op_local_override(
             "op:0001", "decision:0001", "assertion:fantasma",
@@ -73,23 +75,16 @@ def test_override_vacio_bypassa_el_rechazo_estructural_de_capa_juego():
     ]
     plan = make_plan(operations=ops, scope=game_scope())
     result = admit(plan, ctx())
-    # Comportamiento HOY: se admite. Si esto cambia (endurecimiento futuro:
-    # tratar cualquier valor no-None como declaracion de override), este
-    # assert debe voltearse -- documentado aqui a proposito.
-    assert result.admitted, (
-        "si esto falla, el bypass ya esta cerrado: actualiza el hallazgo "
-        f"del informe. codigos: {result.codes}"
-    )
+    assert not result.admitted
+    assert codes.PLAN_LOCAL_OVERRIDE_FROM_GAME_LAYER in result.codes
 
 
-def test_override_vacio_bypassa_tambien_el_chequeo_de_ejecucion_y_se_escribe():
-    """BUG (P1), el otro extremo: como `_check_local_override` usa el MISMO
-    chequeo falsy (`if not target: return`), el payload con
-    `local_override_of=""` no solo pasa admision -- tambien pasa ejecucion
-    SIN NINGUNA validacion contra el estado real, y la cadena vacia queda
-    escrita tal cual en la asercion de CAPA JUEGO resultante. Ademas
-    `reason_code` tampoco se exige (el chequeo entero se salta), asi que ni
-    siquiera hace falta `LOCAL_DIVERGENCE`."""
+def test_override_vacio_desde_capa_juego_no_llega_a_escribirse():
+    """INVERTIDO (mismo bug P1, extremo de ESCRITURA). Antes el payload con
+    `local_override_of=""` pasaba admision Y ejecucion sin ninguna validacion
+    contra el estado real, y la cadena vacia quedaba escrita tal cual en un
+    nodo de CAPA JUEGO, sin exigir siquiera `reason_code`. Ahora el plan muere
+    en admision y el driver no recibe ni una escritura."""
     ops = [
         op_local_override(
             "op:0001", "decision:0001", "assertion:fantasma",
@@ -100,18 +95,51 @@ def test_override_vacio_bypassa_tambien_el_chequeo_de_ejecucion_y_se_escribe():
     plan = make_plan(operations=ops, scope=game_scope())
     driver = FakeDriver(nodes={})
     result = make_writer_for(driver).write(plan, apply_request(plan))
-    assert result.outcome == OUTCOME_APPLIED, result.codes
+    assert result.outcome != OUTCOME_APPLIED
+    assert codes.PLAN_LOCAL_OVERRIDE_FROM_GAME_LAYER in result.codes
+    assert driver.writes == []
+    assert not driver.committed
 
-    create_write = next(
-        (q, p) for q, p in driver.writes
-        if p.get("props", {}).get("assertion_id") == "assertion:fantasma"
-    )
-    # La propiedad queda grabada, con el valor vacio, en un nodo SIN
-    # `partida_id` -- es decir, en capa juego. `local_override_of=""` en un
-    # hecho de capa juego no tiene ningun significado valido segun el diseno
-    # (M4 dice: solo una PARTIDA declara divergencia), pero aqui esta.
-    assert create_write[1]["props"]["local_override_of"] == ""
-    assert create_write[1]["props"]["partida_id"] is None
+
+def test_override_vacio_desde_partida_muere_en_ejecucion_sin_escribir():
+    """El otro filo del mismo bug: si quien declara `local_override_of=""` es
+    una PARTIDA, admision no tiene nada estructural que objetar (es una
+    partida, puede divergir), asi que el rechazo tiene que llegar contra el
+    ESTADO real -- la cadena vacia no es ningun `assertion_id` de capa juego
+    existente. El vacio NO se normaliza a "ausente" (eso lo dejaria pasar y
+    escrito): se trata como declaracion invalida."""
+    ops = [
+        op_local_override(
+            "op:0001", "decision:0001", "assertion:fantasma",
+            "entity:daiki", "entity:casa-del-ciervo", "",
+        )
+    ]
+    plan = make_plan(operations=ops, partida_id=PARTIDA_A, scope=partida_scope(PARTIDA_A))
+    driver = FakeDriver(nodes={})
+    result = make_writer_for(driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_LOCAL_OVERRIDE_TARGET_MISSING in result.codes
+    assert driver.writes == []
+    assert not driver.committed
+
+
+def test_override_vacio_desde_partida_tampoco_esquiva_el_reason_code():
+    """Y sin `reason_code` canonico muere antes todavia: el chequeo entero ya
+    no se salta por truthiness, asi que la exigencia R1 del ledger aplica
+    tambien al valor vacio."""
+    ops = [
+        op_local_override(
+            "op:0001", "decision:0001", "assertion:fantasma",
+            "entity:daiki", "entity:casa-del-ciervo", "",
+            reason_code=None,
+        )
+    ]
+    plan = make_plan(operations=ops, partida_id=PARTIDA_A, scope=partida_scope(PARTIDA_A))
+    driver = FakeDriver(nodes={})
+    result = make_writer_for(driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_LOCAL_OVERRIDE_REASON_INVALID in result.codes
+    assert driver.writes == []
 
 
 # ==========================================================================
@@ -253,15 +281,15 @@ def test_dos_partidas_distintas_overridean_el_mismo_lore_cada_una_ve_el_suyo():
     assert {r.assertion_id for r in rows_game} == {"assertion:lore-daiki-vivo"}
 
 
-def test_misma_partida_dos_overrides_del_mismo_lore_ambos_visibles_sin_desempate():
-    """(d) HALLAZGO (P1): nada impide que la MISMA partida cree DOS
-    aserciones distintas con `local_override_of` apuntando al mismo hecho de
-    lore (ni `admission.py` ni `executor.py` comprueban unicidad del
-    objetivo dentro del ambito). El resultado en lectura es AMBIGUO: las dos
-    quedan visibles simultaneamente, sin ningun criterio de desempate (ni
-    "el mas reciente gana" ni "se rechaza el segundo") -- dos hechos
-    supuestamente incompatibles del mismo sujeto conviven en la vista de una
-    sola partida."""
+def test_misma_partida_dos_overrides_del_mismo_lore_se_rechaza_el_segundo():
+    """INVERTIDO en el rework (hallazgo P1 corregido). Antes: nada impedia que
+    la MISMA partida creara DOS aserciones con `local_override_of` apuntando al
+    mismo hecho de lore, y las dos quedaban visibles a la vez sin ningun
+    criterio de desempate. Ahora hay unicidad estricta
+    `(workspace, partida_id, local_override_of)`: el segundo intento es un
+    CONFLICTO (`EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED`), no una fusion ni una
+    cadena -- el mismo criterio CREATE-only de `_assert_absent`. Como el
+    writer es transaccional, el primero tampoco queda escrito."""
     ops = [
         op_local_override(
             "op:0001", "decision:0001", "assertion:divergencia-1",
@@ -276,26 +304,66 @@ def test_misma_partida_dos_overrides_del_mismo_lore_ambos_visibles_sin_desempate
     nodes = {("assertion", "assertion:lore-daiki-vivo"): lore_node()}
     driver = FakeDriver(nodes=nodes)
     result = make_writer_for(driver).write(plan, apply_request(plan))
-    # El writer los ADMITE Y APLICA a los dos: no hay invariante que lo impida.
-    assert result.outcome == OUTCOME_APPLIED, result.codes
-    assert set(result.created_ids) == {"assertion:divergencia-1", "assertion:divergencia-2"}
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED in result.codes
+    assert not driver.committed
 
-    graph = {
-        "assertion:lore-daiki-vivo": {"partida_id": None, "subject_entity_id": "entity:daiki"},
-        "assertion:divergencia-1": {
-            "partida_id": PARTIDA_A, "subject_entity_id": "entity:daiki",
-            "local_override_of": "assertion:lore-daiki-vivo",
-        },
-        "assertion:divergencia-2": {
-            "partida_id": PARTIDA_A, "subject_entity_id": "entity:daiki",
+
+def test_segundo_override_del_mismo_lore_en_OTRO_plan_tambien_se_rechaza():
+    """La unicidad no depende de que los dos overrides viajen en el mismo
+    plan: un plan posterior, contra el estado YA escrito, cae igual. Y el
+    hecho de capa juego sigue sin tocarse ni en el intento fallido."""
+    def _plan(op_id, assertion_id, decision):
+        ops = [
+            op_local_override(
+                op_id, decision, assertion_id,
+                "entity:daiki", "entity:casa-del-ciervo", "assertion:lore-daiki-vivo",
+            )
+        ]
+        return make_plan(
+            operations=ops, partida_id=PARTIDA_A, scope=partida_scope(PARTIDA_A)
+        )
+
+    nodes = {("assertion", "assertion:lore-daiki-vivo"): lore_node()}
+    driver = FakeDriver(nodes=nodes)
+    writer = make_writer_for(driver)
+
+    primero = _plan("op:0001", "assertion:divergencia-1", "decision:0001")
+    r1 = writer.write(primero, apply_request(primero))
+    assert r1.outcome == OUTCOME_APPLIED, r1.codes
+
+    segundo = _plan("op:0002", "assertion:divergencia-2", "decision:0002")
+    r2 = writer.write(segundo, apply_request(segundo))
+    assert r2.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED in r2.codes
+    assert nodes[("assertion", "assertion:lore-daiki-vivo")] == lore_node()
+
+
+def test_otra_partida_puede_declarar_su_propio_override_del_mismo_lore():
+    """La unicidad es POR PARTIDA, no global: que `partida A` haya divergido
+    de un hecho del lore no puede impedir que `partida B` diverja del mismo
+    hecho (seria justo el acoplamiento entre partidas que el Invariante 1
+    prohibe)."""
+    ops_b = [
+        op_local_override(
+            "op:0002", "decision:0002", "assertion:divergencia-B",
+            "entity:daiki", "entity:casa-del-ciervo", "assertion:lore-daiki-vivo",
+        )
+    ]
+    plan_b = make_plan(
+        operations=ops_b, partida_id=PARTIDA_B, scope=partida_scope(PARTIDA_B)
+    )
+    nodes = {
+        ("assertion", "assertion:lore-daiki-vivo"): lore_node(),
+        # `partida A` ya diverge de ese mismo hecho.
+        ("assertion", "assertion:divergencia-A"): {
+            "version": 1, "state_hash": HASH_B["value"], "partida_id": PARTIDA_A,
             "local_override_of": "assertion:lore-daiki-vivo",
         },
     }
-    read_driver = _FakeReadDriver(graph)
-    rows = list_visible_assertions(read_driver, WORKSPACE, PARTIDA_A)
-    ids = {r.assertion_id for r in rows}
-    # Las DOS quedan visibles: no hay desempate.
-    assert ids == {"assertion:divergencia-1", "assertion:divergencia-2"}
+    driver = FakeDriver(nodes=nodes)
+    result = make_writer_for(driver).write(plan_b, apply_request(plan_b))
+    assert result.outcome == OUTCOME_APPLIED, result.codes
 
 
 # ==========================================================================
@@ -317,51 +385,72 @@ def test_supersede_del_hecho_de_capa_juego_no_esta_bloqueado_por_overrides_colga
     assert result.outcome == OUTCOME_APPLIED, result.codes
 
 
-def test_hecho_de_capa_juego_ya_superseded_sigue_visible_porque_la_query_no_filtra_status():
-    """HALLAZGO (P1/P2, relacionado con lo anterior): `list_visible_assertions_query`
-    no filtra por `status` en absoluto (ni `LIVE_STATUSES`, ni excluye
-    `SUPERSEDED`/`RETRACTED`). Una asercion de capa juego YA SUSTITUIDA por
-    una supersesion temporal normal sigue apareciendo como "visible" en
-    cualquier ambito que no la tenga overrideada -- el enmascarado de M4
-    resuelve el filo de la DIVERGENCIA LOCAL, pero no sustituye al filtrado
-    de vigencia que un consumidor real (M5) tendria que anadir aparte. Esto
-    es coherente con que el modulo se declara 'lugar para demostrar el
-    enmascarado', pero un consumidor de produccion que use esta funcion tal
-    cual mostraria hechos ya superados como si siguieran vigentes."""
+def test_hecho_de_capa_juego_ya_superseded_deja_de_estar_visible():
+    """INVERTIDO en el rework (hallazgo P1 corregido). Antes
+    `list_visible_assertions_query` no filtraba `status` en absoluto, asi que
+    una asercion de capa juego YA SUSTITUIDA seguia apareciendo como
+    "visible" -- la funcion prometia vigencia y no la cumplia. Ahora el WHERE
+    lleva `n.status IN $live_statuses` (catalogo `LIVE_STATUSES` del ledger)
+    y la version superada desaparece de la vista sin haber sido borrada del
+    grafo."""
     graph = {
         "assertion:lore-daiki-vivo": {
             "partida_id": None, "subject_entity_id": "entity:daiki",
             "status": "SUPERSEDED", "superseded_by": "assertion:lore-daiki-vivo-v2",
         },
+        "assertion:lore-daiki-vivo-v2": {
+            "partida_id": None, "subject_entity_id": "entity:daiki", "status": "ASSERTED",
+        },
     }
     driver = _FakeReadDriver(graph)
     rows = list_visible_assertions(driver, WORKSPACE, PARTIDA_A)
     ids = {r.assertion_id for r in rows}
-    # Sigue "visible" pese a estar SUPERSEDED: la funcion no lo filtra.
-    assert ids == {"assertion:lore-daiki-vivo"}
+    assert ids == {"assertion:lore-daiki-vivo-v2"}
+
+
+def test_un_hecho_contradicho_sigue_visible_porque_contradecir_no_destruye():
+    """El filtro es el catalogo del ledger, no "todo lo que no sea ASSERTED":
+    `CONTRADICTED` sigue contando como conocimiento (marca, no destruye) y por
+    tanto sigue viendose."""
+    graph = {
+        "assertion:lore-discutido": {
+            "partida_id": None, "subject_entity_id": "entity:daiki",
+            "status": "CONTRADICTED",
+        },
+        "assertion:lore-retractado": {
+            "partida_id": None, "subject_entity_id": "entity:daiki",
+            "status": "RETRACTED",
+        },
+    }
+    driver = _FakeReadDriver(graph)
+    rows = list_visible_assertions(driver, WORKSPACE, PARTIDA_A)
+    assert {r.assertion_id for r in rows} == {"assertion:lore-discutido"}
 
 
 # ==========================================================================
 # 7. Override + supersesion temporal SIMULTANEOS dentro de la misma partida
 #    (requisito 5.e del encargo).
 # ==========================================================================
-def test_override_superseded_dentro_de_la_partida_deja_lore_enmascarado_y_ambas_versiones_visibles():
-    """(e) El hecho local A override-a al lore; luego, DENTRO de la misma
-    partida, A es superseded por B (supersesion temporal normal, ej. nueva
-    evidencia sobre el mismo hecho local). Semantica observada:
+def test_override_superseded_dentro_de_la_partida_deja_lore_enmascarado_y_solo_B_visible():
+    """(e) AJUSTADO en el rework. El hecho local A override-a al lore; luego,
+    DENTRO de la misma partida, A es superseded por B (supersesion temporal
+    normal). SEMANTICA ELEGIDA Y DOCUMENTADA (ver
+    `cypher.list_visible_assertions_query`):
 
-    - El lore de capa juego SIGUE enmascarado (el `NOT EXISTS` solo comprueba
-      que EXISTA alguna asercion de la partida con `local_override_of`
-      apuntando a el -- A la sigue teniendo aunque A este SUPERSEDED, porque
-      M4 nunca toca `local_override_of` al cerrar una vigencia temporal).
-    - Pero A (ya SUPERSEDED) y B (la version vigente) aparecen LAS DOS en la
-      lista de visibles, porque la funcion no filtra `status` (ver hallazgo
-      anterior). Una partida que consulte esta funcion veria DOS hechos del
-      mismo sujeto donde debería ver solo uno (B) y el lore permanecería
-      oculto por una versión que ya no es la vigente.
+    - El lore de capa juego SIGUE enmascarado: el `NOT EXISTS` mira el
+      PUNTERO, no el `status` del override. A lo sigue apuntando aunque este
+      SUPERSEDED (cerrar una vigencia temporal nunca toca
+      `local_override_of`).
+    - A ya NO aparece: el filtro de vigencia la excluye. Solo B, la version
+      vigente de la divergencia, queda visible.
 
-    Se documenta como semantica CUESTIONABLE, no como assert de "correcto":
-    el AGENTE-DE-TESTS decide reportarlo, no dictaminar."""
+    Se elige asi -- y no "solo enmascara un override vigente" -- por
+    coherencia con la unicidad estricta: la partida declara su divergencia
+    sobre ese hecho UNA vez, y lo que evoluciona despues es el contenido. Si
+    el enmascarado dependiera del status, supersedir A haria REAPARECER el
+    lore junto a B (dos hechos del mismo sujeto en la misma vista) y ademas
+    no habria forma de volver a ocultarlo, porque la unicidad impide declarar
+    un segundo override sobre el mismo objetivo."""
     graph = {
         "assertion:lore-daiki-vivo": {
             "partida_id": None, "subject_entity_id": "entity:daiki", "status": "ASSERTED",
@@ -379,10 +468,10 @@ def test_override_superseded_dentro_de_la_partida_deja_lore_enmascarado_y_ambas_
     driver = _FakeReadDriver(graph)
     rows = list_visible_assertions(driver, WORKSPACE, PARTIDA_A)
     ids = {r.assertion_id for r in rows}
-    # Lore enmascarado (correcto, A sigue apuntandolo); A Y B ambas visibles
-    # (cuestionable: A ya no deberia contar como "vigente").
+    # Lore enmascarado (A lo sigue apuntando) y solo la version vigente de la
+    # divergencia visible.
     assert "assertion:lore-daiki-vivo" not in ids
-    assert ids == {"assertion:divergencia-A", "assertion:divergencia-B"}
+    assert ids == {"assertion:divergencia-B"}
 
 
 # ==========================================================================

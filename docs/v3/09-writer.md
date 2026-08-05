@@ -415,6 +415,7 @@ aflojan. Se dice en vez de fingir que las 32 son igual de alcanzables.
 | `EXEC_LOCAL_OVERRIDE_TARGET_MISSING` | M4 (docs/v3/49 §2.5): `local_override_of` apunta a un `assertion_id` que no existe en ningún ámbito de este workspace. | directo |
 | `EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER` | M4: el `assertion_id` apuntado por `local_override_of` existe, pero no es de capa juego — pertenece a una partida (la propia, otra, o una cadena de overrides). Cubre a la vez el cruce "partida→juego indebido" y el cruce "cross-partida". | directo |
 | `EXEC_LOCAL_OVERRIDE_REASON_INVALID` | M4: `local_override_of` presente sin el `reason_code` canónico `LOCAL_DIVERGENCE` (R1 del ledger). | directo |
+| `EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED` | M4 (rework): la misma partida ya tiene una divergencia local declarada sobre ese mismo hecho de capa juego. Unicidad estricta `(workspace, partida_id, local_override_of)`: el segundo intento es un conflicto, no una fusión ni una cadena — mismo criterio CREATE-only que `EXEC_TARGET_ALREADY_EXISTS`. | directo |
 
 ---
 

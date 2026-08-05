@@ -145,6 +145,11 @@ EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER = "EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME
 #: `LOCAL_DIVERGENCE` (R1 del ledger, catalogo compartido con
 #: `ledger.supersession.CANONICAL_REASONS[ASSERT]`).
 EXEC_LOCAL_OVERRIDE_REASON_INVALID = "EXEC_LOCAL_OVERRIDE_REASON_INVALID"
+#: M4 (rework): la MISMA partida ya declaro una divergencia local sobre ese
+#: mismo hecho de capa juego. Unicidad estricta `(workspace, partida_id,
+#: local_override_of)`: el segundo intento es un CONFLICTO, no una fusion ni
+#: una cadena -- mismo criterio CREATE-only que `EXEC_TARGET_ALREADY_EXISTS`.
+EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED = "EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED"
 
 # --- Auditoria ------------------------------------------------------------
 #: El sink se declaro disponible pero `append` fallo. No impide que lo ya
@@ -168,7 +173,19 @@ EXECUTION_CODES = (
     EXEC_LOCAL_OVERRIDE_TARGET_MISSING,
     EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER,
     EXEC_LOCAL_OVERRIDE_REASON_INVALID,
+    EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED,
 )
+
+# --- Marcas de revision ---------------------------------------------------
+# NO son rechazos: viajan en el RESULTADO de una escritura que SI se aplico,
+# para que la auditoria pueda encontrarlas sin conocer la forma interna del
+# grafo (sin tener que buscar `local_override_of IS NOT NULL`).
+#: M4 (rework): la operacion escribio una divergencia local del lore. No
+#: bloquea nada -- el circuito de aprobacion humana es M5; esto es solo la
+#: senal explicita y consultable de que hay algo que un humano debe revisar.
+LOCAL_DIVERGENCE_PENDING_REVIEW = "LOCAL_DIVERGENCE_PENDING_REVIEW"
+
+REVIEW_MARK_CODES = (LOCAL_DIVERGENCE_PENDING_REVIEW,)
 
 ALL_CODES = ADMISSION_CODES + GATE_CODES + AUDIT_CODES + EXECUTION_CODES
 
@@ -177,5 +194,6 @@ __all__ = [
     "GATE_CODES",
     "AUDIT_CODES",
     "EXECUTION_CODES",
+    "REVIEW_MARK_CODES",
     "ALL_CODES",
-] + [c for c in ALL_CODES]
+] + [c for c in ALL_CODES] + [c for c in REVIEW_MARK_CODES]

@@ -98,6 +98,13 @@ class WriteResult:
     created_ids: list[str] = field(default_factory=list)
     rollback: Optional[RollbackDocument] = None
     audit_record: Optional[dict[str, Any]] = None
+    #: M4 (rework): lo que esta escritura deja PENDIENTE DE REVISION humana,
+    #: explicito y consultable en el propio resultado (p.ej.
+    #: `LOCAL_DIVERGENCE_PENDING_REVIEW` por cada divergencia local escrita).
+    #: No bloquea nada: el circuito de aprobacion es M5. Aqui solo se
+    #: garantiza que una divergencia del lore no pase inadvertida a quien
+    #: audita, sin obligarle a rastrear `local_override_of` en el grafo.
+    review_marks: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -115,6 +122,7 @@ class WriteResult:
             "applied_operations": self.applied_operations,
             "noop_operations": self.noop_operations,
             "created_ids": list(self.created_ids),
+            "review_marks": [dict(m) for m in self.review_marks],
             "rollback": self.rollback.to_dict() if self.rollback else None,
         }
 
@@ -287,6 +295,7 @@ class GraphWriter:
                 [],
                 applied=len(outcome.applied),
                 noop=len(outcome.noop_keys),
+                review_marks=outcome.review_marks,
             )
 
         # 3b. Rastro ANTES de escribir. La condicion 9 del gate garantiza que el
@@ -337,6 +346,7 @@ class GraphWriter:
             applied=len(outcome.applied),
             noop=len(outcome.noop_keys),
             created_ids=outcome.created_ids,
+            review_marks=outcome.review_marks,
             rollback=rollback,
             detail={"rollback": rollback.to_dict()},
         )
@@ -393,6 +403,7 @@ class GraphWriter:
         applied: int = 0,
         noop: int = 0,
         created_ids: Optional[list[str]] = None,
+        review_marks: Optional[list[dict[str, Any]]] = None,
         rollback: Optional[RollbackDocument] = None,
         detail: Optional[dict[str, Any]] = None,
     ) -> WriteResult:
@@ -402,6 +413,10 @@ class GraphWriter:
         resultado: un APPLY que se aplico sin dejar su linea sigue aplicado, y el
         operador tiene que enterarse de que el rastro no esta.
         """
+        # Las marcas viajan tambien al rastro: una divergencia local escrita
+        # queda en el registro de auditoria, no solo en el objeto devuelto.
+        if review_marks:
+            detail = {**(detail or {}), "review_marks": [dict(m) for m in review_marks]}
         record, failure = self._audit(
             outcome,
             mode,
@@ -423,6 +438,7 @@ class GraphWriter:
             applied_operations=applied,
             noop_operations=noop,
             created_ids=list(created_ids or []),
+            review_marks=[dict(m) for m in (review_marks or [])],
             rollback=rollback,
             audit_record=record,
         )

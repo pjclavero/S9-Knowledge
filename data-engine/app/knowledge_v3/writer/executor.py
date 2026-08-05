@@ -29,6 +29,7 @@ from typing import Any, Optional
 from ..ledger.entries import LedgerOperation
 from ..ledger.supersession import CANONICAL_REASONS as _LEDGER_CANONICAL_REASONS
 from . import codes, cypher
+from .admission import declares_local_override
 from .errors import WriterAbort
 from .idempotency import AppliedKeyStore
 from .view import SignedView
@@ -65,6 +66,11 @@ class AppliedOperation:
     target_id: Optional[str] = None
     previous_state: Optional[dict[str, Any]] = None
     changed_props: dict[str, Any] = field(default_factory=dict)
+    #: M4 (rework): marcas de revision de ESTA operacion. No son rechazos: la
+    #: operacion se aplico. Existen para que la auditoria encuentre lo que hay
+    #: que mirar sin conocer la forma interna del grafo (sin tener que buscar
+    #: `local_override_of IS NOT NULL` a mano).
+    review_marks: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -76,6 +82,7 @@ class AppliedOperation:
             "target_id": self.target_id,
             "previous_state": self.previous_state,
             "changed_props": dict(self.changed_props),
+            "review_marks": [dict(m) for m in self.review_marks],
         }
 
 
@@ -96,6 +103,25 @@ class ExecutionOutcome:
     @property
     def created_ids(self) -> list[str]:
         return [a.created_id for a in self.applied if a.created_id]
+
+    @property
+    def review_marks(self) -> list[dict[str, Any]]:
+        """Todo lo que esta ejecucion deja pendiente de mirar, ya resuelto.
+
+        Cada marca lleva la operacion y el objetivo, para que un auditor no
+        tenga que volver al grafo ni saber que campo mirar.
+        """
+        out: list[dict[str, Any]] = []
+        for applied in self.applied:
+            for mark in applied.review_marks:
+                out.append(
+                    {
+                        "operation_id": applied.operation_id,
+                        "assertion_id": applied.target_id,
+                        **mark,
+                    }
+                )
+        return out
 
 
 # --- Utilidades de lectura del driver -------------------------------------
@@ -215,7 +241,9 @@ def _assert_absent(tx: Any, op: dict, workspace: str, target_id: str, is_asserti
         )
 
 
-def _check_local_override(tx: Any, op: dict, payload: dict, workspace: str) -> None:
+def _check_local_override(
+    tx: Any, op: dict, payload: dict, workspace: str, partida_id: str | None = None
+) -> list[dict[str, Any]]:
     """M4 (docs/v3/49 §2.5): el otro filo del Invariante 2 para `local_override_of`.
 
     `admission.py` (`_local_override_incoherence`) ya rechazo, sin tocar
@@ -240,10 +268,23 @@ def _check_local_override(tx: Any, op: dict, payload: dict, workspace: str) -> N
     quiera corregir una divergencia local ya escrita debe hacerlo sobre ESA
     afirmacion de partida (via el ciclo de vida normal: confirmar, contradecir
     o retractar), no encadenando un override sobre otro.
+
+    UNICIDAD (rework, P1 del dictamen): dentro de `(workspace, partida_id)`
+    solo puede haber UN `local_override_of` apuntando al mismo hecho de lore.
+    El segundo intento es un conflicto duro
+    (`EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED`), con el mismo criterio CREATE-only
+    de `_assert_absent`: ni se fusiona, ni se encadena, ni "gana el ultimo".
+    Sin esto, la propia partida podia acabar viendo dos divergencias
+    simultaneas del mismo hecho, sin desempate posible en lectura.
+
+    Devuelve las MARCAS DE REVISION de la operacion (vacio si no declara
+    ninguna divergencia): la escritura se aplica, pero deja constancia
+    explicita en el resultado. El circuito de aprobacion humana es M5; aqui
+    solo se garantiza que la divergencia no pase inadvertida.
     """
-    target = payload.get("local_override_of")
-    if not target:
-        return
+    if not declares_local_override(payload):
+        return []
+    target = payload["local_override_of"]
     reason = payload.get("reason_code")
     if reason != _LOCAL_DIVERGENCE_REASON:
         raise WriterAbort(
@@ -257,7 +298,29 @@ def _check_local_override(tx: Any, op: dict, payload: dict, workspace: str) -> N
     # ni a otra.
     game_state = _single(tx, cypher.read_assertion_state(target, workspace, None))
     if game_state is not None:
-        return
+        if partida_id is not None:
+            existing = _single(tx, cypher.find_local_override(workspace, partida_id, target))
+            if existing is not None:
+                raise WriterAbort(
+                    codes.EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED,
+                    f"la operacion {op['operation_id']} declara "
+                    f"local_override_of={target!r}, pero la partida {partida_id!r} ya "
+                    "tiene una divergencia local declarada sobre ese mismo hecho de "
+                    "capa juego: una partida diverge de un hecho del lore UNA vez",
+                    {
+                        "operation_id": op["operation_id"],
+                        "local_override_of": target,
+                        "partida_id": partida_id,
+                        "existing_assertion_id": _field(existing, "id"),
+                    },
+                )
+        return [
+            {
+                "code": codes.LOCAL_DIVERGENCE_PENDING_REVIEW,
+                "local_override_of": target,
+                "partida_id": partida_id,
+            }
+        ]
     if _single(tx, cypher.read_assertion_state_any_scope(target, workspace)) is not None:
         raise WriterAbort(
             codes.EXEC_LOCAL_OVERRIDE_TARGET_NOT_GAME_LAYER,
@@ -398,7 +461,7 @@ def execute_operation(
     if op_type == "CREATE_ASSERTION":
         assertion_id = _require(op.get("assertion_id"), op, "assertion_id")
         _assert_absent(tx, op, ws, assertion_id, is_assertion=True)
-        _check_local_override(tx, op, payload, ws)
+        marks = _check_local_override(tx, op, payload, ws, partida_id)
         record = _single(
             tx,
             cypher.create_assertion(assertion_id, ws, {**props, **prov}, partida_id),
@@ -410,6 +473,7 @@ def execute_operation(
             kind="NODE",
             created_id=_field(record, "id") or assertion_id,
             target_id=assertion_id,
+            review_marks=marks,
         )
 
     if op_type in RELATION_TYPES:
@@ -580,7 +644,21 @@ def simulate_plan(view: SignedView, ctx: ExecutionContext) -> ExecutionOutcome:
         if ctx.applied_keys.is_applied(key):
             outcome.noop_keys.append(key)
             continue
-        _validated_payload(op)
+        payload, _props = _validated_payload(op)
+        # El dry-run tambien anuncia la divergencia: quien simula antes de
+        # aplicar tiene que poder ver que ESTE plan la trae, sin aplicarlo.
+        marks = (
+            [
+                {
+                    "code": codes.LOCAL_DIVERGENCE_PENDING_REVIEW,
+                    "local_override_of": payload["local_override_of"],
+                    "partida_id": getattr(view, "partida_id", None),
+                }
+            ]
+            if op["operation_type"] == "CREATE_ASSERTION"
+            and declares_local_override(payload)
+            else []
+        )
         outcome.applied.append(
             AppliedOperation(
                 operation_id=op["operation_id"],
@@ -588,6 +666,7 @@ def simulate_plan(view: SignedView, ctx: ExecutionContext) -> ExecutionOutcome:
                 idempotency_key=key,
                 kind="SIMULATED",
                 target_id=op.get("target_entity_id") or op.get("assertion_id"),
+                review_marks=marks,
             )
         )
     return outcome

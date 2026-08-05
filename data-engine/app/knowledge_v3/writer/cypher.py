@@ -26,8 +26,18 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..ledger.supersession import LIVE_STATUSES as _LEDGER_LIVE_STATUSES
 from . import codes
 from .errors import WriterAbort
+
+#: Estados que una lectura "visible" puede devolver. Es el MISMO catalogo del
+#: ledger (`ledger.supersession.LIVE_STATUSES`), no una copia a mano: quien
+#: cambie alli la definicion de "sigue contando como conocimiento" cambia
+#: tambien lo que este modulo muestra. `CONTRADICTED` entra (una contradiccion
+#: marca, no destruye); `SUPERSEDED` y `RETRACTED` quedan fuera.
+LIVE_STATUS_VALUES: tuple[str, ...] = tuple(
+    sorted(getattr(s, "value", s) for s in _LEDGER_LIVE_STATUSES)
+)
 
 #: Etiqueta base de toda entidad escrita por el writer V3.
 LABEL_ENTITY = "V3Entity"
@@ -402,6 +412,25 @@ def close_assertion_validity(
     )
 
 
+# --- Unicidad de la divergencia local (M4 rework, P1 del dictamen) --------
+def find_local_override(workspace: str, partida_id: str, target_id: str) -> Query:
+    """La divergencia local de ESTA partida sobre ESE hecho de lore, si existe.
+
+    Unicidad estricta `(workspace, partida_id, local_override_of)`: una
+    partida declara su divergencia sobre un hecho del lore UNA vez. Se lee
+    igual que `_assert_absent` lee la identidad antes de crear -- una consulta
+    acotada, en Cypher, `LIMIT 1` -- y el segundo intento se trata como
+    conflicto (`EXEC_LOCAL_OVERRIDE_ALREADY_DECLARED`), nunca como fusion ni
+    como cadena.
+    """
+    return Query(
+        f"MATCH (n:{LABEL_ASSERTION}) WHERE n.workspace = $ws "
+        "AND n.partida_id = $partida_id AND n.local_override_of = $override_target "
+        "RETURN n.assertion_id AS id LIMIT 1",
+        {"ws": workspace, "partida_id": partida_id, "override_target": target_id},
+    )
+
+
 # --- Lectura con enmascarado de supersesion LOCAL (M4: docs/v3/49 §2.5) ----
 def list_visible_assertions_query(
     workspace: str,
@@ -419,6 +448,27 @@ def list_visible_assertions_query(
     absoluto: sigue existiendo, intacto, y sigue apareciendo en cualquier
     lectura que no sea la de esa partida (otra partida, o la propia capa
     juego).
+
+    VIGENCIA (M4 rework, P1 del dictamen): "visible" incluye AHORA el filtro
+    de estado (`n.status IN $live_statuses`, el catalogo `LIVE_STATUSES` del
+    ledger). Antes la funcion prometia "visible" y devolvia tambien lo
+    SUPERSEDED/RETRACTED, es decir, hechos ya superados presentados como
+    vigentes. El filtro va en el WHERE, con el resto: mismo criterio de que
+    la visibilidad se resuelve en Cypher y nunca en Python.
+
+    SEMANTICA DEL ENMASCARADO CON UN OVERRIDE NO VIGENTE (decision explicita,
+    probada): el `NOT EXISTS` mira el PUNTERO, no el `status` del override.
+    Un override SUPERSEDED sigue enmascarando el hecho de lore al que apunta.
+    Se elige asi -- y no "solo enmascara un override vigente" -- porque es lo
+    unico coherente con la unicidad estricta de `find_local_override`: la
+    partida declara su divergencia sobre ese hecho de lore UNA vez y para
+    siempre; lo que evoluciona despues es el CONTENIDO de esa divergencia,
+    por el ciclo de vida normal de la afirmacion de partida (supersesion
+    temporal A->B dentro de la partida). Si el enmascarado dependiera del
+    status, supersedir A haria REAPARECER el lore junto a B -- dos hechos del
+    mismo sujeto en la misma vista -- y ademas no habria forma de volver a
+    ocultarlo, porque la unicidad impide declarar un segundo override sobre
+    el mismo objetivo. Con la semantica elegida, esa partida ve B y solo B.
 
     DECISION DE COSTE (explicita, no implicita): el enmascarado se resuelve
     con un `WHERE NOT EXISTS { ... }` correlacionado por fila, en Cypher,
@@ -439,8 +489,12 @@ def list_visible_assertions_query(
     No se usa por `execute_plan` ni por `admission.py`: es una lectura de
     solo consulta (ver `writer/reads.py`), no una decision de escritura.
     """
-    where = [_visible_predicate("n", partida_id), "n.workspace = $ws"]
-    params: dict[str, Any] = {"ws": workspace}
+    where = [
+        _visible_predicate("n", partida_id),
+        "n.workspace = $ws",
+        "n.status IN $live_statuses",
+    ]
+    params: dict[str, Any] = {"ws": workspace, "live_statuses": list(LIVE_STATUS_VALUES)}
     if subject_entity_id is not None:
         where.append("n.subject_entity_id = $subject")
         params["subject"] = subject_entity_id
@@ -477,7 +531,9 @@ __all__ = [
     "create_relation",
     "close_entity_validity",
     "close_assertion_validity",
+    "find_local_override",
     "list_visible_assertions_query",
+    "LIVE_STATUS_VALUES",
     "LABEL_ENTITY",
     "LABEL_ASSERTION",
     "ALLOWED_UPDATE_PROPS",

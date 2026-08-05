@@ -273,6 +273,35 @@ class FakeTx:
                 elif "partida_id IS NULL" in cypher and node_partida is not None:
                     state = None
             return FakeResult(dict(state) if state is not None else None)
+        if "n.local_override_of = $override_target" in cypher:
+            # M4 (rework): unicidad `(workspace, partida_id, local_override_of)`.
+            # Es una LECTURA, no una escritura: sin esta rama caeria en el
+            # `append` a `writes` de mas abajo y "encontraria" siempre algo.
+            # Ve tanto los nodos preexistentes del fixture como lo escrito
+            # ANTES en esta misma transaccion -- igual que Neo4j, que dentro
+            # de una transaccion lee sus propias escrituras aun sin commit.
+            target = params["override_target"]
+            partida_id = params["partida_id"]
+            found = None
+            for (kind, node_id), state in self.driver.nodes.items():
+                if kind != "assertion":
+                    continue
+                if (
+                    state.get("partida_id") == partida_id
+                    and state.get("local_override_of") == target
+                ):
+                    found = node_id
+                    break
+            if found is None:
+                for _q, written in self.driver.writes:
+                    props = written.get("props", {})
+                    if (
+                        props.get("local_override_of") == target
+                        and props.get("partida_id") == partida_id
+                    ):
+                        found = props.get("assertion_id")
+                        break
+            return FakeResult({"id": found} if found is not None else None)
         if "V3AppliedOperation" in cypher:
             identity = (params["ws"], params["key"])
             mark = self.driver.applied_marks.get(identity) or self.pending_marks.get(identity)
