@@ -275,9 +275,14 @@ def test_19_contratos_congelados_mantienen_su_hash():
     # anadieron de forma aditiva a los contratos v1 (SourceAsset,
     # ClaimProposal, GraphMutationPlan). El tag `v3-contracts-frozen-1.0.0`
     # sigue existiendo e intacto para quien ancle contra el estado previo;
-    # este test avanza deliberadamente al checkpoint posterior a ese cambio
-    # sancionado, `v3-contracts-frozen-1.0.0-m0`.
-    frozen_ref = "v3-contracts-frozen-1.0.0-m0"
+    # M0 avanzo al checkpoint `v3-contracts-frozen-1.0.0-m0`.
+    #
+    # M2 (docs/v3/49-multipartida-diseno.md, "Politica de version de
+    # contratos v1 del programa"): `partida_id` opcional, mismo criterio
+    # aditivo, ahora tambien en EntityMention/EntityResolution (el resolutor
+    # necesitaba el campo para acotar el ambito visible). Nuevo checkpoint:
+    # `v3-contracts-frozen-1.0.0-m2`.
+    frozen_ref = "v3-contracts-frozen-1.0.0-m2"
     roots = [
         _REPO_ROOT / "contracts/knowledge-v3/v1",
         _REPO_ROOT / "data-engine/app/knowledge_v3/contracts",

@@ -13,6 +13,9 @@ class EntityMention(V3Document):
     """Propone tipos y correferencias; NO decide identidad (eso es EntityResolution)."""
 
     CONTRACT_ID: ClassVar[str] = "entity-mention/v3-internal-v1"
+    #: M2 (docs/v3/49-multipartida-diseno.md): `partida_id` es opcional y se
+    #: omite igual que `metadata` (mismo criterio aditivo que M0, base.py).
+    OMIT_IF_NONE: ClassVar[frozenset[str]] = frozenset({"metadata", "partida_id"})
 
     contract_version: str
     workspace: str
@@ -34,6 +37,7 @@ class EntityMention(V3Document):
     coreference_candidates: list
     evidence_fragment_ids: list
     metadata: Optional[dict[str, Any]] = None
+    partida_id: Optional[str] = None
 
     def best_type(self) -> Optional[str]:
         """Tipo mas probable, o None si la mencion no se atreve a tipar."""

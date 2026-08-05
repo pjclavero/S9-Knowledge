@@ -58,6 +58,7 @@ from knowledge_v3.resolution import (  # noqa: E402
     TrigramJaccardSimilarity,
     derive_entity_id,
     derive_resolution_id,
+    filter_partida_scope,
     filter_workspace,
     normalize_surface,
     types_compatible,
@@ -245,6 +246,56 @@ class TestCatalogo:
         with pytest.raises(NotImplementedError):
             GlossaryStoreSource(store=object()).lookup(WS, "daiki")
 
+    # -- M2: ambito de partida (docs/v3/49-multipartida-diseno.md) ---------
+    def test_rechaza_partida_id_vacio(self):
+        with pytest.raises(ValueError):
+            CatalogEntity("entity:x", WS, "Character", "Daiki", partida_id="")
+
+    def test_partida_id_none_es_capa_juego_por_defecto(self):
+        assert CatalogEntity("entity:x", WS, "Character", "Daiki").partida_id is None
+
+    def test_entities_sin_partida_scope_solo_ve_capa_juego(self):
+        """Comportamiento por defecto: identico al de antes de M2.
+
+        Todo `F.CATALOG_ENTITIES` es capa juego (`partida_id=None`); pedir
+        `entities(WS)` sin `partida_scope` no cambia ni un id.
+        """
+        before = {e.entity_id for e in F.CATALOG_ENTITIES if e.workspace == WS}
+        after = {e.entity_id for e in F.catalog().entities(WS)}
+        assert before == after
+
+    def test_entities_con_partida_scope_ve_partida_propia_y_capa_juego(self):
+        catalog = F.catalog_with_partidas()
+        ids = {e.entity_id for e in catalog.entities(WS, partida_scope=F.PARTIDA_A)}
+        assert "entity:aldric-alpha" in ids
+        assert "entity:daiki" in ids  # capa juego, visible desde cualquier partida
+        assert "entity:aldric-beta" not in ids  # otra partida: invisible
+
+    def test_entities_partida_scope_none_no_ve_ninguna_partida(self):
+        """Direccion UNICA: la capa juego NO ve entidades de ninguna partida."""
+        catalog = F.catalog_with_partidas()
+        ids = {e.entity_id for e in catalog.entities(WS, partida_scope=None)}
+        assert "entity:aldric-alpha" not in ids
+        assert "entity:aldric-beta" not in ids
+        assert "entity:daiki" in ids
+
+    def test_filter_partida_scope_es_puro_y_total(self):
+        entities = list(F.PARTIDA_ENTITIES)
+        kept = filter_partida_scope(entities, F.PARTIDA_A)
+        assert kept == (F.PARTIDA_ENTITIES[0],)
+        assert all(e.partida_id in (None, F.PARTIDA_A) for e in kept)
+
+    def test_get_es_busqueda_directa_no_filtrada_por_partida(self):
+        """`InMemoryEntityCatalog.get` es DELIBERADAMENTE unrestricted (ver su
+        docstring): lo usan las comprobaciones de PROPIEDAD del historial
+        (`history_entry_allowed`), que necesitan saber la verdad completa de un
+        `entity_id` ya conocido, no la vista recortada de la cascada. La
+        visibilidad para la cascada la impone `entities()`/`filter_partida_scope`,
+        no `get()`."""
+        catalog = F.catalog_with_partidas()
+        assert catalog.get(WS, "entity:aldric-beta", partida_scope=F.PARTIDA_A) is not None
+        assert catalog.get(WS, "entity:aldric-beta").partida_id == F.PARTIDA_B
+
 
 # ==========================================================================
 # 4. Glosario
@@ -378,6 +429,61 @@ class TestHistorial:
             HistoryEntry(WS, "a", "entity:a", None, "LINK_EXISTING", 0.9, "resolution:1"),
         ])
         assert [e.normalized_surface for e in h.entries()] == ["a", "b"]
+
+    # -- M2: ambito de partida (docs/v3/49-multipartida-diseno.md) ---------
+    def test_partida_id_por_defecto_es_capa_juego(self):
+        assert HistoryEntry(WS, "a", "entity:a", None, "LINK_EXISTING", 0.9, "r:1").partida_id is None
+
+    def test_misma_superficie_dos_partidas_son_entradas_distintas(self):
+        """No es la misma ranura de indice: es la premisa del Invariante 1."""
+        h = ResolutionHistory()
+        h.record(workspace=WS, surfaces=["Aldric"], entity_id="entity:aldric-alpha",
+                 entity_type="Character", action="LINK_EXISTING", confidence=0.9,
+                 resolution_id="r:1", partida_id=F.PARTIDA_A)
+        h.record(workspace=WS, surfaces=["Aldric"], entity_id="entity:aldric-beta",
+                 entity_type="Character", action="LINK_EXISTING", confidence=0.9,
+                 resolution_id="r:2", partida_id=F.PARTIDA_B)
+        assert len(h) == 2
+        assert h.lookup(WS, "Aldric", partida_scope=F.PARTIDA_A).entity_id == "entity:aldric-alpha"
+        assert h.lookup(WS, "Aldric", partida_scope=F.PARTIDA_B).entity_id == "entity:aldric-beta"
+
+    def test_lookup_sin_partida_scope_no_ve_ninguna_partida(self):
+        h = ResolutionHistory()
+        h.record(workspace=WS, surfaces=["Aldric"], entity_id="entity:aldric-alpha",
+                 entity_type="Character", action="LINK_EXISTING", confidence=0.9,
+                 resolution_id="r:1", partida_id=F.PARTIDA_A)
+        assert h.lookup(WS, "Aldric") is None
+        assert h.lookup(WS, "Aldric", partida_scope=None) is None
+
+    def test_lookup_desde_partida_cae_a_la_capa_juego_si_no_hay_propia(self):
+        h = ResolutionHistory()
+        h.record(workspace=WS, surfaces=["Daiki"], entity_id="entity:daiki",
+                 entity_type="Character", action="LINK_EXISTING", confidence=0.9,
+                 resolution_id="r:1")  # partida_id=None: capa juego
+        assert h.lookup(WS, "Daiki", partida_scope=F.PARTIDA_A).entity_id == "entity:daiki"
+
+    def test_entrada_propia_de_la_partida_gana_a_la_de_capa_juego(self):
+        """Mas especifico gana: si hay entrada propia, no se cae a la compartida."""
+        h = ResolutionHistory()
+        h.record(workspace=WS, surfaces=["Umbra"], entity_id="entity:umbra-juego",
+                 entity_type="Faction", action="LINK_EXISTING", confidence=0.9,
+                 resolution_id="r:1")
+        h.record(workspace=WS, surfaces=["Umbra"], entity_id="entity:umbra-partida",
+                 entity_type="Faction", action="LINK_EXISTING", confidence=0.9,
+                 resolution_id="r:2", partida_id=F.PARTIDA_A)
+        assert h.lookup(WS, "Umbra", partida_scope=F.PARTIDA_A).entity_id == "entity:umbra-partida"
+
+    def test_invalidate_surface_respeta_partida(self):
+        h = ResolutionHistory()
+        h.record(workspace=WS, surfaces=["Aldric"], entity_id="entity:aldric-alpha",
+                 entity_type="Character", action="LINK_EXISTING", confidence=0.9,
+                 resolution_id="r:1", partida_id=F.PARTIDA_A)
+        h.record(workspace=WS, surfaces=["Aldric"], entity_id="entity:aldric-beta",
+                 entity_type="Character", action="LINK_EXISTING", confidence=0.9,
+                 resolution_id="r:2", partida_id=F.PARTIDA_B)
+        assert h.invalidate_surface(WS, "Aldric", partida_id=F.PARTIDA_A) == 1
+        assert len(h) == 1
+        assert h.lookup(WS, "Aldric", partida_scope=F.PARTIDA_B) is not None
 
 
 # ==========================================================================
@@ -547,6 +653,76 @@ class TestWorkspace:
         )
         with pytest.raises(ResolutionInputError):
             resolver().resolve(req)
+
+
+# ==========================================================================
+# 9b. Invariante 1 (M2) — partida
+# ==========================================================================
+class TestPartida:
+    """docs/v3/49-multipartida-diseno.md. Ver tambien
+    `test_knowledge_v3_resolution_mutations.py::TestMutacionPartida` para las
+    pruebas de mutacion de la doble cerradura."""
+
+    def test_homonimo_de_otra_partida_no_es_candidato(self):
+        out = resolve(
+            resolver(catalog=F.catalog_with_partidas()), "Aldric", partida_id=F.PARTIDA_A
+        )
+        assert "entity:aldric-beta" not in out.resolution.candidate_entity_ids
+        assert out.resolution.selected_entity_id == "entity:aldric-alpha"
+
+    def test_la_misma_superficie_resuelve_distinto_en_cada_partida(self):
+        res = resolver(catalog=F.catalog_with_partidas())
+        a = resolve(res, "Aldric", partida_id=F.PARTIDA_A)
+        b = resolve(res, "Aldric", mention_id="mention:otro", partida_id=F.PARTIDA_B)
+        assert a.resolution.selected_entity_id == "entity:aldric-alpha"
+        assert b.resolution.selected_entity_id == "entity:aldric-beta"
+        assert a.resolution.selected_entity_id != b.resolution.selected_entity_id
+
+    def test_partida_ve_la_capa_juego(self):
+        out = resolve(resolver(catalog=F.catalog_with_partidas()), "Daiki", partida_id=F.PARTIDA_A)
+        assert out.resolution.selected_entity_id == "entity:daiki"
+
+    def test_capa_juego_no_ve_entidades_de_partida(self):
+        out = resolve(resolver(catalog=F.catalog_with_partidas()), "Aldric", partida_id=None)
+        assert "entity:aldric-alpha" not in out.resolution.candidate_entity_ids
+        assert "entity:aldric-beta" not in out.resolution.candidate_entity_ids
+        assert out.resolution.action != "LINK_EXISTING"
+
+    def test_menciones_de_partidas_distintas_en_un_grupo_son_error(self):
+        req = ResolutionRequest.of(
+            F.mention("mention:1", "Aldric", partida_id=F.PARTIDA_A),
+            F.mention("mention:2", "Aldric", partida_id=F.PARTIDA_B),
+        )
+        with pytest.raises(ResolutionInputError):
+            resolver(catalog=F.catalog_with_partidas()).resolve(req)
+
+    def test_partida_none_vs_partida_declarada_en_un_grupo_tambien_es_error(self):
+        req = ResolutionRequest.of(
+            F.mention("mention:1", "Aldric", partida_id=None),
+            F.mention("mention:2", "Aldric", partida_id=F.PARTIDA_A),
+        )
+        with pytest.raises(ResolutionInputError):
+            resolver(catalog=F.catalog_with_partidas()).resolve(req)
+
+    def test_la_resolucion_hereda_el_partida_id_de_las_menciones(self):
+        out = resolve(resolver(catalog=F.catalog_with_partidas()), "Aldric", partida_id=F.PARTIDA_A)
+        assert out.resolution.partida_id == F.PARTIDA_A
+
+    def test_resolucion_de_capa_juego_declara_partida_id_none(self):
+        out = resolve(resolver(), "Daiki")
+        assert out.resolution.partida_id is None
+
+    def test_la_resolucion_de_partida_sobrevive_al_round_trip_del_contrato(self):
+        out = resolve(resolver(catalog=F.catalog_with_partidas()), "Aldric", partida_id=F.PARTIDA_A)
+        payload = out.resolution.to_dict()
+        assert payload["partida_id"] == F.PARTIDA_A
+        restored = EntityResolution.from_dict(payload)
+        assert restored.partida_id == F.PARTIDA_A
+
+    def test_partida_id_none_se_omite_en_to_dict(self):
+        """Mismo criterio que `metadata`: `None` no ensucia el documento serializado."""
+        out = resolve(resolver(), "Daiki")
+        assert "partida_id" not in out.resolution.to_dict()
 
 
 # ==========================================================================

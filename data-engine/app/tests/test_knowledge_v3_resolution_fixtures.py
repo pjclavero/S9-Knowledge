@@ -42,6 +42,11 @@ OTHER_WORKSPACE = "tinieblas"
 ASSET_ID = "asset:manual-001"
 EPISODE_ID = "episode:manual-001:p12"
 GAME_PROFILE = "generic"
+#: Ambitos de partida (M2, docs/v3/49-multipartida-diseno.md) dentro del MISMO
+#: workspace/juego `WORKSPACE`. `None` en el resto del fichero sigue
+#: significando "capa juego": todo el corpus preexistente no declara partida.
+PARTIDA_A = "partida:alpha"
+PARTIDA_B = "partida:beta"
 
 
 def h(seed: str) -> dict[str, str]:
@@ -61,6 +66,7 @@ def mention(
     asset_id: str = ASSET_ID,
     evidence: Sequence[str] = ("fragment:p12:0",),
     normalized: str | None = None,
+    partida_id: str | None = None,
 ) -> EntityMention:
     """`EntityMention` valida y minima para alimentar al resolutor."""
     return EntityMention(
@@ -85,6 +91,7 @@ def mention(
         confidence=confidence,
         coreference_candidates=[],
         evidence_fragment_ids=list(evidence),
+        partida_id=partida_id,
     )
 
 
@@ -155,6 +162,38 @@ CATALOG_ENTITIES: tuple[CatalogEntity, ...] = (
 )
 
 
+#: Entidades PRIVADAS de partida (M2), en el MISMO workspace/juego que
+#: `CATALOG_ENTITIES`. Existen aparte porque son un corpus nuevo, no una
+#: variante del anterior: `CATALOG_ENTITIES` sigue siendo integramente capa
+#: juego (`partida_id=None`), asi que ningun test preexistente que la use
+#: cambia de comportamiento.
+PARTIDA_ENTITIES: tuple[CatalogEntity, ...] = (
+    # Nacida en la partida alpha. Nunca debe ser candidata desde beta ni desde
+    # la capa juego.
+    CatalogEntity(
+        entity_id="entity:aldric-alpha",
+        workspace=WORKSPACE,
+        entity_type="Character",
+        canonical_name="Aldric",
+        partida_id=PARTIDA_A,
+    ),
+    # HOMONIMO exacto en OTRA partida del MISMO juego: el caso que probaria un
+    # cruce silencioso si el resolutor solo mirase el nombre.
+    CatalogEntity(
+        entity_id="entity:aldric-beta",
+        workspace=WORKSPACE,
+        entity_type="Character",
+        canonical_name="Aldric",
+        partida_id=PARTIDA_B,
+    ),
+)
+
+
+def catalog_with_partidas() -> InMemoryEntityCatalog:
+    """Catalogo con capa juego (`CATALOG_ENTITIES`) + partidas (`PARTIDA_ENTITIES`)."""
+    return InMemoryEntityCatalog((*CATALOG_ENTITIES, *PARTIDA_ENTITIES))
+
+
 #: Glosario: la unica pieza que sabe que "Daiqui" es como el ASR escribe "Daiki".
 GLOSSARY_TERMS: tuple[dict[str, Any], ...] = (
     {
@@ -203,7 +242,11 @@ class LeakyCatalog(EntityCatalog):
     def __init__(self, entities: Sequence[CatalogEntity] = CATALOG_ENTITIES) -> None:
         self._entities = tuple(entities)
 
-    def entities(self, workspace: str) -> Sequence[CatalogEntity]:
+    def entities(
+        self, workspace: str, *, partida_scope: str | None = None
+    ) -> Sequence[CatalogEntity]:
+        # Ignora tambien `partida_scope` a proposito: es el mismo bug de
+        # workspace (Cypher sin WHERE), extendido al segundo eje de M2.
         return self._entities
 
 
@@ -216,8 +259,9 @@ class LeakyHistory(ResolutionHistory):
     cerradura (`history_entry_allowed`) la que lo impide, no el indice.
     """
 
-    def lookup(self, workspace: str, surface: str):
-        found = super().lookup(workspace, surface)
+    def lookup(self, workspace: str, surface: str, *, partida_scope: str | None = None):
+        # Ignora tambien `partida_scope`: mismo bug de M2 gemelo al de workspace.
+        found = super().lookup(workspace, surface, partida_scope=partida_scope)
         if found is not None:
             return found
         target = normalize_surface(surface)
@@ -236,8 +280,12 @@ __all__ = [
     "SOURCE_HASH",
     "CATALOG_ENTITIES",
     "GLOSSARY_TERMS",
+    "PARTIDA_A",
+    "PARTIDA_B",
+    "PARTIDA_ENTITIES",
     "mention",
     "catalog",
+    "catalog_with_partidas",
     "glossary",
     "LeakyCatalog",
     "LeakyHistory",

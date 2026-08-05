@@ -107,7 +107,9 @@ class EntityResolver:
         cfg = self.config
         envelope = _read_envelope(request.mentions)
         ctx = _build_context(request, envelope)
-        ctx.entities = tuple(self.catalog.entities(envelope.workspace))
+        ctx.entities = tuple(
+            self.catalog.entities(envelope.workspace, partida_scope=envelope.partida_id)
+        )
 
         result = run_cascade(
             ctx,
@@ -131,6 +133,7 @@ class EntityResolver:
                 confidence=resolution.confidence,
                 resolution_id=resolution.resolution_id,
                 min_confidence=cfg.history_min_confidence,
+                partida_id=envelope.partida_id,
             )
         return ResolutionOutcome(
             resolution=resolution,
@@ -171,6 +174,7 @@ class EntityResolver:
             confidence=resolution.confidence,
             resolution_id=resolution.resolution_id,
             min_confidence=self.config.history_min_confidence,
+            partida_id=resolution.partida_id,
         )
 
     def resolve_all(
@@ -223,6 +227,8 @@ class EntityResolver:
 
         if result.discarded_other_workspace:
             reasons.append(_cascade.R_WORKSPACE_ISOLATED)
+        if result.discarded_other_partida:
+            reasons.append(_cascade.R_PARTIDA_ISOLATED)
 
         mention_ids = [m.mention_id for m in request.mentions]
         evidence = sorted({f for m in request.mentions for f in m.evidence_fragment_ids})
@@ -264,6 +270,7 @@ class EntityResolver:
             reason_codes=list(dict.fromkeys(reasons)) or [_cascade.R_NO_CANDIDATE],
             game_profile=request.game_profile,
             metadata=_trace_metadata(result, ctx),
+            partida_id=envelope.partida_id,
         )
         if cfg.validate_output:
             resolution.validate()
@@ -276,6 +283,8 @@ class _Envelope:
     workspace: str
     source_asset_id: str
     source_hash: Mapping[str, Any]
+    #: Ambito de partida comun del grupo (M2). `None` = capa juego.
+    partida_id: str | None = None
 
 
 def _read_envelope(mentions: Sequence[EntityMention]) -> _Envelope:
@@ -283,7 +292,11 @@ def _read_envelope(mentions: Sequence[EntityMention]) -> _Envelope:
 
     Mezclar menciones de dos workspaces en un mismo grupo no es un caso raro que
     haya que apanar: es un error aguas arriba, y silenciarlo aqui produciria un
-    documento cuyo `workspace` seria una eleccion arbitraria entre dos.
+    documento cuyo `workspace` seria una eleccion arbitraria entre dos. Lo
+    mismo aplica a `partida_id` (M2): un grupo de correferencia mezclando una
+    mencion de la partida Y con otra de la partida Z (o de la capa juego)
+    tambien es un error aguas arriba — el extractor agrupa por co-referencia
+    DENTRO de un mismo episodio/ambito, nunca a traves de partidas.
     """
     first = mentions[0]
     for m in mentions[1:]:
@@ -296,6 +309,11 @@ def _read_envelope(mentions: Sequence[EntityMention]) -> _Envelope:
             raise ResolutionInputError(
                 "menciones de source_asset_id distintos en el mismo grupo"
             )
+        if m.partida_id != first.partida_id:
+            raise ResolutionInputError(
+                f"menciones de partidas distintas en el mismo grupo: "
+                f"{first.partida_id!r} y {m.partida_id!r}"
+            )
     ids = [m.mention_id for m in mentions]
     if len(set(ids)) != len(ids):
         raise ResolutionInputError("mention_ids duplicados en la peticion")
@@ -303,6 +321,7 @@ def _read_envelope(mentions: Sequence[EntityMention]) -> _Envelope:
         workspace=first.workspace,
         source_asset_id=first.source_asset_id,
         source_hash=first.source_hash,
+        partida_id=first.partida_id,
     )
 
 
@@ -320,6 +339,7 @@ def _build_context(request: ResolutionRequest, envelope: _Envelope) -> CascadeCo
         mention_type=aggregate_type(request.mentions),
         mention_confidence=aggregate_confidence(request.mentions),
         context_entity_ids=request.context_entity_ids,
+        partida_scope=envelope.partida_id,
     )
 
 
@@ -381,6 +401,7 @@ def _trace_metadata(result: _cascade.CascadeResult, ctx: CascadeContext) -> dict
             "steps_run": list(result.steps_run),
             "short_circuited": result.short_circuited,
             "discarded_other_workspace": result.discarded_other_workspace,
+            "discarded_other_partida": result.discarded_other_partida,
             "mention_type": ctx.mention_type,
             "candidates": [
                 {

@@ -45,6 +45,10 @@ class CatalogEntity:
     #: `True` para entidades creadas como provisionales y aun no canonizadas.
     provisional: bool = False
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    #: Ambito de partida (M2, docs/v3/49-multipartida-diseno.md). `None` =
+    #: capa juego compartida (lore); un valor = nacida dentro de esa partida.
+    #: Ortogonal a `workspace`, igual que en los contratos de M0.
+    partida_id: str | None = None
 
     normalized_name: str = field(init=False, repr=False)
     normalized_aliases: frozenset[str] = field(init=False, repr=False)
@@ -58,6 +62,8 @@ class CatalogEntity:
             raise ValueError(
                 f"entity_type {self.entity_type!r} fuera del catalogo congelado"
             )
+        if self.partida_id is not None and not self.partida_id:
+            raise ValueError("partida_id vacio: usa None para la capa juego, no ''")
         object.__setattr__(self, "aliases", tuple(self.aliases))
         object.__setattr__(self, "normalized_name", normalize_surface(self.canonical_name))
         object.__setattr__(
@@ -78,18 +84,31 @@ class EntityCatalog(ABC):
     """Vista de SOLO LECTURA del catalogo de entidades, por workspace."""
 
     @abstractmethod
-    def entities(self, workspace: str) -> Sequence[CatalogEntity]:
-        """Entidades del workspace, en orden estable.
+    def entities(
+        self, workspace: str, *, partida_scope: str | None = None
+    ) -> Sequence[CatalogEntity]:
+        """Entidades VISIBLES del workspace, en orden estable.
 
         Contrato de la interfaz: la implementacion NO debe devolver entidades de
         otro workspace. El resolutor vuelve a filtrar de todos modos (defensa en
         profundidad): un catalogo con un bug no puede filtrar identidades entre
         boveda y boveda.
+
+        `partida_scope` (M2, docs/v3/49-multipartida-diseno.md, INVARIANTE 1):
+        ademas del workspace, solo son visibles las entidades cuyo
+        `partida_id` sea `None` (capa juego compartida) o coincida exactamente
+        con `partida_scope`. `partida_scope=None` (por defecto, resolucion de
+        la capa juego) deja ver SOLO la capa juego — la capa juego jamas
+        "captura" una entidad nacida en una partida. Todo el material existente
+        tiene `partida_id=None`, asi que el comportamiento por defecto es
+        identico al de antes de M2.
         """
 
-    def get(self, workspace: str, entity_id: str) -> CatalogEntity | None:
-        """Entidad concreta del workspace, o `None`."""
-        for entity in self.entities(workspace):
+    def get(
+        self, workspace: str, entity_id: str, *, partida_scope: str | None = None
+    ) -> CatalogEntity | None:
+        """Entidad concreta del workspace VISIBLE en `partida_scope`, o `None`."""
+        for entity in self.entities(workspace, partida_scope=partida_scope):
             if entity.entity_id == entity_id:
                 return entity
         return None
@@ -130,13 +149,29 @@ class InMemoryEntityCatalog(EntityCatalog):
         bucket[entity.entity_id] = entity
         return self
 
-    def entities(self, workspace: str) -> Sequence[CatalogEntity]:
+    def entities(
+        self, workspace: str, *, partida_scope: str | None = None
+    ) -> Sequence[CatalogEntity]:
         bucket = self._by_workspace.get(workspace, {})
         # Orden por entity_id: el determinismo del desempate final depende de
         # que la entrada no dependa del orden de insercion.
-        return tuple(bucket[k] for k in sorted(bucket))
+        visible = (
+            bucket[k] for k in sorted(bucket)
+            if bucket[k].partida_id is None or bucket[k].partida_id == partida_scope
+        )
+        return tuple(visible)
 
-    def get(self, workspace: str, entity_id: str) -> CatalogEntity | None:
+    def get(
+        self, workspace: str, entity_id: str, *, partida_scope: str | None = None
+    ) -> CatalogEntity | None:
+        """Busqueda DIRECTA por id, sin filtrar por `partida_scope`.
+
+        Deliberado: esta se usa para comprobaciones de PROPIEDAD/integridad
+        (p.ej. `history_entry_allowed`), donde hace falta saber la verdad
+        completa de a quien pertenece un `entity_id` ya conocido, no la vista
+        recortada que ve la cascada. `partida_scope` se acepta por
+        compatibilidad de firma con la clase base y se ignora aqui a proposito.
+        """
         return self._by_workspace.get(workspace, {}).get(entity_id)
 
     def locate(self, entity_id: str) -> str | None:
@@ -172,13 +207,19 @@ class Neo4jEntityCatalog(EntityCatalog):
        entidad de otra boveda entre por el historial. Si no se implementa, la
        version por defecto responde "no me consta" y la cerradura se apoya solo
        en el workspace declarado por la entrada — correcto, pero mas debil.
+    5. `partida_scope` (M2) debe filtrarse TAMBIEN en la consulta Cypher
+       (`WHERE n.partida_id IS NULL OR n.partida_id = $partida_scope`), nunca
+       en Python: es la misma regla del punto 1, aplicada al segundo eje de
+       aislamiento.
     """
 
     def __init__(self, driver: Any, *, database: str | None = None) -> None:
         self._driver = driver
         self._database = database
 
-    def entities(self, workspace: str) -> Sequence[CatalogEntity]:  # pragma: no cover
+    def entities(
+        self, workspace: str, *, partida_scope: str | None = None
+    ) -> Sequence[CatalogEntity]:  # pragma: no cover
         raise NotImplementedError(
             "Neo4jEntityCatalog es un enganche declarado, no una implementacion: "
             "lo completa el bloque de integracion con Neo4j real (solo lectura)."
