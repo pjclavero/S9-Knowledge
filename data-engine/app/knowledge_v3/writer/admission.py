@@ -87,6 +87,95 @@ def _major(version: str) -> int:
         return -1
 
 
+#: Valores admisibles de `scope.layer` (docs/v3/49 §2.2).
+_VALID_SCOPE_LAYERS = frozenset({"GAME", "PARTIDA"})
+
+
+def _scope_incoherence(plan: GraphMutationPlan) -> Optional[tuple[str, dict[str, Any]]]:
+    """Coherencia INTERNA del ambito declarado (Invariante 2, M3, estructural).
+
+    Admision «no escribe ni consulta nada»: esto NUNCA lee el grafo ni el
+    catalogo del resolutor. Lo que aqui se juzga es si el propio documento
+    del plan se contradice a si mismo sobre su ambito -- capa juego vs
+    partida, raiz vs bloque `scope`, `game_id` vs `workspace`.
+
+    El otro filo del Invariante 2 -- que el plan cruce con el ESTADO real de
+    una entidad/asercion ya escrita en otro ambito -- no es decidible aqui
+    por construccion (admision no toca Neo4j): se cierra en el executor, en
+    lectura (`EXEC_SCOPE_MISMATCH`, `writer/executor.py`), tal como pide el
+    diseno (docs/v3/49 §2.4, segundo punto: "las lecturas ... deben ademas
+    comprobar que el nodo leido tiene el `partida_id` que el plan declara").
+
+    Devuelve `None` si el ambito es coherente (incluye el caso legado:
+    `partida_id` ausente y `scope` ausente, exactamente como antes de M3).
+    """
+    scope = plan.scope
+    root_partida = plan.partida_id
+
+    if scope is None:
+        if root_partida is not None:
+            return (
+                "partida_id declarado sin bloque scope: el ambito de un plan "
+                "de partida debe declararse explicitamente (Invariante 2)",
+                {"partida_id": root_partida},
+            )
+        return None
+
+    if not isinstance(scope, dict):
+        return "scope no es un objeto", {"scope": repr(scope)}
+
+    layer = scope.get("layer")
+    scope_partida = scope.get("partida_id")
+    game_id = scope.get("game_id")
+
+    if layer not in _VALID_SCOPE_LAYERS:
+        return "scope.layer no es GAME ni PARTIDA: ambito incoherente", {"layer": layer}
+
+    if layer == "PARTIDA" and not scope_partida:
+        return (
+            "scope.layer=PARTIDA exige scope.partida_id: ambito incoherente",
+            {"layer": layer, "scope_partida_id": scope_partida},
+        )
+
+    if layer == "PARTIDA" and scope_partida and root_partida is None:
+        # Espejo de la regla "partida_id raiz sin bloque scope" de arriba:
+        # el campo y el bloque nacieron juntos en M0 (verificado, no hay
+        # generador legado que produzca scope-con-partida sin raiz), asi
+        # que un scope de partida sin partida_id en la raiz es la misma
+        # incoherencia estructural en sentido inverso, no un caso legitimo.
+        return (
+            "scope.layer=PARTIDA con scope.partida_id exige partida_id en "
+            "la raiz del plan: ambito incoherente (asimetria)",
+            {"layer": layer, "scope_partida_id": scope_partida, "root_partida_id": root_partida},
+        )
+
+    if layer == "GAME" and scope_partida is not None:
+        return (
+            "scope.layer=GAME no admite scope.partida_id: partida colandose "
+            "en la capa juego (cruce indebido)",
+            {"layer": layer, "scope_partida_id": scope_partida},
+        )
+
+    if game_id is not None and game_id != plan.workspace:
+        return (
+            "scope.game_id no coincide con el workspace del plan",
+            {"game_id": game_id, "workspace": plan.workspace},
+        )
+
+    if (
+        root_partida is not None
+        and scope_partida is not None
+        and root_partida != scope_partida
+    ):
+        return (
+            "partida_id de raiz y scope.partida_id no coinciden: "
+            "incoherencia de ambito (partida contra partida)",
+            {"root_partida_id": root_partida, "scope_partida_id": scope_partida},
+        )
+
+    return None
+
+
 def admit(plan_doc: dict[str, Any], ctx: AdmissionContext) -> AdmissionResult:
     """Juzga un documento como plan admisible. No escribe ni consulta nada."""
     rejections: list[Rejection] = []
@@ -208,6 +297,14 @@ def admit(plan_doc: dict[str, Any], ctx: AdmissionContext) -> AdmissionResult:
             plan_workspace=plan.workspace,
             writer_workspace=ctx.workspace,
         )
+
+    # 9.5. Ambito del plan (Invariante 2, M3: docs/v3/49 §2.2/§2.4). Error
+    #      duro, nunca warning: un plan cuyo ambito no se sostiene a si mismo
+    #      no se admite.
+    scope_issue = _scope_incoherence(plan)
+    if scope_issue is not None:
+        message, detail = scope_issue
+        _reject(rejections, codes.PLAN_SCOPE_CROSS_PARTIDA, message, **detail)
 
     # 10. Snapshot vigente declarado por el operador (R2: testigo externo).
     if not ctx.current_snapshot_id:

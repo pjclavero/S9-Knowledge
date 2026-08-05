@@ -20,7 +20,7 @@ utiles, porque la auditoria describe, no decide.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 
 #: Campos del plan que NO estan cubiertos por `decision_hash` y que, por tanto,
 #: no pueden influir en ninguna decision de escritura.
@@ -48,12 +48,22 @@ class SignedView:
     approved_by: dict
     plan_hash: dict
     decision_hash: dict
+    #: M3 (docs/v3/49 §2.4): ambito EFECTIVO del plan, ya resuelto entre la
+    #: raiz (`partida_id`) y el bloque `scope` -- la admision ya comprobo que
+    #: ambos, si estan presentes a la vez, coinciden (`PLAN_SCOPE_CROSS_
+    #: PARTIDA`), asi que aqui basta con preferir `scope.partida_id` cuando
+    #: existe. `None` significa capa juego, exactamente como antes de M3.
+    partida_id: Optional[str] = None
 
     @classmethod
     def of(cls, doc: dict[str, Any]) -> "SignedView":
         """Construye el view desde el documento ya validado contra el contrato."""
         approval = doc["local_approval"]
+        scope = doc.get("scope")
+        scope_partida = scope.get("partida_id") if isinstance(scope, dict) else None
+        partida_id = scope_partida if scope_partida is not None else doc.get("partida_id")
         return cls(
+            partida_id=partida_id,
             workspace=doc["workspace"],
             snapshot_id=doc["snapshot_id"],
             contract_version=doc["contract_version"],

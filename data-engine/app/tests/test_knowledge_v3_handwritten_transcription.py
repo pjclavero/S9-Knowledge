@@ -282,7 +282,16 @@ def test_19_contratos_congelados_mantienen_su_hash():
     # aditivo, ahora tambien en EntityMention/EntityResolution (el resolutor
     # necesitaba el campo para acotar el ambito visible). Nuevo checkpoint:
     # `v3-contracts-frozen-1.0.0-m2`.
-    frozen_ref = "v3-contracts-frozen-1.0.0-m2"
+    #
+    # M3 (docs/v3/49-multipartida-diseno.md SS11 "M3 implementado"): sin
+    # cambios de ESQUEMA (M3 no toco JSON Schema ni dataclasses de
+    # contratos) -- el freeze avanza solo porque `validator.py`
+    # (DECISION_HASH_FIELDS/IDEMPOTENCY_KEY_FIELDS) y `mutation_plan.py`
+    # ganaron comentarios que documentan, con verificacion, por que esos dos
+    # huecos heredados de M0 se dejan abiertos en M3 (writer/admission.py ya
+    # consume partida_id/scope, pero ningun dataset congelado lo declara
+    # hoy). Nuevo checkpoint: `v3-contracts-frozen-1.0.0-m3`.
+    frozen_ref = "v3-contracts-frozen-1.0.0-m3"
     roots = [
         _REPO_ROOT / "contracts/knowledge-v3/v1",
         _REPO_ROOT / "data-engine/app/knowledge_v3/contracts",

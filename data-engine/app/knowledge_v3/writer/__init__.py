@@ -52,6 +52,10 @@ from .rollback import RollbackDocument, RollbackInstruction, build_rollback
 from .schema import (
     APPLIED_OPERATION_CONSTRAINT,
     APPLIED_OPERATION_CONSTRAINT_CYPHER,
+    ASSERTION_PARTIDA_INDEX,
+    ASSERTION_PARTIDA_INDEX_CYPHER,
+    ENTITY_PARTIDA_INDEX,
+    ENTITY_PARTIDA_INDEX_CYPHER,
     SCHEMA_VERSION,
     bootstrap_writer_schema,
 )
@@ -99,6 +103,10 @@ __all__ = [
     "RESERVED_PROPS",
     "APPLIED_OPERATION_CONSTRAINT",
     "APPLIED_OPERATION_CONSTRAINT_CYPHER",
+    "ENTITY_PARTIDA_INDEX",
+    "ENTITY_PARTIDA_INDEX_CYPHER",
+    "ASSERTION_PARTIDA_INDEX",
+    "ASSERTION_PARTIDA_INDEX_CYPHER",
     "SCHEMA_VERSION",
     "bootstrap_writer_schema",
     # idempotencia

@@ -569,6 +569,16 @@ class TestMutacionDeCerraduras:
         # ... pero la traza NO lo refleja (el hallazgo real, P2):
         assert "PARTIDA_ISOLATED" not in out.resolution.reason_codes
         assert out.resolution.metadata["cascade"]["discarded_other_partida"] == 0
+        # DECISION DE M3 (docs/v3/49, "M3 implementado", pendiente 4): este
+        # hueco NO se cierra en el writer. `writer/admission.py` juzga UN
+        # documento de plan ya sellado -- nunca ve la lista de candidatos que
+        # el resolutor descarto para llegar a esa decision, esa informacion
+        # muere dentro de `CascadeResult` varios pasos antes de que exista un
+        # plan que sellar. Cerrarlo exigiria transportar el descarte HASTA el
+        # plan (un campo nuevo en `ClaimProposal`/`GraphMutationPlan`, con su
+        # propio bump/tag de freeze, §9), que es cirugia de contrato, no de
+        # admision. Queda como TODO explicito de un bloque futuro si un
+        # operador necesita de verdad esa trazabilidad en produccion.
 
     def test_codigo_partida_isolated_ausente_cuando_no_hay_descarte(self):
         """Simetria: si no hay nada que descartar por partida, el codigo no aparece."""
