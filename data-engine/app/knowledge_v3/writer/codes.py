@@ -44,6 +44,11 @@ PLAN_SNAPSHOT_STALE = "PLAN_SNAPSHOT_STALE"
 PLAN_SNAPSHOT_UNDECLARED = "PLAN_SNAPSHOT_UNDECLARED"
 #: Plan aprobado sin operaciones: no hay nada que escribir.
 PLAN_NO_OPERATIONS = "PLAN_NO_OPERATIONS"
+#: M3 (docs/v3/49 §2.4, Invariante 2): el ambito declarado por el plan
+#: (`partida_id` raiz + bloque `scope`) es internamente incoherente, o cruza
+#: capa juego/partida de forma indebida. Error duro, nunca warning: un plan
+#: cuyo ambito no se sostiene a si mismo no se admite, ni siquiera a dry-run.
+PLAN_SCOPE_CROSS_PARTIDA = "PLAN_SCOPE_CROSS_PARTIDA"
 
 #: Orden de evaluacion de la admision (documentado y probado).
 ADMISSION_CODES = (
@@ -57,6 +62,7 @@ ADMISSION_CODES = (
     PLAN_EXPIRY_UNREADABLE,
     PLAN_EXPIRED,
     PLAN_WORKSPACE_MISMATCH,
+    PLAN_SCOPE_CROSS_PARTIDA,
     PLAN_SNAPSHOT_UNDECLARED,
     PLAN_SNAPSHOT_STALE,
     PLAN_NO_OPERATIONS,
@@ -104,6 +110,10 @@ EXEC_HASH_MISMATCH = "EXEC_HASH_MISMATCH"
 EXEC_TARGET_MISSING = "EXEC_TARGET_MISSING"
 #: La operacion crea algo que ya existe con esa identidad (CREATE-only estricto).
 EXEC_TARGET_ALREADY_EXISTS = "EXEC_TARGET_ALREADY_EXISTS"
+#: M3 (docs/v3/49 §2.4): el objetivo existe, pero en OTRO ambito de partida
+#: que el declarado por el plan. Drift/carrera detectado en lectura, no en
+#: admision: aborta el plan entero, nunca una aplicacion parcial.
+EXEC_SCOPE_MISMATCH = "EXEC_SCOPE_MISMATCH"
 #: Tipo de operacion no soportado por este writer.
 EXEC_UNSUPPORTED_OPERATION = "EXEC_UNSUPPORTED_OPERATION"
 #: El payload no permite construir una escritura segura (campos, tipos, tokens).
@@ -129,6 +139,7 @@ EXECUTION_CODES = (
     EXEC_HASH_MISMATCH,
     EXEC_TARGET_MISSING,
     EXEC_TARGET_ALREADY_EXISTS,
+    EXEC_SCOPE_MISMATCH,
     EXEC_UNSUPPORTED_OPERATION,
     EXEC_UNSUPPORTED_PAYLOAD,
     EXEC_REASON_CODE_MISSING,

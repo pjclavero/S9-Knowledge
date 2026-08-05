@@ -84,6 +84,14 @@ class GraphMutationPlan(V3Document):
     #: agujero (dos planes que solo difieren en ambito comparten
     #: `decision_hash`) queda documentado y pendiente de M3, no cerrado en
     #: M0. Ver docs/v3/49-multipartida-diseno.md, seccion "M0 implementado".
+    #:
+    #: DECISION DE M3 (docs/v3/49 §9, "M3 implementado"): con
+    #: `PLAN_SCOPE_CROSS_PARTIDA` ya implementado en `writer/admission.py`
+    #: existe el consumidor real que la politica exigia, pero el hueco de
+    #: `decision_hash` se deja ABIERTO deliberadamente (verificado: ningun
+    #: plan de los datasets congelados declara `partida_id`/`scope` hoy, el
+    #: riesgo real es cero). Ver `validator.py`, junto a
+    #: `DECISION_HASH_FIELDS`, para la justificacion completa.
     OMIT_IF_NONE: ClassVar[frozenset[str]] = frozenset({"metadata", "partida_id", "scope"})
 
     contract_version: str

@@ -371,6 +371,7 @@ aflojan. Se dice en vez de fingir que las 32 son igual de alcanzables.
 | `PLAN_EXPIRY_UNREADABLE` | `expires_at` no es un ISO-8601 UTC legible. | defensivo (patrón del schema) |
 | `PLAN_EXPIRED` | El plan caducó según el reloj inyectado. Una firma correcta no lo resucita. | directo |
 | `PLAN_WORKSPACE_MISMATCH` | El plan es de otro workspace (R3). | directo |
+| `PLAN_SCOPE_CROSS_PARTIDA` | M3 (docs/v3/49 §2.4, Invariante 2): el ámbito declarado (`partida_id` raíz + bloque `scope`) es incoherente consigo mismo — `scope.layer` inválido, `PARTIDA` sin `partida_id`, `GAME` con `partida_id`, `scope.game_id` distinto del workspace, o raíz/`scope.partida_id` en desacuerdo. Error duro, nunca warning. | directo |
 | `PLAN_SNAPSHOT_UNDECLARED` | El operador no declaró el snapshot vigente: sin testigo externo no se escribe (R2). | directo |
 | `PLAN_SNAPSHOT_STALE` | El plan se calculó sobre un snapshot que ya no es el vigente. | directo |
 | `PLAN_NO_OPERATIONS` | Plan sin operaciones: no hay nada que escribir. | directo |
@@ -403,6 +404,7 @@ aflojan. Se dice en vez de fingir que las 32 son igual de alcanzables.
 | `EXEC_HASH_MISMATCH` | El `state_hash` leído del destino no es el esperado. | directo |
 | `EXEC_TARGET_MISSING` | La operación apunta a algo que no existe. | directo |
 | `EXEC_TARGET_ALREADY_EXISTS` | Una creación apunta a algo que ya existe (CREATE-only estricto). | directo |
+| `EXEC_SCOPE_MISMATCH` | M3 (docs/v3/49 §2.4): el objetivo existe, pero en OTRO ámbito de partida que el declarado por el plan (drift/carrera detectado en lectura, acotada por Cypher). Aborta el plan entero. | directo |
 | `EXEC_UNSUPPORTED_OPERATION` | Tipo de operación no soportado. | defensivo (el `enum` del schema ya los limita a seis, y el writer soporta los seis) |
 | `EXEC_UNSUPPORTED_PAYLOAD` | Payload inejecutable con seguridad: propiedad reservada, nombre inadmisible, etiqueta o predicado con forma sospechosa, valor no escalar. | directo |
 | `EXEC_REASON_CODE_MISSING` | Cierre de vigencia sin `reason_code` válido (R1). | directo |

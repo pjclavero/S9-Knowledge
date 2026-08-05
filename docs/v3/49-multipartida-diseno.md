@@ -909,3 +909,197 @@ otro test existente se movió.
    queda anotado para si M3/M4 lo encuentran en corpus real.
 3. No se ha tocado `writer/`, `admission.py` ni `policies/`: siguen siendo
    M3/M4, según el diseño original. M2 es estrictamente el resolutor.
+
+## 11. M3 implementado
+
+Rama `feat/multipartida-m3-writer`, sobre `main` con M0+M2 ya mergeados
+(`90507c0`). Alcance: el writer (`data-engine/app/knowledge_v3/writer/`)
+hace cumplir el Invariante 2 — cruce de ámbito en el writer es error duro,
+nunca warning — y cierra/re-decide los cuatro pendientes heredados de M0/M2.
+
+**Ficheros tocados:** `writer/admission.py` (código nuevo
+`PLAN_SCOPE_CROSS_PARTIDA`, punto "9.5. Ámbito del plan"), `writer/codes.py`
+(`PLAN_SCOPE_CROSS_PARTIDA`, `EXEC_SCOPE_MISMATCH`), `writer/view.py`
+(`SignedView.partida_id`, resuelto de `scope.partida_id` con fallback a la
+raíz), `writer/cypher.py` (estampado de `partida_id` en creación,
+`_scoped_match`/`_visible_predicate` para lectura y relaciones acotadas por
+ámbito en `WHERE`, nunca en Python; `read_*_any_scope` para diagnóstico de
+drift; `partida_id` añadido a `RESERVED_PROPS`), `writer/executor.py`
+(`_check_expected_state` acotado + distinción `EXEC_TARGET_MISSING` vs
+`EXEC_SCOPE_MISMATCH`; `_assert_absent` deliberadamente SIN filtro de
+ámbito), `writer/schema.py` (índices `v3_entity_partida_id_index`/
+`v3_assertion_partida_id_index`, no constraint), `writer/__init__.py`
+(exports nuevos), `docs/v3/09-writer.md` (tabla de códigos), más los
+ficheros de contrato (`contracts/knowledge-v3/v1/validator.py`,
+`data-engine/app/knowledge_v3/contracts/mutation_plan.py`) con la
+justificación escrita de las dos decisiones de "no cerrar" (ver abajo). NO
+se ha tocado `pipeline/`, `resolution/`, `extraction/`, `engine/`,
+`eval/gate6_*` ni `policies/` — eso sigue siendo M1/M4/M5.
+
+### Diseño de la validación de admisión
+
+`admission.py` distingue, por construcción, los DOS filos del Invariante 2:
+
+1. **Coherencia INTERNA del ámbito declarado** (`_scope_incoherence`,
+   estructural, sin tocar Neo4j — admisión "no escribe ni consulta nada"):
+   - `scope` ausente + `partida_id` raíz presente → rechazo (M3 exige el
+     ámbito ESTAMPADO explícitamente, no un `partida_id` suelto).
+   - `scope.layer` fuera de `{GAME, PARTIDA}` → rechazo (además cazado antes
+     por el `enum` del JSON Schema si el documento pasó por
+     `GraphMutationPlan.from_dict`, que ya lo valida; la comprobación del
+     writer es una segunda red para quien construya el dataclass a mano).
+   - `layer=PARTIDA` sin `scope.partida_id` → rechazo ("partida sin ámbito").
+   - `layer=GAME` con `scope.partida_id` no nulo → rechazo ("partida
+     colándose en la capa juego" — el cruce indebido que el diseño llama
+     "partida→juego").
+   - `scope.game_id` distinto de `plan.workspace` → rechazo.
+   - `partida_id` raíz y `scope.partida_id`, si ambos están presentes,
+     deben coincidir → rechazo si no ("partida contra partida"). **Esto
+     cierra el gap de M0** (`test_scope_partida_id_can_disagree_with_root_
+     partida_id_undetected`, ahora `..._is_rejected_by_m3` en
+     `test_m0_partida_id_adversarial.py`).
+   - Los tres ejes pedidos por el encargo ("partida≠partida",
+     "partida→juego indebido", "scope incoherente") están cubiertos, cada
+     uno con su propio test en `test_knowledge_v3_writer.py` sección "1.5".
+2. **Cruce contra el ESTADO real** (una entidad/aserción ya escrita bajo
+   OTRO ámbito): no es decidible en admisión por construcción (no toca el
+   grafo). Se cierra en `executor.py`, en lectura: `_check_expected_state`
+   lee acotado por `partida_id` (Cypher, `_scoped_match`); si no encuentra
+   nada, una segunda consulta SIN filtro de ámbito (`read_*_any_scope`)
+   distingue "no existe" (`EXEC_TARGET_MISSING`) de "existe, en otro
+   ámbito" (`EXEC_SCOPE_MISMATCH`, nuevo). Ambos abortan el plan ENTERO
+   (`WriterAbort`), nunca una aplicación parcial.
+
+`SignedView.partida_id` resuelve el ámbito EFECTIVO una sola vez
+(`scope.partida_id` si existe, si no la raíz `partida_id`): admisión ya
+garantizó que, cuando ambos están presentes, coinciden, así que el resto
+del writer no vuelve a mirar `scope` en ningún otro sitio.
+
+### Diseño del estampado Cypher
+
+Disciplina del diseño respetada al pie de la letra: **el filtrado de ámbito
+vive en Cypher, nunca en Python**, exactamente como ya hacía `workspace`.
+Dos primitivas nuevas en `cypher.py`:
+
+- `_scoped_match(label, id_field, id, workspace, partida_id)`: precondición
+  EXACTA sobre un objetivo concreto. `partida_id=None` compila a
+  `WHERE n.partida_id IS NULL` (Neo4j nunca compara `= null` como
+  verdadero, así que un valor `null` en el patrón de mapa sería
+  silenciosamente falso siempre); `partida_id="partida:Y"` compila a
+  `{..., partida_id: $partida_id}` en el propio patrón. Usada por
+  `read_entity_state`/`read_assertion_state`/`close_*_validity`.
+- `_visible_predicate(alias, partida_id)`: predicado de VISIBILIDAD (capa
+  juego + partida propia), no de identidad — usado en los dos extremos de
+  `create_relation`. Misma dirección única que el resolutor de M2: un plan
+  de partida Y puede enlazar capa juego o su propia partida, nunca otra
+  partida; un plan de capa juego solo enlaza capa juego.
+
+Creación (`create_entity`/`create_assertion`/`create_relation`) siempre
+mete `"partida_id": partida_id` en el dict de propiedades que se manda al
+driver. Verificado (no asumido): Neo4j omite las claves con valor `null` al
+crear un nodo/relación con `CREATE (n $props)`, así que un `partida_id=None`
+dejaAL nodo EXACTAMENTE igual que antes de M3 — sin la propiedad presente en
+absoluto, no con un `null` explícito. Retrocompatibilidad byte a byte con
+material `None`/`None` verificada con test
+(`test_apply_de_capa_juego_no_estampa_partida_id`).
+
+`_assert_absent` (CREATE-only, ¿ya existe este id?) es **deliberadamente
+SIN** filtro de ámbito: un `entity_id`/`assertion_id` es único en TODO el
+workspace, cruzando capa juego y todas sus partidas — dos ámbitos jamás
+comparten el mismo id, con el mismo razonamiento que ya aplica a
+`idempotency_key` dentro de un workspace.
+
+### Las cuatro decisiones heredadas
+
+1. **Coherencia raíz vs scope (test de M0).** CERRADO. Ver arriba: ahora es
+   `PLAN_SCOPE_CROSS_PARTIDA` en admisión, con test convertido (no borrado)
+   en `test_m0_partida_id_adversarial.py`.
+2. **`decision_hash` (hueco de M0).** NO CERRADO, decisión explícita según
+   la condición de §9: aunque ya existe consumidor real
+   (`PLAN_SCOPE_CROSS_PARTIDA`), se verificó — con `grep`, no supuesto —
+   que **ningún** plan de `heldout`/`negation-battery`/`benchmarks` declara
+   `partida_id`/`scope` hoy, así que el riesgo real de la ambigüedad es
+   cero en los datasets congelados. Cerrarlo exigiría regenerar 264+
+   ficheros por una garantía que nada consume todavía en esos datasets.
+   Documentado con la misma extensión en `validator.py` junto a
+   `DECISION_HASH_FIELDS` y en `mutation_plan.py`.
+3. **`idempotency_key` (mismo rigor que `decision_hash`, pedido por el
+   encargo de M3).** NO CERRADO, pero por una razón distinta y más fuerte:
+   `IDEMPOTENCY_KEY_FIELDS` tampoco distingue ámbito (verificado con test:
+   dos planes de partidas distintas con la misma identidad lógica de
+   operación producen la MISMA `idempotency_key`), pero esto **no es un
+   agujero de corrupción**: `execute_plan` reclama la clave dentro de la
+   misma transacción (`claim_applied_operation`) y, si ya está tomada por
+   un `plan_hash`/`operation_id` distinto, aborta con
+   `EXEC_IDEMPOTENCY_CONFLICT` — fail-closed por construcción, nunca una
+   fusión silenciosa de operaciones de dos partidas. A diferencia de
+   `decision_hash` (un hueco de *auditabilidad*), aquí no hay hueco de
+   *seguridad* que cerrar. Test:
+   `test_dos_partidas_con_operacion_identica_comparten_idempotency_key_pero_no_corrompen`.
+4. **Observabilidad del descarte cross-partida (P2 de M2).** DECIDIDO: NO
+   se implementa en el writer. `writer/admission.py` juzga un documento de
+   plan ya sellado; nunca ve la lista de candidatos que el resolutor
+   descartó para llegar a esa decisión — esa información (`PARTIDA_
+   ISOLATED`, `discarded_other_partida`) vive y muere dentro de
+   `CascadeResult`, varios pasos antes de que exista un plan que sellar.
+   Cerrarlo exigiría transportar el descarte hasta el contrato del plan
+   (campo nuevo en `ClaimProposal`/`GraphMutationPlan`, con su propio
+   bump/tag de freeze) — cirugía de contrato, no de admisión, fuera de
+   alcance de M3. El marcador de M2
+   (`test_HALLAZGO_partida_isolated_NO_aparece_en_el_camino_honesto`) se
+   reforzó con un comentario explícito apuntando a esta decisión, sin
+   moverlo ni convertirlo en xfail (no hay nada que falle: documenta un
+   comportamiento aceptado).
+
+### Retrocompatibilidad verificada
+
+Material `partida_id=None` sobre entidades `partida_id=None` produce
+exactamente el mismo comportamiento que antes de M3: mismo Cypher salvo por
+la cláusula `WHERE n.partida_id IS NULL` (semánticamente un no-op sobre
+nodos que nunca tuvieron la propiedad), mismas propiedades escritas (la
+clave `partida_id` no aparece en absoluto, igual que hoy). Ningún test
+existente de `test_knowledge_v3_writer.py`/`test_knowledge_v3_writer_
+mutation.py`/`test_knowledge_v3_writer_neo4j_real.py` se modificó de
+comportamiento; el único ajuste fue extender el driver falso compartido
+(`FakeTx.run`) para honrar el filtro de ámbito que el propio Cypher generado
+ya declara (mecánico, no cambia qué prueban los tests existentes).
+
+**Recuento de suite:** `python3 -m pytest -p no:randomly -q` desde la raíz:
+**ver resultado exacto en el informe del bloque** (suite completa 0 failed,
+incluye ~34 tests nuevos de M3 en la sección de writer más el test M0
+convertido). Ningún test existente se movió salvo el ya mencionado (M0,
+`frozen_ref`) y la conversión explícita del test M0 sobre coherencia
+raíz/scope (autorizada porque documentaba un gap que este mismo bloque
+cierra).
+
+**Decisiones discutibles para revisión:**
+
+1. `AdmissionContext` NO ganó un campo `partida_scope` (writer pineado a
+   una única partida, análogo a `workspace`). El diseño (§2.4) lo sugiere
+   como "análogo a `workspace`", pero el resto del documento (R3: "un
+   writer por workspace") nunca pide "un writer por partida" — un mismo
+   writer de workspace debe poder aplicar planes de distintas partidas del
+   mismo juego. Añadir el campo habría sido género no pedido; se dejó fuera
+   y queda anotado por si un despliegue real lo necesita.
+2. `EXEC_SCOPE_MISMATCH` cuesta una consulta extra a Neo4j (la de
+   diagnóstico sin filtro) SOLO en el camino ya-de-por-sí-raro de un
+   `EXEC_TARGET_MISSING`/drift — nunca en el camino feliz. Coste aceptado a
+   cambio de un código de error distinguible; alternativa más barata
+   (fusionar ambos bajo `EXEC_TARGET_MISSING`) se descartó por perder
+   señal de diagnóstico real (¿bug de contenido o carrera de ámbito?).
+3. `create_relation` ahora exige visibilidad de AMBOS extremos
+   (`_visible_predicate` en `a` y `b`), no solo del sujeto (que ya tenía su
+   propio chequeo de concurrencia optimista vía `_check_expected_state`).
+   Esto es más estricto que el código pre-M3 (que solo comprobaba
+   `workspace` en el `MATCH`, nunca ámbito de partida en el objeto) — es
+   intencional (Invariante 2), pero un revisor debe confirmar que ningún
+   camino de producción legítimo enlazaba antes con un objeto "invisible"
+   que ahora dejaría de aplicar.
+4. La cobertura de "objeto de la relación en otro ámbito" solo se
+   demuestra con tests puros de `cypher.py` (Cypher/params generados) y con
+   el test real de Neo4j ya existente (gated,
+   `test_knowledge_v3_writer_neo4j_real.py`): el driver falso compartido
+   (`FakeTx`) nunca modeló el fallo de un `MATCH` sobre el objeto de una
+   relación (limitación preexistente a M3, no introducida por este
+   bloque), así que el camino "objeto invisible aborta con
+   `EXEC_TARGET_MISSING`" no tiene un test mockeado dedicado end-to-end.

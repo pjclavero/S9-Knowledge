@@ -104,11 +104,21 @@ def sha256_hash(obj: Any) -> dict[str, str]:
 #: sin este cambio. El AGUJERO REAL que documenta el diseno persiste,
 #: acotado: dos planes que solo difieren en `partida_id`/`scope` tienen
 #: `plan_hash` distinto (integridad) pero el MISMO `decision_hash` (el
-#: cuerpo que el writer usa para decidir si aplica no lo distingue). Cerrar
-#: esto sin romper gold es tarea de M3 (junto con `PLAN_SCOPE_CROSS_PARTIDA`
-#: en admission.py), donde se puede coordinar una regeneracion deliberada
-#: de los datasets. Ver docs/v3/49-multipartida-diseno.md, seccion "M0
-#: implementado".
+#: cuerpo que el writer usa para decidir si aplica no lo distingue).
+#:
+#: M3 (docs/v3/49 §9, "M3 implementado"): ya existe el consumidor real que
+#: la politica exigia (`PLAN_SCOPE_CROSS_PARTIDA` en `writer/admission.py`),
+#: pero el hueco se deja ABIERTO deliberadamente, no cerrado. Verificado (no
+#: asumido): NINGUN plan de `heldout`/`negation-battery`/`benchmarks`
+#: declara `partida_id`/`scope` (`grep` sobre
+#: `data-engine/app/knowledge_v3/benchmarks/` sin resultados) -- el riesgo
+#: real de la ambiguedad es CERO en los datasets congelados hoy. Anadir
+#: estas claves aqui seguiria cambiando el `decision_hash` esperado de
+#: TODOS ellos (`plan.get(k)` inserta `None` en el cuerpo de cada plan que
+#: nunca declaro el campo), obligando a una regeneracion auditable de 264+
+#: ficheros que este bloque decide no bundlear en la misma superficie que
+#: el writer. Queda como operacion propia y explicita si un bloque futuro
+#: necesita de verdad que `decision_hash` distinga ambito.
 DECISION_HASH_FIELDS = (
     "workspace",
     "source_asset_id",
@@ -131,6 +141,23 @@ DECISION_HASH_APPROVAL_FIELDS = ("approved", "approved_by", "validator_chain")
 #: Campos que definen la IDENTIDAD LOGICA de una operacion. `operation_id` NO
 #: esta: la misma operacion calculada en dos planes distintos debe producir la
 #: misma clave de idempotencia, o reaplicar duplica.
+#:
+#: M3 (docs/v3/49 §9, mismo rigor que `DECISION_HASH_FIELDS` arriba):
+#: `partida_id`/`scope` TAMPOCO entran aqui. Verificado, no supuesto: dos
+#: planes de partidas DISTINTAS con la misma identidad logica de operacion
+#: (mismo `decision_id`/`target_entity_id`/`payload`) comparten
+#: `idempotency_key` (ver
+#: `test_dos_partidas_con_operacion_identica_comparten_idempotency_key_pero_no_corrompen`,
+#: `data-engine/app/tests/test_knowledge_v3_writer.py`). NO es un agujero de
+#: corrupcion: `writer/executor.py` reclama la clave con
+#: `claim_applied_operation` dentro de la misma transaccion y, si ya esta
+#: tomada por un `plan_hash`/`operation_id` distinto, aborta con
+#: `EXEC_IDEMPOTENCY_CONFLICT` -- fail-closed, nunca una fusion silenciosa.
+#: Se deja sin tocar por la misma razon que `DECISION_HASH_FIELDS`: tocar
+#: esta tupla es cirugia de contrato congelado que exigiria regenerar
+#: idempotency_key en datasets ya sellados, sin comprar ninguna garantia de
+#: seguridad nueva (la que hace falta ya la da el `EXEC_IDEMPOTENCY_
+#: CONFLICT`, no la propia clave).
 IDEMPOTENCY_KEY_FIELDS = (
     "operation_type",
     "decision_id",

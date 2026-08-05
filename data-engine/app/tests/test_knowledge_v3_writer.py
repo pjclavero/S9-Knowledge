@@ -43,6 +43,7 @@ from knowledge_v3.writer.writer import (  # noqa: E402
     OUTCOME_REJECTED,
     OUTCOME_SIMULATED,
 )
+from knowledge_v3.writer import cypher  # noqa: E402
 
 WORKSPACE = "leyenda"
 SNAPSHOT = "snapshot:neo4j:2026-07-27T10:29:00Z"
@@ -169,6 +170,8 @@ def make_plan(
     contract_version: str = "1.0.0",
     validator_chain: list | None = None,
     metadata: dict | None = None,
+    partida_id: str | None = None,
+    scope: dict | None = None,
     seal: bool = True,
 ) -> dict:
     """Plan sellado por el 'motor local'. Sellar es la operacion normal."""
@@ -225,6 +228,10 @@ def make_plan(
     }
     if metadata is not None:
         doc["metadata"] = metadata
+    if partida_id is not None:
+        doc["partida_id"] = partida_id
+    if scope is not None:
+        doc["scope"] = scope
     return seal_plan(doc) if seal else doc
 
 
@@ -254,6 +261,17 @@ class FakeTx:
         if "RETURN n.version AS version" in cypher:
             kind = "assertion" if "V3Assertion" in cypher else "entity"
             state = self.driver.nodes.get((kind, params["id"]))
+            if state is not None:
+                # M3: honra el filtro de ambito que el propio Cypher declara.
+                # Consultas SIN filtro de ambito ("_any_scope") no llevan ni
+                # "partida_id" en params ni "IS NULL" en el texto: ven el
+                # nodo exista en la partida que exista (existencia pura).
+                node_partida = state.get("partida_id")
+                if "partida_id" in params:
+                    if node_partida != params["partida_id"]:
+                        state = None
+                elif "partida_id IS NULL" in cypher and node_partida is not None:
+                    state = None
             return FakeResult(dict(state) if state is not None else None)
         if "V3AppliedOperation" in cypher:
             identity = (params["ws"], params["key"])
@@ -374,6 +392,66 @@ def make_writer(driver=None, **over) -> GraphWriter:
 
 def entity_state(entity_id: str, version: int = 3, state_hash: str = HASH_A["value"]) -> dict:
     return {("entity", entity_id): {"version": version, "state_hash": state_hash}}
+
+
+# ==========================================================================
+# 0. Cypher: estampado y filtrado de ambito (M3, funciones puras)
+# ==========================================================================
+def test_read_entity_state_capa_juego_usa_is_null_no_igualdad():
+    """Neo4j nunca compara `= null` como verdadero: la capa juego se filtra
+    con `IS NULL` en el WHERE, no metiendo `null` en el patron de mapa."""
+    q = cypher.read_entity_state("entity:x", WORKSPACE, partida_id=None)
+    assert "partida_id IS NULL" in q.cypher
+    assert "partida_id" not in q.params
+
+
+def test_read_entity_state_de_partida_filtra_por_igualdad_exacta():
+    q = cypher.read_entity_state("entity:x", WORKSPACE, partida_id="partida:y")
+    assert "partida_id: $partida_id" in q.cypher
+    assert q.params["partida_id"] == "partida:y"
+
+
+def test_read_entity_state_any_scope_no_filtra_ambito():
+    q = cypher.read_entity_state_any_scope("entity:x", WORKSPACE)
+    assert "partida_id" not in q.cypher
+    assert "partida_id" not in q.params
+
+
+def test_create_entity_estampa_partida_id_cuando_hay_partida():
+    q = cypher.create_entity("entity:x", WORKSPACE, "Character", {}, partida_id="partida:y")
+    assert q.params["props"]["partida_id"] == "partida:y"
+
+
+def test_create_entity_con_partida_none_no_deja_rastro_distinto_de_antes():
+    q = cypher.create_entity("entity:x", WORKSPACE, "Character", {})
+    assert q.params["props"]["partida_id"] is None  # Neo4j omite props None al escribir
+
+
+def test_create_relation_exige_ambos_extremos_visibles_en_el_ambito():
+    q = cypher.create_relation("MEMBER_OF", "entity:a", "entity:b", WORKSPACE, {}, partida_id="partida:y")
+    assert "a.partida_id IS NULL OR a.partida_id = $partida_id" in q.cypher
+    assert "b.partida_id IS NULL OR b.partida_id = $partida_id" in q.cypher
+    assert q.params["partida_id"] == "partida:y"
+
+
+def test_create_relation_de_capa_juego_solo_ve_capa_juego():
+    q = cypher.create_relation("MEMBER_OF", "entity:a", "entity:b", WORKSPACE, {}, partida_id=None)
+    assert "a.partida_id IS NULL" in q.cypher
+    assert "b.partida_id IS NULL" in q.cypher
+    assert "$partida_id" not in q.cypher
+
+
+def test_close_entity_validity_filtra_por_el_ambito_declarado():
+    q = cypher.close_entity_validity("entity:x", WORKSPACE, {"status": "SUPERSEDED"}, partida_id="partida:y")
+    assert "partida_id: $partida_id" in q.cypher
+    assert q.params["partida_id"] == "partida:y"
+
+
+def test_payload_no_puede_fijar_partida_id_directamente():
+    """`partida_id` es reservado: lo estampa el writer, nunca el payload."""
+    with pytest.raises(WriterAbort) as exc:
+        cypher.safe_props({"partida_id": "partida:colada"})
+    assert exc.value.code == codes.EXEC_UNSUPPORTED_PAYLOAD
 
 
 # ==========================================================================
@@ -548,6 +626,129 @@ def test_la_admision_acumula_todos_los_motivos_no_solo_el_primero():
         codes.PLAN_WORKSPACE_MISMATCH,
         codes.PLAN_SNAPSHOT_STALE,
     } <= set(result.codes)
+
+
+# ==========================================================================
+# 1.5. Ambito del plan (M3, Invariante 2): docs/v3/49 §2.2/§2.4
+# ==========================================================================
+def partida_scope(partida_id: str = "partida:brumal-01", *, workspace: str = WORKSPACE) -> dict:
+    return {"layer": "PARTIDA", "game_id": workspace, "partida_id": partida_id}
+
+
+def game_scope(*, workspace: str = WORKSPACE) -> dict:
+    return {"layer": "GAME", "game_id": workspace, "partida_id": None}
+
+
+def test_plan_sin_partida_ni_scope_se_admite_igual_que_antes_de_m3():
+    """Retrocompatibilidad: material None/None, resultado identico a hoy."""
+    result = admit(make_plan(), ctx())
+    assert result.admitted
+    assert result.view.partida_id is None
+
+
+def test_plan_con_scope_de_partida_coherente_se_admite():
+    plan = make_plan(partida_id="partida:brumal-01", scope=partida_scope())
+    result = admit(plan, ctx())
+    assert result.admitted
+    assert result.view.partida_id == "partida:brumal-01"
+
+
+def test_plan_con_scope_de_juego_coherente_se_admite():
+    plan = make_plan(scope=game_scope())
+    result = admit(plan, ctx())
+    assert result.admitted
+    assert result.view.partida_id is None
+
+
+def test_scope_prefiere_su_propio_partida_id_sobre_la_raiz_cuando_coinciden():
+    plan = make_plan(partida_id="partida:brumal-01", scope=partida_scope("partida:brumal-01"))
+    result = admit(plan, ctx())
+    assert result.admitted
+    assert result.view.partida_id == "partida:brumal-01"
+
+
+# --- Combinacion 1: partida contra partida (raiz vs scope en desacuerdo) --
+def test_raiz_y_scope_partida_en_desacuerdo_se_rechaza():
+    """Cierra el gap de M0 (antes `test_scope_partida_id_can_disagree_with_
+    root_partida_id_undetected`): ahora es un ERROR DURO en admision, no un
+    agujero silencioso."""
+    plan = make_plan(
+        partida_id="partida:brumal-01",
+        scope=partida_scope("partida:brumal-DISTINTA"),
+    )
+    result = admit(plan, ctx())
+    assert not result.admitted
+    assert codes.PLAN_SCOPE_CROSS_PARTIDA in result.codes
+
+
+# --- Combinacion 2: partida -> juego indebida -----------------------------
+def test_scope_de_juego_con_partida_id_declarado_se_rechaza():
+    """Una partida no puede colarse en la capa juego declarando GAME+partida_id."""
+    plan = make_plan(scope={"layer": "GAME", "game_id": WORKSPACE, "partida_id": "partida:x"})
+    result = admit(plan, ctx())
+    assert not result.admitted
+    assert codes.PLAN_SCOPE_CROSS_PARTIDA in result.codes
+
+
+def test_scope_game_id_distinto_del_workspace_se_rechaza():
+    plan = make_plan(scope={"layer": "PARTIDA", "game_id": "otro-juego", "partida_id": "partida:x"})
+    result = admit(plan, ctx())
+    assert not result.admitted
+    assert codes.PLAN_SCOPE_CROSS_PARTIDA in result.codes
+
+
+# --- Combinacion 3: scope incoherente en su propia forma -------------------
+def test_scope_layer_partida_sin_partida_id_se_rechaza():
+    plan = make_plan(scope={"layer": "PARTIDA", "game_id": WORKSPACE, "partida_id": None})
+    result = admit(plan, ctx())
+    assert not result.admitted
+    assert codes.PLAN_SCOPE_CROSS_PARTIDA in result.codes
+
+
+def test_scope_layer_invalido_se_rechaza_ya_en_el_contrato():
+    """El propio JSON Schema (`_common-v3.schema.json`) restringe `layer` al
+    enum GAME/PARTIDA: un valor fuera de ese enum ni siquiera llega a la
+    comprobacion de coherencia del writer, muere antes en `PLAN_CONTRACT_
+    INVALID`. La defensa de `_scope_incoherence` para un `layer` invalido
+    sigue existiendo como red adicional (docs/v3/49 §2.2: "el propio
+    mecanismo de contrato protege"), por si algun consumidor construyese el
+    dict a mano sin pasar por el validador."""
+    plan = make_plan(scope={"layer": "MUNDO", "game_id": WORKSPACE, "partida_id": None})
+    result = admit(plan, ctx())
+    assert not result.admitted
+    assert codes.PLAN_CONTRACT_INVALID in result.codes
+
+
+def test_scope_layer_invalido_se_rechaza_saltando_el_schema(monkeypatch):
+    """Red adicional del writer: si `GraphMutationPlan.from_dict` no
+    validase el schema (p. ej. un consumidor que construye el objeto a
+    mano), la comprobacion de coherencia interna del writer sigue
+    atrapando un `layer` fuera de {GAME, PARTIDA}."""
+    from knowledge_v3.writer import admission as admission_mod
+
+    assert admission_mod._scope_incoherence(
+        type("P", (), {
+            "scope": {"layer": "MUNDO", "game_id": WORKSPACE, "partida_id": None},
+            "partida_id": None,
+            "workspace": WORKSPACE,
+        })()
+    ) is not None
+
+
+def test_partida_id_raiz_sin_bloque_scope_se_rechaza():
+    """M3 exige el ambito ESTAMPADO: `partida_id` suelto sin `scope` ya no basta."""
+    plan = make_plan(partida_id="partida:brumal-01", scope=None)
+    result = admit(plan, ctx())
+    assert not result.admitted
+    assert codes.PLAN_SCOPE_CROSS_PARTIDA in result.codes
+
+
+def test_scope_cross_partida_es_error_duro_no_advertencia():
+    """No es ABSTAIN ni un aviso: `admitted` es estrictamente False."""
+    plan = make_plan(scope={"layer": "MUNDO", "game_id": WORKSPACE, "partida_id": None})
+    result = admit(plan, ctx())
+    assert result.admitted is False
+    assert result.view is None
 
 
 # ==========================================================================
@@ -990,6 +1191,107 @@ def test_apply_sin_driver_no_inventa_una_conexion():
 
 
 # ==========================================================================
+# 4.5. Ambito en ejecucion (M3): estampado y lectura acotada por Cypher
+# ==========================================================================
+def test_apply_de_capa_juego_no_estampa_partida_id():
+    """(e) None/None: identico a antes de M3 -- ni la propiedad aparece."""
+    plan = make_plan()
+    driver = FakeDriver()
+    result = make_writer(driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_APPLIED
+    _, params = driver.writes[0]
+    assert "partida_id" not in params["props"] or params["props"]["partida_id"] is None
+
+
+def test_apply_de_partida_estampa_partida_id_en_lo_creado():
+    """(c) un plan de partida estampa `partida_id` en lo que crea."""
+    plan = make_plan(partida_id="partida:brumal-01", scope=partida_scope())
+    driver = FakeDriver()
+    result = make_writer(driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+    _, params = driver.writes[0]
+    assert params["props"]["partida_id"] == "partida:brumal-01"
+
+
+def test_apply_de_capa_juego_escribe_en_capa_juego_ok():
+    """(b) un plan de capa juego (GAME, partida_id=None) sigue aplicando."""
+    plan = make_plan(scope=game_scope())
+    driver = FakeDriver()
+    result = make_writer(driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+    assert result.created_ids == ["entity:daiki"]
+
+
+def test_lectura_de_cierre_de_vigencia_filtra_por_partida_en_cypher():
+    """El filtro de ambito va en Cypher (WHERE/patron), nunca en Python."""
+    ops = [op_supersede("op:0001", "decision:0001", "assertion:vieja")]
+    plan = make_plan(
+        operations=ops, partida_id="partida:brumal-01", scope=partida_scope()
+    )
+    nodes = {
+        ("assertion", "assertion:vieja"): {
+            "version": 2, "state_hash": HASH_B["value"], "partida_id": "partida:brumal-01",
+        },
+    }
+    driver = FakeDriver(nodes=nodes)
+    result = make_writer(driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_APPLIED, result.codes
+    read_query, read_params = next(
+        (q, p) for q, p in driver.queries if "RETURN n.version AS version" in q
+    )
+    assert read_params.get("partida_id") == "partida:brumal-01"
+    assert "IS NULL" not in read_query
+
+
+def test_operar_un_objetivo_de_otra_partida_aborta_con_scope_mismatch():
+    """(a)/segundo filo del Invariante 2: el nodo EXISTE, pero en otro
+    ambito -- el executor lo distingue en lectura de 'no existe' y aborta
+    con `EXEC_SCOPE_MISMATCH`, nunca con una escritura parcial."""
+    ops = [op_supersede("op:0001", "decision:0001", "assertion:vieja")]
+    plan = make_plan(
+        operations=ops, partida_id="partida:brumal-01", scope=partida_scope()
+    )
+    nodes = {
+        ("assertion", "assertion:vieja"): {
+            "version": 2, "state_hash": HASH_B["value"], "partida_id": "partida:brumal-OTRA",
+        },
+    }
+    driver = FakeDriver(nodes=nodes)
+    result = make_writer(driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_SCOPE_MISMATCH in result.codes
+    assert not driver.committed
+
+
+def test_operar_un_objetivo_de_capa_juego_desde_partida_aborta_con_scope_mismatch():
+    """Direccion unica (M2): una partida no puede cerrar la vigencia de un
+    hecho de capa juego (eso es supersesion local, M4 -- no esto)."""
+    ops = [op_supersede("op:0001", "decision:0001", "assertion:lore")]
+    plan = make_plan(
+        operations=ops, partida_id="partida:brumal-01", scope=partida_scope()
+    )
+    nodes = {
+        ("assertion", "assertion:lore"): {"version": 2, "state_hash": HASH_B["value"]},
+    }
+    driver = FakeDriver(nodes=nodes)
+    result = make_writer(driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_SCOPE_MISMATCH in result.codes
+
+
+def test_crear_algo_que_ya_existe_en_otra_partida_sigue_siendo_conflicto():
+    """`_assert_absent` es deliberadamente SIN filtro de partida: un
+    `entity_id`/`assertion_id` es unico en TODO el workspace, cruzando
+    ambitos (docs/v3/49 §2.4)."""
+    plan = make_plan(partida_id="partida:brumal-01", scope=partida_scope())
+    nodes = {("entity", "entity:daiki"): {"version": 0, "state_hash": "x", "partida_id": "partida:brumal-OTRA"}}
+    driver = FakeDriver(nodes=nodes)
+    result = make_writer(driver).write(plan, apply_request(plan))
+    assert result.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_TARGET_ALREADY_EXISTS in result.codes
+
+
+# ==========================================================================
 # 5. Idempotencia
 # ==========================================================================
 def test_reaplicar_el_mismo_plan_no_escribe_dos_veces():
@@ -1006,6 +1308,45 @@ def test_reaplicar_el_mismo_plan_no_escribe_dos_veces():
     assert r2.applied_operations == 0
     assert r2.noop_operations == 1
     assert segundo.writes == writes_after_first
+
+
+def test_dos_partidas_con_operacion_identica_comparten_idempotency_key_pero_no_corrompen():
+    """(d) DECISION DE M3, mismo rigor que `decision_hash` (docs/v3/49 §9):
+    `IDEMPOTENCY_KEY_FIELDS`/`compute_idempotency_key` (contracts validator)
+    NO incluyen `partida_id`/`scope` -- solo `workspace`+`snapshot_id`+
+    identidad logica de la operacion (`operation_type`, `decision_id`,
+    `target_entity_id`, `assertion_id`, `payload`). Si dos planes de DOS
+    partidas distintas, mismo workspace y snapshot, calculasen una operacion
+    con identidad logica identica (mismo `decision_id`/`target_entity_id`/
+    `payload`), compartirian idempotency_key.
+
+    NO se cierra este hueco en M3 (igual que `decision_hash` en M0): tocar
+    `IDEMPOTENCY_KEY_FIELDS` es cirugia de contrato congelado (mismo
+    validador que M0 decidio no tocar), y aqui no hace falta -- a diferencia
+    de `decision_hash` (que es un hueco de AUDITABILIDAD silencioso), la
+    colision de idempotency_key es SEGURA por construccion: `execute_plan`
+    reclama la clave con `claim_applied_operation` y, si ya esta tomada por
+    un `plan_hash`/`operation_id` distinto, aborta con
+    `EXEC_IDEMPOTENCY_CONFLICT` -- fail-closed, nunca una fusion silenciosa
+    de dos operaciones de partidas distintas. Este test fija ESE
+    comportamiento (el abort), no un cierre del hueco de la clave."""
+    ops_a = [op_create_entity("op:0001", "decision:0001", "entity:mismo-id")]
+    ops_b = [op_create_entity("op:0001", "decision:0001", "entity:mismo-id")]
+    plan_a = make_plan(operations=ops_a, partida_id="partida:brumal-01", scope=partida_scope())
+    plan_b = make_plan(operations=ops_b, partida_id="partida:brumal-02", scope=partida_scope("partida:brumal-02"))
+
+    # Confirmado: la clave derivada es IDENTICA pese a ser partidas distintas
+    # (no lee scope/partida_id -- verificacion, no suposicion).
+    assert plan_a["mutation_operations"][0]["idempotency_key"] == plan_b["mutation_operations"][0]["idempotency_key"]
+
+    keys = InMemoryAppliedKeys()
+    driver = FakeDriver()
+    r1 = make_writer(driver, applied_keys=keys).write(plan_a, apply_request(plan_a))
+    assert r1.outcome == OUTCOME_APPLIED
+
+    r2 = make_writer(driver, applied_keys=keys).write(plan_b, apply_request(plan_b))
+    assert r2.outcome == OUTCOME_ABORTED
+    assert codes.EXEC_IDEMPOTENCY_CONFLICT in r2.codes
 
 
 def test_la_misma_clave_con_plan_distinto_falla_cerrado():

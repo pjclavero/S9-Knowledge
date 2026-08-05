@@ -115,11 +115,41 @@ def _single(tx: Any, query: cypher.Query) -> Any:
 
 
 # --- Precondiciones -------------------------------------------------------
-def _check_expected_state(tx: Any, op: dict, workspace: str, target_id: str, is_assertion: bool) -> dict:
-    """Concurrencia optimista. Un desajuste aborta el PLAN, no la operacion."""
+def _check_expected_state(
+    tx: Any,
+    op: dict,
+    workspace: str,
+    target_id: str,
+    is_assertion: bool,
+    partida_id: str | None = None,
+) -> dict:
+    """Concurrencia optimista. Un desajuste aborta el PLAN, no la operacion.
+
+    M3 (docs/v3/49 §2.4): la lectura esta ACOTADA al ambito del plan
+    (`partida_id`). Si no aparece nada ahi, se distingue -- con una segunda
+    consulta, tambien en Cypher -- entre "no existe" (`EXEC_TARGET_MISSING`)
+    y "existe, pero en otro ambito" (`EXEC_SCOPE_MISMATCH`, el Invariante 2
+    violado en lectura: leer un nodo de otra partida y operarlo).
+    """
     reader = cypher.read_assertion_state if is_assertion else cypher.read_entity_state
-    record = _single(tx, reader(target_id, workspace))
+    record = _single(tx, reader(target_id, workspace, partida_id))
     if record is None:
+        any_scope_reader = (
+            cypher.read_assertion_state_any_scope
+            if is_assertion
+            else cypher.read_entity_state_any_scope
+        )
+        if _single(tx, any_scope_reader(target_id, workspace)) is not None:
+            raise WriterAbort(
+                codes.EXEC_SCOPE_MISMATCH,
+                f"la operacion {op['operation_id']} apunta a {target_id!r}, que "
+                "existe pero en otro ambito de partida que el declarado por el plan",
+                {
+                    "operation_id": op["operation_id"],
+                    "target_id": target_id,
+                    "declared_partida_id": partida_id,
+                },
+            )
         raise WriterAbort(
             codes.EXEC_TARGET_MISSING,
             f"la operacion {op['operation_id']} apunta a {target_id!r}, que no existe",
@@ -154,8 +184,17 @@ def _check_expected_state(tx: Any, op: dict, workspace: str, target_id: str, is_
 
 
 def _assert_absent(tx: Any, op: dict, workspace: str, target_id: str, is_assertion: bool) -> None:
-    """CREATE-only estricto: crear algo que ya existe es un conflicto, no un update."""
-    reader = cypher.read_assertion_state if is_assertion else cypher.read_entity_state
+    """CREATE-only estricto: crear algo que ya existe es un conflicto, no un update.
+
+    Deliberadamente SIN filtro de partida (`*_any_scope`): la identidad de un
+    `entity_id`/`assertion_id` es unica en todo el workspace, cruzando capa
+    juego y todas sus partidas -- dos ambitos jamas comparten el mismo id.
+    """
+    reader = (
+        cypher.read_assertion_state_any_scope
+        if is_assertion
+        else cypher.read_entity_state_any_scope
+    )
     if _single(tx, reader(target_id, workspace)) is not None:
         raise WriterAbort(
             codes.EXEC_TARGET_ALREADY_EXISTS,
@@ -240,6 +279,7 @@ def _provenance(view: SignedView, op: dict, ctx: ExecutionContext) -> dict[str, 
     decision = view.decision_by_id(op["decision_id"])
     return {
         "workspace": view.workspace,
+        "partida_id": view.partida_id,
         "version": 0,
         "written_snapshot_id": view.snapshot_id,
         "written_by_plan_hash": view.plan_hash_value,
@@ -263,6 +303,7 @@ def execute_operation(
 ) -> AppliedOperation:
     op_type = op["operation_type"]
     ws = view.workspace
+    partida_id = view.partida_id
     payload, props = _validated_payload(op)
     prov = _provenance(view, op, ctx)
 
@@ -271,7 +312,8 @@ def execute_operation(
         _assert_absent(tx, op, ws, entity_id, is_assertion=False)
         label = payload.get("entity_type")
         record = _single(
-            tx, cypher.create_entity(entity_id, ws, label, {**props, **prov})
+            tx,
+            cypher.create_entity(entity_id, ws, label, {**props, **prov}, partida_id),
         )
         return AppliedOperation(
             operation_id=op["operation_id"],
@@ -286,7 +328,8 @@ def execute_operation(
         assertion_id = _require(op.get("assertion_id"), op, "assertion_id")
         _assert_absent(tx, op, ws, assertion_id, is_assertion=True)
         record = _single(
-            tx, cypher.create_assertion(assertion_id, ws, {**props, **prov})
+            tx,
+            cypher.create_assertion(assertion_id, ws, {**props, **prov}, partida_id),
         )
         return AppliedOperation(
             operation_id=op["operation_id"],
@@ -302,11 +345,21 @@ def execute_operation(
         obj = _require(payload.get("object_entity_id"), op, "payload.object_entity_id")
         predicate = _require(payload.get("predicate"), op, "payload.predicate")
         target = op.get("target_entity_id") or subject
-        previous = _check_expected_state(tx, op, ws, target, is_assertion=False)
+        previous = _check_expected_state(tx, op, ws, target, is_assertion=False, partida_id=partida_id)
         rel_props = {k: v for k, v in props.items() if k != "predicate"}
         record = _single(
-            tx, cypher.create_relation(predicate, subject, obj, ws, {**rel_props, **prov})
+            tx,
+            cypher.create_relation(
+                predicate, subject, obj, ws, {**rel_props, **prov}, partida_id
+            ),
         )
+        if record is None:
+            raise WriterAbort(
+                codes.EXEC_TARGET_MISSING,
+                f"la operacion {op['operation_id']} enlaza con {obj!r}, que no es "
+                "visible en el ambito del plan (no existe o pertenece a otra partida)",
+                {"operation_id": op["operation_id"], "target_id": obj},
+            )
         return AppliedOperation(
             operation_id=op["operation_id"],
             operation_type=op_type,
@@ -325,7 +378,7 @@ def execute_operation(
         "assertion_id" if is_assertion else "target_entity_id",
     )
     reason = _reason_code(op)
-    previous = _check_expected_state(tx, op, ws, target, is_assertion=is_assertion)
+    previous = _check_expected_state(tx, op, ws, target, is_assertion=is_assertion, partida_id=partida_id)
     changed = {
         k: v for k, v in props.items() if k in cypher.ALLOWED_UPDATE_PROPS and k != "version"
     }
@@ -335,7 +388,7 @@ def execute_operation(
     writer_fn = (
         cypher.close_assertion_validity if is_assertion else cypher.close_entity_validity
     )
-    _single(tx, writer_fn(target, ws, changed))
+    _single(tx, writer_fn(target, ws, changed, partida_id))
     return AppliedOperation(
         operation_id=op["operation_id"],
         operation_type=op_type,

@@ -60,9 +60,12 @@ ALLOWED_UPDATE_PROPS = frozenset(
 )
 
 #: Propiedades que el writer fija el mismo y que un payload no puede sobrescribir.
+#: M3: `partida_id` se une a `workspace` -- el ambito lo estampa el writer
+#: desde el `SignedView`, nunca el payload (docs/v3/49 §2.4).
 RESERVED_PROPS = frozenset(
     {
         "workspace",
+        "partida_id",
         "entity_id",
         "assertion_id",
         "version",
@@ -158,8 +161,77 @@ def safe_props(payload: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+# --- Ambito (M3: docs/v3/49 §2.4) ------------------------------------------
+#: Neo4j no compara `= null` como verdadero (siempre `NULL`, nunca `true`):
+#: por eso el filtrado de capa juego (`partida_id IS NULL`) va en `WHERE`,
+#: nunca en el patron de mapa `{partida_id: $valor}`. Disciplina del diseno:
+#: el filtrado de ambito vive en Cypher, jamas en Python.
+def _scoped_match(
+    label: str, id_field: str, id_value: str, workspace: str, partida_id: str | None,
+    *, alias: str = "n",
+) -> tuple[str, dict[str, Any]]:
+    """MATCH exacto de un nodo en SU propio ambito declarado.
+
+    `partida_id=None` exige capa juego (`IS NULL`); `partida_id="partida:Y"`
+    exige esa partida exacta. Nunca un comodin: esto es la precondicion de
+    una operacion sobre un objetivo concreto, no una vista de visibilidad.
+    """
+    params: dict[str, Any] = {"id": id_value, "ws": workspace}
+    if partida_id is None:
+        pattern = (
+            f"MATCH ({alias}:{label} {{{id_field}: $id, workspace: $ws}}) "
+            f"WHERE {alias}.partida_id IS NULL"
+        )
+    else:
+        params["partida_id"] = partida_id
+        pattern = (
+            f"MATCH ({alias}:{label} "
+            f"{{{id_field}: $id, workspace: $ws, partida_id: $partida_id}})"
+        )
+    return pattern, params
+
+
+def _visible_predicate(alias: str, partida_id: str | None) -> str:
+    """Predicado de VISIBILIDAD (capa juego + partida propia), no de identidad.
+
+    Se usa para los extremos de una relacion: un plan de partida Y puede
+    enlazar tanto entidades de capa juego como de su propia partida (M2,
+    misma direccion unica del Invariante 1), nunca de otra partida.
+    """
+    if partida_id is None:
+        return f"{alias}.partida_id IS NULL"
+    return f"({alias}.partida_id IS NULL OR {alias}.partida_id = $partida_id)"
+
+
 # --- Lecturas (concurrencia optimista) ------------------------------------
-def read_entity_state(entity_id: str, workspace: str) -> Query:
+def read_entity_state(entity_id: str, workspace: str, partida_id: str | None = None) -> Query:
+    pattern, params = _scoped_match(LABEL_ENTITY, "entity_id", entity_id, workspace, partida_id)
+    return Query(
+        f"{pattern} RETURN n.version AS version, n.state_hash AS state_hash",
+        params,
+    )
+
+
+def read_assertion_state(
+    assertion_id: str, workspace: str, partida_id: str | None = None
+) -> Query:
+    pattern, params = _scoped_match(
+        LABEL_ASSERTION, "assertion_id", assertion_id, workspace, partida_id
+    )
+    return Query(
+        f"{pattern} RETURN n.version AS version, n.state_hash AS state_hash",
+        params,
+    )
+
+
+def read_entity_state_any_scope(entity_id: str, workspace: str) -> Query:
+    """Existencia SIN filtro de ambito: solo para diagnosticar un drift.
+
+    No se usa para decidir si una operacion se aplica -- eso siempre pasa por
+    la lectura acotada de arriba. Sirve unicamente para distinguir, cuando la
+    lectura acotada no encuentra nada, "no existe" de "existe en otra
+    partida" (`EXEC_TARGET_MISSING` vs `EXEC_SCOPE_MISMATCH`).
+    """
     return Query(
         f"MATCH (n:{LABEL_ENTITY} {{entity_id: $id, workspace: $ws}}) "
         "RETURN n.version AS version, n.state_hash AS state_hash",
@@ -167,7 +239,8 @@ def read_entity_state(entity_id: str, workspace: str) -> Query:
     )
 
 
-def read_assertion_state(assertion_id: str, workspace: str) -> Query:
+def read_assertion_state_any_scope(assertion_id: str, workspace: str) -> Query:
+    """Gemela de `read_entity_state_any_scope` para aserciones."""
     return Query(
         f"MATCH (n:{LABEL_ASSERTION} {{assertion_id: $id, workspace: $ws}}) "
         "RETURN n.version AS version, n.state_hash AS state_hash",
@@ -204,21 +277,48 @@ def claim_applied_operation(
 
 
 # --- Escrituras -----------------------------------------------------------
-def create_entity(entity_id: str, workspace: str, label: str | None, props: dict) -> Query:
-    """CREATE-only. Sin MERGE y sin una sola asignacion masiva."""
+def create_entity(
+    entity_id: str,
+    workspace: str,
+    label: str | None,
+    props: dict,
+    partida_id: str | None = None,
+) -> Query:
+    """CREATE-only. Sin MERGE y sin una sola asignacion masiva.
+
+    `partida_id=None` no escribe la propiedad (Neo4j omite claves con valor
+    `null` en un `CREATE (n $props)`): un nodo de capa juego queda EXACTAMENTE
+    igual que antes de M3, sin la propiedad presente en absoluto.
+    """
     labels = f":{LABEL_ENTITY}"
     if label:
         labels += f":{safe_token(label, 'entity_type')}"
     return Query(
         f"CREATE (n{labels} $props) RETURN n.entity_id AS id",
-        {"props": {**props, "entity_id": entity_id, "workspace": workspace}},
+        {
+            "props": {
+                **props,
+                "entity_id": entity_id,
+                "workspace": workspace,
+                "partida_id": partida_id,
+            }
+        },
     )
 
 
-def create_assertion(assertion_id: str, workspace: str, props: dict) -> Query:
+def create_assertion(
+    assertion_id: str, workspace: str, props: dict, partida_id: str | None = None
+) -> Query:
     return Query(
         f"CREATE (n:{LABEL_ASSERTION} $props) RETURN n.assertion_id AS id",
-        {"props": {**props, "assertion_id": assertion_id, "workspace": workspace}},
+        {
+            "props": {
+                **props,
+                "assertion_id": assertion_id,
+                "workspace": workspace,
+                "partida_id": partida_id,
+            }
+        },
     )
 
 
@@ -228,20 +328,32 @@ def create_relation(
     object_id: str,
     workspace: str,
     props: dict,
+    partida_id: str | None = None,
 ) -> Query:
-    """Arista nueva entre dos entidades que ya existen. Nunca las crea."""
+    """Arista nueva entre dos entidades que ya existen. Nunca las crea.
+
+    Los extremos se exigen VISIBLES desde el ambito del plan (capa juego +
+    la propia partida, nunca otra) -- mismo criterio de direccion unica que
+    el resolutor (M2): un plan de capa juego solo enlaza capa juego; un plan
+    de partida Y enlaza capa juego o su propia partida.
+    """
     rel = safe_token(predicate, "predicate")
+    params: dict[str, Any] = {
+        "subject": subject_id,
+        "object": object_id,
+        "ws": workspace,
+        "props": {**props, "workspace": workspace, "partida_id": partida_id},
+    }
+    if partida_id is not None:
+        params["partida_id"] = partida_id
+    where = f"WHERE {_visible_predicate('a', partida_id)} AND {_visible_predicate('b', partida_id)}"
     return Query(
         f"MATCH (a:{LABEL_ENTITY} {{entity_id: $subject, workspace: $ws}}) "
         f"MATCH (b:{LABEL_ENTITY} {{entity_id: $object, workspace: $ws}}) "
+        f"{where} "
         f"CREATE (a)-[r:{rel} $props]->(b) "
         "RETURN elementId(r) AS id",
-        {
-            "subject": subject_id,
-            "object": object_id,
-            "ws": workspace,
-            "props": {**props, "workspace": workspace},
-        },
+        params,
     )
 
 
@@ -266,21 +378,27 @@ def _set_clause(alias: str, props: dict[str, Any]) -> tuple[str, dict[str, Any]]
     return "SET " + ", ".join(parts), params
 
 
-def close_entity_validity(entity_id: str, workspace: str, props: dict) -> Query:
+def close_entity_validity(
+    entity_id: str, workspace: str, props: dict, partida_id: str | None = None
+) -> Query:
     clause, params = _set_clause("n", props)
+    pattern, match_params = _scoped_match(LABEL_ENTITY, "entity_id", entity_id, workspace, partida_id)
     return Query(
-        f"MATCH (n:{LABEL_ENTITY} {{entity_id: $id, workspace: $ws}}) "
-        f"{clause} RETURN n.entity_id AS id",
-        {"id": entity_id, "ws": workspace, **params},
+        f"{pattern} {clause} RETURN n.entity_id AS id",
+        {**match_params, **params},
     )
 
 
-def close_assertion_validity(assertion_id: str, workspace: str, props: dict) -> Query:
+def close_assertion_validity(
+    assertion_id: str, workspace: str, props: dict, partida_id: str | None = None
+) -> Query:
     clause, params = _set_clause("n", props)
+    pattern, match_params = _scoped_match(
+        LABEL_ASSERTION, "assertion_id", assertion_id, workspace, partida_id
+    )
     return Query(
-        f"MATCH (n:{LABEL_ASSERTION} {{assertion_id: $id, workspace: $ws}}) "
-        f"{clause} RETURN n.assertion_id AS id",
-        {"id": assertion_id, "ws": workspace, **params},
+        f"{pattern} {clause} RETURN n.assertion_id AS id",
+        {**match_params, **params},
     )
 
 
@@ -291,6 +409,8 @@ __all__ = [
     "safe_props",
     "read_entity_state",
     "read_assertion_state",
+    "read_entity_state_any_scope",
+    "read_assertion_state_any_scope",
     "create_entity",
     "create_assertion",
     "create_relation",

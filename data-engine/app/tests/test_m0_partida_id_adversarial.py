@@ -269,13 +269,17 @@ def test_python_model_construction_bypasses_pattern_validation_without_explicit_
 # ==========================================================================
 # 5) scope vs partida_id raiz: incoherencia interna
 # ==========================================================================
-def test_scope_partida_id_can_disagree_with_root_partida_id_undetected():
-    """GAP DE SUPERFICIE (documentado como fuera de M0, dosier §2.2: "la
-    validacion de coherencia layer/partida_id en admision es de M3, no de
-    este contrato"): hoy el schema y el modelo Python aceptan un plan cuyo
-    `scope.partida_id` no coincide con su `partida_id` raiz. Este test fija
-    ese estado para que quede escrito en codigo, no solo en un comentario que
-    alguien puede dejar de leer.
+def test_scope_partida_id_disagreeing_with_root_partida_id_is_rejected_by_m3():
+    """CERRADO EN M3 (docs/v3/49 §2.2/§2.4): lo que M0 dejaba como agujero de
+    superficie -- schema y modelo Python aceptan un plan cuyo
+    `scope.partida_id` no coincide con su `partida_id` raiz -- ahora es un
+    ERROR DURO en la admision del writer (`PLAN_SCOPE_CROSS_PARTIDA`).
+
+    El schema y el modelo Python SIGUEN aceptando el documento (M3 no toco
+    el contrato, ver docs/v3/49 §9: es la admision, no el schema, quien juzga
+    coherencia semantica de ambito) -- lo que cambia es que ya existe un
+    consumidor real (`writer/admission.py`) que lo rechaza antes de admitir
+    el plan.
     """
     import importlib.util
     import sys
@@ -287,6 +291,7 @@ def test_scope_partida_id_can_disagree_with_root_partida_id_undetected():
     spec.loader.exec_module(mod)
 
     from knowledge_v3.contracts import seal_plan
+    from knowledge_v3.writer import AdmissionContext, admit, codes
 
     base = mod.VALID_BUILDERS["graph_mutation_plan_approved"]()
     base["partida_id"] = "partida:brumal-01"
@@ -299,8 +304,16 @@ def test_scope_partida_id_can_disagree_with_root_partida_id_undetected():
     base["local_approval"].pop("decision_hash", None)
     sealed = seal_plan(base)
 
-    # Ni el schema ni el modelo Python lo rechazan: es el agujero documentado.
+    # El schema y el modelo Python lo siguen aceptando (sin cambios en M3):
     schema_validator.validate_document(sealed)
     plan = GraphMutationPlan.from_dict(sealed)
     assert plan.partida_id == "partida:brumal-01"
     assert plan.scope["partida_id"] == "partida:brumal-DISTINTA"
+
+    # ... pero la admision del writer lo rechaza, error duro (M3):
+    result = admit(
+        sealed,
+        AdmissionContext(workspace=sealed["workspace"], current_snapshot_id=sealed["snapshot_id"]),
+    )
+    assert not result.admitted
+    assert codes.PLAN_SCOPE_CROSS_PARTIDA in result.codes
