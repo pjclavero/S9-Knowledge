@@ -68,10 +68,8 @@ development:
       tests en main.
 
 production:
-  # Lo que está desplegado de verdad en VM105. Este bloque NO se ha
-  # verificado por SSH en esta pasada (el encargo prohíbe conectar al
-  # servidor); se conserva el último estado verificado conocido y se marca
-  # su antigüedad explícitamente.
+  # Lo que está desplegado de verdad en VM105. VERIFICADO por diagnóstico SSH
+  # de solo lectura el 2026-08-06 (ver verification_note).
   release: "0.3.0-rc5.1"
   production_tag: "deploy-v0.3.0-rc5.1"
   commit: "47bc3147fdab6b642ab72ffe0cf84133e3a57b2e"
@@ -79,31 +77,52 @@ production:
   active_engine: "pipeline RPG v1/v2 (legacy respecto a main)"
   v3_deployed: false
 
-  last_verified_at: "2026-07-18T13:45:00Z"
+  last_verified_at: "2026-08-06T17:18:39Z"
   verification_note: >
-    PENDIENTE DE VERIFICAR EN EL SERVIDOR: esta pasada no se conectó a
-    VM105 (fuera del alcance del encargo de documentación). Todos los
-    valores de este bloque son el último estado confirmado por SSH,
-    anterior al merge de V3 y a los programas de Puerta 4/6 en main; no se
-    han re-verificado ni se han refrescado con datos nuevos. Confirmar antes
-    de tomar decisiones operativas sobre ellos.
+    VERIFICADO por diagnóstico SSH de solo lectura el 2026-08-06 (host
+    `common`, usuario root, autorizado por el operador con alcance limitado a
+    lecturas). Se confirmaron: release y commit desplegados, fecha de
+    despliegue, contadores de Neo4j, estado del servicio del visor y estado
+    del timer de healthcheck. El diagnóstico NO modificó nada: sin reinicios,
+    recargas, escrituras en base de datos, migraciones ni activación de
+    flags.
 
-  # Recuento de la suite en la release de producción 47bc314 (histórico,
-  # no verificado de nuevo en esta pasada).
+  # Recuento de la suite en la release de producción 47bc314 (histórico de
+  # RC5.1; `main` va por 6588 — ver el bloque `development`).
   tests_collected: 912
   ci_status_at_deploy: "green"
 
   database_counts:
     neo4j_nodes: 199
     neo4j_relationships: 140
-    verified: false  # no re-verificado por SSH en esta pasada; heredado del último estado conocido
+    verified: true          # confirmado por consulta de solo lectura el 2026-08-06
+    verified_at: "2026-08-06T17:25:00Z"
+    container: "neo4j-knowledge (neo4j:5.26.0-community, healthy)"
 
   active_admins: 1
   jobs: 1
   applied_ingestions: 0
 
-  health_timer: "active_hourly"          # OnCalendar=hourly, Persistent, RandomizedDelaySec=5m (último estado conocido)
-  viewer_status: "active_running"        # s9-knowledge-viewer.service (último estado conocido)
+  health_timer: "active_hourly"          # verificado 2026-08-06: enabled + active, dispara cada hora
+  viewer_status: "active_running"        # verificado 2026-08-06: PID 740, NRestarts=0, activo desde 2026-08-02T22:41 (corte de luz/arranque)
+
+  # INCIDENCIA ABIERTA detectada en la verificación del 2026-08-06.
+  # El timer dispara correctamente, pero el chequeo termina en fallo: el
+  # servicio queda `failed` (código 2) porque el estado global es UNHEALTHY.
+  health_status:
+    last_run: "2026-08-06T17:02:00Z"
+    global_result: "UNHEALTHY"
+    service_state: "failed (exit code 2)"
+    failing_component: "backups"
+    detail: >
+      El backup más reciente es válido pero rancio: ~475 h de antigüedad
+      (umbral máximo 48 h). Los backups en /var/lib/s9-knowledge/backups son
+      los pre-reset y pre-rc4 del 2026-07-17; desde entonces no se ha
+      generado ninguno nuevo. Todos los demás componentes están OK: visor,
+      Neo4j, cola de jobs, auth.db, sistema de ficheros (68.6% de uso) y
+      unidades de systemd. Ollama y rclone de Nextcloud figuran como "no
+      configurado" (opcionales, no usados).
+    requires_operator_decision: true
 
   deployment:
     active_release: "deploy--20260718-133409"
