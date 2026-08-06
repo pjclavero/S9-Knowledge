@@ -28,14 +28,15 @@ from app.auth.dependencies import (
 from app.auth.models import User
 from app.auth.security import enforce_auth_security
 from app.auth import db as auth_db
-from app.authz.dependencies import get_filtered_provider
+from app.authz.dependencies import get_filtered_provider, get_visibility_scope
 from app.config import get_settings
 from app.deps import get_default_workspace, get_provider
-from app.jobs_client import get_counts_by_status, get_job, jobs_db_status, list_jobs, serialize_job
+from app.jobs_client import jobs_db_status, scoped_counts, scoped_job, scoped_jobs
 from app.providers.base import GraphProvider
 from app.routers import auth as auth_router
 from app.routers import admin as admin_router
 from app.routers import health_admin as health_router
+from app.routers import partida as partida_router
 from app.routers import readonly as readonly_router
 from app.routers import reviews_console as reviews_console_router
 from app.routers import v3_review as v3_review_router
@@ -119,6 +120,7 @@ app.include_router(auth_router.router)
 app.include_router(admin_router.router)
 app.include_router(health_router.router)
 app.include_router(readonly_router.router)
+app.include_router(partida_router.router)
 # Panel de revision v1 (Equipo B): consola de revision sin escritura en Neo4j.
 app.include_router(reviews_console_router.router)
 app.include_router(v3_review_router.router)
@@ -461,10 +463,12 @@ def jobs_view(
     guard = _require_user_or_redirect(request)
     if guard is not None and not isinstance(guard, User):
         return guard
+    # Mismo ámbito que /api/jobs: la cola es material de partida (M5a).
+    scope = get_visibility_scope(request)
     status_info = jobs_db_status()
-    counts = get_counts_by_status(workspace=workspace) if status_info["ok"] else {}
+    counts = scoped_counts(scope, workspace=workspace) if status_info["ok"] else {}
     jobs = (
-        [serialize_job(j) for j in list_jobs(workspace=workspace, status=status, job_type=job_type)]
+        scoped_jobs(scope, workspace=workspace, status=status, job_type=job_type)
         if status_info["ok"]
         else []
     )
@@ -486,8 +490,7 @@ def job_detail_view(request: Request, job_id: str):
     if guard is not None and not isinstance(guard, User):
         return guard
     status_info = jobs_db_status()
-    raw_job = get_job(job_id) if status_info["ok"] else None
-    job = serialize_job(raw_job) if raw_job is not None else None
+    job = scoped_job(get_visibility_scope(request), job_id) if status_info["ok"] else None
     error = None if status_info["ok"] else status_info["error"]
     if status_info["ok"] and job is None:
         error = "job_not_found"

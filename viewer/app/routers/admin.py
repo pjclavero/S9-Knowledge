@@ -386,3 +386,99 @@ async def admin_audit(
             "csrf_token": _get_csrf(request, session.id if session else 0),
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# M5a — gestión de asignaciones usuario <-> partida (docs/v3/49 §2.6)
+# ---------------------------------------------------------------------------
+
+@router.get("/partidas", response_class=HTMLResponse)
+async def admin_partidas(
+    request: Request,
+    admin: User = Depends(require_admin),
+):
+    if isinstance(admin, RedirectResponse):
+        return admin
+    session = getattr(request.state, "session", None)
+    db_path = _get_db_path()
+    auth_db.ensure_migrated(db_path)
+    with auth_db.get_conn(db_path) as conn:
+        users = auth_db.list_users(conn)
+        access = auth_db.list_partida_access(conn)
+    return templates.TemplateResponse(
+        request,
+        "auth/admin/partidas.html",
+        {
+            "users": users,
+            "access": access,
+            "admin": admin,
+            "csrf_token": _get_csrf(request, session.id if session else 0),
+            "errors": [],
+        },
+    )
+
+
+@router.post("/partidas/grant")
+async def admin_partidas_grant(
+    request: Request,
+    user_id: int = Form(...),
+    workspace: str = Form(...),
+    partida_id: str = Form(...),
+    csrf_token: str = Form(...),
+    admin: User = Depends(require_admin),
+):
+    if isinstance(admin, RedirectResponse):
+        return admin
+    session = getattr(request.state, "session", None)
+
+    if not _check_csrf(request, csrf_token, session.id if session else 0):
+        raise HTTPException(status_code=403, detail="CSRF inválido")
+
+    workspace = workspace.strip()
+    partida_id = partida_id.strip()
+    if not workspace or not partida_id:
+        raise HTTPException(status_code=400, detail="workspace y partida_id son obligatorios")
+
+    db_path = _get_db_path()
+    with auth_db.get_conn(db_path) as conn:
+        target = auth_db.get_user_by_id(conn, user_id)
+        if target is None:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        auth_db.grant_partida_access(conn, user_id, workspace, partida_id, granted_by=admin.username)
+        audit.log(conn, audit.PARTIDA_ACCESS_GRANTED, "success",
+                  user_id=admin.id, username_snapshot=admin.username,
+                  metadata={"target_user": target.username, "workspace": workspace, "partida_id": partida_id})
+
+    return RedirectResponse(url="/admin/partidas", status_code=302)
+
+
+@router.post("/partidas/{access_id}/revoke")
+async def admin_partidas_revoke(
+    request: Request,
+    access_id: int,
+    csrf_token: str = Form(...),
+    admin: User = Depends(require_admin),
+):
+    if isinstance(admin, RedirectResponse):
+        return admin
+    session = getattr(request.state, "session", None)
+
+    if not _check_csrf(request, csrf_token, session.id if session else 0):
+        raise HTTPException(status_code=403, detail="CSRF inválido")
+
+    db_path = _get_db_path()
+    with auth_db.get_conn(db_path) as conn:
+        entry = auth_db.get_partida_access_by_id(conn, access_id)
+        if entry is None:
+            raise HTTPException(status_code=404, detail="Asignación no encontrada")
+        target = auth_db.get_user_by_id(conn, entry.user_id)
+        auth_db.revoke_partida_access(conn, access_id)
+        audit.log(conn, audit.PARTIDA_ACCESS_REVOKED, "success",
+                  user_id=admin.id, username_snapshot=admin.username,
+                  metadata={
+                      "target_user": target.username if target else entry.user_id,
+                      "workspace": entry.workspace,
+                      "partida_id": entry.partida_id,
+                  })
+
+    return RedirectResponse(url="/admin/partidas", status_code=302)

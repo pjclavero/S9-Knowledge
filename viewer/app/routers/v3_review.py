@@ -5,12 +5,14 @@ import json
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Form, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.auth.config import get_auth_settings
 from app.auth.csrf import get_csrf_token_for_session, validate_csrf
+from app.authz.dependencies import get_visibility_scope
+from app.authz.scope import VisibilityScope
 from app.services.v3_review import ReviewError, ReviewService, StaleReviewError
 from app.services.v3_review import default_glossary_root
 from app.services.v3_glossary_candidates import GlossaryCandidateStore
@@ -64,15 +66,18 @@ def _check_csrf(request: Request, token: str) -> None:
 def glossary_candidates(
     request: Request,
     workspace: str | None = Query(default=None),
+    scope: VisibilityScope = Depends(get_visibility_scope),
 ):
     guard = _guard(request)
     if isinstance(guard, (RedirectResponse, HTMLResponse)):
         return guard
-    workspaces = _service().workspaces()
+    # El ámbito de la petición (partida activa + capa juego) decide lo que se
+    # entrega, con el mismo motor de política que el resto del visor.
+    workspaces = _service().workspaces(scope=scope)
     selected = workspace or (workspaces[0] if len(workspaces) == 1 else None)
     if selected and selected not in workspaces:
         raise HTTPException(status_code=404, detail="Workspace no encontrado")
-    items = _service().glossary_candidates(selected) if selected else []
+    items = _service().glossary_candidates(selected, scope=scope) if selected else []
     return templates.TemplateResponse(
         request, "v3_glossary_candidates.html",
         {"auth_user": guard, "workspaces": workspaces, "workspace": selected, "items": items},
@@ -87,12 +92,13 @@ def queue(
     source_id: str | None = Query(default=None),
     engine_decision: str | None = Query(default=None),
     notice: str | None = Query(default=None),
+    scope: VisibilityScope = Depends(get_visibility_scope),
 ):
     guard = _guard(request)
     if isinstance(guard, (RedirectResponse, HTMLResponse)):
         return guard
     service = _service()
-    workspaces = service.workspaces()
+    workspaces = service.workspaces(scope=scope)
     selected_workspace = workspace or (workspaces[0] if len(workspaces) == 1 else None)
     if selected_workspace and selected_workspace not in workspaces:
         raise HTTPException(status_code=404, detail="Workspace no encontrado")
@@ -101,6 +107,7 @@ def queue(
             selected_workspace,
             source_id=source_id,
             engine_decision=engine_decision,
+            scope=scope,
         )
         if selected_workspace else None
     )
@@ -143,6 +150,9 @@ def decide(
     misrecognition: str = Form(""),
     spoken_form: str = Form(""),
     csrf_token: str = Form(""),
+    # `scope` (arriba) es un campo del formulario de corrección; el ámbito de
+    # visibilidad de la petición se llama aparte para no colisionar.
+    visibility_scope: VisibilityScope = Depends(get_visibility_scope),
 ):
     guard = _guard(request)
     if isinstance(guard, (RedirectResponse, HTMLResponse)):
@@ -182,6 +192,7 @@ def decide(
             rationale=rationale,
             correction=correction,
             expected_proposal_hash=expected_proposal_hash,
+            scope=visibility_scope,
         )
     except StaleReviewError:
         return RedirectResponse(
@@ -198,6 +209,7 @@ def undo(
     workspace: str = Form(...),
     request_id: str = Form(...),
     csrf_token: str = Form(""),
+    scope: VisibilityScope = Depends(get_visibility_scope),
 ):
     guard = _guard(request)
     if isinstance(guard, (RedirectResponse, HTMLResponse)):
@@ -208,6 +220,7 @@ def undo(
             workspace=workspace,
             reviewer=_reviewer(request),
             request_id=request_id,
+            scope=scope,
         )
     except ReviewError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

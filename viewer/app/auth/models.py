@@ -59,10 +59,30 @@ class Session:
     revoked_at: Optional[datetime]
     ip_hash: Optional[str]
     user_agent_hash: Optional[str]
+    # M5a: partida activa de esta sesión (docs/v3/49 §2.6). None = sin partida
+    # seleccionada -> solo capa juego visible.
+    active_partida: Optional[str] = None
 
     def is_valid(self, now: Optional[datetime] = None) -> bool:
         ts = now or _utcnow()
         return self.revoked_at is None and ts < self.expires_at
+
+
+@dataclass
+class PartidaAccess:
+    """Asignación usuario -> partida permitida (M5a).
+
+    Concedida por un admin desde el panel; sin auto-alta. Un usuario puede
+    tener varias partidas asignadas (varias filas), pero solo una activa por
+    sesión (`Session.active_partida`).
+    """
+
+    id: int
+    user_id: int
+    workspace: str
+    partida_id: str
+    granted_by: Optional[str]
+    granted_at: datetime
 
 
 @dataclass

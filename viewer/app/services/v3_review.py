@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from app.authz.scope import UNRESTRICTED, VisibilityScope
 from app.services.v3_glossary_candidates import GlossaryCandidateStore
 from app.services.v3_review_store import SQLiteReviewStore
 
@@ -303,6 +304,17 @@ class QueueView:
     decisions: tuple[str, ...]
 
 
+def _scoped(scope: "VisibilityScope | None") -> "VisibilityScope":
+    """Ámbito efectivo del llamador (sin ámbito explícito = interno, sin filtro).
+
+    Las rutas HTTP siempre inyectan el ámbito de la petición. El corpus de
+    propuestas V3 usa `workspace` como etiqueta del corpus, no como workspace
+    del visor, por lo que aquí aplica la barrera de partida (ver
+    ``app.authz.scope``).
+    """
+    return (scope or UNRESTRICTED).partida_only()
+
+
 class ReviewService:
     """Workspace-scoped queue and append-only decision ledger."""
 
@@ -324,12 +336,20 @@ class ReviewService:
         # Kept only as a testable boundary: this service must never dereference it.
         self._graph_driver = graph_driver
 
-    def workspaces(self) -> tuple[str, ...]:
-        return tuple(sorted({str(item["workspace"]) for item in load_proposals(self.proposals_dir)}))
+    def workspaces(self, scope: "VisibilityScope | None" = None) -> tuple[str, ...]:
+        """Workspaces con al menos una propuesta VISIBLE en el ámbito."""
+        allowed = _scoped(scope)
+        return tuple(sorted({
+            str(item["workspace"])
+            for item in load_proposals(self.proposals_dir)
+            if allowed.allows(item)
+        }))
 
-    def glossary_candidates(self, workspace: str) -> list[dict[str, Any]]:
+    def glossary_candidates(self, workspace: str,
+                            scope: "VisibilityScope | None" = None) -> list[dict[str, Any]]:
         self.store.project_outbox(workspace, _now())
-        return self.store.candidates(workspace)
+        allowed = _scoped(scope)
+        return [c for c in self.store.candidates(workspace) if allowed.allows(c)]
 
     def queue(
         self,
@@ -338,13 +358,17 @@ class ReviewService:
         source_id: str | None = None,
         engine_decision: str | None = None,
         include_decided: bool = False,
+        scope: "VisibilityScope | None" = None,
     ) -> QueueView:
         workspace = _non_empty(workspace, "workspace")
         history = self.store.decisions()
         active = _active_decisions(history)
+        allowed = _scoped(scope)
+        # El ámbito se aplica ANTES de contar: `total` y `remaining` tampoco
+        # deben delatar propuestas de otra partida.
         all_workspace = [
             proposal for proposal in load_proposals(self.proposals_dir)
-            if proposal["workspace"] == workspace
+            if proposal["workspace"] == workspace and allowed.allows(proposal)
         ]
         sources = tuple(sorted({str(item["source_id"]) for item in all_workspace}))
         decisions = tuple(sorted({
@@ -423,6 +447,7 @@ class ReviewService:
         correction: dict[str, Any] | None = None,
         supersedes_decision_id: str | None = None,
         expected_proposal_hash: str | None = None,
+        scope: "VisibilityScope | None" = None,
     ) -> dict[str, Any]:
         if human_decision not in VALID_HUMAN_DECISIONS:
             raise ReviewError(f"human_decision inválida: {human_decision}")
@@ -446,6 +471,7 @@ class ReviewService:
                 (
                     item for item in load_proposals(self.proposals_dir)
                     if _proposal_id(item) == proposal_id and item["workspace"] == workspace
+                    and _scoped(scope).allows(item)
                 ),
                 None,
             )
@@ -571,7 +597,7 @@ class ReviewService:
                 " ".join(value.casefold().split()), resolved,
             ]
             candidate_id = f"glossary:{_sha256(semantic_key)}"
-            candidates.append({
+            candidate = {
                 "candidate_id": candidate_id,
                 "candidate_type": candidate_type,
                 "status": "PROPOSED",
@@ -594,15 +620,25 @@ class ReviewService:
                 "confidence": None,
                 "reason_codes": ["EXPLICIT_HUMAN_CORRECTION"],
                 "created_at": record["timestamp"],
-            })
+            }
+            # Un candidato heredado de material de partida sigue siendo de esa
+            # partida: se estampa para que el ámbito lo filtre igual que a la
+            # propuesta de la que nace. Sin partida = capa juego (no se añade
+            # la clave, para no alterar los documentos ya existentes).
+            partida_id = proposal.get("partida_id")
+            if partida_id:
+                candidate["partida_id"] = partida_id
+            candidates.append(candidate)
         return {"candidates": candidates} if candidates else None
 
-    def undo_last(self, *, workspace: str, reviewer: str, request_id: str) -> dict[str, Any]:
+    def undo_last(self, *, workspace: str, reviewer: str, request_id: str,
+                  scope: "VisibilityScope | None" = None) -> dict[str, Any]:
         with _lock_for(self.decisions_path):
             history = self.store.decisions()
+            allowed = _scoped(scope)
             active = [
                 record for record in _active_decisions(history).values()
-                if record["workspace"] == workspace
+                if record["workspace"] == workspace and allowed.allows(record["proposal"])
             ]
             if not active:
                 raise ReviewError("no hay una decisión activa que deshacer")
@@ -616,4 +652,5 @@ class ReviewService:
                 rationale="Deshacer última decisión",
                 correction={"undo": True, "restores": "PENDING"},
                 supersedes_decision_id=latest["decision_id"],
+                scope=scope,
             )
