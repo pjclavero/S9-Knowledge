@@ -1,49 +1,133 @@
 # project-status.yaml — estado estructurado de S9 Knowledge (fuente de coherencia)
 #
-# Fuente de verdad: main + tags + manifest de la release activa + CI + estado
-# productivo verificado por SSH en VM105. NO contiene secretos, IP privadas
+# Fuente de verdad: main + tags + PRs mergeados + CI de GitHub Actions para el
+# bloque `development`; manifest de la release activa + estado verificado por
+# SSH en VM105 para el bloque `production`. NO contiene secretos, IP privadas
 # innecesarias, tokens ni hashes. Es la referencia para
 # scripts/check_docs_consistency.py.
 #
-# Actualizado tras el despliegue de RC5.1 (2026-07-18).
+# El repositorio (`main`) y la producción desplegada (VM105) van
+# DESACOPLADOS desde el merge de V3 (PR #110, 2026-07-29): `main` puede
+# avanzar sin que VM105 cambie. Los tres bloques de abajo lo hacen explícito;
+# no los mezcles al leer o escribir aquí.
+#
+# Actualizado tras el cierre de los programas de calidad V3 (Puertas 4 y 6),
+# la medición del acuerdo determinista∧NVIDIA y los bloques M0/M2/M3/M4/M5a
+# del programa multi-partida (2026-08-06).
 
-project_version: "0.3.0-rc5.1"
-main_commit: "c9eccc5da3b300fb5dab6392a9b6e4a6a7f236f9"
+development:
+  # Lo que hay en `main` ahora mismo. NO implica que esté desplegado.
+  main_commit: "fb4a6fe6fb95d647dc8622ce0bac599ee7e9d246"
+  latest_merged_pr: 144
+  latest_ci: "green"  # gh run list --branch main: última ejecución en fb4a6fe, conclusion=success
+  active_engine: "knowledge_v3"  # mergeado en main desde PR #110 (2026-07-29); sustituye a v1/v2 como línea vigente
+  contracts_tag: "v3-contracts-frozen-1.0.0"
 
-production_tag: "deploy-v0.3.0-rc5.1"
-production_commit: "47bc3147fdab6b642ab72ffe0cf84133e3a57b2e"
-production_release_id: "deploy--20260718-133409"
+  completed_programs:
+    - name: "Rediseño integral V3 + Lotes 1,3,2/2b,6"
+      prs: "#110-#114"
+      state: "COMPLETADO"
+    - name: "Puerta 4 — cobertura del extractor"
+      prs: "#124-#130"
+      state: "PARCIAL"
+      detail: "cobertura E2E dev 0.607 (umbral >=0.60, conforme); recall autoaprobación SIMPLE 0.10 (umbral >=0.70, NO conforme); carril semántico NVIDIA en sombra insuficiente (0.357); invariantes de precisión intactos. Ver docs/v3/42-gate4-cierre-programa.md."
+    - name: "Puerta 6 — factividad composicional"
+      prs: "#131-#133, #136"
+      state: "CONFORME CON RESERVAS"
+      detail: "ratificado por el operador el 2026-08-05; generalización compositiva 0.381 (B0) -> 0.811 (B2, corpus de 53 casos); operador de discurso reportado reconectado al extractor real (rework de B2). Ver docs/v3/46-gate6-cierre-programa.md."
+    - name: "Medición acuerdo determinista∧NVIDIA"
+      prs: "#134-#135"
+      state: "MEDIDO — piloto controlado aprobado"
+      detail: "acuerdo activo 27/27 y 1.000 sobre corpus ampliado; el operador aprobó un piloto controlado con auditoría humana del 100%, SIN reducir revisión todavía; la reducción de revisión queda gateada al despliegue de V3 y a la primera ingesta autorizada. Ver docs/v3/47-acuerdo-det-nvidia.md y docs/v3/48-acuerdo-eval2.md."
+    - name: "Programa multi-partida (ámbitos juego/partida)"
+      prs: "#137-#143 (diseño + M0 + M2 + M3 + M4 + M5a)"
+      state: "EN CURSO"
+      detail: >
+        M0 (contratos), M2 (resolutor ciego, Invariante 1), M3 (writer con
+        ámbito estampado, Invariante 2), M4 (divergencias locales del lore,
+        local_override_of) y M5a (selector de partida y aislamiento en el
+        visor) mergeados. M1 (mapeo de ingesta Nextcloud→ámbito) BLOQUEADO a
+        que Nextcloud vuelva a estar disponible. M5b y M6 pendientes. Ver
+        docs/v3/49-multipartida-diseno.md.
 
-# Recuento de la suite en la release de producción 47bc314.
-# Preferir "suite verde" en prosa; este número es histórico y orientativo.
-tests_collected: 912
-ci_status: "green"
+  gated_or_pending:
+    - "Lote 4 V3 (política común de condicionales): pendiente de decisión del operador"
+    - "Lote 5 V3 (umbrales de creación de entidades / LINK_EXISTING): pendiente de decisión del operador"
+    - "Activación de las políticas graduadas de negación/temporalidad: flags OFF hasta medición en sombra"
+    - "M1 multi-partida: bloqueado por disponibilidad de Nextcloud"
+    - "M5b y M6 multi-partida: pendientes"
 
-neo4j_nodes: 199
-neo4j_relationships: 140
+  tests:
+    note: >
+      No verificado en esta pasada de forma independiente (no se ejecutó la
+      suite completa localmente ni se leyó un artefacto de conteo reciente).
+      El único indicador verificado del repo es que la última ejecución de
+      CI en main (fb4a6fe, PR #144) terminó en success. El conteo "912" de
+      abajo, bajo `production`, es el histórico de la release RC5.1 y NO
+      describe el estado de `main`. PENDIENTE DE VERIFICAR: conteo actual de
+      tests en main.
 
-active_admins: 1
-jobs: 1
-ingestions_applied: 0
+production:
+  # Lo que está desplegado de verdad en VM105. Este bloque NO se ha
+  # verificado por SSH en esta pasada (el encargo prohíbe conectar al
+  # servidor); se conserva el último estado verificado conocido y se marca
+  # su antigüedad explícitamente.
+  release: "0.3.0-rc5.1"
+  production_tag: "deploy-v0.3.0-rc5.1"
+  commit: "47bc3147fdab6b642ab72ffe0cf84133e3a57b2e"
+  production_release_id: "deploy--20260718-133409"
+  active_engine: "pipeline RPG v1/v2 (legacy respecto a main)"
+  v3_deployed: false
 
-health_timer: "active_hourly"          # OnCalendar=hourly, Persistent, RandomizedDelaySec=5m
-viewer_status: "active_running"        # s9-knowledge-viewer.service
+  last_verified_at: "2026-07-18T13:45:00Z"
+  verification_note: >
+    PENDIENTE DE VERIFICAR EN EL SERVIDOR: esta pasada no se conectó a
+    VM105 (fuera del alcance del encargo de documentación). Todos los
+    valores de este bloque son el último estado confirmado por SSH,
+    anterior al merge de V3 y a los programas de Puerta 4/6 en main; no se
+    han re-verificado ni se han refrescado con datos nuevos. Confirmar antes
+    de tomar decisiones operativas sobre ellos.
 
-last_verified_at: "2026-07-18T13:45:00Z"
+  # Recuento de la suite en la release de producción 47bc314 (histórico,
+  # no verificado de nuevo en esta pasada).
+  tests_collected: 912
+  ci_status_at_deploy: "green"
 
-# --- contexto de despliegue (no versionar secretos) ---
-deployment:
-  active_release: "deploy--20260718-133409"
-  previous_release: "91bdc51-20260717-211720"    # RC4, conservada para rollback
-  deploy_tools: "/opt/s9-knowledge/deploy-tools/47bc314 (current -> 47bc314)"
-  auth: "login propio del visor; Basic Auth retirada del proxy"
-  auth_db: "externa a la release (/var/lib/s9-knowledge/auth/auth.db)"
-  jobs_db: "externa a la release (/var/lib/s9-knowledge/jobs/jobs.db)"
-  password_managed_by_deploy: false
-  real_ingest_flag: "S9K_ALLOW_REAL_INGEST unset (off)"
+  database_counts:
+    neo4j_nodes: 199
+    neo4j_relationships: 140
+    verified: false  # no re-verificado por SSH en esta pasada; heredado del último estado conocido
 
-# Releases candidatas conservadas para auditoria (no activas):
-release_candidates:
-  rc4: {tag: "deploy-v0.3.0-rc4", commit: "91bdc5148308d20c4cb76b44280dd7e1aafeb9e3", state: "previous, rollback target"}
-  rc5: {tag: "deploy-v0.3.0-rc5", commit: "bcc3a59c3b0097a5ea24f9b76507760f412268d6", state: "candidata NO desplegada (cutover abortado)"}
-  rc5_1: {tag: "deploy-v0.3.0-rc5.1", commit: "47bc3147fdab6b642ab72ffe0cf84133e3a57b2e", state: "ACTIVA en produccion"}
+  active_admins: 1
+  jobs: 1
+  applied_ingestions: 0
+
+  health_timer: "active_hourly"          # OnCalendar=hourly, Persistent, RandomizedDelaySec=5m (último estado conocido)
+  viewer_status: "active_running"        # s9-knowledge-viewer.service (último estado conocido)
+
+  deployment:
+    active_release: "deploy--20260718-133409"
+    previous_release: "91bdc51-20260717-211720"    # RC4, conservada para rollback
+    deploy_tools: "/opt/s9-knowledge/deploy-tools/47bc314 (current -> 47bc314)"
+    auth: "login propio del visor; Basic Auth retirada del proxy"
+    auth_db: "externa a la release (auth.db fuera del árbol de despliegue)"
+    jobs_db: "externa a la release (jobs.db fuera del árbol de despliegue)"
+    password_managed_by_deploy: false
+    real_ingest_flag: "S9K_ALLOW_REAL_INGEST unset (off), último estado conocido"
+
+  release_candidates:
+    rc4: {tag: "deploy-v0.3.0-rc4", commit: "91bdc5148308d20c4cb76b44280dd7e1aafeb9e3", state: "previous, rollback target"}
+    rc5: {tag: "deploy-v0.3.0-rc5", commit: "bcc3a59c3b0097a5ea24f9b76507760f412268d6", state: "candidata NO desplegada (cutover abortado)"}
+    rc5_1: {tag: "deploy-v0.3.0-rc5.1", commit: "47bc3147fdab6b642ab72ffe0cf84133e3a57b2e", state: "ACTIVA en produccion (último estado verificado, 2026-07-18)"}
+
+next_release:
+  # El candidato para reemplazar RC5.1 y qué lo bloquea todavía.
+  candidate: "knowledge_v3 (main)"
+  candidate_commit: "fb4a6fe6fb95d647dc8622ce0bac599ee7e9d246"
+  blockers:
+    - "Sin release/tag de despliegue V3 cortado todavía (no existe deploy-v3-* en el repo)"
+    - "Lotes 4 y 5 de V3 pendientes de decisión de producto del operador"
+    - "Políticas graduadas de negación/temporalidad siguen OFF, gateadas a medición en sombra"
+    - "Puerta 4: recall de autoaprobación SIMPLE 0.10 por debajo del umbral 0.70 (veredicto PARCIAL, no NO_CONFORME por invariantes de precisión intactos)"
+    - "Reducción de revisión humana vía acuerdo determinista∧NVIDIA gateada al propio despliegue de V3 y a la primera ingesta autorizada (dependencia circular reconocida: el piloto necesita V3 desplegada)"
+    - "Primera ingesta real sigue sin ejecutarse en ninguna línea (bloqueada por doble guard, decisión deliberada)"
