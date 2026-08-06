@@ -1,0 +1,18 @@
+; PROPUESTA — NO INSTALADA. Ver README.md de este directorio.
+
+[Unit]
+Description=S9 Knowledge — disparo diario de la copia de seguridad local
+Documentation=file:///opt/s9-knowledge/current/docs/52-backup-manual-checkpoint.md
+
+[Timer]
+; Diario de madrugada, fuera de cualquier ventana de uso.
+OnCalendar=*-*-* 03:30:00
+; Si la maquina estuvo apagada a esa hora, ejecutar al arrancar. Sin esto, un
+; corte de luz nocturno se traduce en un dia entero sin copia y en silencio.
+Persistent=true
+; Evita que varias maquinas (o varios timers) golpeen a la vez.
+RandomizedDelaySec=10m
+Unit=s9-knowledge-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,41 @@
+; PROPUESTA — NO INSTALADA. Ver README.md de este directorio.
+; Copia local consistente de S9 Knowledge. No depende de almacenamiento
+; externo: primero asegura la copia local, la replicacion es otra etapa.
+
+[Unit]
+Description=S9 Knowledge — copia de seguridad local (diaria)
+Documentation=file:///opt/s9-knowledge/current/docs/52-backup-manual-checkpoint.md
+; No arrastra el servicio del visor: el backup NUNCA para ni reinicia nada.
+After=network-online.target docker.service
+Wants=network-online.target
+; Si el backup falla, avisar. Un backup que falla en silencio es peor que no
+; tenerlo, porque el chequeo de antiguedad tardara horas en delatarlo.
+OnFailure=s9-knowledge-backup-failed.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/s9-knowledge/current/deploy/scripts/backup.sh
+; El script hace su propio lock; este limite evita que una ejecucion colgada
+; bloquee la siguiente indefinidamente.
+TimeoutStartSec=1800
+Nice=10
+IOSchedulingClass=idle
+
+; Endurecimiento: el backup solo necesita LEER las bases y ESCRIBIR en su
+; destino. Nada mas.
+User=root
+ProtectSystem=strict
+ReadWritePaths=/var/lib/s9-knowledge/backups
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+
+; Los logs no deben contener secretos: el script redacta antes de imprimir.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
