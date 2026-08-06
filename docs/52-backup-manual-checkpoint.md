@@ -69,6 +69,51 @@ No basta con que el comando termine en cero. Se comprobó:
 | Ficheros vacíos | Solo `constraints.txt`, y se verificó que la base realmente no tiene restricciones |
 | Secretos en el backup | Ninguno: búsqueda de patrones de contraseña, token y clave sin resultados |
 
+## Dump físico — `manual-dump-20260806-190625`
+
+Segundo `BACKUP_ID`, **enlazado** al lógico anterior en vez de modificar su
+manifiesto ya verificado. Obtenido en una ventana de parada autorizada.
+
+| Campo | Valor |
+|---|---|
+| Método | `neo4j-admin database dump`, binario de la misma versión desplegada |
+| Bases volcadas | `neo4j` (36 ficheros, 1,700 MiB) y `system` (41 ficheros, 1,150 MiB) |
+| Tamaño | `neo4j.dump` 134 448 B, `system.dump` 11 202 B |
+| Herramienta | 5.26.0 |
+| Ventana | 19:06:52 → 19:08:56 UTC (~2 min de los 10 autorizados) |
+| Código de salida | 0 en ambos volcados |
+
+Secuencia: preflight (sin trabajos en cola, sin worker activo, ambas bases
+`online`) → parada limpia → confirmación de detención (`false exited`) → volcado
+→ **arranque inmediato** → validación.
+
+### Validación tras reanudar
+
+| Comprobación | Resultado |
+|---|---|
+| Contenedor | `healthy` |
+| Nodos / relaciones | **199 / 140**, idénticos a antes de la parada |
+| Bases | `neo4j` y `system` `online` |
+| Visor | `active`, PID 740, `NRestarts=0` (no se reinició) |
+| Errores nuevos en registros | Ninguno |
+| Healthcheck | **Recuperado**: `Result=success` con código 1 (degradado por Ollama y Nextcloud no configurados, que la unidad acepta), frente al código 2 anterior |
+
+### Restauración de ensayo del dump
+
+En contenedor aislado con nombre propio, datos propios y **sin publicar
+puertos**; ninguna conexión a producción. Resultado: **199 nodos, 140
+relaciones**, con etiquetas, tipos de relación, propiedades e índices correctos.
+El contenedor se eliminó y el backup quedó intacto.
+
+> **Detalle imprescindible del procedimiento de restauración.** El primer
+> intento restauró una base **vacía**. Causa: al publicar, el backup recibe
+> `chmod -R go-rwx`, y el usuario `neo4j` del contenedor (uid 7474) no puede
+> leer los `.dump`; `neo4j-admin` respondía `Failed to list archive files` y aun
+> así el contenedor arrancaba —vacío— sin error visible. **Quien restaure debe
+> copiar antes los `.dump` a un área legible por ese usuario.** Este fallo es
+> silencioso: sin comprobar los conteos, una restauración vacía parece
+> correcta.
+
 ## Limitaciones — leer antes de confiar en esta copia
 
 1. **BACKUP LOCAL SIN COPIA OFF-HOST.** La máquina tiene un único disco
@@ -76,11 +121,11 @@ No basta con que el comando termine en cero. Se comprobó:
    frente a error lógico, borrado accidental o migración fallida; **no** protege
    frente a pérdida del host o del almacenamiento. La replicación fuera del host
    es una etapa posterior e independiente.
-2. **Neo4j es una exportación lógica, no un dump físico.** Restaurarla implica
-   recrear nodos y relaciones, no reponer el almacén. Es suficiente para este
-   volumen (199/140) pero no equivale a una restauración binaria. Un dump físico
-   consistente exige detener la base: requiere autorización específica para esa
-   ventana de parada.
+2. ~~Neo4j es solo exportación lógica.~~ **Resuelto**: existe además el dump
+   físico `manual-dump-20260806-190625`, con restauración verificada. Se
+   conservan **ambos**: la exportación lógica es legible e inspeccionable sin
+   herramientas; el dump físico restaura con fidelidad y no depende de que el
+   procedimiento de reconstrucción recuerde metadatos internos.
 3. **RPO estimado**: el estado capturado es el del momento de la copia. Sin
    automatización, cualquier cambio posterior queda fuera. Antes de esta copia
    el RPO real era de ~20 días.
@@ -98,7 +143,10 @@ como «no configurado», que es lo esperado porque no se usan.
 
 ## Pendiente
 
+- **P0 restante: replicar al menos una copia verificada a otro host o soporte
+  físico independiente.** Mientras no exista, todo lo anterior sigue viviendo en
+  el mismo disco que los datos.
 - Automatización: propuesta en `deploy/propuestas/backup-automatico/`, **sin
-  activar**. Su activación está gateada a la revisión de esta copia manual.
-- Replicación fuera del host.
-- Dump físico de Neo4j, si se autoriza una ventana de parada.
+  activar**. Su puerta exige, además de lo ya cumplido, ensayar en entorno
+  aislado los fallos destructivos (espacio insuficiente, fallo parcial, lock,
+  publicación interrumpida) y una segunda ejecución idempotente.
