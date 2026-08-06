@@ -21,6 +21,7 @@ from app.auth.config import get_auth_settings
 from app.auth.csrf import validate_csrf
 from app.auth.dependencies import require_authenticated_user
 from app.auth.models import User
+from app.config import get_settings
 
 router = APIRouter()
 
@@ -60,10 +61,16 @@ async def select_partida(
     # partida llamada "". Semántica explícita, igual que en M4.
     chosen = partida_id.strip() or None
     db_path = _get_db_path()
+    workspace = get_settings().S9K_DEFAULT_WORKSPACE
     with auth_db.get_conn(db_path) as conn:
         if chosen is not None:
             if not user.is_admin():
-                allowed = auth_db.user_allowed_partidas(conn, user.id)
+                # Fail-closed: sin workspace efectivo determinable, no se concede acceso.
+                allowed = (
+                    auth_db.user_allowed_partidas(conn, user.id, workspace=workspace)
+                    if workspace and isinstance(workspace, str) and workspace.strip()
+                    else []
+                )
                 if chosen not in allowed:
                     raise HTTPException(
                         status_code=403,

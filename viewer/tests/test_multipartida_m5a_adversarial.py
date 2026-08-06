@@ -745,6 +745,76 @@ def test_csrf_token_no_queda_vacio_para_usuario_autenticado_en_logout(auth_env):
     assert r.status_code in (302, 303), f"logout con csrf del layout falló: {r.status_code}"
 
 
+# ===========================================================================
+# P0 -- el acceso concedido en OTRO workspace no cruza al workspace efectivo
+# ===========================================================================
+
+OTRO_WS = "juego:otro"
+
+
+def test_select_partida_no_cruza_desde_otro_workspace(auth_env):
+    """Un grant de PARTIDA_A hecho en OTRO_WS no debe permitir seleccionarla
+    en el workspace efectivo de la petición (WS)."""
+    user = _make_user(auth_env, "cruce_select")
+    _grant(auth_env, user, PARTIDA_A, workspace=OTRO_WS)
+    c = _logged_client(auth_env, user)
+
+    csrf = _csrf_from(c)
+    r = c.post("/partida/select",
+               data={"partida_id": PARTIDA_A, "next": "/entities", "csrf_token": csrf})
+    assert r.status_code == 403, r.text[:300]
+
+    with auth_db_module().get_conn(auth_env) as conn:
+        row = conn.execute("SELECT active_partida FROM sessions WHERE user_id = ?",
+                           (user.id,)).fetchone()
+    assert row["active_partida"] is None
+    assert _entity_ids(c) == {"lore_dios_sol", "legacy_material_sin_partida"}
+
+
+def auth_db_module():
+    from app.auth import db as auth_db
+    return auth_db
+
+
+def test_reverificacion_no_cruza_desde_otro_workspace(auth_env):
+    """Aunque la sesión llegase a tener ``active_partida`` fijado a una partida
+    concedida solo en otro workspace (p.ej. dato heredado o manipulado),
+    ``_still_has_access`` la re-verifica contra el workspace efectivo en cada
+    petición y degrada a capa juego, sin exponer nodos de esa partida."""
+    from app.auth import db as auth_db
+
+    user = _make_user(auth_env, "cruce_reverificacion")
+    _grant(auth_env, user, PARTIDA_A, workspace=OTRO_WS)
+    c = _logged_client(auth_env, user)
+
+    # Fijar active_partida directamente en la sesión, sin pasar por /partida/select.
+    with auth_db.get_conn(auth_env) as conn:
+        row = conn.execute(
+            "SELECT id FROM sessions WHERE user_id = ?", (user.id,)
+        ).fetchone()
+        auth_db.set_session_active_partida(conn, row["id"], PARTIDA_A)
+
+    ids = _entity_ids(c)
+    assert "partida1_pc_arden" not in ids, (
+        "fuga: acceso concedido en otro workspace visible en el workspace efectivo")
+    assert ids == {"lore_dios_sol", "legacy_material_sin_partida"}
+
+    with auth_db.get_conn(auth_env) as conn:
+        row = conn.execute("SELECT active_partida FROM sessions WHERE user_id = ?",
+                           (user.id,)).fetchone()
+    assert row["active_partida"] is None, "la degradación debe persistir en la sesión"
+
+
+def test_select_partida_si_funciona_cuando_el_grant_es_del_workspace_correcto(auth_env):
+    """Control positivo: el mismo grant, hecho en el workspace efectivo, sí
+    concede acceso -- la corrección no rompe el caso legítimo."""
+    user = _make_user(auth_env, "grant_correcto")
+    _grant(auth_env, user, PARTIDA_A, workspace=WS)
+    c = _logged_client(auth_env, user)
+    _select(c, PARTIDA_A)
+    assert "partida1_pc_arden" in _entity_ids(c)
+
+
 def test_csrf_token_vacio_para_anonimo_no_permite_bypass(auth_env):
     """Para un anónimo el token es "": el selector exige sesión autenticada
     antes de llegar a la comprobación CSRF, así que un token vacío no abre
