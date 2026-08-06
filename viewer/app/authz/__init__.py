@@ -5,6 +5,8 @@
                          (listados, conteos, búsquedas, acceso por ID, relaciones).
 - ``scope``          : ámbito (workspace+partida) para material que no viene del
                        GraphProvider (revisión v1/V3, cola de jobs).
+- ``visibility_contract``: M5b-0, frontera única entre el contrato canónico
+                       `knowledge-visibility/v1` (fuera de `app/`) y el motor.
 - ``simulation``       : modo admin "ver como personaje" (solo lectura, auditado).
 - ``dependencies``     : dependencias FastAPI (contexto + provider filtrado).
 
@@ -25,6 +27,9 @@ _LAZY = {
     "build_viewer_context": "app.authz.context",
     "PolicyFilteredProvider": "app.authz.filtered_provider",
     "VisibilityScope": "app.authz.scope",
+    # M5b-0: frontera unica entre el contrato `knowledge-visibility/v1` y el
+    # motor de politica ya probado (docs/v3/51).
+    "V3VisibilityPolicyAdapter": "app.authz.visibility_contract",
 }
 
 __all__ = list(_LAZY)

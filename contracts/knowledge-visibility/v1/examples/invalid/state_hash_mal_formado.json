@@ -1,0 +1,12 @@
+{
+  "assertion_id": "assertion.oni_combate_001",
+  "claim_id": "claim.oni_combate_001",
+  "contract_id": "knowledge-visibility/v1",
+  "contract_version": "1.0.0",
+  "known_by": [
+    "personaje.bayushi_hisao"
+  ],
+  "plan_id": "plan.oni_combate_001",
+  "state_hash": "no-es-un-hash",
+  "visibility": "secret"
+}

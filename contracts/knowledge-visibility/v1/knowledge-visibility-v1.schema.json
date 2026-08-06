@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s9-knowledge/contracts/knowledge-visibility/v1/knowledge-visibility-v1.schema.json",
+  "title": "knowledge-visibility/v1",
+  "description": "M5b-0 — vocabulario CANONICO, unico y persistido de visibilidad de conocimiento por personaje (niebla de guerra). Extraido del motor YA implementado y probado en viewer/app/policies/{models,engine}.py: este contrato NO inventa semantica nueva, solo la nombra y la versiona para que la compartan data-engine, contracts, writer, visor y tests sin arrastrar dependencias del visor. Se DESCARTA explicitamente cualquier vocabulario previo tipo 'known_by_scope/visibility_scope/visibility_subjects' (docs/v3/50, PROPUESTA, sin mergear): ese diseno queda sin implementar y sin autoridad. Contrato ADYACENTE a la familia v3-internal-v1: no modifica ningun schema congelado de contracts/knowledge-v3/v1/, se enlaza a ella por claim_id/assertion_id/plan_id/state_hash (ver README.md, seccion de correspondencia).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_id", "contract_version", "visibility", "known_by"],
+  "properties": {
+    "contract_id": { "const": "knowledge-visibility/v1" },
+    "contract_version": {
+      "type": "string",
+      "description": "Version semantica dentro de la familia knowledge-visibility. Un consumidor DEBE rechazar una version mayor desconocida.",
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
+    },
+
+    "visibility": {
+      "description": "Nivel de visibilidad del hecho, PERSISTIDO junto al conocimiento (no es contexto de peticion). Enum cerrado: valor desconocido, ausente o fuera de este conjunto se trata como no visible (fail-closed), nunca como 'player' por defecto. 'deny' es un estado terminal ABSOLUTO: ni admin, ni narrador, ni can_view_secret lo saltan; no existe en viewer/app/policies/engine.py hoy (el motor solo conoce player|narrator|secret|reference) por lo que el adaptador V3VisibilityPolicyAdapter debe interceptarlo ANTES de invocar al motor, sin excepcion.",
+      "type": "string",
+      "enum": ["player", "narrator", "secret", "reference", "deny"]
+    },
+
+    "known_by": {
+      "description": "Lista CERRADA de character_id que conocen este hecho explicitamente (equivalente persistido de node['known_by'] que ya lee ViewerContext.knows() en viewer/app/policies/models.py). Lista vacia es valida y significa 'ningun personaje lo conoce por conocimiento directo' (el hecho puede seguir siendo visible por otras vias: visibility=player sin necesidad de known_by, por ejemplo). NO confundir con party_membership, active_character, max_visible_session ni can_view_secret: esos son CONTEXTO DE PETICION, nunca se persisten aqui.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/character_id" },
+      "uniqueItems": true
+    },
+
+    "claim_id": {
+      "description": "Enlace opcional a claim-proposal/v3-internal-v1.claim_id (contracts/knowledge-v3/v1/claim-proposal-v3.schema.json). Este contrato es ADYACENTE: no reutiliza el schema V3, solo referencia su identificador estable.",
+      "$ref": "#/$defs/stable_id_or_null"
+    },
+    "assertion_id": {
+      "description": "Enlace opcional a fact-assertion/v3-internal-v1.assertion_id (contracts/knowledge-v3/v1/fact-assertion-v3.schema.json).",
+      "$ref": "#/$defs/stable_id_or_null"
+    },
+    "plan_id": {
+      "description": "Enlace opcional a graph-mutation-plan/v3-internal-v1.plan_id (contracts/knowledge-v3/v1/graph-mutation-plan-v3.schema.json).",
+      "$ref": "#/$defs/stable_id_or_null"
+    },
+    "state_hash": {
+      "description": "Enlace opcional al hash de estado del plan V3 sellado que produjo/confirmo esta declaracion de visibilidad. CORRESPONDENCIA DOCUMENTADA (README.md): no existe un campo llamado literalmente 'state_hash' en la familia v3-internal-v1 hoy; el campo mas proximo en significado es graph-mutation-plan/v3-internal-v1.decision_hash (contracts/knowledge-v3/v1/validator.py, DECISION_HASH_FIELDS) -- el hash que verifica el CUERPO DE DECISION del plan sellado, no plan_hash (que cubre el documento entero incluyendo metadatos no decisorios). Se declara aqui bajo el nombre pedido por el encargo (state_hash) precisamente para no inventar un cuarto nombre; un consumidor que enlace este campo debe comparar contra decision_hash del plan V3 referenciado.",
+      "$ref": "#/$defs/hash_or_null"
+    },
+
+    "metadata": {
+      "description": "Bolsa de auditoria, NUNCA consumida por el adaptador ni por el motor para decidir visibilidad (mismo criterio que graph-mutation-plan/v3-internal-v1: los campos fuera de la decision son informativos).",
+      "type": "object"
+    }
+  },
+
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "description": "Identificador estable. Mismo patron que contracts/knowledge-v3/v1/_common-v3.schema.json#/$defs/stable_id, para que un character_id y un stable_id V3 sean sintacticamente intercambiables.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "stable_id_or_null": {
+      "anyOf": [
+        { "$ref": "#/$defs/stable_id" },
+        { "type": "null" }
+      ]
+    },
+    "hash_or_null": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        { "type": "null" }
+      ]
+    },
+    "character_id": {
+      "type": "string",
+      "description": "ID estable de personaje, mismo espacio/patron que stable_id (y que user_character_link.character_id, docs/v3/50 §2.3, cuando ese almacen exista). Sin prefijo: un character_id NUNCA es intercambiable por accidente con 'faction:<id>' ni 'partida:<id>' porque este contrato no admite esos prefijos en known_by (M5b-0 no modela facciones; ver README.md, huecos dejados abiertos a proposito).",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$",
+      "minLength": 1,
+      "maxLength": 200
+    }
+  }
+}
