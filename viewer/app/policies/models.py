@@ -34,6 +34,12 @@ class ViewerContext:
 
     role: str = "anonymous"  # admin | reviewer | viewer | anonymous
     allowed_workspaces: frozenset[str] = field(default_factory=frozenset)
+    # M5a — aislamiento entre partidas (docs/v3/49-multipartida-diseno.md §2.6).
+    # Partida activa de la sesión y conjunto de partidas que esa partida activa
+    # autoriza a ver (en la práctica, un único elemento: la propia partida
+    # activa, o vacío si no hay ninguna seleccionada -> solo capa juego).
+    active_partida: Optional[str] = None
+    allowed_partida_ids: frozenset[str] = field(default_factory=frozenset)
     active_character: Optional[str] = None
     max_visible_session: Optional[int] = None  # None => sin tope de sesión
     can_view_secret: bool = False

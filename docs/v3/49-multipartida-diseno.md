@@ -1518,3 +1518,284 @@ anunciada en dry-run).
 raíz del worktree, primer plano): **6537 passed, 53 skipped, 4 xfailed,
 0 failed** (11 tests nuevos netos sobre los 6526 de la ronda anterior;
 5 invertidos en el sitio).
+
+## 13. M5a implementado
+
+Rama `feat/multipartida-m5a-viewer` (worktree aislado), base `main` 6148a1c
+(M0+M2+M3+M4). Objetivo: selector de partida en el visor + aislamiento entre
+partidas en TODA consulta del visor, sin implementar el fog of war por
+conocimiento de personaje (M5b, fuera de alcance, no imposibilitado).
+
+### Decisión: modelo usuario -> partidas permitidas
+
+El diseño (§2.6) dejaba abierto extender `data-engine/app/access/
+access_store.py` (`user_character_link`) con `partida_id`, según lo previsto
+en la revisión del operador. **Se decidió NO usarlo y crear en su lugar una
+tabla nueva en la propia base de auth del visor** (`viewer/app/auth/db.py`,
+`auth.db`, migración a `SCHEMA_VERSION = 2`): `partida_access(id, user_id,
+workspace, partida_id, granted_by, granted_at)`, `UNIQUE(user_id, workspace,
+partida_id)`.
+
+Motivo, verificado en el código antes de decidir (no supuesto): el visor
+**ya tiene su propia fuente de verdad de autorización** — `auth.db` con
+`users`/`sessions`/`audit_events` — y **nunca ha leído ni escrito**
+`access_store.py`. Son dos procesos distintos (viewer FastAPI vs. CLI/
+data-engine), dos bases de datos distintas, dos ciclos de vida distintos, sin
+ningún acoplamiento hoy. Añadir aquí `partida_access` sigue exactamente el
+patrón de las tablas ya existentes (misma base, mismas convenciones de
+migración con `ALTER TABLE ... ADD COLUMN` guardado con `try/except` sobre
+`sqlite3.OperationalError` para idempotencia, mismo `auth.audit` para
+trazabilidad) y **no introduce una segunda fuente de verdad**: sigue
+habiendo una sola tabla que decide qué puede seleccionar un usuario en el
+visor (`partida_access`), igual que sigue habiendo una sola tabla que decide
+su rol (`users`). Conectar el visor a `access_store.py` habría sido acoplar
+dos procesos que hoy no se conocen, por una pieza (M5b, conocimiento de
+personaje) que este bloque no implementa — se revisará si M5b lo necesita.
+
+Reglas del modelo: asignación exclusivamente por un admin desde
+`/admin/partidas` (sin auto-alta); un usuario puede tener varias partidas
+asignadas (varias filas); mesa **activa** por sesión (`sessions.
+active_partida`, columna nueva) — un usuario con dos partidas asignadas ve,
+en cada momento, solo una (más la capa juego), nunca las dos a la vez; sin
+ninguna asignación, o sin partida activa seleccionada, ve únicamente la capa
+juego (`partida_id IS NULL` o ausente).
+
+### Motor de política: una regla más, en el sitio exacto que preveía el diseño
+
+`viewer/app/policies/models.py`: `ViewerContext` gana `active_partida:
+Optional[str]` y `allowed_partida_ids: frozenset[str]` (en la práctica, esta
+última contiene como máximo un elemento — la partida activa — no todas las
+asignadas: seleccionar una partida sustituye la vista, no la añade).
+
+`viewer/app/policies/engine.py`, `VisibilityPolicy.can_view`, regla 2b (entre
+workspace y nivel de visibilidad, exactamente donde decía el diseño):
+
+```python
+pid = node.get("partida_id")
+if pid is not None and pid not in ctx.allowed_partida_ids:
+    return VisibilityDecision(False, "partida_not_allowed")
+```
+
+Con `admin_full` (regla 1) evaluada antes, la barrera de partida —igual que
+la de workspace— **nunca se salta por conocimiento de personaje ni por
+pertenencia a party**: un nodo sin `partida_id` (ausente o `None`) es capa
+juego y siempre visible dentro de su workspace; retrocompatibilidad total con
+el material actual (comprobado por test: `test_material_legado_sin_clave_
+partida_id_visible_igual_que_hoy`).
+
+### Por qué esto cubre TODA ruta sin tocarlas una a una
+
+`viewer/app/authz/filtered_provider.py::PolicyFilteredProvider` ya envuelve
+**todos** los métodos del `GraphProvider` (`list_entities`, `entity`,
+`graph`, `search`, `counts`, `entity_types`, `list_sources`,
+`source_detail`, `quality_metrics`, `relations_for_entity`) con
+`VisibilityPolicy.filter_nodes`/`can_view`/`filter_edges`; y **todas** las
+rutas HTML y de API (`routers/readonly.py`, `routers/reviews_console.py`,
+`routers/v3_review.py`, `api/entities.py`, `api/graph.py`) obtienen su
+provider vía `Depends(get_filtered_provider)`. Añadir la regla 2b al motor
+de política y poblar `active_partida`/`allowed_partida_ids` en
+`app.authz.dependencies.get_visibility_context` (leído de
+`request.state.session.active_partida`) basta para que el aislamiento
+alcance cada ruta existente y cualquier ruta nueva que use el mismo
+provider filtrado — no hay un `if` suelto por endpoint.
+
+**Rutas cubiertas** (todas pasan por `get_filtered_provider`):
+`/entities`, `/entities/{id}`, `/api/entities`, `/api/entities/{id}`,
+`/graph`, `/api/graph`, `/sources`, `/sources/{id}`, `/api/sources`,
+`/api/sources/{id}`, `/quality`, `/api/quality`, `/reviews*` (consola de
+revisión), `/v3/review*`. Verificado con tests de nivel API (JSON), no solo
+plantillas.
+
+**No cubierto / fuera de alcance deliberado**: `jobs`/`status` (no leen del
+`GraphProvider`, no hay material de grafo que aislar); simulación "ver como
+personaje" (`context_for_simulated_character`) no recibe partida activa —
+queda restringida a capa juego durante la simulación, comportamiento
+conservador, no una omisión; el propio fog of war por conocimiento de
+personaje (M5b) sigue sin implementar, como pedía el encargo.
+
+### Selector de partida
+
+Nuevo router `viewer/app/routers/partida.py`: `POST /partida/select`
+(formulario `partida_id` + CSRF), autenticado, escribe `sessions.
+active_partida` (`""` o ausente = limpiar -> volver a capa juego). Un
+usuario no-admin solo puede seleccionar una partida de las que tiene
+asignadas (`auth_db.user_allowed_partidas`); intentarlo con otra -> 403,
+auditado igual que el resto de acciones de auth
+(`audit.PARTIDA_SELECTED`).
+
+UI: dropdown en `base.html` (nav superior), poblado desde
+`request.state.user_partidas` — calculado una vez por petición en
+`AuthMiddleware.dispatch` (mismo punto donde ya se resolvían `user`/
+`session`), para no tener que acordarse de pasarlo en el contexto de cada
+plantilla de cada router. Al elegir, el `<select>` se auto-envía
+(`onchange="this.form.submit()"`, con `<noscript>` de respaldo).
+
+Efecto colateral corregido: el token CSRF del formulario de logout y del
+nuevo selector dependían de que cada ruta pasara `csrf_token` explícitamente
+al contexto de plantilla — cierto en `admin`/`reviews_console`/`v3_review`,
+pero **no** en `readonly.py` (`/entities`, `/sources`, `/quality`), donde ya
+era un hueco preexistente (logout roto en esas páginas). Se añadió
+`request.state.csrf_token`, calculado una vez en el middleware igual que
+`csrf_raw`, y `base.html` usa `csrf_token | default(request.state.csrf_token,
+true)`: la variable de contexto explícita gana si existe, si no cae al valor
+del middleware. Corrige el hueco preexistente de logout como efecto
+colateral positivo, no como objetivo del bloque.
+
+### Panel admin
+
+`GET/POST /admin/partidas` (`viewer/app/routers/admin.py`, plantilla nueva
+`auth/admin/partidas.html`): listar todas las asignaciones, conceder
+(usuario + workspace + partida_id) y revocar, con auditoría
+(`audit.PARTIDA_ACCESS_GRANTED`/`PARTIDA_ACCESS_REVOKED`). Enlazado desde
+`/admin/users` y desde la nav de admin.
+
+### Tests
+
+`viewer/tests/test_multipartida_isolation.py` (motor puro +
+`PolicyFilteredProvider` sobre `viewer/tests/fixtures/
+multipartida_graph.json`, fixture nueva con 2 partidas + capa juego +
+material "legado" sin la clave `partida_id` en absoluto): capa juego visible
+sin partida activa; partida ajena oculta; partida propia visible con ella
+activa; nunca cruce entre `partida:uno` y `partida:dos`; `admin_full` salta
+la barrera; conocimiento de personaje NO la salta; listado/conteo/grafo/
+acceso-por-id/búsqueda todos filtran igual.
+
+`viewer/tests/test_multipartida_e2e.py` (HTTP real: login, cookie de sesión,
+DB de auth real, sin overrides de dependencia): usuario sin asignación ve
+solo capa juego; selector cambia la vista y aísla partidas de verdad a
+través de `/api/entities`; seleccionar una partida no asignada -> 403 y la
+vista no cambia; admin gestiona asignaciones (conceder/revocar) con
+auditoría verificada en `audit_events`; no-admin no accede a
+`/admin/partidas` (403); admin ve ambas partidas a la vez sin selector
+(bypass de `admin_full`, coherente con el resto del programa).
+
+Ninguna suite existente del viewer se movió. Recuento del viewer solo:
+446 passed, 1 skipped.
+
+**Recuento exacto de suite completa** (`python3 -m pytest -p no:randomly -q`
+desde la raíz, primer plano): **6558 passed, 53 skipped, 4 xfailed,
+0 failed** (21 tests nuevos netos sobre los 6537 anteriores).
+
+### Decisiones discutibles
+
+1. **`allowed_partida_ids` como conjunto de a lo sumo un elemento** (la
+   partida activa), no todas las asignadas al usuario. Alternativa
+   descartada: mostrar la unión de todas sus partidas asignadas a la vez.
+   Se eligió la vista de una sola partida activa porque es lo que pide el
+   encargo ("cambia la partida activa de la sesión") y porque mezclar dos
+   partidas en una misma vista sin fog of war (M5b) haría más fácil
+   confundir origen del material — decisión reversible si un caso de uso
+   real pide ver varias a la vez.
+2. **Tabla propia en `auth.db` en vez de extender `access_store.py`**,
+   pese a que el diseño (§2.6) preveía esto último como ya "resuelto por el
+   operador". Documentado arriba con el razonamiento completo; si M5b
+   necesita después leer `access_store.py` (para `user_character_link`/
+   `user_workspace_permission`, que sí son necesarios para el conocimiento
+   de personaje), esa integración se revisará entonces — no se adelantó
+   aquí porque M5a no la necesita y el diseño original identifica que ni
+   siquiera el grafo V3 escribe hoy las propiedades que esa pieza
+   consumiría (§2.7).
+3. **Admin no está sujeto a `allowed_partida_ids`** (bypass total vía
+   `admin_full`, igual que ya ocurre con workspace/secret/narrator/future):
+   un admin ve las dos partidas simultáneamente sin selector. Coherente con
+   el resto del motor de política, pero significa que el panel admin no
+   sirve hoy para que un narrador "vea como" una partida concreta —
+   eso ya existe como función separada (`context_for_simulated_character`,
+   "ver como personaje") y no se ha conectado a partida activa porque es
+   una simulación de M5b (personaje), no de M5a (partida).
+
+### 13.1 Rework de seguridad de M5a (ronda adversarial)
+
+La suite adversarial de M5a encontró tres huecos P0 en superficies que **no
+pasan por `PolicyFilteredProvider`** y en el ciclo de vida del acceso. Los tres
+están corregidos; la suite adversarial verifica ahora el comportamiento
+corregido (no hay tests rojos ni tests que documenten un agujero vigente).
+
+**Mecanismo central nuevo: `viewer/app/authz/scope.py` (`VisibilityScope`).**
+No es un `if` por ruta: es el punto único donde el material que no viene del
+`GraphProvider` (contratos de revisión v1, propuestas y glosario V3, cola de
+jobs) se contrasta con el MISMO motor `VisibilityPolicy.can_view`, normalizando
+cada registro a las dos barreras que nunca se saltan (workspace, partida). Se
+inyecta como dependencia FastAPI (`get_visibility_scope`) igual que
+`get_filtered_provider`, y los servicios lo reciben como parámetro `scope`, de
+modo que el filtro se aplica **en la capa de datos**, antes de listar, contar o
+entregar por id.
+
+1. **P0-1 — `/review-console` (v1) y `/v3/review` no filtraban por partida.**
+   Ambos filtraban solo por `workspace`. Ahora:
+   - `review_console.list_source_summaries/get_source_summary/list_candidates/
+     get_candidate/get_ingest_plan/plan_preview/submit_decision` aceptan
+     `scope` y filtran; una fuente fuera de ámbito responde **404**
+     (indistinguible de inexistente, mismo contrato que
+     `PolicyFilteredProvider.entity`), y `submit_decision` **rechaza** decidir
+     sobre un candidato ajeno aunque se conozcan su id y su hash.
+   - `ReviewService.workspaces/queue/record/undo_last/glossary_candidates`
+     aceptan `scope`. El filtro se aplica antes de calcular `total`/`remaining`
+     (un conteo también delata material invisible). Los candidatos de glosario
+     nacidos de una propuesta de partida quedan **estampados** con su
+     `partida_id` para que hereden el mismo aislamiento.
+   - Los documentos v1 son cerrados (`additionalProperties: false`) salvo
+     `metadata`: ahí es donde declaran su partida, y `VisibilityScope` la busca
+     también en esa ruta.
+
+2. **P0-2 — `/api/jobs` sin filtro de ámbito ni recorte de detalle.** La
+   dependencia `require_api_authenticated_user` ya estaba en el
+   `include_router`, pero la consulta de la cola no aplicaba las barreras de
+   ámbito ni recortaba el detalle operativo por rol. Ahora `/api/jobs`, `/api/jobs/counts`,
+   `/api/jobs/{id}`, `/jobs` y `/jobs/{id}` (HTML) pasan por el ámbito
+   (`jobs_client.scoped_jobs/scoped_job/scoped_counts`): lo que no es visible no
+   se lista, no se cuenta y por id responde `job_not_found`. Además, para quien
+   no es admin el job se **recorta** a campos operativos inocuos (estado,
+   tiempos, contadores) más `has_error`: sin `payload`, sin `result`, sin
+   `error_message`, sin rutas.
+
+   > **Endurecimiento pendiente en la versión desplegada.** Este endurecimiento
+   > no es exclusivo de la rama de multipartida: conviene incorporarlo también a
+   > la línea desplegada. Los detalles operativos y la prioridad quedan fuera de
+   > este documento; el operador los tiene registrados aparte para planificar el
+   > despliegue de V3.
+
+3. **P0-3 — revocar el acceso no invalidaba la sesión activa.**
+   `get_visibility_context` construía `allowed_partida_ids` desde
+   `session.active_partida` sin volver a comprobar `partida_access`. Ahora
+   `authz/dependencies.py` re-verifica **en cada petición** (una consulta a
+   `auth.db`, SQLite local con índice único) y, si el acceso ya no existe,
+   degrada a capa juego y **limpia** `sessions.active_partida`. Fail-closed si
+   la comprobación no se puede hacer. Volver a conceder el acceso no reactiva
+   sola la partida: hay que seleccionarla de nuevo.
+
+4. **P1 — validaciones baratas.** Un admin ya no puede fijar una partida
+   inexistente (`partida_exists`, 400); `partida_id` en blanco tiene semántica
+   explícita y fail-closed en los dos sentidos: un nodo con `partida_id: ""`
+   (dato corrupto: el esquema knowledge-v3 lo rechaza desde M2) **nunca** es
+   visible (`partida_id_blank`), y un `active_partida` en blanco se normaliza a
+   capa juego, nunca a un comodín. Seleccionar la cadena vacía en el selector
+   significa "salir de la partida" y se almacena como `NULL`.
+
+**Recuento exacto de suite completa** (`python3 -m pytest -p no:randomly -q`
+desde la raíz, primer plano): **6585 passed, 53 skipped, 4 xfailed, 0 failed**
+(antes del rework: 6569 passed + 1 failed, el canario en rojo).
+
+### Decisiones discutibles del rework
+
+4. **Los corpus de revisión se filtran por partida, no por workspace.** El
+   campo `workspace` de un documento v1 / de una propuesta V3 es una etiqueta
+   del corpus de laboratorio, no un workspace del visor (hoy
+   `allowed_workspaces` es siempre `{S9K_DEFAULT_WORKSPACE}`). Compararlos
+   habría dejado los dos paneles de revisión en blanco para todo revisor con
+   auth activada, sin ganancia para el aislamiento que M5a persigue. Por eso
+   `VisibilityScope.partida_only()` es lo que usan esos servicios, mientras que
+   la cola de jobs —que sí es material operativo de este despliegue— aplica las
+   dos barreras. Revisable cuando exista un modelo real de "usuario → varios
+   workspaces".
+5. **Re-verificación por petición con una consulta a SQLite.** Se eligió
+   corrección inmediata frente a coste: una lectura indexada por petición sobre
+   una base local. Si algún día el volumen lo pide, la alternativa es una caché
+   con TTL corto o invalidación por evento de revocación — pero eso reintroduce
+   una ventana de exposición, que es justo lo que este P0 corrige.
+6. **Recorte del detalle de jobs por rol, no por partida.** Un revisor con su
+   partida activa ve QUÉ hay en su cola y cómo va, pero no el `payload` ni el
+   `error_message` crudos, porque ambos pueden contener rutas del servidor u
+   otra información de operación. El detalle completo queda para admin.
+   Alternativa descartada: sanear el payload campo a campo (frágil, y falla
+   abierto en cuanto el data-engine añade una clave nueva).

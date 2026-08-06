@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Partidas — Admin S9 Knowledge{% endblock %}
+
+{% block body %}
+<main style="max-width:900px;margin:2rem auto;padding:1rem;">
+  <h2>Asignación de partidas</h2>
+  <p>
+    Concede o revoca a un usuario el acceso a una partida concreta. Un usuario
+    solo puede tener activa (en el visor) una partida a la vez, pero puede
+    tener asignadas varias. Sin asignación, un usuario solo ve la capa juego
+    (lore compartido) — nunca material de una partida ajena.
+  </p>
+
+  {% if errors %}
+    <div class="alert alert-error" role="alert">
+      <ul style="margin:0;padding-left:1.2rem;">
+        {% for err in errors %}
+          <li>{{ err | e }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <h3>Conceder acceso</h3>
+  <form method="post" action="/admin/partidas/grant">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+    <div class="field">
+      <label for="user_id">Usuario</label>
+      <select id="user_id" name="user_id" required>
+        {% for u in users %}
+          <option value="{{ u.id }}">{{ u.username | e }} ({{ u.role | e }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="workspace">Juego (workspace)</label>
+      <input id="workspace" type="text" name="workspace" placeholder="juego:leyenda" required>
+    </div>
+    <div class="field">
+      <label for="partida_id">Partida</label>
+      <input id="partida_id" type="text" name="partida_id" placeholder="partida:mesa1" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Conceder</button>
+  </form>
+
+  <h3 style="margin-top:2rem;">Asignaciones existentes</h3>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Usuario</th>
+        <th>Workspace</th>
+        <th>Partida</th>
+        <th>Concedido por</th>
+        <th>Fecha</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in access %}
+      <tr>
+        <td>
+          {% for u in users %}{% if u.id == a.user_id %}{{ u.username | e }}{% endif %}{% endfor %}
+        </td>
+        <td>{{ a.workspace | e }}</td>
+        <td>{{ a.partida_id | e }}</td>
+        <td>{{ a.granted_by | e if a.granted_by else "—" }}</td>
+        <td>{{ a.granted_at }}</td>
+        <td>
+          <form method="post" action="/admin/partidas/{{ a.id }}/revoke" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+            <button type="submit" class="btn-link">Revocar</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6">No hay asignaciones.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</main>
+{% endblock %}

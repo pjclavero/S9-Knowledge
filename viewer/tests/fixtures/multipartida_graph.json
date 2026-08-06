@@ -1,0 +1,73 @@
+{
+  "_comment": "Fixture SINTETICA para tests de aislamiento entre partidas (M5a, docs/v3/49 §2.6). Dos partidas del mismo juego + capa juego compartida.",
+  "workspace": "juego:lab",
+  "nodes": [
+    {
+      "id": "lore_dios_sol",
+      "label": "El dios sol",
+      "type": "Deity",
+      "workspace": "juego:lab",
+      "visibility": "player",
+      "partida_id": null,
+      "description": "Lore compartido: capa juego, visible desde cualquier partida.",
+      "confidence": 0.9,
+      "review_status": "reviewed",
+      "source_document": "manual_lab"
+    },
+    {
+      "id": "partida1_pc_arden",
+      "label": "Arden",
+      "type": "Character",
+      "workspace": "juego:lab",
+      "visibility": "player",
+      "partida_id": "partida:uno",
+      "description": "Personaje privado de la partida uno.",
+      "confidence": 0.9,
+      "review_status": "reviewed",
+      "source_document": "sesion_p1"
+    },
+    {
+      "id": "partida2_pc_bryn",
+      "label": "Bryn",
+      "type": "Character",
+      "workspace": "juego:lab",
+      "visibility": "player",
+      "partida_id": "partida:dos",
+      "description": "Personaje privado de la partida dos.",
+      "confidence": 0.9,
+      "review_status": "reviewed",
+      "source_document": "sesion_p2"
+    },
+    {
+      "id": "legacy_material_sin_partida",
+      "label": "Material legado",
+      "type": "Item",
+      "workspace": "juego:lab",
+      "visibility": "player",
+      "description": "Nodo pre-M5a: no tiene la clave partida_id en absoluto (no solo null).",
+      "confidence": 0.9,
+      "review_status": "reviewed",
+      "source_document": "legacy"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_p1_interno",
+      "from": "partida1_pc_arden",
+      "to": "lore_dios_sol",
+      "type": "WORSHIPS",
+      "workspace": "juego:lab",
+      "visibility": "player",
+      "partida_id": "partida:uno"
+    },
+    {
+      "id": "edge_p2_interno",
+      "from": "partida2_pc_bryn",
+      "to": "lore_dios_sol",
+      "type": "WORSHIPS",
+      "workspace": "juego:lab",
+      "visibility": "player",
+      "partida_id": "partida:dos"
+    }
+  ]
+}

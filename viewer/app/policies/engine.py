@@ -4,6 +4,11 @@ Reglas (en orden; la primera denegación gana):
 
   1. admin_full            -> visible siempre (bypass total).
   2. workspace             -> el workspace del nodo debe estar en allowed_workspaces.
+  2b. partida (M5a)        -> si el nodo tiene `partida_id`, debe estar en
+                              allowed_partida_ids (la partida activa de la
+                              sesión). Sin `partida_id` = capa juego, visible
+                              siempre dentro del workspace. `partida_id` en
+                              blanco = dato inválido -> nunca visible.
   3. nivel de visibilidad  -> reference exige can_view_reference; secret y narrator
                               (capa GM) exigen can_view_secret.
   4. sesión futura         -> si session_index > max_visible_session y no can_view_future.
@@ -43,6 +48,25 @@ class VisibilityPolicy:
         ws = node.get("workspace")
         if ws is not None and ws not in ctx.allowed_workspaces:
             return VisibilityDecision(False, "workspace_not_allowed")
+
+        # 2b. Aislamiento entre partidas (M5a, docs/v3/49 §2.6). `partida_id`
+        # ausente/None = capa juego (lore compartido): visible para cualquier
+        # partida de ese juego. `partida_id` presente = material privado de esa
+        # partida concreta: solo visible si es la partida activa de la sesión.
+        # Como el aislamiento de workspace, esta barrera NUNCA se salta por
+        # conocimiento de personaje ni por pertenencia a party.
+        pid = node.get("partida_id")
+        if pid is not None:
+            # `partida_id` en blanco ("" o solo espacios) NO es capa juego: el
+            # contrato knowledge-v3 lo rechaza en el esquema (M2), así que aquí
+            # solo puede llegar por dato corrupto. Semántica explícita y
+            # fail-closed: nunca visible para nadie salvo admin_full, y nunca
+            # utilizable como comodín aunque alguien colase "" en
+            # allowed_partida_ids.
+            if isinstance(pid, str) and not pid.strip():
+                return VisibilityDecision(False, "partida_id_blank")
+            if pid not in ctx.allowed_partida_ids:
+                return VisibilityDecision(False, "partida_not_allowed")
 
         knows = ctx.knows(node)
 

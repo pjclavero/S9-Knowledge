@@ -14,6 +14,7 @@ from starlette.responses import JSONResponse, RedirectResponse, Response
 
 from app.auth import db as auth_db
 from app.auth.config import get_auth_settings
+from app.auth.csrf import get_csrf_token_for_session
 from app.auth.sessions import get_valid_session
 
 log = logging.getLogger("s9k.auth.middleware")
@@ -82,6 +83,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
         request.state.user = None
         request.state.session = None
         request.state.csrf_raw = ""
+        request.state.csrf_token = ""
+        # M5a: partida activa de la sesión + partidas asignadas al usuario
+        # (para pintar el selector en la nav sin que cada ruta tenga que
+        # acordarse de pasarlo explícitamente al contexto de plantilla).
+        request.state.active_partida = None
+        request.state.user_partidas = []
 
         if cfg.S9K_AUTH_ENABLED:
             token = request.cookies.get(cfg.S9K_SESSION_COOKIE_NAME)
@@ -99,6 +106,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
                             session, user = result
                             request.state.user = user
                             request.state.session = session
+                            request.state.active_partida = session.active_partida
+                            request.state.user_partidas = auth_db.list_partida_access(
+                                conn, user_id=user.id
+                            )
                             # Token CSRF: derivado del session_hash para no requerir DB
                             csrf_raw = hmac.new(
                                 cfg.S9K_CSRF_SECRET.encode(),
@@ -106,6 +117,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
                                 hashlib.sha256,
                             ).hexdigest()
                             request.state.csrf_raw = csrf_raw
+                            # Token CSRF listo para usar en plantillas que no lo
+                            # pasan explícitamente al contexto (p.ej. el
+                            # selector de partida de base.html, que aparece en
+                            # TODAS las páginas, no solo las que ya calculaban
+                            # su propio csrf_token de ruta).
+                            request.state.csrf_token = get_csrf_token_for_session(
+                                session.id, csrf_raw, secret=cfg.S9K_CSRF_SECRET,
+                            )
                 except Exception as exc:
                     # Fail-closed: ante cualquier fallo de auth (DB, sesión,
                     # migración, cookie) el usuario queda NO autenticado y las
@@ -114,6 +133,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     request.state.user = None
                     request.state.session = None
                     request.state.csrf_raw = ""
+                    request.state.csrf_token = ""
+                    request.state.active_partida = None
+                    request.state.user_partidas = []
                     log.error(
                         "Fallo en el backend de autenticación (%s): acceso tratado "
                         "como anónimo (fail-closed).",

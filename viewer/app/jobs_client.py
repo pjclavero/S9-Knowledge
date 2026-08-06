@@ -104,3 +104,77 @@ def get_counts_by_status(workspace: str | None = None) -> dict[str, int]:
         return {}
     job_store = _load_job_store()
     return job_store.get_counts_by_status(workspace=workspace, db_path=status_info["db_path"])
+
+
+# ---------------------------------------------------------------------------
+# Ámbito visible (M5a): la cola de jobs es material de partida
+# ---------------------------------------------------------------------------
+# Un job declara su `workspace` y, si lo trae, su `partida_id` dentro del
+# payload. Estas lecturas pasan por el MISMO ámbito que el resto del visor
+# (app.authz.scope): un usuario solo ve los jobs de los ámbitos que tiene
+# concedidos, y el detalle operativo (rutas, payload, errores crudos) queda
+# reservado a admin mediante la lista blanca de campos de abajo.
+
+#: Campos que un no-admin puede ver de un job: qué hay en cola y cómo va, sin
+#: rutas del servidor, payloads ni mensajes de error crudos.
+_PUBLIC_JOB_FIELDS = (
+    "job_id", "workspace", "type", "job_type", "source_kind", "status",
+    "created_at", "updated_at", "started_at", "finished_at",
+    "attempts", "max_attempts", "priority", "progress",
+    "session_number", "session_title", "session_date", "campaign_arc",
+    "neo4j_nodes_created", "neo4j_relationships_created",
+    "manual_review_required_count", "error_code",
+)
+
+_SCOPE_LIMIT = 100_000  # ventana amplia: filtrar ANTES de paginar/contar
+
+
+def redact_job(job: dict, scope) -> dict[str, Any]:
+    """Recorta el detalle operativo del job si el ámbito no es de admin."""
+    if scope is None or scope.sees_operational_detail:
+        return job
+    out = {k: job[k] for k in _PUBLIC_JOB_FIELDS if k in job}
+    # Se conserva la SEÑAL de error (útil para el revisor) sin el texto, que
+    # puede contener rutas, comandos o credenciales del servidor.
+    out["has_error"] = bool(job.get("error_message") or job.get("error_code"))
+    return out
+
+
+def scoped_jobs(scope, *, workspace: str | None = None, status: str | None = None,
+                job_type: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+    """Jobs visibles en el ámbito, serializados y recortados. Filtra antes de recortar."""
+    raw = list_jobs(workspace=workspace, status=status, job_type=job_type, limit=_SCOPE_LIMIT)
+    visible = []
+    for job in raw:
+        item = serialize_job(job)
+        if scope is not None and not scope.allows(item):
+            continue
+        visible.append(redact_job(item, scope))
+        if len(visible) >= limit:
+            break
+    return visible
+
+
+def scoped_job(scope, job_id: str) -> dict[str, Any] | None:
+    """Detalle de un job; None si no existe O no es visible (=> 404 indistinguible)."""
+    job = get_job(job_id)
+    if job is None:
+        return None
+    item = serialize_job(job)
+    if scope is not None and not scope.allows(item):
+        return None
+    return redact_job(item, scope)
+
+
+def scoped_counts(scope, workspace: str | None = None) -> dict[str, int]:
+    """Conteos por estado sobre lo VISIBLE: un job ajeno tampoco se cuenta."""
+    if scope is None or scope.ctx.admin_full:
+        return get_counts_by_status(workspace=workspace)
+    counts: dict[str, int] = {}
+    for job in list_jobs(workspace=workspace, limit=_SCOPE_LIMIT):
+        item = serialize_job(job)
+        if not scope.allows(item):
+            continue
+        key = str(item.get("status") or "")
+        counts[key] = counts.get(key, 0) + 1
+    return counts

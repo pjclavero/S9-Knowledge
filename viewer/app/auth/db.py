@@ -12,9 +12,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Generator, Optional
 
-from app.auth.models import AuditEvent, Session, User
+from app.auth.models import AuditEvent, PartidaAccess, Session, User
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _DB_PATH_DEFAULT = "viewer/state/auth.db"
 _local = threading.local()
@@ -116,6 +116,33 @@ _DDL = [
     """,
 ]
 
+# v2 (M5a — multi-partida, docs/v3/49-multipartida-diseno.md §2.6): partida
+# activa por sesión + asignaciones usuario->partida gestionadas por admin.
+# Decisión de diseño (ver docs/v3/49, subsección "M5a implementado"): el
+# visor tiene su PROPIA fuente de verdad de autorización (esta misma base,
+# `auth.db`) — no conoce ni depende de `data-engine/app/access/access_store.py`
+# (proceso, DB y ciclo de vida distintos; el visor jamás lo ha leído). Añadir
+# aquí la asignación usuario->partida, con la misma forma que `users`/
+# `sessions`, evita una segunda fuente de verdad y un acoplamiento nuevo entre
+# procesos que hoy no existe.
+_DDL_V2_ALTER = [
+    "ALTER TABLE sessions ADD COLUMN active_partida TEXT",
+]
+
+_DDL_V2_CREATE = [
+    """
+    CREATE TABLE IF NOT EXISTS partida_access (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        workspace TEXT NOT NULL,
+        partida_id TEXT NOT NULL,
+        granted_by TEXT,
+        granted_at TEXT NOT NULL,
+        UNIQUE(user_id, workspace, partida_id)
+    )
+    """,
+]
+
 
 # ---------------------------------------------------------------------------
 # Migraciones
@@ -150,6 +177,18 @@ def migrate(db_path: Optional[Path] = None) -> None:
 
             for stmt in _DDL:
                 conn.execute(stmt)
+
+            if current < 2:
+                for stmt in _DDL_V2_ALTER:
+                    try:
+                        conn.execute(stmt)
+                    except sqlite3.OperationalError as exc:
+                        # Columna ya presente (DB creada ya en v2, o reintento
+                        # tras fallo parcial): idempotente, no es un error real.
+                        if "duplicate column" not in str(exc).lower():
+                            raise
+                for stmt in _DDL_V2_CREATE:
+                    conn.execute(stmt)
 
             conn.execute(
                 "INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, ?)",
@@ -204,6 +243,7 @@ def _row_to_user(row: sqlite3.Row) -> User:
 
 
 def _row_to_session(row: sqlite3.Row) -> Session:
+    keys = row.keys()
     return Session(
         id=row["id"],
         user_id=row["user_id"],
@@ -214,6 +254,20 @@ def _row_to_session(row: sqlite3.Row) -> Session:
         revoked_at=_parse_dt(row["revoked_at"]),
         ip_hash=row["ip_hash"],
         user_agent_hash=row["user_agent_hash"],
+        # Columna añadida en v2: ausente si la conexión ve una DB aún no
+        # migrada (no debería ocurrir tras ensure_migrated, pero es fail-safe).
+        active_partida=row["active_partida"] if "active_partida" in keys else None,
+    )
+
+
+def _row_to_partida_access(row: sqlite3.Row) -> PartidaAccess:
+    return PartidaAccess(
+        id=row["id"],
+        user_id=row["user_id"],
+        workspace=row["workspace"],
+        partida_id=row["partida_id"],
+        granted_by=row["granted_by"],
+        granted_at=_parse_dt(row["granted_at"]),
     )
 
 
@@ -555,6 +609,105 @@ def count_audit_events(
     clause = f"WHERE {' AND '.join(where)}" if where else ""
     row = conn.execute(f"SELECT COUNT(*) FROM audit_events {clause}", params).fetchone()
     return row[0] if row else 0
+
+
+# ---------------------------------------------------------------------------
+# M5a: partida activa de sesión + asignaciones usuario->partida
+# ---------------------------------------------------------------------------
+
+def set_session_active_partida(
+    conn: sqlite3.Connection, session_id: int, partida_id: Optional[str]
+) -> None:
+    """Fija (o limpia, con None) la partida activa de una sesión.
+
+    Una cadena en blanco NO es una partida: se normaliza a None (capa juego),
+    para que `""` nunca llegue a `allowed_partida_ids` como si fuese un id.
+    """
+    if isinstance(partida_id, str) and not partida_id.strip():
+        partida_id = None
+    conn.execute(
+        "UPDATE sessions SET active_partida = ? WHERE id = ?",
+        (partida_id, session_id),
+    )
+    conn.commit()
+
+
+def grant_partida_access(
+    conn: sqlite3.Connection,
+    user_id: int,
+    workspace: str,
+    partida_id: str,
+    granted_by: Optional[str] = None,
+) -> PartidaAccess:
+    """Concede a un usuario acceso a una partida. Idempotente (INSERT OR IGNORE)."""
+    now = _utcnow()
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO partida_access (user_id, workspace, partida_id, granted_by, granted_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (user_id, workspace, partida_id, granted_by, now),
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT * FROM partida_access WHERE user_id = ? AND workspace = ? AND partida_id = ?",
+        (user_id, workspace, partida_id),
+    ).fetchone()
+    return _row_to_partida_access(row)
+
+
+def revoke_partida_access(conn: sqlite3.Connection, access_id: int) -> bool:
+    cur = conn.execute("DELETE FROM partida_access WHERE id = ?", (access_id,))
+    conn.commit()
+    return cur.rowcount > 0
+
+
+def list_partida_access(
+    conn: sqlite3.Connection,
+    *,
+    user_id: Optional[int] = None,
+    workspace: Optional[str] = None,
+) -> list[PartidaAccess]:
+    where: list[str] = []
+    params: list = []
+    if user_id is not None:
+        where.append("user_id = ?")
+        params.append(user_id)
+    if workspace is not None:
+        where.append("workspace = ?")
+        params.append(workspace)
+    clause = f"WHERE {' AND '.join(where)}" if where else ""
+    rows = conn.execute(
+        f"SELECT * FROM partida_access {clause} ORDER BY workspace, partida_id", params
+    ).fetchall()
+    return [_row_to_partida_access(r) for r in rows]
+
+
+def user_allowed_partidas(
+    conn: sqlite3.Connection, user_id: int, workspace: Optional[str] = None
+) -> list[str]:
+    """Partidas que un usuario puede seleccionar (asignadas por un admin)."""
+    return [a.partida_id for a in list_partida_access(conn, user_id=user_id, workspace=workspace)]
+
+
+def partida_exists(conn: sqlite3.Connection, partida_id: str) -> bool:
+    """¿Existe esa partida como asignación de algún usuario?
+
+    Es la única definición de "partida conocida" que tiene el visor hoy (no hay
+    catálogo de partidas). Sirve para que un admin no pueda activar una partida
+    inventada por error tipográfico.
+    """
+    if not isinstance(partida_id, str) or not partida_id.strip():
+        return False
+    row = conn.execute(
+        "SELECT 1 FROM partida_access WHERE partida_id = ? LIMIT 1", (partida_id,)
+    ).fetchone()
+    return row is not None
+
+
+def get_partida_access_by_id(conn: sqlite3.Connection, access_id: int) -> Optional[PartidaAccess]:
+    row = conn.execute("SELECT * FROM partida_access WHERE id = ?", (access_id,)).fetchone()
+    return _row_to_partida_access(row) if row else None
 
 
 def _row_to_audit(row: sqlite3.Row) -> AuditEvent:

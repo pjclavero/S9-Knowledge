@@ -15,12 +15,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.auth.config import get_auth_settings
 from app.auth.csrf import get_csrf_token_for_session, validate_csrf
+from app.authz.dependencies import get_visibility_scope
+from app.authz.scope import VisibilityScope
 from app.services import review_console as rc
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -77,11 +79,13 @@ def _check_csrf(request: Request, token: str) -> bool:
 # ---------------------------------------------------------------------------
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
-def inbox(request: Request):
+def inbox(request: Request, scope: VisibilityScope = Depends(get_visibility_scope)):
     guard = _guard(request)
     if guard is not None and isinstance(guard, (RedirectResponse, HTMLResponse)):
         return guard
-    summaries = rc.list_source_summaries()
+    # Mismo mecanismo de política que el resto del visor: el ámbito de la
+    # petición (partida activa + capa juego) decide qué se entrega.
+    summaries = rc.list_source_summaries(scope=scope)
     return templates.TemplateResponse(
         request, "reviews_console.html",
         {"summaries": summaries, "auth_user": guard, "csrf_token": _csrf_token(request)},
@@ -92,15 +96,19 @@ def inbox(request: Request):
 # GET detalle de fuente: candidatos + preview del plan
 # ---------------------------------------------------------------------------
 @router.get("/source/{source_id}", response_class=HTMLResponse)
-def source_detail(request: Request, source_id: str, stale: int = 0):
+def source_detail(request: Request, source_id: str, stale: int = 0,
+                  scope: VisibilityScope = Depends(get_visibility_scope)):
     guard = _guard(request)
     if guard is not None and isinstance(guard, (RedirectResponse, HTMLResponse)):
         return guard
-    summary = rc.get_source_summary(source_id)
+    # Fuera de ámbito -> 404, indistinguible de inexistente (mismo contrato que
+    # PolicyFilteredProvider.entity: no se revela la existencia de material
+    # de otra partida).
+    summary = rc.get_source_summary(source_id, scope=scope)
     if summary is None:
         raise HTTPException(status_code=404, detail=f"Fuente no encontrada: {source_id}")
-    candidates = [rc.candidate_view(c) for c in rc.list_candidates(source_id)]
-    preview = rc.plan_preview(source_id)
+    candidates = [rc.candidate_view(c) for c in rc.list_candidates(source_id, scope=scope)]
+    preview = rc.plan_preview(source_id, scope=scope)
     return templates.TemplateResponse(
         request, "reviews_console_source.html",
         {
@@ -127,6 +135,7 @@ async def decide(
     after_canonical_name: str = Form(""),
     target_existing_id: str = Form(""),
     csrf_token: str = Form(""),
+    scope: VisibilityScope = Depends(get_visibility_scope),
 ):
     guard = _guard(request)
     if guard is not None and isinstance(guard, (RedirectResponse, HTMLResponse)):
@@ -144,6 +153,7 @@ async def decide(
             reason_code=reason_code or None, comment=comment or None,
             after=after, target_existing_id=target_existing_id or None,
             request_id=getattr(request.state, "request_id", None),
+            scope=scope,
         )
     except rc.ReviewConsoleError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

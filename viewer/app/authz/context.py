@@ -36,12 +36,26 @@ def build_viewer_context(
     party_membership: Optional[Iterable[str]] = None,
     character_knowledge: Optional[Iterable[str]] = None,
     simulated: bool = False,
+    active_partida: Optional[str] = None,
 ) -> ViewerContext:
-    """Traduce identidad + parámetros de campaña a un ViewerContext inmutable."""
+    """Traduce identidad + parámetros de campaña a un ViewerContext inmutable.
+
+    ``active_partida``: partida seleccionada por el usuario en la sesión (M5a,
+    docs/v3/49 §2.6). Solo la partida activa entra en ``allowed_partida_ids``
+    -- un usuario con varias partidas asignadas ve, en cada momento, la que
+    tiene activa (más la capa juego compartida), nunca varias a la vez. Sin
+    partida activa -> solo capa juego.
+    """
 
     workspaces = _ws_set(allowed_workspaces or [default_workspace])
     parties = frozenset(party_membership or [])
     knowledge = frozenset(character_knowledge or [])
+    # Una partida en blanco ("" / espacios) NO es una partida: se normaliza a
+    # None (capa juego) para que nunca entre en allowed_partida_ids y no pueda
+    # actuar como comodín frente a datos con partida_id="" (M5a P1).
+    if isinstance(active_partida, str) and not active_partida.strip():
+        active_partida = None
+    partidas = frozenset({active_partida}) if active_partida else frozenset()
 
     # Visor abierto (auth desactivada): comportamiento heredado = todo visible.
     # La simulación "ver como personaje" NUNCA usa este atajo.
@@ -59,6 +73,8 @@ def build_viewer_context(
         return ViewerContext(
             role="admin",
             allowed_workspaces=workspaces,
+            active_partida=active_partida,
+            allowed_partida_ids=partidas,
             admin_full=True,
             session_public=True,
             can_view_secret=True,
@@ -70,6 +86,8 @@ def build_viewer_context(
         return ViewerContext(
             role="reviewer",
             allowed_workspaces=workspaces,
+            active_partida=active_partida,
+            allowed_partida_ids=partidas,
             active_character=active_character,
             max_visible_session=max_visible_session,
             can_view_secret=False,       # no secretos RPG ajenos salvo permiso
@@ -85,6 +103,8 @@ def build_viewer_context(
         return ViewerContext(
             role="viewer",
             allowed_workspaces=workspaces,
+            active_partida=active_partida,
+            allowed_partida_ids=partidas,
             active_character=active_character,
             max_visible_session=max_visible_session,
             can_view_secret=False,
@@ -97,10 +117,13 @@ def build_viewer_context(
         )
 
     # Anónimo / rol desconocido: mínimo privilegio. Sólo lo público de sesiones
-    # ya publicadas; sin secretos, narrador, futuro ni referencia.
+    # ya publicadas; sin secretos, narrador, futuro ni referencia. Nunca tiene
+    # partida activa: el anónimo solo ve la capa juego.
     return ViewerContext(
         role="anonymous",
         allowed_workspaces=workspaces,
+        active_partida=None,
+        allowed_partida_ids=frozenset(),
         active_character=None,
         max_visible_session=max_visible_session if max_visible_session is not None else 0,
         can_view_secret=False,

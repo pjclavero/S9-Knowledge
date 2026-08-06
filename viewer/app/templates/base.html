@@ -24,16 +24,33 @@
         {% endif %}
         {% if auth_user.can_access_admin() %}
           <a href="/admin/users">Admin</a>
+          <a href="/admin/partidas">Partidas</a>
         {% endif %}
       {% endif %}
     </nav>
     {% if auth_user is defined and auth_user %}
     <div class="topbar-user">
+      {% if request.state.user_partidas %}
+      <form method="post" action="/partida/select" class="partida-selector" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token | default(request.state.csrf_token, true) | default('') | e }}">
+        <input type="hidden" name="next" value="{{ request.url.path | e }}">
+        <label for="partida_id" style="margin-right:.25rem;">Partida:</label>
+        <select id="partida_id" name="partida_id" onchange="this.form.submit()">
+          <option value="" {% if not request.state.active_partida %}selected{% endif %}>— Capa juego —</option>
+          {% for p in request.state.user_partidas %}
+            <option value="{{ p.partida_id | e }}" {% if request.state.active_partida == p.partida_id %}selected{% endif %}>
+              {{ p.partida_id | e }} ({{ p.workspace | e }})
+            </option>
+          {% endfor %}
+        </select>
+        <noscript><button type="submit">Cambiar</button></noscript>
+      </form>
+      {% endif %}
       <span>{{ auth_user.display_name | e }}</span>
       <span class="role-badge role-{{ auth_user.role | e }}">{{ auth_user.role | e }}</span>
       <a href="/account">Cuenta</a>
       <form method="post" action="/logout" style="display:inline;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token | default('') | e }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token | default(request.state.csrf_token, true) | default('') | e }}">
         <button type="submit" class="btn-link">Salir</button>
       </form>
     </div>

@@ -27,6 +27,8 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Optional
 
+from app.authz.scope import UNRESTRICTED, VisibilityScope
+
 # ---------------------------------------------------------------------------
 # Rutas
 # ---------------------------------------------------------------------------
@@ -186,63 +188,101 @@ def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def list_source_summaries(fixtures_dir: Optional[Path] = None) -> list[dict[str, Any]]:
-    """Bandeja: todos los review-source-summary v1 disponibles (validados)."""
+def _scoped(scope: Optional[VisibilityScope]) -> VisibilityScope:
+    """Ámbito efectivo. Sin ámbito explícito (llamador interno/CLI) = sin filtro.
+
+    Las rutas HTTP SIEMPRE pasan el ámbito de la petición (``get_visibility_scope``);
+    el valor por defecto existe para llamadores programáticos que no representan
+    a un usuario del visor.
+    """
+    return (scope or UNRESTRICTED).partida_only()
+
+
+def list_source_summaries(fixtures_dir: Optional[Path] = None,
+                          scope: Optional[VisibilityScope] = None) -> list[dict[str, Any]]:
+    """Bandeja: los review-source-summary v1 VISIBLES en el ámbito (validados).
+
+    El filtro por partida se aplica aquí, antes de entregar nada: una fuente de
+    otra partida no aparece en la bandeja ni se puede contar.
+    """
     base = (fixtures_dir or FIXTURES_DIR) / "summaries"
     if not base.exists():
         return []
+    allowed = _scoped(scope)
     out = []
     for path in sorted(base.glob("*.json")):
         doc = _load_json(path)
         validate_document(doc)
-        out.append(doc)
+        if allowed.allows(doc):
+            out.append(doc)
     return out
 
 
-def get_source_summary(source_id: str, fixtures_dir: Optional[Path] = None) -> Optional[dict[str, Any]]:
-    for summary in list_source_summaries(fixtures_dir):
+def get_source_summary(source_id: str, fixtures_dir: Optional[Path] = None,
+                       scope: Optional[VisibilityScope] = None) -> Optional[dict[str, Any]]:
+    """None si la fuente no existe O no es visible en el ámbito (=> 404 en la
+    ruta: indistinguible de inexistente, igual que en el provider filtrado)."""
+    for summary in list_source_summaries(fixtures_dir, scope=scope):
         if summary["source_id"] == source_id:
             return summary
     return None
 
 
-def list_candidates(source_id: str, fixtures_dir: Optional[Path] = None) -> list[dict[str, Any]]:
-    """Candidatos v1 de una fuente (validados), con su hash de control incluido."""
+def list_candidates(source_id: str, fixtures_dir: Optional[Path] = None,
+                    scope: Optional[VisibilityScope] = None) -> list[dict[str, Any]]:
+    """Candidatos v1 de una fuente (validados), con su hash de control incluido.
+
+    Doble barrera: la fuente debe ser visible en el ámbito y cada candidato se
+    comprueba por separado (un candidato puede declarar su propia partida).
+    """
+    # Si la fuente tiene resumen y ese resumen no es visible aquí, no hay
+    # candidatos que enseñar. (Un corpus sin resúmenes cae al filtro por
+    # candidato de más abajo.)
+    if (get_source_summary(source_id, fixtures_dir, scope=UNRESTRICTED) is not None
+            and get_source_summary(source_id, fixtures_dir, scope=scope) is None):
+        return []
     base = (fixtures_dir or FIXTURES_DIR) / "candidates" / source_id
     if not base.exists():
         return []
+    allowed = _scoped(scope)
     out = []
     for path in sorted(base.glob("*.json")):
         doc = _load_json(path)
         validate_document(doc)
-        out.append(doc)
+        if allowed.allows(doc):
+            out.append(doc)
     return out
 
 
 def get_candidate(source_id: str, candidate_id: str,
-                  fixtures_dir: Optional[Path] = None) -> Optional[dict[str, Any]]:
-    for cand in list_candidates(source_id, fixtures_dir):
+                  fixtures_dir: Optional[Path] = None,
+                  scope: Optional[VisibilityScope] = None) -> Optional[dict[str, Any]]:
+    for cand in list_candidates(source_id, fixtures_dir, scope=scope):
         if cand["candidate_id"] == candidate_id:
             return cand
     return None
 
 
-def get_ingest_plan(source_id: str, fixtures_dir: Optional[Path] = None) -> Optional[dict[str, Any]]:
+def get_ingest_plan(source_id: str, fixtures_dir: Optional[Path] = None,
+                    scope: Optional[VisibilityScope] = None) -> Optional[dict[str, Any]]:
     """ingest-plan v1 de la fuente (solo lectura, para preview)."""
     path = (fixtures_dir or FIXTURES_DIR) / "plans" / f"{source_id}.json"
     if not path.exists():
         return None
     doc = _load_json(path)
     validate_document(doc)
+    if not _scoped(scope).allows(doc):
+        return None
     return doc
 
 
-def plan_preview(source_id: str, fixtures_dir: Optional[Path] = None) -> Optional[dict[str, Any]]:
+def plan_preview(source_id: str, fixtures_dir: Optional[Path] = None,
+                 scope: Optional[VisibilityScope] = None) -> Optional[dict[str, Any]]:
     """Resumen SOLO LECTURA del ingest-plan: WOULD_CREATE / DEFER / CONFLICT.
 
     NO autoriza ni aplica nada. Deriva los contadores del propio plan.
     """
-    plan = get_ingest_plan(source_id, fixtures_dir)
+    plan = get_ingest_plan(source_id, fixtures_dir, scope=scope)
     if plan is None:
         return None
     summary = plan.get("summary", {})
@@ -416,17 +456,19 @@ def submit_decision(
     request_id: Optional[str] = None,
     fixtures_dir: Optional[Path] = None,
     store: Optional[Path] = None,
+    scope: Optional[VisibilityScope] = None,
 ) -> DecisionResult:
     """Registra una decisión de revisión aplicando control optimista.
 
-    - Si el candidato no existe → ReviewConsoleError.
+    - Si el candidato no existe (o no es visible en el ámbito de la petición)
+      → ReviewConsoleError: no se puede decidir sobre material de otra partida.
     - Si ``expected_candidate_hash`` != hash actual → NO se escribe la decisión;
       se registra un audit-event ``STALE_REVIEW_REJECTED`` y ``ok=False``.
     - En caso normal: escribe review-decision + audit-event (DECISION_RECORDED)
       en el almacén de laboratorio (JSONL). NUNCA toca Neo4j ni el review original.
     """
     store = store or lab_store_dir()
-    candidate = get_candidate(source_id, candidate_id, fixtures_dir)
+    candidate = get_candidate(source_id, candidate_id, fixtures_dir, scope=scope)
     if candidate is None:
         raise ReviewConsoleError(f"candidato no encontrado: {source_id}/{candidate_id}")
 
