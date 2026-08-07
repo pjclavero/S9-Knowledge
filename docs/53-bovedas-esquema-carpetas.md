@@ -64,6 +64,7 @@ rol/                                  raíz de bóvedas, propiedad de Mimir
     │       │       ├── videos/       ┐ carpetas de formato:
     │       │       ├── transcripciones/ │ transparentes para el ámbito
     │       │       └── acta.md       ┘
+    │       ├── aportaciones/      buzón: los jugadores dejan, no leen (ver 4 bis)
     │       ├── material-jugadores/
     │       ├── notas-narrador/
     │       ├── secretos/
@@ -88,6 +89,7 @@ hecho. Se aplica sobre la ruta **relativa a la raíz de bóvedas**.
 |---|---|---|---|
 | `<juego>/manuales/**` | `<juego>` | `None` (compartido) | `player` |
 | `<juego>/lore/**` | `<juego>` | `None` (compartido) | `player` |
+| `<juego>/partidas/<p>/aportaciones/**` | `<juego>` | `<p>` | `secret` (lo más restrictivo, hasta revisión) |
 | `<juego>/partidas/<p>/material-jugadores/**` | `<juego>` | `<p>` | `player` |
 | `<juego>/partidas/<p>/sesiones/**` | `<juego>` | `<p>` | `player` |
 | `<juego>/partidas/<p>/notas-narrador/**` | `<juego>` | `<p>` | `narrator` |
@@ -142,6 +144,40 @@ Restricciones que no se negocian:
   solo crear carpetas. Nunca borrar, nunca sobrescribir.
 - La operación es **idempotente**: repetirla no duplica ni pisa nada.
 - Si falla a mitad, deja el estado a la vista; no intenta «arreglarlo» borrando.
+
+## 4 bis. Aportaciones de los jugadores y procedencia
+
+Nextcloud desplegado: **33.0.0**. Admite buzón de archivos («file drop») también
+en recursos compartidos **internos**, no solo en enlaces públicos.
+
+Decisión: los jugadores aportan material mediante un **compartido interno de
+solo creación**, sobre `partidas/<partida>/aportaciones/`, concedido a un
+**grupo por partida**.
+
+Por qué esta combinación y no otra:
+
+| Opción | Atribución | Riesgo |
+|---|---|---|
+| Enlace público | **Ninguna fiable.** La subida se registra a nombre del dueño de la carpeta; el apodo que se pide al subir lo escribe el propio usuario | URL reenviable |
+| Compartido interno con lectura | Fiable | **Segunda puerta**: los jugadores verían los ficheros crudos en Nextcloud, sin pasar por el motor de visibilidad |
+| **Compartido interno de solo creación** | **Fiable** (usuario autenticado) | Ninguna de las dos: no hay URL suelta y no hay nada legible a través del compartido |
+
+Consecuencias operativas: quien aporta no puede comprobar que su fichero llegó
+—la confirmación debe darla el visor—, y ante nombres repetidos Nextcloud
+renombra el segundo en lugar de sobrescribirlo, que es el comportamiento
+deseado.
+
+**Regla de fondo: la procedencia no concede conocimiento.** Ni siquiera con
+usuarios autenticados. Que un jugador aporte la transcripción de una sesión no
+significa que su personaje sepa lo que contiene, ni deja de saberlo si la aportó
+otro. Es el mismo razonamiento que ya se aplicó a la presencia en episodio: la
+subida produce como mucho un `KNOWLEDGE_GRANT_CANDIDATE`, nunca una concesión
+efectiva. `known_by` se puebla solo por las fuentes válidas ya fijadas.
+
+La atribución se conserva porque sirve para trazabilidad —saber a quién
+preguntar si algo está mal— no para decidir visibilidad. Compartir en Nextcloud
+y visibilidad en el motor son capas independientes, y añadir o quitar gente del
+grupo no altera ningún hecho ya registrado.
 
 ## 5. Requisito de reingesta — bloqueante para M1
 
