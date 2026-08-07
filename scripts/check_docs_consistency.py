@@ -114,17 +114,17 @@ def scan_doc(path: Path) -> list[str]:
     return findings
 
 
-def check_canonical(status: dict) -> list[str]:
+def check_canonical(production: dict) -> list[str]:
     findings: list[str] = []
     canonical = REPO / "docs" / "archivados" / "02-current-state.md"
     if not canonical.exists():
         return [f"falta el documento canónico {canonical.relative_to(REPO)}"]
     body = canonical.read_text(encoding="utf-8")
-    for key in ("production_tag", "production_commit"):
-        val = str(status.get(key, "")).strip()
+    for key in ("production_tag", "commit"):
+        val = str(production.get(key, "")).strip()
         if val and val not in body:
             findings.append(
-                f"docs/archivados/02-current-state.md no menciona {key}={val} (project-status.yaml)"
+                f"docs/archivados/02-current-state.md no menciona {key}={val} (project-status.yaml, bloque production)"
             )
     return findings
 
@@ -134,11 +134,14 @@ def main() -> int:
         print(f"ERROR: falta {STATUS_YAML.relative_to(REPO)}", file=sys.stderr)
         return 1
     status = yaml.safe_load(STATUS_YAML.read_text(encoding="utf-8"))
+    # project-status.yaml separa development/production/next_release desde
+    # 2026-08-06; este script solo valida contra el estado de produccion.
+    production = status.get("production", status)
 
     findings: list[str] = []
     for rel in DOCS:
         findings += scan_doc(REPO / rel)
-    findings += check_canonical(status)
+    findings += check_canonical(production)
 
     if findings:
         print("DOCUMENTACION NO COHERENTE — contradicciones detectadas:")
@@ -148,9 +151,9 @@ def main() -> int:
         return 1
 
     print("DOCUMENTACION COHERENTE: sin contradicciones conocidas.")
-    print(f"  produccion: {status.get('production_tag')} "
-          f"({str(status.get('production_commit'))[:12]}) "
-          f"release_id={status.get('production_release_id')}")
+    print(f"  produccion: {production.get('production_tag')} "
+          f"({str(production.get('commit'))[:12]}) "
+          f"release_id={production.get('production_release_id')}")
     return 0
 
 
