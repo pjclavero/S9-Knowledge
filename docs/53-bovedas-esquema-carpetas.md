@@ -65,7 +65,7 @@ rol/                                  raíz de bóvedas, propiedad de Mimir
     │       │       ├── transcripciones/ │ transparentes para el ámbito
     │       │       └── acta.md       ┘
     │       ├── aportaciones/
-    │       │   └── <jugador>/     una por jugador, compartida solo con él (ver 4 bis)
+    │       │   └── <partida>-<jugador>/   una por jugador, compartida solo con él (ver 4 bis)
     │       ├── material-jugadores/
     │       ├── notas-narrador/
     │       ├── secretos/
@@ -90,7 +90,7 @@ hecho. Se aplica sobre la ruta **relativa a la raíz de bóvedas**.
 |---|---|---|---|
 | `<juego>/manuales/**` | `<juego>` | `None` (compartido) | `player` |
 | `<juego>/lore/**` | `<juego>` | `None` (compartido) | `player` |
-| `<juego>/partidas/<p>/aportaciones/<jugador>/**` | `<juego>` | `<p>` | `secret` (lo más restrictivo, hasta revisión) |
+| `<juego>/partidas/<p>/aportaciones/<p>-<jugador>/**` | `<juego>` | `<p>` | `secret` (lo más restrictivo, hasta revisión) |
 | `<juego>/partidas/<p>/material-jugadores/**` | `<juego>` | `<p>` | `player` |
 | `<juego>/partidas/<p>/sesiones/**` | `<juego>` | `<p>` | `player` |
 | `<juego>/partidas/<p>/notas-narrador/**` | `<juego>` | `<p>` | `narrator` |
@@ -161,13 +161,24 @@ Decisión resultante: **una subcarpeta por jugador**, compartida individualmente
 
 ```
 partidas/<partida>/aportaciones/
-├── <jugador-1>/     compartido solo con <jugador-1>
-└── <jugador-2>/     compartido solo con <jugador-2>
+├── <partida>-<jugador-1>/     compartido solo con <jugador-1>
+└── <partida>-<jugador-2>/     compartido solo con <jugador-2>
 ```
 
 Cada jugador lee y escribe en la suya, y no ve las de los demás porque no están
 compartidas con él. El aislamiento lo da la estructura, no el permiso, que era
 lo que Nextcloud no nos podía garantizar.
+
+**El nombre incluye la partida a propósito.** Quien recibe un compartido ve solo
+el último tramo de la ruta. Si la carpeta se llamara solo `<jugador>`, alguien
+que juegue dos campañas recibiría dos carpetas homónimas y Nextcloud renombraría
+la segunda a `<jugador> (2)`: dos buzones indistinguibles, y actas depositadas en
+la mesa equivocada. Con `<partida>-<jugador>` el nombre es informativo para el
+jugador sin que nadie tenga que renombrar nada a mano — y no depender de que
+cada jugador se organice bien es justamente el objetivo.
+
+Renombrar esta carpeta es seguro: WebDAV mueve el mismo objeto, así que el
+compartido existente la sigue sin necesidad de rehacerlo (verificado).
 
 | Opción | Atribución | Riesgo |
 |---|---|---|
