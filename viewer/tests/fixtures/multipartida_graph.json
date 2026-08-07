@@ -1,5 +1,5 @@
 {
-  "_comment": "Fixture SINTETICA para tests de aislamiento entre partidas (M5a, docs/v3/49 §2.6). Dos partidas del mismo juego + capa juego compartida.",
+  "_comment": "Fixture SINTETICA para tests de aislamiento entre partidas (M5a/M5c). Dos partidas del mismo juego + capa juego declarada + un nodo legacy sin scope que YA NO es visible: la ausencia de ambito no se interpreta como el mas amplio.",
   "workspace": "juego:lab",
   "nodes": [
     {
@@ -12,7 +12,8 @@
       "description": "Lore compartido: capa juego, visible desde cualquier partida.",
       "confidence": 0.9,
       "review_status": "reviewed",
-      "source_document": "manual_lab"
+      "source_document": "manual_lab",
+      "scope": "juego"
     },
     {
       "id": "partida1_pc_arden",
@@ -24,7 +25,8 @@
       "description": "Personaje privado de la partida uno.",
       "confidence": 0.9,
       "review_status": "reviewed",
-      "source_document": "sesion_p1"
+      "source_document": "sesion_p1",
+      "scope": "partida"
     },
     {
       "id": "partida2_pc_bryn",
@@ -36,7 +38,8 @@
       "description": "Personaje privado de la partida dos.",
       "confidence": 0.9,
       "review_status": "reviewed",
-      "source_document": "sesion_p2"
+      "source_document": "sesion_p2",
+      "scope": "partida"
     },
     {
       "id": "legacy_material_sin_partida",
@@ -44,7 +47,7 @@
       "type": "Item",
       "workspace": "juego:lab",
       "visibility": "player",
-      "description": "Nodo pre-M5a: no tiene la clave partida_id en absoluto (no solo null).",
+      "description": "Nodo pre-M5a/M5c: sin partida_id y SIN scope declarado. Testigo del grafo legacy: desde M5c queda mudo, no visible.",
       "confidence": 0.9,
       "review_status": "reviewed",
       "source_document": "legacy"
@@ -58,7 +61,8 @@
       "type": "WORSHIPS",
       "workspace": "juego:lab",
       "visibility": "player",
-      "partida_id": "partida:uno"
+      "partida_id": "partida:uno",
+      "scope": "partida"
     },
     {
       "id": "edge_p2_interno",
@@ -67,7 +71,8 @@
       "type": "WORSHIPS",
       "workspace": "juego:lab",
       "visibility": "player",
-      "partida_id": "partida:dos"
+      "partida_id": "partida:dos",
+      "scope": "partida"
     }
   ]
 }

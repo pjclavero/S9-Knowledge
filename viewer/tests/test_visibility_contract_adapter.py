@@ -61,7 +61,7 @@ def _ctx(**over) -> ViewerContext:
 
 def _extra(**over) -> dict:
     base = dict(
-        id="n1", workspace=WS, partida_id=PARTIDA, session_index=1,
+        id="n1", workspace=WS, scope="partida", partida_id=PARTIDA, session_index=1,
         party="grupo_alfa", is_public=True,
     )
     base.update(over)

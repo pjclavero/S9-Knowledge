@@ -11,11 +11,15 @@
       "session_index": 1,
       "party": "grupo_alfa",
       "is_public": true,
-      "known_by": ["pc_arden", "pc_bryn"],
+      "known_by": [
+        "pc_arden",
+        "pc_bryn"
+      ],
       "description": "Personaje jugador del grupo alfa.",
       "confidence": 0.95,
       "review_status": "reviewed",
-      "source_document": "sesion_01_lab"
+      "source_document": "sesion_01_lab",
+      "scope": "juego"
     },
     {
       "id": "pc_bryn",
@@ -26,11 +30,15 @@
       "session_index": 1,
       "party": "grupo_alfa",
       "is_public": true,
-      "known_by": ["pc_arden", "pc_bryn"],
+      "known_by": [
+        "pc_arden",
+        "pc_bryn"
+      ],
       "description": "Personaje jugador del grupo alfa.",
       "confidence": 0.95,
       "review_status": "reviewed",
-      "source_document": "sesion_01_lab"
+      "source_document": "sesion_01_lab",
+      "scope": "juego"
     },
     {
       "id": "npc_taverna",
@@ -41,11 +49,15 @@
       "session_index": 1,
       "party": "grupo_alfa",
       "is_public": true,
-      "known_by": ["pc_arden", "pc_bryn"],
+      "known_by": [
+        "pc_arden",
+        "pc_bryn"
+      ],
       "description": "PNJ público de la sesión 1.",
       "confidence": 0.8,
       "review_status": "auto_extracted",
-      "source_document": "sesion_01_lab"
+      "source_document": "sesion_01_lab",
+      "scope": "juego"
     },
     {
       "id": "secret_villano",
@@ -60,7 +72,8 @@
       "description": "SECRETO de trama: nadie del grupo lo sabe aún.",
       "confidence": 0.7,
       "review_status": "needs_review",
-      "source_document": "notas_dm_lab"
+      "source_document": "notas_dm_lab",
+      "scope": "juego"
     },
     {
       "id": "secret_conocido_por_arden",
@@ -71,11 +84,14 @@
       "session_index": 2,
       "party": "grupo_alfa",
       "is_public": false,
-      "known_by": ["pc_arden"],
+      "known_by": [
+        "pc_arden"
+      ],
       "description": "SECRETO que sólo el personaje Arden llegó a conocer.",
       "confidence": 0.7,
       "review_status": "needs_review",
-      "source_document": "notas_dm_lab"
+      "source_document": "notas_dm_lab",
+      "scope": "juego"
     },
     {
       "id": "narrator_nota",
@@ -90,7 +106,8 @@
       "description": "Capa GM: sólo narrador/revisión.",
       "confidence": 0.6,
       "review_status": "needs_review",
-      "source_document": "notas_dm_lab"
+      "source_document": "notas_dm_lab",
+      "scope": "juego"
     },
     {
       "id": "future_evento",
@@ -105,7 +122,8 @@
       "description": "FUTURO: sesión aún no jugada por el grupo.",
       "confidence": 0.6,
       "review_status": "needs_review",
-      "source_document": "guion_futuro_lab"
+      "source_document": "guion_futuro_lab",
+      "scope": "juego"
     },
     {
       "id": "reference_regla",
@@ -120,7 +138,8 @@
       "description": "Material de reglas/manual (REFERENCIA).",
       "confidence": 0.9,
       "review_status": "reviewed",
-      "source_document": "manual_lab"
+      "source_document": "manual_lab",
+      "scope": "juego"
     },
     {
       "id": "otro_grupo_npc",
@@ -135,7 +154,8 @@
       "description": "Contenido acotado a OTRA party (grupo_beta).",
       "confidence": 0.8,
       "review_status": "auto_extracted",
-      "source_document": "sesion_beta_lab"
+      "source_document": "sesion_beta_lab",
+      "scope": "juego"
     },
     {
       "id": "otra_boveda_node",
@@ -150,7 +170,8 @@
       "description": "Pertenece a un workspace no permitido.",
       "confidence": 0.8,
       "review_status": "reviewed",
-      "source_document": "sesion_gamma_lab"
+      "source_document": "sesion_gamma_lab",
+      "scope": "juego"
     }
   ],
   "edges": [
@@ -165,7 +186,8 @@
       "session_index": 1,
       "party": "grupo_alfa",
       "confidence": 0.8,
-      "review_status": "auto_extracted"
+      "review_status": "auto_extracted",
+      "scope": "juego"
     },
     {
       "id": "edge_secreta",
@@ -178,7 +200,8 @@
       "session_index": 2,
       "party": "grupo_alfa",
       "confidence": 0.6,
-      "review_status": "needs_review"
+      "review_status": "needs_review",
+      "scope": "juego"
     },
     {
       "id": "edge_a_secreto",
@@ -191,7 +214,8 @@
       "session_index": 2,
       "party": "grupo_alfa",
       "confidence": 0.5,
-      "review_status": "needs_review"
+      "review_status": "needs_review",
+      "scope": "juego"
     }
   ]
 }

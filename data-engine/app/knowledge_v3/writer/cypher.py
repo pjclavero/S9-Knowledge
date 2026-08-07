@@ -305,9 +305,10 @@ def create_entity(
 ) -> Query:
     """CREATE-only. Sin MERGE y sin una sola asignacion masiva.
 
-    `partida_id=None` no escribe la propiedad (Neo4j omite claves con valor
-    `null` en un `CREATE (n $props)`): un nodo de capa juego queda EXACTAMENTE
-    igual que antes de M3, sin la propiedad presente en absoluto.
+    M5c: el ambito se DECLARA. `partida_id=None` significa "lore de juego
+    compartido" y ahora se escribe como `scope="juego"`, no como la ausencia de
+    la propiedad. Antes el lector tenia que deducir el ambito de un hueco, y un
+    hueco no distingue "compartido a proposito" de "se perdio por el camino".
 
     M5b-1: `visibility` se estampa desde un contrato validado. Omitirlo no
     deja el nodo sin visibilidad -- lo deja en `secret`, que es lo que evita
@@ -320,7 +321,7 @@ def create_entity(
         f"CREATE (n{labels} $props) RETURN n.entity_id AS id",
         {
             "props": {
-                **stamp_visibility(props, visibility),
+                **stamp_visibility(props, visibility, partida_id=partida_id),
                 "entity_id": entity_id,
                 "workspace": workspace,
                 "partida_id": partida_id,
@@ -340,7 +341,7 @@ def create_assertion(
         f"CREATE (n:{LABEL_ASSERTION} $props) RETURN n.assertion_id AS id",
         {
             "props": {
-                **stamp_visibility(props, visibility),
+                **stamp_visibility(props, visibility, partida_id=partida_id),
                 "assertion_id": assertion_id,
                 "workspace": workspace,
                 "partida_id": partida_id,
@@ -371,7 +372,7 @@ def create_relation(
         "object": object_id,
         "ws": workspace,
         "props": {
-            **stamp_visibility(props, visibility),
+            **stamp_visibility(props, visibility, partida_id=partida_id),
             "workspace": workspace,
             "partida_id": partida_id,
         },

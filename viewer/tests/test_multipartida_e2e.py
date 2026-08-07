@@ -94,7 +94,7 @@ def test_usuario_sin_asignacion_ve_solo_capa_juego(auth_env):
     user = _make_user(auth_env, "sin_partida")
     c = _logged_client(auth_env, user)
     ids = _entity_ids(c)
-    assert ids == {"lore_dios_sol", "legacy_material_sin_partida"}
+    assert ids == {"lore_dios_sol"}
 
 
 # ---------------------------------------------------------------------------
@@ -112,14 +112,14 @@ def test_selector_cambia_vista_y_aisla_partidas(auth_env):
     c = _logged_client(auth_env, user)
 
     # Aún sin seleccionar ninguna: solo capa juego.
-    assert _entity_ids(c) == {"lore_dios_sol", "legacy_material_sin_partida"}
+    assert _entity_ids(c) == {"lore_dios_sol"}
 
     csrf = _csrf_from(c)
     r = c.post("/partida/select", data={"partida_id": "partida:uno", "next": "/entities", "csrf_token": csrf})
     assert r.status_code == 302
 
     ids_uno = _entity_ids(c)
-    assert ids_uno == {"lore_dios_sol", "legacy_material_sin_partida", "partida1_pc_arden"}
+    assert ids_uno == {"lore_dios_sol", "partida1_pc_arden"}
     assert "partida2_pc_bryn" not in ids_uno
 
     csrf2 = _csrf_from(c)
@@ -127,7 +127,7 @@ def test_selector_cambia_vista_y_aisla_partidas(auth_env):
     assert r2.status_code == 302
 
     ids_dos = _entity_ids(c)
-    assert ids_dos == {"lore_dios_sol", "legacy_material_sin_partida", "partida2_pc_bryn"}
+    assert ids_dos == {"lore_dios_sol", "partida2_pc_bryn"}
     assert "partida1_pc_arden" not in ids_dos
 
     # Acceso directo por id a la partida ajena sigue en 404 con partida:dos activa.
@@ -142,7 +142,7 @@ def test_no_puede_seleccionar_partida_no_asignada(auth_env):
     r = c.post("/partida/select", data={"partida_id": "partida:uno", "next": "/entities", "csrf_token": csrf})
     assert r.status_code == 403
     # La vista sigue en capa juego, no se filtró nada de la partida rechazada.
-    assert _entity_ids(c) == {"lore_dios_sol", "legacy_material_sin_partida"}
+    assert _entity_ids(c) == {"lore_dios_sol"}
 
 
 # ---------------------------------------------------------------------------

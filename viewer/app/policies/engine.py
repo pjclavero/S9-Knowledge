@@ -3,12 +3,15 @@
 Reglas (en orden; la primera denegación gana):
 
   1. admin_full            -> visible siempre (bypass total).
-  2. workspace             -> el workspace del nodo debe estar en allowed_workspaces.
-  2b. partida (M5a)        -> si el nodo tiene `partida_id`, debe estar en
-                              allowed_partida_ids (la partida activa de la
-                              sesión). Sin `partida_id` = capa juego, visible
-                              siempre dentro del workspace. `partida_id` en
-                              blanco = dato inválido -> nunca visible.
+  2. workspace             -> el nodo debe declarar un workspace legible y estar
+                              en allowed_workspaces. Sin workspace -> denegado.
+  2b. ámbito (M5a/M5c)     -> el nodo debe DECLARAR `scope`: `partida` exige un
+                              `partida_id` en allowed_partida_ids; `juego` es
+                              lore compartido y no puede llevar `partida_id`.
+                              Sin `scope` válido -> denegado. La ausencia nunca
+                              se interpreta como el ámbito más amplio.
+  2c. known_by (M5c)       -> si está presente debe ser lista de cadenas no
+                              vacías; malformado -> denegado.
   3. nivel de visibilidad  -> reference exige can_view_reference; secret y narrator
                               (capa GM) exigen can_view_secret.
   4. sesión futura         -> si session_index > max_visible_session y no can_view_future.
@@ -26,13 +29,16 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 from app.policies.models import (
+    ALL_SCOPES,
     ALL_STORED_LEVELS,
     DENY,
     NARRATOR,
     REFERENCE,
+    SCOPE_PARTIDA,
     SECRET,
     VisibilityDecision,
     ViewerContext,
+    known_by_of,
 )
 
 _ALLOW = VisibilityDecision(True, "admin_full")
@@ -64,28 +70,54 @@ class VisibilityPolicy:
             return _ALLOW
 
         # 2. Aislamiento por workspace (nunca se salta, ni por conocimiento).
+        #
+        # M5c: fail-closed. Antes era `if ws is not None and ws not in ...`, es
+        # decir, un nodo SIN workspace legible pasaba la barrera. Ese es el
+        # mismo defecto permisivo que M5b-2 cerró para `visibility`, y no tenía
+        # por qué sobrevivir aquí: si no se puede leer a qué workspace pertenece
+        # un dato, no se puede afirmar que el lector tenga derecho a verlo.
         ws = node.get("workspace")
-        if ws is not None and ws not in ctx.allowed_workspaces:
+        if not isinstance(ws, str) or not ws.strip():
+            return VisibilityDecision(False, "workspace_invalid")
+        if ws not in ctx.allowed_workspaces:
             return VisibilityDecision(False, "workspace_not_allowed")
 
-        # 2b. Aislamiento entre partidas (M5a, docs/v3/49 §2.6). `partida_id`
-        # ausente/None = capa juego (lore compartido): visible para cualquier
-        # partida de ese juego. `partida_id` presente = material privado de esa
-        # partida concreta: solo visible si es la partida activa de la sesión.
+        # 2b. Aislamiento entre partidas (M5a, docs/v3/49 §2.6), con ámbito
+        # DECLARADO (M5c). Antes se infería del propio hueco: "sin `partida_id`
+        # = capa juego, visible desde cualquier partida". Esa inferencia hacía
+        # indistinguible un lore deliberadamente compartido de un dato que
+        # perdió su ámbito por el camino —y el segundo caso se resolvía hacia lo
+        # más abierto—. Ahora el ámbito se declara y, si no se declara, se
+        # deniega.
+        #
         # Como el aislamiento de workspace, esta barrera NUNCA se salta por
         # conocimiento de personaje ni por pertenencia a party.
+        scope = node.get("scope")
+        if scope not in ALL_SCOPES:
+            return VisibilityDecision(False, "scope_invalid")
+
         pid = node.get("partida_id")
-        if pid is not None:
-            # `partida_id` en blanco ("" o solo espacios) NO es capa juego: el
-            # contrato knowledge-v3 lo rechaza en el esquema (M2), así que aquí
-            # solo puede llegar por dato corrupto. Semántica explícita y
-            # fail-closed: nunca visible para nadie salvo admin_full, y nunca
-            # utilizable como comodín aunque alguien colase "" en
-            # allowed_partida_ids.
-            if isinstance(pid, str) and not pid.strip():
+        if scope == SCOPE_PARTIDA:
+            # Ámbito de partida sin partida legible: contradicción interna del
+            # dato. No se degrada a capa juego, que sería lo permisivo.
+            if not isinstance(pid, str) or not pid.strip():
                 return VisibilityDecision(False, "partida_id_blank")
             if pid not in ctx.allowed_partida_ids:
                 return VisibilityDecision(False, "partida_not_allowed")
+        else:
+            # Capa juego: compartida entre partidas del workspace. Pero no puede
+            # arrastrar un `partida_id`: sería un dato que dice ser de todos y
+            # de una a la vez, y la vía "de todos" es la más abierta.
+            if pid is not None:
+                return VisibilityDecision(False, "scope_contradictorio")
+
+        # 2c. M5c: `known_by` malformado deniega el nodo entero, no solo el
+        # conocimiento. Es un campo de autorización: si no se puede interpretar,
+        # no se puede decidir. Además evita el 500 que producía un tipo
+        # inesperado al evaluar la pertenencia.
+        _, known_by_valido = known_by_of(node)
+        if not known_by_valido:
+            return VisibilityDecision(False, "known_by_invalid")
 
         knows = ctx.knows(node)
 
@@ -114,6 +146,27 @@ class VisibilityPolicy:
                 return VisibilityDecision(False, "party_scoped")
 
         return VisibilityDecision(True, "visible")
+
+    def partida_in_scope(self, partida_id: Any, ctx: ViewerContext) -> bool:
+        """¿Cae esta partida dentro del ámbito del lector?
+
+        Pregunta de ÁMBITO, no de contenido, y por eso vive aquí y no se
+        responde fabricando un nodo sintético para pasarlo por ``can_view``:
+        ese truco es lo que hizo que una sonda acabara evaluada como contenido.
+        La usan los registros operativos (cola de revisión, trabajos), que
+        tienen partida pero no visibilidad ni ámbito declarado.
+
+        ``None`` significa "este registro no tiene dimensión de partida", no
+        "es de todas": no es un dato del grafo al que se le haya perdido el
+        ámbito, sino una fila que nunca lo tuvo.
+        """
+        if ctx.admin_full:
+            return True
+        if partida_id is None:
+            return True
+        if not isinstance(partida_id, str) or not partida_id.strip():
+            return False
+        return partida_id in ctx.allowed_partida_ids
 
     # ------------------------------------------------------------------
     # Helpers de conjunto: la aplicación real (provider) los usa para que

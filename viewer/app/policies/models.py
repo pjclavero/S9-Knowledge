@@ -29,6 +29,41 @@ ALL_LEVELS = (PLAYER, NARRATOR, SECRET, REFERENCE)
 #: `contracts/knowledge-visibility/v1`.
 ALL_STORED_LEVELS = ALL_LEVELS + (DENY,)
 
+# --- Ámbito del dato (campo `scope`) ----------------------------------------
+# M5c: declaración POSITIVA de ámbito. Antes se infería "sin `partida_id` =
+# lore compartido", y esa inferencia hacía indistinguibles dos cosas que no lo
+# son: un dato deliberadamente compartido entre partidas y un dato al que se le
+# perdió el ámbito por el camino (o que nunca lo tuvo). Para una decisión de
+# autorización esa ambigüedad es inaceptable, así que el ámbito se declara.
+SCOPE_GAME = "juego"        # lore compartido: visible desde cualquier partida del workspace
+SCOPE_PARTIDA = "partida"   # material privado de una partida: exige `partida_id`
+ALL_SCOPES = (SCOPE_GAME, SCOPE_PARTIDA)
+
+
+def known_by_of(node: dict[str, Any]) -> tuple[tuple[str, ...], bool]:
+    """Lee `known_by` de un nodo. Devuelve ``(personajes, es_válido)``.
+
+    Ausente o ``None`` es válido y significa "nadie lo conoce explícitamente",
+    no "dato corrupto": es el estado normal de casi todo el grafo.
+
+    Cualquier otra forma es dato inválido y **no se corrige sola**. Convertir
+    ``"PJ01"`` en ``["PJ01"]`` sería una reparación automática dentro de una
+    decisión de autorización, y una reparación que adivina puede ampliar
+    permisos. Nótese además que ``"PJ01" in "companeros_de_PJ01"`` es cierto
+    para una cadena y que ``x in {...}`` mira las claves de un dict: sin tipar,
+    la pertenencia significa cosas distintas según el tipo que llegue.
+    """
+    raw = node.get("known_by")
+    if raw is None:
+        raw = node.get("known_by_characters")
+    if raw is None:
+        return (), True
+    if not isinstance(raw, (list, tuple)):
+        return (), False
+    if not all(isinstance(x, str) and x.strip() for x in raw):
+        return (), False
+    return tuple(raw), True
+
 
 @dataclass(frozen=True)
 class ViewerContext:
@@ -65,13 +100,19 @@ class ViewerContext:
 
         Se comprueba tanto ``character_knowledge`` (IDs precomputados) como el
         campo ``known_by`` del propio nodo (lista de personajes que lo conocen).
+
+        Un ``known_by`` malformado NO concede conocimiento: devuelve ``False``.
+        Quien necesite distinguir "no conoce" de "el dato está corrupto" debe
+        usar :func:`known_by_of`; el motor lo hace para denegar el nodo entero.
         """
         if self.active_character is None:
             return False
         nid = node.get("id")
         if nid is not None and nid in self.character_knowledge:
             return True
-        known_by = node.get("known_by") or node.get("known_by_characters") or []
+        known_by, valido = known_by_of(node)
+        if not valido:
+            return False
         return self.active_character in known_by
 
 

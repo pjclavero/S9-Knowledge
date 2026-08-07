@@ -104,9 +104,19 @@ class PolicyFilteredProvider(GraphProvider):
         vedges = self._policy.filter_edges(edges, vids, self._ctx)
         return vnodes, vedges
 
+    def _scope_workspaces(self) -> frozenset[str] | None:
+        """Workspaces a los que acotar la consulta. ``None`` solo para admin."""
+        if self._ctx.admin_full:
+            return None
+        return self._ctx.allowed_workspaces
+
     # -- acceso por ID: no visible -> None (=> 404) ---------------------------
-    def entity(self, entity_id: str) -> dict[str, Any] | None:
-        node = self._base.entity(entity_id)
+    def entity(
+        self, entity_id: str, *, workspaces: frozenset[str] | None = None
+    ) -> dict[str, Any] | None:
+        # El acotado sale del contexto del servidor, nunca de la petición: el
+        # parámetro solo existe para que la firma case con la del proveedor.
+        node = self._base.entity(entity_id, workspaces=self._scope_workspaces())
         if node is None:
             return None
         if not self._policy.can_view(node, self._ctx).visible:
@@ -124,7 +134,9 @@ class PolicyFilteredProvider(GraphProvider):
         def _edge_ok(edge: dict[str, Any], other_key: str) -> bool:
             if not self._policy.can_view(edge, self._ctx).visible:
                 return False
-            other = self._base.entity(edge.get(other_key))
+            other = self._base.entity(
+                edge.get(other_key), workspaces=self._scope_workspaces()
+            )
             if other is None:
                 return False
             return self._policy.can_view(other, self._ctx).visible

@@ -33,7 +33,7 @@ def _viewer(**over) -> ViewerContext:
 
 def _node(**over):
     n = dict(
-        id="n1", workspace=WS, visibility="player", session_index=1,
+        id="n1", workspace=WS, scope="juego", visibility="player", session_index=1,
         party="grupo_alfa", is_public=True, known_by=["pc_bryn"],
     )
     n.update(over)
@@ -129,8 +129,8 @@ def test_anonimo_no_ve_protegido():
 
 def test_filter_edges_requiere_ambos_extremos():
     ctx = _viewer()
-    edge = {"id": "e", "from": "a", "to": "b", "workspace": WS, "visibility": "player"}
+    edge = {"id": "e", "from": "a", "to": "b", "workspace": WS, "scope": "juego", "visibility": "player"}
     assert POLICY.filter_edges([edge], {"a"}, ctx) == []       # falta b
     assert POLICY.filter_edges([edge], {"a", "b"}, ctx) == [edge]
-    secret_edge = {"id": "e2", "from": "a", "to": "b", "workspace": WS, "visibility": "secret"}
+    secret_edge = {"id": "e2", "from": "a", "to": "b", "workspace": WS, "scope": "juego", "visibility": "secret"}
     assert POLICY.filter_edges([secret_edge], {"a", "b"}, ctx) == []  # relación secreta

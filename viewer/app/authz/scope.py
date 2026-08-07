@@ -93,35 +93,25 @@ class VisibilityScope:
             return True
         return workspace in self.ctx.allowed_workspaces
 
-    #: Visibilidad de las SONDAS de ámbito. Estas dos funciones no preguntan
-    #: "¿puede verse este contenido?" sino "¿cae esto dentro de mi ámbito?", y
-    #: para eso construyen un nodo sintético que solo lleva `workspace` y
-    #: `partida_id`. Desde M5b-2 el motor exige una visibilidad válida en todo
-    #: nodo, así que la sonda debe declarar la suya: `player` es el nivel neutro
-    #: que deja actuar a las barreras de ámbito y solo a ellas.
+    #: Estas funciones no preguntan "¿puede verse este contenido?" sino "¿cae
+    #: esto dentro de mi ámbito?". Hasta M5c lo resolvían fabricando un nodo
+    #: sintético y pasándolo por `can_view`, lo que obligó a que la sonda
+    #: declarase una visibilidad propia (`player`) para no denegarse a sí misma.
+    #: Funcionaba, pero mantenía viva la confusión de fondo: un objeto que no es
+    #: contenido recorriendo el evaluador de contenido.
     #:
-    #: Esto NO relaja nada: el contenido real se evalúa después, con su propia
-    #: visibilidad, en `can_view`. Aquí solo se decide pertenencia al ámbito, y
-    #: una sonda que se denegara a sí misma haría inalcanzable cualquier
-    #: registro, incluida la cola de revisión.
-    _PROBE_VISIBILITY = PLAYER
-
+    #: Ahora se pregunta directamente por la dimensión de ámbito
+    #: (`POLICY.partida_in_scope`). No queda ningún nodo sintético que alguien
+    #: pueda volver a pasar al evaluador de contenido, ni ninguna visibilidad
+    #: de conveniencia que otro objeto pudiera imitar.
     def allows_partida(self, partida_id: Optional[str]) -> bool:
-        return self.policy.can_view(
-            {"partida_id": partida_id, "visibility": self._PROBE_VISIBILITY}, self.ctx
-        ).visible
+        return self.policy.partida_in_scope(partida_id, self.ctx)
 
     def allows(self, record: Mapping[str, Any]) -> bool:
         """True si el registro pertenece al ámbito visible (workspace+partida)."""
-        workspace = _first(record, _WORKSPACE_PATHS)
-        if not self.allows_workspace(workspace):
+        if not self.allows_workspace(_first(record, _WORKSPACE_PATHS)):
             return False
-        node = {
-            "workspace": workspace if self.enforce_workspace else None,
-            "partida_id": _first(record, _PARTIDA_PATHS),
-            "visibility": self._PROBE_VISIBILITY,
-        }
-        return self.policy.can_view(node, self.ctx).visible
+        return self.allows_partida(_first(record, _PARTIDA_PATHS))
 
     # -- helpers de conjunto ---------------------------------------------------
     def filter(self, records: Iterable[T]) -> list[T]:

@@ -617,7 +617,7 @@ def test_select_partida_con_caracteres_extranos_no_rompe_ni_concede(auth_env):
         )
         assert r.status_code == 403, f"payload aceptado indebidamente: {p!r} -> {r.status_code}"
     # La vista sigue en capa juego -- ninguna entrada rara coló una partida.
-    assert _entity_ids(c) == {"lore_dios_sol", "legacy_material_sin_partida"}
+    assert _entity_ids(c) == {"lore_dios_sol"}
 
 
 def test_admin_no_puede_fijar_una_partida_inexistente(auth_env):
@@ -674,7 +674,8 @@ def test_partida_id_en_blanco_nunca_es_visible_ni_actua_de_comodin():
 
     policy = VisibilityPolicy()
     for blanco in ("", "   "):
-        node = {"id": "n", "workspace": WS, "partida_id": blanco, "visibility": "player"}
+        node = {"id": "n", "workspace": WS, "scope": "partida",
+                "partida_id": blanco, "visibility": "player"}
 
         sin_partida = ViewerContext(
             role="viewer", allowed_workspaces=frozenset({WS}),
@@ -719,7 +720,7 @@ def test_seleccionar_partida_vacia_vuelve_a_capa_juego(auth_env):
         row = conn.execute("SELECT active_partida FROM sessions WHERE user_id = ?",
                            (user.id,)).fetchone()
     assert row["active_partida"] is None
-    assert _entity_ids(c) == {"lore_dios_sol", "legacy_material_sin_partida"}
+    assert _entity_ids(c) == {"lore_dios_sol"}
 
 
 # ===========================================================================
@@ -768,7 +769,7 @@ def test_select_partida_no_cruza_desde_otro_workspace(auth_env):
         row = conn.execute("SELECT active_partida FROM sessions WHERE user_id = ?",
                            (user.id,)).fetchone()
     assert row["active_partida"] is None
-    assert _entity_ids(c) == {"lore_dios_sol", "legacy_material_sin_partida"}
+    assert _entity_ids(c) == {"lore_dios_sol"}
 
 
 def auth_db_module():
@@ -797,7 +798,7 @@ def test_reverificacion_no_cruza_desde_otro_workspace(auth_env):
     ids = _entity_ids(c)
     assert "partida1_pc_arden" not in ids, (
         "fuga: acceso concedido en otro workspace visible en el workspace efectivo")
-    assert ids == {"lore_dios_sol", "legacy_material_sin_partida"}
+    assert ids == {"lore_dios_sol"}
 
     with auth_db.get_conn(auth_env) as conn:
         row = conn.execute("SELECT active_partida FROM sessions WHERE user_id = ?",
