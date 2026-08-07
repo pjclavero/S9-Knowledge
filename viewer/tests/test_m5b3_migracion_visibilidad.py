@@ -4,7 +4,14 @@ from pathlib import Path
 
 import pytest
 
-from app.policies.models import DENY, NARRATOR, PLAYER, REFERENCE, SECRET
+from app.policies.models import (
+    ALL_STORED_LEVELS,
+    DENY,
+    NARRATOR,
+    PLAYER,
+    REFERENCE,
+    SECRET,
+)
 from app.policies.visibility_migration import (
     FALLBACK,
     RESTRICTIVENESS,
@@ -57,6 +64,42 @@ def test_un_extremo_ilegible_no_se_ignora():
 
 def test_sin_extremos_cae_al_defecto_restrictivo():
     assert most_restrictive([]) == FALLBACK
+
+
+# --- INVARIANTE: monotonia -------------------------------------------------
+# Exigido explicitamente por el operador. Que el algoritmo actual lo cumpla no
+# basta: debe ser una propiedad comprobada sobre TODO el vocabulario, para que
+# cambiar `most_restrictive` por algo mas listo no pueda abrir una arista.
+@pytest.mark.parametrize("a", ALL_STORED_LEVELS)
+@pytest.mark.parametrize("b", ALL_STORED_LEVELS)
+def test_invariante_una_arista_nunca_queda_menos_restringida_que_sus_extremos(a, b):
+    nodos = {"a": {"visibility": a}, "b": {"visibility": b}}
+    arista, _ = stamp_edge({"from": "a", "to": "b"}, nodos)
+    rango = RESTRICTIVENESS[arista["visibility"]]
+    assert rango >= RESTRICTIVENESS[a]
+    assert rango >= RESTRICTIVENESS[b]
+
+
+@pytest.mark.parametrize("otro", ALL_STORED_LEVELS)
+def test_invariante_cualquier_extremo_deny_hace_la_arista_deny(otro):
+    """Una arista que toca un nodo terminal no puede sobrevivir a su extremo."""
+    nodos = {"a": {"visibility": DENY}, "b": {"visibility": otro}}
+    arista, _ = stamp_edge({"from": "a", "to": "b"}, nodos)
+    assert arista["visibility"] == DENY
+
+
+def test_invariante_la_muestra_migrada_cumple_monotonia():
+    """El invariante, comprobado sobre datos reales y no solo sobre pares."""
+    doc = json.loads(MUESTRA.read_text(encoding="utf-8"))
+    por_id = {n["id"]: n for n in doc["nodes"] if "id" in n}
+    for arista in doc["edges"]:
+        rango = RESTRICTIVENESS[normalize_level(arista["visibility"])]
+        for extremo in ("from", "to"):
+            nodo = por_id.get(arista.get(extremo))
+            esperado = RESTRICTIVENESS[FALLBACK] if nodo is None else RESTRICTIVENESS[
+                normalize_level(nodo.get("visibility")) or FALLBACK
+            ]
+            assert rango >= esperado, (arista, extremo)
 
 
 # --- estampado -------------------------------------------------------------
