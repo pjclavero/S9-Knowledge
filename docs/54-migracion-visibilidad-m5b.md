@@ -147,7 +147,74 @@ arreglar la primera.**
 > el contenedor arranca vacío sin error visible, y sin comprobar los conteos una
 > restauración vacía parece correcta.
 
+## Resolución sobre el grafo actual (2026-08-07): NO APLICAR en producción
+
+El dry-run se ejecutó y salió limpio, pero la migración **no se aplica** al
+grafo de producción actual. Decisión del operador.
+
+```
+Plan            12f7278f5af74ab2e684759391539c352e5e196d30c2f9f34c9b8cf1b117a6b4
+Dry-run         CONFORME — 339/339 objetos, 0 errores, 0 desconocidos
+Producción      NO APPLY
+```
+
+**Lo que dijo el dry-run** (preflight sobre `common`, 2026-08-07T07:51Z; Neo4j
+sano, visor inactivo, sin ingestas ni writers):
+
+| Tipo | Total | player | reference | narrator | secret | deny | error |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Nodos | 199 | 0 | 0 | 13 | 186 | 0 | 0 |
+| Relaciones | 140 | 0 | 0 | 21 | 119 | 0 | 0 |
+
+**Por qué no se aplica.** El resultado es un sellado *fail-closed* correcto,
+pero sin valor semántico: 186 de 199 nodos no llevan visibilidad ninguna, y las
+119 relaciones sin nivel tocan todas al menos uno de esos nodos, así que heredan
+`secret` legítimamente. La variedad de cuatro niveles de los fixtures no existe
+en producción. Y, sobre todo, **`known_by` está ausente en los 199 nodos**: la
+migración no puede reconstruir quién sabía qué, sólo puede cerrar el acceso.
+
+Ese grafo es legacy/de prueba y será sustituido al desplegar V3. Escribir 305
+propiedades sobre datos condenados no acerca el producto.
+
+**No se reconstruye `known_by` retrospectivamente** a partir de participación,
+sesiones, proximidad ni heurísticas: eso inventaría conocimiento histórico.
+Legacy desconocido se queda desconocido.
+
+### Destino del grafo actual
+
+Se conserva **intacto** —no se borra ahora— hasta que V3 demuestre una primera
+ingesta validada. Marcado operativamente como `LEGACY_TEST_GRAPH`, **no migrado
+a M5b**, **no autoritativo para V3**. Se conservan backup lógico, dump físico,
+hashes, conteos, el plan `12f7278f`, el dry-run y esta explicación.
+
+### Validación que sí queda pendiente
+
+Aplicar el plan **una vez, contra una restauración aislada** del backup —nunca
+contra producción—: restore 199/140 → apply de `12f7278f` → 199/140 →
+pendientes 0 → inválidos 0 → 0 violaciones de monotonía. Da evidencia real de
+que dry-run y apply coinciden y de que la operación no altera estructura.
+
+### Regla para los datos nuevos de V3
+
+La situación del legacy es tolerable sólo por ser legacy. En V3 el writer debe
+**rechazar el plan antes de llegar a Neo4j** si falta o es inválida la
+visibilidad, el ámbito o el workspace, si falta una partida requerida, o si
+`known_by` trae identificadores inválidos.
+
+```
+legacy desconocido      -> se conserva como legacy
+dato V3 nuevo desconocido -> no se escribe
+```
+
+Así el fail-closed no se convierte en excusa para introducir datos incompletos
+nuevos.
+
 ## Estado
 
-Despliegue de M5b en el visor productivo: **no autorizado todavía**. Siguiente
-puerta: resultado de la migración + smoke de autorización.
+Despliegue de M5b en el visor productivo: **no autorizado todavía**. Requiere
+antes un **revisor independiente** con dictamen CONFORME sobre el conjunto de
+M5b (contrato, adaptador, `deny` terminal, motor fail-closed, sonda de ámbito,
+propagación writer→Neo4j, herencia restrictiva, cross-workspace, cross-partida,
+`known_by`) — buscando vías de fuga, no repitiendo las pruebas.
+
+Siguiente hito: V3 limpio + writer M5b + primera ingesta controlada.
