@@ -7,9 +7,13 @@
       "type": "Character",
       "type_label": "Personaje",
       "description": "Shugenja del Clan Dragón que traiciona a sus aliados y se convierte en el nuevo Dark Oracle of Fire.",
-      "aliases": ["Tamori"],
+      "aliases": [
+        "Tamori"
+      ],
       "source_document": "3102 L5A - Game Master's Guide 2da.pdf",
-      "source_pages": [9],
+      "source_pages": [
+        9
+      ],
       "confidence": 0.9,
       "visibility": "reference",
       "knowledge_layer": "book",
@@ -23,7 +27,9 @@
       "description": "Monje del Clan Dragón, compañero de campaña de Tamori antes de su caída.",
       "aliases": [],
       "source_document": "3102 L5A - Game Master's Guide 2da.pdf",
-      "source_pages": [11],
+      "source_pages": [
+        11
+      ],
       "confidence": 0.85,
       "visibility": "player",
       "knowledge_layer": "book",
@@ -49,7 +55,9 @@
       "type": "Character",
       "type_label": "Personaje",
       "description": "Bushi del Clan Grulla, defensora del santuario abandonado durante el combate contra el oni.",
-      "aliases": ["Asuka"],
+      "aliases": [
+        "Asuka"
+      ],
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
       "confidence": 0.88,
@@ -77,7 +85,9 @@
       "type": "Character",
       "type_label": "Personaje",
       "description": "Cortesano/espía del Clan Escorpión que investiga al Culto del Pozo Viejo y desconfía de Kakita Asuka.",
-      "aliases": ["Hisao"],
+      "aliases": [
+        "Hisao"
+      ],
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
       "confidence": 0.75,
@@ -119,9 +129,14 @@
       "type": "Clan",
       "type_label": "Clan",
       "description": "Uno de los Grandes Clanes de Rokugan, dedicado a la introspección y la profecía.",
-      "aliases": ["Dragón", "Togashi"],
+      "aliases": [
+        "Dragón",
+        "Togashi"
+      ],
       "source_document": "3102 L5A - Game Master's Guide 2da.pdf",
-      "source_pages": [5],
+      "source_pages": [
+        5
+      ],
       "confidence": 0.95,
       "visibility": "reference",
       "knowledge_layer": "book",
@@ -133,9 +148,14 @@
       "type": "Concept",
       "type_label": "Concepto",
       "description": "Título/entidad sobrenatural corrupta ligada al elemento Fuego; Agasha Tamori se convierte en su nuevo portador.",
-      "aliases": ["Oráculo Oscuro del Fuego"],
+      "aliases": [
+        "Oráculo Oscuro del Fuego"
+      ],
       "source_document": "3102 L5A - Game Master's Guide 2da.pdf",
-      "source_pages": [9, 10],
+      "source_pages": [
+        9,
+        10
+      ],
       "confidence": 0.8,
       "visibility": "reference",
       "knowledge_layer": "book",
@@ -166,8 +186,11 @@
       "description": "Tamori absorbe el poder del Dark Oracle of Fire tras su traición.",
       "confidence": 0.8,
       "source_document": "3102 L5A - Game Master's Guide 2da.pdf",
-      "source_pages": [9],
-      "review_status": "auto_extracted"
+      "source_pages": [
+        9
+      ],
+      "review_status": "auto_extracted",
+      "visibility": "reference"
     },
     {
       "id": "e2",
@@ -179,7 +202,8 @@
       "confidence": 0.88,
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
-      "review_status": "auto_extracted"
+      "review_status": "auto_extracted",
+      "visibility": "player"
     },
     {
       "id": "e3",
@@ -191,7 +215,8 @@
       "confidence": 0.6,
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
-      "review_status": "needs_review"
+      "review_status": "needs_review",
+      "visibility": "secret"
     },
     {
       "id": "e4",
@@ -203,7 +228,8 @@
       "confidence": 0.9,
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
-      "review_status": "reviewed"
+      "review_status": "reviewed",
+      "visibility": "player"
     },
     {
       "id": "e5",
@@ -215,7 +241,8 @@
       "confidence": 0.9,
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
-      "review_status": "reviewed"
+      "review_status": "reviewed",
+      "visibility": "player"
     },
     {
       "id": "e6",
@@ -226,8 +253,11 @@
       "description": "",
       "confidence": 0.9,
       "source_document": "3102 L5A - Game Master's Guide 2da.pdf",
-      "source_pages": [9],
-      "review_status": "reviewed"
+      "source_pages": [
+        9
+      ],
+      "review_status": "reviewed",
+      "visibility": "reference"
     },
     {
       "id": "e7",
@@ -238,8 +268,11 @@
       "description": "",
       "confidence": 0.9,
       "source_document": "3102 L5A - Game Master's Guide 2da.pdf",
-      "source_pages": [11],
-      "review_status": "reviewed"
+      "source_pages": [
+        11
+      ],
+      "review_status": "reviewed",
+      "visibility": "reference"
     },
     {
       "id": "e8",
@@ -251,7 +284,8 @@
       "confidence": 0.55,
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
-      "review_status": "needs_review"
+      "review_status": "needs_review",
+      "visibility": "narrator"
     },
     {
       "id": "e9",
@@ -263,7 +297,8 @@
       "confidence": 0.8,
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
-      "review_status": "auto_extracted"
+      "review_status": "auto_extracted",
+      "visibility": "player"
     },
     {
       "id": "e10",
@@ -274,8 +309,11 @@
       "description": "Última conversación conocida antes de la caída de Tamori.",
       "confidence": 0.7,
       "source_document": "3102 L5A - Game Master's Guide 2da.pdf",
-      "source_pages": [10],
-      "review_status": "auto_extracted"
+      "source_pages": [
+        10
+      ],
+      "review_status": "auto_extracted",
+      "visibility": "reference"
     },
     {
       "id": "e11",
@@ -287,7 +325,8 @@
       "confidence": 0.65,
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
-      "review_status": "needs_review"
+      "review_status": "needs_review",
+      "visibility": "secret"
     },
     {
       "id": "e12",
@@ -299,7 +338,8 @@
       "confidence": 0.85,
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
-      "review_status": "auto_extracted"
+      "review_status": "auto_extracted",
+      "visibility": "player"
     }
   ]
 }
