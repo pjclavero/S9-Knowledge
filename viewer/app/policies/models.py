@@ -20,7 +20,14 @@ NARRATOR = "narrator"    # capa del narrador/GM: requiere permiso elevado
 SECRET = "secret"        # secreto de trama: oculto salvo permiso explícito
 REFERENCE = "reference"  # material de reglas/manual: requiere can_view_reference
 
+DENY = "deny"            # estado terminal (M5b): nunca visible por la vía normal
+
 ALL_LEVELS = (PLAYER, NARRATOR, SECRET, REFERENCE)
+#: Vocabulario COMPLETO admisible en la propiedad `visibility` de un nodo.
+#: Cualquier otro valor --incluida su ausencia-- es dato invalido, no un nivel
+#: mas permisivo. Debe coincidir con `VisibilityLevel` del contrato
+#: `contracts/knowledge-visibility/v1`.
+ALL_STORED_LEVELS = ALL_LEVELS + (DENY,)
 
 
 @dataclass(frozen=True)

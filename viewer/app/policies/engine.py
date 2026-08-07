@@ -26,6 +26,8 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 from app.policies.models import (
+    ALL_STORED_LEVELS,
+    DENY,
     NARRATOR,
     REFERENCE,
     SECRET,
@@ -40,6 +42,23 @@ class VisibilityPolicy:
     """Evalúa un ``ViewerContext`` contra nodos/relaciones del grafo."""
 
     def can_view(self, node: dict[str, Any], ctx: ViewerContext) -> VisibilityDecision:
+        # 0. M5b-2: la visibilidad debe ser un valor del vocabulario cerrado.
+        #
+        # Va ANTES del bypass de administrador, y no es un detalle: si fuera
+        # despues, `admin_full` haria visible tanto un `deny` --que es terminal
+        # por definicion-- como un nodo con la propiedad corrupta. Un bypass
+        # solo puede saltarse reglas de permiso; no puede convertir un dato
+        # invalido en un dato valido.
+        raw = node.get("visibility")
+        level = raw.strip().lower() if isinstance(raw, str) else None
+        if level not in ALL_STORED_LEVELS:
+            # Ausente, vacia, de otro tipo, o un nivel que este motor no
+            # conoce (p.ej. escrito por una version futura). Ninguno de esos
+            # casos puede resolverse "hacia lo permisivo" sin adivinar.
+            return VisibilityDecision(False, "visibility_invalid")
+        if level == DENY:
+            return VisibilityDecision(False, "deny_absolute")
+
         # 1. Bypass total de administrador.
         if ctx.admin_full:
             return _ALLOW
@@ -70,8 +89,8 @@ class VisibilityPolicy:
 
         knows = ctx.knows(node)
 
-        # 3. Nivel de visibilidad del contenido.
-        level = (node.get("visibility") or "player").lower()
+        # 3. Nivel de visibilidad del contenido. `level` ya viene validado
+        # desde la regla 0: aqui no se vuelve a leer del nodo.
         if not knows:
             if level == REFERENCE and not ctx.can_view_reference:
                 return VisibilityDecision(False, "reference_not_allowed")

@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable, Mapping, Optional, Sequence, TypeVar
 
 from app.policies.engine import POLICY, VisibilityPolicy
-from app.policies.models import ViewerContext
+from app.policies.models import PLAYER, ViewerContext
 
 T = TypeVar("T", bound=Mapping[str, Any])
 
@@ -93,8 +93,23 @@ class VisibilityScope:
             return True
         return workspace in self.ctx.allowed_workspaces
 
+    #: Visibilidad de las SONDAS de ámbito. Estas dos funciones no preguntan
+    #: "¿puede verse este contenido?" sino "¿cae esto dentro de mi ámbito?", y
+    #: para eso construyen un nodo sintético que solo lleva `workspace` y
+    #: `partida_id`. Desde M5b-2 el motor exige una visibilidad válida en todo
+    #: nodo, así que la sonda debe declarar la suya: `player` es el nivel neutro
+    #: que deja actuar a las barreras de ámbito y solo a ellas.
+    #:
+    #: Esto NO relaja nada: el contenido real se evalúa después, con su propia
+    #: visibilidad, en `can_view`. Aquí solo se decide pertenencia al ámbito, y
+    #: una sonda que se denegara a sí misma haría inalcanzable cualquier
+    #: registro, incluida la cola de revisión.
+    _PROBE_VISIBILITY = PLAYER
+
     def allows_partida(self, partida_id: Optional[str]) -> bool:
-        return self.policy.can_view({"partida_id": partida_id}, self.ctx).visible
+        return self.policy.can_view(
+            {"partida_id": partida_id, "visibility": self._PROBE_VISIBILITY}, self.ctx
+        ).visible
 
     def allows(self, record: Mapping[str, Any]) -> bool:
         """True si el registro pertenece al ámbito visible (workspace+partida)."""
@@ -104,6 +119,7 @@ class VisibilityScope:
         node = {
             "workspace": workspace if self.enforce_workspace else None,
             "partida_id": _first(record, _PARTIDA_PATHS),
+            "visibility": self._PROBE_VISIBILITY,
         }
         return self.policy.can_view(node, self.ctx).visible
 
