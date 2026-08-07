@@ -23,6 +23,8 @@ proximo que anada un builder con prisa.
 from __future__ import annotations
 
 import re
+
+from knowledge_v3.writer.visibility import stamp as stamp_visibility
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -85,6 +87,12 @@ RESERVED_PROPS = frozenset(
         "written_by_operator",
         "written_at",
         "idempotency_key",
+        # M5b-1: la visibilidad la estampa el writer desde un contrato
+        # validado, nunca el payload (docs/53, contracts/knowledge-visibility).
+        "visibility",
+        "known_by",
+        "visibility_contract",
+        "visibility_source",
     }
 )
 
@@ -293,12 +301,17 @@ def create_entity(
     label: str | None,
     props: dict,
     partida_id: str | None = None,
+    visibility: Any = None,
 ) -> Query:
     """CREATE-only. Sin MERGE y sin una sola asignacion masiva.
 
     `partida_id=None` no escribe la propiedad (Neo4j omite claves con valor
     `null` en un `CREATE (n $props)`): un nodo de capa juego queda EXACTAMENTE
     igual que antes de M3, sin la propiedad presente en absoluto.
+
+    M5b-1: `visibility` se estampa desde un contrato validado. Omitirlo no
+    deja el nodo sin visibilidad -- lo deja en `secret`, que es lo que evita
+    que un olvido publique un hecho.
     """
     labels = f":{LABEL_ENTITY}"
     if label:
@@ -307,7 +320,7 @@ def create_entity(
         f"CREATE (n{labels} $props) RETURN n.entity_id AS id",
         {
             "props": {
-                **props,
+                **stamp_visibility(props, visibility),
                 "entity_id": entity_id,
                 "workspace": workspace,
                 "partida_id": partida_id,
@@ -317,13 +330,17 @@ def create_entity(
 
 
 def create_assertion(
-    assertion_id: str, workspace: str, props: dict, partida_id: str | None = None
+    assertion_id: str,
+    workspace: str,
+    props: dict,
+    partida_id: str | None = None,
+    visibility: Any = None,
 ) -> Query:
     return Query(
         f"CREATE (n:{LABEL_ASSERTION} $props) RETURN n.assertion_id AS id",
         {
             "props": {
-                **props,
+                **stamp_visibility(props, visibility),
                 "assertion_id": assertion_id,
                 "workspace": workspace,
                 "partida_id": partida_id,
@@ -339,6 +356,7 @@ def create_relation(
     workspace: str,
     props: dict,
     partida_id: str | None = None,
+    visibility: Any = None,
 ) -> Query:
     """Arista nueva entre dos entidades que ya existen. Nunca las crea.
 
@@ -352,7 +370,11 @@ def create_relation(
         "subject": subject_id,
         "object": object_id,
         "ws": workspace,
-        "props": {**props, "workspace": workspace, "partida_id": partida_id},
+        "props": {
+            **stamp_visibility(props, visibility),
+            "workspace": workspace,
+            "partida_id": partida_id,
+        },
     }
     if partida_id is not None:
         params["partida_id"] = partida_id
