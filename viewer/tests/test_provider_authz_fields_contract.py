@@ -43,14 +43,13 @@ CAMPOS_AUTORIZACION_NODO = (
     "session_index",
 )
 
-#: Idem para relaciones. Una arista se evalua con `can_view` igual que un nodo.
-CAMPOS_AUTORIZACION_RELACION = (
-    "workspace",
-    "scope",
-    "partida_id",
-    "visibility",
-    "known_by",
-)
+#: Idem para relaciones. Una arista se evalua con `can_view` EXACTAMENTE igual
+#: que un nodo, asi que la lista es la MISMA. Al escribir este fichero por
+#: primera vez se dejo mas corta --sin `party`, `is_public` ni `session_index`--
+#: y eso reproducia el defecto que venia a impedir: las reglas de party y de
+#: sesion futura quedaban apagadas solo para relaciones, en verde. De ahi que
+#: ahora sea la misma tupla y que exista el test de simetria de abajo.
+CAMPOS_AUTORIZACION_RELACION = CAMPOS_AUTORIZACION_NODO
 
 
 class _NodoFalso:
@@ -113,6 +112,41 @@ def test_un_campo_ausente_en_neo4j_llega_como_None_y_no_desaparece():
     for campo in CAMPOS_AUTORIZACION_NODO:
         assert campo in d
         assert d[campo] is None or d[campo] == [] or d[campo] == ""
+
+
+def test_nodos_y_relaciones_declaran_los_mismos_campos():
+    """Simetria obligatoria: el motor no distingue nodo de arista al decidir.
+
+    Una lista mas corta para relaciones no "protege menos": apaga la regla
+    entera solo para aristas, y en verde. Ya paso una vez.
+    """
+    assert set(CAMPOS_AUTORIZACION_RELACION) == set(CAMPOS_AUTORIZACION_NODO)
+    falsa = _RelacionFalsa({c: "x" for c in CAMPOS_AUTORIZACION_NODO})
+    proyectada = _rel_to_dict(falsa)
+    faltan = [c for c in CAMPOS_AUTORIZACION_NODO if c not in proyectada]
+    assert not faltan, f"_rel_to_dict no transporta {faltan}"
+
+
+def test_el_wrapper_de_politica_cubre_todos_los_metodos_del_proveedor():
+    """Ningun metodo del proveedor puede llegar al router sin pasar el filtro.
+
+    `PolicyFilteredProvider` protege sobrescribiendo metodo a metodo. Es
+    efectivo pero fragil: un metodo nuevo en el ABC que nadie sobrescriba se
+    hereda sin filtrar y la fuga es inmediata y silenciosa. Este test convierte
+    esa disciplina en algo comprobable.
+    """
+    from app.authz.filtered_provider import PolicyFilteredProvider
+    from app.providers.base import GraphProvider
+
+    metodos = {
+        nombre for nombre, valor in vars(GraphProvider).items()
+        if callable(valor) and not nombre.startswith("_")
+    }
+    sin_cubrir = {m for m in metodos if m not in vars(PolicyFilteredProvider)}
+    assert not sin_cubrir, (
+        f"PolicyFilteredProvider no sobrescribe {sorted(sin_cubrir)}: esos "
+        f"metodos llegarian al router SIN filtrar por politica"
+    )
 
 
 def test_ningun_campo_que_el_motor_consulta_queda_fuera_de_la_lista():

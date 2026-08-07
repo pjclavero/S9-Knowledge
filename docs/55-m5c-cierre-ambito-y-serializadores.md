@@ -91,9 +91,18 @@ El grafo se conserva intacto — ver `docs/54-migracion-visibilidad-m5b.md`.
 
 1. **`test_provider_authz_fields_contract.py`** — congela la forma de los
    serializadores reales. Si alguien quita un campo de autorización de la
-   proyección, se pone rojo aunque el motor siga perfecto. Incluye la red
-   inversa: lee el código del motor y exige que todo `node.get(...)` que consulte
-   esté declarado en la proyección.
+   proyección, se pone rojo aunque el motor siga perfecto. Incluye tres redes
+   más: la inversa (lee el código del motor y exige que todo `node.get(...)` que
+   consulte esté declarado), la de **simetría** entre nodos y relaciones, y la
+   que comprueba que `PolicyFilteredProvider` sobrescribe *todos* los métodos
+   del proveedor —un método nuevo heredado sin filtrar sería una fuga inmediata
+   y silenciosa—.
+
+   La simetría no es teórica: la primera versión de esta misma prueba dejó la
+   lista de relaciones más corta que la de nodos, lo que apagaba las reglas de
+   *party* y de sesión futura sólo para aristas, en verde. Lo detectó un barrido
+   posterior. El defecto que este fichero venía a impedir se reprodujo dentro
+   del propio fichero.
 2. **`test_neo4j_integration_authz.py`** — el test que faltaba por encima de
    todos. Escribe en un Neo4j efímero, lee con el proveedor real y decide con la
    política real: cruce de partidas, cruce de workspace, acceso por ID, conteos,

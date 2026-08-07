@@ -62,11 +62,17 @@ def _rel_to_dict(rel) -> dict[str, Any]:
         # Sin `visibility` aquí, TODA relación caía en `visibility_invalid`: el
         # visor real se quedaba sin una sola arista y la herencia restrictiva de
         # M5b-3 no tenía ningún efecto observable.
+        # Una arista se evalua con `can_view` EXACTAMENTE igual que un nodo, asi
+        # que necesita los mismos campos. Cualquier asimetria entre las dos
+        # listas apaga una regla solo para relaciones, en silencio.
         "visibility": props.get("visibility"),
         "workspace": props.get("workspace"),
         "scope": props.get("scope"),
         "partida_id": props.get("partida_id"),
         "known_by": props.get("known_by"),
+        "party": props.get("party"),
+        "is_public": props.get("is_public"),
+        "session_index": props.get("session_index"),
         "description": props.get("evidence") or props.get("description", ""),
         "source_document": props.get("source_document", ""),
         "source_pages": props.get("source_pages", []),
