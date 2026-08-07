@@ -36,30 +36,48 @@ de que alguien se acuerde.
 
 ## 2. Árbol propuesto
 
+El operador ya había creado `rol/` con una plantilla organizada por **formato**
+(`manuales`, `sesiones`, `transcripciones`, `videos`). Esa propuesta y esta se
+organizan por ejes distintos, y hacen falta los dos:
+
+- Por **formato** se navega cómodamente a mano.
+- Por **ámbito** se decide la visibilidad, que es lo que el formato no puede
+  decir: una transcripción puede ser material de jugadores o una conversación
+  privada del narrador, y ser transcripción no distingue una de otra.
+
+No compiten. **El ámbito manda arriba; el formato vive dentro.** Para el sistema
+las carpetas de formato son transparentes —el tipo de fichero se deduce de su
+extensión— así que existen solo para comodidad del operador y el ingestor las
+atraviesa sin que alteren el ámbito.
+
 ```
 rol/                                  raíz de bóvedas, propiedad de Mimir
-├── _plantilla/                       árbol vacío que se copia al «añadir juego»
+├── _plantilla/                       se copia al «añadir juego» — NO se ingiere
 └── <juego>/                          ← workspace
-    ├── 00-entrada/                   material sin clasificar
-    ├── 10-lore/                      capa compartida del juego (partida_id = None)
-    │   ├── ambientacion/
-    │   ├── reglas/
-    │   ├── personajes/               PNJ y figuras del mundo
-    │   ├── lugares/
-    │   └── cronologia/
-    ├── 20-partidas/
+    ├── entrada/                      material sin clasificar
+    ├── manuales/                     reglas del sistema        ┐ capa compartida
+    ├── lore/                         ambientación, PNJ, lugares┘ (partida_id = None)
+    ├── partidas/
     │   └── <partida>/                ← partida_id
-    │       ├── sesiones/             actas y transcripciones, una por sesión
+    │       ├── sesiones/
+    │       │   └── sesion-01/        una carpeta por sesión
+    │       │       ├── videos/       ┐ carpetas de formato:
+    │       │       ├── transcripciones/ │ transparentes para el ámbito
+    │       │       └── acta.md       ┘
     │       ├── material-jugadores/
     │       ├── notas-narrador/
     │       ├── secretos/
     │       └── personajes/           fichas de PJ
-    ├── 90-referencia/                material externo citable
-    └── 99-archivo/                   retirado — no se ingiere nunca
+    ├── referencia/                   material externo citable
+    └── archivo/                      retirado — no se ingiere nunca
 ```
 
-Los prefijos numéricos no son decoración: ordenan la carpeta en cualquier
-cliente y hacen que el nombre visible no cambie al renombrar el contenido.
+Convenciones de nombre, por razones prácticas:
+
+- `sesion-01`, no `sesion 1`. El espacio complica rutas y órdenes de consola, y
+  sin cero de relleno la sesión 10 se ordena antes que la 2.
+- `_plantilla` con guion bajo: la ancla arriba al ordenar y la deja fuera de la
+  ingesta por convención visible, no por una regla escondida.
 
 ## 3. Correspondencia carpeta → ámbito
 
@@ -68,16 +86,24 @@ hecho. Se aplica sobre la ruta **relativa a la raíz de bóvedas**.
 
 | Ruta | `workspace` | `partida_id` | `visibility` inicial |
 |---|---|---|---|
-| `<juego>/10-lore/**` | `<juego>` | `None` (compartido) | `player` |
-| `<juego>/20-partidas/<p>/material-jugadores/**` | `<juego>` | `<p>` | `player` |
-| `<juego>/20-partidas/<p>/sesiones/**` | `<juego>` | `<p>` | `player` |
-| `<juego>/20-partidas/<p>/notas-narrador/**` | `<juego>` | `<p>` | `narrator` |
-| `<juego>/20-partidas/<p>/secretos/**` | `<juego>` | `<p>` | `secret` |
-| `<juego>/20-partidas/<p>/personajes/**` | `<juego>` | `<p>` | `narrator` |
-| `<juego>/90-referencia/**` | `<juego>` | `None` | `reference` |
-| `<juego>/00-entrada/**` | `<juego>` | `None` | `secret` (lo más restrictivo) |
-| `<juego>/99-archivo/**` | — | — | **no se ingiere** |
+| `<juego>/manuales/**` | `<juego>` | `None` (compartido) | `player` |
+| `<juego>/lore/**` | `<juego>` | `None` (compartido) | `player` |
+| `<juego>/partidas/<p>/material-jugadores/**` | `<juego>` | `<p>` | `player` |
+| `<juego>/partidas/<p>/sesiones/**` | `<juego>` | `<p>` | `player` |
+| `<juego>/partidas/<p>/notas-narrador/**` | `<juego>` | `<p>` | `narrator` |
+| `<juego>/partidas/<p>/secretos/**` | `<juego>` | `<p>` | `secret` |
+| `<juego>/partidas/<p>/personajes/**` | `<juego>` | `<p>` | `narrator` |
+| `<juego>/referencia/**` | `<juego>` | `None` | `reference` |
+| `<juego>/entrada/**` | `<juego>` | `None` | `secret` (lo más restrictivo) |
+| `<juego>/archivo/**` | — | — | **no se ingiere** |
+| `_plantilla/**` | — | — | **no se ingiere** |
 | cualquier otra ruta | — | — | **no se ingiere** |
+
+Las carpetas de formato bajo `sesiones/<sesion>/` (`videos/`,
+`transcripciones/`, y las que el operador añada) **no aparecen en esta tabla a
+propósito**: heredan el ámbito de la sesión que las contiene y no pueden
+modificarlo. Añadir una carpeta de formato nueva nunca cambia la visibilidad de
+nada.
 
 Dos reglas de cierre, ambas a prueba de fallos:
 
@@ -144,9 +170,16 @@ vez. Debe medirse antes de habilitar reprocesado automático.
 
 ## 6. Pendiente del operador
 
-- **Contraseña de aplicación nueva para `Mimir`.** La actual devuelve `401
-  Unauthorized` contra el Nextcloud reconstruido; era también la causa del bucle
-  de reintentos del montaje.
-- Revisar este árbol frente a la carpeta `rol/` y la plantilla ya creadas.
+- ~~Contraseña de aplicación nueva para `Mimir`.~~ **Resuelto (2026-08-07)**: la
+  anterior no sobrevivió a la reconstrucción de Nextcloud y devolvía `401
+  Unauthorized` — esa era además la causa real del bucle de reintentos del
+  montaje, no el almacenamiento caído. Renovada por el operador; el remoto
+  vuelve a listar. `rclone.conf` queda en `600` (su ofuscación es reversible, no
+  es cifrado).
+- Revisar el árbol de la sección 2 frente a la plantilla ya creada, y ajustar
+  esta última si se acepta: añadir el nivel `partidas/<partida>/`, renombrar
+  `sesion 1` → `sesion-01` y `plantilla` → `_plantilla`.
 - Confirmar los nombres definitivos de juego y partida (`<juego>` y `<p>` pasan
   a ser identificadores de ámbito; renombrarlos después es una migración).
+- Decidir cuándo se reactiva el montaje (`systemctl enable --now`). Sigue parado
+  y deshabilitado a propósito.
