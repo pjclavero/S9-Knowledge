@@ -177,8 +177,16 @@ la mesa equivocada. Con `<partida>-<jugador>` el nombre es informativo para el
 jugador sin que nadie tenga que renombrar nada a mano — y no depender de que
 cada jugador se organice bien es justamente el objetivo.
 
-Renombrar esta carpeta es seguro: WebDAV mueve el mismo objeto, así que el
-compartido existente la sigue sin necesidad de rehacerlo (verificado).
+**Nombrar antes de compartir, nunca al revés.** Renombrar la carpeta de origen
+mantiene vivo el compartido —WebDAV mueve el mismo objeto— pero **no** cambia el
+nombre con el que la ve quien la recibe: Nextcloud fija ese nombre
+(`file_target`) al crear el compartido y no lo actualiza después. El resultado es
+un desajuste silencioso, sin error de por medio: el operador ve un nombre y el
+jugador otro. Comprobado en la instancia real, y corregido retirando el
+compartido y volviéndolo a crear.
+
+Regla para el panel: la carpeta se crea con su nombre definitivo y solo entonces
+se comparte. Si alguna vez hay que renombrarla, hay que rehacer el compartido.
 
 | Opción | Atribución | Riesgo |
 |---|---|---|
