@@ -64,7 +64,8 @@ rol/                                  raíz de bóvedas, propiedad de Mimir
     │       │       ├── videos/       ┐ carpetas de formato:
     │       │       ├── transcripciones/ │ transparentes para el ámbito
     │       │       └── acta.md       ┘
-    │       ├── aportaciones/      buzón: los jugadores dejan, no leen (ver 4 bis)
+    │       ├── aportaciones/
+    │       │   └── <jugador>/     una por jugador, compartida solo con él (ver 4 bis)
     │       ├── material-jugadores/
     │       ├── notas-narrador/
     │       ├── secretos/
@@ -89,7 +90,7 @@ hecho. Se aplica sobre la ruta **relativa a la raíz de bóvedas**.
 |---|---|---|---|
 | `<juego>/manuales/**` | `<juego>` | `None` (compartido) | `player` |
 | `<juego>/lore/**` | `<juego>` | `None` (compartido) | `player` |
-| `<juego>/partidas/<p>/aportaciones/**` | `<juego>` | `<p>` | `secret` (lo más restrictivo, hasta revisión) |
+| `<juego>/partidas/<p>/aportaciones/<jugador>/**` | `<juego>` | `<p>` | `secret` (lo más restrictivo, hasta revisión) |
 | `<juego>/partidas/<p>/material-jugadores/**` | `<juego>` | `<p>` | `player` |
 | `<juego>/partidas/<p>/sesiones/**` | `<juego>` | `<p>` | `player` |
 | `<juego>/partidas/<p>/notas-narrador/**` | `<juego>` | `<p>` | `narrator` |
@@ -147,25 +148,45 @@ Restricciones que no se negocian:
 
 ## 4 bis. Aportaciones de los jugadores y procedencia
 
-Nextcloud desplegado: **33.0.0**. Admite buzón de archivos («file drop») también
-en recursos compartidos **internos**, no solo en enlaces públicos.
+Nextcloud desplegado: **33.0.0**.
 
-Decisión: los jugadores aportan material mediante un **compartido interno de
-solo creación**, sobre `partidas/<partida>/aportaciones/`, concedido a un
-**grupo por partida**.
+**Comprobado contra la instancia real, y desmiente lo que se suponía**: el buzón
+de archivos («file drop», solo creación sin lectura) **no está disponible en
+compartidos internos**, solo en enlaces públicos. Al crear un compartido interno
+con `permissions=4`, Nextcloud lo eleva por su cuenta a `5` —lectura más
+creación— y rechaza con `400 Failed to update share` cualquier intento de
+bajarlo. Un compartido interno **siempre** concede lectura.
 
-Por qué esta combinación y no otra:
+Decisión resultante: **una subcarpeta por jugador**, compartida individualmente.
+
+```
+partidas/<partida>/aportaciones/
+├── <jugador-1>/     compartido solo con <jugador-1>
+└── <jugador-2>/     compartido solo con <jugador-2>
+```
+
+Cada jugador lee y escribe en la suya, y no ve las de los demás porque no están
+compartidas con él. El aislamiento lo da la estructura, no el permiso, que era
+lo que Nextcloud no nos podía garantizar.
 
 | Opción | Atribución | Riesgo |
 |---|---|---|
 | Enlace público | **Ninguna fiable.** La subida se registra a nombre del dueño de la carpeta; el apodo que se pide al subir lo escribe el propio usuario | URL reenviable |
-| Compartido interno con lectura | Fiable | **Segunda puerta**: los jugadores verían los ficheros crudos en Nextcloud, sin pasar por el motor de visibilidad |
-| **Compartido interno de solo creación** | **Fiable** (usuario autenticado) | Ninguna de las dos: no hay URL suelta y no hay nada legible a través del compartido |
+| Compartido interno de `aportaciones/` entera | Fiable | Cada jugador leería lo aportado por los demás |
+| **Subcarpeta por jugador, compartido interno** | **Fiable** (usuario autenticado) | Ninguno de los anteriores |
 
-Consecuencias operativas: quien aporta no puede comprobar que su fichero llegó
-—la confirmación debe darla el visor—, y ante nombres repetidos Nextcloud
-renombra el segundo en lugar de sobrescribirlo, que es el comportamiento
-deseado.
+Permisos efectivos concedidos: `5` = **lectura + creación**. No incluye edición
+(`2`), borrado (`8`) ni recompartir (`16`), así que un jugador puede depositar
+material y consultar lo suyo, pero **no puede modificarlo ni borrarlo** una vez
+subido, ni dar acceso a terceros. El borrado sigue siendo exclusivo del
+operador.
+
+Sigue en pie la regla de no compartir nunca por encima de este nivel: ni la
+carpeta de la partida ni la del juego, porque `notas-narrador/` y `secretos/`
+cuelgan de ahí y el compartido de Nextcloud no pasa por el motor de visibilidad.
+
+Consecuencia operativa: ante nombres repetidos Nextcloud renombra el segundo
+fichero en lugar de sobrescribirlo, que es el comportamiento deseado.
 
 **Regla de fondo: la procedencia no concede conocimiento.** Ni siquiera con
 usuarios autenticados. Que un jugador aporte la transcripción de una sesión no
