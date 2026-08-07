@@ -28,6 +28,20 @@ Las decisiones de producto de los Lotes 4 y 5 no se presuponen. Tampoco se
 presenta la implementación de una política tras flags como una autorización para
 activarla o escribir en producción.
 
+## Puertas de calidad V3 y programa multi-partida
+
+| Frente | Estado | Resultado / siguiente condición |
+|---|---|---|
+| Puerta 4 — cobertura del extractor (PRs #124-#130) | **CERRADA — PARCIAL** | Cobertura E2E dev 0.607 (≥0.60, conforme); recall autoaprobación SIMPLE 0.10 (≥0.70, no conforme); invariantes de precisión intactos. Ver `docs/v3/42-gate4-cierre-programa.md`. |
+| Puerta 6 — factividad composicional (PRs #131-#133, #136) | **CERRADA — CONFORME CON RESERVAS** | Ratificado por el operador el 2026-08-05. Ver `docs/v3/46-gate6-cierre-programa.md`. |
+| Acuerdo determinista∧NVIDIA (PRs #134-#135) | **MEDIDO** | Acuerdo activo 27/27 y 1.000 en corpus ampliado; piloto controlado aprobado, con auditoría humana 100%, gateado al despliegue de V3 y a la primera ingesta autorizada. |
+| Multi-partida M0/M2/M3/M4/M5a (PRs #138, #140-#143) | **MERGEADOS** | Contratos, resolutor ciego, writer con ámbito estampado, divergencias locales del lore y selector de partida en el visor. |
+| Multi-partida M1 | **BLOQUEADO** | Mapeo de ingesta Nextcloud→ámbito a la espera de que Nextcloud vuelva a estar disponible. |
+| Multi-partida M5b y M6 | **PENDIENTES** | Sin trabajo iniciado. |
+
+Ninguno de estos programas implica despliegue en VM105: son estado de `main`
+(bloque `development` de `docs/project-status.yaml`), no de producción.
+
 ## Legacy (v1/v2)
 
 La línea v1/v2 explica la release RC5.1 que sigue desplegada, pero ya no es el

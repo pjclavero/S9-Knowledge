@@ -8,17 +8,37 @@ Pensada para campañas de rol (L5A "Leyenda", Mundo de Tinieblas, Trudvang…): 
 personajes, criaturas, lugares, facciones, objetos, eventos, combates y sesiones, y
 la evolución del conocimiento de cada personaje a lo largo de la campaña.
 
-## Estado actual (RC5.1 — 2026-07-18)
+## Estado actual (desarrollo vs. producción — 2026-08-06)
 
-> **Producción (VM105):** release `deploy-v0.3.0-rc5.1` (`47bc314`), visor
-> `s9-knowledge-viewer.service` active/running. **Login propio del visor** (Basic Auth
-> retirada del proxy). Neo4j **199 nodos / 140 relaciones**. 1 administrador, 1 job,
-> **0 ingestas** (ingesta real bloqueada por doble guard). Healthcheck con **timer horario**
-> activo. Despliegue por releases inmutables + deploy-tools versionados.
+`docs/project-status.yaml` separa explícitamente tres bloques: `development`
+(lo que hay en `main`), `production` (lo desplegado de verdad en VM105) y
+`next_release` (el candidato y qué lo bloquea). No los confundas: desde el
+merge de V3 (PR #110), `main` y VM105 van desacoplados.
+
+> **Desarrollo (`main`, commit `fb4a6fe`):** motor vigente `knowledge_v3`.
+> Puerta 4 (cobertura del extractor) cerrada **PARCIAL**; Puerta 6
+> (factividad composicional) cerrada **CONFORME CON RESERVAS**; medición del
+> acuerdo determinista∧NVIDIA completada con **piloto controlado** aprobado
+> (sin reducir revisión humana todavía); programa **multi-partida** en curso
+> (M0/M2/M3/M4/M5a mergeados, M1 bloqueado por Nextcloud, M5b/M6 pendientes).
+> CI verde en el último merge (PR #144).
 >
-> El estado autoritativo y verificable está en [`docs/project-status.yaml`](docs/project-status.yaml)
-> y se narra en [`docs/02-current-state.md`](docs/archivados/02-current-state.md). External AI (NVIDIA) en
-> modo sombra; burst orchestrator B1 implementado (B2/B3 pendientes).
+> **Producción (VM105):** sigue siendo `deploy-v0.3.0-rc5.1` (`47bc314`),
+> **V3 no está desplegada**. Último estado verificado por SSH (2026-07-18):
+> visor `s9-knowledge-viewer.service` active/running, login propio del visor
+> (Basic Auth retirada del proxy), Neo4j 199 nodos / 140 relaciones, 1
+> administrador, 1 job, 0 ingestas (ingesta real bloqueada por doble guard),
+> healthcheck con timer horario activo. Estos datos de producción **no se
+> han vuelto a verificar** en esta actualización de la documentación;
+> `docs/project-status.yaml` lo marca como pendiente de reconfirmar en el
+> servidor.
+>
+> El estado autoritativo y verificable está en
+> [`docs/project-status.yaml`](docs/project-status.yaml). La narrativa de la
+> release RC5.1 (histórica, no la línea vigente del repo) sigue en
+> [`docs/02-current-state.md`](docs/archivados/02-current-state.md). External
+> AI (NVIDIA) en modo sombra; burst orchestrator B1 implementado (B2/B3
+> pendientes).
 
 ### Línea principal del repositorio: V3
 
@@ -44,7 +64,7 @@ de las políticas graduadas requiere medición en sombra; el despliegue V3 sigue
 pendiente. El plan vigente es
 [`docs/v3/32-plan-consolidado-extractor-y-nucleo.md`](docs/v3/32-plan-consolidado-extractor-y-nucleo.md).
 
-### Estado de las puertas de calidad V3 (actualizado 2026-08-05)
+### Estado de las puertas de calidad V3 (actualizado 2026-08-06)
 
 Tras el merge de V3 en `main` (cadena PRs #116-#118) se ejecutaron dos
 programas de calidad adicionales, ambos cerrados:
@@ -76,10 +96,13 @@ programas de calidad adicionales, ambos cerrados:
   [`docs/v3/47-acuerdo-det-nvidia.md`](docs/v3/47-acuerdo-det-nvidia.md) y
   [`docs/v3/48-acuerdo-eval2.md`](docs/v3/48-acuerdo-eval2.md).
 
-Programa **multi-partida** (separación juego/partida, PR #137 de diseño +
-bloque M0 de contratos en PR #138, `main` `ccf0fe4`): en curso. M1 (mapeo de
-ingesta Nextcloud→ámbito) está bloqueado a que Nextcloud vuelva a estar
-disponible; M2 (resolutor) se está trabajando en una rama separada. Ver
+Programa **multi-partida** (separación juego/partida, PR #137 de diseño):
+en curso. Mergeados M0 (contratos, PR #138), M2 (resolutor ciego,
+Invariante 1, PR #140), M3 (writer con ámbito estampado, Invariante 2,
+PR #141), M4 (divergencias locales del lore, `local_override_of`, PR #142) y
+M5a (selector de partida y aislamiento de ámbito en el visor, PR #143). M1
+(mapeo de ingesta Nextcloud→ámbito) sigue **bloqueado** a que Nextcloud
+vuelva a estar disponible; M5b y M6 quedan pendientes. Ver
 [`docs/v3/49-multipartida-diseno.md`](docs/v3/49-multipartida-diseno.md) y el
 índice [`docs/v3/README.md`](docs/v3/README.md).
 

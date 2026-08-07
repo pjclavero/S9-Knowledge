@@ -4,6 +4,58 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-08-06 — Sincronización de documentación de estado (desarrollo vs. producción)
+- `docs/project-status.yaml` reestructurado en tres bloques explícitos:
+  `development` (estado de `main`), `production` (último estado verificado
+  por SSH en VM105) y `next_release` (candidato V3 y qué lo bloquea). El
+  fichero anterior mezclaba ambos y describía una fotografía de RC5.1 ya
+  desactualizada frente a `main`.
+- README.md, ROADMAP.md y CHANGELOG.md actualizados para reflejar el cierre
+  del programa multi-partida M0/M2/M3/M4/M5a (PRs #138, #140-#143; M1
+  bloqueado por Nextcloud, M5b/M6 pendientes), que no se había documentado
+  fuera del README (PR #139 solo tocó README y la documentación consolidada).
+- Corregido enlace roto en este CHANGELOG a `docs/02-current-state.md`
+  (la ruta real es `docs/archivados/02-current-state.md`).
+- Ningún dato de producción (contadores de Neo4j, fecha de despliegue) se
+  ha vuelto a verificar por SSH en esta pasada; quedan marcados como
+  pendientes de reconfirmar en `docs/project-status.yaml`.
+
+### 2026-08-05 — Programa multi-partida: contratos, resolutor, writer y visor (PRs #138, #140–#143)
+- **PR #138 — M0:** `partida_id` incorporado a los contratos de la tubería
+  (`v3-contracts-frozen-1.0.0-m0`).
+- **PR #140 — M2:** resolutor ciego entre partidas (Invariante 1):
+  ninguna partida puede leer o inferir contenido de otra durante la
+  resolución de entidades.
+- **PR #141 — M3:** writer con ámbito estampado y error duro ante cruces
+  de partida (Invariante 2).
+- **PR #142 — M4:** divergencias locales del lore vía `local_override_of`,
+  no destructivo sobre el lore común.
+- **PR #143 (+ #144 fix):** M5a — selector de partida y aislamiento de
+  acceso estampado por workspace efectivo en el visor. PR #144 corrige un
+  fallo de CI introducido por #143 (import perezoso en `app.authz`).
+- M1 (mapeo de ingesta Nextcloud→ámbito) sigue bloqueado a que Nextcloud
+  vuelva a estar disponible. M5b y M6 pendientes.
+
+### 2026-08-05 — Cierre de Puertas 4 y 6, medición del acuerdo determinista∧NVIDIA (PRs #124–#136)
+- **Puerta 4 — cobertura del extractor (PRs #124-#130):** veredicto
+  **PARCIAL**. Cobertura E2E de desarrollo 0.607 (umbral ≥0.60, conforme);
+  recall de auto-aprobación SIMPLE 0.10 (umbral ≥0.70, no conforme); carril
+  semántico NVIDIA en sombra insuficiente (0.357); invariantes de precisión
+  intactos en todo el programa. Carril OCR validado con Tesseract 5.5.0 real
+  en VM105. Ver `docs/v3/42-gate4-cierre-programa.md`.
+- **Puerta 6 — factividad composicional (PRs #131-#133, #136):** veredicto
+  **CONFORME CON RESERVAS**, ratificado por el operador el 2026-08-05.
+  Generalización compositiva 0.381 (B0) → 0.811 (B2, corpus ampliado a 53
+  casos); el rework de B2 reconectó el operador de discurso reportado al
+  extractor real de producción, corrigiendo una desconexión detectada por
+  revisión. Ver `docs/v3/46-gate6-cierre-programa.md`.
+- **Medición del acuerdo determinista∧NVIDIA (PRs #134-#135):** acuerdo
+  activo 27/27 y 1.000 sobre un corpus de evaluación ampliado. El operador
+  ratificó un piloto controlado (auditoría humana 100%), sin reducir
+  todavía la revisión; la reducción queda gateada al despliegue de V3 y a
+  la primera ingesta autorizada. Ver `docs/v3/47-acuerdo-det-nvidia.md` y
+  `docs/v3/48-acuerdo-eval2.md`.
+
 ### 2026-07-30 — Cierre de los lotes técnicos V3 (PRs #111–#114)
 - **PR #111 — Lote 1:** endurecimiento del extractor y del motor sin cambio de
   política: ordenación estable de candidatos, frontera tipada de metadata,
@@ -52,7 +104,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 - **Healthcheck** operativo (solo lectura) con **timer horario** (`OnCalendar=hourly`,
   `Persistent=true`, `RandomizedDelaySec=5m`); retirada del timer de 5 minutos.
 - **Login único del visor**; **Basic Auth retirada** del proxy nginx (VM104).
-- El estado real está en [docs/02-current-state.md](docs/02-current-state.md) y
+- El estado real está en [docs/02-current-state.md](docs/archivados/02-current-state.md) y
   [docs/project-status.yaml](docs/project-status.yaml).
 
 ### 2026-07-15 — Autenticación del visor + endurecimiento de seguridad (docs/44)
