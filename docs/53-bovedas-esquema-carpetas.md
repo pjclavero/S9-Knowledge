@@ -55,8 +55,12 @@ rol/                                  raíz de bóvedas, propiedad de Mimir
 ├── _plantilla/                       se copia al «añadir juego» — NO se ingiere
 └── <juego>/                          ← workspace
     ├── entrada/                      material sin clasificar
-    ├── manuales/                     reglas del sistema        ┐ capa compartida
-    ├── lore/                         ambientación, PNJ, lugares┘ (partida_id = None)
+    ├── compartido/                   ← visibilidad jugador   ┐ capa compartida
+    │   ├── manuales/                 reglas y mecánicas      │ (partida_id = None)
+    │   └── lore/                     ambientación, lugares   │
+    ├── reservado/                    ← visibilidad narrador  ┘
+    │   ├── manuales/
+    │   └── lore/
     ├── partidas/
     │   └── <partida>/                ← partida_id
     │       ├── sesiones/
@@ -74,6 +78,33 @@ rol/                                  raíz de bóvedas, propiedad de Mimir
     └── archivo/                      retirado — no se ingiere nunca
 ```
 
+### Por qué dos ejes en la capa compartida, y no uno
+
+El primer intento separaba `manuales/` de `lore/` a secas. Al meter material
+real quedó claro que esa distinción no clasifica nada útil para la visibilidad:
+**un manual no es homogéneo**. El básico de L5R 4ª edición describe los clanes
+—que cualquier jugador conoce— y unas páginas más allá los secretos de las
+Tierras Sombrías. Ninguna carpeta puede clasificar bien un único PDF de 288 MB
+que contiene ambas cosas.
+
+La solución no es afinar el nombre de la carpeta sino aceptar qué puede y qué no
+puede hacer: **la carpeta fija un valor por defecto, no la clasificación final**.
+La granularidad fina llega en la revisión, hecho a hecho — es justo donde sí se
+puede separar «el clan Grulla domina la corte» de «tal daimyō es un impostor»,
+aunque salgan del mismo documento.
+
+Y para elegir ese defecto hay una asimetría que decide sola: un hecho marcado
+secreto por error es una molestia, se revisa y se abre; un hecho marcado público
+por error **no tiene vuelta atrás**, porque no se puede des-contar algo a los
+jugadores. Ante la duda, restringir.
+
+De ahí los dos niveles: `compartido/` y `reservado/` dicen quién lo ve por
+defecto, y `manuales/` y `lore/` dentro sirven para navegar. Cada eje hace un
+trabajo y no se estorban. Material del juego que los jugadores no deben ver
+—libros del director, bestiarios con debilidades— tiene por fin un sitio propio,
+que en el diseño anterior no existía: solo había carpetas reservadas dentro de
+una partida, y un libro del director no pertenece a ninguna campaña concreta.
+
 Convenciones de nombre, por razones prácticas:
 
 - `sesion-01`, no `sesion 1`. El espacio complica rutas y órdenes de consola, y
@@ -88,8 +119,8 @@ hecho. Se aplica sobre la ruta **relativa a la raíz de bóvedas**.
 
 | Ruta | `workspace` | `partida_id` | `visibility` inicial |
 |---|---|---|---|
-| `<juego>/manuales/**` | `<juego>` | `None` (compartido) | `player` |
-| `<juego>/lore/**` | `<juego>` | `None` (compartido) | `player` |
+| `<juego>/compartido/**` | `<juego>` | `None` (compartido) | `player` |
+| `<juego>/reservado/**` | `<juego>` | `None` (compartido) | `narrator` |
 | `<juego>/partidas/<p>/aportaciones/<p>-<jugador>/**` | `<juego>` | `<p>` | `secret` (lo más restrictivo, hasta revisión) |
 | `<juego>/partidas/<p>/material-jugadores/**` | `<juego>` | `<p>` | `player` |
 | `<juego>/partidas/<p>/sesiones/**` | `<juego>` | `<p>` | `player` |
