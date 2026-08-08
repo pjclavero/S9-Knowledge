@@ -8,14 +8,18 @@
       "type": "Character",
       "workspace": "campania_lab",
       "visibility": "player",
-      "session_index": 1,
+      "known_from_session": 1,
       "party": "grupo_alfa",
       "is_public": true,
-      "known_by": ["pc_arden", "pc_bryn"],
+      "known_by": [
+        "pc_arden",
+        "pc_bryn"
+      ],
       "description": "Personaje jugador del grupo alfa.",
       "confidence": 0.95,
       "review_status": "reviewed",
-      "source_document": "sesion_01_lab"
+      "source_document": "sesion_01_lab",
+      "scope": "juego"
     },
     {
       "id": "pc_bryn",
@@ -23,14 +27,18 @@
       "type": "Character",
       "workspace": "campania_lab",
       "visibility": "player",
-      "session_index": 1,
+      "known_from_session": 1,
       "party": "grupo_alfa",
       "is_public": true,
-      "known_by": ["pc_arden", "pc_bryn"],
+      "known_by": [
+        "pc_arden",
+        "pc_bryn"
+      ],
       "description": "Personaje jugador del grupo alfa.",
       "confidence": 0.95,
       "review_status": "reviewed",
-      "source_document": "sesion_01_lab"
+      "source_document": "sesion_01_lab",
+      "scope": "juego"
     },
     {
       "id": "npc_taverna",
@@ -38,14 +46,18 @@
       "type": "Character",
       "workspace": "campania_lab",
       "visibility": "player",
-      "session_index": 1,
+      "known_from_session": 1,
       "party": "grupo_alfa",
       "is_public": true,
-      "known_by": ["pc_arden", "pc_bryn"],
+      "known_by": [
+        "pc_arden",
+        "pc_bryn"
+      ],
       "description": "PNJ público de la sesión 1.",
       "confidence": 0.8,
       "review_status": "auto_extracted",
-      "source_document": "sesion_01_lab"
+      "source_document": "sesion_01_lab",
+      "scope": "juego"
     },
     {
       "id": "secret_villano",
@@ -53,14 +65,15 @@
       "type": "Concept",
       "workspace": "campania_lab",
       "visibility": "secret",
-      "session_index": 2,
+      "known_from_session": 2,
       "party": "grupo_alfa",
       "is_public": false,
       "known_by": [],
       "description": "SECRETO de trama: nadie del grupo lo sabe aún.",
       "confidence": 0.7,
       "review_status": "needs_review",
-      "source_document": "notas_dm_lab"
+      "source_document": "notas_dm_lab",
+      "scope": "juego"
     },
     {
       "id": "secret_conocido_por_arden",
@@ -68,14 +81,17 @@
       "type": "Concept",
       "workspace": "campania_lab",
       "visibility": "secret",
-      "session_index": 2,
+      "known_from_session": 2,
       "party": "grupo_alfa",
       "is_public": false,
-      "known_by": ["pc_arden"],
+      "known_by": [
+        "pc_arden"
+      ],
       "description": "SECRETO que sólo el personaje Arden llegó a conocer.",
       "confidence": 0.7,
       "review_status": "needs_review",
-      "source_document": "notas_dm_lab"
+      "source_document": "notas_dm_lab",
+      "scope": "juego"
     },
     {
       "id": "narrator_nota",
@@ -83,14 +99,15 @@
       "type": "Concept",
       "workspace": "campania_lab",
       "visibility": "narrator",
-      "session_index": 2,
+      "known_from_session": 2,
       "party": "grupo_alfa",
       "is_public": false,
       "known_by": [],
       "description": "Capa GM: sólo narrador/revisión.",
       "confidence": 0.6,
       "review_status": "needs_review",
-      "source_document": "notas_dm_lab"
+      "source_document": "notas_dm_lab",
+      "scope": "juego"
     },
     {
       "id": "future_evento",
@@ -98,14 +115,15 @@
       "type": "Event",
       "workspace": "campania_lab",
       "visibility": "player",
-      "session_index": 5,
+      "known_from_session": 5,
       "party": "grupo_alfa",
       "is_public": false,
       "known_by": [],
       "description": "FUTURO: sesión aún no jugada por el grupo.",
       "confidence": 0.6,
       "review_status": "needs_review",
-      "source_document": "guion_futuro_lab"
+      "source_document": "guion_futuro_lab",
+      "scope": "juego"
     },
     {
       "id": "reference_regla",
@@ -113,14 +131,15 @@
       "type": "Reference",
       "workspace": "campania_lab",
       "visibility": "reference",
-      "session_index": 0,
+      "known_from_session": 0,
       "party": null,
       "is_public": false,
       "known_by": [],
       "description": "Material de reglas/manual (REFERENCIA).",
       "confidence": 0.9,
       "review_status": "reviewed",
-      "source_document": "manual_lab"
+      "source_document": "manual_lab",
+      "scope": "juego"
     },
     {
       "id": "otro_grupo_npc",
@@ -128,14 +147,15 @@
       "type": "Character",
       "workspace": "campania_lab",
       "visibility": "player",
-      "session_index": 1,
+      "known_from_session": 1,
       "party": "grupo_beta",
       "is_public": false,
       "known_by": [],
       "description": "Contenido acotado a OTRA party (grupo_beta).",
       "confidence": 0.8,
       "review_status": "auto_extracted",
-      "source_document": "sesion_beta_lab"
+      "source_document": "sesion_beta_lab",
+      "scope": "juego"
     },
     {
       "id": "otra_boveda_node",
@@ -143,14 +163,15 @@
       "type": "Character",
       "workspace": "otra_boveda",
       "visibility": "player",
-      "session_index": 1,
+      "known_from_session": 1,
       "party": "grupo_gamma",
       "is_public": true,
       "known_by": [],
       "description": "Pertenece a un workspace no permitido.",
       "confidence": 0.8,
       "review_status": "reviewed",
-      "source_document": "sesion_gamma_lab"
+      "source_document": "sesion_gamma_lab",
+      "scope": "juego"
     }
   ],
   "edges": [
@@ -162,10 +183,11 @@
       "label": "conoció a",
       "workspace": "campania_lab",
       "visibility": "player",
-      "session_index": 1,
+      "known_from_session": 1,
       "party": "grupo_alfa",
       "confidence": 0.8,
-      "review_status": "auto_extracted"
+      "review_status": "auto_extracted",
+      "scope": "juego"
     },
     {
       "id": "edge_secreta",
@@ -175,10 +197,11 @@
       "label": "vínculo secreto",
       "workspace": "campania_lab",
       "visibility": "secret",
-      "session_index": 2,
+      "known_from_session": 2,
       "party": "grupo_alfa",
       "confidence": 0.6,
-      "review_status": "needs_review"
+      "review_status": "needs_review",
+      "scope": "juego"
     },
     {
       "id": "edge_a_secreto",
@@ -188,10 +211,11 @@
       "label": "sospecha de",
       "workspace": "campania_lab",
       "visibility": "player",
-      "session_index": 2,
+      "known_from_session": 2,
       "party": "grupo_alfa",
       "confidence": 0.5,
-      "review_status": "needs_review"
+      "review_status": "needs_review",
+      "scope": "juego"
     }
   ]
 }

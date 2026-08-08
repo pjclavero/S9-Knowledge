@@ -108,12 +108,48 @@ def get_visibility_context(request: Request) -> ViewerContext:
     user = getattr(request.state, "user", None)
     role = getattr(user, "role", None) if user is not None else None
     active_partida = _effective_active_partida(request) if auth_enabled else None
+    # T2: la progresión de campaña sale del SERVIDOR (la concesión de partida),
+    # no de la petición. Antes no la poblaba nadie: `max_visible_session` era
+    # siempre None, así que la regla de sesión futura no se evaluaba jamás, y
+    # `active_character` tampoco, con lo que `knows()` devolvía siempre False y
+    # todo el mecanismo `known_by` era inerte en producción.
+    tope, personaje = _progresion_de_campana(request, active_partida)
     return build_viewer_context(
         role=role,
         auth_enabled=auth_enabled,
         default_workspace=settings.S9K_DEFAULT_WORKSPACE,
         active_partida=active_partida,
+        max_visible_session=tope,
+        active_character=personaje,
     )
+
+
+def _progresion_de_campana(
+    request: Request, partida_id: Optional[str]
+) -> tuple[Optional[int], Optional[str]]:
+    """``(max_visible_session, character_id)`` de la concesión vigente."""
+    if not partida_id:
+        # Sin partida activa no hay contenido de partida que proteger: el tope
+        # no aplica. Es el unico caso en que `None` (sin tope) es correcto.
+        return None, None
+    user = getattr(request.state, "user", None)
+    if user is None or getattr(user, "id", None) is None:
+        return 0, None
+    from app.auth import db as auth_db
+
+    workspace = get_settings().S9K_DEFAULT_WORKSPACE
+    db_path = Path(get_auth_settings().S9K_AUTH_DB_PATH)
+    if not db_path.exists():
+        return 0, None
+    try:
+        with auth_db.get_conn(db_path) as conn:
+            return auth_db.partida_progress(conn, user.id, workspace, partida_id)
+    except Exception:
+        # Si no se puede leer la progresión se aplica el tope más restrictivo.
+        # Devolver `None` aquí "para no inventar un tope" inventaba el más
+        # permisivo de todos, que es el error de sentido que ya se corrigió un
+        # nivel más abajo: no poder comprobar algo nunca concede.
+        return 0, None
 
 
 def get_filtered_provider(
