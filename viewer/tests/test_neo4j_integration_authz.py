@@ -56,6 +56,16 @@ SEMILLA = [
     dict(id="corrupto_known_by", ws=WS, scope="juego", pid=None, vis="secret",
          known_by="pc:ana"),          # cadena, no lista
     dict(id="corrupto_sin_ws", ws=None, scope="juego", pid=None, vis="player"),
+    # T2 -- sesion de REVELACION, sobre datos reales de Neo4j.
+    dict(id="rev_0", ws=WS, scope="partida", pid=P_A, vis="player", desde=0),
+    dict(id="rev_3", ws=WS, scope="partida", pid=P_A, vis="player", desde=3),
+    dict(id="rev_8", ws=WS, scope="partida", pid=P_A, vis="player", desde=8),
+    # Revelado en la 8 y ya conocido por el PJ: `known_by` NO debe saltarse el
+    # tope, o "ver como PJ hasta la sesion 5" se convierte en un spoiler.
+    dict(id="rev_8_conocido", ws=WS, scope="partida", pid=P_A, vis="player",
+         desde=8, known_by=["pc:ana"]),
+    dict(id="rev_corrupta", ws=WS, scope="partida", pid=P_A, vis="player",
+         desde="tres"),
 ]
 
 
@@ -91,7 +101,8 @@ def base(driver):
             props = {"entity_id": n["id"], "canonical_name": n["id"],
                      "entity_type": "Test", "visibility": n["vis"]}
             for clave, valor in (("workspace", n["ws"]), ("scope", n["scope"]),
-                                 ("partida_id", n["pid"]), ("known_by", n.get("known_by"))):
+                                 ("partida_id", n["pid"]), ("known_by", n.get("known_by")),
+                                 ("known_from_session", n.get("desde"))):
                 if valor is not None:
                     props[clave] = valor
             s.run("CREATE (n:Entity $props)", {"props": props})
@@ -201,3 +212,64 @@ def test_admin_ve_las_dos_partidas(base):
     )
     nombres = _nombres(admin.list_entities(WS, limit=1000)[0])
     assert {"a_player", "b_player"} <= nombres
+
+
+# --- T2: la sesion de revelacion, atravesando Neo4j de verdad ----------------
+
+def _jugador_a(tope=5, **over):
+    return _ctx(partida=P_A, max_visible_session=tope, **over)
+
+
+def _ids(prov, ctx):
+    from app.authz.filtered_provider import PolicyFilteredProvider
+    items, _ = PolicyFilteredProvider(prov, ctx).list_entities(WS, limit=1000)
+    return {i.get("entity_id") or i.get("id") for i in items}
+
+
+def test_revelacion_pasada_visible_y_futura_oculta(base):
+    ids = _ids(base, _jugador_a(5))
+    assert {"rev_0", "rev_3"} <= ids
+    assert "rev_8" not in ids
+
+
+def test_known_by_no_salta_la_barrera_historica_en_neo4j(base):
+    """La propiedad de T2 que solo vale si se prueba sobre datos reales."""
+    ids = _ids(base, _jugador_a(5, active_character="pc:ana"))
+    assert "rev_8_conocido" not in ids
+
+
+def test_can_view_future_si_la_salta(base):
+    assert "rev_8" in _ids(base, _jugador_a(5, can_view_future=True))
+
+
+def test_tope_cero_ve_lo_conocido_desde_el_inicio(base):
+    ids = _ids(base, _jugador_a(0))
+    assert "rev_0" in ids
+    assert "rev_3" not in ids
+
+
+def test_revelacion_corrupta_deniega_sin_error(base):
+    ids = _ids(base, _jugador_a(5))
+    assert "rev_corrupta" not in ids
+
+
+def test_el_conteo_y_el_grafo_respetan_la_revelacion(base):
+    from app.authz.filtered_provider import PolicyFilteredProvider
+
+    prov = PolicyFilteredProvider(base, _jugador_a(5))
+    n_visibles, _ = prov.counts(WS)
+    assert n_visibles == len(_ids(base, _jugador_a(5)))
+    nodos, _ = prov.graph(WS, limit=1000)
+    assert "rev_8" not in {n.get("entity_id") or n.get("id") for n in nodos}
+
+
+def test_el_acceso_por_id_no_esquiva_la_revelacion(base):
+    """Lista y detalle deben coincidir: un ID directo no es una puerta trasera."""
+    from app.authz.filtered_provider import PolicyFilteredProvider
+
+    prov = PolicyFilteredProvider(base, _jugador_a(5))
+    with base._driver.session() as s:  # type: ignore[attr-defined]
+        eid = s.run(
+            "MATCH (n:Entity {entity_id:'rev_8'}) RETURN elementId(n) AS id"
+        ).single()["id"]
+    assert prov.entity(eid) is None

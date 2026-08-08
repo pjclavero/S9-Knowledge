@@ -59,7 +59,18 @@ ContractVisibilityError = _contract.ContractVisibilityError
 
 #: Propiedades que este modulo estampa y que un payload no puede sobrescribir.
 VISIBILITY_PROPS = frozenset(
-    {"visibility", "known_by", "visibility_contract", "visibility_source", "scope"}
+    {
+        "visibility",
+        "known_by",
+        # Segundo nombre del mismo dato en la ingesta de rol. Estaba fuera, asi
+        # que un payload podia colarlo y conceder conocimiento por la puerta de
+        # atras: el motor lo lee como respaldo de `known_by` (T7).
+        "known_by_characters",
+        "visibility_contract",
+        "visibility_source",
+        "scope",
+        "known_from_session",
+    }
 )
 
 #: Ambitos validos. Deben coincidir con `app.policies.models.ALL_SCOPES` del
@@ -156,11 +167,50 @@ def scope_props(partida_id: Any) -> dict[str, Any]:
     return {"scope": SCOPE_PARTIDA, "partida_id": partida_id}
 
 
+def revelacion_props(known_from_session: Any, *, scope: str) -> dict[str, Any]:
+    """Propiedades de REVELACION (T2): desde que sesion puede revelarse esto.
+
+    `known_from_session` no es `session_index`. `session_index` dice a que
+    episodio pertenece algo; `known_from_session` dice desde cuando puede
+    revelarse. Si en la sesion 12 se descubre un asesinato ocurrido cinco anos
+    antes, la barrera del visor es 12, no la cronologia del hecho.
+
+    `0` es una declaracion POSITIVA ("conocido desde el inicio"), no una
+    ausencia. El contenido de partida sujeto a progresion DEBE declararla: sin
+    declaracion no se escribe, porque un dato de partida sin sesion de
+    revelacion es indistinguible de uno que la perdio, y en lectura eso solo
+    puede resolverse hacia lo mas abierto o hacia lo mas cerrado -- las dos
+    respuestas equivocadas.
+
+    El ambito juego (manuales, reglas, lore compartido declarado) no esta
+    sujeto a progresion de partida y no la exige.
+    """
+    if scope == SCOPE_GAME:
+        return {}
+    if isinstance(known_from_session, _SinDeclarar):
+        raise VisibilityStampError(
+            "contenido de partida sin `known_from_session`: declara 0 si es "
+            "conocido desde el inicio, o el numero de sesion en que se revela. "
+            "La ausencia no se interpreta como 'siempre visible'."
+        )
+    if (
+        isinstance(known_from_session, bool)
+        or not isinstance(known_from_session, int)
+        or known_from_session < 0
+    ):
+        raise VisibilityStampError(
+            f"known_from_session invalido: {known_from_session!r}. Debe ser un "
+            "entero no negativo."
+        )
+    return {"known_from_session": known_from_session}
+
+
 def stamp(
     props: dict[str, Any],
     visibility: Any = None,
     *,
     partida_id: Any = SIN_DECLARAR,
+    known_from_session: Any = SIN_DECLARAR,
 ) -> dict[str, Any]:
     """Devuelve `props` con visibilidad y ambito estampados. No muta la entrada.
 
@@ -180,5 +230,11 @@ def stamp(
             f"{sorted(intruso)}; declaralo en el argumento `visibility`"
         )
     ambito = scope_props(partida_id)
+    revelacion = revelacion_props(known_from_session, scope=ambito["scope"])
     contract = normalize(visibility)
-    return {**props, **to_props(contract, explicit=visibility is not None), **ambito}
+    return {
+        **props,
+        **to_props(contract, explicit=visibility is not None),
+        **ambito,
+        **revelacion,
+    }

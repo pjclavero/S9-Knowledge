@@ -46,38 +46,19 @@ def _ctx(**extra):
 
 # --- G1: dato malformado deniega, NUNCA revienta -----------------------------
 
-@pytest.mark.parametrize("valor", ["tres", [], {}, 3.5, True, None or "x"])
-def test_session_index_malformado_deniega_sin_excepcion(valor):
-    """Un 500 no es fail-closed.
-
-    `filter_nodes` recorre el conjunto ENTERO, asi que un unico nodo con
-    `session_index` corrupto convertia en error el listado, el grafo, la
-    busqueda y los conteos de todo el workspace: denegacion de servicio a
-    partir de un dato escribible.
-    """
-    d = POLICY.can_view(_nodo(session_index=valor), _ctx())
-    assert not d.visible
-    assert d.reason == "session_index_invalid"
-
-
-@pytest.mark.parametrize("valor", [["p1"], {"p": 1}, 7, ""])
-def test_party_malformada_deniega_sin_excepcion(valor):
-    """`party` entra en un `in` contra un frozenset: una lista lanzaba
-    `TypeError: unhashable type`."""
-    d = POLICY.can_view(_nodo(party=valor), _ctx())
-    assert not d.visible
-    assert d.reason == "party_invalid"
-
-
-def test_session_index_valido_sigue_funcionando():
-    assert POLICY.can_view(_nodo(session_index=2), _ctx()).visible
-    fut = POLICY.can_view(_nodo(session_index=9), _ctx())
-    assert not fut.visible and fut.reason == "future_session"
-
+# NOTA (T1/T2): las pruebas de `session_index` y `party` que estaban aqui se
+# retiraron al cambiar la semantica, no por comodidad. `party` dejo de ser
+# vocabulario autoritativo (T1) y `session_index` fue sustituido por
+# `known_from_session` (T2); su cobertura vive ahora en
+# `test_t1_party_t2_revelacion.py`. Se conserva la propiedad que de verdad
+# importaba de G1: un dato malformado no puede tumbar el conjunto entero.
 
 def test_un_nodo_corrupto_no_tumba_el_listado_entero():
-    """La propiedad que de verdad importa: el resto del conjunto sobrevive."""
-    nodos = [_nodo(id="sano"), _nodo(id="malo", party=["x"]), _nodo(id="sano2")]
+    nodos = [
+        _nodo(id="sano"),
+        _nodo(id="malo", known_from_session="tres"),
+        _nodo(id="sano2"),
+    ]
     visibles = POLICY.filter_nodes(nodos, _ctx())
     assert [n["id"] for n in visibles] == ["sano", "sano2"]
 

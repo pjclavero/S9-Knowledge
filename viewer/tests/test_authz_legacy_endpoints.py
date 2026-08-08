@@ -45,8 +45,7 @@ RICH_HIDDEN = {
     "secret_conocido_por_arden",
     "narrator_nota",
     "future_evento",
-    "otro_grupo_npc",
-    "otra_boveda_node",
+        "otra_boveda_node",
 }
 
 
@@ -198,12 +197,12 @@ def test_legacy_workspaces_solo_permitidos():
     assert "otra_boveda" not in wss  # workspace ajeno nunca se enumera
 
 
-def test_legacy_graph_rich_oculta_futuro_party_y_secreto():
+def test_legacy_graph_rich_oculta_futuro_y_secreto():
     base = MockGraphProvider(RICH_FIXTURE)
     c = _client(_viewer_bryn(), base=base)
     data = c.get(f"/api/graph?workspace={RICH_WS}", headers={"accept": "application/json"}).json()
     ids = {n["id"] for n in data["nodes"]}
-    assert not (ids & RICH_HIDDEN)  # ni secreto, ni narrador, ni futuro, ni party ajena
+    assert not (ids & RICH_HIDDEN)  # ni secreto, ni narrador, ni sesion no revelada (la party ya no oculta: T1)
 
 
 # ── Equivalencia ruta NUEVA (C) vs ruta LEGACY ─────────────────────────────

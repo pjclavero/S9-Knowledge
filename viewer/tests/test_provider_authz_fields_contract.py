@@ -43,9 +43,12 @@ CAMPOS_AUTORIZACION_NODO = (
     # `models.known_by_of`, no desde `can_view`, y por eso la red inversa de
     # abajo tuvo que dejar de mirar un solo fichero.
     "known_by_characters",
-    "party",
-    "is_public",
-    "session_index",
+    # Sesión de REVELACIÓN (T2). Sustituye a `session_index`, que el motor leía
+    # y ningún escritor producía: una regla entera evaluándose sobre un campo
+    # inexistente, en verde. `party` e `is_public` salieron de esta lista al
+    # retirarse la ACL de party (T1); siguen viajando como dato, pero ya no son
+    # vocabulario de autorización, y por eso no se congelan aquí.
+    "known_from_session",
 )
 
 #: Idem para relaciones. Una arista se evalua con `can_view` EXACTAMENTE igual

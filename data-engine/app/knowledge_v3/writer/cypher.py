@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import re
 
+from knowledge_v3.writer.visibility import SIN_DECLARAR
 from knowledge_v3.writer.visibility import stamp as stamp_visibility
 from dataclasses import dataclass, field
 from typing import Any
@@ -301,6 +302,7 @@ def create_entity(
     label: str | None,
     props: dict,
     partida_id: str | None = None,
+    known_from_session=SIN_DECLARAR,
     visibility: Any = None,
 ) -> Query:
     """CREATE-only. Sin MERGE y sin una sola asignacion masiva.
@@ -321,7 +323,8 @@ def create_entity(
         f"CREATE (n{labels} $props) RETURN n.entity_id AS id",
         {
             "props": {
-                **stamp_visibility(props, visibility, partida_id=partida_id),
+                **stamp_visibility(props, visibility, partida_id=partida_id,
+                               known_from_session=known_from_session),
                 "entity_id": entity_id,
                 "workspace": workspace,
                 "partida_id": partida_id,
@@ -335,13 +338,15 @@ def create_assertion(
     workspace: str,
     props: dict,
     partida_id: str | None = None,
+    known_from_session=SIN_DECLARAR,
     visibility: Any = None,
 ) -> Query:
     return Query(
         f"CREATE (n:{LABEL_ASSERTION} $props) RETURN n.assertion_id AS id",
         {
             "props": {
-                **stamp_visibility(props, visibility, partida_id=partida_id),
+                **stamp_visibility(props, visibility, partida_id=partida_id,
+                               known_from_session=known_from_session),
                 "assertion_id": assertion_id,
                 "workspace": workspace,
                 "partida_id": partida_id,
@@ -357,6 +362,7 @@ def create_relation(
     workspace: str,
     props: dict,
     partida_id: str | None = None,
+    known_from_session=SIN_DECLARAR,
     visibility: Any = None,
 ) -> Query:
     """Arista nueva entre dos entidades que ya existen. Nunca las crea.
@@ -372,7 +378,8 @@ def create_relation(
         "object": object_id,
         "ws": workspace,
         "props": {
-            **stamp_visibility(props, visibility, partida_id=partida_id),
+            **stamp_visibility(props, visibility, partida_id=partida_id,
+                               known_from_session=known_from_session),
             "workspace": workspace,
             "partida_id": partida_id,
         },

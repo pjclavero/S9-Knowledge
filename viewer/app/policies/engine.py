@@ -132,36 +132,47 @@ class VisibilityPolicy:
                 # La capa del narrador/GM se trata como contenido elevado.
                 return VisibilityDecision(False, "narrator_only")
 
-        # 4. Sesiones futuras (spoilers de sesiones aún no jugadas/publicadas).
+        # 4. Sesión de REVELACIÓN (progresión de campaña).
         #
-        # `session_index` se TIPA, igual que `known_by`. Antes se hacía
-        # `int(sess)` a pelo: un `"tres"` daba ValueError y una lista un
-        # TypeError, y como `filter_nodes` recorre el conjunto entero, UN solo
-        # nodo corrupto convertía en 500 el listado, el grafo, la búsqueda y los
-        # conteos de todo el workspace. Un dato malformado debe comportarse como
-        # recurso no visible, nunca como error: un 500 no es fail-closed, es
-        # denegación de servicio a partir de un dato escribible.
-        if not knows and ctx.max_visible_session is not None:
-            sess = node.get("session_index")
-            if sess is not None:
-                # `bool` es subclase de `int` y no es un índice de sesión.
-                if isinstance(sess, bool) or not isinstance(sess, int):
-                    return VisibilityDecision(False, "session_index_invalid")
-                if sess > ctx.max_visible_session and not ctx.can_view_future:
+        # Se lee `known_from_session`: "desde qué sesión puede revelarse este
+        # conocimiento". NO es `session_index` ("a qué episodio pertenece"), y
+        # confundirlos es un error de producto, no de tipos: si en la sesión 12
+        # se descubre un asesinato ocurrido cinco años antes, la barrera del
+        # visor es 12 --el episodio en que se reveló--, no la cronología del
+        # hecho. El motor leía `session_index`, que ningún escritor produce.
+        #
+        # `0` es una declaración POSITIVA ("conocido desde el inicio"), no una
+        # ausencia. Se tipa como todo lo demás: malformado deniega, nunca lanza.
+        if ctx.max_visible_session is not None:
+            desde = node.get("known_from_session")
+            if desde is not None:
+                # `bool` es subclase de `int` y no es un número de sesión.
+                if isinstance(desde, bool) or not isinstance(desde, int) or desde < 0:
+                    return VisibilityDecision(False, "known_from_session_invalid")
+                if desde > ctx.max_visible_session and not ctx.can_view_future:
                     return VisibilityDecision(False, "future_session")
 
-        # 5. Contenido acotado a un grupo (party).
+        # La barrera histórica NO la salta `knows`.
         #
-        # Idem: `party` entra en un `in` contra un frozenset, así que una lista
-        # levantaba `TypeError: unhashable type`. Solo una cadena no vacía es
-        # una party; cualquier otra forma es dato inválido y deniega.
-        party = node.get("party")
-        if party is not None and (not isinstance(party, str) or not party.strip()):
-            return VisibilityDecision(False, "party_invalid")
-        if party is not None and not knows and party not in ctx.party_membership:
-            is_public = bool(node.get("is_public")) and ctx.session_public
-            if not is_public:
-                return VisibilityDecision(False, "party_scoped")
+        # `known_by` es la proyección del estado ACTUAL de conocimiento, sin
+        # dimensión temporal: dice que el PJ lo sabe, no desde cuándo. Si
+        # bastara para saltarse el tope, pedir "ver como PJ hasta la sesión 5"
+        # revelaría lo que ese mismo PJ descubrió en la 12 -- un spoiler
+        # producido por la propia función que existe para evitarlo. Solo la
+        # saltan `can_view_future` explícito o, cuando exista el ledger
+        # temporal, un `knowledge_grant` con `valid_from_session` en rango.
+        # Por eso esta regla va ANTES y fuera del `if not knows`.
+
+        # 5. (retirada) Contenido acotado a un grupo (party).
+        #
+        # `party` + `party_membership` era una ACL dinámica: pertenecer al grupo
+        # daba acceso automático a todo lo que el grupo hubiera conocido alguna
+        # vez. En una campaña eso es semánticamente falso -- un personaje que se
+        # incorpora en la sesión 20 no conoce el secreto que el grupo descubrió
+        # en la 3. La party pasa a ser FUENTE DE CONCESIÓN (evento -> miembros
+        # presentes -> grants individuales -> `known_by` materializado), no una
+        # frontera evaluada en cada petición. `party` e `is_public` dejan de ser
+        # vocabulario autoritativo, y `party_membership` no concede nada aquí.
 
         return VisibilityDecision(True, "visible")
 

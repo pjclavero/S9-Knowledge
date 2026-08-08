@@ -36,6 +36,9 @@ def _node_to_dict(record_node) -> dict[str, Any]:
         "known_by_characters": props.get("known_by_characters"),
         "party": props.get("party"),
         "is_public": props.get("is_public"),
+        # Sesion de REVELACION (T2): desde que sesion puede revelarse esto.
+        # No confundir con `session_index` (a que episodio pertenece).
+        "known_from_session": props.get("known_from_session"),
         "session_index": props.get("session_index"),
         "source_document": props.get("source_document", ""),
         "source_pages": props.get("source_pages", []),
@@ -78,6 +81,9 @@ def _rel_to_dict(rel) -> dict[str, Any]:
         "known_by_characters": props.get("known_by_characters"),
         "party": props.get("party"),
         "is_public": props.get("is_public"),
+        # Sesion de REVELACION (T2): desde que sesion puede revelarse esto.
+        # No confundir con `session_index` (a que episodio pertenece).
+        "known_from_session": props.get("known_from_session"),
         "session_index": props.get("session_index"),
         "description": props.get("evidence") or props.get("description", ""),
         "source_document": props.get("source_document", ""),

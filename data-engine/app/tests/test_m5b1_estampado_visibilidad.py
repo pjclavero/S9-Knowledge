@@ -121,7 +121,7 @@ def test_una_cadena_suelta_no_es_una_visibilidad_valida():
 
 # --- no rompe lo anterior ---------------------------------------------------
 def test_el_ambito_sigue_estampandose_junto_a_la_visibilidad():
-    p = props_de(cypher.create_entity("e:1", WS, None, {}, partida_id="partida:Y"))
+    p = props_de(cypher.create_entity("e:1", WS, None, {}, partida_id="partida:Y", known_from_session=0))
     assert p["workspace"] == WS and p["partida_id"] == "partida:Y"
     assert p["visibility"] == "secret"
 

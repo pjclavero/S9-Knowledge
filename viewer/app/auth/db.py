@@ -14,7 +14,7 @@ from typing import Generator, Optional
 
 from app.auth.models import AuditEvent, PartidaAccess, Session, User
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _DB_PATH_DEFAULT = "viewer/state/auth.db"
 _local = threading.local()
@@ -143,6 +143,18 @@ _DDL_V2_CREATE = [
     """,
 ]
 
+#: v3 (T2) -- la progresión de campaña vive en la CONCESIÓN de partida, no en la
+#: petición. `?max_visible_session=99` decidido por el cliente sería una barrera
+#: que el propio protegido puede levantar; por eso el dato sale del servidor.
+#: NULL significa "sin tope" (narrador, admin, o partida sin progresión).
+#: `character_id` es el personaje con el que ese usuario juega esa partida:
+#: hasta ahora `active_character` no lo poblaba nadie y `knows()` devolvía
+#: siempre False, con lo que todo el mecanismo `known_by` era inerte.
+_DDL_V3_ALTER = [
+    "ALTER TABLE partida_access ADD COLUMN max_visible_session INTEGER",
+    "ALTER TABLE partida_access ADD COLUMN character_id TEXT",
+]
+
 
 # ---------------------------------------------------------------------------
 # Migraciones
@@ -189,6 +201,15 @@ def migrate(db_path: Optional[Path] = None) -> None:
                             raise
                 for stmt in _DDL_V2_CREATE:
                     conn.execute(stmt)
+
+            # v3 (T2). Va DESPUÉS de v2 porque altera la tabla que v2 crea.
+            if current < 3:
+                for stmt in _DDL_V3_ALTER:
+                    try:
+                        conn.execute(stmt)
+                    except sqlite3.OperationalError as exc:
+                        if "duplicate column" not in str(exc).lower():
+                            raise
 
             conn.execute(
                 "INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, ?)",
@@ -688,6 +709,34 @@ def user_allowed_partidas(
 ) -> list[str]:
     """Partidas que un usuario puede seleccionar (asignadas por un admin)."""
     return [a.partida_id for a in list_partida_access(conn, user_id=user_id, workspace=workspace)]
+
+
+def partida_progress(
+    conn: sqlite3.Connection, user_id: int, workspace: str, partida_id: str
+) -> tuple[Optional[int], Optional[str]]:
+    """Progresión de campaña de esa concesión: ``(max_visible_session, character_id)``.
+
+    Es la fuente SERVIDOR del tope de sesión (T2). Nunca llega del cliente: un
+    ``?max_visible_session=99`` dejaría que el propio protegido levantara la
+    barrera. ``None`` = sin tope declarado.
+
+    Fail-closed en la forma: un valor no entero o negativo almacenado a mano se
+    trata como ausente para la política, y quien decide sobre él es el motor.
+    """
+    row = conn.execute(
+        "SELECT max_visible_session, character_id FROM partida_access "
+        "WHERE user_id = ? AND workspace = ? AND partida_id = ?",
+        (user_id, workspace, partida_id),
+    ).fetchone()
+    if row is None:
+        return None, None
+    tope = row["max_visible_session"]
+    if isinstance(tope, bool) or not isinstance(tope, int) or tope < 0:
+        tope = None
+    pj = row["character_id"]
+    if not isinstance(pj, str) or not pj.strip():
+        pj = None
+    return tope, pj
 
 
 def partida_exists(conn: sqlite3.Connection, partida_id: str) -> bool:

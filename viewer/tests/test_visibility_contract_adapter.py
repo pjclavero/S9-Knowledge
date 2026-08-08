@@ -61,7 +61,7 @@ def _ctx(**over) -> ViewerContext:
 
 def _extra(**over) -> dict:
     base = dict(
-        id="n1", workspace=WS, scope="partida", partida_id=PARTIDA, session_index=1,
+        id="n1", workspace=WS, scope="partida", partida_id=PARTIDA, known_from_session=1,
         party="grupo_alfa", is_public=True,
     )
     base.update(over)
@@ -228,16 +228,23 @@ _CASOS = [
         {"active_character": "pc_bryn", "can_view_secret": True}, {}, False),
 
     # -- sesión futura (dimensión del motor, no del contrato persistido).
-    ("sesion_futura_oculta", {"visibility": "player"}, {"max_visible_session": 1}, {"session_index": 5}, False),
+    ("sesion_futura_oculta", {"visibility": "player"}, {"max_visible_session": 1}, {"known_from_session": 5}, False),
     ("sesion_futura_con_can_view_future", {"visibility": "player"},
-        {"max_visible_session": 1, "can_view_future": True}, {"session_index": 5}, True),
-    ("sesion_futura_conocida_por_personaje",
+        {"max_visible_session": 1, "can_view_future": True}, {"known_from_session": 5}, True),
+    # T2: `known_by` NO salta la barrera historica. Es la proyeccion del estado
+    # ACTUAL de conocimiento --dice que el PJ lo sabe, no desde cuando--, asi que
+    # dejarle saltar el tope convertiria "ver como PJ hasta la sesion 1" en un
+    # spoiler de lo que ese mismo PJ descubrio en la 5.
+    ("sesion_futura_ni_siquiera_para_quien_ya_lo_sabe",
         {"visibility": "player", "known_by": ["pc_bryn"]},
-        {"active_character": "pc_bryn", "max_visible_session": 1}, {"session_index": 5}, True),
+        {"active_character": "pc_bryn", "max_visible_session": 1}, {"known_from_session": 5}, False),
 
-    # -- party (grupo): fuera del contrato persistido, dimensión del motor.
-    ("party_ajena_oculta", {"visibility": "player"},
-        {"party_membership": frozenset({"grupo_alfa"})}, {"party": "grupo_beta", "is_public": False}, False),
+    # -- party (T1): RETIRADA como frontera. Pertenecer a un grupo no concede
+    #    acceso, y no pertenecer tampoco lo quita: el acceso vendra de un grant
+    #    individual materializado en `known_by`. Una ACL de party daba a quien se
+    #    incorporaba en la sesion 20 todo lo que el grupo supo en la 3.
+    ("party_ajena_ya_no_oculta", {"visibility": "player"},
+        {"party_membership": frozenset({"grupo_alfa"})}, {"party": "grupo_beta", "is_public": False}, True),
     ("party_ajena_publica_visible", {"visibility": "player"},
         {"party_membership": frozenset(), "session_public": True},
         {"party": "grupo_beta", "is_public": True}, True),
@@ -253,7 +260,7 @@ _CASOS = [
     ("secret_y_party_ajena_con_permiso_secreto",
         {"visibility": "secret"},
         {"party_membership": frozenset({"grupo_alfa"}), "can_view_secret": True},
-        {"party": "grupo_beta", "is_public": False}, False),  # secret pasa, party sigue bloqueando
+        {"party": "grupo_beta", "is_public": False}, True),  # secret pasa; party ya no bloquea (T1)
 ]
 
 
