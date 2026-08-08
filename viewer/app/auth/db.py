@@ -14,7 +14,7 @@ from typing import Generator, Optional
 
 from app.auth.models import AuditEvent, PartidaAccess, Session, User
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _DB_PATH_DEFAULT = "viewer/state/auth.db"
 _local = threading.local()
@@ -143,6 +143,18 @@ _DDL_V2_CREATE = [
     """,
 ]
 
+#: v3 (T2) -- la progresión de campaña vive en la CONCESIÓN de partida, no en la
+#: petición. `?max_visible_session=99` decidido por el cliente sería una barrera
+#: que el propio protegido puede levantar; por eso el dato sale del servidor.
+#: NULL significa "sin tope" (narrador, admin, o partida sin progresión).
+#: `character_id` es el personaje con el que ese usuario juega esa partida:
+#: hasta ahora `active_character` no lo poblaba nadie y `knows()` devolvía
+#: siempre False, con lo que todo el mecanismo `known_by` era inerte.
+_DDL_V3_ALTER = [
+    "ALTER TABLE partida_access ADD COLUMN max_visible_session INTEGER",
+    "ALTER TABLE partida_access ADD COLUMN character_id TEXT",
+]
+
 
 # ---------------------------------------------------------------------------
 # Migraciones
@@ -189,6 +201,15 @@ def migrate(db_path: Optional[Path] = None) -> None:
                             raise
                 for stmt in _DDL_V2_CREATE:
                     conn.execute(stmt)
+
+            # v3 (T2). Va DESPUÉS de v2 porque altera la tabla que v2 crea.
+            if current < 3:
+                for stmt in _DDL_V3_ALTER:
+                    try:
+                        conn.execute(stmt)
+                    except sqlite3.OperationalError as exc:
+                        if "duplicate column" not in str(exc).lower():
+                            raise
 
             conn.execute(
                 "INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, ?)",
@@ -268,6 +289,10 @@ def _row_to_partida_access(row: sqlite3.Row) -> PartidaAccess:
         partida_id=row["partida_id"],
         granted_by=row["granted_by"],
         granted_at=_parse_dt(row["granted_at"]),
+        max_visible_session=(
+            row["max_visible_session"] if "max_visible_session" in row.keys() else None
+        ),
+        character_id=row["character_id"] if "character_id" in row.keys() else None,
     )
 
 
@@ -638,15 +663,52 @@ def grant_partida_access(
     workspace: str,
     partida_id: str,
     granted_by: Optional[str] = None,
+    max_visible_session: Optional[int] = None,
+    character_id: Optional[str] = None,
 ) -> PartidaAccess:
-    """Concede a un usuario acceso a una partida. Idempotente (INSERT OR IGNORE)."""
+    """Concede a un usuario acceso a una partida. Idempotente (INSERT OR IGNORE).
+
+    `max_visible_session` y `character_id` son parte de la concesion, no
+    decorado: sin ellos la regla de sesion de revelacion no se evalua y
+    `knows()` devuelve siempre False. Se anadieron al esquema (v3) y al lector
+    antes que aqui, y durante un tiempo NADIE los escribia: la barrera existia,
+    estaba probada, y no se aplicaba a ninguna peticion real. Es el mismo
+    defecto que se venia persiguiendo, un nivel mas abajo -- por eso hay ahora
+    una prueba que exige un productor real para cada campo que el motor consume.
+    """
     now = _utcnow()
+    if max_visible_session is not None:
+        if isinstance(max_visible_session, bool) or not isinstance(max_visible_session, int) \
+                or max_visible_session < 0:
+            raise ValueError(
+                f"max_visible_session invalido: {max_visible_session!r}; "
+                "debe ser un entero no negativo o None (sin tope)"
+            )
+    if character_id is not None and (not isinstance(character_id, str) or not character_id.strip()):
+        raise ValueError(f"character_id invalido: {character_id!r}")
     conn.execute(
         """
-        INSERT OR IGNORE INTO partida_access (user_id, workspace, partida_id, granted_by, granted_at)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT OR IGNORE INTO partida_access
+            (user_id, workspace, partida_id, granted_by, granted_at,
+             max_visible_session, character_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (user_id, workspace, partida_id, granted_by, now),
+        (user_id, workspace, partida_id, granted_by, now,
+         max_visible_session, character_id),
+    )
+    # INSERT OR IGNORE no actualiza una concesion ya existente, y la progresion
+    # de campana CAMBIA con cada sesion jugada: sin esto, subir el tope no
+    # tendria efecto y el operador creeria haberlo subido.
+    # `COALESCE` conservaba el valor anterior cuando se pasaba None, asi que la
+    # concesion de personaje NO SE PODIA REVOCAR desde el panel: un operador que
+    # reconcedia dejando el campo en blanco creia haberlo quitado y no lo habia
+    # quitado. Y `active_character` salta la regla de nivel, o sea que lo que
+    # sobrevivia era un bypass invisible en la interfaz. Ahora el UPDATE fija
+    # exactamente lo que se declara: reconceder es declarar el estado completo.
+    conn.execute(
+        "UPDATE partida_access SET max_visible_session = ?, character_id = ? "
+        "WHERE user_id = ? AND workspace = ? AND partida_id = ?",
+        (max_visible_session, character_id, user_id, workspace, partida_id),
     )
     conn.commit()
     row = conn.execute(
@@ -688,6 +750,46 @@ def user_allowed_partidas(
 ) -> list[str]:
     """Partidas que un usuario puede seleccionar (asignadas por un admin)."""
     return [a.partida_id for a in list_partida_access(conn, user_id=user_id, workspace=workspace)]
+
+
+def partida_progress(
+    conn: sqlite3.Connection, user_id: int, workspace: str, partida_id: str
+) -> tuple[Optional[int], Optional[str]]:
+    """Progresión de campaña de esa concesión: ``(max_visible_session, character_id)``.
+
+    Es la fuente SERVIDOR del tope de sesión (T2). Nunca llega del cliente: un
+    ``?max_visible_session=99`` dejaría que el propio protegido levantara la
+    barrera.
+
+    **La ausencia de tope declarado NO significa "sin tope": significa 0.**
+    Esto se corrigio tras el quinto dictamen. El arreglo anterior anadio el
+    escritor pero lo dejo OPT-IN: `NULL` seguia valiendo "sin limite", y un
+    `ALTER TABLE ADD COLUMN` deja a NULL todas las concesiones anteriores --
+    justo las que motivaron el hallazgo. La barrera solo actuaba si el operador
+    se acordaba de rellenar un campo opcional del formulario.
+
+    Es la misma regla que ya rige el ambito: una propiedad ausente nunca se
+    interpreta como el permiso mas amplio. Quien deba ver material no revelado
+    lo obtiene por una capacidad EXPLICITA (`can_view_future`, que ya tienen
+    reviewer y admin), no por un hueco en una tabla.
+    """
+    row = conn.execute(
+        "SELECT max_visible_session, character_id FROM partida_access "
+        "WHERE user_id = ? AND workspace = ? AND partida_id = ?",
+        (user_id, workspace, partida_id),
+    ).fetchone()
+    if row is None:
+        # Sin fila de concesion no hay progresion que declarar: 0, no "sin tope".
+        return 0, None
+    tope = row["max_visible_session"]
+    if tope is None or isinstance(tope, bool) or not isinstance(tope, int) or tope < 0:
+        # Ausente, NULL heredado de la migracion, o corrupto: el tope mas
+        # restrictivo. Un dato que no se puede leer no puede abrir nada.
+        tope = 0
+    pj = row["character_id"]
+    if not isinstance(pj, str) or not pj.strip():
+        pj = None
+    return tope, pj
 
 
 def partida_exists(conn: sqlite3.Connection, partida_id: str) -> bool:

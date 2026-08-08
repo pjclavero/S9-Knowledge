@@ -17,7 +17,8 @@
       "confidence": 0.9,
       "visibility": "reference",
       "knowledge_layer": "book",
-      "review_status": "auto_extracted"
+      "review_status": "auto_extracted",
+      "scope": "juego"
     },
     {
       "id": "n_togashi_mitsu",
@@ -33,7 +34,8 @@
       "confidence": 0.85,
       "visibility": "player",
       "knowledge_layer": "book",
-      "review_status": "auto_extracted"
+      "review_status": "auto_extracted",
+      "scope": "juego"
     },
     {
       "id": "n_oni_montana_negra",
@@ -47,7 +49,8 @@
       "confidence": 0.8,
       "visibility": "player",
       "knowledge_layer": "transcript",
-      "review_status": "needs_review"
+      "review_status": "needs_review",
+      "scope": "juego"
     },
     {
       "id": "n_kakita_asuka",
@@ -63,7 +66,8 @@
       "confidence": 0.88,
       "visibility": "player",
       "knowledge_layer": "transcript",
-      "review_status": "auto_extracted"
+      "review_status": "auto_extracted",
+      "scope": "juego"
     },
     {
       "id": "n_kimi",
@@ -77,7 +81,8 @@
       "confidence": 0.82,
       "visibility": "player",
       "knowledge_layer": "transcript",
-      "review_status": "auto_extracted"
+      "review_status": "auto_extracted",
+      "scope": "juego"
     },
     {
       "id": "n_bayushi_hisao",
@@ -93,7 +98,8 @@
       "confidence": 0.75,
       "visibility": "narrator",
       "knowledge_layer": "transcript",
-      "review_status": "needs_review"
+      "review_status": "needs_review",
+      "scope": "juego"
     },
     {
       "id": "n_santuario_abandonado",
@@ -107,7 +113,8 @@
       "confidence": 0.85,
       "visibility": "player",
       "knowledge_layer": "transcript",
-      "review_status": "auto_extracted"
+      "review_status": "auto_extracted",
+      "scope": "juego"
     },
     {
       "id": "n_sesion_4",
@@ -121,7 +128,8 @@
       "confidence": 0.95,
       "visibility": "player",
       "knowledge_layer": "campaign",
-      "review_status": "reviewed"
+      "review_status": "reviewed",
+      "scope": "juego"
     },
     {
       "id": "n_clan_dragon",
@@ -140,7 +148,8 @@
       "confidence": 0.95,
       "visibility": "reference",
       "knowledge_layer": "book",
-      "review_status": "reviewed"
+      "review_status": "reviewed",
+      "scope": "juego"
     },
     {
       "id": "n_dark_oracle_fire",
@@ -159,7 +168,8 @@
       "confidence": 0.8,
       "visibility": "reference",
       "knowledge_layer": "book",
-      "review_status": "auto_extracted"
+      "review_status": "auto_extracted",
+      "scope": "juego"
     },
     {
       "id": "n_culto_pozo_viejo",
@@ -173,7 +183,8 @@
       "confidence": 0.6,
       "visibility": "secret",
       "knowledge_layer": "transcript",
-      "review_status": "needs_review"
+      "review_status": "needs_review",
+      "scope": "juego"
     }
   ],
   "edges": [
@@ -190,7 +201,8 @@
         9
       ],
       "review_status": "auto_extracted",
-      "visibility": "reference"
+      "visibility": "reference",
+      "scope": "juego"
     },
     {
       "id": "e2",
@@ -203,7 +215,8 @@
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
       "review_status": "auto_extracted",
-      "visibility": "player"
+      "visibility": "player",
+      "scope": "juego"
     },
     {
       "id": "e3",
@@ -216,7 +229,8 @@
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
       "review_status": "needs_review",
-      "visibility": "secret"
+      "visibility": "secret",
+      "scope": "juego"
     },
     {
       "id": "e4",
@@ -229,7 +243,8 @@
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
       "review_status": "reviewed",
-      "visibility": "player"
+      "visibility": "player",
+      "scope": "juego"
     },
     {
       "id": "e5",
@@ -242,7 +257,8 @@
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
       "review_status": "reviewed",
-      "visibility": "player"
+      "visibility": "player",
+      "scope": "juego"
     },
     {
       "id": "e6",
@@ -257,7 +273,8 @@
         9
       ],
       "review_status": "reviewed",
-      "visibility": "reference"
+      "visibility": "reference",
+      "scope": "juego"
     },
     {
       "id": "e7",
@@ -272,7 +289,8 @@
         11
       ],
       "review_status": "reviewed",
-      "visibility": "reference"
+      "visibility": "reference",
+      "scope": "juego"
     },
     {
       "id": "e8",
@@ -285,7 +303,8 @@
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
       "review_status": "needs_review",
-      "visibility": "narrator"
+      "visibility": "narrator",
+      "scope": "juego"
     },
     {
       "id": "e9",
@@ -298,7 +317,8 @@
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
       "review_status": "auto_extracted",
-      "visibility": "player"
+      "visibility": "player",
+      "scope": "juego"
     },
     {
       "id": "e10",
@@ -313,7 +333,8 @@
         10
       ],
       "review_status": "auto_extracted",
-      "visibility": "reference"
+      "visibility": "reference",
+      "scope": "juego"
     },
     {
       "id": "e11",
@@ -326,7 +347,8 @@
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
       "review_status": "needs_review",
-      "visibility": "secret"
+      "visibility": "secret",
+      "scope": "juego"
     },
     {
       "id": "e12",
@@ -339,7 +361,8 @@
       "source_document": "Sesión 4 - transcripción",
       "source_pages": [],
       "review_status": "auto_extracted",
-      "visibility": "player"
+      "visibility": "player",
+      "scope": "juego"
     }
   ]
 }

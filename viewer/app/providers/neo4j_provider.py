@@ -21,7 +21,25 @@ def _node_to_dict(record_node) -> dict[str, Any]:
         "type": props.get("entity_type", ""),
         "description": props.get("description", ""),
         "aliases": props.get("aliases", []),
+        # --- Campos de AUTORIZACIÓN. No son decorado: el motor de política
+        # decide con ellos. Si esta proyección los pierde, la barrera
+        # correspondiente deja de evaluarse sobre datos reales aunque sus
+        # pruebas unitarias sigan verdes. Ya pasó: `partida_id` y `known_by`
+        # faltaban aquí, y el aislamiento entre partidas no llegó a ejecutarse
+        # nunca fuera de los fixtures. Hay una prueba que congela esta lista.
         "workspace": props.get("workspace"),
+        "scope": props.get("scope"),
+        "partida_id": props.get("partida_id"),
+        "known_by": props.get("known_by"),
+        # `ingest_rpg` escribe este; el motor lo lee como respaldo en
+        # `known_by_of`. Si no viaja, la barrera se apaga en silencio.
+        "known_by_characters": props.get("known_by_characters"),
+        "party": props.get("party"),
+        "is_public": props.get("is_public"),
+        # Sesion de REVELACION (T2): desde que sesion puede revelarse esto.
+        # No confundir con `session_index` (a que episodio pertenece).
+        "known_from_session": props.get("known_from_session"),
+        "session_index": props.get("session_index"),
         "source_document": props.get("source_document", ""),
         "source_pages": props.get("source_pages", []),
         "source_kind": props.get("source_kind", ""),
@@ -46,6 +64,27 @@ def _rel_to_dict(rel) -> dict[str, Any]:
         "to": rel.end_node.element_id,
         "type": rel.type,
         "label": props.get("relation_label_es", ""),
+        # --- Campos de AUTORIZACIÓN de la relación (ver nota en _node_to_dict).
+        # Sin `visibility` aquí, TODA relación caía en `visibility_invalid`: el
+        # visor real se quedaba sin una sola arista y la herencia restrictiva de
+        # M5b-3 no tenía ningún efecto observable.
+        # Una arista se evalua con `can_view` EXACTAMENTE igual que un nodo, asi
+        # que necesita los mismos campos. Cualquier asimetria entre las dos
+        # listas apaga una regla solo para relaciones, en silencio.
+        "visibility": props.get("visibility"),
+        "workspace": props.get("workspace"),
+        "scope": props.get("scope"),
+        "partida_id": props.get("partida_id"),
+        "known_by": props.get("known_by"),
+        # `ingest_rpg` escribe este; el motor lo lee como respaldo en
+        # `known_by_of`. Si no viaja, la barrera se apaga en silencio.
+        "known_by_characters": props.get("known_by_characters"),
+        "party": props.get("party"),
+        "is_public": props.get("is_public"),
+        # Sesion de REVELACION (T2): desde que sesion puede revelarse esto.
+        # No confundir con `session_index` (a que episodio pertenece).
+        "known_from_session": props.get("known_from_session"),
+        "session_index": props.get("session_index"),
         "description": props.get("evidence") or props.get("description", ""),
         "source_document": props.get("source_document", ""),
         "source_pages": props.get("source_pages", []),
@@ -169,10 +208,20 @@ class Neo4jGraphProvider(GraphProvider):
         edges = [e for e in edges if e["from"] in node_ids and e["to"] in node_ids]
         return nodes, edges
 
-    def entity(self, entity_id: str) -> dict[str, Any] | None:
+    def entity(
+        self, entity_id: str, *, workspaces: frozenset[str] | None = None
+    ) -> dict[str, Any] | None:
+        params: dict[str, Any] = {"id": entity_id}
         query = "MATCH (n:Entity) WHERE elementId(n) = $id RETURN n"
+        if workspaces is not None:
+            # Acotado en el propio Cypher, no solo en el filtro posterior.
+            query = (
+                "MATCH (n:Entity) WHERE elementId(n) = $id "
+                "AND n.workspace IN $workspaces RETURN n"
+            )
+            params["workspaces"] = sorted(workspaces)
         with self._driver.session() as session:
-            record = session.run(query, {"id": entity_id}).single()
+            record = session.run(query, params).single()
             return _node_to_dict(record["n"]) if record else None
 
     def relations_for_entity(

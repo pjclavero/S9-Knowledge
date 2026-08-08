@@ -3,17 +3,21 @@
 Historia, para quien lea esto dentro de seis meses y crea que sobra:
 
 `VisibilityScope` no pregunta "¿puede verse este dato?" sino "¿cae este registro
-dentro de mi ambito?". Para eso construye un nodo sintetico que solo lleva
-`workspace` y `partida_id` y lo pasa por el mismo motor que evalua contenido.
+dentro de mi ambito?". Para eso CONSTRUIA un nodo sintetico que solo llevaba
+`workspace` y `partida_id` y lo pasaba por el mismo motor que evalua contenido.
 Cuando M5b-2 cerro el defecto permisivo --todo nodo debe declarar una
 `visibility` valida-- esa sonda dejo de tener nivel y el motor la denego. No fue
 una regresion de datos: fueron 78 de 79 fallos, y dejaba INALCANZABLE la cola de
 revision entera.
 
-La correccion es que la sonda declare su naturaleza (`_PROBE_VISIBILITY`), NO
-relajar el motor. Este fichero fija esa frontera probando LAS DOS MITADES A LA
-VEZ, que es justo lo que un arreglo apresurado rompe: casi siempre se "arregla"
-una reabriendo la otra.
+La correccion de M5b-2 fue que la sonda declarase su naturaleza
+(`_PROBE_VISIBILITY = player`), NO relajar el motor. M5c va un paso mas alla y
+elimina el objeto: la pregunta de ambito tiene ahora su propia via
+(`POLICY.partida_in_scope`) y ya no se fabrica ningun nodo sintetico.
+
+Este fichero fija la frontera probando LAS DOS MITADES A LA VEZ, que es justo lo
+que un arreglo apresurado rompe: casi siempre se "arregla" una reabriendo la
+otra.
 
     mitad A: la sonda decide ambito           -> no puede denegarse a si misma
     mitad B: el contenido sin visibility      -> sigue fallando cerrado
@@ -21,11 +25,13 @@ una reabriendo la otra.
 Si manana alguien vuelve a pasar un objeto sintetico al evaluador de contenido,
 o afloja el motor para que pase, uno de los dos bloques se pone rojo.
 """
+import inspect
+
 import pytest
 
 from app.authz.scope import VisibilityScope
 from app.policies.engine import POLICY
-from app.policies.models import PLAYER, ViewerContext
+from app.policies.models import ViewerContext
 
 WS = "ws:test"
 OTRO_WS = "ws:ajeno"
@@ -65,13 +71,26 @@ def test_scope_probe_is_not_evaluated_as_content__el_ambito_sigue_aislando():
     assert not s.allows({"workspace": OTRO_WS})
 
 
-def test_scope_probe_is_not_evaluated_as_content__la_sonda_no_lleva_contenido():
-    """La sonda solo declara ambito y su propio nivel neutro: nada de payload.
+def test_scope_probe_is_not_evaluated_as_content__ya_no_existe_nodo_sintetico():
+    """M5c va mas lejos que el arreglo original y elimina la sonda como objeto.
 
-    Si alguien le anade campos de contenido, esta mezclando las dos preguntas
-    otra vez y este test es el sitio donde discutirlo.
+    Antes, la pregunta de ambito se respondia fabricando un nodo sintetico con
+    una visibilidad de conveniencia (`_PROBE_VISIBILITY = player`) y pasandolo
+    por el evaluador de CONTENIDO. Funcionaba y no era explotable --el valor se
+    escribia el ultimo, asi que nadie podia autodeclararse sonda-- pero mantenia
+    viva la confusion que causo los 78 fallos: un no-contenido recorriendo el
+    camino del contenido.
+
+    Ahora la pregunta de ambito tiene su propia via (`POLICY.partida_in_scope`).
+    La propiedad que se fija aqui es mas fuerte que la anterior: no es que la
+    sonda declare bien su naturaleza, es que **ya no hay sonda que declarar**.
     """
-    assert VisibilityScope._PROBE_VISIBILITY == PLAYER
+    assert not hasattr(VisibilityScope, "_PROBE_VISIBILITY")
+    fuente = inspect.getsource(VisibilityScope.allows)
+    assert "visibility" not in fuente, (
+        "allows() ha vuelto a construir un nodo con visibilidad: la pregunta de "
+        "ambito y la de contenido se estan mezclando otra vez"
+    )
 
 
 # --- mitad B: el contenido real NO se relaja por lo anterior ----------------

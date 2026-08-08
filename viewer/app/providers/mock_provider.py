@@ -103,8 +103,13 @@ class MockGraphProvider(GraphProvider):
         ]
         return nodes, edges
 
-    def entity(self, entity_id: str) -> dict[str, Any] | None:
-        return self._nodes_by_id.get(entity_id)
+    def entity(
+        self, entity_id: str, *, workspaces: frozenset[str] | None = None
+    ) -> dict[str, Any] | None:
+        node = self._nodes_by_id.get(entity_id)
+        if node is None or workspaces is None:
+            return node
+        return node if node.get("workspace") in workspaces else None
 
     def relations_for_entity(
         self, entity_id: str

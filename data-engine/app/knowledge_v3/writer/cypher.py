@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import re
 
+from knowledge_v3.writer.visibility import SIN_DECLARAR
 from knowledge_v3.writer.visibility import stamp as stamp_visibility
 from dataclasses import dataclass, field
 from typing import Any
@@ -78,6 +79,17 @@ RESERVED_PROPS = frozenset(
     {
         "workspace",
         "partida_id",
+        # Las de visibilidad/ambito/revelacion tambien: las estampa `visibility`,
+        # nunca el payload. Estaban solo en VISIBILITY_PROPS, y dos listas que
+        # deben coincidir sin nada que lo verifique acaban divergiendo -- ademas
+        # de que colar `scope` abortaba con un codigo que hablaba de revelacion.
+        "scope",
+        "visibility",
+        "visibility_contract",
+        "visibility_source",
+        "known_by",
+        "known_by_characters",
+        "known_from_session",
         "entity_id",
         "assertion_id",
         "version",
@@ -301,13 +313,15 @@ def create_entity(
     label: str | None,
     props: dict,
     partida_id: str | None = None,
+    known_from_session=SIN_DECLARAR,
     visibility: Any = None,
 ) -> Query:
     """CREATE-only. Sin MERGE y sin una sola asignacion masiva.
 
-    `partida_id=None` no escribe la propiedad (Neo4j omite claves con valor
-    `null` en un `CREATE (n $props)`): un nodo de capa juego queda EXACTAMENTE
-    igual que antes de M3, sin la propiedad presente en absoluto.
+    M5c: el ambito se DECLARA. `partida_id=None` significa "lore de juego
+    compartido" y ahora se escribe como `scope="juego"`, no como la ausencia de
+    la propiedad. Antes el lector tenia que deducir el ambito de un hueco, y un
+    hueco no distingue "compartido a proposito" de "se perdio por el camino".
 
     M5b-1: `visibility` se estampa desde un contrato validado. Omitirlo no
     deja el nodo sin visibilidad -- lo deja en `secret`, que es lo que evita
@@ -320,7 +334,8 @@ def create_entity(
         f"CREATE (n{labels} $props) RETURN n.entity_id AS id",
         {
             "props": {
-                **stamp_visibility(props, visibility),
+                **stamp_visibility(props, visibility, partida_id=partida_id,
+                               known_from_session=known_from_session),
                 "entity_id": entity_id,
                 "workspace": workspace,
                 "partida_id": partida_id,
@@ -334,13 +349,15 @@ def create_assertion(
     workspace: str,
     props: dict,
     partida_id: str | None = None,
+    known_from_session=SIN_DECLARAR,
     visibility: Any = None,
 ) -> Query:
     return Query(
         f"CREATE (n:{LABEL_ASSERTION} $props) RETURN n.assertion_id AS id",
         {
             "props": {
-                **stamp_visibility(props, visibility),
+                **stamp_visibility(props, visibility, partida_id=partida_id,
+                               known_from_session=known_from_session),
                 "assertion_id": assertion_id,
                 "workspace": workspace,
                 "partida_id": partida_id,
@@ -356,6 +373,7 @@ def create_relation(
     workspace: str,
     props: dict,
     partida_id: str | None = None,
+    known_from_session=SIN_DECLARAR,
     visibility: Any = None,
 ) -> Query:
     """Arista nueva entre dos entidades que ya existen. Nunca las crea.
@@ -371,7 +389,8 @@ def create_relation(
         "object": object_id,
         "ws": workspace,
         "props": {
-            **stamp_visibility(props, visibility),
+            **stamp_visibility(props, visibility, partida_id=partida_id,
+                               known_from_session=known_from_session),
             "workspace": workspace,
             "partida_id": partida_id,
         },

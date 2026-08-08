@@ -83,7 +83,8 @@ def op_create_entity(op_id: str, decision_id: str, entity_id: str, name: str = "
         "decision_id": decision_id,
         "target_entity_id": entity_id,
         "assertion_id": None,
-        "payload": {"entity_type": "Character", "canonical_name": name},
+        "payload": {"entity_type": "Character", "canonical_name": name,
+                    "known_from_session": 0},
         "evidence_fragment_ids": [f"fragment:{decision_id}"],
         "idempotency_key": "idem:sha256:" + "0" * 64,
         "expected_state": "WOULD_CREATE",
@@ -99,7 +100,7 @@ def op_create_assertion(op_id: str, decision_id: str, assertion_id: str, subject
         "decision_id": decision_id,
         "target_entity_id": None,
         "assertion_id": assertion_id,
-        "payload": {
+        "payload": {"known_from_session": 0, 
             "subject_entity_id": subject,
             "object_entity_id": obj,
             "predicate": "MEMBER_OF",
@@ -119,7 +120,7 @@ def op_link(op_id: str, decision_id: str, subject: str, obj: str, version: int =
         "decision_id": decision_id,
         "target_entity_id": subject,
         "assertion_id": None,
-        "payload": {
+        "payload": {"known_from_session": 0, 
             "subject_entity_id": subject,
             "object_entity_id": obj,
             "predicate": "MEMBER_OF",
@@ -472,7 +473,7 @@ def test_read_entity_state_any_scope_no_filtra_ambito():
 
 
 def test_create_entity_estampa_partida_id_cuando_hay_partida():
-    q = cypher.create_entity("entity:x", WORKSPACE, "Character", {}, partida_id="partida:y")
+    q = cypher.create_entity("entity:x", WORKSPACE, "Character", {}, partida_id="partida:y", known_from_session=0)
     assert q.params["props"]["partida_id"] == "partida:y"
 
 
@@ -482,14 +483,14 @@ def test_create_entity_con_partida_none_no_deja_rastro_distinto_de_antes():
 
 
 def test_create_relation_exige_ambos_extremos_visibles_en_el_ambito():
-    q = cypher.create_relation("MEMBER_OF", "entity:a", "entity:b", WORKSPACE, {}, partida_id="partida:y")
+    q = cypher.create_relation("MEMBER_OF", "entity:a", "entity:b", WORKSPACE, {}, partida_id="partida:y", known_from_session=0)
     assert "a.partida_id IS NULL OR a.partida_id = $partida_id" in q.cypher
     assert "b.partida_id IS NULL OR b.partida_id = $partida_id" in q.cypher
     assert q.params["partida_id"] == "partida:y"
 
 
 def test_create_relation_de_capa_juego_solo_ve_capa_juego():
-    q = cypher.create_relation("MEMBER_OF", "entity:a", "entity:b", WORKSPACE, {}, partida_id=None)
+    q = cypher.create_relation("MEMBER_OF", "entity:a", "entity:b", WORKSPACE, {}, partida_id=None, known_from_session=0)
     assert "a.partida_id IS NULL" in q.cypher
     assert "b.partida_id IS NULL" in q.cypher
     assert "$partida_id" not in q.cypher
