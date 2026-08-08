@@ -66,6 +66,17 @@ SEMILLA = [
          desde=8, known_by=["pc:ana"]),
     dict(id="rev_corrupta", ws=WS, scope="partida", pid=P_A, vis="player",
          desde="tres"),
+    # Espejo en la partida B. No lo usa ninguna prueba de T2: existe para que el
+    # invariante de conteos simetricos entre partidas siga significando algo. Si
+    # solo se sembrara un lado, ese test fallaria por construccion del fixture y
+    # no por una fuga, que es justo lo que un invariante no debe hacer.
+    dict(id="rev_b_0", ws=WS, scope="partida", pid=P_B, vis="player", desde=0),
+    dict(id="rev_b_3", ws=WS, scope="partida", pid=P_B, vis="player", desde=3),
+    dict(id="rev_b_8", ws=WS, scope="partida", pid=P_B, vis="player", desde=8),
+    dict(id="rev_b_8_conocido", ws=WS, scope="partida", pid=P_B, vis="player",
+         desde=8, known_by=["pc:ana"]),
+    dict(id="rev_b_corrupta", ws=WS, scope="partida", pid=P_B, vis="player",
+         desde="tres"),
 ]
 
 
@@ -226,7 +237,8 @@ def _ids_visibles(prov, ctx):
     pruebas anteriores sin decir por que."""
     from app.authz.filtered_provider import PolicyFilteredProvider
     items, _ = PolicyFilteredProvider(prov, ctx).list_entities(WS, limit=1000)
-    return {i.get("id") for i in items}
+    # `id` es el elementId de Neo4j, no el identificador de dominio.
+    return {i.get("entity_id") for i in items}
 
 
 def test_revelacion_pasada_visible_y_futura_oculta(base):
@@ -263,7 +275,7 @@ def test_el_conteo_y_el_grafo_respetan_la_revelacion(base):
     n_visibles, _ = prov.counts(WS)
     assert n_visibles == len(_ids_visibles(base, _jugador_a(5)))
     nodos, _ = prov.graph(WS, limit=1000)
-    assert "rev_8" not in {n.get("id") for n in nodos}
+    assert "rev_8" not in {n.get("entity_id") for n in nodos}
 
 
 def test_el_acceso_por_id_no_esquiva_la_revelacion(base):
