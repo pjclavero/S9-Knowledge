@@ -237,8 +237,10 @@ def _ids_visibles(prov, ctx):
     pruebas anteriores sin decir por que."""
     from app.authz.filtered_provider import PolicyFilteredProvider
     items, _ = PolicyFilteredProvider(prov, ctx).list_entities(WS, limit=1000)
-    # `id` es el elementId de Neo4j, no el identificador de dominio.
-    return {i.get("entity_id") for i in items}
+    # El nombre de dominio aflora como `label` (desde `canonical_name`); `id` es
+    # el elementId de Neo4j y `entity_id` no viaja en la proyeccion del visor.
+    # Se usa la misma clave que `_nombres`, que ya funcionaba en este fichero.
+    return {i.get("label") for i in items}
 
 
 def test_revelacion_pasada_visible_y_futura_oculta(base):
@@ -275,7 +277,7 @@ def test_el_conteo_y_el_grafo_respetan_la_revelacion(base):
     n_visibles, _ = prov.counts(WS)
     assert n_visibles == len(_ids_visibles(base, _jugador_a(5)))
     nodos, _ = prov.graph(WS, limit=1000)
-    assert "rev_8" not in {n.get("entity_id") for n in nodos}
+    assert "rev_8" not in {n.get("label") for n in nodos}
 
 
 def test_el_acceso_por_id_no_esquiva_la_revelacion(base):
