@@ -92,6 +92,12 @@ def _ctx(partida=None, **over) -> ViewerContext:
         active_partida=partida,
         allowed_partida_ids=frozenset({partida}) if partida else frozenset(),
         session_public=True,
+        # 7a ronda: un tope NO DECLARADO deniega todo lo que declare sesion de
+        # revelacion (antes se saltaba la regla entera). Este contexto base
+        # existe para probar el AISLAMIENTO entre partidas, no la progresion de
+        # campana, asi que declara un tope alto explicito. Los casos que si
+        # prueban la barrera historica lo sobreescriben con `_jugador_a(tope)`.
+        max_visible_session=1000,
     )
     base.update(over)
     return ViewerContext(**base)
