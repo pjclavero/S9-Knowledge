@@ -9,23 +9,71 @@
 {% endblock %}
 {% block body %}
 <div class="graph-toolbar">
+  <button type="button" class="btn" id="filters-toggle" aria-expanded="true" aria-controls="filters-panel">Filtros</button>
   <span class="pill">Workspace: <strong id="workspace-label">{{ workspace }}</strong></span>
-  <input id="search-input" type="text" placeholder="Buscar (ej. Tamori)">
-  <select id="type-filter">
-    <option value="">Todos los tipos</option>
-  </select>
-  <select id="limit-select">
-    <option value="100">100</option>
-    <option value="300" selected>300</option>
-    <option value="1000">1000</option>
-  </select>
-  <button class="btn" id="reload-btn">Recargar</button>
+
+  <div class="search-box">
+    <label class="sr-only" for="search-input">Buscar entidad</label>
+    <input id="search-input" type="search" placeholder="Buscar entidad (tecla /)"
+           autocomplete="off" aria-describedby="search-help" aria-controls="search-results">
+    <ul id="search-results" class="search-results" hidden></ul>
+  </div>
+  <span id="search-help" class="sr-only">Escribe y pulsa Intro para centrar la primera coincidencia.</span>
+
+  <label class="toolbar-field" for="limit-select">Límite
+    <select id="limit-select">
+      <option value="100">100</option>
+      <option value="300" selected>300</option>
+      <option value="1000">1000</option>
+    </select>
+  </label>
+
+  <button class="btn" type="button" id="fit-btn" title="Encajar el grafo en pantalla (tecla F)">Encajar</button>
+  <button class="btn" type="button" id="reset-btn" title="Quitar filtros y volver a la vista inicial">Reiniciar vista</button>
+  <button class="btn" type="button" id="reload-btn">Recargar</button>
+
+  <span class="graph-counters" aria-live="polite">
+    <span class="pill">Nodos: <strong id="counter-nodes">0</strong></span>
+    <span class="pill">Relaciones: <strong id="counter-edges">0</strong></span>
+  </span>
 </div>
+
 <div class="graph-layout">
-  <div id="graph-canvas"></div>
-  <aside id="side-panel" class="side-panel-closed">
-    <button id="side-panel-close" class="side-panel-close-btn" aria-label="Cerrar panel">&#x2715;</button>
-    <p class="empty-hint">Pincha un nodo o una relación para ver su ficha.</p>
+  <aside id="filters-panel" class="filters-panel" aria-label="Filtros del grafo">
+    <section class="filters-section">
+      <h3>Tipos de entidad</h3>
+      <div id="entity-type-filters" class="filter-list"></div>
+    </section>
+    <section class="filters-section">
+      <h3>Tipos de relación</h3>
+      <div id="relation-type-filters" class="filter-list"></div>
+    </section>
+    <section class="filters-section">
+      <h3>Visualización</h3>
+      <label class="filter-row" for="labels-toggle">
+        <input type="checkbox" id="labels-toggle" checked>
+        <span class="filter-label">Etiquetas de relación</span>
+      </label>
+      <label class="filter-row" for="isolated-toggle">
+        <input type="checkbox" id="isolated-toggle">
+        <span class="filter-label">Ocultar nodos sueltos</span>
+      </label>
+      <button type="button" class="btn" id="clear-filters-btn">Quitar filtros</button>
+    </section>
+    <section class="filters-section">
+      <h3>Leyenda</h3>
+      <ul id="graph-legend" class="graph-legend"></ul>
+    </section>
+  </aside>
+
+  <div class="graph-main">
+    <p id="graph-status" class="graph-status" role="status" hidden></p>
+    <div id="graph-canvas" role="application" aria-label="Grafo de conocimiento" tabindex="0"></div>
+  </div>
+
+  <aside id="side-panel" class="side-panel side-panel-closed" aria-label="Ficha del elemento seleccionado" aria-hidden="true">
+    <button id="side-panel-close" type="button" class="side-panel-close-btn" aria-label="Cerrar ficha">&#x2715;</button>
+    <div id="side-panel-body"></div>
   </aside>
 </div>
 {% endblock %}
@@ -34,5 +82,6 @@
   window.S9K_WORKSPACE = {{ workspace | tojson }};
   window.S9K_GRAPH_LIMIT = {{ graph_limit | tojson }};
 </script>
+<script src="/static/js/graph-core.js"></script>
 <script src="/static/js/graph.js"></script>
 {% endblock %}
