@@ -253,5 +253,5 @@ Honestidad por delante, que es lo que faltó las seis rondas anteriores:
 - Registro declarativo con 13 dimensiones, cada una con `prueba_negativa` y
   `prueba_http` **declaradas y verificadas**.
 - ~90 comprobaciones derivadas del registro, ~26 pruebas HTTP de extremo a
-  extremo, 14 mutaciones con test rojo demostrado.
+  extremo, 13 mutaciones con test rojo demostrado.
 - **Despliegue: sigue sin autorizar.** Requiere dictamen CONFORME independiente.
