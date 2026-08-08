@@ -79,6 +79,17 @@ RESERVED_PROPS = frozenset(
     {
         "workspace",
         "partida_id",
+        # Las de visibilidad/ambito/revelacion tambien: las estampa `visibility`,
+        # nunca el payload. Estaban solo en VISIBILITY_PROPS, y dos listas que
+        # deben coincidir sin nada que lo verifique acaban divergiendo -- ademas
+        # de que colar `scope` abortaba con un codigo que hablaba de revelacion.
+        "scope",
+        "visibility",
+        "visibility_contract",
+        "visibility_source",
+        "known_by",
+        "known_by_characters",
+        "known_from_session",
         "entity_id",
         "assertion_id",
         "version",

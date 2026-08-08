@@ -40,6 +40,18 @@
       <label for="partida_id">Partida</label>
       <input id="partida_id" type="text" name="partida_id" placeholder="partida:mesa1" required>
     </div>
+    <div class="field">
+      <label for="max_visible_session">Sesión jugada (tope)</label>
+      <input id="max_visible_session" type="number" min="0" step="1"
+             name="max_visible_session" placeholder="vacío = sin tope">
+      <small>Hasta qué sesión ve esta persona. Vacío = sin límite (narrador).</small>
+    </div>
+    <div class="field">
+      <label for="character_id">Personaje</label>
+      <input id="character_id" type="text" name="character_id" placeholder="pc:ana">
+      <small>Con qué personaje juega esta partida. Sin él, lo que su personaje
+      conoce en particular no se le concede.</small>
+    </div>
     <button type="submit" class="btn btn-primary">Conceder</button>
   </form>
 

@@ -14,13 +14,20 @@ Reglas (en orden; la primera denegación gana):
                               vacías; malformado -> denegado.
   3. nivel de visibilidad  -> reference exige can_view_reference; secret y narrator
                               (capa GM) exigen can_view_secret.
-  4. sesión futura         -> si session_index > max_visible_session y no can_view_future.
-  5. pertenencia a party   -> contenido con `party` sólo lo ven sus miembros
-                              (o contenido público con session_public).
+  4. sesión de revelación  -> si known_from_session > max_visible_session y no
+                              can_view_future. NO es `session_index` (a qué
+                              episodio pertenece), sino desde cuándo puede
+                              revelarse. `known_by` NO la salta.
+  5. (RETIRADA) pertenencia a party. Era una ACL dinámica: pertenecer al
+                              grupo daba acceso a todo lo que ese grupo supo
+                              alguna vez, y quien entra en la sesión 20 no
+                              conoce el secreto de la 3. La party ahora sólo
+                              CREA concesiones, materializadas en `known_by`.
 
 `character_knowledge` (el personaje activo conoce el nodo) concede acceso a ESE
-nodo aunque falle 3/4/5: el personaje ya lo vivió. NUNCA salta la barrera de
-workspace (regla 2) ni el bypass de admin (regla 1).
+nodo aunque falle la regla 3: el personaje ya lo vivió. NUNCA salta la barrera de
+workspace (regla 2), ni el ámbito (2b), ni la sesión de revelación (4) --que es
+histórica y `known_by` no tiene dimensión temporal--, ni el bypass de admin (1).
 
 Todos los métodos son puros: no escriben en ninguna fuente de datos.
 """

@@ -659,16 +659,50 @@ def grant_partida_access(
     workspace: str,
     partida_id: str,
     granted_by: Optional[str] = None,
+    max_visible_session: Optional[int] = None,
+    character_id: Optional[str] = None,
 ) -> PartidaAccess:
-    """Concede a un usuario acceso a una partida. Idempotente (INSERT OR IGNORE)."""
+    """Concede a un usuario acceso a una partida. Idempotente (INSERT OR IGNORE).
+
+    `max_visible_session` y `character_id` son parte de la concesion, no
+    decorado: sin ellos la regla de sesion de revelacion no se evalua y
+    `knows()` devuelve siempre False. Se anadieron al esquema (v3) y al lector
+    antes que aqui, y durante un tiempo NADIE los escribia: la barrera existia,
+    estaba probada, y no se aplicaba a ninguna peticion real. Es el mismo
+    defecto que se venia persiguiendo, un nivel mas abajo -- por eso hay ahora
+    una prueba que exige un productor real para cada campo que el motor consume.
+    """
     now = _utcnow()
+    if max_visible_session is not None:
+        if isinstance(max_visible_session, bool) or not isinstance(max_visible_session, int) \
+                or max_visible_session < 0:
+            raise ValueError(
+                f"max_visible_session invalido: {max_visible_session!r}; "
+                "debe ser un entero no negativo o None (sin tope)"
+            )
+    if character_id is not None and (not isinstance(character_id, str) or not character_id.strip()):
+        raise ValueError(f"character_id invalido: {character_id!r}")
     conn.execute(
         """
-        INSERT OR IGNORE INTO partida_access (user_id, workspace, partida_id, granted_by, granted_at)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT OR IGNORE INTO partida_access
+            (user_id, workspace, partida_id, granted_by, granted_at,
+             max_visible_session, character_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (user_id, workspace, partida_id, granted_by, now),
+        (user_id, workspace, partida_id, granted_by, now,
+         max_visible_session, character_id),
     )
+    # INSERT OR IGNORE no actualiza una concesion ya existente, y la progresion
+    # de campana CAMBIA con cada sesion jugada: sin esto, subir el tope no
+    # tendria efecto y el operador creeria haberlo subido.
+    if max_visible_session is not None or character_id is not None:
+        conn.execute(
+            "UPDATE partida_access SET "
+            "max_visible_session = COALESCE(?, max_visible_session), "
+            "character_id = COALESCE(?, character_id) "
+            "WHERE user_id = ? AND workspace = ? AND partida_id = ?",
+            (max_visible_session, character_id, user_id, workspace, partida_id),
+        )
     conn.commit()
     row = conn.execute(
         "SELECT * FROM partida_access WHERE user_id = ? AND workspace = ? AND partida_id = ?",
@@ -731,8 +765,12 @@ def partida_progress(
     if row is None:
         return None, None
     tope = row["max_visible_session"]
-    if isinstance(tope, bool) or not isinstance(tope, int) or tope < 0:
-        tope = None
+    if tope is not None and (isinstance(tope, bool) or not isinstance(tope, int) or tope < 0):
+        # OJO: `None` significa "sin tope", asi que degradar un valor ilegible a
+        # `None` ABRIA la barrera en vez de cerrarla -- justo al reves de lo que
+        # decia el docstring. Un dato corrupto se trata como el tope mas
+        # restrictivo posible: no se revela nada mas alla del inicio.
+        tope = 0
     pj = row["character_id"]
     if not isinstance(pj, str) or not pj.strip():
         pj = None
