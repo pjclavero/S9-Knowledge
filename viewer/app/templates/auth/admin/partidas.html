@@ -64,6 +64,8 @@
         <th>Partida</th>
         <th>Concedido por</th>
         <th>Fecha</th>
+        <th>Sesión (tope)</th>
+        <th>Personaje</th>
         <th>Acciones</th>
       </tr>
     </thead>
@@ -77,6 +79,8 @@
         <td>{{ a.partida_id | e }}</td>
         <td>{{ a.granted_by | e if a.granted_by else "—" }}</td>
         <td>{{ a.granted_at }}</td>
+        <td>{{ a.max_visible_session if a.max_visible_session is not none else "—" }}</td>
+        <td>{{ a.character_id | e if a.character_id else "—" }}</td>
         <td>
           <form method="post" action="/admin/partidas/{{ a.id }}/revoke" style="display:inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">

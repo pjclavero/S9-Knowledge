@@ -61,11 +61,16 @@ def test_la_concesion_escribe_de_verdad_la_progresion_de_campana(db):
         assert auth_db.partida_progress(conn, u.id, "ws", "partida:alfa") == (7, "pc:ana")
 
 
-def test_subir_el_tope_de_una_concesion_existente_tiene_efecto(db):
-    """La progresion CAMBIA con cada sesion jugada.
+def test_reconceder_declara_el_estado_COMPLETO_de_la_concesion(db):
+    """La progresion cambia con cada sesion jugada, y debe poder BAJAR y BORRARSE.
 
-    `INSERT OR IGNORE` no actualiza una fila existente: sin el UPDATE, el
-    operador subiria el tope, no pasaria nada, y creeria haberlo subido.
+    Dos propiedades en una:
+    - `INSERT OR IGNORE` no actualiza una fila existente: sin el UPDATE, el
+      operador subia el tope, no pasaba nada, y creia haberlo subido.
+    - El UPDATE uso `COALESCE` durante un tiempo, y entonces pasar `None` NO
+      borraba: la concesion de personaje no se podia revocar desde el panel.
+      Como `active_character` salta la regla de nivel, lo que sobrevivia era un
+      bypass invisible en la interfaz. Reconceder declara el estado completo.
     """
     auth_db, ruta = db
     with auth_db.get_conn(ruta) as conn:
@@ -73,10 +78,32 @@ def test_subir_el_tope_de_una_concesion_existente_tiene_efecto(db):
         auth_db.grant_partida_access(conn, u.id, "ws", "partida:alfa",
                                      max_visible_session=3, character_id="pc:ana")
         auth_db.grant_partida_access(conn, u.id, "ws", "partida:alfa",
-                                     max_visible_session=9)
+                                     max_visible_session=9, character_id="pc:ana")
+        assert auth_db.partida_progress(conn, u.id, "ws", "partida:alfa") == (9, "pc:ana")
+
+        # Bajar el tope y RETIRAR el personaje, dejando ambos sin declarar.
+        auth_db.grant_partida_access(conn, u.id, "ws", "partida:alfa")
         tope, pj = auth_db.partida_progress(conn, u.id, "ws", "partida:alfa")
-        assert tope == 9
-        assert pj == "pc:ana"   # no se pierde lo que no se vuelve a declarar
+        assert pj is None, "la concesion de personaje debe poder revocarse"
+        assert tope == 0, "sin tope declarado se aplica el mas restrictivo"
+
+
+def test_sin_concesion_declarada_el_tope_es_el_mas_restrictivo(db):
+    """ALTO-1: el arreglo anterior fue OPT-IN y eso lo dejaba apagado.
+
+    `NULL` significaba "sin tope", y `ALTER TABLE ADD COLUMN` deja a NULL TODAS
+    las concesiones anteriores -- justo las que motivaron el hallazgo. La
+    barrera solo actuaba si el operador se acordaba de rellenar un campo
+    opcional. Misma regla que el ambito: la ausencia nunca es el permiso mas
+    amplio. Quien deba ver material no revelado usa `can_view_future`.
+    """
+    auth_db, ruta = db
+    with auth_db.get_conn(ruta) as conn:
+        u = _usuario(auth_db, conn)
+        auth_db.grant_partida_access(conn, u.id, "ws", "partida:alfa", granted_by="admin")
+        assert auth_db.partida_progress(conn, u.id, "ws", "partida:alfa") == (0, None)
+        # Y una concesion que ni siquiera existe tampoco abre nada.
+        assert auth_db.partida_progress(conn, u.id, "ws", "partida:otra") == (0, None)
 
 
 def test_un_tope_corrupto_cierra_en_vez_de_abrir(db):
@@ -130,6 +157,37 @@ def test_el_tope_escrito_llega_a_apagar_contenido_no_revelado(db):
     assert ctx.knows({**nodo, "known_by": ["pc:ana"]})
 
 
+def _fuente_de_escritura() -> str:
+    """Codigo que ESCRIBE, excluyendo pruebas y fixtures.
+
+    El primer intento de esta red usaba `if "test" in py.parts`, que no excluye
+    `data-engine/app/tests/`: entraban 169 ficheros de prueba, asi que un campo
+    que solo existiera en fixtures contaba como "productor real" -- exactamente
+    el defecto del primer dictamen, dentro de la red contra ese defecto.
+    """
+    raiz = Path(__file__).resolve().parents[2]
+    productores = [
+        raiz / "data-engine" / "app",
+        raiz / "viewer" / "app" / "auth",
+        raiz / "viewer" / "app" / "routers",
+        raiz / "viewer" / "app" / "authz",
+    ]
+    trozos = []
+    for base in productores:
+        for py in base.rglob("*.py"):
+            partes = set(py.parts)
+            if partes & {"tests", "test", "fixtures", "conftest.py"}:
+                continue
+            if py.name.startswith("test_"):
+                continue
+            texto = py.read_text(encoding="utf-8", errors="ignore")
+            # Fuera comentarios y docstrings: mencionar un campo en prosa --o en
+            # una lista de PROHIBICION como VISIBILITY_PROPS-- no es escribirlo.
+            lineas = [ln for ln in texto.splitlines() if not ln.lstrip().startswith("#")]
+            trozos.append("\n".join(lineas))
+    return "\n".join(trozos)
+
+
 def test_cada_campo_de_autorizacion_tiene_un_productor_en_el_repositorio():
     """Red generica contra la reincidencia.
 
@@ -138,18 +196,7 @@ def test_cada_campo_de_autorizacion_tiene_un_productor_en_el_repositorio():
     escritura-- porque el fallo que persigue tambien lo es: el campo sencillamente
     NO EXISTE fuera del lector.
     """
-    raiz = Path(__file__).resolve().parents[2]
-    productores = [
-        raiz / "data-engine" / "app",
-        raiz / "viewer" / "app" / "auth",
-        raiz / "viewer" / "app" / "routers",
-    ]
-    fuente = ""
-    for base in productores:
-        for py in base.rglob("*.py"):
-            if "test" in py.parts:
-                continue
-            fuente += py.read_text(encoding="utf-8", errors="ignore")
+    fuente = _fuente_de_escritura()
 
     from tests.test_provider_authz_fields_contract import CAMPOS_AUTORIZACION_NODO
 
@@ -158,4 +205,28 @@ def test_cada_campo_de_autorizacion_tiene_un_productor_en_el_repositorio():
         f"el motor decide con {sin_productor} y nadie los escribe: son barreras "
         f"decorativas. Paso con `party`, `is_public` y `session_index` (T1) y con "
         f"`max_visible_session` (H-A)."
+    )
+
+
+def test_las_dimensiones_del_CONTEXTO_tambien_tienen_productor():
+    """El agujero que dejo la primera version de esta red.
+
+    `CAMPOS_AUTORIZACION_NODO` son campos de NODO. `max_visible_session` y
+    `character_id` no son campos de nodo sino dimensiones del contexto, asi que
+    la red no los cubria: su propio docstring decia "paso con
+    `max_visible_session`" y, con ella puesta, habria vuelto a pasar.
+    """
+    fuente = _fuente_de_escritura()
+    for campo in ("max_visible_session", "character_id"):
+        assert f"{campo} = ?" in fuente or f"{campo}," in fuente, (
+            f"el contexto de autorizacion consume {campo} y no hay codigo que lo "
+            f"escriba: es una barrera decorativa"
+        )
+
+
+def test_la_red_no_se_conforma_con_una_mencion_en_prosa():
+    """Meta-prueba: si la red se satisface con un comentario, no vale nada."""
+    fuente = _fuente_de_escritura()
+    assert "# " not in fuente or all(
+        not ln.lstrip().startswith("#") for ln in fuente.splitlines()
     )

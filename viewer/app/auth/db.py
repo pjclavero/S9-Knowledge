@@ -289,6 +289,10 @@ def _row_to_partida_access(row: sqlite3.Row) -> PartidaAccess:
         partida_id=row["partida_id"],
         granted_by=row["granted_by"],
         granted_at=_parse_dt(row["granted_at"]),
+        max_visible_session=(
+            row["max_visible_session"] if "max_visible_session" in row.keys() else None
+        ),
+        character_id=row["character_id"] if "character_id" in row.keys() else None,
     )
 
 
@@ -695,14 +699,17 @@ def grant_partida_access(
     # INSERT OR IGNORE no actualiza una concesion ya existente, y la progresion
     # de campana CAMBIA con cada sesion jugada: sin esto, subir el tope no
     # tendria efecto y el operador creeria haberlo subido.
-    if max_visible_session is not None or character_id is not None:
-        conn.execute(
-            "UPDATE partida_access SET "
-            "max_visible_session = COALESCE(?, max_visible_session), "
-            "character_id = COALESCE(?, character_id) "
-            "WHERE user_id = ? AND workspace = ? AND partida_id = ?",
-            (max_visible_session, character_id, user_id, workspace, partida_id),
-        )
+    # `COALESCE` conservaba el valor anterior cuando se pasaba None, asi que la
+    # concesion de personaje NO SE PODIA REVOCAR desde el panel: un operador que
+    # reconcedia dejando el campo en blanco creia haberlo quitado y no lo habia
+    # quitado. Y `active_character` salta la regla de nivel, o sea que lo que
+    # sobrevivia era un bypass invisible en la interfaz. Ahora el UPDATE fija
+    # exactamente lo que se declara: reconceder es declarar el estado completo.
+    conn.execute(
+        "UPDATE partida_access SET max_visible_session = ?, character_id = ? "
+        "WHERE user_id = ? AND workspace = ? AND partida_id = ?",
+        (max_visible_session, character_id, user_id, workspace, partida_id),
+    )
     conn.commit()
     row = conn.execute(
         "SELECT * FROM partida_access WHERE user_id = ? AND workspace = ? AND partida_id = ?",
@@ -752,10 +759,19 @@ def partida_progress(
 
     Es la fuente SERVIDOR del tope de sesión (T2). Nunca llega del cliente: un
     ``?max_visible_session=99`` dejaría que el propio protegido levantara la
-    barrera. ``None`` = sin tope declarado.
+    barrera.
 
-    Fail-closed en la forma: un valor no entero o negativo almacenado a mano se
-    trata como ausente para la política, y quien decide sobre él es el motor.
+    **La ausencia de tope declarado NO significa "sin tope": significa 0.**
+    Esto se corrigio tras el quinto dictamen. El arreglo anterior anadio el
+    escritor pero lo dejo OPT-IN: `NULL` seguia valiendo "sin limite", y un
+    `ALTER TABLE ADD COLUMN` deja a NULL todas las concesiones anteriores --
+    justo las que motivaron el hallazgo. La barrera solo actuaba si el operador
+    se acordaba de rellenar un campo opcional del formulario.
+
+    Es la misma regla que ya rige el ambito: una propiedad ausente nunca se
+    interpreta como el permiso mas amplio. Quien deba ver material no revelado
+    lo obtiene por una capacidad EXPLICITA (`can_view_future`, que ya tienen
+    reviewer y admin), no por un hueco en una tabla.
     """
     row = conn.execute(
         "SELECT max_visible_session, character_id FROM partida_access "
@@ -763,13 +779,12 @@ def partida_progress(
         (user_id, workspace, partida_id),
     ).fetchone()
     if row is None:
-        return None, None
+        # Sin fila de concesion no hay progresion que declarar: 0, no "sin tope".
+        return 0, None
     tope = row["max_visible_session"]
-    if tope is not None and (isinstance(tope, bool) or not isinstance(tope, int) or tope < 0):
-        # OJO: `None` significa "sin tope", asi que degradar un valor ilegible a
-        # `None` ABRIA la barrera en vez de cerrarla -- justo al reves de lo que
-        # decia el docstring. Un dato corrupto se trata como el tope mas
-        # restrictivo posible: no se revela nada mas alla del inicio.
+    if tope is None or isinstance(tope, bool) or not isinstance(tope, int) or tope < 0:
+        # Ausente, NULL heredado de la migracion, o corrupto: el tope mas
+        # restrictivo. Un dato que no se puede leer no puede abrir nada.
         tope = 0
     pj = row["character_id"]
     if not isinstance(pj, str) or not pj.strip():

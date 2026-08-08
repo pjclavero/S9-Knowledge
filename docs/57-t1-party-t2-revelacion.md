@@ -131,6 +131,43 @@ las fixtures se renombraron.
 
 Y desaparece `party_membership → acceso directo`.
 
+## Quinto dictamen: la ausencia tampoco vale aquí
+
+El cuarto arreglo (escribir la progresión en la concesión) resultó ser **opt-in**,
+y el quinto revisor lo reprodujo por HTTP real: `NULL` seguía significando "sin
+tope", y un `ALTER TABLE ADD COLUMN` deja a `NULL` **todas** las concesiones
+anteriores — precisamente las que motivaron el hallazgo. La barrera sólo actuaba
+si el operador se acordaba de rellenar un campo opcional del formulario.
+
+La corrección aplica aquí la misma regla que ya regía el ámbito: **una propiedad
+ausente nunca se interpreta como el permiso más amplio.** Sin tope declarado, el
+tope es `0`. Quien deba ver material no revelado lo obtiene por una capacidad
+explícita (`can_view_future`, que ya tienen `reviewer` y `admin`), no por un
+hueco en una tabla. La justificación anterior —"NULL = sin tope, para narrador"—
+no se sostenía: no existe el rol `narrator`, y los dos roles que sí deben ver
+futuro ya lo declaran positivamente.
+
+Se corrigen además, del mismo dictamen:
+
+- `_progresion_de_campana` fallaba **abierto**: base ausente, excepción o fila
+  inexistente daban "sin tope". El comentario decía "no se inventa un tope"
+  mientras inventaba el más permisivo de todos.
+- El `UPDATE` usaba `COALESCE`, así que **la concesión de personaje no se podía
+  revocar** desde el panel: reconceder con el campo en blanco no borraba nada, y
+  como `active_character` salta la regla de nivel, lo que sobrevivía era un
+  bypass invisible en la interfaz. Reconceder declara ahora el estado completo.
+- `PartidaAccess` no leía las dos columnas nuevas y el panel no las mostraba: un
+  permiso que el operador no ve es un permiso que no sabe que ha dado.
+- La red anti-reincidencia de H-C **no podía detectar lo que decía detectar**:
+  cubría campos de nodo pero no las dimensiones del contexto (o sea, no habría
+  visto H-A), su filtro de exclusión dejaba entrar 169 ficheros de prueba —de
+  modo que un campo presente sólo en fixtures contaba como productor real, el
+  defecto del primer dictamen— y se satisfacía con una mención en un comentario
+  o en una lista de prohibición. Ahora excluye pruebas y fixtures de verdad,
+  descarta comentarios y cubre `max_visible_session` y `character_id`.
+- `readonly.py` importaba `get_provider` sin usarlo, junto al filtrado: un resto
+  que invita a saltarse la política por error.
+
 ## Estado
 
 - 740 pruebas del visor y 196 de raíz en verde.
