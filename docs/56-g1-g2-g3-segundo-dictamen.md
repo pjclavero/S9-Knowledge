@@ -91,6 +91,44 @@ de dónde viva.
   perdió su ámbito) y el recorte de `redact_job` limita el daño, pero merece
   decisión explícita.
 
+## Tercer dictamen: T1–T7
+
+El trabajo volvió a un tercer revisor independiente, y también fue **NO
+CONFORME**. Corregidos aquí: **T3** (`id` era el único campo que el motor
+consumía sin tipar, y justo el que la red inversa descartaba a mano),
+**T4** (`float(confidence)` y valores de nodo usados como claves en
+`quality_metrics`: un solo nodo visible con confianza textual devolvía 500 en
+`/quality` para todo el workspace) y **T5** (rutas absolutas del servidor
+entregadas a cualquier reviewer).
+
+### T1 y T2 — decisión pendiente del operador
+
+Las reglas 4 y 5 del motor —*party* y *sesión futura*— **no se evalúan nunca
+sobre datos reales**, por dos causas independientes que se tapan la una a la
+otra:
+
+- **T1**: el motor lee `party`, `is_public` y `session_index`. Ningún escritor
+  del repositorio escribe esos nombres: `ingest_rpg` persiste `known_by_party`,
+  `known_publicly`, `known_from_session`. Verificado ejecutando: el nodo tal
+  como se escribe hoy sale `visible`; el mismo nodo con los nombres que el motor
+  espera sale `party_scoped` / `future_session`.
+- **T2**: `build_viewer_context` no puebla `max_visible_session`,
+  `party_membership`, `active_character` ni `character_knowledge`. La regla 4 no
+  entra jamás y `knows()` devuelve siempre `False`, de modo que **todo el
+  mecanismo `known_by` de H3 y G3 es inerte en producción**.
+
+G3 corrigió esta misma desalineación para **uno de los cuatro campos hermanos**
+de la tupla de `ingest_rpg` y dejó los otros tres. La red anti-reincidencia no
+puede verlo: congela que el campo **viaje** en la proyección, nunca que alguien
+lo **escriba**. Sale verde con `party` en la lista y ningún `party` en el grafo.
+
+Hoy no es fuga viva porque el legacy está mudo. Se convierte en fuga el día que
+se ejecute el plan descrito en G4. Las opciones son cablear las reglas de
+extremo a extremo (toca ingestión), retirarlas del motor y documentar que esas
+dimensiones no existen todavía, o dejarlas como deuda explícita. **Una regla que
+no se evalúa da una falsa sensación de barrera**, que es el patrón que estos
+tres dictámenes llevan persiguiendo.
+
 ## Estado
 
 - 726 pruebas del visor y 196 de raíz en verde.

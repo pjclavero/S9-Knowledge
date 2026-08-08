@@ -584,8 +584,16 @@ def reviews_detail_view(request: Request, source_id: str, workspace: str | None 
     quality_report = _extract_quality_report(source_dir)
 
     # Pipeline files state
+    # La ruta absoluta en disco es detalle operativo: un revisor necesita saber
+    # QUÉ hay en la cola, no dónde vive el fichero en el servidor. `redact_job`
+    # ya aplicaba ese criterio; aquí se entregaba a cualquier reviewer.
+    _detalle = get_visibility_scope(request).sees_operational_detail
     pipeline_files = [
-        {"name": fname, "path": str(source_dir / fname), "exists": (source_dir / fname).exists()}
+        {
+            "name": fname,
+            "path": str(source_dir / fname) if _detalle else None,
+            "exists": (source_dir / fname).exists(),
+        }
         for fname in PIPELINE_FILE_NAMES
     ]
 

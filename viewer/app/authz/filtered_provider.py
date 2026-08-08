@@ -221,17 +221,32 @@ class PolicyFilteredProvider(GraphProvider):
         by_visibility: dict[str, int] = {}
         c_high = c_mid = c_low = c_none = 0
         no_source = no_desc = no_type = 0
+        # Los agregadores recorren el conjunto ENTERO, así que un solo nodo
+        # visible con un valor de forma inesperada los tumbaba: `float("x")`
+        # lanzaba ValueError y un `type` que fuese lista daba `unhashable type`
+        # al usarse como clave. El resultado era un 500 en `/quality` para todo
+        # el workspace. Es el mismo defecto de G1 --dato malformado que produce
+        # error en vez de comportarse como dato ausente-- fuera del motor: la
+        # disciplina existía en `serializers._confidence_label` y no aquí.
+        def _clave(valor: Any) -> str:
+            return valor if isinstance(valor, str) and valor else ""
+
         for n in nodes:
-            by_type[n.get("type") or ""] = by_type.get(n.get("type") or "", 0) + 1
-            by_ws[n.get("workspace") or ""] = by_ws.get(n.get("workspace") or "", 0) + 1
-            by_review[n.get("review_status") or ""] = by_review.get(n.get("review_status") or "", 0) + 1
-            by_visibility[n.get("visibility") or ""] = by_visibility.get(n.get("visibility") or "", 0) + 1
+            by_type[_clave(n.get("type"))] = by_type.get(_clave(n.get("type")), 0) + 1
+            by_ws[_clave(n.get("workspace"))] = by_ws.get(_clave(n.get("workspace")), 0) + 1
+            by_review[_clave(n.get("review_status"))] = by_review.get(_clave(n.get("review_status")), 0) + 1
+            by_visibility[_clave(n.get("visibility"))] = by_visibility.get(_clave(n.get("visibility")), 0) + 1
             c = n.get("confidence")
+            try:
+                c = None if c is None else float(c)
+            except (TypeError, ValueError):
+                # Confianza ilegible se cuenta como ausente, no como error.
+                c = None
             if c is None:
                 c_none += 1
-            elif float(c) >= 0.8:
+            elif c >= 0.8:
                 c_high += 1
-            elif float(c) >= 0.5:
+            elif c >= 0.5:
                 c_mid += 1
             else:
                 c_low += 1

@@ -115,8 +115,13 @@ class ViewerContext:
         """
         if self.active_character is None:
             return False
+        # `id` entra en un `in` contra un frozenset: una lista daba
+        # `TypeError: unhashable type`. Era el ÚNICO campo que el motor consume
+        # sin tipar, y precisamente el que la red inversa descartaba a mano por
+        # considerarlo "identidad, no autorización". Se consume dentro de una
+        # decisión de autorización, así que se tipa como todos los demás.
         nid = node.get("id")
-        if nid is not None and nid in self.character_knowledge:
+        if isinstance(nid, str) and nid in self.character_knowledge:
             return True
         known_by, valido = known_by_of(node)
         if not valido:
