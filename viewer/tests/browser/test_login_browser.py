@@ -36,6 +36,14 @@ def server(tmp_path_factory) -> Iterator[str]:
     import uvicorn
 
     db_path = tmp_path_factory.mktemp("auth") / "auth.db"
+    # Guardar y RESTAURAR, no borrar: `viewer/tests/conftest.py` fija un
+    # S9K_CSRF_SECRET aleatorio para toda la sesion. Si este modulo lo elimina
+    # al terminar, los tests de auth que corren despues firman el CSRF con un
+    # secreto y lo validan con otro, y reciben 403. No se veia porque en CI este
+    # modulo corre solo, y en la corrida combinada se saltaba por falta de
+    # Playwright: un fallo latente que solo aparece cuando el navegador existe.
+    _previo = {k: os.environ.get(k) for k in (
+        "S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_SESSION_SECURE", "S9K_CSRF_SECRET")}
     os.environ["S9K_AUTH_ENABLED"] = "true"
     os.environ["S9K_AUTH_DB_PATH"] = str(db_path)
     os.environ["S9K_SESSION_SECURE"] = "false"      # el lab va por HTTP
@@ -72,9 +80,11 @@ def server(tmp_path_factory) -> Iterator[str]:
 
     srv.should_exit = True
     thread.join(timeout=5)
-    for k in ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_SESSION_SECURE",
-              "S9K_CSRF_SECRET"):
-        os.environ.pop(k, None)
+    for k, v in _previo.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
     get_auth_settings.cache_clear()
 
 
