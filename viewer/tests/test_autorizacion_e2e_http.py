@@ -53,6 +53,39 @@ NODOS = [
      "visibility": "player", "known_from_session": 40, "known_by": ["pc:ana"]},
     {"id": "lore", "label": "Lore compartido", "type": "Regla",
      "workspace": WS, "scope": "juego", "visibility": "player"},
+
+    # --- 7a ronda: un testigo HTTP por cada dimension del registro. Antes,
+    # varias dimensiones solo tenian pruebas de motor con el contexto fabricado
+    # a mano, que es el atajo que se salta justo los tramos donde vivian los
+    # defectos.
+    {"id": "otro_ws", "label": "De otro workspace", "type": "Regla",
+     "workspace": "juego:ajeno", "scope": "juego", "visibility": "player"},
+    {"id": "sin_scope", "label": "Sin ambito declarado", "type": "Regla",
+     "workspace": WS, "visibility": "player"},
+    {"id": "partida_id_en_blanco", "label": "Ambito de partida sin partida",
+     "type": "Evento", "workspace": WS, "scope": "partida", "partida_id": "   ",
+     "visibility": "player", "known_from_session": 0},
+    {"id": "visibilidad_corrupta", "label": "Nivel inventado", "type": "Regla",
+     "workspace": WS, "scope": "juego", "visibility": "publico"},
+    {"id": "known_by_corrupto", "label": "known_by que no es lista", "type": "Regla",
+     "workspace": WS, "scope": "juego", "visibility": "player",
+     "known_by": "pc:ana"},
+    {"id": "secreto_del_pj", "label": "Secreto que Ana vivio", "type": "Evento",
+     "workspace": WS, "scope": "partida", "partida_id": PARTIDA,
+     "visibility": "secret", "known_from_session": 1, "known_by": ["pc:ana"]},
+    {"id": "secreto_ajeno", "label": "Secreto de otra PJ", "type": "Evento",
+     "workspace": WS, "scope": "partida", "partida_id": PARTIDA,
+     "visibility": "secret", "known_from_session": 1, "known_by": ["pc:bryn"]},
+    {"id": "secreto_por_known_by_characters", "label": "Secreto via ingesta de rol",
+     "type": "Evento", "workspace": WS, "scope": "partida", "partida_id": PARTIDA,
+     "visibility": "secret", "known_from_session": 1,
+     "known_by_characters": ["pc:ana"]},
+    {"id": "partida_sin_revelacion", "label": "Nota de partida sin revelacion",
+     "type": "Evento", "workspace": WS, "scope": "partida", "partida_id": PARTIDA,
+     "visibility": "player"},
+    {"id": "de_otra_partida", "label": "Material de la partida beta", "type": "Evento",
+     "workspace": WS, "scope": "partida", "partida_id": "partida:beta",
+     "visibility": "player", "known_from_session": 0},
 ]
 
 
@@ -125,22 +158,28 @@ def entorno(tmp_path, monkeypatch):
     app.dependency_overrides.clear()
 
 
-def _jugadora(auth_db, db_path, tope=None, personaje=None):
-    """Crea la usuaria, le concede la partida y devuelve su cookie de sesion."""
+def _jugadora(auth_db, db_path, tope=None, personaje=None, *, role="viewer",
+              activar=True, usuario="ana", partida=PARTIDA):
+    """Crea la usuaria, le concede la partida y devuelve su cookie de sesion.
+
+    ``activar=False`` deja la sesion SIN partida activa: es el escenario de H6-9
+    (un autenticado sin partida no puede quedar menos restringido que nadie).
+    """
     from app.auth.passwords import hash_password
     from app.auth.sessions import create_session
 
     with auth_db.get_conn(db_path) as conn:
         u = auth_db.create_user(
-            conn, username="ana", display_name="Ana",
-            password_hash=hash_password("TestPass_1234567890!"), role="viewer",
+            conn, username=usuario, display_name=usuario.title(),
+            password_hash=hash_password("TestPass_1234567890!"), role=role,
         )
         auth_db.grant_partida_access(
-            conn, u.id, WS, PARTIDA, granted_by="admin",
+            conn, u.id, WS, partida, granted_by="admin",
             max_visible_session=tope, character_id=personaje,
         )
         token, sesion = create_session(conn, u)
-        auth_db.set_session_active_partida(conn, sesion.id, PARTIDA)
+        if activar:
+            auth_db.set_session_active_partida(conn, sesion.id, partida)
     return u, token
 
 

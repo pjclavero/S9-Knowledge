@@ -40,6 +40,65 @@ SCOPE_PARTIDA = "partida"   # material privado de una partida: exige `partida_id
 ALL_SCOPES = (SCOPE_GAME, SCOPE_PARTIDA)
 
 
+# --- Tri-estado de una dimensión de autorización (M5b-C, 7ª ronda) ----------
+# `None` estaba significando TRES cosas a la vez en `max_visible_session`:
+#   (a) "no hay partida activa, el tope no aplica",
+#   (b) "la concesión no declara tope" (fila migrada con NULL),
+#   (c) "no se pudo leer la concesión".
+# Y el motor las trataba a las tres igual --`if ctx.max_visible_session is not
+# None:`--, es decir, saltándose la regla entera. Un `None` con tres
+# significados dentro de un `if` es, literalmente, una barrera que se apaga
+# sola en el caso que menos se controla.
+#
+# A partir de aquí cada dimensión tiene tres estados DISTINGUIBLES:
+VALOR = "VALUE"                       # valor válido: se aplica
+NO_APLICABLE = "NOT_APPLICABLE"       # declarado explícitamente como no aplicable
+AUSENTE_O_INVALIDO = "MISSING_INVALID"  # ausencia inesperada o valor inválido -> DENY
+
+
+class _NoAplica:
+    """Centinela para el estado NOT_APPLICABLE.
+
+    No es `None` a propósito: un centinela propio no se puede confundir con
+    "no me llegó nada", que es justo la confusión que hubo que romper. Es
+    falsy para que un `if tope:` accidental tampoco lo lea como un valor.
+    """
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:  # pragma: no cover - sólo para mensajes
+        return "<no aplica>"
+
+    def __bool__(self) -> bool:
+        return False
+
+
+#: Única instancia; se compara con `is`.
+NO_APLICA = _NoAplica()
+
+
+def estado_de_entero_no_negativo(valor: Any) -> str:
+    """Clasifica una dimensión numérica de autorización en su tri-estado.
+
+    `bool` es subclase de `int` y no es un número de sesión: `True` no puede
+    colarse como tope 1.
+    """
+    if valor is NO_APLICA:
+        return NO_APLICABLE
+    if isinstance(valor, bool) or not isinstance(valor, int) or valor < 0:
+        return AUSENTE_O_INVALIDO
+    return VALOR
+
+
+def estado_de_identificador(valor: Any) -> str:
+    """Tri-estado de una dimensión textual (p.ej. `active_character`)."""
+    if valor is NO_APLICA:
+        return NO_APLICABLE
+    if not isinstance(valor, str) or not valor.strip():
+        return AUSENTE_O_INVALIDO
+    return VALOR
+
+
 def known_by_of(node: dict[str, Any]) -> tuple[tuple[str, ...], bool]:
     """Lee `known_by` de un nodo. Devuelve ``(personajes, es_válido)``.
 
@@ -91,7 +150,14 @@ class ViewerContext:
     active_partida: Optional[str] = None
     allowed_partida_ids: frozenset[str] = field(default_factory=frozenset)
     active_character: Optional[str] = None
-    max_visible_session: Optional[int] = None  # None => sin tope de sesión
+    # Tri-estado (ver `estado_de_entero_no_negativo`):
+    #   int        -> VALOR: tope declarado por la concesión del servidor.
+    #   NO_APLICA  -> NOT_APPLICABLE: no hay partida activa; el contenido de
+    #                 partida ya está fuera de alcance por la regla 2b, así que
+    #                 el tope no tiene nada que acotar. Es un estado DECLARADO.
+    #   None/otro  -> MISSING_INVALID: no se pudo determinar. DENIEGA el
+    #                 contenido de partida. Nunca significa "sin tope".
+    max_visible_session: Any = None
     can_view_secret: bool = False
     can_view_future: bool = False
     can_view_reference: bool = False
@@ -113,7 +179,10 @@ class ViewerContext:
         Quien necesite distinguir "no conoce" de "el dato está corrupto" debe
         usar :func:`known_by_of`; el motor lo hace para denegar el nodo entero.
         """
-        if self.active_character is None:
+        # Tri-estado tambien aqui: sin personaje LEGIBLE no se concede
+        # conocimiento individual. `None`, cadena vacia, espacios o un tipo
+        # inesperado son todos "no hay personaje", y ninguno puede conceder.
+        if estado_de_identificador(self.active_character) != VALOR:
             return False
         # `id` entra en un `in` contra un frozenset: una lista daba
         # `TypeError: unhashable type`. Era el ÚNICO campo que el motor consume

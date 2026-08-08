@@ -33,6 +33,10 @@ def _ctx(active_partida=None, **over) -> ViewerContext:
         allowed_workspaces=frozenset({WS}),
         active_partida=active_partida,
         allowed_partida_ids=frozenset({active_partida}) if active_partida else frozenset(),
+        # 7a ronda: el tope de sesion es dimension obligatoria del contenido
+        # de partida. Un jugador con la partida recien concedida esta en la
+        # sesion 0, y el material de la fixture declara `known_from_session: 0`.
+        max_visible_session=0,
         can_view_reference=True,
         session_public=True,
     )
@@ -85,7 +89,10 @@ def test_partida_ajena_oculta_sin_partida_activa():
 
 def test_partida_propia_visible_con_partida_activa():
     node = {"id": "n", "workspace": WS, "scope": "partida",
-            "partida_id": "partida:uno", "visibility": "player"}
+            "partida_id": "partida:uno", "visibility": "player",
+            # 7a ronda: el contenido de partida DEBE declarar su sesion de
+            # revelacion. Sin ella el motor ya no lo deja pasar (H6-1).
+            "known_from_session": 0}
     assert POLICY.can_view(node, _ctx(active_partida="partida:uno")).visible
 
 
@@ -182,7 +189,7 @@ def test_admin_ve_las_dos_partidas_a_la_vez(base):
     items, total = prov.list_entities(WS, limit=1000)
     ids = {i["id"] for i in items}
     assert {"partida1_pc_arden", "partida2_pc_bryn"} <= ids
-    assert total == 4
+    assert total == 5  # +1: el testigo sin sesion de revelacion (H6-1)
 
 
 def test_el_material_legacy_queda_mudo_y_eso_es_la_decision(base):

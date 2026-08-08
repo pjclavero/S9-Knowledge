@@ -27,7 +27,7 @@ from app.authz.filtered_provider import PolicyFilteredProvider
 from app.authz.scope import VisibilityScope
 from app.config import get_settings
 from app.deps import get_provider
-from app.policies.models import ViewerContext
+from app.policies.models import NO_APLICA, ViewerContext
 from app.providers.base import GraphProvider
 
 
@@ -126,12 +126,21 @@ def get_visibility_context(request: Request) -> ViewerContext:
 
 def _progresion_de_campana(
     request: Request, partida_id: Optional[str]
-) -> tuple[Optional[int], Optional[str]]:
-    """``(max_visible_session, character_id)`` de la concesión vigente."""
+) -> tuple[object, Optional[str]]:
+    """``(max_visible_session, character_id)`` de la concesión vigente.
+
+    El tope se devuelve en TRI-ESTADO (7ª ronda): un entero, ``NO_APLICA``, o
+    ``0``. Nunca ``None`` "sin tope": esa lectura dejaba a un usuario
+    autenticado SIN partida activa menos restringido que un anónimo, que sí
+    recibía 0. Un permiso que crece al quitarle contexto al lector es un fallo
+    abierto por definición.
+    """
     if not partida_id:
-        # Sin partida activa no hay contenido de partida que proteger: el tope
-        # no aplica. Es el unico caso en que `None` (sin tope) es correcto.
-        return None, None
+        # Sin partida activa el contenido de partida ya está fuera de alcance
+        # (regla 2b: `allowed_partida_ids` vacío). El tope NO APLICA, y se
+        # declara como tal en vez de devolver un `None` que el motor leía como
+        # "sin tope".
+        return NO_APLICA, None
     user = getattr(request.state, "user", None)
     if user is None or getattr(user, "id", None) is None:
         return 0, None

@@ -14,10 +14,18 @@ Reglas (en orden; la primera denegación gana):
                               vacías; malformado -> denegado.
   3. nivel de visibilidad  -> reference exige can_view_reference; secret y narrator
                               (capa GM) exigen can_view_secret.
-  4. sesión de revelación  -> si known_from_session > max_visible_session y no
-                              can_view_future. NO es `session_index` (a qué
-                              episodio pertenece), sino desde cuándo puede
-                              revelarse. `known_by` NO la salta.
+  4. sesión de revelación  -> bajo `scope=partida`, `known_from_session` es
+                              OBLIGATORIA: ausente o inválida -> denegado; y el
+                              tope debe ser un valor legible -> si no, denegado.
+                              Visible sólo si known_from_session <=
+                              max_visible_session o can_view_future. Bajo
+                              `scope=juego` su AUSENCIA no aplica (el lore no
+                              está sujeto a la progresión de una partida), pero
+                              si el dato la declara se aplica igual: declararla
+                              es someterse a ella.
+                              NO es `session_index` (a qué episodio pertenece),
+                              sino desde cuándo puede revelarse. `known_by` NO
+                              la salta.
   5. (RETIRADA) pertenencia a party. Era una ACL dinámica: pertenecer al
                               grupo daba acceso a todo lo que ese grupo supo
                               alguna vez, y quien entra en la sesión 20 no
@@ -38,7 +46,11 @@ from typing import Any, Iterable
 from app.policies.models import (
     ALL_SCOPES,
     ALL_STORED_LEVELS,
+    AUSENTE_O_INVALIDO,
     DENY,
+    NO_APLICABLE,
+    VALOR,
+    estado_de_entero_no_negativo,
     NARRATOR,
     REFERENCE,
     SCOPE_PARTIDA,
@@ -150,13 +162,44 @@ class VisibilityPolicy:
         #
         # `0` es una declaración POSITIVA ("conocido desde el inicio"), no una
         # ausencia. Se tipa como todo lo demás: malformado deniega, nunca lanza.
-        if ctx.max_visible_session is not None:
-            desde = node.get("known_from_session")
-            if desde is not None:
-                # `bool` es subclase de `int` y no es un número de sesión.
-                if isinstance(desde, bool) or not isinstance(desde, int) or desde < 0:
-                    return VisibilityDecision(False, "known_from_session_invalid")
-                if desde > ctx.max_visible_session and not ctx.can_view_future:
+        # 7ª ronda -- aquí vivía el defecto: `if ctx.max_visible_session is not
+        # None:` seguido de `if desde is not None:`. Dos guardas construidas
+        # sobre un `None` que significaba tres cosas distintas, y el efecto neto
+        # era que un nodo `scope=partida` SIN `known_from_session` se saltaba la
+        # regla entera y era visible con cualquier tope --mientras el registro y
+        # docs/58 declaraban `missing=DENY`--. El único guardián era un `raise`
+        # del writer, que sólo cubre el contenido escrito POR el writer.
+        #
+        # Ahora la regla se decide por ÁMBITO, con estados distinguibles.
+        desde = node.get("known_from_session")
+
+        # Bajo `scope=partida` la revelación es OBLIGATORIA (el registro lo
+        # declara con `required_for_scopes={"partida"}`). Ausente e inválido
+        # deniegan igual, y por el mismo motivo que el ámbito: un dato de
+        # partida sin sesión de revelación es indistinguible de uno que la
+        # perdió, y la única lectura que no adivina es no mostrarlo.
+        # Bajo `scope=juego` su ausencia es NO APLICABLE y está declarada: el
+        # lore compartido no está sujeto a la progresión de una partida.
+        if scope == SCOPE_PARTIDA and desde is None:
+            return VisibilityDecision(False, "known_from_session_missing")
+
+        if desde is not None:
+            if estado_de_entero_no_negativo(desde) != VALOR:
+                return VisibilityDecision(False, "known_from_session_invalid")
+            if not ctx.can_view_future:
+                # El tope también en tri-estado. Antes, cualquier `None` --y
+                # `None` significaba tres cosas-- saltaba la regla entera.
+                estado_tope = estado_de_entero_no_negativo(ctx.max_visible_session)
+                if estado_tope == NO_APLICABLE:
+                    # El lector no tiene partida activa, luego no hay progresión
+                    # contra la que medir un dato que SÍ declara sesión de
+                    # revelación. Denegar mantiene la monotonía: menos contexto
+                    # nunca puede dar más acceso (H6-9).
+                    return VisibilityDecision(False, "session_cap_not_applicable")
+                if estado_tope == AUSENTE_O_INVALIDO:
+                    # No se pudo determinar el tope. No conceder.
+                    return VisibilityDecision(False, "session_cap_missing")
+                if desde > ctx.max_visible_session:
                     return VisibilityDecision(False, "future_session")
 
         # La barrera histórica NO la salta `knows`.

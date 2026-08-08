@@ -43,8 +43,10 @@
     <div class="field">
       <label for="max_visible_session">Sesión jugada (tope)</label>
       <input id="max_visible_session" type="number" min="0" step="1"
-             name="max_visible_session" placeholder="vacío = sin tope">
-      <small>Hasta qué sesión ve esta persona. Vacío = sin límite (narrador).</small>
+             name="max_visible_session" placeholder="vacío = 0 (nada revelado)">
+      <small>Hasta qué sesión ve esta persona. Vacío = 0: no ve nada que aún no
+      se haya revelado. Ver material futuro exige el rol de narrador o revisor,
+      no un hueco en este campo.</small>
     </div>
     <div class="field">
       <label for="character_id">Personaje</label>

@@ -425,7 +425,10 @@ async def admin_partidas_grant(
     workspace: str = Form(...),
     partida_id: str = Form(...),
     csrf_token: str = Form(...),
-    # Progresion de campana de ESTA concesion (T2). Vacio = sin tope declarado.
+    # Progresion de campana de ESTA concesion (T2). Vacio = 0 (nada revelado):
+    # NO "sin tope". Lo que el operador deja en blanco es la opcion mas
+    # restrictiva, no la mas abierta (7a ronda, H6-10: el formulario decia
+    # "vacio = sin tope" mientras el backend ya hacia vacio => 0).
     max_visible_session: str = Form(""),
     character_id: str = Form(""),
     admin: User = Depends(require_admin),
@@ -451,7 +454,11 @@ async def admin_partidas_grant(
             )
         tope = int(tope)
     else:
-        tope = None
+        # Se escribe 0 EXPLICITO en vez de NULL. Un NULL en la tabla es
+        # indistinguible de una fila migrada, y esa ambiguedad es justo la que
+        # hubo que cerrar en `partida_progress`. El panel declara el estado
+        # completo de la concesion: lo que no se teclea es 0, y se ve como 0.
+        tope = 0
     personaje = (character_id or "").strip() or None
 
     db_path = _get_db_path()

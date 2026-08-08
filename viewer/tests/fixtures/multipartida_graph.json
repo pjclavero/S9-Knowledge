@@ -26,7 +26,8 @@
       "confidence": 0.9,
       "review_status": "reviewed",
       "source_document": "sesion_p1",
-      "scope": "partida"
+      "scope": "partida",
+      "known_from_session": 0
     },
     {
       "id": "partida2_pc_bryn",
@@ -39,7 +40,8 @@
       "confidence": 0.9,
       "review_status": "reviewed",
       "source_document": "sesion_p2",
-      "scope": "partida"
+      "scope": "partida",
+      "known_from_session": 0
     },
     {
       "id": "legacy_material_sin_partida",
@@ -51,6 +53,19 @@
       "confidence": 0.9,
       "review_status": "reviewed",
       "source_document": "legacy"
+    },
+    {
+      "id": "partida1_sin_revelacion",
+      "label": "Nota sin sesion de revelacion",
+      "type": "Item",
+      "workspace": "juego:lab",
+      "visibility": "player",
+      "partida_id": "partida:uno",
+      "scope": "partida",
+      "description": "Testigo H6-1 (7a ronda): contenido de partida SIN known_from_session. El motor dejaba pasar la ausencia y el nodo quedaba visible con cualquier tope. Ahora deniega.",
+      "confidence": 0.9,
+      "review_status": "reviewed",
+      "source_document": "sesion_p1"
     }
   ],
   "edges": [
@@ -62,7 +77,8 @@
       "workspace": "juego:lab",
       "visibility": "player",
       "partida_id": "partida:uno",
-      "scope": "partida"
+      "scope": "partida",
+      "known_from_session": 0
     },
     {
       "id": "edge_p2_interno",
@@ -72,7 +88,8 @@
       "workspace": "juego:lab",
       "visibility": "player",
       "partida_id": "partida:dos",
-      "scope": "partida"
+      "scope": "partida",
+      "known_from_session": 0
     }
   ]
 }

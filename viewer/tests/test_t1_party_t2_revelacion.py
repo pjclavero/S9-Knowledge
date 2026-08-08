@@ -123,10 +123,52 @@ def test_can_view_future_si_puede_saltarla():
     assert POLICY.can_view(nodo, ctx).visible
 
 
-def test_sin_tope_declarado_la_barrera_no_aplica():
-    """`max_visible_session=None` = sin progresion (narrador, admin, o partida
-    sin tope). No es lo mismo que tope 0."""
-    assert POLICY.can_view(_nodo(known_from_session=99), _jugador(max_visible_session=None)).visible
+def test_sin_tope_LEGIBLE_no_se_aplica_ninguna_barrera__ya_no():
+    """7a ronda: la INVERSA de lo que este test afirmaba antes.
+
+    Decia: "`max_visible_session=None` = sin progresion, luego visible". Es la
+    tercera encarnacion del mismo defecto: `None` significaba a la vez "no
+    aplica", "la concesion no declara tope" y "no se pudo leer la concesion", y
+    el motor las trataba a las tres como permiso maximo. Un tope ilegible no
+    puede abrir nada.
+    """
+    d = POLICY.can_view(_nodo(known_from_session=99), _jugador(max_visible_session=None))
+    assert not d.visible
+    assert d.reason == "session_cap_missing"
+
+
+def test_el_tope_NO_APLICABLE_tampoco_abre():
+    """El estado declarado (sin partida activa) deniega el dato que SI declara
+    sesion de revelacion: menos contexto nunca puede dar mas acceso (H6-9)."""
+    from app.policies.models import NO_APLICA
+
+    d = POLICY.can_view(_nodo(known_from_session=99), _jugador(max_visible_session=NO_APLICA))
+    assert not d.visible
+    assert d.reason == "session_cap_not_applicable"
+
+
+@pytest.mark.parametrize("tope", ["cinco", -1, 3.5, True, [], {}])
+def test_un_tope_corrupto_deniega_en_vez_de_abrir(tope):
+    d = POLICY.can_view(_nodo(known_from_session=1), _jugador(max_visible_session=tope))
+    assert not d.visible
+    assert d.reason == "session_cap_missing"
+
+
+def test_contenido_de_partida_SIN_sesion_de_revelacion_deniega():
+    """H6-1, el peor de los tres criticos del sexto dictamen.
+
+    `if desde is not None:` hacia que un nodo `scope=partida` sin
+    `known_from_session` se saltara la regla ENTERA y fuera visible con
+    cualquier tope, mientras el registro y docs/58 declaraban `missing=DENY`.
+    El unico guardian era un `raise` del writer -- que solo cubre lo que
+    escribe el writer -- y no tenia ninguna prueba.
+    """
+    nodo = _nodo(scope="partida", partida_id="partida:uno")
+    nodo.pop("known_from_session", None)
+    ctx = _jugador(allowed_partida_ids=frozenset({"partida:uno"}), max_visible_session=99)
+    d = POLICY.can_view(nodo, ctx)
+    assert not d.visible
+    assert d.reason == "known_from_session_missing"
 
 
 @pytest.mark.parametrize("valor", ["tres", -1, [], {}, 3.5, True])

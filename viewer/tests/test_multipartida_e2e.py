@@ -206,4 +206,4 @@ def test_usuario_admin_ve_ambas_partidas_sin_selector(auth_env):
     c = _logged_client(auth_env, admin)
     ids = _entity_ids(c)
     assert {"partida1_pc_arden", "partida2_pc_bryn", "lore_dios_sol",
-            "legacy_material_sin_partida"} == ids
+            "legacy_material_sin_partida", "partida1_sin_revelacion"} == ids

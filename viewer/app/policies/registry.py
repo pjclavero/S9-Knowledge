@@ -85,6 +85,19 @@ class PolicyField:
     #: `session_index` mientras la ingesta escribía `known_from_session`--, y un
     #: renombrado tácito rompe la cadena sin que nada se ponga rojo.
     stored_as: Optional[str] = None
+    #: Prueba NEGATIVA: demuestra el comportamiento REAL del motor ante la
+    #: ausencia y ante el dato invalido. Obligatoria, y comprobada: el sexto
+    #: dictamen encontro que este registro declaraba `missing=DENY` mientras el
+    #: motor dejaba pasar la ausencia (H6-1). Declarar la semantica sin una
+    #: prueba que la ejerza es la misma barrera decorativa que el registro
+    #: existe para impedir, un nivel mas arriba.
+    prueba_negativa: str = ""
+    #: Prueba de EXTREMO A EXTREMO por HTTP: peticion real, sesion real,
+    #: concesion real en auth.db. Obligatoria para toda dimension: H6-5 fue
+    #: exactamente esto -- `active_character=None` en `dependencies.py` dejaba
+    #: 806 tests verdes porque la unica prueba de la concesion de personaje
+    #: consultaba la tabla en vez de pedir por HTTP.
+    prueba_http: str = ""
     notes: str = ""
 
 
@@ -95,6 +108,12 @@ class PolicyField:
 CAMPOS_DEL_DATO: tuple[PolicyField, ...] = (
     PolicyField(
         name="workspace",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_la_ausencia_y_el_dato_invalido_se_comportan_como_declara_el_registro[workspace]"
+        ),
+        prueba_http=(
+            "tests/test_autorizacion_e2e_http_septima_ronda.py::test_el_workspace_ajeno_no_se_lista_por_HTTP"
+        ),
         authority="servidor",
         producer="data-engine/app/knowledge_v3/writer/cypher.py",
         storage="Neo4j (propiedad de nodo/relación)",
@@ -110,6 +129,12 @@ CAMPOS_DEL_DATO: tuple[PolicyField, ...] = (
     ),
     PolicyField(
         name="scope",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_la_ausencia_y_el_dato_invalido_se_comportan_como_declara_el_registro[scope]"
+        ),
+        prueba_http=(
+            "tests/test_autorizacion_e2e_http_septima_ronda.py::test_un_dato_sin_scope_declarado_no_se_lista_por_HTTP"
+        ),
         authority="contrato V3",
         producer="data-engine/app/knowledge_v3/writer/visibility.py (scope_props)",
         storage="Neo4j",
@@ -124,6 +149,12 @@ CAMPOS_DEL_DATO: tuple[PolicyField, ...] = (
     ),
     PolicyField(
         name="partida_id",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_la_ausencia_y_el_dato_invalido_se_comportan_como_declara_el_registro[partida_id]"
+        ),
+        prueba_http=(
+            "tests/test_autorizacion_e2e_http_septima_ronda.py::test_partida_id_en_blanco_NO_se_degrada_a_lore_compartido"
+        ),
         authority="contrato V3",
         producer="data-engine/app/knowledge_v3/writer/visibility.py (scope_props)",
         storage="Neo4j",
@@ -139,6 +170,12 @@ CAMPOS_DEL_DATO: tuple[PolicyField, ...] = (
     ),
     PolicyField(
         name="visibility",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_la_ausencia_y_el_dato_invalido_se_comportan_como_declara_el_registro[visibility]"
+        ),
+        prueba_http=(
+            "tests/test_autorizacion_e2e_http_septima_ronda.py::test_una_visibilidad_corrupta_no_se_lista_por_HTTP"
+        ),
         authority="contrato V3",
         producer="data-engine/app/knowledge_v3/writer/visibility.py (stamp)",
         storage="Neo4j",
@@ -150,6 +187,12 @@ CAMPOS_DEL_DATO: tuple[PolicyField, ...] = (
     ),
     PolicyField(
         name="known_by",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_la_ausencia_y_el_dato_invalido_se_comportan_como_declara_el_registro[known_by]"
+        ),
+        prueba_http=(
+            "tests/test_autorizacion_e2e_http_septima_ronda.py::test_known_by_malformado_deniega_el_nodo_por_HTTP"
+        ),
         authority="concesiones de conocimiento",
         producer="data-engine/app/knowledge_v3/writer/visibility.py (stamp)",
         storage="Neo4j",
@@ -166,6 +209,12 @@ CAMPOS_DEL_DATO: tuple[PolicyField, ...] = (
     ),
     PolicyField(
         name="known_by_characters",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_la_ausencia_y_el_dato_invalido_se_comportan_como_declara_el_registro[known_by_characters]"
+        ),
+        prueba_http=(
+            "tests/test_autorizacion_e2e_http_septima_ronda.py::test_known_by_characters_tambien_concede_por_HTTP"
+        ),
         authority="concesiones de conocimiento",
         producer="data-engine/app/ingest_rpg.py",
         storage="Neo4j",
@@ -181,6 +230,12 @@ CAMPOS_DEL_DATO: tuple[PolicyField, ...] = (
     ),
     PolicyField(
         name="known_from_session",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_la_ausencia_y_el_dato_invalido_se_comportan_como_declara_el_registro[known_from_session]"
+        ),
+        prueba_http=(
+            "tests/test_autorizacion_e2e_http_septima_ronda.py::test_contenido_de_partida_SIN_revelacion_no_se_lista"
+        ),
         authority="concesiones de conocimiento",
         producer="data-engine/app/knowledge_v3/writer/visibility.py (revelacion_props)",
         storage="Neo4j",
@@ -190,8 +245,15 @@ CAMPOS_DEL_DATO: tuple[PolicyField, ...] = (
         required_for_scopes=frozenset({"partida"}),
         notes=(
             "Desde qué sesión puede REVELARSE, no a qué episodio pertenece "
-            "(`session_index`). El writer rechaza contenido de partida que no "
-            "la declare, antes de llegar a Neo4j."
+            "(`session_index`). Bajo `scope=partida` es OBLIGATORIA y su "
+            "ausencia DENIEGA EN EL MOTOR (7ª ronda, H6-1): antes el único "
+            "guardián era un `raise` del writer, que sólo cubre lo que escribe "
+            "el writer -- `ingest_rpg` la escribe como opcional, y un nodo de "
+            "partida sin ella se saltaba la regla entera con cualquier tope. "
+            "Bajo `scope=juego` su ausencia es NO APLICABLE y está declarada: "
+            "el lore compartido no está sujeto a la progresión de una partida. "
+            "Si un nodo de juego SÍ la declara, se aplica igual (declararla es "
+            "someterse a ella)."
         ),
     ),
 )
@@ -206,6 +268,12 @@ CAMPOS_DEL_DATO: tuple[PolicyField, ...] = (
 CAMPOS_DEL_CONTEXTO: tuple[PolicyField, ...] = (
     PolicyField(
         name="max_visible_session",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_una_dimension_de_contexto_ausente_nunca_amplia_lo_visible[max_visible_session]"
+        ),
+        prueba_http=(
+            "tests/test_autorizacion_e2e_http.py::test_una_concesion_MIGRADA_sin_tope_no_gana_acceso"
+        ),
         authority="servidor (concesión de partida)",
         producer="viewer/app/auth/db.py (grant_partida_access) + routers/admin.py",
         storage="auth.db, tabla partida_access (esquema v3)",
@@ -216,14 +284,26 @@ CAMPOS_DEL_CONTEXTO: tuple[PolicyField, ...] = (
         in_projection=False,
         applies_to=frozenset(),
         notes=(
-            "Sin tope declarado el tope es 0. `NULL` NO significa 'sin tope': "
-            "esa lectura dejaba la barrera apagada para toda concesión anterior "
-            "a la migración, que son justo las que motivaron el hallazgo. Ver "
-            "futuro exige `can_view_future` explícito."
+            "TRI-ESTADO (7ª ronda). `int` = tope declarado por la concesión; "
+            "`NO_APLICA` = no hay partida activa, declarado explícitamente; "
+            "cualquier otra cosa --incluido `None`-- es AUSENTE/INVÁLIDO y "
+            "DENIEGA el contenido sujeto a revelación. `None` llegó a significar "
+            "esas tres cosas a la vez y el motor las trataba a todas como "
+            "permiso máximo (`if ctx.max_visible_session is not None:`). "
+            "Sin tope declarado en la concesión el tope es 0: `NULL` NO "
+            "significa 'sin tope', esa lectura dejaba la barrera apagada para "
+            "toda concesión anterior a la migración. Ver futuro exige "
+            "`can_view_future` explícito."
         ),
     ),
     PolicyField(
         name="active_character",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_una_dimension_de_contexto_ausente_nunca_amplia_lo_visible[active_character]"
+        ),
+        prueba_http=(
+            "tests/test_autorizacion_e2e_http_septima_ronda.py::test_la_concesion_de_personaje_abre_su_secreto_por_HTTP"
+        ),
         authority="servidor (concesión de partida)",
         producer="viewer/app/auth/db.py (grant_partida_access) + routers/admin.py",
         storage="auth.db, partida_access.character_id",
@@ -242,6 +322,12 @@ CAMPOS_DEL_CONTEXTO: tuple[PolicyField, ...] = (
     ),
     PolicyField(
         name="allowed_partida_ids",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_una_dimension_de_contexto_ausente_nunca_amplia_lo_visible[allowed_partida_ids]"
+        ),
+        prueba_http=(
+            "tests/test_autorizacion_e2e_http_septima_ronda.py::test_el_material_de_otra_partida_no_se_lista_por_HTTP"
+        ),
         authority="servidor (partida activa reverificada)",
         producer="viewer/app/routers/partida.py + auth/db.py",
         storage="auth.db (partida_access + sessions.active_partida)",
@@ -255,6 +341,12 @@ CAMPOS_DEL_CONTEXTO: tuple[PolicyField, ...] = (
     ),
     PolicyField(
         name="can_view_future",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_una_dimension_de_contexto_ausente_nunca_amplia_lo_visible[can_view_future]"
+        ),
+        prueba_http=(
+            "tests/test_autorizacion_e2e_http_septima_ronda.py::test_can_view_future_es_lo_unico_que_salta_el_tope"
+        ),
         authority="servidor (rol)",
         producer="viewer/app/authz/context.py",
         storage="derivado del rol, no persistido como dato de contenido",
@@ -268,6 +360,12 @@ CAMPOS_DEL_CONTEXTO: tuple[PolicyField, ...] = (
     ),
     PolicyField(
         name="can_view_secret",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_una_dimension_de_contexto_ausente_nunca_amplia_lo_visible[can_view_secret]"
+        ),
+        prueba_http=(
+            "tests/test_autorizacion_e2e_http_septima_ronda.py::test_can_view_secret_es_lo_unico_que_abre_un_secreto_ajeno"
+        ),
         authority="servidor (rol)",
         producer="viewer/app/authz/context.py",
         storage="derivado del rol",
@@ -280,6 +378,12 @@ CAMPOS_DEL_CONTEXTO: tuple[PolicyField, ...] = (
     ),
     PolicyField(
         name="allowed_workspaces",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_una_dimension_de_contexto_ausente_nunca_amplia_lo_visible[allowed_workspaces]"
+        ),
+        prueba_http=(
+            "tests/test_autorizacion_e2e_http_septima_ronda.py::test_el_workspace_ajeno_no_se_lista_por_HTTP"
+        ),
         authority="servidor",
         producer="viewer/app/authz/context.py (desde configuración del servidor)",
         storage="configuración del despliegue",
