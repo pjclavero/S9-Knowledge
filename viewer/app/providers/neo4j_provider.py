@@ -31,6 +31,9 @@ def _node_to_dict(record_node) -> dict[str, Any]:
         "scope": props.get("scope"),
         "partida_id": props.get("partida_id"),
         "known_by": props.get("known_by"),
+        # `ingest_rpg` escribe este; el motor lo lee como respaldo en
+        # `known_by_of`. Si no viaja, la barrera se apaga en silencio.
+        "known_by_characters": props.get("known_by_characters"),
         "party": props.get("party"),
         "is_public": props.get("is_public"),
         "session_index": props.get("session_index"),
@@ -70,6 +73,9 @@ def _rel_to_dict(rel) -> dict[str, Any]:
         "scope": props.get("scope"),
         "partida_id": props.get("partida_id"),
         "known_by": props.get("known_by"),
+        # `ingest_rpg` escribe este; el motor lo lee como respaldo en
+        # `known_by_of`. Si no viaja, la barrera se apaga en silencio.
+        "known_by_characters": props.get("known_by_characters"),
         "party": props.get("party"),
         "is_public": props.get("is_public"),
         "session_index": props.get("session_index"),

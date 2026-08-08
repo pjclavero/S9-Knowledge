@@ -133,13 +133,31 @@ class VisibilityPolicy:
                 return VisibilityDecision(False, "narrator_only")
 
         # 4. Sesiones futuras (spoilers de sesiones aún no jugadas/publicadas).
+        #
+        # `session_index` se TIPA, igual que `known_by`. Antes se hacía
+        # `int(sess)` a pelo: un `"tres"` daba ValueError y una lista un
+        # TypeError, y como `filter_nodes` recorre el conjunto entero, UN solo
+        # nodo corrupto convertía en 500 el listado, el grafo, la búsqueda y los
+        # conteos de todo el workspace. Un dato malformado debe comportarse como
+        # recurso no visible, nunca como error: un 500 no es fail-closed, es
+        # denegación de servicio a partir de un dato escribible.
         if not knows and ctx.max_visible_session is not None:
             sess = node.get("session_index")
-            if sess is not None and int(sess) > ctx.max_visible_session and not ctx.can_view_future:
-                return VisibilityDecision(False, "future_session")
+            if sess is not None:
+                # `bool` es subclase de `int` y no es un índice de sesión.
+                if isinstance(sess, bool) or not isinstance(sess, int):
+                    return VisibilityDecision(False, "session_index_invalid")
+                if sess > ctx.max_visible_session and not ctx.can_view_future:
+                    return VisibilityDecision(False, "future_session")
 
         # 5. Contenido acotado a un grupo (party).
+        #
+        # Idem: `party` entra en un `in` contra un frozenset, así que una lista
+        # levantaba `TypeError: unhashable type`. Solo una cadena no vacía es
+        # una party; cualquier otra forma es dato inválido y deniega.
         party = node.get("party")
+        if party is not None and (not isinstance(party, str) or not party.strip()):
+            return VisibilityDecision(False, "party_invalid")
         if party is not None and not knows and party not in ctx.party_membership:
             is_public = bool(node.get("is_public")) and ctx.session_public
             if not is_public:

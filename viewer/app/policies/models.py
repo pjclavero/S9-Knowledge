@@ -52,6 +52,14 @@ def known_by_of(node: dict[str, Any]) -> tuple[tuple[str, ...], bool]:
     permisos. Nótese además que ``"PJ01" in "companeros_de_PJ01"`` es cierto
     para una cadena y que ``x in {...}`` mira las claves de un dict: sin tipar,
     la pertenencia significa cosas distintas según el tipo que llegue.
+
+    Se leen DOS campos porque hay dos escritores: `known_by` (writer V3) y
+    `known_by_characters` (`ingest_rpg`, que produce los nodos `:Entity` que el
+    visor lee de verdad). Ambos DEBEN estar declarados en la proyección del
+    proveedor: el respaldo estuvo un tiempo leyendo un campo que el serializador
+    no transportaba, es decir, exactamente el defecto de H1 pero dentro de la
+    red puesta para impedirlo. Un campo que el motor lee y la proyección no
+    lleva es una barrera apagada en silencio, dé el resultado que dé.
     """
     raw = node.get("known_by")
     if raw is None:

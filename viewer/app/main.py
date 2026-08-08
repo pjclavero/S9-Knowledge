@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -271,8 +272,54 @@ PIPELINE_FILE_NAMES = [
 ]
 
 
+def _reviews_root() -> Path:
+    """Raíz confinante. Se calcula en cada llamada a propósito: fijarla al
+    importar la desacopla de `REPO_ROOT`, que se redirige en pruebas."""
+    return (REPO_ROOT / "output" / "reviews").resolve()
+
+#: Forma admisible de un identificador que va a formar parte de una ruta
+#: (workspace, source_id). Lista BLANCA a propósito: prohibir `..` o `/` de una
+#: en una es una carrera que se pierde con codificaciones y separadores raros.
+#: `.` y `..` encajan en la clase de caracteres, así que se excluyen aparte: el
+#: confinamiento posterior también los atrapa, pero una sola defensa en una ruta
+#: de fichero es poca.
+_WORKSPACE_ID_RE = re.compile(r"(?!\.+$)[A-Za-z0-9._-]{1,64}")
+
+
 def _reviews_dir(workspace: str) -> Path:
-    return REPO_ROOT / "output" / "reviews" / workspace
+    """Directorio de revisión de un workspace, confinado bajo `output/reviews`.
+
+    El nombre llegaba directo a la ruta, así que `workspace=../../secretos`
+    salía del árbol y enumeraba directorios arbitrarios del servidor. Se valida
+    la FORMA del identificador (no una lista negra de `..`, que siempre se
+    esquiva por codificación) y además se comprueba el confinamiento real de la
+    ruta ya resuelta.
+    """
+    if not isinstance(workspace, str) or not _WORKSPACE_ID_RE.fullmatch(workspace):
+        raise HTTPException(status_code=404, detail="Workspace no encontrado")
+    raiz = _reviews_root()
+    destino = (raiz / workspace).resolve()
+    if destino != raiz and raiz not in destino.parents:
+        raise HTTPException(status_code=404, detail="Workspace no encontrado")
+    return destino
+
+
+def _reviews_workspace(request: Request, solicitado: str | None) -> str:
+    """Workspace efectivo para la cola de revisión, decidido en el SERVIDOR.
+
+    `/reviews` tomaba el workspace del query param sin más defensa que el rol,
+    de modo que un `reviewer` de A veía la cola de B cambiando la URL: material
+    de entidades y descripciones ANTES de que exista visibilidad o ámbito. El
+    resto del visor ya decidía con el ámbito del servidor; este camino no, y esa
+    asimetría es la fuga. Un workspace fuera del ámbito responde 404 --no 403--
+    para no confirmar su existencia.
+    """
+    settings = get_settings()
+    scope = get_visibility_scope(request)
+    ws = solicitado or settings.S9K_DEFAULT_WORKSPACE
+    if not scope.ctx.admin_full and ws not in scope.ctx.allowed_workspaces:
+        raise HTTPException(status_code=404, detail="Workspace no encontrado")
+    return ws
 
 
 def _read_json_safe(path: Path) -> list | dict | None:
@@ -506,8 +553,7 @@ def reviews_view(request: Request, workspace: str | None = None):
     guard = _require_reviewer_or_redirect(request)
     if guard is not None and not isinstance(guard, User):
         return guard
-    settings = get_settings()
-    ws = workspace or settings.S9K_DEFAULT_WORKSPACE
+    ws = _reviews_workspace(request, workspace)
     sources = _list_sources(ws)
     return templates.TemplateResponse(
         request,
@@ -521,8 +567,9 @@ def reviews_detail_view(request: Request, source_id: str, workspace: str | None 
     guard = _require_reviewer_or_redirect(request)
     if guard is not None and not isinstance(guard, User):
         return guard
-    settings = get_settings()
-    ws = workspace or settings.S9K_DEFAULT_WORKSPACE
+    ws = _reviews_workspace(request, workspace)
+    if not _WORKSPACE_ID_RE.fullmatch(source_id or ""):
+        raise HTTPException(status_code=404, detail=f"Fuente no encontrada: {source_id}")
     source_dir = _reviews_dir(ws) / source_id
 
     if not source_dir.exists():

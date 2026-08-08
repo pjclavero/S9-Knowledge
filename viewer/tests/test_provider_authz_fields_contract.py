@@ -38,6 +38,11 @@ CAMPOS_AUTORIZACION_NODO = (
     "partida_id",
     "visibility",
     "known_by",
+    # Segundo nombre del mismo dato, escrito por `ingest_rpg` en los nodos
+    # `:Entity` que el visor lee de verdad. El motor lo consulta desde
+    # `models.known_by_of`, no desde `can_view`, y por eso la red inversa de
+    # abajo tuvo que dejar de mirar un solo fichero.
+    "known_by_characters",
     "party",
     "is_public",
     "session_index",
@@ -155,9 +160,21 @@ def test_ningun_campo_que_el_motor_consulta_queda_fuera_de_la_lista():
     Si alguien anade al motor una regla que lee `node.get("nuevo_campo")` y no
     lo anade a la proyeccion, el fallo vuelve a ser invisible. Este test lee el
     codigo del motor y exige que todo `node.get(...)` este cubierto arriba.
+
+    Este test miraba SOLO `can_view`, y por eso no vio que `known_by_of` --en
+    `policies/models.py`-- leía `known_by_characters`, un campo que la
+    proyección no transportaba. La red anti-reincidencia contenía viva una
+    reincidencia. Ahora barre los dos módulos de política enteros: una regla
+    puede mudarse de función, y la red no debe depender de dónde viva.
     """
-    fuente = inspect.getsource(engine_mod.VisibilityPolicy.can_view)
-    leidos = set(re.findall(r'node\.get\(\s*"([a-z_]+)"', fuente))
+    import app.policies.models as models_mod
+
+    fuente = "\n".join(
+        inspect.getsource(m) for m in (engine_mod, models_mod)
+    )
+    leidos = set(re.findall(r'node\.get\(\s*["\']([a-z_]+)["\']', fuente))
+    # Campos que no son de autorización sino de identidad/estructura.
+    leidos -= {"type", "name", "label"}
     # `id` no es autorizacion: es identidad, y siempre viaja.
     leidos.discard("id")
     faltan = leidos - set(CAMPOS_AUTORIZACION_NODO)
