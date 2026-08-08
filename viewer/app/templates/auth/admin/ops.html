@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Centro de Estado — Admin S9 Knowledge{% endblock %}
+
+{% block body %}
+<main style="max-width:1100px;margin:2rem auto;padding:1rem;">
+  <h2>Centro de Estado</h2>
+  <p>
+    Estado global:
+    <strong class="ops-{{ overall|lower }}">{{ overall }}</strong>
+    <span style="color:#888;">· generado {{ report.generated_at }}</span>
+  </p>
+  <p style="color:#888;font-size:.9rem;">
+    Solo observación. Este panel no reinicia servicios, no lanza ni cancela jobs,
+    no escribe en el grafo y no consulta Proxmox.
+    <strong>UNKNOWN</strong> significa «no lo sé», no «está bien».
+  </p>
+
+  {% for s in report.sections %}
+  <section style="border:1px solid #ddd;border-radius:6px;margin-top:1rem;padding:.75rem 1rem;">
+    <h3 style="margin:.2rem 0;">
+      {{ s.title }} — <strong class="ops-{{ s.status|lower }}">{{ s.status }}</strong>
+    </h3>
+    <p style="margin:.2rem 0;color:#555;">{{ s.message }}</p>
+    <table style="width:100%;border-collapse:collapse;margin-top:.5rem;">
+      <tbody>
+        {% for k, v in s.metrics.items() %}
+        <tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="padding:.3rem;font-family:monospace;width:30%;">{{ k }}</td>
+          <td style="padding:.3rem;">
+            {% if v is none %}<span class="ops-unknown">UNKNOWN</span>
+            {% else %}{{ v }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if s.notes %}
+    <ul style="margin:.5rem 0 0;color:#7a5b00;font-size:.9rem;">
+      {% for n in s.notes %}<li>{{ n }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+  {% endfor %}
+</main>
+{% endblock %}
+
+{% block head %}
+<style>
+  .ops-ok { color:#1a7f37; }
+  .ops-warning { color:#9a6700; }
+  .ops-critical { color:#b91c1c; }
+  .ops-unknown { color:#555; background:#f2f2f2; padding:0 .3rem; border-radius:3px; }
+</style>
+{% endblock %}
