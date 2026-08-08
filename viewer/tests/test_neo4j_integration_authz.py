@@ -131,11 +131,11 @@ def base(driver):
         # Aristas: una interna de A, y una que cruza hacia el secreto de A.
         s.run(
             "MATCH (a:Entity {entity_id:'a_player'}), (l:Entity {entity_id:'lore'}) "
-            "CREATE (a)-[:VENERA {visibility:'player', workspace:$ws, scope:'partida', "
+            "CREATE (a)-[:VENERA {visibility:'player', workspace:$ws, scope:'partida', known_from_session:0, "
             "partida_id:$p, relation_label_es:'venera'}]->(l)", {"ws": WS, "p": P_A})
         s.run(
             "MATCH (a:Entity {entity_id:'a_player'}), (x:Entity {entity_id:'a_secret'}) "
-            "CREATE (a)-[:OCULTA {visibility:'secret', workspace:$ws, scope:'partida', "
+            "CREATE (a)-[:OCULTA {visibility:'secret', workspace:$ws, scope:'partida', known_from_session:0, "
             "partida_id:$p, relation_label_es:'oculta'}]->(x)", {"ws": WS, "p": P_A})
 
     from app.providers.neo4j_provider import Neo4jGraphProvider
