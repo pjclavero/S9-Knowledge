@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Ficha de revisión · S9 Knowledge{% endblock %}
+{% macro value(text) %}{% if text %}{{ text }}{% else %}<em class="rc2-missing">no disponible</em>{% endif %}{% endmacro %}
+{% block body %}
+<main class="rc2" id="rc2-item">
+  <header class="rc2-header">
+    <h1>Ficha de propuesta <span class="rc2-badge">solo lectura</span></h1>
+    <p class="rc2-muted">Elemento {{ position }} de {{ total }} en el orden actual ·
+      <a href="/v3/review/console?workspace={{ workspace | e }}&amp;sort={{ sort | e }}">volver a la lista</a></p>
+  </header>
+
+  <nav class="rc2-pager" data-nav>
+    {% if previous %}
+    <a data-prev href="/v3/review/console/item/{{ previous.proposal_id | urlencode }}?workspace={{ workspace | e }}&amp;sort={{ sort | e }}">« Anterior</a>
+    {% else %}<span class="rc2-muted">« Anterior</span>{% endif %}
+    {% if next %}
+    <a data-next href="/v3/review/console/item/{{ next.proposal_id | urlencode }}?workspace={{ workspace | e }}&amp;sort={{ sort | e }}">Siguiente »</a>
+    {% else %}<span class="rc2-muted">Siguiente »</span>{% endif %}
+    <span class="rc2-muted">Atajos: <kbd>j</kbd> siguiente, <kbd>k</kbd> anterior, <kbd>Esc</kbd> lista.</span>
+  </nav>
+
+  <section class="rc2-card" data-why>
+    <h2>Por qué está en revisión</h2>
+    <ul>{% for line in explanation %}<li>{{ line }}</li>{% endfor %}</ul>
+  </section>
+
+  <section class="rc2-card" data-source>
+    <h2>Fuente</h2>
+    <dl>
+      <dt>Fuente</dt><dd>{% if row.source_id %}<a href="/sources/{{ row.source_id | urlencode }}">{{ row.source_id }}</a>{% else %}<em class="rc2-missing">no disponible</em>{% endif %}</dd>
+      <dt>Episodio</dt><dd>{{ value(row.episode_id) }}</dd>
+      <dt>Workspace</dt><dd>{{ value(row.workspace) }}</dd>
+    </dl>
+    <p class="rc2-muted">El paquete de propuestas no incluye identificador de segmento ni título de la
+      fuente: el contexto disponible es el texto del episodio.</p>
+  </section>
+
+  <section class="rc2-card" data-evidence>
+    <h2>Evidencia</h2>
+    {% if row.has_evidence %}
+    <p class="rc2-evidence"><span>{{ row.evidence_before }}</span><mark data-literal>{{ row.evidence_literal }}</mark><span>{{ row.evidence_after }}</span></p>
+    <p class="rc2-muted">Offsets {{ row.evidence_start }}–{{ row.evidence_end }} sobre el texto del episodio.</p>
+    {% else %}
+    <p class="rc2-missing" data-no-evidence>Sin evidencia literal en el paquete: no se puede resaltar nada.</p>
+    {% endif %}
+  </section>
+
+  <section class="rc2-card" data-candidate>
+    <h2>Candidato</h2>
+    <dl>
+      <dt>Sujeto</dt><dd>{{ value(row.subject) }}
+        {% if row.subject_entity_id %}· <a href="/entities/{{ row.subject_entity_id | urlencode }}">entidad {{ row.subject_entity_id }}</a>{% endif %}</dd>
+      <dt>Predicado</dt><dd>{{ value(row.predicate) }}</dd>
+      <dt>Objeto</dt><dd>{{ value(row.object) }}
+        {% if row.object_entity_id %}· <a href="/entities/{{ row.object_entity_id | urlencode }}">entidad {{ row.object_entity_id }}</a>{% endif %}</dd>
+      <dt>Dirección</dt><dd>{{ value(row.direction) }}</dd>
+      <dt>Negación</dt><dd>{% if row.negated is none %}<em class="rc2-missing">no disponible</em>{% elif row.negated %}negado{% else %}afirmado{% endif %}
+        {% if row.negation_kind %}({{ row.negation_kind }}){% endif %}</dd>
+      <dt>Temporalidad</dt><dd>{{ value(row.temporal_status) }}</dd>
+      <dt>Estado epistémico</dt><dd>{{ value(row.epistemic_status) }}</dd>
+      <dt>Ámbito declarado</dt><dd>{{ value(row.claim_scope) }}</dd>
+    </dl>
+    {% if row.predicate_alternatives or row.direction_alternatives %}
+    <h3>Alternativas consideradas</h3>
+    <ul>
+      {% for alt in row.predicate_alternatives %}
+      <li>predicado {{ alt.value }} · confianza {% if alt.confidence is not none %}{{ alt.confidence }}{% else %}no disponible{% endif %} · {{ alt.extractor or 'extractor no disponible' }}</li>
+      {% endfor %}
+      {% for alt in row.direction_alternatives %}
+      <li>dirección {{ alt.value }} · confianza {% if alt.confidence is not none %}{{ alt.confidence }}{% else %}no disponible{% endif %} · {{ alt.extractor or 'extractor no disponible' }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+
+  <section class="rc2-card" data-decision>
+    <h2>Decisión</h2>
+    <dl>
+      <dt>Decisión del motor</dt><dd>{{ value(row.engine_decision) }}</dd>
+      <dt>Decisión efectiva (determinista)</dt><dd>{{ value(row.effective_decision) }}</dd>
+      <dt>Decisión en sombra (proveedor externo)</dt><dd>{{ value(row.shadow_decision) }}</dd>
+      <dt>Acuerdo</dt><dd>{% if row.agreement %}{{ row.agreement }}{% else %}<em class="rc2-missing">sin comparación posible</em>{% endif %}</dd>
+      <dt>Confianza</dt><dd>{% if row.confidence is not none %}{{ '%.3f' % row.confidence }}{% else %}<em class="rc2-missing">no disponible</em>{% endif %}</dd>
+      <dt>Proveedor</dt><dd>{{ value(row.provider) }}</dd>
+      <dt>Modelo</dt><dd>{{ value(row.model) }}</dd>
+      <dt>Motivos</dt><dd>{% if row.reasons %}<ul>{% for reason in row.reasons %}<li><code>{{ reason.code }}</code> — {{ reason.label }}</li>{% endfor %}</ul>{% else %}<em class="rc2-missing">no disponible</em>{% endif %}</dd>
+      <dt>Hallazgos efectivos</dt><dd>{{ value(row.effective_findings | join(', ')) }}</dd>
+      <dt>Hallazgos en sombra</dt><dd>{{ value(row.shadow_findings | join(', ')) }}</dd>
+      <dt>Hallazgos ignorados</dt><dd>{{ value(row.ignored_findings | join(', ')) }}</dd>
+      <dt>Habría emitido operaciones</dt><dd>{% if row.would_emit_operations is none %}<em class="rc2-missing">no disponible</em>{% else %}{{ 'sí' if row.would_emit_operations else 'no' }}{% endif %}
+        {% if row.operation_kinds %}({{ row.operation_kinds | join(', ') }}){% endif %}</dd>
+      {% if row.human_decision %}
+      <dt>Decisión humana registrada</dt><dd>{{ row.human_decision }} · {{ row.reviewer or 'revisor no disponible' }} · {{ row.decided_at or 'fecha no disponible' }}</dd>
+      {% endif %}
+    </dl>
+  </section>
+
+  <section class="rc2-card" data-provenance>
+    <h2>Procedencia</h2>
+    <dl>
+      <dt>source_id</dt><dd>{{ value(row.source_id) }}</dd>
+      <dt>episode_id</dt><dd>{{ value(row.episode_id) }}</dd>
+      <dt>claim_id</dt><dd>{{ value(row.claim_id) }}</dd>
+      <dt>proposal_id</dt><dd>{{ value(row.proposal_id) }}</dd>
+      <dt>proposal_hash</dt><dd>{{ value(row.proposal_hash) }}</dd>
+      <dt>Extractores</dt><dd>{{ value(row.extractors | join(', ')) }}</dd>
+      <dt>Proveedores</dt><dd>{{ value(row.providers | join(', ')) }}</dd>
+      <dt>Modelos</dt><dd>{{ value(row.models | join(', ')) }}</dd>
+      <dt>Familias independientes</dt><dd>{{ value(row.independent_families | join(', ')) }}</dd>
+      <dt>Versión del motor</dt><dd>{{ value(row.engine_version) }}</dd>
+      <dt>Versión de ontología</dt><dd>{{ value(row.ontology_version) }}</dd>
+      <dt>Versión de prompt</dt><dd>{{ value(row.prompt_version) }}</dd>
+      <dt>Versión de perfil</dt><dd>{{ value(row.profile_version) }}</dd>
+      <dt>Paquetes de origen</dt><dd>{{ value(row.package_origins | join(', ')) }}</dd>
+    </dl>
+    <p class="rc2-muted">El paquete de propuestas no lleva marcas de tiempo de extracción ni
+      identificador de aserción: esos campos no existen aguas arriba y no se inventan aquí.</p>
+  </section>
+</main>
+<style>
+.rc2{max-width:70rem;margin:0 auto;padding:1rem}
+.rc2-badge{font-size:.7em;border:1px solid currentColor;border-radius:.4em;padding:.1em .4em;vertical-align:middle}
+.rc2-card{border:1px solid #ccc;border-radius:.4rem;padding:.75rem;margin:.75rem 0}
+.rc2-card dt{font-weight:700;margin-top:.35rem}
+.rc2-card dd{margin:0 0 0 1rem}
+.rc2-muted{color:#666;font-size:.85rem}
+.rc2-missing{color:#b40}
+.rc2-pager{display:flex;gap:1rem;align-items:center}
+mark{background:#ffe680}
+</style>
+<script>
+document.addEventListener('keydown', function (event) {
+  var tag = (event.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'select' || tag === 'textarea') { return; }
+  var link = null;
+  if (event.key === 'j') { link = document.querySelector('[data-next]'); }
+  else if (event.key === 'k') { link = document.querySelector('[data-prev]'); }
+  else if (event.key === 'Escape') { link = document.querySelector('a[href^="/v3/review/console?"]'); }
+  if (link) { window.location = link.href; }
+});
+</script>
+{% endblock %}

@@ -22,6 +22,12 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 router = APIRouter(prefix="/v3/review", tags=["v3-review"])
 _RANK = {"admin": 3, "reviewer": 2, "viewer": 1}
 
+# La consola de inspección (solo lectura) cuelga de esta misma cola y comparte
+# su control de acceso. Se monta aquí, y no en `app/main.py`, porque ese fichero
+# tiene otros propietarios: incluirla desde el router de la cola no cambia
+# ninguna ruta existente y evita tocarlo.
+from app.routers import review_console_v2 as _console_v2  # noqa: E402
+
 
 def _service() -> ReviewService:
     return ReviewService()
@@ -201,6 +207,10 @@ def decide(
     except ReviewError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return RedirectResponse(url=f"/v3/review?workspace={workspace}", status_code=303)
+
+
+# Rutas de la consola V2 bajo /v3/review/console (solo GET).
+router.include_router(_console_v2.router)
 
 
 @router.post("/undo")

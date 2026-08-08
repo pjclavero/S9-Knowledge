@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}Consola de revisión V2 · S9 Knowledge{% endblock %}
+{% block body %}
+<main class="rc2" id="rc2-list">
+  <header class="rc2-header">
+    <h1>Consola de revisión V2 <span class="rc2-badge">solo lectura</span></h1>
+    <p class="rc2-note">Esta pantalla inspecciona la cola de revisión. No aprueba, no rechaza,
+      no corrige y no escribe nada. Para decidir, usa <a href="/v3/review">Revisión V3</a>.</p>
+  </header>
+
+  {% if error %}
+  <p role="alert" class="rc2-error">{{ error }} <span class="rc2-muted">({{ error_detail }})</span></p>
+  {% endif %}
+
+  <form class="rc2-filters" method="get" action="/v3/review/console">
+    <label>Workspace
+      <select name="workspace" onchange="this.form.submit()">
+        <option value="">Seleccionar</option>
+        {% for item in workspaces %}
+        <option value="{{ item | e }}" {% if item == workspace %}selected{% endif %}>{{ item | e }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% if view %}
+    <label>Estado
+      <select name="decision">
+        <option value="">Todos</option>
+        {% for item in view.facets.decisions %}
+        <option value="{{ item | e }}" {% if item == spec.decision %}selected{% endif %}>{{ item | e }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Motivo
+      <select name="reason_code">
+        <option value="">Todos</option>
+        {% for code, label in view.facets.reason_codes %}
+        <option value="{{ code | e }}" title="{{ label | e }}" {% if code == spec.reason_code %}selected{% endif %}>{{ code | e }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Proveedor
+      <select name="provider">
+        <option value="">Todos</option>
+        {% for item in view.facets.providers %}
+        <option value="{{ item | e }}" {% if item == spec.provider %}selected{% endif %}>{{ item | e }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Extractor
+      <select name="extractor">
+        <option value="">Todos</option>
+        {% for item in view.facets.extractors %}
+        <option value="{{ item | e }}" {% if item == spec.extractor %}selected{% endif %}>{{ item | e }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Buscar
+      <input type="search" name="q" value="{{ spec.query | e }}" placeholder="sujeto, predicado, evidencia, id…">
+    </label>
+    <label>Confianza mínima
+      <input type="number" name="min_confidence" step="0.01" min="0" max="1"
+             value="{{ spec.min_confidence if spec.min_confidence is not none else '' }}">
+    </label>
+    <label>Confianza máxima
+      <input type="number" name="max_confidence" step="0.01" min="0" max="1"
+             value="{{ spec.max_confidence if spec.max_confidence is not none else '' }}">
+    </label>
+    <label class="rc2-check"><input type="checkbox" name="disagreements_only" value="true"
+      {% if spec.disagreements_only %}checked{% endif %}> Solo desacuerdos</label>
+    <label class="rc2-check"><input type="checkbox" name="low_confidence_only" value="true"
+      {% if spec.low_confidence_only %}checked{% endif %}> Solo baja confianza (&lt; {{ spec.low_confidence_threshold }})</label>
+    <label class="rc2-check"><input type="checkbox" name="include_decided" value="true"
+      {% if spec.include_decided %}checked{% endif %}> Incluir ya decididas</label>
+    <label>Orden
+      <select name="sort">
+        <option value="priority" {% if sort == 'priority' %}selected{% endif %}>Prioridad</option>
+        <option value="confidence" {% if sort == 'confidence' %}selected{% endif %}>Confianza</option>
+        <option value="source" {% if sort == 'source' %}selected{% endif %}>Fuente</option>
+      </select>
+    </label>
+    <label>Por página
+      <select name="page_size">
+        {% for size in page_sizes %}
+        <option value="{{ size }}" {% if size == view.page.page_size %}selected{% endif %}>{{ size }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">Aplicar</button>
+    <a class="rc2-reset" href="/v3/review/console?workspace={{ workspace | e }}">Limpiar filtros</a>
+    {% endif %}
+  </form>
+
+  {% if not workspace %}
+  <p class="rc2-empty" data-empty="no-workspace">
+    {% if workspaces %}Selecciona un workspace para ver su cola de revisión.
+    {% else %}No hay ningún workspace con propuestas visibles para ti.{% endif %}
+  </p>
+  {% elif view %}
+  <p class="rc2-counters" data-counters>
+    <strong data-filtered-total>{{ view.filtered_total }}</strong> propuestas tras los filtros,
+    de <span data-visible-total>{{ view.visible_total }}</span> visibles ·
+    <span data-disagreements>{{ view.disagreements }}</span> en desacuerdo ·
+    <span data-low-confidence>{{ view.low_confidence }}</span> de baja confianza ·
+    <span data-missing-confidence>{{ view.missing_confidence }}</span> sin confianza declarada ·
+    <span data-decided>{{ view.decided }}</span> ya decididas
+  </p>
+
+  {% if view.page.rows %}
+  <p class="rc2-muted">Mostrando {{ view.page.first_index }}–{{ view.page.last_index }}
+    (página {{ view.page.page }} de {{ view.page.pages }}). Atajos: <kbd>j</kbd>/<kbd>k</kbd> mover,
+    <kbd>Enter</kbd> abrir, <kbd>n</kbd>/<kbd>p</kbd> página, <kbd>/</kbd> buscar.</p>
+  <ol class="rc2-list" data-rows>
+    {% for row in view.page.rows %}
+    <li class="rc2-row" tabindex="0" data-row
+        data-proposal-id="{{ row.proposal_id | e }}"
+        data-href="/v3/review/console/item/{{ row.proposal_id | urlencode }}?workspace={{ workspace | e }}&amp;sort={{ sort | e }}">
+      <p class="rc2-triple">
+        <span data-subject>{{ row.subject or 'sin sujeto' }}</span>
+        <b data-predicate>{{ row.predicate or 'sin predicado' }}</b>
+        <span data-object>{{ row.object or 'sin objeto' }}</span>
+        {% if row.negated %}<span class="rc2-flag">negado</span>{% endif %}
+        {% if row.direction %}<span class="rc2-muted">{{ row.direction }}</span>{% endif %}
+      </p>
+      <p class="rc2-meta">
+        <span class="rc2-tag" data-decision>{{ row.effective_decision or row.engine_decision or 'sin decisión' }}</span>
+        {% if row.agreement == 'DISAGREE' %}<span class="rc2-tag rc2-warn" data-agreement>desacuerdo</span>
+        {% elif row.agreement == 'AGREE' %}<span class="rc2-tag" data-agreement>acuerdo</span>
+        {% else %}<span class="rc2-tag rc2-muted" data-agreement>sin sombra</span>{% endif %}
+        <span data-confidence>{% if row.confidence is not none %}confianza {{ '%.2f' % row.confidence }}{% else %}confianza no disponible{% endif %}</span>
+        {% for reason in row.reasons %}<span class="rc2-tag" title="{{ reason.label | e }}">{{ reason.code | e }}</span>{% endfor %}
+        {% if row.human_decision %}<span class="rc2-tag rc2-done">ya decidida: {{ row.human_decision }}</span>{% endif %}
+      </p>
+      <p class="rc2-evidence">
+        {% if row.has_evidence %}<span>…{{ row.evidence_before[-60:] }}</span><mark>{{ row.evidence_literal }}</mark><span>{{ row.evidence_after[:60] }}…</span>
+        {% else %}<em class="rc2-missing">Evidencia no disponible en el paquete.</em>{% endif %}
+      </p>
+      <p class="rc2-muted">
+        {% if row.source_id %}<a href="/sources/{{ row.source_id | urlencode }}">fuente {{ row.source_id }}</a>{% else %}fuente no disponible{% endif %}
+        · episodio {{ row.episode_id or 'no disponible' }}
+        · <a data-detail href="/v3/review/console/item/{{ row.proposal_id | urlencode }}?workspace={{ workspace | e }}&amp;sort={{ sort | e }}">ver ficha</a>
+      </p>
+    </li>
+    {% endfor %}
+  </ol>
+
+  <nav class="rc2-pager" data-pager>
+    {% if view.page.has_previous %}
+    <a data-prev-page href="{{ request.url.include_query_params(page=view.page.page - 1) }}">« Anterior</a>
+    {% endif %}
+    <span>{{ view.page.page }} / {{ view.page.pages }}</span>
+    {% if view.page.has_next %}
+    <a data-next-page href="{{ request.url.include_query_params(page=view.page.page + 1) }}">Siguiente »</a>
+    {% endif %}
+  </nav>
+  {% else %}
+  <p class="rc2-empty" data-empty="no-results">
+    {% if view.visible_total == 0 %}No hay propuestas de revisión en este workspace.
+    {% else %}Ningún elemento coincide con los filtros aplicados ({{ view.visible_total }} visibles en total).{% endif %}
+  </p>
+  {% endif %}
+  {% endif %}
+</main>
+<style>
+.rc2{max-width:70rem;margin:0 auto;padding:1rem}
+.rc2-badge{font-size:.7em;border:1px solid currentColor;border-radius:.4em;padding:.1em .4em;vertical-align:middle}
+.rc2-filters{display:flex;flex-wrap:wrap;gap:.75rem;align-items:end;margin:1rem 0}
+.rc2-filters label{display:flex;flex-direction:column;font-size:.85rem}
+.rc2-check{flex-direction:row!important;align-items:center;gap:.3rem}
+.rc2-list{list-style:none;padding:0;margin:0}
+.rc2-row{border:1px solid #ccc;border-radius:.4rem;padding:.6rem;margin:.5rem 0}
+.rc2-row:focus,.rc2-row[data-current]{outline:3px solid #36c;background:#f4f7ff}
+.rc2-triple b{margin:0 .35rem}
+.rc2-tag{border:1px solid #999;border-radius:.3rem;padding:0 .35rem;margin-right:.3rem;font-size:.78rem}
+.rc2-warn{border-color:#b40;color:#b40}
+.rc2-done{border-color:#284;color:#284}
+.rc2-flag{color:#b40;font-weight:700}
+.rc2-muted{color:#666;font-size:.85rem}
+.rc2-missing{color:#b40}
+.rc2-error{border:2px solid #b40;padding:.5rem;border-radius:.3rem}
+.rc2-empty{padding:1.5rem;border:1px dashed #999;border-radius:.4rem;text-align:center}
+.rc2-pager{display:flex;gap:1rem;align-items:center;margin:1rem 0}
+mark{background:#ffe680}
+</style>
+<script>
+(function () {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('[data-row]'));
+  if (!rows.length) { return; }
+  var index = 0;
+  function focus(next) {
+    index = Math.max(0, Math.min(next, rows.length - 1));
+    rows.forEach(function (row) { row.removeAttribute('data-current'); });
+    rows[index].setAttribute('data-current', 'true');
+    rows[index].focus();
+  }
+  document.addEventListener('keydown', function (event) {
+    var tag = (event.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'select' || tag === 'textarea') { return; }
+    if (event.key === 'j') { focus(index + 1); event.preventDefault(); }
+    else if (event.key === 'k') { focus(index - 1); event.preventDefault(); }
+    else if (event.key === 'Enter') { window.location = rows[index].dataset.href; }
+    else if (event.key === 'n') { var n = document.querySelector('[data-next-page]'); if (n) { window.location = n.href; } }
+    else if (event.key === 'p') { var p = document.querySelector('[data-prev-page]'); if (p) { window.location = p.href; } }
+    else if (event.key === '/') { var s = document.querySelector('input[name=q]'); if (s) { s.focus(); event.preventDefault(); } }
+  });
+  rows.forEach(function (row, position) {
+    row.addEventListener('click', function () { focus(position); });
+  });
+})();
+</script>
+{% endblock %}
