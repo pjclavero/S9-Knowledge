@@ -220,36 +220,39 @@ def _jugador_a(tope=5, **over):
     return _ctx(partida=P_A, max_visible_session=tope, **over)
 
 
-def _ids(prov, ctx):
+def _ids_visibles(prov, ctx):
+    """OJO: no llamar a esto `_ids`. Este fichero ya tiene un `_ids(items)`
+    arriba, y una segunda definicion con otra firma lo sombrea y rompe las
+    pruebas anteriores sin decir por que."""
     from app.authz.filtered_provider import PolicyFilteredProvider
     items, _ = PolicyFilteredProvider(prov, ctx).list_entities(WS, limit=1000)
-    return {i.get("entity_id") or i.get("id") for i in items}
+    return {i.get("id") for i in items}
 
 
 def test_revelacion_pasada_visible_y_futura_oculta(base):
-    ids = _ids(base, _jugador_a(5))
+    ids = _ids_visibles(base, _jugador_a(5))
     assert {"rev_0", "rev_3"} <= ids
     assert "rev_8" not in ids
 
 
 def test_known_by_no_salta_la_barrera_historica_en_neo4j(base):
     """La propiedad de T2 que solo vale si se prueba sobre datos reales."""
-    ids = _ids(base, _jugador_a(5, active_character="pc:ana"))
+    ids = _ids_visibles(base, _jugador_a(5, active_character="pc:ana"))
     assert "rev_8_conocido" not in ids
 
 
 def test_can_view_future_si_la_salta(base):
-    assert "rev_8" in _ids(base, _jugador_a(5, can_view_future=True))
+    assert "rev_8" in _ids_visibles(base, _jugador_a(5, can_view_future=True))
 
 
 def test_tope_cero_ve_lo_conocido_desde_el_inicio(base):
-    ids = _ids(base, _jugador_a(0))
+    ids = _ids_visibles(base, _jugador_a(0))
     assert "rev_0" in ids
     assert "rev_3" not in ids
 
 
 def test_revelacion_corrupta_deniega_sin_error(base):
-    ids = _ids(base, _jugador_a(5))
+    ids = _ids_visibles(base, _jugador_a(5))
     assert "rev_corrupta" not in ids
 
 
@@ -258,9 +261,9 @@ def test_el_conteo_y_el_grafo_respetan_la_revelacion(base):
 
     prov = PolicyFilteredProvider(base, _jugador_a(5))
     n_visibles, _ = prov.counts(WS)
-    assert n_visibles == len(_ids(base, _jugador_a(5)))
+    assert n_visibles == len(_ids_visibles(base, _jugador_a(5)))
     nodos, _ = prov.graph(WS, limit=1000)
-    assert "rev_8" not in {n.get("entity_id") or n.get("id") for n in nodos}
+    assert "rev_8" not in {n.get("id") for n in nodos}
 
 
 def test_el_acceso_por_id_no_esquiva_la_revelacion(base):

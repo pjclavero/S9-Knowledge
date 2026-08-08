@@ -98,10 +98,26 @@ jobs:
         run: |
           # Estas pruebas NO pueden omitirse en silencio: si no hay base, se
           # saltan solas, y un skip verde aqui equivale a no tener la prueba.
+          # `bash -e` aborta el paso en cuanto la asignacion recoge un pytest
+          # que ha fallado, y entonces NUNCA se llega al `echo "$out"`: el paso
+          # sale en rojo sin mostrar que test fallo ni por que. Un guard que
+          # esconde el fallo que deberia explicar es peor que no tenerlo, asi
+          # que aqui se captura el codigo aparte y siempre se imprime la salida.
+          set +e
           out="$(python -m pytest viewer/tests/test_neo4j_integration_authz.py -v --no-header 2>&1)"
+          rc=$?
+          set -e
           echo "$out"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::la suite de integracion contra Neo4j ha FALLADO"
+            exit 1
+          fi
           if echo "$out" | grep -qi "skipped"; then
             echo "::error::la suite de integracion se ha OMITIDO; no hay Neo4j efimero"
+            exit 1
+          fi
+          if ! echo "$out" | grep -qE '[0-9]+ passed'; then
+            echo "::error::la suite de integracion no llego a ejecutar ninguna prueba"
             exit 1
           fi
 
