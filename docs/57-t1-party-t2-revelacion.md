@@ -87,8 +87,9 @@ usuario → partida activa → concesión de partida → max_visible_session
 
 Vive en `partida_access` (esquema v3), junto a `character_id`. Un
 `?max_visible_session=99` sería una barrera que el propio protegido puede
-levantar. `NULL` significa "sin tope"; para narrador y admin existe
-`can_view_future = true` de forma explícita.
+levantar. **Sin tope declarado el tope es `0`**, no "sin límite" (ver el quinto
+dictamen, más abajo): ver material no revelado exige `can_view_future = true`,
+que `reviewer` y `admin` ya declaran positivamente.
 
 Esto arregla además, de paso, el segundo apagado que señaló el dictamen:
 `active_character` tampoco lo poblaba nadie, así que `knows()` devolvía siempre
