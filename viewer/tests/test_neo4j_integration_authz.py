@@ -43,10 +43,15 @@ P_B = "partida:beta"
 # no es lo mismo que reventar.
 SEMILLA = [
     dict(id="lore", ws=WS, scope="juego", pid=None, vis="player"),
-    dict(id="a_player", ws=WS, scope="partida", pid=P_A, vis="player"),
-    dict(id="a_secret", ws=WS, scope="partida", pid=P_A, vis="secret"),
-    dict(id="b_player", ws=WS, scope="partida", pid=P_B, vis="player"),
-    dict(id="b_secret", ws=WS, scope="partida", pid=P_B, vis="secret"),
+    # 7a ronda (H6-1): el contenido de partida DEBE declarar desde que sesion
+    # puede revelarse. Estos cuatro se sembraban sin declararla y ahora el motor
+    # los deniega -- correctamente. Solo lo detecto el job de CI, porque estas 19
+    # pruebas se saltan sin `NEO4J_TEST_URI` y el septimo dictamen se emitio sin
+    # Neo4j: es la limitacion que el propio revisor declaro, materializada.
+    dict(id="a_player", ws=WS, scope="partida", pid=P_A, vis="player", desde=0),
+    dict(id="a_secret", ws=WS, scope="partida", pid=P_A, vis="secret", desde=0),
+    dict(id="b_player", ws=WS, scope="partida", pid=P_B, vis="player", desde=0),
+    dict(id="b_secret", ws=WS, scope="partida", pid=P_B, vis="secret", desde=0),
     dict(id="ajeno", ws=OTRO_WS, scope="juego", pid=None, vis="player"),
     dict(id="conocido", ws=WS, scope="juego", pid=None, vis="secret",
          known_by=["pc:ana"]),
