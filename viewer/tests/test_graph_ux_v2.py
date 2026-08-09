@@ -76,9 +76,18 @@ def test_graph_page_carga_el_core_y_la_ui():
 
 
 def test_zona_de_estado_es_anunciable_por_lector_de_pantalla():
+    """HALLAZGO H5: la versión anterior de este test buscaba `aria-live` en
+    cualquier sitio de la página y se conformaba con el de `.graph-counters`,
+    así que `#graph-status` —la zona que anuncia cargando/vacío/error— podía
+    quedarse muda sin que nada fallara. Ahora se mira ESE elemento."""
     r = client.get("/graph")
-    assert 'role="status"' in r.text
-    assert 'aria-live="polite"' in r.text
+    m = re.search(r"<p[^>]*id=\"graph-status\"[^>]*>", r.text)
+    assert m, "no se encuentra el elemento #graph-status en la página"
+    etiqueta = m.group(0)
+    assert 'role="status"' in etiqueta, f"#graph-status sin role=status: {etiqueta}"
+    assert 'aria-live="polite"' in etiqueta, (
+        f"#graph-status no es una región viva; un aria-live en otro elemento "
+        f"no anuncia estos mensajes: {etiqueta}")
 
 
 def test_graph_page_no_embebe_datos_del_grafo():
@@ -99,6 +108,17 @@ def test_vis_network_esta_vendorizado_y_es_real():
     assert VENDOR_JS.stat().st_size > 400_000
     head = VENDOR_JS.read_text(encoding="utf-8", errors="replace")[:400]
     assert "vis-network" in head
+
+
+@pytest.mark.parametrize("fichero", ["graph.js", "graph-core.js"])
+def test_los_estaticos_del_grafo_no_llevan_caracteres_de_control(fichero):
+    """`graph-core.js` llevaba un NUL incrustado en un separador de cadena
+    (`join(" \\x00 ")`). Invisible al leer, hacía que git tratase el fichero
+    como binario —sin diffs revisables— y podría romper cualquier herramienta
+    que lo procese como texto."""
+    crudo = (STATIC / "js" / fichero).read_bytes()
+    malos = {b for b in crudo if b < 9 or 13 < b < 32}
+    assert not malos, f"{fichero} contiene bytes de control: {sorted(malos)}"
 
 
 def test_la_pagina_del_grafo_no_pide_nada_a_internet():
@@ -197,6 +217,120 @@ def test_la_ui_del_grafo_no_reimplementa_autorizacion(termino):
         )
 
 
+# ---------------------------------------------------------------------------
+# Coherencia transversal: `visibility` y `knowledge_layer` no son presentación
+#
+# DECISIÓN DEL OPERADOR: esos campos se quedan FUERA de la ficha del usuario
+# normal. El razonamiento no admite excepciones por plantilla: el frontend no
+# debe razonar sobre `visibility`, `known_by`, `scope` ni `knowledge_layer`
+# como si fueran atributos de presentación, porque la autorización ocurre
+# ANTES de que el contenido llegue.
+#
+# La objeción del revisor era justa: la ficha lateral del grafo dejó de
+# mostrarlos, pero `entity.html` y `entity_detail.html` —a las que se llega
+# desde el botón "Ficha completa" de esa misma ficha— seguían haciéndolo. Tal
+# cual, era una incoherencia, no un principio. Estos tests la cierran.
+#
+# Lo que NO se retira: `review_status_label`, que es calidad del dato (¿está
+# revisado?) y no autorización. Sigue mostrándose en las dos plantillas.
+# ---------------------------------------------------------------------------
+
+FICHAS_DE_ENTIDAD = ("entity.html", "entity_detail.html")
+
+
+@pytest.mark.parametrize("nombre", FICHAS_DE_ENTIDAD)
+@pytest.mark.parametrize("campo", ["visibility_label", "knowledge_layer_label",
+                                   "visibility", "knowledge_layer"])
+def test_las_fichas_de_entidad_no_pintan_vocabulario_de_visibilidad(nombre, campo):
+    texto = (TEMPLATES / nombre).read_text(encoding="utf-8")
+    renderizados = re.findall(r"\{\{[^}]*\}\}", texto)
+    for expr in renderizados:
+        assert campo not in expr, (
+            f"{nombre} renderiza {campo!r} ({expr.strip()}): la autorización no "
+            f"es un atributo de presentación")
+
+
+@pytest.mark.parametrize("nombre", FICHAS_DE_ENTIDAD)
+def test_las_fichas_de_entidad_conservan_el_estado_de_revision(nombre):
+    """Control de que la limpieza no se ha llevado por delante información
+    funcional: el estado de revisión dice si el dato está validado."""
+    texto = (TEMPLATES / nombre).read_text(encoding="utf-8")
+    assert "review_status_label" in texto, (
+        f"{nombre} ha perdido el estado de revisión, que sí es información que "
+        f"el usuario necesita")
+
+
+@pytest.mark.parametrize("plantilla", ["/entity/{}", "/entities/{}"])
+def test_la_ficha_servida_no_menciona_ninguna_etiqueta_de_visibilidad(plantilla):
+    """La comprobación equivalente sobre el HTML ya renderizado, por si algún
+    día el dato llegase por otro camino (una macro, un include)."""
+    from app.labels import VISIBILITY_LABELS_ES
+
+    entity_id = client.get(
+        "/api/graph", params={"workspace": "leyenda", "limit": 5}
+    ).json()["nodes"][0]["id"]
+    r = client.get(plantilla.format(entity_id))
+    assert r.status_code == 200
+    for etiqueta in VISIBILITY_LABELS_ES.values():
+        assert f">{etiqueta}<" not in r.text, (
+            f"{plantilla} sigue pintando la visibilidad ({etiqueta})")
+
+
+# ---------------------------------------------------------------------------
+# "Sin acceso" no es lo mismo que "no existe" (bloqueante 5)
+# ---------------------------------------------------------------------------
+
+def test_la_ui_solo_habla_de_acceso_ante_401_y_403():
+    """Contrato real, comprobado contra `graph-core.js`.
+
+    Cuando la política oculta un nodo, el proveedor filtrado devuelve `None` y
+    `/api/entities/{id}` responde 404: exactamente lo mismo que si el id no
+    existiera. Por tanto el 404 NO puede traducirse a "no tienes acceso" —eso
+    confirmaría la existencia de lo oculto—, y solo 401/403, que vienen del
+    guarda y no del contenido, pueden hablar de acceso.
+    """
+    texto = GRAPH_CORE_JS.read_text(encoding="utf-8")
+    familias = dict(re.findall(r"code === (\d+)\) return \"(\w+)\"", texto))
+    assert familias.get("401") == "unauthenticated"
+    assert familias.get("403") == "forbidden"
+    assert familias.get("404") == "not_found", \
+        "un 404 debe ser 'no encontrado'; nunca 'sin acceso'"
+
+    mensajes = dict(re.findall(r"^\s{4}(\w+): \"([^\"]+)\"", texto, re.M))
+    assert "acceso" not in mensajes["not_found"].lower(), (
+        f"el mensaje de 404 habla de acceso y delata que el elemento existe: "
+        f"{mensajes['not_found']!r}")
+    assert "acceso" in mensajes["forbidden"].lower()
+
+
+def test_una_entidad_oculta_y_una_inexistente_son_indistinguibles_para_la_ui():
+    """El 404 del backend no lleva nada que permita distinguir los dos casos."""
+    r = client.get("/api/entities/no-existe-este-id")
+    assert r.status_code == 404
+    cuerpo = r.text.lower()
+    for pista in ("visibility", "secret", "oculto", "known_by", "scope", "policy"):
+        assert pista not in cuerpo, f"el 404 filtra vocabulario de política: {pista}"
+
+
+# ---------------------------------------------------------------------------
+# Expandir vecinos: ni un contador de lo que falta (bloqueante 4)
+# ---------------------------------------------------------------------------
+
+def test_expandir_vecinos_no_cuenta_lo_que_no_ha_llegado():
+    """REGLA DEL OPERADOR: pedir expandir X y pintar lo que el backend dé. Si
+    llegan menos vecinos de los que existen, la UI NO dice cuántos faltan;
+    "3 de 7 visibles" revelaría que hay cuatro ocultos."""
+    texto = GRAPH_JS.read_text(encoding="utf-8")
+    m = re.search(r"function expandNeighbors\(nodeId\) \{(.+?)\n  \}\n", texto, re.S)
+    assert m, "no se encuentra expandNeighbors en graph.js"
+    cuerpo = m.group(1)
+    assert "Se muestran los elementos disponibles para tu vista." in texto
+    for sospechoso in ("after.nodes - before.nodes", "added", " de \" +", "length +"):
+        assert sospechoso not in cuerpo, (
+            f"expandNeighbors calcula un recuento de vecinos ({sospechoso!r}): "
+            f"cualquier número ahí delata lo que la política ocultó")
+
+
 def test_el_estado_de_la_url_solo_admite_parametros_de_presentacion():
     """Nada de la URL puede pedir ver más de lo que corresponde: las claves
     aceptadas son solo de presentación."""
@@ -240,3 +374,24 @@ def test_graph_core_js_spec():
 def test_la_especificacion_js_existe_aunque_no_haya_node():
     """Si node no está, el puente se salta; el fichero debe seguir en el repo."""
     assert JS_SPEC.exists()
+
+
+def test_el_job_de_ci_que_obliga_a_node_esta_instalado():
+    """Este fichero se auto-omite si falta Node (`skipif`), así que sin un job
+    que instale Node las ~38 aserciones de la especificación JS se saltaban en
+    silencio y el job requerido pasaba igual. `.github/scripts/check_ci_config.py`
+    es el gate que lo impide; aquí se comprueba que sigue habiendo un job."""
+    ci = (VIEWER_ROOT.parent / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert "actions/setup-node" in ci, "ningún job de CI instala Node"
+    assert "tests/test_graph_ux_v2.py" in ci, \
+        "ningún job de CI ejecuta este fichero con Node disponible"
+
+
+def test_existe_la_bateria_de_navegador_del_grafo():
+    """`graph.js` (DOM + vis-network) solo se puede comprobar en un navegador.
+    Si este fichero desapareciera, volveríamos al punto de partida: renombrar
+    un id y ver la suite en verde con la página en negro."""
+    e2e = Path(__file__).resolve().parent / "browser" / "test_browser_graph_ux.py"
+    assert e2e.exists(), "falta la batería E2E de navegador del visor de grafo"
+    assert (e2e.parent / "e2e_support.py").exists(), \
+        "falta la infraestructura de navegador compartida (carril D)"

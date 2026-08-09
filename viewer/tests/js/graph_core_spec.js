@@ -3,7 +3,13 @@
  *
  * Se ejecuta con `node graph_core_spec.js`. Imprime una línea por caso y
  * termina con código 1 si falla alguno: el test de pytest que lo invoca
- * (test_graph_core_js.py) se pone rojo con ese código de salida.
+ * (`viewer/tests/test_graph_ux_v2.py::test_graph_core_js_spec`) se pone rojo
+ * con ese código de salida. En CI lo ejecuta el job `test-graph-js`, que
+ * instala Node y prohíbe los skips.
+ *
+ * ALCANCE: solo lógica pura. Lo que necesita DOM o navegador (que buscar
+ * centre el nodo, que la ficha se abra, que la URL restaure los filtros)
+ * vive en `viewer/tests/browser/test_browser_graph_ux.py`, no aquí.
  *
  * Sin dependencias externas a propósito: no hay node_modules en el repo.
  */
@@ -68,13 +74,41 @@ test("búsqueda: encuentra por alias", () => {
   assert.strictEqual(res[0].id, "n3");
 });
 
-test("búsqueda: coincidencia exacta va antes que la parcial", () => {
+// HALLAZGO H4. El caso anterior ("Kuni" contra "Kuni Yori el Viejo") pasaba
+// por el desempate ALFABÉTICO, no por el score: "kuni" < "kuni yori el viejo".
+// Borrando la ordenación por score, la prueba seguía verde. Los tres casos que
+// siguen están elegidos para que el orden alfabético diga LO CONTRARIO que el
+// score: si alguien quita el `a.score - b.score`, se ponen rojos.
+
+test("búsqueda: la exacta gana a la que solo contiene, aunque vaya después alfabéticamente", () => {
   const nodes = [
-    { id: "a", label: "Kuni Yori el Viejo", type: "Character" },
-    { id: "b", label: "Kuni", type: "Character" }
+    { id: "a", label: "Aa Kuni de la Montaña", type: "Character" },  // contiene (score 2)
+    { id: "b", label: "Kuni", type: "Character" }                    // exacta   (score 0)
   ];
   const res = core.searchNodes(nodes, "Kuni");
-  assert.strictEqual(res[0].id, "b", "la coincidencia exacta debe ir primero");
+  assert.strictEqual(res[0].id, "b",
+    "la exacta debe ir primero; por orden alfabético saldría 'Aa Kuni…'");
+});
+
+test("búsqueda: el prefijo gana a la que solo contiene, contra el alfabeto", () => {
+  const nodes = [
+    { id: "a", label: "Agasha Tamori", type: "Character" },  // contiene "tamori" (score 2)
+    { id: "b", label: "Tamori Shiro", type: "Character" }    // empieza por      (score 1)
+  ];
+  const res = core.searchNodes(nodes, "Tamori");
+  assert.deepStrictEqual(res.map((n) => n.id), ["b", "a"],
+    "el prefijo debe ir primero; alfabéticamente 'Agasha…' iría antes");
+});
+
+test("búsqueda: el alias (última familia) va detrás del nombre, contra el alfabeto", () => {
+  const nodes = [
+    { id: "a", label: "Aa Bayushi no es su nombre", type: "Faction", aliases: [] },
+    { id: "b", label: "Zzz Clan Escorpión", type: "Faction", aliases: ["Bayushi"] },
+    { id: "c", label: "Bayushi", type: "Character", aliases: [] }
+  ];
+  const res = core.searchNodes(nodes, "Bayushi");
+  assert.deepStrictEqual(res.map((n) => n.id), ["c", "a", "b"],
+    "orden esperado: exacta, contiene-en-el-nombre, solo-en-alias");
 });
 
 test("búsqueda: sin coincidencias devuelve lista vacía", () => {
@@ -154,6 +188,29 @@ test("filtro: ocultar nodos sueltos elimina los que quedan sin relación", () =>
   assert.strictEqual(out.edges.length, 1);
 });
 
+// HALLAZGO H5. Antes, `[]` se trataba como "no filtrar": desmarcar TODAS las
+// casillas mostraba el grafo entero, exactamente igual que marcarlas todas.
+// Ahora hay tres estados y estos dos casos los separan.
+
+test("filtro: todas desmarcadas ([]) no deja pasar nada", () => {
+  const out = core.filterGraph(GRAPH, { entityTypes: [] });
+  assert.strictEqual(out.nodes.length, 0, "lista vacía = nada seleccionado, no 'todo'");
+  assert.strictEqual(out.edges.length, 0);
+});
+
+test("filtro: 'todas desmarcadas' y 'sin filtro' NO dan el mismo resultado", () => {
+  const nada = core.filterGraph(GRAPH, { entityTypes: [] });
+  const todo = core.filterGraph(GRAPH, { entityTypes: null });
+  assert.strictEqual(todo.nodes.length, 5);
+  assert.notStrictEqual(nada.nodes.length, todo.nodes.length);
+});
+
+test("filtro: todas desmarcadas en relaciones deja los nodos pero ninguna arista", () => {
+  const out = core.filterGraph(GRAPH, { relationTypes: [] });
+  assert.strictEqual(out.nodes.length, 5);
+  assert.strictEqual(out.edges.length, 0);
+});
+
 test("filtro: no muta el grafo original", () => {
   core.filterGraph(GRAPH, { entityTypes: ["Character"], hideIsolated: true });
   assert.strictEqual(GRAPH.nodes.length, 5);
@@ -216,6 +273,25 @@ test("estado: error manda sobre el resto", () => {
   assert.strictEqual(core.viewState(GRAPH, GRAPH, { error: true }), "error");
 });
 
+// HALLAZGO H3. Si el vendor de vis-network no carga (integrity que no cuadra,
+// fichero borrado), el servidor está PERFECTAMENTE vivo. Contarlo como fallo
+// de red mandaba a la persona a mirar la conexión en vez del despliegue.
+
+test("estado: si falta la biblioteca de dibujo, ese estado manda incluso sobre el error", () => {
+  assert.strictEqual(core.viewState(GRAPH, GRAPH, { rendererMissing: true }), "renderer");
+  assert.strictEqual(
+    core.viewState(GRAPH, GRAPH, { rendererMissing: true, error: true, loading: true }),
+    "renderer");
+});
+
+test("estado: el mensaje de 'falta el componente' no culpa al servidor ni a la red", () => {
+  const msg = core.ERROR_MESSAGES.renderer;
+  assert.ok(msg && msg.length > 0, "no hay mensaje para el fallo del vendor");
+  assert.notStrictEqual(msg, core.ERROR_MESSAGES.network);
+  assert.ok(!/contactar con el servidor/i.test(msg),
+    "el fallo del vendor no debe presentarse como 'no se ha podido contactar con el servidor'");
+});
+
 // ---------------------------------------------------------------------
 // Errores saneados
 // ---------------------------------------------------------------------
@@ -269,7 +345,21 @@ test("URL: ida y vuelta del estado", () => {
 });
 
 test("URL: el estado por defecto no ensucia la barra de direcciones", () => {
-  assert.strictEqual(core.serializeState({ q: "", entityTypes: [], relationTypes: [] }), "");
+  assert.strictEqual(core.serializeState({ q: "", entityTypes: null, relationTypes: null }), "");
+});
+
+test("URL: sin parámetros de tipo, el estado dice 'sin filtro' (null), no 'nada' ([])", () => {
+  const parsed = core.parseState("");
+  assert.strictEqual(parsed.entityTypes, null);
+  assert.strictEqual(parsed.relationTypes, null);
+});
+
+test("URL: 'nada seleccionado' sobrevive a la recarga y no se convierte en 'todo'", () => {
+  const qs = core.serializeState({ entityTypes: [], relationTypes: [] });
+  assert.ok(qs.indexOf("types=") !== -1, "un filtro vacío tiene que viajar en la URL: " + qs);
+  const parsed = core.parseState(qs);
+  assert.deepStrictEqual(parsed.entityTypes, []);
+  assert.deepStrictEqual(parsed.relationTypes, []);
 });
 
 test("URL: los parámetros sensibles o desconocidos se ignoran", () => {

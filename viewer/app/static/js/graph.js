@@ -51,6 +51,10 @@
   var loading = false;
   var lastErrorStatus = null;
   var selectedId = null;
+  // vis-network se sirve vendorizado con `integrity`. Si el navegador bloquea
+  // el fichero (hash que no cuadra) o el fichero no está, `vis` no existe. Eso
+  // NO es un fallo de red ni del servidor y no debe contarse como tal.
+  var rendererMissing = (typeof vis === "undefined") || !vis || typeof vis.Network !== "function";
 
   if (!state.limit) state.limit = defaultLimit;
 
@@ -107,10 +111,16 @@
   };
 
   function renderStatus() {
-    var kind = core.viewState(loaded, visible, { loading: loading, error: lastErrorStatus !== null });
+    var kind = core.viewState(loaded, visible, {
+      loading: loading,
+      error: lastErrorStatus !== null,
+      rendererMissing: rendererMissing
+    });
     var text;
     if (kind === "error") {
       text = core.errorMessageForStatus(lastErrorStatus);
+    } else if (kind === "renderer") {
+      text = core.ERROR_MESSAGES.renderer;
     } else {
       text = STATE_TEXT[kind] || "";
     }
@@ -122,7 +132,7 @@
       statusBox.hidden = false;
       statusBox.textContent = text;
     }
-    if (kind === "error" || kind === "no_results" || kind === "empty") {
+    if (kind === "error" || kind === "renderer" || kind === "no_results" || kind === "empty") {
       statusBox.setAttribute("role", "status");
     }
   }
@@ -161,7 +171,8 @@
       cb.type = "checkbox";
       cb.id = id;
       cb.value = item.type;
-      cb.checked = selected.indexOf(item.type) !== -1;
+      // `selected === null` = no hay filtro: todas las casillas marcadas.
+      cb.checked = selected === null ? true : selected.indexOf(item.type) !== -1;
       cb.setAttribute("data-filter-group", groupName);
       cb.addEventListener("change", onFilterChange);
       row.appendChild(cb);
@@ -210,12 +221,23 @@
     }
   }
 
+  /**
+   * Lectura de las casillas de un grupo.
+   *
+   * Devuelve `null` cuando están TODAS marcadas ("no hay filtro", y la URL
+   * queda limpia) y un array —posiblemente vacío— en cualquier otro caso.
+   * Todas desmarcadas ya no equivale a todas marcadas: da lista vacía, y una
+   * lista vacía no deja pasar nada.
+   */
   function collectSelected(groupName) {
     var out = [];
+    var total = 0;
     var boxes = document.querySelectorAll('input[data-filter-group="' + groupName + '"]');
     Array.prototype.forEach.call(boxes, function (b) {
+      total += 1;
       if (b.checked) out.push(b.value);
     });
+    if (total > 0 && out.length === total) return null;
     return out;
   }
 
@@ -230,10 +252,15 @@
     var entityTypes = core.collectEntityTypes(loaded.nodes);
     var relationTypes = core.collectRelationTypes(loaded.edges);
     // Un filtro guardado en la URL cuyo tipo ya no existe se descarta.
+    // `null` (sin filtro) se deja tal cual: no hay nada que depurar.
     var known = entityTypes.map(function (t) { return t.type; });
-    state.entityTypes = state.entityTypes.filter(function (t) { return known.indexOf(t) !== -1; });
+    if (state.entityTypes) {
+      state.entityTypes = state.entityTypes.filter(function (t) { return known.indexOf(t) !== -1; });
+    }
     var knownRel = relationTypes.map(function (t) { return t.type; });
-    state.relationTypes = state.relationTypes.filter(function (t) { return knownRel.indexOf(t) !== -1; });
+    if (state.relationTypes) {
+      state.relationTypes = state.relationTypes.filter(function (t) { return knownRel.indexOf(t) !== -1; });
+    }
 
     renderCheckboxList(entityTypeList, entityTypes, state.entityTypes, "etype", true);
     renderCheckboxList(relationTypeList, relationTypes, state.relationTypes, "rtype", false);
@@ -249,7 +276,14 @@
       id: n.id,
       label: n.label,
       title: n.type_label,
-      color: { background: core.colorForType(n.type), border: "#0b0d12" },
+      // El color de resalte repite el del tipo a propósito: si al seleccionar
+      // un nodo cambiase de color, dejaría de casar con la leyenda justo en el
+      // momento en que la persona lo está mirando.
+      color: {
+        background: core.colorForType(n.type),
+        border: "#0b0d12",
+        highlight: { background: core.colorForType(n.type), border: "#e6e8ee" }
+      },
       font: { color: "#e6e8ee" },
       shape: "dot",
       size: 14
@@ -269,6 +303,10 @@
   }
 
   function drawGraph() {
+    // Sin biblioteca de dibujo el resto de la página (filtros, contadores,
+    // buscador, mensaje de estado) tiene que seguir funcionando en vez de
+    // morir con un ReferenceError en la primera línea.
+    if (rendererMissing) return;
     visNodes = new vis.DataSet(visible.nodes.map(toVisNode));
     visEdges = new vis.DataSet(visible.edges.map(toVisEdge));
 
@@ -418,20 +456,35 @@
     if (network) network.fit({ animation: { duration: 300, easingFunction: "easeInOutQuad" } });
   }
 
-  function resetView() {
+  /**
+   * Deja los filtros como recién llegado: tipos sin filtrar, sin búsqueda y
+   * sin "ocultar sueltos". Lo comparten el botón "Quitar filtros" y
+   * "Reiniciar vista" (que además reencuadra el lienzo): antes cada uno
+   * limpiaba un subconjunto distinto y "Quitar filtros" se dejaba fuera la
+   * búsqueda y la casilla de nodos sueltos.
+   */
+  function clearAllFilters() {
     state.q = "";
-    state.entityTypes = [];
-    state.relationTypes = [];
+    state.entityTypes = null;
+    state.relationTypes = null;
     state.hideIsolated = false;
-    state.showEdgeLabels = true;
-    searchInput.value = "";
-    if (labelsToggle) labelsToggle.checked = true;
+    if (searchInput) searchInput.value = "";
     if (isolatedToggle) isolatedToggle.checked = false;
     renderSearchResults([]);
     rebuildFilterUi();
     applyFilters();
-    fitView();
     syncUrl();
+  }
+
+  function resetView() {
+    state.showEdgeLabels = true;
+    if (labelsToggle) labelsToggle.checked = true;
+    clearAllFilters();
+    // "Volver a la vista inicial" incluye la selección: dejar la ficha de un
+    // nodo abierta después de reiniciar es un resto del estado anterior.
+    // ("Quitar filtros" sí la respeta: quitar un filtro no es deseleccionar.)
+    clearDetail();
+    fitView();
   }
 
   // ---------------------------------------------------------------------
@@ -525,8 +578,16 @@
 
   /**
    * Trae los vecinos de un nodo desde /api/entities/{id} y los añade al grafo.
-   * Solo llegan los que el backend autoriza; lo que no venga, no se dibuja.
+   *
+   * REGLA: la interfaz no decide qué está autorizado y TAMPOCO informa de lo
+   * que falta. Pide los vecinos de X y pinta exactamente lo que el backend
+   * devuelve. No hay contador de "N de M", ni hueco, ni diferencia visible
+   * entre "no tiene más vecinos" y "los tiene pero no te tocan": un número
+   * ahí revelaría la existencia de lo que la política acaba de ocultar.
+   * Por eso el mensaje de éxito es siempre el mismo, con datos nuevos o sin
+   * ellos.
    */
+  var EXPAND_DONE = "Se muestran los elementos disponibles para tu vista.";
   function expandNeighbors(nodeId) {
     var note = $("expand-note");
     function say(msg) {
@@ -536,6 +597,13 @@
     fetch("/api/entities/" + encodeURIComponent(nodeId), { headers: { accept: "application/json" } })
       .then(function (res) {
         if (!res.ok) {
+          // "Sin acceso" NO se deduce: se lee del status. El backend responde
+          // 404 tanto si la entidad no existe como si la política la oculta
+          // (el proveedor filtrado devuelve `None` en ambos casos), así que un
+          // 404 se cuenta como "no encontrado" y nunca como "no autorizado":
+          // decir "no tienes acceso" ante un 404 confirmaría que existe.
+          // Solo 401/403 —que vienen del guarda, no del contenido— permiten
+          // hablar de acceso.
           say(core.errorMessageForStatus(res.status));
           throw new Error("http");
         }
@@ -550,15 +618,10 @@
             if (rel.other_entity) newNodes.push(rel.other_entity);
           });
         });
-        var before = core.graphStats(loaded);
         loaded = core.mergeGraph(loaded, { nodes: newNodes, edges: newEdges });
-        var after = core.graphStats(loaded);
         rebuildFilterUi();
         applyFilters();
-        var added = after.nodes - before.nodes;
-        say(added > 0
-          ? "Se han añadido " + added + " entidad(es) vecina(s)."
-          : "No hay vecinos nuevos que mostrar.");
+        say(EXPAND_DONE);
         focusNode(nodeId);
       })
       .catch(function () {
@@ -575,13 +638,7 @@
     fitBtn.addEventListener("click", fitView);
     resetBtn.addEventListener("click", resetView);
     detailClose.addEventListener("click", clearDetail);
-    clearFiltersBtn.addEventListener("click", function () {
-      state.entityTypes = [];
-      state.relationTypes = [];
-      rebuildFilterUi();
-      applyFilters();
-      syncUrl();
-    });
+    clearFiltersBtn.addEventListener("click", clearAllFilters);
 
     searchInput.addEventListener("keydown", function (e) {
       if (e.key === "Enter") {

@@ -14,9 +14,10 @@
     {% if entity.confidence_label %}
     <span class="pill">Confianza: {{ entity.confidence_label | e }}</span>
     {% endif %}
-    {% if entity.visibility_label %}
-    <span class="pill">{{ entity.visibility_label | e }}</span>
-    {% endif %}
+    {# Sin pastilla de visibilidad: ver la nota de entity.html. Esta es la
+       ficha a la que lleva el botón "Ficha completa" del grafo, así que
+       enseñarla aquí reintroducía por la puerta de atrás justo el vocabulario
+       que la ficha lateral se quitó de encima. #}
     {% if entity.review_status_label %}
     <span class="pill">{{ entity.review_status_label | e }}</span>
     {% endif %}
@@ -37,8 +38,9 @@
     <strong>Fuente:</strong> {{ entity.source_document | e or '—' }}<br>
     <strong>Páginas:</strong>
     {% if entity.source_pages %}{{ entity.source_pages | join(', ') | e }}{% else %}—{% endif %}<br>
-    <strong>Tipo de fuente:</strong> {{ entity.source_kind | e or '—' }}<br>
-    <strong>Capa:</strong> {{ entity.knowledge_layer_label | e or '—' }}
+    {# La línea "Capa: ..." vivía aquí; se retira por el mismo motivo que la
+       pastilla de visibilidad. El estado de revisión ya se muestra arriba. #}
+    <strong>Tipo de fuente:</strong> {{ entity.source_kind | e or '—' }}
   </div>
 
   <details>

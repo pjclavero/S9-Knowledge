@@ -1,8 +1,24 @@
 name: CI
 
 on:
+  # OJO: esta lista filtra por rama de ORIGEN y solo afecta a `push`.
+  # `pull_request.branches` filtra por rama DESTINO, asi que un PR contra
+  # `main` desde cualquier rama siempre ejecuta CI; el agujero estaba solo
+  # en `push`, y por eso un carril entero en `test/**` se desarrollo sin
+  # ninguna senal de CI hasta abrir el PR.
+  # Toda rama nueva debe estar cubierta aqui: `check-ci-config` falla si
+  # aparece en origin un prefijo que esta lista no cubre.
   push:
-    branches: [ main, 'fix/**', 'feat/**', 'audit/**', 'docs/**', 'chore/**' ]
+    branches:
+      - main
+      - 'fix/**'
+      - 'feat/**'
+      - 'audit/**'
+      - 'docs/**'
+      - 'chore/**'
+      - 'test/**'   # un carril de pruebas DEBE disparar CI, por definicion
+      - 'ops/**'        # detectado por check-ci-config: existia sin cubrir
+      - 'dependabot/**' # idem: los bumps se probaban solo al abrir el PR
   pull_request:
     branches: [ main ]
 
@@ -200,6 +216,81 @@ jobs:
             exit 1
           fi
           echo "OK: ejemplos sincronizados (modificados y sin rastrear)"
+
+  check-ci-config:
+    name: Configuracion de CI (prefijos de rama y tests que dependen de Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Ninguna rama sin CI y ningun test que se omita por falta de Node
+        run: python3 .github/scripts/check_ci_config.py
+
+  # Instalado desde .github/ci-fragments/test-graph-js.yml al llegar
+  # viewer/tests/test_graph_ux_v2.py con esta rama. Sin este job, ese fichero
+  # solo corre en `test-viewer`, que NO tiene Node: las ~38 aserciones de la
+  # especificacion JS se omitian en silencio y el job requerido pasaba igual.
+  # `check-ci-config` falla si alguien lo quita.
+  test-graph-js:
+    name: Especificacion JS del grafo (Node obligatorio)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: 'viewer/requirements.txt'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Node tiene que estar
+        run: |
+          # Sin `|| true`: si no hay Node, el gate falla aqui y se ve, en vez
+          # de degradarse a un skip verde mas abajo.
+          set -euo pipefail
+          node --version
+
+      - name: Install viewer dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r viewer/requirements.txt
+
+      - name: Run graph UX spec (sin skips permitidos)
+        run: |
+          # `bash -e` aborta el paso en cuanto la asignacion recoge un pytest
+          # fallido y NUNCA se llega al `echo`: el paso sale en rojo sin decir
+          # que fallo. Se captura el codigo aparte y SIEMPRE se imprime.
+          cd viewer
+          set +e
+          out="$(python -m pytest tests/test_graph_ux_v2.py -v --no-header 2>&1)"
+          rc=$?
+          set -e
+          echo "$out"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::la especificacion del grafo ha FALLADO"
+            exit 1
+          fi
+          # Con Node disponible, un skip es una prueba que no existe.
+          if echo "$out" | grep -qi "skipped"; then
+            echo "::error::se han OMITIDO pruebas con Node disponible"
+            exit 1
+          fi
+          if ! echo "$out" | grep -qE '[0-9]+ passed'; then
+            echo "::error::la especificacion no llego a ejecutar ninguna prueba"
+            exit 1
+          fi
 
   check-unicode:
     name: No dangerous Unicode (Trojan Source)

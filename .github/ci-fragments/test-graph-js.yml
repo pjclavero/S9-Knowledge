@@ -1,0 +1,69 @@
+# FRAGMENTO, no es un workflow. Vive fuera de `.github/workflows/` a proposito:
+# alli GitHub intentaria ejecutarlo y fallaria al parsearlo.
+#
+# Por que no esta ya en ci.yml: el fichero que ejecuta,
+# `viewer/tests/test_graph_ux_v2.py`, llega con `feat/viewer-graph-ux-v2` y hoy
+# no existe en `main`. Un job que en `main` no ejecutase nada pasaria en verde
+# sin comprobar nada, que es justo el fallo que este arreglo persigue; y uno que
+# fallase por fichero ausente dejaria `main` en rojo sin culpa de nadie.
+#
+# Instalacion: al fusionar `feat/viewer-graph-ux-v2`, pegar este job en
+# `.github/workflows/ci.yml` (al nivel de los demas jobs, dos espacios de
+# indentacion). `check-ci-config` FALLA mientras exista un test que dependa de
+# Node sin este job, asi que el paso no se puede olvidar.
+
+  test-graph-js:
+    name: Especificacion JS del grafo (Node obligatorio)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: 'viewer/requirements.txt'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Node tiene que estar
+        run: |
+          # Sin `|| true`: si no hay Node, el gate falla aqui y se ve, en vez
+          # de degradarse a un skip verde mas abajo.
+          set -euo pipefail
+          node --version
+
+      - name: Install viewer dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r viewer/requirements.txt
+
+      - name: Run graph UX spec (sin skips permitidos)
+        run: |
+          # `bash -e` aborta el paso en cuanto la asignacion recoge un pytest
+          # fallido y NUNCA se llega al `echo`: el paso sale en rojo sin decir
+          # que fallo. Se captura el codigo aparte y SIEMPRE se imprime.
+          cd viewer
+          set +e
+          out="$(python -m pytest tests/test_graph_ux_v2.py -v --no-header 2>&1)"
+          rc=$?
+          set -e
+          echo "$out"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::la especificacion del grafo ha FALLADO"
+            exit 1
+          fi
+          # Con Node disponible, un skip es una prueba que no existe.
+          if echo "$out" | grep -qi "skipped"; then
+            echo "::error::se han OMITIDO pruebas con Node disponible"
+            exit 1
+          fi
+          if ! echo "$out" | grep -qE '[0-9]+ passed'; then
+            echo "::error::la especificacion no llego a ejecutar ninguna prueba"
+            exit 1
+          fi

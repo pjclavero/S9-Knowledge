@@ -67,7 +67,11 @@
   </aside>
 
   <div class="graph-main">
-    <p id="graph-status" class="graph-status" role="status" hidden></p>
+    <!-- `aria-live` va AQUI, no solo en los contadores: esta es la zona que
+         anuncia "cargando", "sin resultados" y los errores. Antes el test de
+         accesibilidad se conformaba con el `aria-live` de `.graph-counters`,
+         asi que este mensaje podia quedarse mudo sin que nada fallara. -->
+    <p id="graph-status" class="graph-status" role="status" aria-live="polite" aria-atomic="true" hidden></p>
     <div id="graph-canvas" role="application" aria-label="Grafo de conocimiento" tabindex="0"></div>
   </div>
 
