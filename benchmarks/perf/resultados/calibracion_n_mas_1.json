@@ -1,0 +1,108 @@
+{
+  "medidas": {
+    "sano": {
+      "100": {
+        "llamadas_fuente": 1
+      },
+      "1000": {
+        "llamadas_fuente": 1
+      }
+    },
+    "con_n_mas_1": {
+      "100": {
+        "llamadas_fuente": 51
+      },
+      "1000": {
+        "llamadas_fuente": 51
+      }
+    }
+  },
+  "eje1_dataset_sin_parche": [
+    {
+      "escenario": "api_entities",
+      "llamadas@100": 1,
+      "llamadas@1000": 1,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    }
+  ],
+  "eje1_dataset_con_parche": [
+    {
+      "escenario": "api_entities",
+      "llamadas@100": 51,
+      "llamadas@1000": 51,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    }
+  ],
+  "eje2_pagina_sin_parche": {
+    "100": [
+      {
+        "escenario": "api_entities",
+        "llamadas@pagina10": 1,
+        "llamadas@pagina100": 1,
+        "ratio": 1.0,
+        "veredicto": "constante"
+      },
+      {
+        "escenario": "api_graph",
+        "llamadas@pagina10": 1,
+        "llamadas@pagina100": 1,
+        "ratio": 1.0,
+        "veredicto": "constante"
+      }
+    ],
+    "1000": [
+      {
+        "escenario": "api_entities",
+        "llamadas@pagina10": 1,
+        "llamadas@pagina100": 1,
+        "ratio": 1.0,
+        "veredicto": "constante"
+      },
+      {
+        "escenario": "api_graph",
+        "llamadas@pagina10": 1,
+        "llamadas@pagina100": 1,
+        "ratio": 1.0,
+        "veredicto": "constante"
+      }
+    ]
+  },
+  "eje2_pagina_con_parche": {
+    "100": [
+      {
+        "escenario": "api_entities",
+        "llamadas@pagina10": 11,
+        "llamadas@pagina100": 101,
+        "ratio": 9.18,
+        "veredicto": "N+1"
+      },
+      {
+        "escenario": "api_graph",
+        "llamadas@pagina10": 1,
+        "llamadas@pagina100": 1,
+        "ratio": 1.0,
+        "veredicto": "constante"
+      }
+    ],
+    "1000": [
+      {
+        "escenario": "api_entities",
+        "llamadas@pagina10": 11,
+        "llamadas@pagina100": 101,
+        "ratio": 9.18,
+        "veredicto": "N+1"
+      },
+      {
+        "escenario": "api_graph",
+        "llamadas@pagina10": 1,
+        "llamadas@pagina100": 1,
+        "ratio": 1.0,
+        "veredicto": "constante"
+      }
+    ]
+  },
+  "llamadas_extra_por_pagina": 50,
+  "arnes_calibrado": true
+}

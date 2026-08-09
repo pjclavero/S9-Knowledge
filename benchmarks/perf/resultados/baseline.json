@@ -1,0 +1,1902 @@
+{
+  "entorno": {
+    "commit": "28320bd",
+    "rama": "perf/viewer-scale-baseline-v1",
+    "python": "3.13.5",
+    "cpu": "8",
+    "modelo_cpu": "Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz",
+    "ram_total": "MemTotal:        9156832 kB",
+    "so": "Linux 6.12.90+deb13.1-amd64",
+    "advertencia": "Máquina de desarrollo compartida, proveedor mock en memoria, cliente en proceso. NO es rendimiento de producción."
+  },
+  "generado": "2026-08-09T20:44:38+0200",
+  "dataset": {
+    "generador": "benchmarks/perf/dataset.py",
+    "semilla": 20260809,
+    "relaciones_por_entidad": 3,
+    "sintetico": true
+  },
+  "http": {
+    "100": {
+      "home": {
+        "url": "/",
+        "status": 200,
+        "bytes": 983,
+        "elementos": 0,
+        "llamadas_fuente": 0,
+        "filas_materializadas": 0,
+        "llamadas_por_metodo": {},
+        "filas_por_metodo": {},
+        "p50_ms": 3.311,
+        "p95_ms": 3.911,
+        "max_ms": 4.388,
+        "media_ms": 3.379,
+        "n": 30
+      },
+      "api_status": {
+        "url": "/api/status",
+        "status": 200,
+        "bytes": 110,
+        "elementos": 0,
+        "llamadas_fuente": 4,
+        "filas_materializadas": 403,
+        "llamadas_por_metodo": {
+          "is_connected": 1,
+          "workspaces": 2,
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "is_connected": 1,
+          "workspaces": 2,
+          "graph": 400
+        },
+        "p50_ms": 4.363,
+        "p95_ms": 4.831,
+        "max_ms": 4.945,
+        "media_ms": 4.413,
+        "n": 30
+      },
+      "api_workspaces": {
+        "url": "/api/workspaces",
+        "status": 200,
+        "bytes": 26,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1,
+        "llamadas_por_metodo": {
+          "workspaces": 1
+        },
+        "filas_por_metodo": {
+          "workspaces": 1
+        },
+        "p50_ms": 4.038,
+        "p95_ms": 4.742,
+        "max_ms": 6.204,
+        "media_ms": 4.131,
+        "n": 30
+      },
+      "api_entity_types": {
+        "url": "/api/entity-types",
+        "status": 200,
+        "bytes": 338,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 101,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 101
+        },
+        "p50_ms": 4.453,
+        "p95_ms": 6.624,
+        "max_ms": 10.491,
+        "media_ms": 4.912,
+        "n": 30
+      },
+      "api_graph_300": {
+        "url": "/api/graph?limit=300",
+        "status": 200,
+        "bytes": 218335,
+        "elementos": 400,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 400,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 400
+        },
+        "p50_ms": 20.582,
+        "p95_ms": 23.244,
+        "max_ms": 24.384,
+        "media_ms": 20.821,
+        "n": 30
+      },
+      "api_graph_300_filtro_tipo": {
+        "url": "/api/graph?limit=300&entity_type=Character",
+        "status": 200,
+        "bytes": 14576,
+        "elementos": 16,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 16,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 16
+        },
+        "p50_ms": 5.39,
+        "p95_ms": 6.958,
+        "max_ms": 7.797,
+        "media_ms": 5.561,
+        "n": 30
+      },
+      "api_graph_300_busqueda": {
+        "url": "/api/graph?limit=300&q=sintetico",
+        "status": 200,
+        "bytes": 218335,
+        "elementos": 400,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 400,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 400
+        },
+        "p50_ms": 21.273,
+        "p95_ms": 30.248,
+        "max_ms": 72.13,
+        "media_ms": 23.395,
+        "n": 30
+      },
+      "api_search": {
+        "url": "/api/search?q=sintetico",
+        "status": 200,
+        "bytes": 50391,
+        "elementos": 50,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 100,
+        "llamadas_por_metodo": {
+          "search": 1
+        },
+        "filas_por_metodo": {
+          "search": 100
+        },
+        "p50_ms": 7.805,
+        "p95_ms": 12.756,
+        "max_ms": 13.659,
+        "media_ms": 8.766,
+        "n": 30
+      },
+      "api_entities_pag1": {
+        "url": "/api/entities?limit=50&offset=0",
+        "status": 200,
+        "bytes": 50806,
+        "elementos": 50,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 101,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 101
+        },
+        "p50_ms": 8.733,
+        "p95_ms": 13.084,
+        "max_ms": 13.896,
+        "media_ms": 9.21,
+        "n": 30
+      },
+      "api_entities_ultima_pag": {
+        "url": "/api/entities?limit=50&offset=50",
+        "status": 200,
+        "bytes": 50647,
+        "elementos": 50,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 101,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 101
+        },
+        "p50_ms": 8.025,
+        "p95_ms": 9.553,
+        "max_ms": 10.257,
+        "media_ms": 8.27,
+        "n": 30
+      },
+      "api_entities_filtro": {
+        "url": "/api/entities?limit=50&entity_type=Character",
+        "status": 200,
+        "bytes": 13684,
+        "elementos": 13,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 14,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 14
+        },
+        "p50_ms": 5.676,
+        "p95_ms": 7.502,
+        "max_ms": 8.067,
+        "media_ms": 5.872,
+        "n": 30
+      },
+      "api_entity_detalle": {
+        "url": "/api/entities/p_0000050",
+        "status": 200,
+        "bytes": 6778,
+        "elementos": 4,
+        "llamadas_fuente": 11,
+        "filas_materializadas": 14,
+        "llamadas_por_metodo": {
+          "entity": 10,
+          "relations_for_entity": 1
+        },
+        "filas_por_metodo": {
+          "entity": 10,
+          "relations_for_entity": 4
+        },
+        "p50_ms": 5.141,
+        "p95_ms": 6.503,
+        "max_ms": 6.529,
+        "media_ms": 5.315,
+        "n": 30
+      },
+      "api_entity_detalle_legacy": {
+        "url": "/api/entity/p_0000050",
+        "status": 200,
+        "bytes": 6778,
+        "elementos": 4,
+        "llamadas_fuente": 11,
+        "filas_materializadas": 14,
+        "llamadas_por_metodo": {
+          "entity": 10,
+          "relations_for_entity": 1
+        },
+        "filas_por_metodo": {
+          "entity": 10,
+          "relations_for_entity": 4
+        },
+        "p50_ms": 5.028,
+        "p95_ms": 6.824,
+        "max_ms": 7.994,
+        "media_ms": 5.255,
+        "n": 30
+      },
+      "api_sources": {
+        "url": "/api/sources",
+        "status": 200,
+        "bytes": 263,
+        "elementos": 4,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 101,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 101
+        },
+        "p50_ms": 4.713,
+        "p95_ms": 5.34,
+        "max_ms": 5.449,
+        "media_ms": 4.783,
+        "n": 30
+      },
+      "api_quality": {
+        "url": "/api/quality",
+        "status": 200,
+        "bytes": 543,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 400,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 400
+        },
+        "p50_ms": 5.36,
+        "p95_ms": 6.331,
+        "max_ms": 7.608,
+        "media_ms": 5.501,
+        "n": 30
+      },
+      "api_jobs": {
+        "url": "/api/jobs",
+        "status": 200,
+        "bytes": 40,
+        "elementos": 0,
+        "llamadas_fuente": 0,
+        "filas_materializadas": 0,
+        "llamadas_por_metodo": {},
+        "filas_por_metodo": {},
+        "p50_ms": 4.884,
+        "p95_ms": 5.975,
+        "max_ms": 6.047,
+        "media_ms": 4.978,
+        "n": 30
+      },
+      "html_entities": {
+        "url": "/entities?limit=50",
+        "status": 200,
+        "bytes": 22479,
+        "elementos": 0,
+        "llamadas_fuente": 2,
+        "filas_materializadas": 202,
+        "llamadas_por_metodo": {
+          "list_entities": 2
+        },
+        "filas_por_metodo": {
+          "list_entities": 202
+        },
+        "p50_ms": 6.069,
+        "p95_ms": 6.933,
+        "max_ms": 7.344,
+        "media_ms": 6.182,
+        "n": 30
+      },
+      "html_graph": {
+        "url": "/graph",
+        "status": 200,
+        "bytes": 1857,
+        "elementos": 0,
+        "llamadas_fuente": 0,
+        "filas_materializadas": 0,
+        "llamadas_por_metodo": {},
+        "filas_por_metodo": {},
+        "p50_ms": 3.388,
+        "p95_ms": 4.839,
+        "max_ms": 6.296,
+        "media_ms": 3.721,
+        "n": 30
+      },
+      "html_entity_detalle": {
+        "url": "/entities/p_0000050",
+        "status": 200,
+        "bytes": 5592,
+        "elementos": 0,
+        "llamadas_fuente": 11,
+        "filas_materializadas": 14,
+        "llamadas_por_metodo": {
+          "entity": 10,
+          "relations_for_entity": 1
+        },
+        "filas_por_metodo": {
+          "entity": 10,
+          "relations_for_entity": 4
+        },
+        "p50_ms": 5.15,
+        "p95_ms": 7.478,
+        "max_ms": 7.644,
+        "media_ms": 5.403,
+        "n": 30
+      },
+      "html_sources": {
+        "url": "/sources",
+        "status": 200,
+        "bytes": 2362,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 101,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 101
+        },
+        "p50_ms": 4.669,
+        "p95_ms": 5.094,
+        "max_ms": 5.137,
+        "media_ms": 4.678,
+        "n": 30
+      },
+      "html_quality": {
+        "url": "/quality",
+        "status": 200,
+        "bytes": 7678,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 400,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 400
+        },
+        "p50_ms": 5.099,
+        "p95_ms": 6.001,
+        "max_ms": 6.145,
+        "media_ms": 5.19,
+        "n": 30
+      },
+      "html_reviews": {
+        "url": "/reviews",
+        "status": 200,
+        "bytes": 1027,
+        "elementos": 0,
+        "llamadas_fuente": 0,
+        "filas_materializadas": 0,
+        "llamadas_por_metodo": {},
+        "filas_por_metodo": {},
+        "p50_ms": 3.738,
+        "p95_ms": 4.72,
+        "max_ms": 8.03,
+        "media_ms": 3.958,
+        "n": 30
+      }
+    },
+    "1000": {
+      "home": {
+        "url": "/",
+        "status": 200,
+        "bytes": 983,
+        "elementos": 0,
+        "llamadas_fuente": 0,
+        "filas_materializadas": 0,
+        "llamadas_por_metodo": {},
+        "filas_por_metodo": {},
+        "p50_ms": 9.979,
+        "p95_ms": 17.499,
+        "max_ms": 25.993,
+        "media_ms": 11.456,
+        "n": 15
+      },
+      "api_status": {
+        "url": "/api/status",
+        "status": 200,
+        "bytes": 112,
+        "elementos": 0,
+        "llamadas_fuente": 4,
+        "filas_materializadas": 4003,
+        "llamadas_por_metodo": {
+          "is_connected": 1,
+          "workspaces": 2,
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "is_connected": 1,
+          "workspaces": 2,
+          "graph": 4000
+        },
+        "p50_ms": 19.931,
+        "p95_ms": 25.846,
+        "max_ms": 27.221,
+        "media_ms": 20.387,
+        "n": 15
+      },
+      "api_workspaces": {
+        "url": "/api/workspaces",
+        "status": 200,
+        "bytes": 26,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1,
+        "llamadas_por_metodo": {
+          "workspaces": 1
+        },
+        "filas_por_metodo": {
+          "workspaces": 1
+        },
+        "p50_ms": 16.184,
+        "p95_ms": 30.046,
+        "max_ms": 34.036,
+        "media_ms": 18.701,
+        "n": 15
+      },
+      "api_entity_types": {
+        "url": "/api/entity-types",
+        "status": 200,
+        "bytes": 346,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1001,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 1001
+        },
+        "p50_ms": 20.093,
+        "p95_ms": 25.864,
+        "max_ms": 29.427,
+        "media_ms": 20.348,
+        "n": 15
+      },
+      "api_graph_300": {
+        "url": "/api/graph?limit=300",
+        "status": 200,
+        "bytes": 410515,
+        "elementos": 575,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 4000,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 4000
+        },
+        "p50_ms": 71.373,
+        "p95_ms": 89.0,
+        "max_ms": 96.358,
+        "media_ms": 69.48,
+        "n": 15
+      },
+      "api_graph_300_filtro_tipo": {
+        "url": "/api/graph?limit=300&entity_type=Character",
+        "status": 200,
+        "bytes": 147492,
+        "elementos": 173,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 173,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 173
+        },
+        "p50_ms": 35.216,
+        "p95_ms": 42.278,
+        "max_ms": 44.302,
+        "media_ms": 35.197,
+        "n": 15
+      },
+      "api_graph_300_busqueda": {
+        "url": "/api/graph?limit=300&q=sintetico",
+        "status": 200,
+        "bytes": 410515,
+        "elementos": 575,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 4000,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 4000
+        },
+        "p50_ms": 70.158,
+        "p95_ms": 144.882,
+        "max_ms": 151.677,
+        "media_ms": 79.341,
+        "n": 15
+      },
+      "api_search": {
+        "url": "/api/search?q=sintetico",
+        "status": 200,
+        "bytes": 50708,
+        "elementos": 50,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1000,
+        "llamadas_por_metodo": {
+          "search": 1
+        },
+        "filas_por_metodo": {
+          "search": 1000
+        },
+        "p50_ms": 20.981,
+        "p95_ms": 37.427,
+        "max_ms": 41.874,
+        "media_ms": 23.777,
+        "n": 15
+      },
+      "api_entities_pag1": {
+        "url": "/api/entities?limit=50&offset=0",
+        "status": 200,
+        "bytes": 51883,
+        "elementos": 50,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1001,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 1001
+        },
+        "p50_ms": 44.052,
+        "p95_ms": 55.658,
+        "max_ms": 55.921,
+        "media_ms": 42.138,
+        "n": 15
+      },
+      "api_entities_ultima_pag": {
+        "url": "/api/entities?limit=50&offset=950",
+        "status": 200,
+        "bytes": 51155,
+        "elementos": 50,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1001,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 1001
+        },
+        "p50_ms": 19.399,
+        "p95_ms": 27.283,
+        "max_ms": 37.092,
+        "media_ms": 20.222,
+        "n": 15
+      },
+      "api_entities_filtro": {
+        "url": "/api/entities?limit=50&entity_type=Character",
+        "status": 200,
+        "bytes": 51889,
+        "elementos": 50,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 126,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 126
+        },
+        "p50_ms": 13.989,
+        "p95_ms": 20.174,
+        "max_ms": 21.185,
+        "media_ms": 14.452,
+        "n": 15
+      },
+      "api_entity_detalle": {
+        "url": "/api/entities/p_0000500",
+        "status": 200,
+        "bytes": 9618,
+        "elementos": 6,
+        "llamadas_fuente": 15,
+        "filas_materializadas": 20,
+        "llamadas_por_metodo": {
+          "entity": 14,
+          "relations_for_entity": 1
+        },
+        "filas_por_metodo": {
+          "entity": 14,
+          "relations_for_entity": 6
+        },
+        "p50_ms": 14.914,
+        "p95_ms": 22.527,
+        "max_ms": 25.503,
+        "media_ms": 15.273,
+        "n": 15
+      },
+      "api_entity_detalle_legacy": {
+        "url": "/api/entity/p_0000500",
+        "status": 200,
+        "bytes": 9618,
+        "elementos": 6,
+        "llamadas_fuente": 15,
+        "filas_materializadas": 20,
+        "llamadas_por_metodo": {
+          "entity": 14,
+          "relations_for_entity": 1
+        },
+        "filas_por_metodo": {
+          "entity": 14,
+          "relations_for_entity": 6
+        },
+        "p50_ms": 17.973,
+        "p95_ms": 31.184,
+        "max_ms": 32.163,
+        "media_ms": 20.143,
+        "n": 15
+      },
+      "api_sources": {
+        "url": "/api/sources",
+        "status": 200,
+        "bytes": 2315,
+        "elementos": 40,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1001,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 1001
+        },
+        "p50_ms": 19.042,
+        "p95_ms": 27.952,
+        "max_ms": 31.767,
+        "media_ms": 18.142,
+        "n": 15
+      },
+      "api_quality": {
+        "url": "/api/quality",
+        "status": 200,
+        "bytes": 565,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 4000,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 4000
+        },
+        "p50_ms": 23.874,
+        "p95_ms": 31.819,
+        "max_ms": 33.151,
+        "media_ms": 22.349,
+        "n": 15
+      },
+      "api_jobs": {
+        "url": "/api/jobs",
+        "status": 200,
+        "bytes": 40,
+        "elementos": 0,
+        "llamadas_fuente": 0,
+        "filas_materializadas": 0,
+        "llamadas_por_metodo": {},
+        "filas_por_metodo": {},
+        "p50_ms": 13.99,
+        "p95_ms": 21.506,
+        "max_ms": 21.926,
+        "media_ms": 13.398,
+        "n": 15
+      },
+      "html_entities": {
+        "url": "/entities?limit=50",
+        "status": 200,
+        "bytes": 22879,
+        "elementos": 0,
+        "llamadas_fuente": 2,
+        "filas_materializadas": 2002,
+        "llamadas_por_metodo": {
+          "list_entities": 2
+        },
+        "filas_por_metodo": {
+          "list_entities": 2002
+        },
+        "p50_ms": 22.068,
+        "p95_ms": 33.508,
+        "max_ms": 34.778,
+        "media_ms": 23.548,
+        "n": 15
+      },
+      "html_graph": {
+        "url": "/graph",
+        "status": 200,
+        "bytes": 1857,
+        "elementos": 0,
+        "llamadas_fuente": 0,
+        "filas_materializadas": 0,
+        "llamadas_por_metodo": {},
+        "filas_por_metodo": {},
+        "p50_ms": 10.95,
+        "p95_ms": 18.361,
+        "max_ms": 24.585,
+        "media_ms": 12.684,
+        "n": 15
+      },
+      "html_entity_detalle": {
+        "url": "/entities/p_0000500",
+        "status": 200,
+        "bytes": 7067,
+        "elementos": 0,
+        "llamadas_fuente": 15,
+        "filas_materializadas": 20,
+        "llamadas_por_metodo": {
+          "entity": 14,
+          "relations_for_entity": 1
+        },
+        "filas_por_metodo": {
+          "entity": 14,
+          "relations_for_entity": 6
+        },
+        "p50_ms": 10.137,
+        "p95_ms": 20.13,
+        "max_ms": 20.444,
+        "media_ms": 11.26,
+        "n": 15
+      },
+      "html_sources": {
+        "url": "/sources",
+        "status": 200,
+        "bytes": 13378,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1001,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 1001
+        },
+        "p50_ms": 16.19,
+        "p95_ms": 18.941,
+        "max_ms": 19.679,
+        "media_ms": 16.001,
+        "n": 15
+      },
+      "html_quality": {
+        "url": "/quality",
+        "status": 200,
+        "bytes": 7695,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 4000,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 4000
+        },
+        "p50_ms": 24.747,
+        "p95_ms": 31.465,
+        "max_ms": 32.528,
+        "media_ms": 25.104,
+        "n": 15
+      },
+      "html_reviews": {
+        "url": "/reviews",
+        "status": 200,
+        "bytes": 1027,
+        "elementos": 0,
+        "llamadas_fuente": 0,
+        "filas_materializadas": 0,
+        "llamadas_por_metodo": {},
+        "filas_por_metodo": {},
+        "p50_ms": 14.308,
+        "p95_ms": 17.854,
+        "max_ms": 19.157,
+        "media_ms": 14.071,
+        "n": 15
+      }
+    },
+    "10000": {
+      "home": {
+        "url": "/",
+        "status": 200,
+        "bytes": 983,
+        "elementos": 0,
+        "llamadas_fuente": 0,
+        "filas_materializadas": 0,
+        "llamadas_por_metodo": {},
+        "filas_por_metodo": {},
+        "p50_ms": 12.31,
+        "p95_ms": 16.165,
+        "max_ms": 16.165,
+        "media_ms": 12.901,
+        "n": 7
+      },
+      "api_status": {
+        "url": "/api/status",
+        "status": 200,
+        "bytes": 114,
+        "elementos": 0,
+        "llamadas_fuente": 4,
+        "filas_materializadas": 40003,
+        "llamadas_por_metodo": {
+          "is_connected": 1,
+          "workspaces": 2,
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "is_connected": 1,
+          "workspaces": 2,
+          "graph": 40000
+        },
+        "p50_ms": 158.419,
+        "p95_ms": 210.864,
+        "max_ms": 210.864,
+        "media_ms": 146.258,
+        "n": 7
+      },
+      "api_workspaces": {
+        "url": "/api/workspaces",
+        "status": 200,
+        "bytes": 26,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1,
+        "llamadas_por_metodo": {
+          "workspaces": 1
+        },
+        "filas_por_metodo": {
+          "workspaces": 1
+        },
+        "p50_ms": 17.35,
+        "p95_ms": 21.625,
+        "max_ms": 21.625,
+        "media_ms": 18.246,
+        "n": 7
+      },
+      "api_entity_types": {
+        "url": "/api/entity-types",
+        "status": 200,
+        "bytes": 354,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 10001,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 10001
+        },
+        "p50_ms": 50.565,
+        "p95_ms": 64.97,
+        "max_ms": 64.97,
+        "media_ms": 52.321,
+        "n": 7
+      },
+      "api_graph_300": {
+        "url": "/api/graph?limit=300",
+        "status": 200,
+        "bytes": 312549,
+        "elementos": 325,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 40000,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 40000
+        },
+        "p50_ms": 118.669,
+        "p95_ms": 194.598,
+        "max_ms": 194.598,
+        "media_ms": 121.13,
+        "n": 7
+      },
+      "api_graph_300_filtro_tipo": {
+        "url": "/api/graph?limit=300&entity_type=Character",
+        "status": 200,
+        "bytes": 319758,
+        "elementos": 329,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1745,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 1745
+        },
+        "p50_ms": 42.438,
+        "p95_ms": 56.592,
+        "max_ms": 56.592,
+        "media_ms": 45.365,
+        "n": 7
+      },
+      "api_graph_300_busqueda": {
+        "url": "/api/graph?limit=300&q=sintetico",
+        "status": 200,
+        "bytes": 312549,
+        "elementos": 325,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 40000,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 40000
+        },
+        "p50_ms": 64.872,
+        "p95_ms": 82.881,
+        "max_ms": 82.881,
+        "media_ms": 68.49,
+        "n": 7
+      },
+      "api_search": {
+        "url": "/api/search?q=sintetico",
+        "status": 200,
+        "bytes": 50560,
+        "elementos": 50,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 10000,
+        "llamadas_por_metodo": {
+          "search": 1
+        },
+        "filas_por_metodo": {
+          "search": 10000
+        },
+        "p50_ms": 25.763,
+        "p95_ms": 26.867,
+        "max_ms": 26.867,
+        "media_ms": 25.786,
+        "n": 7
+      },
+      "api_entities_pag1": {
+        "url": "/api/entities?limit=50&offset=0",
+        "status": 200,
+        "bytes": 51731,
+        "elementos": 50,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 10001,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 10001
+        },
+        "p50_ms": 20.493,
+        "p95_ms": 21.118,
+        "max_ms": 21.118,
+        "media_ms": 19.853,
+        "n": 7
+      },
+      "api_entities_ultima_pag": {
+        "url": "/api/entities?limit=50&offset=9950",
+        "status": 200,
+        "bytes": 51106,
+        "elementos": 50,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 10001,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 10001
+        },
+        "p50_ms": 19.381,
+        "p95_ms": 21.3,
+        "max_ms": 21.3,
+        "media_ms": 19.03,
+        "n": 7
+      },
+      "api_entities_filtro": {
+        "url": "/api/entities?limit=50&entity_type=Character",
+        "status": 200,
+        "bytes": 51737,
+        "elementos": 50,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1251,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 1251
+        },
+        "p50_ms": 14.301,
+        "p95_ms": 21.189,
+        "max_ms": 21.189,
+        "media_ms": 15.375,
+        "n": 7
+      },
+      "api_entity_detalle": {
+        "url": "/api/entities/p_0005000",
+        "status": 200,
+        "bytes": 2466,
+        "elementos": 1,
+        "llamadas_fuente": 5,
+        "filas_materializadas": 5,
+        "llamadas_por_metodo": {
+          "entity": 4,
+          "relations_for_entity": 1
+        },
+        "filas_por_metodo": {
+          "entity": 4,
+          "relations_for_entity": 1
+        },
+        "p50_ms": 35.485,
+        "p95_ms": 43.176,
+        "max_ms": 43.176,
+        "media_ms": 36.08,
+        "n": 7
+      },
+      "api_entity_detalle_legacy": {
+        "url": "/api/entity/p_0005000",
+        "status": 200,
+        "bytes": 2466,
+        "elementos": 1,
+        "llamadas_fuente": 5,
+        "filas_materializadas": 5,
+        "llamadas_por_metodo": {
+          "entity": 4,
+          "relations_for_entity": 1
+        },
+        "filas_por_metodo": {
+          "entity": 4,
+          "relations_for_entity": 1
+        },
+        "p50_ms": 23.869,
+        "p95_ms": 38.925,
+        "max_ms": 38.925,
+        "media_ms": 27.129,
+        "n": 7
+      },
+      "api_sources": {
+        "url": "/api/sources",
+        "status": 200,
+        "bytes": 22835,
+        "elementos": 400,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 10001,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 10001
+        },
+        "p50_ms": 56.3,
+        "p95_ms": 88.153,
+        "max_ms": 88.153,
+        "media_ms": 64.387,
+        "n": 7
+      },
+      "api_quality": {
+        "url": "/api/quality",
+        "status": 200,
+        "bytes": 587,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 40000,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 40000
+        },
+        "p50_ms": 113.166,
+        "p95_ms": 123.77,
+        "max_ms": 123.77,
+        "media_ms": 113.317,
+        "n": 7
+      },
+      "api_jobs": {
+        "url": "/api/jobs",
+        "status": 200,
+        "bytes": 40,
+        "elementos": 0,
+        "llamadas_fuente": 0,
+        "filas_materializadas": 0,
+        "llamadas_por_metodo": {},
+        "filas_por_metodo": {},
+        "p50_ms": 17.512,
+        "p95_ms": 27.914,
+        "max_ms": 27.914,
+        "media_ms": 19.253,
+        "n": 7
+      },
+      "html_entities": {
+        "url": "/entities?limit=50",
+        "status": 200,
+        "bytes": 22557,
+        "elementos": 0,
+        "llamadas_fuente": 2,
+        "filas_materializadas": 20002,
+        "llamadas_por_metodo": {
+          "list_entities": 2
+        },
+        "filas_por_metodo": {
+          "list_entities": 20002
+        },
+        "p50_ms": 49.501,
+        "p95_ms": 104.196,
+        "max_ms": 104.196,
+        "media_ms": 59.427,
+        "n": 7
+      },
+      "html_graph": {
+        "url": "/graph",
+        "status": 200,
+        "bytes": 1857,
+        "elementos": 0,
+        "llamadas_fuente": 0,
+        "filas_materializadas": 0,
+        "llamadas_por_metodo": {},
+        "filas_por_metodo": {},
+        "p50_ms": 11.352,
+        "p95_ms": 12.426,
+        "max_ms": 12.426,
+        "media_ms": 10.366,
+        "n": 7
+      },
+      "html_entity_detalle": {
+        "url": "/entities/p_0005000",
+        "status": 200,
+        "bytes": 3826,
+        "elementos": 0,
+        "llamadas_fuente": 5,
+        "filas_materializadas": 5,
+        "llamadas_por_metodo": {
+          "entity": 4,
+          "relations_for_entity": 1
+        },
+        "filas_por_metodo": {
+          "entity": 4,
+          "relations_for_entity": 1
+        },
+        "p50_ms": 28.359,
+        "p95_ms": 37.679,
+        "max_ms": 37.679,
+        "media_ms": 27.278,
+        "n": 7
+      },
+      "html_sources": {
+        "url": "/sources",
+        "status": 200,
+        "bytes": 123538,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 10001,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "filas_por_metodo": {
+          "list_entities": 10001
+        },
+        "p50_ms": 63.307,
+        "p95_ms": 77.479,
+        "max_ms": 77.479,
+        "media_ms": 60.249,
+        "n": 7
+      },
+      "html_quality": {
+        "url": "/quality",
+        "status": 200,
+        "bytes": 7712,
+        "elementos": 0,
+        "llamadas_fuente": 1,
+        "filas_materializadas": 40000,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "filas_por_metodo": {
+          "graph": 40000
+        },
+        "p50_ms": 178.668,
+        "p95_ms": 273.56,
+        "max_ms": 273.56,
+        "media_ms": 170.383,
+        "n": 7
+      },
+      "html_reviews": {
+        "url": "/reviews",
+        "status": 200,
+        "bytes": 1027,
+        "elementos": 0,
+        "llamadas_fuente": 0,
+        "filas_materializadas": 0,
+        "llamadas_por_metodo": {},
+        "filas_por_metodo": {},
+        "p50_ms": 5.728,
+        "p95_ms": 17.255,
+        "max_ms": 17.255,
+        "media_ms": 8.961,
+        "n": 7
+      }
+    }
+  },
+  "politica_no_admin": {
+    "100": [
+      {
+        "escenario": "politica_list_entities_p1",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 101,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "p50_ms": 0.174,
+        "p95_ms": 0.225,
+        "max_ms": 0.247,
+        "media_ms": 0.181,
+        "n": 30
+      },
+      {
+        "escenario": "politica_graph_300",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 400,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "p50_ms": 0.402,
+        "p95_ms": 0.46,
+        "max_ms": 0.965,
+        "media_ms": 0.424,
+        "n": 30
+      },
+      {
+        "escenario": "politica_counts",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 400,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "p50_ms": 0.405,
+        "p95_ms": 0.429,
+        "max_ms": 2.996,
+        "media_ms": 0.494,
+        "n": 30
+      },
+      {
+        "escenario": "politica_search",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 100,
+        "llamadas_por_metodo": {
+          "search": 1
+        },
+        "p50_ms": 0.225,
+        "p95_ms": 0.244,
+        "max_ms": 0.246,
+        "media_ms": 0.229,
+        "n": 30
+      },
+      {
+        "escenario": "politica_list_sources",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 101,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "p50_ms": 0.178,
+        "p95_ms": 0.196,
+        "max_ms": 0.201,
+        "media_ms": 0.182,
+        "n": 30
+      },
+      {
+        "escenario": "politica_quality",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 400,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "p50_ms": 0.471,
+        "p95_ms": 0.533,
+        "max_ms": 0.538,
+        "media_ms": 0.482,
+        "n": 30
+      },
+      {
+        "escenario": "politica_relaciones_entidad",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1,
+        "llamadas_por_metodo": {
+          "entity": 1
+        },
+        "p50_ms": 0.004,
+        "p95_ms": 0.005,
+        "max_ms": 0.007,
+        "media_ms": 0.004,
+        "n": 30
+      }
+    ],
+    "1000": [
+      {
+        "escenario": "politica_list_entities_p1",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1001,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "p50_ms": 3.667,
+        "p95_ms": 6.117,
+        "max_ms": 8.085,
+        "media_ms": 4.225,
+        "n": 15
+      },
+      {
+        "escenario": "politica_graph_300",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 4000,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "p50_ms": 7.741,
+        "p95_ms": 16.648,
+        "max_ms": 20.612,
+        "media_ms": 8.826,
+        "n": 15
+      },
+      {
+        "escenario": "politica_counts",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 4000,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "p50_ms": 9.87,
+        "p95_ms": 14.57,
+        "max_ms": 22.099,
+        "media_ms": 9.894,
+        "n": 15
+      },
+      {
+        "escenario": "politica_search",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1000,
+        "llamadas_por_metodo": {
+          "search": 1
+        },
+        "p50_ms": 2.455,
+        "p95_ms": 4.789,
+        "max_ms": 10.741,
+        "media_ms": 3.297,
+        "n": 15
+      },
+      {
+        "escenario": "politica_list_sources",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 1001,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "p50_ms": 1.955,
+        "p95_ms": 2.098,
+        "max_ms": 2.183,
+        "media_ms": 1.979,
+        "n": 15
+      },
+      {
+        "escenario": "politica_quality",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 4000,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "p50_ms": 5.284,
+        "p95_ms": 6.174,
+        "max_ms": 6.871,
+        "media_ms": 5.462,
+        "n": 15
+      },
+      {
+        "escenario": "politica_relaciones_entidad",
+        "llamadas_fuente": 6,
+        "filas_materializadas": 11,
+        "llamadas_por_metodo": {
+          "entity": 5,
+          "relations_for_entity": 1
+        },
+        "p50_ms": 0.442,
+        "p95_ms": 0.725,
+        "max_ms": 1.048,
+        "media_ms": 0.511,
+        "n": 15
+      }
+    ],
+    "10000": [
+      {
+        "escenario": "politica_list_entities_p1",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 10001,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "p50_ms": 23.685,
+        "p95_ms": 24.603,
+        "max_ms": 24.603,
+        "media_ms": 23.562,
+        "n": 7
+      },
+      {
+        "escenario": "politica_graph_300",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 40000,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "p50_ms": 47.467,
+        "p95_ms": 47.729,
+        "max_ms": 47.729,
+        "media_ms": 47.098,
+        "n": 7
+      },
+      {
+        "escenario": "politica_counts",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 40000,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "p50_ms": 64.207,
+        "p95_ms": 65.749,
+        "max_ms": 65.749,
+        "media_ms": 64.13,
+        "n": 7
+      },
+      {
+        "escenario": "politica_search",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 10000,
+        "llamadas_por_metodo": {
+          "search": 1
+        },
+        "p50_ms": 29.36,
+        "p95_ms": 30.534,
+        "max_ms": 30.534,
+        "media_ms": 29.083,
+        "n": 7
+      },
+      {
+        "escenario": "politica_list_sources",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 10001,
+        "llamadas_por_metodo": {
+          "list_entities": 1
+        },
+        "p50_ms": 24.817,
+        "p95_ms": 26.074,
+        "max_ms": 26.074,
+        "media_ms": 24.493,
+        "n": 7
+      },
+      {
+        "escenario": "politica_quality",
+        "llamadas_fuente": 1,
+        "filas_materializadas": 40000,
+        "llamadas_por_metodo": {
+          "graph": 1
+        },
+        "p50_ms": 80.054,
+        "p95_ms": 82.085,
+        "max_ms": 82.085,
+        "media_ms": 79.662,
+        "n": 7
+      },
+      {
+        "escenario": "politica_relaciones_entidad",
+        "llamadas_fuente": 3,
+        "filas_materializadas": 3,
+        "llamadas_por_metodo": {
+          "entity": 2,
+          "relations_for_entity": 1
+        },
+        "p50_ms": 6.693,
+        "p95_ms": 8.352,
+        "max_ms": 8.352,
+        "media_ms": 6.933,
+        "n": 7
+      }
+    ]
+  },
+  "cypher": {
+    "100": [
+      {
+        "operacion": "cypher_counts",
+        "consultas_cypher": 2,
+        "filas_leidas": 2
+      },
+      {
+        "operacion": "cypher_entity_types",
+        "consultas_cypher": 1,
+        "filas_leidas": 8
+      },
+      {
+        "operacion": "cypher_graph_300",
+        "consultas_cypher": 2,
+        "filas_leidas": 400
+      },
+      {
+        "operacion": "cypher_list_entities_p1",
+        "consultas_cypher": 2,
+        "filas_leidas": 51
+      },
+      {
+        "operacion": "cypher_entity",
+        "consultas_cypher": 1,
+        "filas_leidas": 1
+      },
+      {
+        "operacion": "cypher_relations_for_entity",
+        "consultas_cypher": 2,
+        "filas_leidas": 4
+      },
+      {
+        "operacion": "cypher_list_sources",
+        "consultas_cypher": 1,
+        "filas_leidas": 8
+      },
+      {
+        "operacion": "cypher_quality",
+        "consultas_cypher": 13,
+        "filas_leidas": 41
+      },
+      {
+        "operacion": "cypher_ficha_entidad_completa",
+        "consultas_cypher": 12,
+        "filas_leidas": 14
+      }
+    ],
+    "1000": [
+      {
+        "operacion": "cypher_counts",
+        "consultas_cypher": 2,
+        "filas_leidas": 2
+      },
+      {
+        "operacion": "cypher_entity_types",
+        "consultas_cypher": 1,
+        "filas_leidas": 8
+      },
+      {
+        "operacion": "cypher_graph_300",
+        "consultas_cypher": 1,
+        "filas_leidas": 300
+      },
+      {
+        "operacion": "cypher_list_entities_p1",
+        "consultas_cypher": 2,
+        "filas_leidas": 51
+      },
+      {
+        "operacion": "cypher_entity",
+        "consultas_cypher": 1,
+        "filas_leidas": 1
+      },
+      {
+        "operacion": "cypher_relations_for_entity",
+        "consultas_cypher": 2,
+        "filas_leidas": 6
+      },
+      {
+        "operacion": "cypher_list_sources",
+        "consultas_cypher": 1,
+        "filas_leidas": 8
+      },
+      {
+        "operacion": "cypher_quality",
+        "consultas_cypher": 13,
+        "filas_leidas": 41
+      },
+      {
+        "operacion": "cypher_ficha_entidad_completa",
+        "consultas_cypher": 16,
+        "filas_leidas": 20
+      }
+    ],
+    "10000": [
+      {
+        "operacion": "cypher_counts",
+        "consultas_cypher": 2,
+        "filas_leidas": 2
+      },
+      {
+        "operacion": "cypher_entity_types",
+        "consultas_cypher": 1,
+        "filas_leidas": 8
+      },
+      {
+        "operacion": "cypher_graph_300",
+        "consultas_cypher": 1,
+        "filas_leidas": 300
+      },
+      {
+        "operacion": "cypher_list_entities_p1",
+        "consultas_cypher": 2,
+        "filas_leidas": 51
+      },
+      {
+        "operacion": "cypher_entity",
+        "consultas_cypher": 1,
+        "filas_leidas": 1
+      },
+      {
+        "operacion": "cypher_relations_for_entity",
+        "consultas_cypher": 2,
+        "filas_leidas": 1
+      },
+      {
+        "operacion": "cypher_list_sources",
+        "consultas_cypher": 1,
+        "filas_leidas": 8
+      },
+      {
+        "operacion": "cypher_quality",
+        "consultas_cypher": 13,
+        "filas_leidas": 41
+      },
+      {
+        "operacion": "cypher_ficha_entidad_completa",
+        "consultas_cypher": 6,
+        "filas_leidas": 5
+      }
+    ]
+  },
+  "n_mas_1_por_pagina": {
+    "100": [
+      {
+        "escenario": "api_entities",
+        "llamadas@pagina10": 1,
+        "llamadas@pagina100": 1,
+        "ratio": 1.0,
+        "veredicto": "constante"
+      },
+      {
+        "escenario": "api_graph",
+        "llamadas@pagina10": 1,
+        "llamadas@pagina100": 1,
+        "ratio": 1.0,
+        "veredicto": "constante"
+      }
+    ],
+    "1000": [
+      {
+        "escenario": "api_entities",
+        "llamadas@pagina10": 1,
+        "llamadas@pagina100": 1,
+        "ratio": 1.0,
+        "veredicto": "constante"
+      },
+      {
+        "escenario": "api_graph",
+        "llamadas@pagina10": 1,
+        "llamadas@pagina100": 1,
+        "ratio": 1.0,
+        "veredicto": "constante"
+      }
+    ],
+    "10000": [
+      {
+        "escenario": "api_entities",
+        "llamadas@pagina10": 1,
+        "llamadas@pagina100": 1,
+        "ratio": 1.0,
+        "veredicto": "constante"
+      },
+      {
+        "escenario": "api_graph",
+        "llamadas@pagina10": 1,
+        "llamadas@pagina100": 1,
+        "ratio": 1.0,
+        "veredicto": "constante"
+      }
+    ]
+  },
+  "llamadas_por_elemento": {
+    "100": [
+      {
+        "escenario": "api_entity_detalle",
+        "llamadas_fuente": 11,
+        "elementos_devueltos": 4,
+        "llamadas_por_elemento": 2.75,
+        "veredicto": "una consulta por elemento"
+      },
+      {
+        "escenario": "api_entity_detalle_legacy",
+        "llamadas_fuente": 11,
+        "elementos_devueltos": 4,
+        "llamadas_por_elemento": 2.75,
+        "veredicto": "una consulta por elemento"
+      }
+    ],
+    "1000": [
+      {
+        "escenario": "api_entity_detalle",
+        "llamadas_fuente": 15,
+        "elementos_devueltos": 6,
+        "llamadas_por_elemento": 2.5,
+        "veredicto": "una consulta por elemento"
+      },
+      {
+        "escenario": "api_entity_detalle_legacy",
+        "llamadas_fuente": 15,
+        "elementos_devueltos": 6,
+        "llamadas_por_elemento": 2.5,
+        "veredicto": "una consulta por elemento"
+      }
+    ],
+    "10000": []
+  },
+  "n_mas_1": [
+    {
+      "escenario": "api_status",
+      "llamadas@100": 4,
+      "llamadas@10000": 4,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "api_workspaces",
+      "llamadas@100": 1,
+      "llamadas@10000": 1,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "api_entity_types",
+      "llamadas@100": 1,
+      "llamadas@10000": 1,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "api_graph_300",
+      "llamadas@100": 1,
+      "llamadas@10000": 1,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "api_graph_300_filtro_tipo",
+      "llamadas@100": 1,
+      "llamadas@10000": 1,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "api_graph_300_busqueda",
+      "llamadas@100": 1,
+      "llamadas@10000": 1,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "api_search",
+      "llamadas@100": 1,
+      "llamadas@10000": 1,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "api_entities_pag1",
+      "llamadas@100": 1,
+      "llamadas@10000": 1,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "api_entities_ultima_pag",
+      "llamadas@100": 1,
+      "llamadas@10000": 1,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "api_entities_filtro",
+      "llamadas@100": 1,
+      "llamadas@10000": 1,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "api_sources",
+      "llamadas@100": 1,
+      "llamadas@10000": 1,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "api_quality",
+      "llamadas@100": 1,
+      "llamadas@10000": 1,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "html_entities",
+      "llamadas@100": 2,
+      "llamadas@10000": 2,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "html_sources",
+      "llamadas@100": 1,
+      "llamadas@10000": 1,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "html_quality",
+      "llamadas@100": 1,
+      "llamadas@10000": 1,
+      "ratio": 1.0,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "api_entity_detalle",
+      "llamadas@100": 11,
+      "llamadas@10000": 5,
+      "ratio": 0.45,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "api_entity_detalle_legacy",
+      "llamadas@100": 11,
+      "llamadas@10000": 5,
+      "ratio": 0.45,
+      "veredicto": "constante"
+    },
+    {
+      "escenario": "html_entity_detalle",
+      "llamadas@100": 11,
+      "llamadas@10000": 5,
+      "ratio": 0.45,
+      "veredicto": "constante"
+    }
+  ]
+}

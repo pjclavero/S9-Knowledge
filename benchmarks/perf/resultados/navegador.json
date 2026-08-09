@@ -1,0 +1,14 @@
+{
+  "entorno": {
+    "commit": "28320bd",
+    "rama": "perf/viewer-scale-baseline-v1",
+    "python": "3.13.5",
+    "cpu": "8",
+    "modelo_cpu": "Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz",
+    "ram_total": "MemTotal:        9156832 kB",
+    "so": "Linux 6.12.90+deb13.1-amd64",
+    "advertencia": "Máquina de desarrollo compartida, proveedor mock en memoria, cliente en proceso. NO es rendimiento de producción."
+  },
+  "medidas": {},
+  "no_medido": "chromium sin bibliotecas del sistema (libnspr4/libnss3); sin privilegios para instalarlas"
+}

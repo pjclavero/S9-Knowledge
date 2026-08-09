@@ -4,6 +4,20 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-08-09 — Línea base de rendimiento y escala del visor (carril H, solo medición)
+- Nuevo laboratorio en `benchmarks/perf/`: generador de grafos sintéticos
+  (100 / 1.000 / 10.000 entidades), proxy contador sobre el proveedor de datos,
+  driver Neo4j doble para contar consultas Cypher sin servidor, y tres
+  detectores de N+1. Informe en `docs/61-perf-viewer-scale-baseline.md`.
+- **Ni una línea del visor ha cambiado**: la ronda establece la línea base, no
+  optimiza. Ningún dato real, ninguna conexión a VM105.
+- Hallazgos principales: cada petición materializa el workspace entero
+  (`_ALL = 10_000_000` en `authz/filtered_provider.py`), N+1 en la ficha de
+  entidad (2 consultas Cypher por relación mostrada), `/api/status` lee 40.003
+  filas para devolver 114 bytes, y `/sources` no pagina.
+- No medido y dicho como tal: latencia de Neo4j real (sin Docker en la máquina),
+  navegador (Chromium sin bibliotecas del sistema) y concurrencia.
+
 ### 2026-08-06 — Sincronización de documentación de estado (desarrollo vs. producción)
 - `docs/project-status.yaml` reestructurado en tres bloques explícitos:
   `development` (estado de `main`), `production` (último estado verificado
