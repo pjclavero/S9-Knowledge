@@ -14,9 +14,6 @@ from e2e_support import fetch_status, login_as
 
 # Una entidad que existe de verdad en examples/sample_graph.json.
 ENTIDAD_CONOCIDA = "Agasha Tamori"
-# Termino que aisla UN solo nodo en el grafo de ejemplo (comprobado en la
-# propia prueba: si dejara de ser unico, la prueba falla en vez de saltarse).
-ENTIDAD_UNICA = "Kimi"
 
 
 @pytest.fixture()
@@ -65,80 +62,228 @@ def test_el_grafo_se_dibuja(admin_page, viewer):
     assert admin_page.page_errors == [], f"excepciones JS al dibujar el grafo: {admin_page.page_errors}"
 
 
-def test_la_busqueda_del_grafo_filtra_de_verdad(admin_page, viewer):
-    """Escribir y pulsar Enter dispara una consulta filtrada al backend."""
-    admin_page.goto(viewer.url("/graph"))
-    admin_page.wait_for_selector("#graph-canvas canvas", timeout=10_000)
+# ---------------------------------------------------------------------------
+# Busqueda del grafo: QUE puede encontrar, no COMO lo busca
+# ---------------------------------------------------------------------------
+#
+# POR QUE SE REESCRIBIERON ESTAS PRUEBAS
+# --------------------------------------
+# Las dos versiones anteriores (`test_la_busqueda_del_grafo_filtra_de_verdad` y
+# `test_seleccionar_un_nodo_abre_su_ficha_lateral`) exigian que teclear en el
+# buscador disparase una peticion `/api/graph?...&q=...`. Eso NO era un requisito
+# de producto: era la implementacion de entonces. La UX V2 del grafo busca en el
+# cliente, sobre lo que el backend ya entrego, y aquellas pruebas se rompian sin
+# que hubiera ningun defecto.
+#
+# Se congela el RESULTADO DE SEGURIDAD, no la implementacion:
+#
+#     «la busqueda solo puede encontrar lo que ya existe en la vista autorizada»
+#
+# Deliberadamente NO se afirma «buscar no hace ninguna peticion». Si manana se
+# decide una busqueda remota AUTORIZADA, estas tres pruebas deben seguir valiendo
+# tal cual: solo hablan de lo que la persona encuentra, no de por que canal.
 
-    with admin_page.expect_response(lambda r: "/api/graph" in r.url and "q=" in r.url) as info:
-        admin_page.fill("#search-input", ENTIDAD_CONOCIDA)
-        admin_page.press("#search-input", "Enter")
-    respuesta = info.value
-    assert respuesta.status == 200, f"la busqueda del grafo fallo: {respuesta.status}"
-    datos = respuesta.json()
-    etiquetas = [n["label"] for n in datos.get("nodes", [])]
-    assert ENTIDAD_CONOCIDA in etiquetas, f"la busqueda no encontro la entidad: {etiquetas}"
+# El nodo `secret` del grafo de ejemplo. El backend NO lo entrega a un `viewer`
+# (9 nodos frente a los 11 del admin) y le responde 404 a su id. Ambas cosas se
+# comprueban dentro de la prueba, no se dan por supuestas.
+SECRETO_NOMBRE = "Culto del Pozo Viejo"
+SECRETO_ID = "n_culto_pozo_viejo"
+
+# Nodo unico de tipo Creature (color propio en graph-core.js): permite localizar
+# en el <canvas> exactamente un nodo por su color. Lo ve cualquier rol.
+NODO_VISIBLE = "Oni de la Montaña Negra"
+COLOR_CREATURE = "#e5534b"
+
+INEXISTENTE_NOMBRE = "Zzyzx Fantasmagorico Inexistente"
+INEXISTENTE_ID = "n_zzyzx_fantasmagorico_inexistente"
+
+_CENTROIDE_JS = """(color) => {
+    const canvas = document.querySelector('#graph-canvas canvas');
+    if (!canvas) { return null; }
+    const ctx = canvas.getContext('2d');
+    const {width, height} = canvas;
+    const data = ctx.getImageData(0, 0, width, height).data;
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    let sx = 0, sy = 0, n = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        if (Math.abs(data[i] - r) < 12 && Math.abs(data[i+1] - g) < 12
+            && Math.abs(data[i+2] - b) < 12 && data[i+3] > 200) {
+          sx += x; sy += y; n++;
+        }
+      }
+    }
+    if (n === 0) { return null; }
+    return {x: sx / n, y: sy / n, w: width, h: height, n: n};
+}"""
 
 
-def test_seleccionar_un_nodo_abre_su_ficha_lateral(admin_page, viewer):
-    """Filtra a un unico nodo y pincha en el lienzo: el panel debe describirlo.
+def _abrir_grafo(page, viewer):
+    """Grafo cargado y con el layout fisico ya estabilizado."""
+    page.goto(viewer.url("/graph"))
+    page.wait_for_selector("#graph-canvas canvas", timeout=15_000)
+    page.wait_for_function(
+        "() => document.getElementById('counter-nodes').textContent !== '0'",
+        timeout=15_000)
+    page.wait_for_timeout(2500)
+    return page
 
-    Con un solo nodo, vis-network lo situa en el centro del lienzo; ese es el
-    unico punto de entrada realista, porque el grafo se pinta en <canvas> y no
-    expone elementos DOM por nodo (ver limitacion documentada).
+
+def _buscar(page, texto):
+    """Teclea y pulsa Intro. No se afirma nada sobre peticiones de red."""
+    page.fill("#search-input", texto)
+    page.press("#search-input", "Enter")
+    page.wait_for_timeout(1200)               # la animacion de centrado dura 400 ms
+
+
+def _resultados(page) -> list:
+    """Etiquetas de los resultados pinchables que ofrece el buscador."""
+    items = page.locator("#search-results button.search-result")
+    return [items.nth(i).inner_text() for i in range(items.count())]
+
+
+def _huella_de_busqueda(page) -> dict:
+    """Todo lo observable tras una busqueda, para poder comparar dos casos.
+
+    Si un nodo no autorizado y un nombre inexistente producen la misma huella,
+    la vista ordinaria no permite distinguirlos: no hay canal lateral.
     """
-    admin_page.goto(viewer.url("/graph"))
-    admin_page.wait_for_selector("#graph-canvas canvas", timeout=10_000)
+    return {
+        "resultados": _resultados(page),
+        "texto_lista": page.locator("#search-results").inner_text().strip(),
+        "lista_oculta": page.locator("#search-results").is_hidden(),
+        "contador": page.locator("#counter-nodes").inner_text().strip(),
+        "panel_abierto": "side-panel-closed" not in
+                         (page.locator("#side-panel").get_attribute("class") or ""),
+    }
 
-    with admin_page.expect_response(lambda r: "/api/graph" in r.url and "q=" in r.url) as info:
-        admin_page.fill("#search-input", ENTIDAD_UNICA)
-        admin_page.press("#search-input", "Enter")
-    nodos = info.value.json().get("nodes", [])
-    assert len(nodos) == 1, (
-        f"«{ENTIDAD_UNICA}» ya no aisla un unico nodo ({[n['label'] for n in nodos]}); "
-        "elige otro termino en vez de saltarte la prueba")
 
-    admin_page.wait_for_timeout(2500)                 # estabilizacion del layout
+def test_la_busqueda_encuentra_centra_y_resalta_un_nodo_visible(page, viewer):
+    """CASO 1. Un nodo que el backend SI entrego a este rol se encuentra,
+    se centra en el lienzo y queda resaltado (seleccionado y con su ficha)."""
+    login_as(page, viewer, "s9viewer")
+    entregados = [n["label"] for n in
+                  page.request.get(viewer.url("/api/graph?limit=300")).json()["nodes"]]
+    assert NODO_VISIBLE in entregados, \
+        f"el nodo de referencia ya no llega a este rol ({entregados}); elige otro"
 
-    # El grafo se pinta en <canvas>: no hay elemento DOM por nodo. Se localiza
-    # el nodo por su color de relleno (Character = #6ea8fe en graph.js) leyendo
-    # los pixeles reales que el navegador dibujo, y se pincha ahi. Nada de
-    # tocar el objeto vis-network: el click es un click de raton de verdad.
-    punto = admin_page.evaluate(
-        """(color) => {
-            const canvas = document.querySelector('#graph-canvas canvas');
-            const ctx = canvas.getContext('2d');
-            const {width, height} = canvas;
-            const data = ctx.getImageData(0, 0, width, height).data;
-            const r = parseInt(color.slice(1, 3), 16);
-            const g = parseInt(color.slice(3, 5), 16);
-            const b = parseInt(color.slice(5, 7), 16);
-            let sx = 0, sy = 0, n = 0;
-            for (let y = 0; y < height; y++) {
-              for (let x = 0; x < width; x++) {
-                const i = (y * width + x) * 4;
-                if (Math.abs(data[i] - r) < 12 && Math.abs(data[i+1] - g) < 12
-                    && Math.abs(data[i+2] - b) < 12 && data[i+3] > 200) {
-                  sx += x; sy += y; n++;
-                }
-              }
-            }
-            if (n === 0) { return null; }
-            const rect = canvas.getBoundingClientRect();
-            const ratio = rect.width / width;
-            return {x: rect.left + (sx / n) * ratio, y: rect.top + (sy / n) * ratio, n};
-        }""",
-        "#6ea8fe",
-    )
-    assert punto, "no se encontro el nodo dibujado en el lienzo"
-    admin_page.mouse.click(punto["x"], punto["y"])
-    admin_page.wait_for_timeout(400)
+    _abrir_grafo(page, viewer)
+    antes = page.evaluate(_CENTROIDE_JS, COLOR_CREATURE)
+    assert antes, "el nodo de referencia no esta dibujado en el lienzo"
 
-    panel = admin_page.locator("#side-panel")
-    assert ENTIDAD_UNICA in panel.inner_text(), \
-        f"el panel no describe el nodo seleccionado: {panel.inner_text()[:200]}"
-    assert panel.locator("a[href^='/entity/']").count() == 1, \
+    _buscar(page, NODO_VISIBLE)
+
+    # Lo encuentra: aparece como resultado pinchable.
+    assert any(NODO_VISIBLE in r for r in _resultados(page)), \
+        f"la busqueda no ofrece el nodo visible: {_resultados(page)}"
+
+    # Lo centra: el nodo (unico de su color) queda en el centro del lienzo.
+    despues = page.evaluate(_CENTROIDE_JS, COLOR_CREATURE)
+    assert despues, "el nodo buscado ha desaparecido del lienzo"
+    dx = abs(despues["x"] - despues["w"] / 2) / despues["w"]
+    dy = abs(despues["y"] - despues["h"] / 2) / despues["h"]
+    assert dx < 0.12 and dy < 0.12, (
+        f"buscar no centro el nodo: centro relativo ({dx:.2f}, {dy:.2f}); "
+        f"antes estaba en ({antes['x']:.0f}, {antes['y']:.0f})")
+
+    # Lo resalta: el producto no expone el objeto vis-network a la pagina, asi
+    # que el resaltado se comprueba por su efecto observable —la ficha lateral
+    # del nodo seleccionado se abre y lo describe—, no manipulando la libreria.
+    panel = page.locator("#side-panel")
+    assert "side-panel-closed" not in (panel.get_attribute("class") or ""), \
+        "buscar no abrio la ficha del nodo"
+    assert NODO_VISIBLE in panel.inner_text(), \
+        f"la ficha no describe el nodo buscado: {panel.inner_text()[:200]}"
+    assert panel.locator("a[href^='/entities/'], a[href^='/entity/']").count() >= 1, \
         "la ficha lateral no ofrece el enlace a la ficha completa"
+    assert page.page_errors == [], f"excepciones JS al buscar: {page.page_errors}"
+
+
+@pytest.mark.parametrize("termino", [INEXISTENTE_NOMBRE, INEXISTENTE_ID])
+def test_la_busqueda_de_algo_inexistente_no_encuentra_nada(page, viewer, termino):
+    """CASO 2. Un nombre o un id que no existe en ninguna parte: cero
+    resultados, mensaje de vacio y ninguna ficha abierta."""
+    login_as(page, viewer, "s9viewer")
+    _abrir_grafo(page, viewer)
+    _buscar(page, termino)
+
+    huella = _huella_de_busqueda(page)
+    assert huella["resultados"] == [], \
+        f"«{termino}» no existe y sin embargo produjo resultados: {huella['resultados']}"
+    assert "Sin coincidencias" in huella["texto_lista"], \
+        f"no hay mensaje de vacio: {huella['texto_lista']!r}"
+    assert not huella["panel_abierto"], "una busqueda vacia abrio una ficha"
+    assert page.page_errors == [], f"excepciones JS al buscar: {page.page_errors}"
+
+
+def test_un_nodo_no_autorizado_es_indistinguible_de_uno_inexistente(new_page, viewer):
+    """CASO 3 — el resultado de seguridad que hay que congelar.
+
+    Un `viewer` busca el nombre EXACTO y el id EXACTO de un nodo `secret` que el
+    backend no le ha entregado. Debe obtener exactamente lo mismo que al buscar
+    algo que no existe: ni resultados, ni contador distinto, ni hueco, ni un
+    mensaje diferente. Desde la vista ordinaria, «no autorizado» y «no existe»
+    tienen que ser el mismo hecho observable.
+
+    La prueba NO puede pasar por vacio: primero se comprueba, con un admin, que
+    el nodo EXISTE de verdad y que la misma busqueda SI lo encuentra. Si alguien
+    borrase el nodo del fixture, esta prueba enrojece en vez de aprobar.
+    """
+    # --- Control positivo: para el admin el nodo existe y la busqueda lo halla.
+    admin = new_page()
+    login_as(admin, viewer, "s9admin")
+    del_admin = admin.request.get(viewer.url("/api/graph?limit=300")).json()["nodes"]
+    labels_admin = [n["label"] for n in del_admin]
+    assert SECRETO_NOMBRE in labels_admin, (
+        f"el nodo secreto ya no esta en el fixture ({labels_admin}): la prueba "
+        "aprobaria por vacio, asi que falla a proposito")
+    assert admin.request.get(viewer.url(f"/api/entity/{SECRETO_ID}")).status == 200, \
+        "el id secreto no resuelve ni para el admin: fixture inservible"
+    _abrir_grafo(admin, viewer)
+    _buscar(admin, SECRETO_NOMBRE)
+    assert any(SECRETO_NOMBRE in r for r in _resultados(admin)), (
+        f"ni siquiera el admin encuentra el nodo secreto ({_resultados(admin)}): "
+        "sin control positivo el resto de la prueba no demuestra nada")
+
+    # --- El rol sin autorizacion: el backend no le entrega ese nodo.
+    victima = new_page()
+    login_as(victima, viewer, "s9viewer")
+    del_viewer = victima.request.get(viewer.url("/api/graph?limit=300")).json()["nodes"]
+    labels_viewer = [n["label"] for n in del_viewer]
+    assert SECRETO_NOMBRE not in labels_viewer, (
+        "el backend esta entregando el nodo secreto a un viewer: el defecto es "
+        "de autorizacion, no de la busqueda")
+    assert len(labels_viewer) < len(labels_admin), \
+        "el viewer recibe tantos nodos como el admin: no hay nada que ocultar"
+    assert victima.request.get(viewer.url(f"/api/entity/{SECRETO_ID}")).status == 404, \
+        "el id secreto no da 404 al viewer"
+
+    _abrir_grafo(victima, viewer)
+
+    # Referencia: como se ve una busqueda de algo que sencillamente no existe.
+    _buscar(victima, INEXISTENTE_NOMBRE)
+    referencia = _huella_de_busqueda(victima)
+    assert referencia["resultados"] == [], "la referencia de vacio no esta vacia"
+
+    # El nombre exacto y el id exacto del nodo secreto: la MISMA huella.
+    for termino in (SECRETO_NOMBRE, SECRETO_ID):
+        _buscar(victima, termino)
+        huella = _huella_de_busqueda(victima)
+        assert huella["resultados"] == [], \
+            f"buscar «{termino}» revela el nodo no autorizado: {huella['resultados']}"
+        assert huella == referencia, (
+            f"buscar «{termino}» se distingue de buscar algo inexistente.\n"
+            f"  no autorizado: {huella}\n"
+            f"  inexistente:   {referencia}")
+
+    # Y en ninguna parte del DOM aparece el nodo ni su id.
+    contenido = victima.content()
+    assert SECRETO_NOMBRE not in contenido, "el nombre del nodo secreto esta en el DOM"
+    assert SECRETO_ID not in contenido, "el id del nodo secreto esta en el DOM"
+    assert victima.page_errors == [], f"excepciones JS: {victima.page_errors}"
 
 
 def test_desde_la_ficha_lateral_se_llega_a_la_ficha_completa(admin_page, viewer):

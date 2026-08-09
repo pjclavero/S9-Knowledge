@@ -278,25 +278,60 @@ ausencia de bytes de control en los estáticos.
 **3. Navegador (Chromium real)**
 
 ```
-$ cd viewer && python3 -m pytest -q tests/browser/test_browser_graph_ux.py
-17 passed, 2 warnings in 64.04s   ·   exit 0
-
-$ cd viewer && python3 -m pytest -q tests/browser        # con el carril D
-41 passed, 2 warnings in 92.21s   ·   exit 0
+$ cd viewer && python3 -m pytest -q tests/browser      # carriles D + A juntos
+155 passed, 12 xfailed, 3 warnings in 248.32s   ·   exit 0
 ```
 
-Cero saltados: el navegador estaba presente. (Para que lo estuviera en esta
+**Cero saltados**: el navegador estaba presente. (Para que lo estuviera en esta
 máquina hubo que extraer a mano las librerías del sistema; ver Limitaciones.)
 
-**4. Suite del visor**
+### Las dos pruebas del carril D que la V2 invalidó
+
+`test_la_busqueda_del_grafo_filtra_de_verdad` y
+`test_seleccionar_un_nodo_abre_su_ficha_lateral` exigían que teclear en el
+buscador disparase una petición `/api/graph?...&q=...`. Eso no era un requisito
+de producto sino la implementación de entonces: la V2 busca **en el cliente**,
+sobre lo que el backend ya entregó, así que ambas se rompían sin que hubiera
+ningún defecto.
+
+Se han reescrito como **tres casos** que congelan el *resultado de seguridad* y
+no la implementación —«la búsqueda solo puede encontrar lo que ya existe en la
+vista autorizada»—, y que seguirían valiendo tal cual si algún día se decidiera
+una búsqueda remota autorizada:
+
+| Caso | Prueba | Qué garantiza |
+|---|---|---|
+| 1 | `test_la_busqueda_encuentra_centra_y_resalta_un_nodo_visible` | Un nodo que el backend **sí** entregó a ese rol se encuentra, queda centrado en el lienzo (medido en píxeles) y resaltado con su ficha abierta. |
+| 2 | `test_la_busqueda_de_algo_inexistente_no_encuentra_nada` (×2: nombre e id) | Un nombre o un id que no existe da cero resultados, mensaje «Sin coincidencias» y ninguna ficha. |
+| 3 | `test_un_nodo_no_autorizado_es_indistinguible_de_uno_inexistente` | Un `viewer` que busca el **nombre exacto** y el **id exacto** del nodo `secret` obtiene una huella observable *idéntica* a la del caso 2: mismos resultados, mismo contador, mismo texto, misma ficha cerrada. No hay contador, ni hueco, ni mensaje distinto. |
+
+El caso 3 **no puede aprobar por vacío**: antes de nada comprueba con un `admin`
+que el nodo existe (11 nodos, `/api/entity/{id}` → 200) y que ese mismo buscador
+**sí** lo encuentra; y comprueba que al `viewer` el backend le entrega 9 nodos y
+le responde 404 al id. Si alguien borrase el nodo del fixture, la prueba se pone
+roja en vez de aprobar. Verificado además por mutación: apuntar la constante a
+un nodo visible (`Kimi`) pone la prueba en rojo.
+
+Una tercera prueba del carril D quedó invalidada **por mejora**:
+`test_los_controles_del_grafo_estan_etiquetados` llevaba `xfail(strict=True)`
+por el defecto ACC-02 y la V2 lo corrigió, produciendo un XPASS. Siguiendo la
+doctrina del propio fichero (un XPASS estricto obliga a quitar la marca), se ha
+retirado el `xfail` y la prueba pasa a proteger el arreglo en verde; el defecto
+hermano de `/entities` sigue abierto como ACC-02b.
+
+**4. Suite del visor** (tras integrar `main` d496c08, con M5b y el carril D)
 
 ```
 $ cd viewer && python3 -m pytest -q
-1 failed, 780 passed, 13 warnings in 112.41s   ·   exit 1
+1115 passed, 19 skipped, 12 xfailed, 14 warnings in 271.44s   ·   exit 0
+
+$ python3 -m pytest -q tests/                       # raíz del repo
+196 passed, 2 skipped, 3 warnings in 3.35s   ·   exit 0
 ```
 
-**Cero saltados**, frente a los 24 de la primera ronda: los que se saltaban eran
-precisamente los de navegador, que ahora se ejecutan.
+Los 19 saltados son **todos** de `tests/test_neo4j_integration_authz.py`, que
+exige un Neo4j efímero (`NEO4J_TEST_URI`); vienen de `main` y no los toca este
+carril. En `tests/browser` los saltados son **cero**.
 
 El único fallo es `tests/test_auth_core.py::test_login_unknown_user_generic_message`
 (`assert 403 in (401, 200)`) y **es previo a esta rama y ajeno a ella**: ya se
