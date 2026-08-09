@@ -248,35 +248,77 @@ def _sin_el_termino(valor, termino: str):
 
 
 def _huella_de_busqueda(page, termino: str) -> dict:
-    """TODO lo observable tras una busqueda, para poder comparar dos casos.
+    """Los DIECISIETE canales observables que esta huella cubre.
 
     Si un nodo no autorizado y un nombre inexistente producen la misma huella,
-    la vista ordinaria no permite distinguirlos: no hay canal lateral.
+    esos diecisiete canales no permiten distinguirlos. Eso es lo que la prueba
+    demuestra; ni mas, ni menos.
 
-    QUE CANALES ENTRAN Y POR QUE
-    ----------------------------
+    QUE CANALES ENTRAN
+    ------------------
     La version anterior de esta funcion miraba cuatro cosas (la lista de
     resultados, el contador de nodos y si la ficha estaba abierta) y por eso no
     valia: un revisor escribio fugas en el contador de ARISTAS, en el mensaje
     de `#graph-status` —visible y anunciado por `aria-live`— y en la URL, y la
-    prueba siguio verde. La promesa que firma es «indistinguible», asi que la
-    huella tiene que abarcar todo el estado observable:
+    prueba siguio verde. La lista cubierta hoy, enumerada sin adornos:
 
-      · resultados de busqueda y el texto/visibilidad de su lista
-      · texto y visibilidad de la ficha lateral
-      · contador de nodos Y contador de aristas
-      · texto y visibilidad de `#graph-status`
-      · la URL COMPLETA
-      · la seleccion REAL de vis-network (no su reflejo en la ficha)
-      · el encuadre del lienzo (zoom y centro)
-      · el lienzo mismo, pixel a pixel, con la fisica ya parada
+       1. `resultados`         lista de resultados pinchables
+       2. `texto_lista`        texto de `#search-results`
+       3. `lista_oculta`       visibilidad de `#search-results`
+       4. `contador_nodos`     `#counter-nodes`
+       5. `contador_aristas`   `#counter-edges`
+       6. `estado_texto`       texto de `#graph-status` (anunciado por aria-live)
+       7. `estado_visible`     visibilidad de `#graph-status`
+       8. `ficha_texto`        texto de la ficha lateral
+       9. `ficha_abierta`      si la ficha esta desplegada
+      10. `ficha_aria`         `aria-label` + `aria-hidden` de la ficha lateral
+      11. `titulo`             `document.title`
+      12. `contadores_filtro`  todos los `.filter-count` del panel de filtros
+      13. `leyenda`            texto de cada fila de `#graph-legend`
+      14. `url`                la URL COMPLETA
+      15. `seleccion`          seleccion REAL de vis-network (via S9KGraphView)
+      16. `encuadre`           zoom y centro del lienzo (via S9KGraphView)
+      17. `lienzo`             el `<canvas>` pixel a pixel, con la fisica parada
 
-    Lo que NO entra: detalles accidentales de implementacion (si hubo peticion
-    de red, que funcion se llamo, en que orden se pintaron los filtros). Esto
-    describe lo que una persona puede percibir, no como esta hecho el visor.
+    QUE NO ENTRA, NOMINALMENTE
+    --------------------------
+    Esta lista es la parte importante del docstring. Una version anterior decia
+    «todo el estado observable»; era falso, y una afirmacion falsa en una prueba
+    de seguridad es peor que una limitacion escrita.
+
+      a) DETALLES DE IMPLEMENTACION, a proposito: si hubo peticion de red, que
+         funcion se llamo, en que orden se pintaron los filtros. La prueba habla
+         de lo que una persona percibe, no de como esta hecho el visor.
+
+      b) EL LIMITE INTRINSECO DE LA TECNICA — el mas sutil, y el que no se puede
+         cerrar sin romper la prueba entera. Antes de comparar, `_sin_el_termino`
+         borra el termino buscado en todas sus formas (tal cual, minusculas,
+         percent-encoded, sin acentos). Eso es necesario —dos busquedas siempre
+         difieren en el texto tecleado— pero tiene un precio exacto: BORRA
+         TAMBIEN CUALQUIER FUGA QUE SOLO SE DISTINGA POR COMO SE RENDERIZA EL
+         TERMINO BUSCADO. Si el visor mostrase el nombre CANONICO del nodo
+         autorizado alli donde para un termino inventado repite lo tecleado
+         —distinta capitalizacion, acentos restituidos, forma canonica—, la
+         sustitucion tapa la diferencia y la huella sale igual. No es un
+         descuido: es el precio de poder comparar dos busquedas distintas. Un
+         canal de ese tipo necesita una prueba dedicada que compare la forma
+         literal, no esta.
+
+      c) Todo canal fuera del `<body>` de `/graph`: cabeceras HTTP, cookies,
+         `localStorage`, tiempos de respuesta. La promesa es sobre la VISTA
+         ORDINARIA, no sobre un atacante con herramientas de red.
+
+    Los cuatro canales que el revisor encontro escapados —`.filter-count`, fila
+    extra en la leyenda, `document.title` y el `aria-label` de la ficha— SI se
+    han incorporado (10-13). Son lecturas de DOM baratas y deterministas: no
+    dependen del termino buscado, asi que no introducen intermitencia, y los
+    tres primeros se derivan de los datos cargados, que es justo por donde
+    entraria una fuga de autorizacion.
     """
     panel = page.locator("#side-panel")
     estado = page.locator("#graph-status")
+    filtros = page.locator(".filter-count")
+    leyenda = page.locator("#graph-legend li")
     huella = {
         "resultados": _resultados(page),
         "texto_lista": page.locator("#search-results").inner_text().strip(),
@@ -287,6 +329,12 @@ def _huella_de_busqueda(page, termino: str) -> dict:
         "estado_visible": estado.is_visible(),
         "ficha_texto": panel.inner_text().strip(),
         "ficha_abierta": "side-panel-closed" not in (panel.get_attribute("class") or ""),
+        "ficha_aria": [panel.get_attribute("aria-label"), panel.get_attribute("aria-hidden")],
+        "titulo": page.title(),
+        "contadores_filtro": [filtros.nth(i).inner_text().strip()
+                              for i in range(filtros.count())],
+        "leyenda": [leyenda.nth(i).inner_text().strip()
+                    for i in range(leyenda.count())],
         "url": page.url,
         "seleccion": page.evaluate("() => window.S9KGraphView.selection()"),
         "encuadre": page.evaluate(

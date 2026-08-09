@@ -730,9 +730,20 @@
   //    la pantalla de quien mira: no añade ni un dato que no estuviera ya
   //    delante de sus ojos, y nada que el backend no le hubiera entregado.
   //  - No toca `loaded`: de aquí no se puede sacar el grafo.
+  //
+  // POR QUÉ SE CONGELA (Object.freeze + defineProperty no escribible)
+  // ----------------------------------------------------------------
+  // No es confidencialidad: esto solo devuelve lo ya dibujado. Es INTEGRIDAD
+  // DE LA PRUEBA. Tres de los diecisiete canales de `_huella_de_busqueda`
+  // (selección, encuadre y la espera de estabilización) se leen a través de
+  // este objeto. Mientras fuera reemplazable —lo era: `writable`,
+  // `configurable` y sustituible entero desde la consola— cualquier script de
+  // la página podía devolver constantes y la huella seguiría saliendo igual
+  // sin observar nada. Congelado, un intento de reescribirlo falla en modo
+  // estricto y no tiene efecto fuera de él.
   // ---------------------------------------------------------------------
 
-  window.S9KGraphView = {
+  var vistaDeObservacion = Object.freeze({
     /** ¿El motor de físicas ha dejado de mover los nodos? */
     isStabilized: function () { return rendererMissing ? true : stabilized; },
     /** Selección REAL de vis-network (no la ficha lateral, que es su reflejo). */
@@ -749,7 +760,14 @@
       var p = network.getViewPosition();
       return { scale: network.getScale(), x: p.x, y: p.y };
     }
-  };
+  });
+
+  Object.defineProperty(window, "S9KGraphView", {
+    value: vistaDeObservacion,
+    writable: false,
+    configurable: false,
+    enumerable: true
+  });
 
   // ---------------------------------------------------------------------
   // Arranque

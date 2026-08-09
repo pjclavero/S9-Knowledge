@@ -233,6 +233,51 @@ def test_seleccionar_un_nodo_no_altera_la_leyenda(graph_page):
     assert graph_page.page_errors == []
 
 
+def test_la_ventana_de_observacion_no_se_puede_reescribir(graph_page):
+    """`window.S9KGraphView` esta congelada.
+
+    POR QUE IMPORTA
+    ---------------
+    No es confidencialidad —solo devuelve lo que ya esta dibujado y no alcanza
+    `loaded`—. Es INTEGRIDAD DE LA PRUEBA: tres de los canales de
+    `_huella_de_busqueda` (seleccion, encuadre y la espera de estabilizacion)
+    se leen a traves de este objeto. Mientras fuera mutable, un script de la
+    pagina podia sustituirlo por constantes y la huella saldria identica sin
+    haber observado nada; la prueba de «no autorizado == inexistente» quedaria
+    demostrando el vacio.
+
+    Se comprueban las tres puertas: reemplazar el objeto entero, reemplazar un
+    metodo y anadir uno nuevo.
+    """
+    resultado = graph_page.evaluate("""() => {
+        const antes = window.S9KGraphView;
+        const intento = (fn) => { try { fn(); } catch (e) { return 'lanza'; } return 'silencioso'; };
+        const r = {
+          reemplazo_objeto: intento(() => { window.S9KGraphView = {selection: () => 'FALSO'}; }),
+          reemplazo_metodo: intento(() => { window.S9KGraphView.selection = () => 'FALSO'; }),
+          metodo_nuevo:     intento(() => { window.S9KGraphView.exfiltrar = () => 'FALSO'; }),
+          congelado: Object.isFrozen(window.S9KGraphView),
+          mismo_objeto: window.S9KGraphView === antes,
+          descriptor: Object.getOwnPropertyDescriptor(window, 'S9KGraphView')
+        };
+        r.seleccion_sigue_viva = JSON.stringify(window.S9KGraphView.selection());
+        r.exfiltrar_existe = typeof window.S9KGraphView.exfiltrar;
+        return r;
+    }""")
+    assert resultado["congelado"], "window.S9KGraphView no esta congelada"
+    assert resultado["mismo_objeto"], \
+        "se ha podido sustituir window.S9KGraphView por otro objeto"
+    assert resultado["descriptor"]["writable"] is False, \
+        f"la propiedad sigue siendo escribible: {resultado['descriptor']}"
+    assert resultado["descriptor"]["configurable"] is False, \
+        f"la propiedad sigue siendo reconfigurable: {resultado['descriptor']}"
+    assert resultado["exfiltrar_existe"] == "undefined", \
+        "se ha podido anadir un metodo nuevo a la ventana de observacion"
+    assert "FALSO" not in resultado["seleccion_sigue_viva"], \
+        "el metodo `selection` ha sido sustituido pese al congelado"
+    assert graph_page.page_errors == []
+
+
 # ---------------------------------------------------------------------------
 # 3. Filtros
 # ---------------------------------------------------------------------------

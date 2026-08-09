@@ -62,6 +62,10 @@ def serialize_node(node: dict[str, Any]) -> dict[str, Any]:
         # meterlo en el indice de busqueda del visor lo convertiria en un
         # identificador de recurso buscable que el dominio no reconoce.
         # Si el proveedor no entrega `entity_id`, aqui no hay `entity_id`.
+        #
+        # Esta regla NO vive solo en este comentario: la congelan cuatro pruebas
+        # de servidor en `tests/test_serializers.py` (bloque «entity_id NO cae
+        # hacia id ni element_id»). Anadir el fallback las pone en rojo.
         "entity_id": node.get("entity_id") or "",
         "label": name,
         "type": entity_type,

@@ -311,13 +311,50 @@ La primera versión de la huella miraba cuatro cosas —la lista de resultados, 
 contador de nodos y si la ficha estaba abierta— y por eso **no valía**: un
 revisor escribió fugas en el contador de **aristas**, en el mensaje de
 `#graph-status` (visible y anunciado por `aria-live`) y en la **URL**, y la
-prueba siguió verde. La promesa que firma la prueba es «indistinguible», así que
-la huella abarca ahora todo el estado observable:
+prueba siguió verde.
 
-resultados y texto/visibilidad de su lista · texto y visibilidad de la ficha
-lateral · contador de nodos · **contador de aristas** · **texto y visibilidad de
-`#graph-status`** · **URL completa** · **selección real de vis-network** ·
-**encuadre (zoom y centro)** · **el lienzo, píxel a píxel**.
+Una versión anterior de este documento decía que la huella abarcaba «**todo el
+estado observable**». **Era falso**, y una afirmación falsa en una prueba de
+seguridad es peor que una limitación escrita. La huella cubre **diecisiete
+canales concretos**, y estos son:
+
+| # | Canal | Qué se lee |
+|---|---|---|
+| 1 | `resultados` | lista de resultados pinchables |
+| 2 | `texto_lista` | texto de `#search-results` |
+| 3 | `lista_oculta` | visibilidad de `#search-results` |
+| 4 | `contador_nodos` | `#counter-nodes` |
+| 5 | `contador_aristas` | `#counter-edges` |
+| 6 | `estado_texto` | texto de `#graph-status` (anunciado por `aria-live`) |
+| 7 | `estado_visible` | visibilidad de `#graph-status` |
+| 8 | `ficha_texto` | texto de la ficha lateral |
+| 9 | `ficha_abierta` | si la ficha está desplegada |
+| 10 | `ficha_aria` | `aria-label` + `aria-hidden` de la ficha lateral |
+| 11 | `titulo` | `document.title` |
+| 12 | `contadores_filtro` | todos los `.filter-count` del panel de filtros |
+| 13 | `leyenda` | texto de cada fila de `#graph-legend` |
+| 14 | `url` | la URL completa |
+| 15 | `seleccion` | selección real de vis-network (vía `S9KGraphView`) |
+| 16 | `encuadre` | zoom y centro del lienzo (vía `S9KGraphView`) |
+| 17 | `lienzo` | el `<canvas>` píxel a píxel, con la física ya parada |
+
+**Los cuatro canales que el segundo revisor encontró escapados —10, 11, 12 y
+13— se han incorporado.** Son lecturas de DOM baratas y deterministas (no
+dependen del término buscado, así que no introducen intermitencia) y las tres
+primeras se derivan de *los datos cargados*, que es exactamente por donde
+entraría una fuga de autorización. El coste de añadirlas era casi nulo y el
+argumento para dejarlas fuera, ninguno.
+
+**Lo que sigue fuera, nominalmente** (ver también Limitaciones):
+
+- **Detalles de implementación**, a propósito: si hubo petición de red, qué
+  función se llamó, en qué orden se pintaron los filtros. La prueba habla de lo
+  que una persona percibe, no de cómo está hecho el visor.
+- **Canales fuera del `<body>` de `/graph`**: cabeceras HTTP, cookies,
+  `localStorage`, tiempos de respuesta. La promesa es sobre la *vista
+  ordinaria*, no frente a un atacante con herramientas de red.
+- **Lo que la normalización del término borra.** Es el límite intrínseco de la
+  técnica y tiene su propia entrada en Limitaciones.
 
 Dos decisiones de método:
 
@@ -325,7 +362,8 @@ Dos decisiones de método:
   trivial: el texto tecleado, que viaja al campo y a `?q=…`. Antes de comparar
   se sustituye el término por `<TERMINO>` (también en sus formas
   *percent-encoded*): lo que sobreviva a esa sustitución y siga siendo distinto
-  solo puede venir de los datos, no de la consulta.
+  solo puede venir de los datos, no de la consulta. **Tiene un precio exacto,
+  descrito en Limitaciones.**
 - **Estabilización del lienzo.** Comparar capturas con la física en marcha da
   una prueba que falla al azar, y eso es peor que no tenerla. Se espera a *dos*
   señales: el evento `stabilized` de vis-network (expuesto en
@@ -334,6 +372,16 @@ Dos decisiones de método:
   animaciones de `focus`/`fit`, que mueven la cámara *después* de que la física
   pare—.
 
+**La ventana de observación está congelada.** `window.S9KGraphView` se publica
+con `Object.freeze` y `defineProperty({writable: false, configurable: false})`.
+No es confidencialidad —solo devuelve lo ya dibujado y no alcanza `loaded`—,
+sino **integridad de la prueba**: tres de los diecisiete canales (15, 16 y la
+espera de estabilización) se leen a través de ese objeto, y mientras fue
+reemplazable cualquier script de la página podía devolver constantes y dejar la
+huella demostrando el vacío. Lo cubre
+`test_la_ventana_de_observacion_no_se_puede_reescribir`, que intenta las tres
+puertas: sustituir el objeto entero, sustituir un método y añadir uno nuevo.
+
 #### Buscar por identificador (decisión de producto, H4)
 
 El caso «buscar por id» era **vacuo**: el identificador no estaba en el índice,
@@ -341,11 +389,25 @@ así que no encontraba nada *ni para el admin*. El índice pasa a ser **nombre �
 alias · tipo · resumen · `entity_id`**, donde `entity_id` es el identificador
 **estable de dominio** que entrega el backend (`serialize_node`, campo nuevo).
 
+> **Ojo:** esto está entregado **con el proveedor `mock`**. Con Neo4j la
+> búsqueda por identificador queda **inerte** hasta que su proyección incluya
+> `entity_id`; ver Limitaciones.
+
 Lo que **no** entra, y hay una prueba por cada mitad:
 
 - el `elementId` de Neo4j (hoy `node.id` con ese proveedor): no es identidad
   durable, se regenera al restaurar un dump;
 - cualquier identificador que el backend no haya entregado en ese nodo.
+
+**La regla se comprueba en los dos lados.** `graph_core_spec.js` demuestra que
+el *cliente* no indexa `node.id`, pero es **ciego a un servidor que copie el
+`elementId` dentro de `entity_id`**: el revisor añadió ese *fallback* en
+`serialize_node` y las 960 pruebas de servidor, las de navegador y las de JS
+siguieron verdes. Cuatro pruebas nuevas en `viewer/tests/test_serializers.py`
+congelan ahora que `entity_id` **no cae** hacia `id` ni hacia `element_id`, que
+el `elementId` crudo no aparece en **ninguno** de los cinco campos que el visor
+indexa, y —como contrapeso, para que la regla no se cumpla devolviendo siempre
+vacío— que `entity_id` sí se entrega tal cual cuando el proveedor lo da.
 
 Lo que se congela no es «búsqueda de cliente», sino: **solo se puede encontrar
 por ID aquello que la vista autorizada ya contiene**. El admin encuentra el nodo
@@ -457,6 +519,30 @@ node : 3 fallidos   ROJO
 
 ## Limitaciones (honestas)
 
+- **La búsqueda por identificador queda inerte con el proveedor de Neo4j.** El
+  índice del visor busca por `entity_id`, y `entity_id` solo existe si el
+  proveedor lo entrega. La proyección de `neo4j_provider._node_to_dict` **no
+  incluye hoy `entity_id`** (pone el `element_id` técnico en `id`, que
+  deliberadamente *no* se indexa), así que contra Neo4j real teclear un
+  identificador no encuentra nada: **la función descrita más arriba como
+  entregada solo está viva con el proveedor `mock`**. Para activarla en
+  producción hace falta añadir `entity_id` a esa proyección —zona congelada en
+  este carril, no tocada—. Mientras tanto, el resultado de seguridad *sí* se
+  mantiene con ambos proveedores: lo que no se entrega, no se encuentra.
+- **La huella observable cubre diecisiete canales, no «todo».** La lista exacta
+  está en la tabla de más arriba y en el docstring de `_huella_de_busqueda`.
+  Fuera quedan, a sabiendas, los detalles de implementación y todo lo que no
+  esté en el `<body>` de `/graph` (cabeceras, cookies, `localStorage`, tiempos).
+- **La normalización del término borra cualquier fuga que se distinga *solo* por
+  cómo se renderiza el término buscado.** Es el límite **intrínseco** de la
+  técnica, no un descuido: para poder comparar dos búsquedas distintas hay que
+  borrar antes el texto tecleado en todas sus formas (tal cual, minúsculas,
+  *percent-encoded*, sin acentos). El precio es que si el visor mostrase el
+  nombre **canónico** del nodo autorizado allí donde para un término inventado
+  repite lo tecleado —distinta capitalización, acentos restituidos, forma
+  canónica—, la sustitución taparía la diferencia y las dos huellas saldrían
+  iguales. Un canal de ese tipo necesita una prueba dedicada que compare la
+  forma **literal**; `_huella_de_busqueda` no puede detectarlo por construcción.
 - **Los filtros trabajan sobre la ventana de `limit`**, no sobre el grafo entero.
   Con `limit=300` en un workspace de 5.000 nodos, filtrar por `Faction` enseña
   las facciones *de esos 300*, no todas. El contador lo hace visible
