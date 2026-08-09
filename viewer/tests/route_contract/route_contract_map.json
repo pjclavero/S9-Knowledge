@@ -1,0 +1,1534 @@
+{
+  "_README": [
+    "Mapa de contratos ruta/UI del visor. Lo verifica viewer/tests/test_route_contract_map.py.",
+    "Si la puerta enrojece: o has añadido/quitado una ruta (declárala aquí), o has dejado",
+    "una plantilla huérfana, o un enlace roto, o una ruta sin cobertura declarada.",
+    "Borrador de una entrada nueva: python3 viewer/tests/route_contract/_generate.py"
+  ],
+  "known_gaps": {
+    "POST /admin/users/{user_id}/unlock": "sin prueba propia; el desbloqueo sólo se ejerce indirectamente en test_auth_hardening",
+    "POST /admin/users/{user_id}/revoke-sessions": "sin prueba propia: revocar sesiones desde el panel no está cubierto",
+    "GET /v3/review/glossary-candidates": "pantalla sin prueba y sin enlace entrante",
+    "POST /v3/review/undo": "el deshacer del panel V3 no está cubierto por ninguna prueba"
+  },
+  "rutas": {
+    "GET /": {
+      "endpoint": "app.main.home",
+      "rol": "viewer+ (302 /login si anónimo)",
+      "entrega": "index.html",
+      "datos": "provider.name + settings",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "302 login"
+      ],
+      "nav_entrante": [
+        "auth/403.html",
+        "base.html",
+        "error.html"
+      ],
+      "nav_saliente": [
+        "/graph",
+        "/status"
+      ],
+      "consumidores_js": [
+        "graph.js"
+      ],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py",
+        "tests/browser/test_browser_backend_down.py",
+        "tests/browser/test_browser_navigation.py",
+        "tests/browser/test_login_browser.py",
+        "tests/test_api.py",
+        "tests/test_auth_core.py",
+        "tests/test_auth_hardening.py",
+        "tests/test_auth_routes.py",
+        "tests/test_health.py",
+        "tests/test_multipartida_m5a_adversarial.py",
+        "tests/test_must_change_password.py"
+      ],
+      "notas": ""
+    },
+    "GET /account": {
+      "endpoint": "app.routers.auth.account_page",
+      "rol": "autenticado",
+      "entrega": "auth/account.html",
+      "datos": "request.state.user",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "302 login"
+      ],
+      "nav_entrante": [
+        "auth/change_password.html",
+        "base.html"
+      ],
+      "nav_saliente": [
+        "/account/change-password",
+        "/logout"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_must_change_password.py"
+      ],
+      "notas": ""
+    },
+    "GET /account/change-password": {
+      "endpoint": "app.routers.auth.change_password_page",
+      "rol": "autenticado",
+      "entrega": "auth/change_password.html",
+      "datos": "request.state.user",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "302 login"
+      ],
+      "nav_entrante": [
+        "auth/account.html",
+        "auth/change_password.html"
+      ],
+      "nav_saliente": [
+        "/account",
+        "/account/change-password"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_must_change_password.py"
+      ],
+      "notas": ""
+    },
+    "POST /account/change-password": {
+      "endpoint": "app.routers.auth.change_password_submit",
+      "rol": "autenticado",
+      "entrega": "auth/change_password.html / 302",
+      "datos": "auth DB",
+      "estados": [
+        "ok 302",
+        "errores de validación (400)"
+      ],
+      "errores": [
+        "400",
+        "403 CSRF"
+      ],
+      "nav_entrante": [
+        "auth/account.html",
+        "auth/change_password.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_must_change_password.py"
+      ],
+      "notas": ""
+    },
+    "GET /admin/audit": {
+      "endpoint": "app.routers.admin.admin_audit",
+      "rol": "admin",
+      "entrega": "auth/admin/audit.html",
+      "datos": "auth DB (audit log) + filtros",
+      "estados": [
+        "ok",
+        "sin resultados"
+      ],
+      "errores": [
+        "302 login",
+        "403"
+      ],
+      "nav_entrante": [
+        "auth/admin/audit.html",
+        "auth/admin/users.html"
+      ],
+      "nav_saliente": [
+        "/admin/audit"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_auth_flows.py",
+        "tests/test_auth_routes.py"
+      ],
+      "notas": "sólo enlazado desde /admin/users, no desde base.html"
+    },
+    "GET /admin/health": {
+      "endpoint": "app.routers.health_admin.admin_health_panel",
+      "rol": "admin",
+      "entrega": "auth/admin/health.html",
+      "datos": "app.health",
+      "estados": [
+        "ok",
+        "sin informes"
+      ],
+      "errores": [
+        "302 login",
+        "403"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_health.py"
+      ],
+      "notas": "SIN ENLACE ENTRANTE: no aparece en base.html ni en admin/users.html"
+    },
+    "GET /admin/partidas": {
+      "endpoint": "app.routers.admin.admin_partidas",
+      "rol": "admin",
+      "entrega": "auth/admin/partidas.html",
+      "datos": "auth DB (concesiones)",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "302 login",
+        "403"
+      ],
+      "nav_entrante": [
+        "auth/admin/users.html",
+        "base.html"
+      ],
+      "nav_saliente": [
+        "/admin/partidas/grant",
+        "/admin/partidas/{access_id}/revoke"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_auth_flows.py",
+        "tests/test_admin_panel_concesiones.py",
+        "tests/test_multipartida_e2e.py"
+      ],
+      "notas": ""
+    },
+    "POST /admin/partidas/grant": {
+      "endpoint": "app.routers.admin.admin_partidas_grant",
+      "rol": "admin",
+      "entrega": "302 /admin/partidas",
+      "datos": "auth DB",
+      "estados": [
+        "ok",
+        "error de validación"
+      ],
+      "errores": [
+        "403 CSRF"
+      ],
+      "nav_entrante": [
+        "auth/admin/partidas.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_admin_panel_concesiones.py",
+        "tests/test_multipartida_e2e.py"
+      ],
+      "notas": ""
+    },
+    "POST /admin/partidas/{access_id}/revoke": {
+      "endpoint": "app.routers.admin.admin_partidas_revoke",
+      "rol": "admin",
+      "entrega": "302 /admin/partidas",
+      "datos": "auth DB",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "403 CSRF",
+        "404"
+      ],
+      "nav_entrante": [
+        "auth/admin/partidas.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_multipartida_e2e.py"
+      ],
+      "notas": ""
+    },
+    "GET /admin/users": {
+      "endpoint": "app.routers.admin.admin_users",
+      "rol": "admin",
+      "entrega": "auth/admin/users.html",
+      "datos": "auth DB",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "302 login",
+        "403"
+      ],
+      "nav_entrante": [
+        "auth/admin/user_detail.html",
+        "base.html"
+      ],
+      "nav_saliente": [
+        "/admin/audit",
+        "/admin/partidas",
+        "/admin/users/new",
+        "/admin/users/{user_id}",
+        "/admin/users/{user_id}/unlock"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py",
+        "tests/browser/test_browser_auth_flows.py",
+        "tests/browser/test_browser_backend_down.py",
+        "tests/browser/test_browser_navigation.py",
+        "tests/test_auth_routes.py"
+      ],
+      "notas": ""
+    },
+    "GET /admin/users/new": {
+      "endpoint": "app.routers.admin.admin_users_new",
+      "rol": "admin",
+      "entrega": "auth/admin/user_detail.html (mode=new)",
+      "datos": "auth DB",
+      "estados": [
+        "formulario"
+      ],
+      "errores": [
+        "302 login",
+        "403"
+      ],
+      "nav_entrante": [
+        "auth/admin/user_detail.html",
+        "auth/admin/users.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py"
+      ],
+      "notas": ""
+    },
+    "POST /admin/users/new": {
+      "endpoint": "app.routers.admin.admin_users_new_submit",
+      "rol": "admin",
+      "entrega": "auth/admin/user_detail.html (error) / 302",
+      "datos": "auth DB",
+      "estados": [
+        "ok 302",
+        "errores"
+      ],
+      "errores": [
+        "400",
+        "403 CSRF"
+      ],
+      "nav_entrante": [
+        "auth/admin/user_detail.html",
+        "auth/admin/users.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py"
+      ],
+      "notas": ""
+    },
+    "GET /admin/users/{user_id}": {
+      "endpoint": "app.routers.admin.admin_user_detail",
+      "rol": "admin",
+      "entrega": "auth/admin/user_detail.html",
+      "datos": "auth DB",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "404",
+        "403"
+      ],
+      "nav_entrante": [
+        "auth/admin/user_detail.html",
+        "auth/admin/users.html"
+      ],
+      "nav_saliente": [
+        "/admin/users",
+        "/admin/users/new",
+        "/admin/users/{user_id}",
+        "/admin/users/{user_id}/revoke-sessions",
+        "/admin/users/{user_id}/unlock"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py",
+        "tests/browser/test_browser_auth_flows.py"
+      ],
+      "notas": ""
+    },
+    "POST /admin/users/{user_id}": {
+      "endpoint": "app.routers.admin.admin_user_update",
+      "rol": "admin",
+      "entrega": "auth/admin/user_detail.html / 302",
+      "datos": "auth DB",
+      "estados": [
+        "ok 302",
+        "errores"
+      ],
+      "errores": [
+        "404",
+        "403 CSRF"
+      ],
+      "nav_entrante": [
+        "auth/admin/user_detail.html",
+        "auth/admin/users.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py",
+        "tests/browser/test_browser_auth_flows.py"
+      ],
+      "notas": ""
+    },
+    "POST /admin/users/{user_id}/revoke-sessions": {
+      "endpoint": "app.routers.admin.admin_revoke_sessions",
+      "rol": "admin",
+      "entrega": "302 /admin/users/{id}",
+      "datos": "auth DB",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "403 CSRF",
+        "404"
+      ],
+      "nav_entrante": [
+        "auth/admin/user_detail.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [],
+      "notas": ""
+    },
+    "POST /admin/users/{user_id}/unlock": {
+      "endpoint": "app.routers.admin.admin_user_unlock",
+      "rol": "admin",
+      "entrega": "302 /admin/users/{id}",
+      "datos": "auth DB",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "403 CSRF",
+        "404"
+      ],
+      "nav_entrante": [
+        "auth/admin/user_detail.html",
+        "auth/admin/users.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [],
+      "notas": ""
+    },
+    "GET /api/admin/health": {
+      "endpoint": "app.routers.health_admin.api_admin_health",
+      "rol": "admin (API)",
+      "entrega": "application/json",
+      "datos": "app.health (últimos informes)",
+      "estados": [
+        "ok",
+        "sin informes"
+      ],
+      "errores": [
+        "401",
+        "403"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_health.py"
+      ],
+      "notas": ""
+    },
+    "GET /api/entities": {
+      "endpoint": "app.routers.readonly.api_entities",
+      "rol": "viewer+ (API)",
+      "entrega": "application/json",
+      "datos": "provider.list_entities",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "401",
+        "422 parámetros"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_auth_flows.py",
+        "tests/browser/test_browser_backend_down.py",
+        "tests/test_authz_api_enforcement.py",
+        "tests/test_authz_legacy_endpoints.py",
+        "tests/test_autorizacion_e2e_http.py",
+        "tests/test_autorizacion_e2e_http_septima_ronda.py",
+        "tests/test_multipartida_e2e.py",
+        "tests/test_multipartida_m5a_adversarial.py",
+        "tests/test_readonly.py"
+      ],
+      "notas": ""
+    },
+    "GET /api/entities/{entity_id}": {
+      "endpoint": "app.routers.readonly.api_entity_detail",
+      "rol": "viewer+ (API)",
+      "entrega": "application/json",
+      "datos": "provider.entity",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "401",
+        "404",
+        "503"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_authz_api_enforcement.py",
+        "tests/test_authz_legacy_endpoints.py",
+        "tests/test_autorizacion_e2e_http.py",
+        "tests/test_autorizacion_e2e_http_septima_ronda.py",
+        "tests/test_multipartida_e2e.py",
+        "tests/test_readonly.py"
+      ],
+      "notas": ""
+    },
+    "GET /api/entity-types": {
+      "endpoint": "app.api.entities.api_entity_types",
+      "rol": "viewer+ (API)",
+      "entrega": "application/json",
+      "datos": "provider.entity_types",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "401"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [
+        "graph.js"
+      ],
+      "tests": [
+        "tests/test_auth_hardening.py",
+        "tests/test_authz_legacy_endpoints.py"
+      ],
+      "notas": ""
+    },
+    "GET /api/entity/{entity_id}": {
+      "endpoint": "app.api.entities.api_entity",
+      "rol": "viewer+ (API)",
+      "entrega": "application/json",
+      "datos": "provider.entity",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "401",
+        "404"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_authz_legacy_endpoints.py"
+      ],
+      "notas": "LEGADO: duplica /api/entities/{entity_id}"
+    },
+    "GET /api/graph": {
+      "endpoint": "app.api.graph.api_graph",
+      "rol": "viewer+ (API)",
+      "entrega": "application/json",
+      "datos": "provider.graph",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "401"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [
+        "graph.js"
+      ],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py",
+        "tests/browser/test_browser_backend_down.py",
+        "tests/browser/test_browser_navigation.py",
+        "tests/test_api.py",
+        "tests/test_auth_hardening.py",
+        "tests/test_authz_legacy_endpoints.py"
+      ],
+      "notas": "consumido por static/js del grafo"
+    },
+    "GET /api/jobs": {
+      "endpoint": "app.api.jobs.api_jobs",
+      "rol": "viewer+ (API)",
+      "entrega": "application/json",
+      "datos": "jobs_client acotado por scope",
+      "estados": [
+        "ok",
+        "db_no_disponible"
+      ],
+      "errores": [
+        "401",
+        "503"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_navigation.py",
+        "tests/test_api_jobs.py",
+        "tests/test_auth_hardening.py",
+        "tests/test_multipartida_m5a_adversarial.py"
+      ],
+      "notas": ""
+    },
+    "GET /api/jobs/counts": {
+      "endpoint": "app.api.jobs.api_jobs_counts",
+      "rol": "viewer+ (API)",
+      "entrega": "application/json",
+      "datos": "jobs_client.scoped_counts",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "401"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_api_jobs.py",
+        "tests/test_auth_hardening.py",
+        "tests/test_multipartida_m5a_adversarial.py"
+      ],
+      "notas": ""
+    },
+    "GET /api/jobs/{job_id}": {
+      "endpoint": "app.api.jobs.api_job_detail",
+      "rol": "viewer+ (API)",
+      "entrega": "application/json",
+      "datos": "jobs_client.scoped_job",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "401",
+        "404"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_api_jobs.py",
+        "tests/test_auth_hardening.py",
+        "tests/test_multipartida_m5a_adversarial.py"
+      ],
+      "notas": ""
+    },
+    "GET /api/quality": {
+      "endpoint": "app.routers.readonly.api_quality",
+      "rol": "reviewer+ (API)",
+      "entrega": "application/json",
+      "datos": "provider.quality_metrics",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "401",
+        "403",
+        "503"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_authz_api_enforcement.py",
+        "tests/test_authz_t3_t4_t5_regresion.py",
+        "tests/test_readonly.py"
+      ],
+      "notas": ""
+    },
+    "GET /api/search": {
+      "endpoint": "app.api.entities.api_search",
+      "rol": "viewer+ (API)",
+      "entrega": "application/json",
+      "datos": "provider.search",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "401"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_api.py",
+        "tests/test_auth_hardening.py",
+        "tests/test_authz_legacy_endpoints.py"
+      ],
+      "notas": ""
+    },
+    "GET /api/sources": {
+      "endpoint": "app.routers.readonly.api_sources",
+      "rol": "reviewer+ (API)",
+      "entrega": "application/json",
+      "datos": "provider.list_sources",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "401",
+        "403"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_auth_flows.py",
+        "tests/test_readonly.py"
+      ],
+      "notas": ""
+    },
+    "GET /api/sources/{source_id}": {
+      "endpoint": "app.routers.readonly.api_source_detail",
+      "rol": "reviewer+ (API)",
+      "entrega": "application/json",
+      "datos": "provider.source_detail",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "401",
+        "403",
+        "404",
+        "503"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_readonly.py"
+      ],
+      "notas": ""
+    },
+    "GET /api/status": {
+      "endpoint": "app.api.status.api_status",
+      "rol": "viewer+ (API)",
+      "entrega": "application/json",
+      "datos": "provider filtrado",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "401"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_backend_down.py",
+        "tests/test_api.py",
+        "tests/test_auth_hardening.py",
+        "tests/test_auth_routes.py",
+        "tests/test_authz_legacy_endpoints.py",
+        "tests/test_must_change_password.py"
+      ],
+      "notas": ""
+    },
+    "GET /api/workspaces": {
+      "endpoint": "app.api.entities.api_workspaces",
+      "rol": "viewer+ (API)",
+      "entrega": "application/json",
+      "datos": "provider.workspaces",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "401"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_auth_hardening.py",
+        "tests/test_authz_legacy_endpoints.py"
+      ],
+      "notas": ""
+    },
+    "GET /docs": {
+      "endpoint": "app.main._swagger",
+      "rol": "admin (404 si docs no expuestos)",
+      "entrega": "swagger-ui (HTML de FastAPI)",
+      "datos": "/openapi.json",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "404",
+        "401",
+        "403"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_auth_hardening.py"
+      ],
+      "notas": ""
+    },
+    "GET /entities": {
+      "endpoint": "app.routers.readonly.entities_page",
+      "rol": "viewer+ (302 /login)",
+      "entrega": "entities.html",
+      "datos": "provider.list_entities + entity_types",
+      "estados": [
+        "ok",
+        "lista vacía",
+        "proveedor caído => lista vacía"
+      ],
+      "errores": [
+        "302 login"
+      ],
+      "nav_entrante": [
+        "base.html",
+        "entities.html",
+        "entity_detail.html"
+      ],
+      "nav_saliente": [
+        "/entities",
+        "/entity/{entity_id}"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py",
+        "tests/browser/test_browser_auth_flows.py",
+        "tests/browser/test_browser_backend_down.py",
+        "tests/browser/test_browser_navigation.py",
+        "tests/test_authz_api_enforcement.py",
+        "tests/test_authz_legacy_endpoints.py",
+        "tests/test_autorizacion_e2e_http.py",
+        "tests/test_autorizacion_e2e_http_septima_ronda.py",
+        "tests/test_multipartida_e2e.py",
+        "tests/test_multipartida_m5a_adversarial.py",
+        "tests/test_must_change_password.py",
+        "tests/test_readonly.py"
+      ],
+      "notas": "enlaza al DETALLE LEGADO /entity/{id}, no a /entities/{id}"
+    },
+    "GET /entities/{entity_id}": {
+      "endpoint": "app.routers.readonly.entity_detail_page",
+      "rol": "viewer+ (302 /login)",
+      "entrega": "entity_detail.html",
+      "datos": "provider.entity + relations_for_entity",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "404 error.html",
+        "503 error.html"
+      ],
+      "nav_entrante": [
+        "entity_detail.html"
+      ],
+      "nav_saliente": [
+        "/entities",
+        "/entities/{entity_id}"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_navigation.py",
+        "tests/test_authz_api_enforcement.py",
+        "tests/test_authz_legacy_endpoints.py",
+        "tests/test_autorizacion_e2e_http.py",
+        "tests/test_autorizacion_e2e_http_septima_ronda.py",
+        "tests/test_multipartida_e2e.py",
+        "tests/test_readonly.py"
+      ],
+      "notas": ""
+    },
+    "GET /entity/{entity_id}": {
+      "endpoint": "app.main.entity_view",
+      "rol": "viewer+ (302 /login)",
+      "entrega": "entity.html",
+      "datos": "provider.entity + relations_for_entity",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "404 JSON CRUDO (HTTPException)"
+      ],
+      "nav_entrante": [
+        "entities.html",
+        "entity.html"
+      ],
+      "nav_saliente": [
+        "/entity/{entity_id}"
+      ],
+      "consumidores_js": [
+        "graph.js"
+      ],
+      "tests": [
+        "tests/browser/test_browser_navigation.py",
+        "tests/test_authz_legacy_endpoints.py"
+      ],
+      "notas": "LEGADO: duplica /entities/{entity_id}; no pasa auth_user a la plantilla"
+    },
+    "GET /graph": {
+      "endpoint": "app.main.graph_view",
+      "rol": "viewer+ (302 /login)",
+      "entrega": "graph.html",
+      "datos": "settings; datos vía /api/graph (JS)",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "302 login",
+        "error del fetch a /api/graph pintado en cliente"
+      ],
+      "nav_entrante": [
+        "base.html",
+        "index.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [
+        "graph.js"
+      ],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py",
+        "tests/browser/test_browser_backend_down.py",
+        "tests/browser/test_browser_navigation.py",
+        "tests/test_api.py",
+        "tests/test_auth_hardening.py",
+        "tests/test_auth_routes.py",
+        "tests/test_authz_legacy_endpoints.py",
+        "tests/test_readonly.py"
+      ],
+      "notas": ""
+    },
+    "GET /jobs": {
+      "endpoint": "app.main.jobs_view",
+      "rol": "viewer+ (302 /login)",
+      "entrega": "jobs.html",
+      "datos": "jobs_client (SQLite de jobs) acotado por scope",
+      "estados": [
+        "ok",
+        "db_no_disponible"
+      ],
+      "errores": [
+        "302 login",
+        "error de DB pintado en la plantilla, HTTP 200"
+      ],
+      "nav_entrante": [
+        "base.html",
+        "jobs.html"
+      ],
+      "nav_saliente": [
+        "/jobs",
+        "/jobs/{job_id}"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py",
+        "tests/browser/test_browser_navigation.py",
+        "tests/test_api_jobs.py",
+        "tests/test_auth_hardening.py",
+        "tests/test_auth_routes.py",
+        "tests/test_multipartida_m5a_adversarial.py",
+        "tests/test_must_change_password.py"
+      ],
+      "notas": "no pasa auth_user a la plantilla"
+    },
+    "GET /jobs/{job_id}": {
+      "endpoint": "app.main.job_detail_view",
+      "rol": "viewer+ (302 /login)",
+      "entrega": "job_detail.html",
+      "datos": "jobs_client.scoped_job",
+      "estados": [
+        "ok",
+        "job_not_found",
+        "db_no_disponible"
+      ],
+      "errores": [
+        "job inexistente => HTTP 200 con error='job_not_found'"
+      ],
+      "nav_entrante": [
+        "jobs.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_navigation.py",
+        "tests/test_api_jobs.py",
+        "tests/test_auth_hardening.py",
+        "tests/test_multipartida_m5a_adversarial.py"
+      ],
+      "notas": "no pasa auth_user a la plantilla"
+    },
+    "GET /login": {
+      "endpoint": "app.routers.auth.login_page",
+      "rol": "público",
+      "entrega": "auth/login.html",
+      "datos": "cookie CSRF de login",
+      "estados": [
+        "formulario",
+        "ya autenticado => 302"
+      ],
+      "errores": [
+        "-"
+      ],
+      "nav_entrante": [
+        "auth/login.html"
+      ],
+      "nav_saliente": [
+        "/login"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py",
+        "tests/browser/test_browser_auth_flows.py",
+        "tests/browser/test_browser_backend_down.py",
+        "tests/browser/test_browser_navigation.py",
+        "tests/browser/test_login_browser.py",
+        "tests/test_auth_core.py",
+        "tests/test_auth_hardening.py",
+        "tests/test_auth_persistence.py",
+        "tests/test_auth_routes.py",
+        "tests/test_multipartida_m5a_adversarial.py",
+        "tests/test_must_change_password.py",
+        "tests/test_readonly.py",
+        "tests/test_v3_review_e2e.py"
+      ],
+      "notas": ""
+    },
+    "POST /login": {
+      "endpoint": "app.routers.auth.login_submit",
+      "rol": "público",
+      "entrega": "auth/login.html (error) / 302",
+      "datos": "auth DB (SQLite)",
+      "estados": [
+        "ok 302",
+        "credenciales_invalidas",
+        "bloqueado",
+        "csrf_invalido",
+        "campos_incompletos (400)"
+      ],
+      "errores": [
+        "400",
+        "403 CSRF"
+      ],
+      "nav_entrante": [
+        "auth/login.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py",
+        "tests/browser/test_browser_auth_flows.py",
+        "tests/browser/test_browser_backend_down.py",
+        "tests/browser/test_browser_navigation.py",
+        "tests/browser/test_login_browser.py",
+        "tests/test_auth_core.py",
+        "tests/test_auth_hardening.py",
+        "tests/test_auth_persistence.py",
+        "tests/test_auth_routes.py",
+        "tests/test_multipartida_m5a_adversarial.py",
+        "tests/test_must_change_password.py",
+        "tests/test_readonly.py",
+        "tests/test_v3_review_e2e.py"
+      ],
+      "notas": ""
+    },
+    "POST /logout": {
+      "endpoint": "app.routers.auth.logout",
+      "rol": "autenticado",
+      "entrega": "302 /login",
+      "datos": "auth DB (sesiones)",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "403 CSRF"
+      ],
+      "nav_entrante": [
+        "auth/account.html",
+        "base.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_auth_flows.py",
+        "tests/test_multipartida_m5a_adversarial.py",
+        "tests/test_must_change_password.py"
+      ],
+      "notas": ""
+    },
+    "GET /openapi.json": {
+      "endpoint": "app.main._openapi",
+      "rol": "admin (404 si S9K_AUTH_EXPOSE_DOCS=false)",
+      "entrega": "application/json",
+      "datos": "app.openapi()",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "404",
+        "401",
+        "403"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_auth_hardening.py"
+      ],
+      "notas": ""
+    },
+    "POST /partida/select": {
+      "endpoint": "app.routers.partida.select_partida",
+      "rol": "autenticado",
+      "entrega": "302 a next",
+      "datos": "auth DB (concesiones)",
+      "estados": [
+        "ok",
+        "partida no concedida => se ignora"
+      ],
+      "errores": [
+        "403 CSRF",
+        "next externo saneado"
+      ],
+      "nav_entrante": [
+        "base.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_multipartida_e2e.py",
+        "tests/test_multipartida_m5a_adversarial.py"
+      ],
+      "notas": ""
+    },
+    "GET /quality": {
+      "endpoint": "app.routers.readonly.quality_page",
+      "rol": "reviewer+ (302/403)",
+      "entrega": "quality.html",
+      "datos": "provider.quality_metrics",
+      "estados": [
+        "ok",
+        "métricas vacías"
+      ],
+      "errores": [
+        "302 login",
+        "403"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_authz_api_enforcement.py",
+        "tests/test_authz_t3_t4_t5_regresion.py",
+        "tests/test_must_change_password.py",
+        "tests/test_readonly.py"
+      ],
+      "notas": "SIN ENLACE ENTRANTE: no aparece en base.html ni en index.html"
+    },
+    "GET /redoc": {
+      "endpoint": "app.main._redoc",
+      "rol": "admin (404 si docs no expuestos)",
+      "entrega": "redoc (HTML de FastAPI)",
+      "datos": "/openapi.json",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "404",
+        "401",
+        "403"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_auth_hardening.py"
+      ],
+      "notas": ""
+    },
+    "GET /review-console": {
+      "endpoint": "app.routers.reviews_console.inbox",
+      "rol": "reviewer+ (302/403)",
+      "entrega": "reviews_console.html",
+      "datos": "almacén local de review v1 acotado por scope",
+      "estados": [
+        "ok",
+        "bandeja vacía"
+      ],
+      "errores": [
+        "302 login",
+        "403"
+      ],
+      "nav_entrante": [
+        "reviews_console_source.html"
+      ],
+      "nav_saliente": [
+        "/review-console/source/{source_id}"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_multipartida_m5a_adversarial.py",
+        "tests/test_reviews_console.py"
+      ],
+      "notas": "SIN ENLACE ENTRANTE desde base.html; ruta duplicada '' y '/'"
+    },
+    "GET /review-console/": {
+      "endpoint": "app.routers.reviews_console.inbox",
+      "rol": "reviewer+ (302/403)",
+      "entrega": "reviews_console.html",
+      "datos": "almacén local de review v1 acotado por scope",
+      "estados": [
+        "ok",
+        "bandeja vacía"
+      ],
+      "errores": [
+        "302 login",
+        "403"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [
+        "/review-console/source/{source_id}"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_multipartida_m5a_adversarial.py",
+        "tests/test_reviews_console.py"
+      ],
+      "notas": "SIN ENLACE ENTRANTE desde base.html; ruta duplicada '' y '/'"
+    },
+    "GET /review-console/source/{source_id}": {
+      "endpoint": "app.routers.reviews_console.source_detail",
+      "rol": "reviewer+ (302/403)",
+      "entrega": "reviews_console_source.html",
+      "datos": "review v1: candidatos + preview del plan",
+      "estados": [
+        "ok",
+        "stale_warning"
+      ],
+      "errores": [
+        "404 JSON CRUDO (fuera de ámbito o inexistente)",
+        "403"
+      ],
+      "nav_entrante": [
+        "reviews_console.html"
+      ],
+      "nav_saliente": [
+        "/review-console",
+        "/review-console/source/{source_id}/decide"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_multipartida_m5a_adversarial.py",
+        "tests/test_reviews_console.py"
+      ],
+      "notas": ""
+    },
+    "POST /review-console/source/{source_id}/decide": {
+      "endpoint": "app.routers.reviews_console.decide",
+      "rol": "reviewer+",
+      "entrega": "303 a /review-console/source/{id}",
+      "datos": "escribe review-decision v1 (almacén local, nunca Neo4j)",
+      "estados": [
+        "ok",
+        "conflicto optimista => stale=1"
+      ],
+      "errores": [
+        "403 CSRF",
+        "404"
+      ],
+      "nav_entrante": [
+        "reviews_console_source.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_multipartida_m5a_adversarial.py",
+        "tests/test_reviews_console.py"
+      ],
+      "notas": ""
+    },
+    "GET /reviews": {
+      "endpoint": "app.main.reviews_view",
+      "rol": "reviewer+ (403 HTML)",
+      "entrega": "reviews.html",
+      "datos": "output/reviews/<workspace> en disco",
+      "estados": [
+        "ok",
+        "sin fuentes"
+      ],
+      "errores": [
+        "302 login",
+        "403 HTML auth/403.html"
+      ],
+      "nav_entrante": [
+        "base.html",
+        "reviews_detail.html"
+      ],
+      "nav_saliente": [
+        "/reviews/{source_id}"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py",
+        "tests/browser/test_browser_auth_flows.py",
+        "tests/browser/test_browser_navigation.py",
+        "tests/test_auth_routes.py",
+        "tests/test_authz_g1_g2_g3_regresion.py",
+        "tests/test_authz_t3_t4_t5_regresion.py",
+        "tests/test_must_change_password.py",
+        "tests/test_reviews.py"
+      ],
+      "notas": "no pasa auth_user a la plantilla"
+    },
+    "GET /reviews/{source_id}": {
+      "endpoint": "app.main.reviews_detail_view",
+      "rol": "reviewer+ (403 HTML)",
+      "entrega": "reviews_detail.html",
+      "datos": "ficheros del pipeline en output/reviews",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "404 JSON CRUDO (HTTPException)",
+        "403 HTML"
+      ],
+      "nav_entrante": [
+        "reviews.html"
+      ],
+      "nav_saliente": [
+        "/reviews"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_navigation.py",
+        "tests/test_authz_t3_t4_t5_regresion.py",
+        "tests/test_reviews.py"
+      ],
+      "notas": "no pasa auth_user a la plantilla"
+    },
+    "GET /sources": {
+      "endpoint": "app.routers.readonly.sources_page",
+      "rol": "reviewer+ (302/403)",
+      "entrega": "sources.html",
+      "datos": "provider.list_sources",
+      "estados": [
+        "ok",
+        "lista vacía"
+      ],
+      "errores": [
+        "302 login",
+        "403"
+      ],
+      "nav_entrante": [
+        "base.html",
+        "source_detail.html"
+      ],
+      "nav_saliente": [
+        "/sources/{source_id}"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py",
+        "tests/browser/test_browser_auth_flows.py",
+        "tests/browser/test_browser_navigation.py",
+        "tests/test_must_change_password.py",
+        "tests/test_readonly.py"
+      ],
+      "notas": ""
+    },
+    "GET /sources/{source_id}": {
+      "endpoint": "app.routers.readonly.source_detail_page",
+      "rol": "reviewer+ (302/403)",
+      "entrega": "source_detail.html",
+      "datos": "provider.source_detail",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "404 error.html",
+        "503 error.html"
+      ],
+      "nav_entrante": [
+        "sources.html"
+      ],
+      "nav_saliente": [
+        "/sources"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_readonly.py"
+      ],
+      "notas": ""
+    },
+    "GET /status": {
+      "endpoint": "app.main.status_view",
+      "rol": "viewer+ (302 /login)",
+      "entrega": "status.html",
+      "datos": "api_status(provider filtrado)",
+      "estados": [
+        "ok"
+      ],
+      "errores": [
+        "302 login"
+      ],
+      "nav_entrante": [
+        "base.html",
+        "index.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/browser/test_browser_accessibility.py",
+        "tests/browser/test_browser_backend_down.py",
+        "tests/browser/test_browser_navigation.py",
+        "tests/test_api.py",
+        "tests/test_auth_hardening.py",
+        "tests/test_auth_routes.py",
+        "tests/test_authz_legacy_endpoints.py",
+        "tests/test_must_change_password.py"
+      ],
+      "notas": ""
+    },
+    "GET /v3/review": {
+      "endpoint": "app.routers.v3_review.queue",
+      "rol": "reviewer+ (302/403)",
+      "entrega": "v3_review.html",
+      "datos": "ReviewService (cola V3 en disco) acotada por scope",
+      "estados": [
+        "ok",
+        "sin workspace seleccionado",
+        "cola vacía"
+      ],
+      "errores": [
+        "302 login",
+        "403",
+        "404 workspace"
+      ],
+      "nav_entrante": [
+        "base.html",
+        "v3_review.html"
+      ],
+      "nav_saliente": [
+        "/v3/review",
+        "/v3/review/decide",
+        "/v3/review/undo"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_multipartida_m5a_adversarial.py",
+        "tests/test_v3_review.py",
+        "tests/test_v3_review_e2e.py"
+      ],
+      "notas": "ruta duplicada '' y '/'"
+    },
+    "GET /v3/review/": {
+      "endpoint": "app.routers.v3_review.queue",
+      "rol": "reviewer+ (302/403)",
+      "entrega": "v3_review.html",
+      "datos": "ReviewService (cola V3 en disco) acotada por scope",
+      "estados": [
+        "ok",
+        "sin workspace seleccionado",
+        "cola vacía"
+      ],
+      "errores": [
+        "302 login",
+        "403",
+        "404 workspace"
+      ],
+      "nav_entrante": [],
+      "nav_saliente": [
+        "/v3/review",
+        "/v3/review/decide",
+        "/v3/review/undo"
+      ],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_v3_review.py",
+        "tests/test_v3_review_e2e.py"
+      ],
+      "notas": "ruta duplicada '' y '/'"
+    },
+    "POST /v3/review/decide": {
+      "endpoint": "app.routers.v3_review.decide",
+      "rol": "reviewer+",
+      "entrega": "303 a /v3/review",
+      "datos": "ReviewService + almacén de decisiones",
+      "estados": [
+        "ok 303",
+        "stale (400)"
+      ],
+      "errores": [
+        "400",
+        "403 CSRF"
+      ],
+      "nav_entrante": [
+        "v3_review.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [
+        "tests/test_v3_review.py",
+        "tests/test_v3_review_e2e.py"
+      ],
+      "notas": ""
+    },
+    "GET /v3/review/glossary-candidates": {
+      "endpoint": "app.routers.v3_review.glossary_candidates",
+      "rol": "reviewer+ (302/403)",
+      "entrega": "v3_glossary_candidates.html",
+      "datos": "GlossaryCandidateStore",
+      "estados": [
+        "ok",
+        "sin workspace"
+      ],
+      "errores": [
+        "302 login",
+        "403",
+        "404 workspace"
+      ],
+      "nav_entrante": [
+        "v3_glossary_candidates.html"
+      ],
+      "nav_saliente": [
+        "/v3/review/glossary-candidates"
+      ],
+      "consumidores_js": [],
+      "tests": [],
+      "notas": "SIN ENLACE ENTRANTE: no aparece en base.html ni en v3_review.html"
+    },
+    "POST /v3/review/undo": {
+      "endpoint": "app.routers.v3_review.undo",
+      "rol": "reviewer+",
+      "entrega": "303 a /v3/review",
+      "datos": "ReviewService (deshacer última decisión)",
+      "estados": [
+        "ok 303"
+      ],
+      "errores": [
+        "400",
+        "403 CSRF"
+      ],
+      "nav_entrante": [
+        "v3_review.html"
+      ],
+      "nav_saliente": [],
+      "consumidores_js": [],
+      "tests": [],
+      "notas": ""
+    }
+  }
+}
