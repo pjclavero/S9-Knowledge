@@ -18,11 +18,33 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Optional
 
-from app.policies.models import ViewerContext
+from app.policies.models import (
+    NO_APLICA,
+    NO_APLICABLE,
+    VALOR,
+    ViewerContext,
+    estado_de_entero_no_negativo,
+)
 
 
 def _ws_set(workspaces: Iterable[str]) -> frozenset[str]:
     return frozenset(w for w in workspaces if w)
+
+
+def _tope_minimo(valor: Any) -> Any:
+    """Tope de sesión del anónimo: mínimo privilegio, conservando el tri-estado.
+
+    Un valor legible se respeta; ``NO_APLICA`` (declarado: sin partida activa)
+    se conserva porque es un estado, no un hueco; cualquier otra cosa --incluido
+    ``None``-- se convierte en 0. El anónimo nunca tiene partida activa, así que
+    en la práctica no ve contenido de partida por ninguna de las tres vías.
+    """
+    estado = estado_de_entero_no_negativo(valor)
+    if estado == VALOR:
+        return valor
+    if estado == NO_APLICABLE:
+        return NO_APLICA
+    return 0
 
 
 def build_viewer_context(
@@ -32,7 +54,7 @@ def build_viewer_context(
     default_workspace: str,
     allowed_workspaces: Optional[Iterable[str]] = None,
     active_character: Optional[str] = None,
-    max_visible_session: Optional[int] = None,
+    max_visible_session: Any = None,
     party_membership: Optional[Iterable[str]] = None,
     character_knowledge: Optional[Iterable[str]] = None,
     simulated: bool = False,
@@ -125,7 +147,7 @@ def build_viewer_context(
         active_partida=None,
         allowed_partida_ids=frozenset(),
         active_character=None,
-        max_visible_session=max_visible_session if max_visible_session is not None else 0,
+        max_visible_session=_tope_minimo(max_visible_session),
         can_view_secret=False,
         can_view_future=False,
         can_view_reference=False,
@@ -141,7 +163,7 @@ def context_for_simulated_character(
     default_workspace: str,
     allowed_workspaces: Optional[Iterable[str]],
     active_character: str,
-    max_visible_session: Optional[int],
+    max_visible_session: Any,
     party_membership: Optional[Iterable[str]],
     character_knowledge: Optional[Iterable[str]],
 ) -> ViewerContext:

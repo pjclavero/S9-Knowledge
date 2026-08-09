@@ -32,6 +32,7 @@ from . import codes, cypher
 from .admission import declares_local_override
 from .errors import WriterAbort
 from .idempotency import AppliedKeyStore
+from .visibility import SIN_DECLARAR, VisibilityStampError
 from .view import SignedView
 
 #: M4 (docs/v3/49 §2.5): catalogo COMPARTIDO con el ledger local -- una sola
@@ -380,7 +381,27 @@ def _validated_payload(op: dict) -> tuple[dict[str, Any], dict[str, Any]]:
             {"operation_id": op["operation_id"], "operation_type": op_type},
         )
     payload = dict(op.get("payload") or {})
+    # T2: la sesion de REVELACION viaja en el payload, que es el punto de
+    # extension DOCUMENTADO del contrato (`additionalProperties: true`, por
+    # depender del tipo de operacion y de la ontologia). No se anadio al
+    # esquema del plan a proposito: los contratos v3 estan congelados en
+    # 1.0.0 y hay una prueba que lo verifica byte a byte; ampliarlos sin
+    # versionar seria colar un cambio de contrato por la puerta de atras.
+    # Se retira antes de calcular `props` para que no acabe como propiedad
+    # cruda del nodo: la estampa `visibility.stamp`, no el payload.
+    payload.pop("known_from_session", None)
     props = cypher.safe_props(payload)
+    def _estampar(fn, *args, **kwargs):
+        """Traduce un fallo de declaracion en un aborto con codigo propio."""
+        try:
+            return fn(*args, **kwargs)
+        except VisibilityStampError as exc:
+            raise WriterAbort(
+                codes.EXEC_REVELACION_NO_DECLARADA,
+                str(exc),
+                {"operation_id": op.get("operation_id")},
+            ) from exc
+
     if op_type == "CREATE_ENTITY":
         _require(op.get("target_entity_id"), op, "target_entity_id")
         cypher.safe_token(payload.get("entity_type"), "etiqueta")
@@ -440,6 +461,21 @@ def execute_operation(
     partida_id = view.partida_id
     payload, props = _validated_payload(op)
     prov = _provenance(view, op, ctx)
+    # T2: la sesion de REVELACION se declara por OPERACION, no por plan: dos
+    # hechos del mismo plan pueden revelarse en sesiones distintas. Ausente en
+    # ambito de partida -> el estampado aborta antes de tocar Neo4j.
+    desde = (op.get("payload") or {}).get("known_from_session", SIN_DECLARAR)
+
+    def _estampar(fn, *args, **kwargs):
+        """Traduce un fallo de declaracion en un aborto con codigo propio."""
+        try:
+            return fn(*args, **kwargs)
+        except VisibilityStampError as exc:
+            raise WriterAbort(
+                codes.EXEC_REVELACION_NO_DECLARADA,
+                str(exc),
+                {"operation_id": op.get("operation_id")},
+            ) from exc
 
     if op_type == "CREATE_ENTITY":
         entity_id = _require(op.get("target_entity_id"), op, "target_entity_id")
@@ -447,7 +483,8 @@ def execute_operation(
         label = payload.get("entity_type")
         record = _single(
             tx,
-            cypher.create_entity(entity_id, ws, label, {**props, **prov}, partida_id),
+            _estampar(cypher.create_entity, entity_id, ws, label,
+                      {**props, **prov}, partida_id, known_from_session=desde),
         )
         return AppliedOperation(
             operation_id=op["operation_id"],
@@ -464,7 +501,8 @@ def execute_operation(
         marks = _check_local_override(tx, op, payload, ws, partida_id)
         record = _single(
             tx,
-            cypher.create_assertion(assertion_id, ws, {**props, **prov}, partida_id),
+            _estampar(cypher.create_assertion, assertion_id, ws,
+                      {**props, **prov}, partida_id, known_from_session=desde),
         )
         return AppliedOperation(
             operation_id=op["operation_id"],
@@ -485,8 +523,10 @@ def execute_operation(
         rel_props = {k: v for k, v in props.items() if k != "predicate"}
         record = _single(
             tx,
-            cypher.create_relation(
-                predicate, subject, obj, ws, {**rel_props, **prov}, partida_id
+            _estampar(
+                cypher.create_relation,
+                predicate, subject, obj, ws, {**rel_props, **prov}, partida_id,
+                known_from_session=desde,
             ),
         )
         if record is None:

@@ -74,6 +74,69 @@ jobs:
         run: |
           python -m pytest viewer/tests/ -v --tb=short --no-header
 
+  test-neo4j-authz:
+    name: Authz integration (Neo4j efímero)
+    runs-on: ubuntu-latest
+    # Cubre la frontera Neo4j -> serializador -> política, que no cubría nada:
+    # con 675 pruebas verdes, `partida_id` se perdía al proyectar y el
+    # aislamiento entre partidas no llegaba a evaluarse sobre datos reales.
+    services:
+      neo4j:
+        image: neo4j:5.26.0
+        env:
+          NEO4J_AUTH: neo4j/testtesttest
+          NEO4J_server_memory_pagecache_size: 128M
+        ports:
+          - 7687:7687
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p testtesttest 'RETURN 1'"
+          --health-interval 10s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: 'viewer/requirements.txt'
+
+      - name: Install viewer dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r viewer/requirements.txt
+
+      - name: Run authz integration tests
+        env:
+          NEO4J_TEST_URI: bolt://localhost:7687
+          NEO4J_TEST_USER: neo4j
+          NEO4J_TEST_PASSWORD: testtesttest
+        run: |
+          # Estas pruebas NO pueden omitirse en silencio: si no hay base, se
+          # saltan solas, y un skip verde aqui equivale a no tener la prueba.
+          # `bash -e` aborta el paso en cuanto la asignacion recoge un pytest
+          # que ha fallado, y entonces NUNCA se llega al `echo "$out"`: el paso
+          # sale en rojo sin mostrar que test fallo ni por que. Un guard que
+          # esconde el fallo que deberia explicar es peor que no tenerlo, asi
+          # que aqui se captura el codigo aparte y siempre se imprime la salida.
+          set +e
+          out="$(python -m pytest viewer/tests/test_neo4j_integration_authz.py -v --no-header 2>&1)"
+          rc=$?
+          set -e
+          echo "$out"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::la suite de integracion contra Neo4j ha FALLADO"
+            exit 1
+          fi
+          if echo "$out" | grep -qi "skipped"; then
+            echo "::error::la suite de integracion se ha OMITIDO; no hay Neo4j efimero"
+            exit 1
+          fi
+          if ! echo "$out" | grep -qE '[0-9]+ passed'; then
+            echo "::error::la suite de integracion no llego a ejecutar ninguna prueba"
+            exit 1
+          fi
+
   test-login-browser:
     name: Login browser contract (Playwright)
     runs-on: ubuntu-latest

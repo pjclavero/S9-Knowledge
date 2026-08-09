@@ -425,6 +425,12 @@ async def admin_partidas_grant(
     workspace: str = Form(...),
     partida_id: str = Form(...),
     csrf_token: str = Form(...),
+    # Progresion de campana de ESTA concesion (T2). Vacio = 0 (nada revelado):
+    # NO "sin tope". Lo que el operador deja en blanco es la opcion mas
+    # restrictiva, no la mas abierta (7a ronda, H6-10: el formulario decia
+    # "vacio = sin tope" mientras el backend ya hacia vacio => 0).
+    max_visible_session: str = Form(""),
+    character_id: str = Form(""),
     admin: User = Depends(require_admin),
 ):
     if isinstance(admin, RedirectResponse):
@@ -439,15 +445,36 @@ async def admin_partidas_grant(
     if not workspace or not partida_id:
         raise HTTPException(status_code=400, detail="workspace y partida_id son obligatorios")
 
+    tope = (max_visible_session or "").strip()
+    if tope:
+        if not tope.isdigit():
+            raise HTTPException(
+                status_code=400,
+                detail="max_visible_session debe ser un entero no negativo",
+            )
+        tope = int(tope)
+    else:
+        # Se escribe 0 EXPLICITO en vez de NULL. Un NULL en la tabla es
+        # indistinguible de una fila migrada, y esa ambiguedad es justo la que
+        # hubo que cerrar en `partida_progress`. El panel declara el estado
+        # completo de la concesion: lo que no se teclea es 0, y se ve como 0.
+        tope = 0
+    personaje = (character_id or "").strip() or None
+
     db_path = _get_db_path()
     with auth_db.get_conn(db_path) as conn:
         target = auth_db.get_user_by_id(conn, user_id)
         if target is None:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
-        auth_db.grant_partida_access(conn, user_id, workspace, partida_id, granted_by=admin.username)
+        auth_db.grant_partida_access(
+            conn, user_id, workspace, partida_id, granted_by=admin.username,
+            max_visible_session=tope, character_id=personaje,
+        )
         audit.log(conn, audit.PARTIDA_ACCESS_GRANTED, "success",
                   user_id=admin.id, username_snapshot=admin.username,
-                  metadata={"target_user": target.username, "workspace": workspace, "partida_id": partida_id})
+                  metadata={"target_user": target.username, "workspace": workspace,
+                            "partida_id": partida_id, "max_visible_session": tope,
+                            "character_id": personaje})
 
     return RedirectResponse(url="/admin/partidas", status_code=302)
 

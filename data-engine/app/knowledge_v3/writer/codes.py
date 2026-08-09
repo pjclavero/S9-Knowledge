@@ -120,6 +120,11 @@ EXEC_TARGET_ALREADY_EXISTS = "EXEC_TARGET_ALREADY_EXISTS"
 #: que el declarado por el plan. Drift/carrera detectado en lectura, no en
 #: admision: aborta el plan entero, nunca una aplicacion parcial.
 EXEC_SCOPE_MISMATCH = "EXEC_SCOPE_MISMATCH"
+
+#: T2 -- contenido de partida sin sesion de revelacion declarada, o con una
+#: invalida. Tiene codigo propio porque salir como EXEC_DRIVER_FAILURE es un
+#: diagnostico enganoso: no ha fallado el driver, ha faltado una declaracion.
+EXEC_REVELACION_NO_DECLARADA = "EXEC_REVELACION_NO_DECLARADA"
 #: Tipo de operacion no soportado por este writer.
 EXEC_UNSUPPORTED_OPERATION = "EXEC_UNSUPPORTED_OPERATION"
 #: El payload no permite construir una escritura segura (campos, tipos, tokens).

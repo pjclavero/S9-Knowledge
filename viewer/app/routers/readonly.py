@@ -23,7 +23,10 @@ from app.auth.config import get_auth_settings
 from app.auth.dependencies import require_api_role, require_api_authenticated_user
 from app.authz.dependencies import get_filtered_provider
 from app.config import get_settings
-from app.deps import get_default_workspace, get_provider
+# OJO: NO importar `get_provider` aqui. Este router debe usar SIEMPRE el
+# proveedor filtrado por politica; tener el crudo importado al lado invita
+# a usarlo por error, y esa via se salta la autorizacion entera.
+from app.deps import get_default_workspace
 from app.providers.base import GraphProvider
 from app.serializers import serialize_edge, serialize_node
 
