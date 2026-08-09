@@ -75,9 +75,26 @@
     return s.trim();
   }
 
+  /**
+   * Texto sobre el que busca el visor: nombre · alias · tipo · resumen ·
+   * IDENTIFICADOR ESTABLE DE DOMINIO (`entity_id`).
+   *
+   * Sobre el identificador, tres reglas que no son cosmética:
+   *
+   *  1. Se indexa `entity_id` y NADA MÁS. `node.id` NO entra: en el proveedor
+   *     Neo4j ese campo es el `elementId`, que no es identidad durable —se
+   *     regenera al restaurar un dump—, y hacerlo buscable convertiría un
+   *     detalle del almacén en una clave de búsqueda del producto.
+   *  2. Solo se indexa lo que el BACKEND HA ENTREGADO en este nodo. Este
+   *     módulo no compone, deriva ni adivina identificadores.
+   *  3. Por lo tanto, y esto es el resultado que se congela: solo se puede
+   *     encontrar por ID aquello que la vista autorizada ya contiene. Un
+   *     `entity_id` que la política no entregó no está en ningún índice, así
+   *     que buscarlo es indistinguible de buscar un id inventado.
+   */
   function nodeHaystack(node) {
     if (!node) return "";
-    var parts = [node.label, node.type_label, node.type, node.short_summary];
+    var parts = [node.label, node.type_label, node.type, node.short_summary, node.entity_id];
     var aliases = node.aliases || [];
     for (var i = 0; i < aliases.length; i++) parts.push(aliases[i]);
     return normalizeText(parts.filter(Boolean).join("   "));

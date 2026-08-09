@@ -51,6 +51,10 @@
   var loading = false;
   var lastErrorStatus = null;
   var selectedId = null;
+  // ¿Ha terminado vis-network de estabilizar el layout físico? Mientras sea
+  // `false` el lienzo se está moviendo solo y comparar dos capturas no
+  // significa nada.
+  var stabilized = false;
   // vis-network se sirve vendorizado con `integrity`. Si el navegador bloquea
   // el fichero (hash que no cuadra) o el fichero no está, `vis` no existe. Eso
   // NO es un fallo de red ni del servidor y no debe contarse como tal.
@@ -311,10 +315,12 @@
     visEdges = new vis.DataSet(visible.edges.map(toVisEdge));
 
     if (network) {
+      stabilized = false;
       network.setData({ nodes: visNodes, edges: visEdges });
       return;
     }
 
+    stabilized = false;
     network = new vis.Network(
       canvas,
       { nodes: visNodes, edges: visEdges },
@@ -323,6 +329,16 @@
         interaction: { hover: true, keyboard: { enabled: true, bindToWindow: false }, navigationButtons: false }
       }
     );
+
+    // `stabilized` lo emite vis-network cuando el motor de físicas deja de
+    // mover los nodos. Deliberadamente NO se escucha `startStabilizing` para
+    // volver a poner la bandera en `false`: ese evento también se emite cuando
+    // el motor se reactiva por su cuenta, y en esos casos no siempre llega un
+    // `stabilized` de vuelta, con lo que la bandera se quedaría en `false`
+    // para siempre. Lo único que rehace el layout de verdad es cargar datos
+    // nuevos, y de eso se ocupa `drawGraph`.
+    network.on("stabilized", function () { stabilized = true; });
+    network.on("stabilizationIterationsDone", function () { stabilized = true; });
 
     network.on("click", function (params) {
       if (params.nodes.length > 0) {
@@ -696,6 +712,44 @@
       }
     });
   }
+
+  // ---------------------------------------------------------------------
+  // Ventana de observación (SOLO LECTURA)
+  //
+  // Por qué existe: hay estado del visor que es perfectamente visible para
+  // una persona —qué nodo está seleccionado, cuánto zoom hay, si el lienzo
+  // sigue moviéndose— y que sin embargo una prueba no puede leer del DOM,
+  // porque el grafo se pinta en un <canvas> y vis-network no publica nada.
+  // Sin poder leerlo, una prueba de «buscar A y buscar B producen lo mismo»
+  // se queda ciega justo en los canales donde una fuga sería más difícil de
+  // ver a simple vista.
+  //
+  // LÍMITES, que son los que hacen que esto no sea una puerta trasera:
+  //  - Solo LEE. No selecciona, no mueve, no carga, no filtra.
+  //  - Devuelve identificadores de nodos que ESTÁN dibujados ahora mismo en
+  //    la pantalla de quien mira: no añade ni un dato que no estuviera ya
+  //    delante de sus ojos, y nada que el backend no le hubiera entregado.
+  //  - No toca `loaded`: de aquí no se puede sacar el grafo.
+  // ---------------------------------------------------------------------
+
+  window.S9KGraphView = {
+    /** ¿El motor de físicas ha dejado de mover los nodos? */
+    isStabilized: function () { return rendererMissing ? true : stabilized; },
+    /** Selección REAL de vis-network (no la ficha lateral, que es su reflejo). */
+    selection: function () {
+      if (!network) return null;
+      return {
+        nodes: network.getSelectedNodes().map(String).sort(),
+        edges: network.getSelectedEdges().map(String).sort()
+      };
+    },
+    /** Encuadre del lienzo: zoom y centro. */
+    viewport: function () {
+      if (!network) return null;
+      var p = network.getViewPosition();
+      return { scale: network.getScale(), x: p.x, y: p.y };
+    }
+  };
 
   // ---------------------------------------------------------------------
   // Arranque

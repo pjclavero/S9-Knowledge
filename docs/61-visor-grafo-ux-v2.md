@@ -303,7 +303,62 @@ una búsqueda remota autorizada:
 |---|---|---|
 | 1 | `test_la_busqueda_encuentra_centra_y_resalta_un_nodo_visible` | Un nodo que el backend **sí** entregó a ese rol se encuentra, queda centrado en el lienzo (medido en píxeles) y resaltado con su ficha abierta. |
 | 2 | `test_la_busqueda_de_algo_inexistente_no_encuentra_nada` (×2: nombre e id) | Un nombre o un id que no existe da cero resultados, mensaje «Sin coincidencias» y ninguna ficha. |
-| 3 | `test_un_nodo_no_autorizado_es_indistinguible_de_uno_inexistente` | Un `viewer` que busca el **nombre exacto** y el **id exacto** del nodo `secret` obtiene una huella observable *idéntica* a la del caso 2: mismos resultados, mismo contador, mismo texto, misma ficha cerrada. No hay contador, ni hueco, ni mensaje distinto. |
+| 3 | `test_un_nodo_no_autorizado_es_indistinguible_de_uno_inexistente` | Un `viewer` que busca el **nombre exacto** y el **id exacto** del nodo `secret` obtiene una huella observable *idéntica* a la de un nombre y un id inventados. |
+
+#### La huella observable (corrección H1)
+
+La primera versión de la huella miraba cuatro cosas —la lista de resultados, el
+contador de nodos y si la ficha estaba abierta— y por eso **no valía**: un
+revisor escribió fugas en el contador de **aristas**, en el mensaje de
+`#graph-status` (visible y anunciado por `aria-live`) y en la **URL**, y la
+prueba siguió verde. La promesa que firma la prueba es «indistinguible», así que
+la huella abarca ahora todo el estado observable:
+
+resultados y texto/visibilidad de su lista · texto y visibilidad de la ficha
+lateral · contador de nodos · **contador de aristas** · **texto y visibilidad de
+`#graph-status`** · **URL completa** · **selección real de vis-network** ·
+**encuadre (zoom y centro)** · **el lienzo, píxel a píxel**.
+
+Dos decisiones de método:
+
+- **Normalización del término.** Dos búsquedas siempre se distinguen en algo
+  trivial: el texto tecleado, que viaja al campo y a `?q=…`. Antes de comparar
+  se sustituye el término por `<TERMINO>` (también en sus formas
+  *percent-encoded*): lo que sobreviva a esa sustitución y siga siendo distinto
+  solo puede venir de los datos, no de la consulta.
+- **Estabilización del lienzo.** Comparar capturas con la física en marcha da
+  una prueba que falla al azar, y eso es peor que no tenerla. Se espera a *dos*
+  señales: el evento `stabilized` de vis-network (expuesto en
+  `S9KGraphView.isStabilized`, ventana de observación **de solo lectura**) y que
+  dos capturas consecutivas del `<canvas>` sean idénticas —lo segundo cubre las
+  animaciones de `focus`/`fit`, que mueven la cámara *después* de que la física
+  pare—.
+
+#### Buscar por identificador (decisión de producto, H4)
+
+El caso «buscar por id» era **vacuo**: el identificador no estaba en el índice,
+así que no encontraba nada *ni para el admin*. El índice pasa a ser **nombre ·
+alias · tipo · resumen · `entity_id`**, donde `entity_id` es el identificador
+**estable de dominio** que entrega el backend (`serialize_node`, campo nuevo).
+
+Lo que **no** entra, y hay una prueba por cada mitad:
+
+- el `elementId` de Neo4j (hoy `node.id` con ese proveedor): no es identidad
+  durable, se regenera al restaurar un dump;
+- cualquier identificador que el backend no haya entregado en ese nodo.
+
+Lo que se congela no es «búsqueda de cliente», sino: **solo se puede encontrar
+por ID aquello que la vista autorizada ya contiene**. El admin encuentra el nodo
+secreto por su `entity_id`; el `viewer`, a quien no se le entregó, obtiene una
+huella indistinguible de la de un id inventado.
+
+#### La leyenda tiene red (corrección H2)
+
+No había nada que comprobase que la leyenda sobrevive a la interacción: un
+revisor la vació dentro de `selectNode` y la suite dio *220 passed, 0 failed*.
+`test_seleccionar_un_nodo_no_altera_la_leyenda` congela que la leyenda depende
+de **los datos cargados** y no de la selección: leyenda inicial → seleccionar A
+→ seleccionar B → reiniciar vista, idéntica en filas, orden y colores reales.
 
 El caso 3 **no puede aprobar por vacío**: antes de nada comprueba con un `admin`
 que el nodo existe (11 nodos, `/api/entity/{id}` → 200) y que ese mismo buscador
@@ -311,6 +366,18 @@ que el nodo existe (11 nodos, `/api/entity/{id}` → 200) y que ese mismo buscad
 le responde 404 al id. Si alguien borrase el nodo del fixture, la prueba se pone
 roja en vez de aprobar. Verificado además por mutación: apuntar la constante a
 un nodo visible (`Kimi`) pone la prueba en rojo.
+
+Y las correcciones H1/H2/H4 se han verificado una a una por mutación:
+
+| Mutación introducida | Prueba que enrojece | Canal que la delata |
+|---|---|---|
+| Mensaje solo para el nombre exacto del nodo `secret` en `#graph-status` | caso 3 | `estado_texto`, `estado_visible` (y de rebote `lienzo`) |
+| `&hit=1` añadido a la URL tras `syncUrl()` | caso 3 | `url` |
+| Contador de aristas alterado al buscar el secreto | caso 3 | `contador_aristas` |
+| `network.moveTo({scale: 2.5})` al buscar el secreto | caso 3 | `encuadre`, `lienzo` |
+| Vaciar la leyenda dentro de `selectNode` | `test_seleccionar_un_nodo_no_altera_la_leyenda` | leyenda ≠ inicial |
+| Quitar `entity_id` del índice | caso 3 (control positivo) | el admin deja de encontrar el nodo por su id |
+| Meter `node.id` (elementId) en el índice | `graph_core_spec.js` | «NO encuentra por el elementId de Neo4j» |
 
 Una tercera prueba del carril D quedó invalidada **por mejora**:
 `test_los_controles_del_grafo_estan_etiquetados` llevaba `xfail(strict=True)`

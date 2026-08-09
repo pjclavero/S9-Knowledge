@@ -175,6 +175,64 @@ def test_la_lista_de_resultados_lleva_al_nodo(graph_page):
     assert "Kimi" in graph_page.locator("#side-panel").inner_text()
 
 
+_LEYENDA_JS = """() => Array.from(document.querySelectorAll('#graph-legend li')).map((li) => {
+    const sw = li.querySelector('.legend-swatch');
+    return {
+      texto: (li.textContent || '').trim(),
+      color: sw ? getComputedStyle(sw).backgroundColor : null
+    };
+})"""
+
+
+def leyenda(page) -> list:
+    """La leyenda tal y como se ve: cada fila, con su texto y su color real."""
+    return page.evaluate(_LEYENDA_JS)
+
+
+def test_seleccionar_un_nodo_no_altera_la_leyenda(graph_page):
+    """La leyenda es el DICCIONARIO del grafo, no un panel de detalle.
+
+    POR QUE ESTA PRUEBA
+    -------------------
+    No habia ninguna red debajo de esto: un revisor vacio la leyenda dentro de
+    `selectNode` y la suite dio 220 passed, 0 failed. Es decir, se podia dejar
+    a la persona sin la clave de colores en el instante mismo en que empieza a
+    mirar nodos, y nadie se enteraba.
+
+    Lo que se congela: la leyenda depende de LOS DATOS CARGADOS, no de la
+    seleccion. Seleccionar A, seleccionar B o reiniciar la vista la dejan
+    exactamente igual —mismas filas, mismo orden, mismos colores—.
+    """
+    inicial = leyenda(graph_page)
+    assert len(inicial) >= 2, \
+        f"la leyenda no tiene ni dos filas: comparar no demostraria nada ({inicial})"
+    assert all(f["color"] for f in inicial), \
+        f"hay filas de la leyenda sin color: la comparacion seria ciega ({inicial})"
+
+    def seleccionar(texto):
+        graph_page.fill("#search-input", texto)
+        graph_page.press("#search-input", "Enter")
+        graph_page.wait_for_timeout(900)
+        assert panel_abierto(graph_page), f"no se ha seleccionado nada buscando «{texto}»"
+
+    seleccionar("Kimi")
+    assert leyenda(graph_page) == inicial, (
+        f"seleccionar un nodo ha cambiado la leyenda.\n"
+        f"  antes:   {inicial}\n  despues: {leyenda(graph_page)}")
+
+    seleccionar("Oni de la Montaña")
+    assert leyenda(graph_page) == inicial, (
+        f"seleccionar un SEGUNDO nodo ha cambiado la leyenda.\n"
+        f"  antes:   {inicial}\n  despues: {leyenda(graph_page)}")
+
+    graph_page.click("#reset-btn")
+    graph_page.wait_for_timeout(900)
+    assert leyenda(graph_page) == inicial, (
+        f"reiniciar la vista ha cambiado la leyenda.\n"
+        f"  antes:   {inicial}\n  despues: {leyenda(graph_page)}")
+    assert graph_page.page_errors == []
+
+
 # ---------------------------------------------------------------------------
 # 3. Filtros
 # ---------------------------------------------------------------------------

@@ -8,6 +8,10 @@ real; el unico elemento sustituido es el origen de datos del grafo (proveedor
 """
 from __future__ import annotations
 
+import re
+import unicodedata
+from urllib.parse import quote, quote_plus
+
 import pytest
 
 from e2e_support import fetch_status, login_as
@@ -121,6 +125,62 @@ _CENTROIDE_JS = """(color) => {
 }"""
 
 
+# Huella del lienzo. Se resume en un entero (FNV-1a sobre TODOS los canales de
+# TODOS los pixeles) mas el numero de pixeles no transparentes: cualquier
+# diferencia de dibujo —un nodo mas, un resaltado, un encuadre distinto— cambia
+# el resumen. Comparar dataURL completas seria equivalente pero mucho mas caro
+# de mover entre navegador y prueba.
+_HUELLA_CANVAS_JS = """() => {
+    const c = document.querySelector('#graph-canvas canvas');
+    if (!c) { return null; }
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let h = 0x811c9dc5, opacos = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      h = ((h ^ d[i]) * 16777619) >>> 0;
+      h = ((h ^ d[i + 1]) * 16777619) >>> 0;
+      h = ((h ^ d[i + 2]) * 16777619) >>> 0;
+      h = ((h ^ d[i + 3]) * 16777619) >>> 0;
+      if (d[i + 3] > 0) { opacos++; }
+    }
+    return c.width + 'x' + c.height + ':' + h.toString(16) + ':' + opacos;
+}"""
+
+
+def _esperar_lienzo_quieto(page, timeout_ms: int = 20_000) -> str:
+    """Espera a que la FISICA se pare y devuelve la huella del lienzo.
+
+    POR QUE ESTO Y NO UN `wait_for_timeout` GENEROSO
+    ------------------------------------------------
+    El grafo se dibuja con vis-network, que mueve los nodos solo hasta que el
+    motor de fisicas converge. Comparar dos capturas con el grafo todavia en
+    movimiento produce una prueba que falla al azar, y una prueba que falla al
+    azar es peor que no tenerla: se acaba ignorando.
+
+    Se esperan DOS cosas, y las dos hacen falta:
+      1. Que el producto declare la estabilizacion (evento `stabilized` de
+         vis-network, expuesto en `S9KGraphView.isStabilized`). Es la senal
+         autoritativa del motor de fisicas.
+      2. Que dos capturas consecutivas del lienzo sean identicas. Cubre lo que
+         el evento no cubre: las animaciones de `focus`/`fit`, que mueven la
+         camara DESPUES de que la fisica se haya parado.
+    """
+    page.wait_for_function(
+        "() => window.S9KGraphView && window.S9KGraphView.isStabilized()",
+        timeout=timeout_ms)
+    anterior = None
+    intentos = max(4, timeout_ms // 250)
+    for _ in range(intentos):
+        actual = page.evaluate(_HUELLA_CANVAS_JS)
+        assert actual is not None, "no hay lienzo del grafo que observar"
+        if actual == anterior:
+            return actual
+        anterior = actual
+        page.wait_for_timeout(250)
+    raise AssertionError(
+        "el lienzo del grafo no se queda quieto: comparar huellas seria un "
+        "sorteo. Ultimas capturas distintas entre si.")
+
+
 def _abrir_grafo(page, viewer):
     """Grafo cargado y con el layout fisico ya estabilizado."""
     page.goto(viewer.url("/graph"))
@@ -128,7 +188,7 @@ def _abrir_grafo(page, viewer):
     page.wait_for_function(
         "() => document.getElementById('counter-nodes').textContent !== '0'",
         timeout=15_000)
-    page.wait_for_timeout(2500)
+    _esperar_lienzo_quieto(page)
     return page
 
 
@@ -136,7 +196,7 @@ def _buscar(page, texto):
     """Teclea y pulsa Intro. No se afirma nada sobre peticiones de red."""
     page.fill("#search-input", texto)
     page.press("#search-input", "Enter")
-    page.wait_for_timeout(1200)               # la animacion de centrado dura 400 ms
+    _esperar_lienzo_quieto(page)
 
 
 def _resultados(page) -> list:
@@ -145,20 +205,97 @@ def _resultados(page) -> list:
     return [items.nth(i).inner_text() for i in range(items.count())]
 
 
-def _huella_de_busqueda(page) -> dict:
-    """Todo lo observable tras una busqueda, para poder comparar dos casos.
+def _variantes(termino: str) -> list:
+    """Las formas en que el termino buscado puede aparecer escrito en la UI."""
+    formas = {
+        termino,
+        termino.lower(),
+        quote(termino, safe=""),
+        quote(termino, safe="").lower(),
+        quote_plus(termino),
+        unicodedata.normalize("NFD", termino).encode("ascii", "ignore").decode(),
+    }
+    return sorted((f for f in formas if f), key=len, reverse=True)
+
+
+def _sin_el_termino(valor, termino: str):
+    """Sustituye el texto buscado por un marcador, en cualquier profundidad.
+
+    POR QUE HACE FALTA NORMALIZAR
+    -----------------------------
+    Dos busquedas distintas se distinguen siempre en una cosa trivial: el texto
+    que se ha tecleado, que viaja al campo, a la URL (`?q=…`) y a cualquier
+    mensaje que lo cite. Eso no es un canal lateral, es la busqueda haciendo su
+    trabajo; exigir igualdad literal haria imposible comparar nada.
+
+    Lo que SI es un canal lateral es cualquier diferencia que quede DESPUES de
+    borrar el termino: un parametro de mas en la URL, un contador que cambia,
+    un mensaje que solo aparece para un nombre concreto. Por eso se compara la
+    huella con el termino sustituido por `<TERMINO>`: lo que sobreviva a esa
+    sustitucion y siga siendo distinto solo puede venir de los DATOS, no de la
+    consulta.
+    """
+    if isinstance(valor, str):
+        out = valor
+        for forma in _variantes(termino):
+            out = re.sub(re.escape(forma), "<TERMINO>", out, flags=re.IGNORECASE)
+        return out
+    if isinstance(valor, list):
+        return [_sin_el_termino(v, termino) for v in valor]
+    if isinstance(valor, dict):
+        return {k: _sin_el_termino(v, termino) for k, v in valor.items()}
+    return valor
+
+
+def _huella_de_busqueda(page, termino: str) -> dict:
+    """TODO lo observable tras una busqueda, para poder comparar dos casos.
 
     Si un nodo no autorizado y un nombre inexistente producen la misma huella,
     la vista ordinaria no permite distinguirlos: no hay canal lateral.
+
+    QUE CANALES ENTRAN Y POR QUE
+    ----------------------------
+    La version anterior de esta funcion miraba cuatro cosas (la lista de
+    resultados, el contador de nodos y si la ficha estaba abierta) y por eso no
+    valia: un revisor escribio fugas en el contador de ARISTAS, en el mensaje
+    de `#graph-status` —visible y anunciado por `aria-live`— y en la URL, y la
+    prueba siguio verde. La promesa que firma es «indistinguible», asi que la
+    huella tiene que abarcar todo el estado observable:
+
+      · resultados de busqueda y el texto/visibilidad de su lista
+      · texto y visibilidad de la ficha lateral
+      · contador de nodos Y contador de aristas
+      · texto y visibilidad de `#graph-status`
+      · la URL COMPLETA
+      · la seleccion REAL de vis-network (no su reflejo en la ficha)
+      · el encuadre del lienzo (zoom y centro)
+      · el lienzo mismo, pixel a pixel, con la fisica ya parada
+
+    Lo que NO entra: detalles accidentales de implementacion (si hubo peticion
+    de red, que funcion se llamo, en que orden se pintaron los filtros). Esto
+    describe lo que una persona puede percibir, no como esta hecho el visor.
     """
-    return {
+    panel = page.locator("#side-panel")
+    estado = page.locator("#graph-status")
+    huella = {
         "resultados": _resultados(page),
         "texto_lista": page.locator("#search-results").inner_text().strip(),
         "lista_oculta": page.locator("#search-results").is_hidden(),
-        "contador": page.locator("#counter-nodes").inner_text().strip(),
-        "panel_abierto": "side-panel-closed" not in
-                         (page.locator("#side-panel").get_attribute("class") or ""),
+        "contador_nodos": page.locator("#counter-nodes").inner_text().strip(),
+        "contador_aristas": page.locator("#counter-edges").inner_text().strip(),
+        "estado_texto": estado.inner_text().strip(),
+        "estado_visible": estado.is_visible(),
+        "ficha_texto": panel.inner_text().strip(),
+        "ficha_abierta": "side-panel-closed" not in (panel.get_attribute("class") or ""),
+        "url": page.url,
+        "seleccion": page.evaluate("() => window.S9KGraphView.selection()"),
+        "encuadre": page.evaluate(
+            "() => { const v = window.S9KGraphView.viewport();"
+            "  return v && {scale: Math.round(v.scale * 1000),"
+            "               x: Math.round(v.x), y: Math.round(v.y)}; }"),
+        "lienzo": _esperar_lienzo_quieto(page),
     }
+    return _sin_el_termino(huella, termino)
 
 
 def test_la_busqueda_encuentra_centra_y_resalta_un_nodo_visible(page, viewer):
@@ -189,9 +326,14 @@ def test_la_busqueda_encuentra_centra_y_resalta_un_nodo_visible(page, viewer):
         f"buscar no centro el nodo: centro relativo ({dx:.2f}, {dy:.2f}); "
         f"antes estaba en ({antes['x']:.0f}, {antes['y']:.0f})")
 
-    # Lo resalta: el producto no expone el objeto vis-network a la pagina, asi
-    # que el resaltado se comprueba por su efecto observable —la ficha lateral
-    # del nodo seleccionado se abre y lo describe—, no manipulando la libreria.
+    # Lo resalta: se comprueba la seleccion REAL de vis-network (ventana de
+    # observacion de solo lectura) ademas de su reflejo en la ficha lateral.
+    # Con solo la ficha, un visor que abriese el panel sin seleccionar nada en
+    # el lienzo pasaria por bueno.
+    seleccion = page.evaluate("() => window.S9KGraphView.selection()")
+    assert seleccion and len(seleccion["nodes"]) == 1, \
+        f"buscar no dejo el nodo seleccionado en el lienzo: {seleccion}"
+
     panel = page.locator("#side-panel")
     assert "side-panel-closed" not in (panel.get_attribute("class") or ""), \
         "buscar no abrio la ficha del nodo"
@@ -210,12 +352,15 @@ def test_la_busqueda_de_algo_inexistente_no_encuentra_nada(page, viewer, termino
     _abrir_grafo(page, viewer)
     _buscar(page, termino)
 
-    huella = _huella_de_busqueda(page)
+    huella = _huella_de_busqueda(page, termino)
     assert huella["resultados"] == [], \
         f"«{termino}» no existe y sin embargo produjo resultados: {huella['resultados']}"
     assert "Sin coincidencias" in huella["texto_lista"], \
         f"no hay mensaje de vacio: {huella['texto_lista']!r}"
-    assert not huella["panel_abierto"], "una busqueda vacia abrio una ficha"
+    assert huella["seleccion"] == {"nodes": [], "edges": []}, \
+        f"una busqueda vacia dejo algo seleccionado: {huella['seleccion']}"
+    assert "Pincha un nodo" in huella["ficha_texto"], \
+        f"una busqueda vacia abrio la ficha de algo: {huella['ficha_texto'][:200]}"
     assert page.page_errors == [], f"excepciones JS al buscar: {page.page_errors}"
 
 
@@ -242,11 +387,22 @@ def test_un_nodo_no_autorizado_es_indistinguible_de_uno_inexistente(new_page, vi
         "aprobaria por vacio, asi que falla a proposito")
     assert admin.request.get(viewer.url(f"/api/entity/{SECRETO_ID}")).status == 200, \
         "el id secreto no resuelve ni para el admin: fixture inservible"
+    entregado = [n for n in del_admin if n["label"] == SECRETO_NOMBRE][0]
+    assert entregado.get("entity_id") == SECRETO_ID, (
+        f"el backend no entrega el identificador estable del nodo secreto "
+        f"({entregado.get('entity_id')!r}): el caso «buscar por id» seria vacuo")
+
     _abrir_grafo(admin, viewer)
-    _buscar(admin, SECRETO_NOMBRE)
-    assert any(SECRETO_NOMBRE in r for r in _resultados(admin)), (
-        f"ni siquiera el admin encuentra el nodo secreto ({_resultados(admin)}): "
-        "sin control positivo el resto de la prueba no demuestra nada")
+    # Por NOMBRE y por IDENTIFICADOR ESTABLE. El segundo es la mitad que antes
+    # no existia: el id no estaba en el indice, asi que «buscar por id» no
+    # encontraba nada ni siquiera para el admin y la prueba de mas abajo se
+    # cumplia por vacuidad, no por autorizacion.
+    for termino in (SECRETO_NOMBRE, SECRETO_ID):
+        _buscar(admin, termino)
+        assert any(SECRETO_NOMBRE in r for r in _resultados(admin)), (
+            f"ni siquiera el admin encuentra el nodo secreto buscando «{termino}» "
+            f"({_resultados(admin)}): sin control positivo el resto de la prueba "
+            "no demuestra nada")
 
     # --- El rol sin autorizacion: el backend no le entrega ese nodo.
     victima = new_page()
@@ -263,21 +419,27 @@ def test_un_nodo_no_autorizado_es_indistinguible_de_uno_inexistente(new_page, vi
 
     _abrir_grafo(victima, viewer)
 
-    # Referencia: como se ve una busqueda de algo que sencillamente no existe.
-    _buscar(victima, INEXISTENTE_NOMBRE)
-    referencia = _huella_de_busqueda(victima)
-    assert referencia["resultados"] == [], "la referencia de vacio no esta vacia"
+    # Cada caso se compara con SU referencia de vacio: un nombre inventado
+    # frente al nombre secreto, y un id inventado frente al id secreto.
+    parejas = ((SECRETO_NOMBRE, INEXISTENTE_NOMBRE), (SECRETO_ID, INEXISTENTE_ID))
+    for secreto, inventado in parejas:
+        _buscar(victima, inventado)
+        referencia = _huella_de_busqueda(victima, inventado)
+        assert referencia["resultados"] == [], "la referencia de vacio no esta vacia"
 
-    # El nombre exacto y el id exacto del nodo secreto: la MISMA huella.
-    for termino in (SECRETO_NOMBRE, SECRETO_ID):
-        _buscar(victima, termino)
-        huella = _huella_de_busqueda(victima)
+        _buscar(victima, secreto)
+        huella = _huella_de_busqueda(victima, secreto)
         assert huella["resultados"] == [], \
-            f"buscar «{termino}» revela el nodo no autorizado: {huella['resultados']}"
-        assert huella == referencia, (
-            f"buscar «{termino}» se distingue de buscar algo inexistente.\n"
-            f"  no autorizado: {huella}\n"
-            f"  inexistente:   {referencia}")
+            f"buscar «{secreto}» revela el nodo no autorizado: {huella['resultados']}"
+
+        # Comparacion canal por canal: si algo se distingue, el mensaje dice
+        # CUAL, que es lo que hace util un fallo de este tipo.
+        distintos = {k: (huella[k], referencia[k])
+                     for k in huella if huella[k] != referencia[k]}
+        assert not distintos, (
+            f"buscar «{secreto}» se distingue de buscar «{inventado}».\n"
+            + "\n".join(f"  · {k}: no autorizado={v[0]!r} / inexistente={v[1]!r}"
+                        for k, v in distintos.items()))
 
     # Y en ninguna parte del DOM aparece el nodo ni su id.
     contenido = victima.content()

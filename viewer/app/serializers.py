@@ -54,6 +54,15 @@ def serialize_node(node: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "id": node.get("id") or node.get("element_id"),
+        # Identificador ESTABLE de dominio, y solo eso.
+        #
+        # Deliberadamente NO cae hacia `id` ni hacia `element_id`: en Neo4j el
+        # `element_id` no es identidad durable (se regenera al restaurar un
+        # dump), asi que ofrecerlo como "identificador" seria mentir y, peor,
+        # meterlo en el indice de busqueda del visor lo convertiria en un
+        # identificador de recurso buscable que el dominio no reconoce.
+        # Si el proveedor no entrega `entity_id`, aqui no hay `entity_id`.
+        "entity_id": node.get("entity_id") or "",
         "label": name,
         "type": entity_type,
         "type_label": node.get("type_label") or entity_type_label(entity_type),

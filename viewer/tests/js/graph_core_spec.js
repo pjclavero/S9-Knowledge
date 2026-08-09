@@ -111,6 +111,44 @@ test("búsqueda: el alias (última familia) va detrás del nombre, contra el alf
     "orden esperado: exacta, contiene-en-el-nombre, solo-en-alias");
 });
 
+// --- Búsqueda por identificador (H4) -----------------------------------
+//
+// DECISIÓN DE PRODUCTO: se puede buscar por el identificador ESTABLE DE
+// DOMINIO (`entity_id`) y por ningún otro. Los tres casos siguientes fijan
+// las dos mitades de esa decisión y su consecuencia de seguridad.
+//
+// Los nodos de aquí tienen `id` DISTINTO de `entity_id` a propósito: en el
+// proveedor mock coinciden, así que un fixture con ambos iguales no podría
+// distinguir "indexo el entity_id" de "indexo cualquier id".
+
+const NODOS_CON_ID = [
+  { id: "4:9f2c1a:117", entity_id: "n_culto_pozo_viejo", label: "Culto del Pozo Viejo", type: "Faction" },
+  { id: "4:9f2c1a:118", entity_id: "n_kimi", label: "Kimi", type: "Character" }
+];
+
+test("búsqueda: encuentra por el identificador estable de dominio", () => {
+  const res = core.searchNodes(NODOS_CON_ID, "n_culto_pozo_viejo");
+  assert.strictEqual(res.length, 1, "buscar por entity_id no encontró el nodo");
+  assert.strictEqual(res[0].entity_id, "n_culto_pozo_viejo");
+});
+
+test("búsqueda: NO encuentra por el elementId de Neo4j", () => {
+  // `elementId` no es identidad durable: se regenera al restaurar un dump.
+  // Si algún día entrase en el índice, este caso se pone rojo.
+  assert.deepStrictEqual(core.searchNodes(NODOS_CON_ID, "4:9f2c1a:117"), [],
+    "el elementId de Neo4j se ha colado en el índice de búsqueda");
+});
+
+test("búsqueda por id: solo encuentra lo que la vista ya contiene", () => {
+  // El resultado de seguridad que se congela. La "vista autorizada" es la
+  // lista de nodos que el backend entregó; el nodo secreto NO está en ella.
+  const vistaAutorizada = NODOS_CON_ID.filter((n) => n.entity_id !== "n_culto_pozo_viejo");
+  assert.deepStrictEqual(
+    core.searchNodes(vistaAutorizada, "n_culto_pozo_viejo"),
+    core.searchNodes(vistaAutorizada, "n_id_que_no_existe_en_ninguna_parte"),
+    "buscar el id de un nodo no entregado se distingue de buscar un id inventado");
+});
+
 test("búsqueda: sin coincidencias devuelve lista vacía", () => {
   assert.deepStrictEqual(core.searchNodes(GRAPH.nodes, "zzzz-no-existe"), []);
 });
