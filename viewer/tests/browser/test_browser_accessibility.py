@@ -12,7 +12,7 @@ Auditoria, no certificacion WCAG. Dos clases de prueba conviven aqui:
 
 Ninguno de estos defectos se corrige aqui: todos viven en `viewer/app/**`, que
 es zona de otros carriles (PR #152/#153). Ver el backlog en
-`docs/47_qa_browser_e2e_visor.md`.
+`docs/60-qa-browser-e2e-visor.md`.
 """
 from __future__ import annotations
 

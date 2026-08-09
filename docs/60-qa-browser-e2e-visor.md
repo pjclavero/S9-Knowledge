@@ -1,4 +1,4 @@
-# 55 — QA de producto y E2E de navegador del visor
+# 60 — QA de producto y E2E de navegador del visor
 
 Rama: `test/viewer-browser-e2e-v1` (desde `origin/main` @ `d169052`).
 Carril D. **Solo pruebas**: no se ha modificado nada bajo `viewer/app/**`.
