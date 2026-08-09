@@ -33,7 +33,7 @@ def _viewer(**over) -> ViewerContext:
 
 def _node(**over):
     n = dict(
-        id="n1", workspace=WS, visibility="player", session_index=1,
+        id="n1", workspace=WS, scope="juego", visibility="player", known_from_session=1,
         party="grupo_alfa", is_public=True, known_by=["pc_bryn"],
     )
     n.update(over)
@@ -42,7 +42,7 @@ def _node(**over):
 
 def test_admin_full_ve_todo():
     ctx = ViewerContext(role="admin", admin_full=True)
-    secret = _node(id="s", visibility="secret", session_index=99, party="grupo_beta", workspace="otra")
+    secret = _node(id="s", visibility="secret", known_from_session=99, party="grupo_beta", workspace="otra")
     assert POLICY.can_view(secret, ctx).visible
 
 
@@ -93,22 +93,28 @@ def test_referencia_requiere_permiso():
 
 def test_sesion_futura_oculta():
     ctx = _viewer(max_visible_session=3)
-    n = _node(id="f", session_index=5, known_by=[])
+    n = _node(id="f", known_from_session=5, known_by=[])
     d = POLICY.can_view(n, ctx)
     assert not d.visible and d.reason == "future_session"
 
 
 def test_sesion_futura_visible_con_can_view_future():
     ctx = _viewer(max_visible_session=3, can_view_future=True)
-    n = _node(id="f", session_index=5, known_by=[])
+    n = _node(id="f", known_from_session=5, known_by=[])
     assert POLICY.can_view(n, ctx).visible
 
 
-def test_party_ajena_oculta():
+def test_party_ajena_ya_no_oculta_nada():
+    """T1: la party dejo de ser una ACL evaluada en cada peticion.
+
+    Pertenecer a un grupo daba acceso automatico a todo lo que ese grupo
+    hubiera conocido alguna vez, lo que es falso en una campana. Ahora la party
+    solo sirve para CREAR concesiones individuales, que se materializan en
+    `known_by`; aqui no decide.
+    """
     ctx = _viewer(party_membership=frozenset({"grupo_alfa"}))
     n = _node(id="p", party="grupo_beta", is_public=False, known_by=[])
-    d = POLICY.can_view(n, ctx)
-    assert not d.visible and d.reason == "party_scoped"
+    assert POLICY.can_view(n, ctx).visible
 
 
 def test_party_publica_visible_con_session_public():
@@ -129,8 +135,8 @@ def test_anonimo_no_ve_protegido():
 
 def test_filter_edges_requiere_ambos_extremos():
     ctx = _viewer()
-    edge = {"id": "e", "from": "a", "to": "b", "workspace": WS, "visibility": "player"}
+    edge = {"id": "e", "from": "a", "to": "b", "workspace": WS, "scope": "juego", "visibility": "player"}
     assert POLICY.filter_edges([edge], {"a"}, ctx) == []       # falta b
     assert POLICY.filter_edges([edge], {"a", "b"}, ctx) == [edge]
-    secret_edge = {"id": "e2", "from": "a", "to": "b", "workspace": WS, "visibility": "secret"}
+    secret_edge = {"id": "e2", "from": "a", "to": "b", "workspace": WS, "scope": "juego", "visibility": "secret"}
     assert POLICY.filter_edges([secret_edge], {"a", "b"}, ctx) == []  # relación secreta

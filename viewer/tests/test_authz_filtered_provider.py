@@ -22,11 +22,14 @@ HIDDEN = {
     "secret_villano",          # secreto sin conocimiento
     "secret_conocido_por_arden",  # secreto de OTRO personaje
     "narrator_nota",           # capa narrador
-    "future_evento",           # sesión futura
-    "otro_grupo_npc",          # otra party
+    "future_evento",           # sesión aún no revelada (known_from_session)
     "otra_boveda_node",        # otro workspace
 }
-VISIBLE = {"pc_arden", "pc_bryn", "npc_taverna", "reference_regla"}
+# T1: `otro_grupo_npc` pasó de oculto a visible, y es un cambio querido. La
+# pertenencia a una party dejó de ser una ACL: no concede acceso ni lo retira.
+# Un NPC etiquetado con otro grupo no es material secreto -- si debe estar
+# oculto, se declara con `visibility`, no con la etiqueta de grupo.
+VISIBLE = {"pc_arden", "pc_bryn", "npc_taverna", "reference_regla", "otro_grupo_npc"}
 
 
 @pytest.fixture

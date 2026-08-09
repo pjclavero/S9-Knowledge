@@ -45,8 +45,17 @@ class GraphProvider(ABC):
         """Devuelve (nodos, relaciones) filtrados, sin duplicados."""
 
     @abstractmethod
-    def entity(self, entity_id: str) -> dict[str, Any] | None:
-        """Nodo completo por id, o None si no existe."""
+    def entity(
+        self, entity_id: str, *, workspaces: frozenset[str] | None = None
+    ) -> dict[str, Any] | None:
+        """Nodo completo por id, o None si no existe.
+
+        ``workspaces`` acota la consulta a los workspaces autorizados del
+        servidor —nunca a uno enviado por el cliente—. Es defensa en
+        profundidad: el filtro de política se aplica después de todos modos,
+        pero una búsqueda global por identificador es una frontera de seguridad
+        incorrecta aunque luego se filtre. ``None`` = sin acotar (admin).
+        """
 
     @abstractmethod
     def relations_for_entity(

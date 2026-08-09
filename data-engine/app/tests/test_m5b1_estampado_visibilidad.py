@@ -65,7 +65,7 @@ def test_acepta_dict_conforme_al_contrato():
 def test_un_dict_sin_identificar_el_contrato_se_rechaza():
     """No se adivina a que contrato pertenece: o lo dice, o no vale."""
     with pytest.raises(VisibilityStampError):
-        stamp({}, {"visibility": "narrator", "known_by": []})
+        stamp({}, {"visibility": "narrator", "known_by": []}, partida_id=None)
 
 
 def test_deny_se_puede_estampar_es_un_estado_legitimo_persistido():
@@ -110,18 +110,18 @@ def test_las_propiedades_de_visibilidad_estan_reservadas():
 def test_visibilidad_invalida_se_rechaza_no_se_degrada_en_silencio(malo):
     """Rechazar, no corregir. Corregir en silencio oculta el error de quien escribe."""
     with pytest.raises(VisibilityStampError):
-        stamp({}, malo)
+        stamp({}, malo, partida_id=None)
 
 
 def test_una_cadena_suelta_no_es_una_visibilidad_valida():
     """Aceptar `"player"` a secas es justo como se cuela un valor sin validar."""
     with pytest.raises(VisibilityStampError):
-        stamp({}, "player")
+        stamp({}, "player", partida_id=None)
 
 
 # --- no rompe lo anterior ---------------------------------------------------
 def test_el_ambito_sigue_estampandose_junto_a_la_visibilidad():
-    p = props_de(cypher.create_entity("e:1", WS, None, {}, partida_id="partida:Y"))
+    p = props_de(cypher.create_entity("e:1", WS, None, {}, partida_id="partida:Y", known_from_session=0))
     assert p["workspace"] == WS and p["partida_id"] == "partida:Y"
     assert p["visibility"] == "secret"
 
@@ -137,5 +137,5 @@ def test_las_consultas_generadas_siguen_pasando_la_guardia_destructiva():
 
 def test_stamp_no_muta_el_payload_original():
     original = {"name": "Doji"}
-    stamp(original)
+    stamp(original, partida_id=None)
     assert original == {"name": "Doji"}

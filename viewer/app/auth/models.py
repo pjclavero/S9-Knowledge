@@ -83,6 +83,11 @@ class PartidaAccess:
     partida_id: str
     granted_by: Optional[str]
     granted_at: datetime
+    # Progresion de campana de ESTA concesion (T2). Se exponen para que el panel
+    # pueda MOSTRARLAS: una concesion de personaje que no se ve en la interfaz es
+    # un permiso que el operador no sabe que ha dado.
+    max_visible_session: Optional[int] = None
+    character_id: Optional[str] = None
 
 
 @dataclass
