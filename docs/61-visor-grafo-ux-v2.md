@@ -1,4 +1,4 @@
-# 55 — Visor de grafo: UX V2
+# 61 — Visor de grafo: UX V2
 
 Rama: `feat/viewer-graph-ux-v2` (desde `origin/main` @ `d169052`).
 Carril A. Sin PR abierta a propósito.
