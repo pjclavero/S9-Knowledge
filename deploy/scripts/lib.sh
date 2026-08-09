@@ -438,8 +438,21 @@ create_manifest() {
     local created_at
     created_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
+    # Versión de esquema de auth.db LEÍDA DE LA RELEASE que se está instalando.
+    # Estaba fijada a 1 mientras el código iba por la 3, de modo que el
+    # manifiesto de toda release instalada mentía sobre su propio esquema y
+    # `compatible_rollback_to` no podía calcularse con él. Si no se puede leer,
+    # se declara "unknown": un valor inventado es peor que la ausencia.
+    local auth_schema="unknown"
+    if [ -f "${release_dir}/viewer/app/auth/db.py" ]; then
+        auth_schema="$(sed -n 's/^SCHEMA_VERSION[[:space:]]*=[[:space:]]*\([0-9]\+\).*/\1/p' \
+            "${release_dir}/viewer/app/auth/db.py" | head -n1)"
+        [ -n "${auth_schema}" ] || auth_schema="unknown"
+    fi
+
     python3 - <<PYEOF
 import json
+_auth_schema = "${auth_schema}"
 manifest = {
     "release_id": "${release_id}",
     "git_commit": "${git_commit}",
@@ -448,7 +461,10 @@ manifest = {
     "created_by": "deploy.sh",
     "python_version": "${python_version}",
     "dependency_fingerprint": "${dep_hash}",
-    "schema_versions": {"auth_db": 1, "job_store": 1},
+    "schema_versions": {
+        "auth_db": int(_auth_schema) if _auth_schema.isdigit() else _auth_schema,
+        "job_store": 1,
+    },
     "compatible_rollback_to": [],
     "files_checksum": "${files_hash}",
     "checksum_algo": "${S9K_CHECKSUM_ALGO}"

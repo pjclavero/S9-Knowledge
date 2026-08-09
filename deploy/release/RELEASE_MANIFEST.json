@@ -1,0 +1,569 @@
+{
+  "manifest_version": "1.0.0",
+  "generated_at": "2026-08-09T18:47:18Z",
+  "generated_by": "deploy/release/generate_manifest.py",
+  "generator_note": "Manifiesto de CANDIDATURA, derivado del repositorio. No describe ninguna máquina y no ha desplegado nada. El manifiesto de una release INSTALADA lo escribe deploy/scripts/lib.sh::create_manifest en el host destino.",
+  "release": {
+    "app_version": "0.3.0",
+    "git_commit": "28320bd20a4202843ce93bdc98839a4f0091aa89",
+    "git_short_commit": "28320bd20a42",
+    "git_branch": "ops/v3-release-readiness",
+    "git_describe": "v3-contracts-frozen-1.0.0-214-g28320bd",
+    "worktree_dirty": true,
+    "deploy_tag": null,
+    "deploy_tag_note": "No existe todavía ningún tag deploy-v3-*; cortarlo es requisito previo a desplegar (docs/project-status.yaml: next_release.blockers)."
+  },
+  "components": [
+    {
+      "name": "viewer",
+      "path": "viewer/",
+      "purpose": "aplicación FastAPI servida por uvicorn",
+      "deployed": true
+    },
+    {
+      "name": "viewer-cli",
+      "path": "viewer/app/cli/",
+      "purpose": "CLI de auth y de health; se ejecuta a mano y desde el timer",
+      "deployed": true
+    },
+    {
+      "name": "data-engine",
+      "path": "data-engine/",
+      "purpose": "pipeline de extracción/ingesta; NO se activa en este despliegue (la primera ingesta real sigue sin autorizar)",
+      "deployed": true
+    },
+    {
+      "name": "deploy-tools",
+      "path": "deploy/",
+      "purpose": "scripts de despliegue, verificación y rollback; se instalan aparte, en /opt/s9-knowledge/deploy-tools",
+      "deployed": true
+    },
+    {
+      "name": "contracts",
+      "path": "contracts/",
+      "purpose": "JSON Schema congelados de review/ingest y v3",
+      "deployed": true
+    },
+    {
+      "name": "docs",
+      "path": "docs/",
+      "purpose": "documentación; no se ejecuta",
+      "deployed": true
+    }
+  ],
+  "schema_versions": {
+    "auth_db": 3,
+    "jobs_db": 1,
+    "graph": "sin versionar (Neo4j no lleva número de esquema en este proyecto)"
+  },
+  "migrations_required": [
+    {
+      "id": "auth_db.v3",
+      "component": "auth.db (SQLite)",
+      "reversible": false,
+      "description": "ALTER TABLE partida_access ADD COLUMN max_visible_session INTEGER; ADD COLUMN character_id TEXT. La aplica automáticamente app.auth.db.ensure_migrated() en el arranque del visor, bajo flock exclusivo y tras copiar <db>.bak.v<versión anterior>.",
+      "rationale": "Necesaria: el código de T2 lee ambas columnas. SQLite no soporta DROP COLUMN en versiones antiguas y el código no implementa downgrade: la vuelta atrás es por restauración de la copia .bak, no por migración inversa."
+    }
+  ],
+  "migrations_not_required": [
+    {
+      "id": "auth_db.v2",
+      "component": "auth.db (SQLite)",
+      "reversible": false,
+      "description": "sessions.active_partida + tabla partida_access (M5a).",
+      "rationale": "NO necesaria como paso separado: ensure_migrated() encadena v1->v2->v3 en la misma transacción lógica. Se declara aquí para que el manifiesto no sugiera que un auth.db en v1 salta directamente a v3 sin pasar por v2."
+    },
+    {
+      "id": "graph.legacy_visibility_m5b",
+      "component": "Neo4j (grafo de producción)",
+      "reversible": false,
+      "description": "Estampado de ámbito y visibilidad sobre los nodos legacy del grafo de producción (plan 12f7278f de M5b).",
+      "rationale": "NO APPLY por decisión del operador. El plan se validó pero se descartó: sin `known_by` en los datos legacy no hay migración semántica posible, solo una asignación arbitraria. El grafo de producción (199 nodos / 140 relaciones) se queda como está. Consecuencia que el manifiesto asume: los datos legacy quedan fuera del alcance de partida y se comportan según el cierre por defecto (fail-closed), no como contenido de juego reetiquetado. Cualquier release que EXIJA ámbito estampado en legacy está en contradicción con esta decisión y no debe desplegarse."
+    },
+    {
+      "id": "jobs_db.v1",
+      "component": "jobs.db (SQLite)",
+      "reversible": true,
+      "description": "Esquema de la cola de trabajos.",
+      "rationale": "NO necesaria: el esquema no cambia en esta release. La base se conserva intacta entre releases porque vive fuera del árbol de despliegue."
+    }
+  ],
+  "configuration": {
+    "config_file": "/etc/s9-knowledge/viewer.env",
+    "template": "deploy/config/viewer.env.example",
+    "checker": "deploy/release/config_check.py",
+    "required_env": [
+      {
+        "name": "S9K_VIEWER_HOST",
+        "level": "CRITICAL",
+        "purpose": "interfaz de escucha de uvicorn; 127.0.0.1 mantiene el visor detrás del proxy",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "127.0.0.1"
+      },
+      {
+        "name": "S9K_VIEWER_PORT",
+        "level": "CRITICAL",
+        "purpose": "puerto de uvicorn",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "8088"
+      },
+      {
+        "name": "S9K_GRAPH_PROVIDER",
+        "level": "CRITICAL",
+        "purpose": "proveedor de grafo; en producción debe ser 'neo4j', nunca 'mock'",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "mock"
+      },
+      {
+        "name": "S9K_NEO4J_URI",
+        "level": "CRITICAL",
+        "purpose": "URI bolt del Neo4j de producción",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "bolt://127.0.0.1:7687"
+      },
+      {
+        "name": "S9K_NEO4J_USER",
+        "level": "CRITICAL",
+        "purpose": "usuario de Neo4j",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": null
+      },
+      {
+        "name": "S9K_NEO4J_PASSWORD",
+        "level": "CRITICAL",
+        "purpose": "contraseña de Neo4j; se prefiere el fichero de secreto",
+        "secret": true,
+        "file_alternative": "S9K_NEO4J_PASSWORD_FILE",
+        "default_in_code": null
+      },
+      {
+        "name": "S9K_DEFAULT_WORKSPACE",
+        "level": "RECOMMENDED",
+        "purpose": "workspace por defecto del visor",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "leyenda"
+      },
+      {
+        "name": "S9K_GRAPH_LIMIT",
+        "level": "RECOMMENDED",
+        "purpose": "tope de nodos devueltos por consulta de grafo",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "300"
+      },
+      {
+        "name": "S9K_AUTH_DB_PATH",
+        "level": "CRITICAL",
+        "purpose": "ruta de auth.db (usuarios, sesiones, partida_access); FUERA de la release",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "viewer/state/auth.db"
+      },
+      {
+        "name": "S9K_JOBS_DB",
+        "level": "CRITICAL",
+        "purpose": "ruta de jobs.db; FUERA de la release",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": null
+      },
+      {
+        "name": "S9K_BACKUP_DIR",
+        "level": "RECOMMENDED",
+        "purpose": "directorio que el healthcheck de backups inspecciona",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": null
+      },
+      {
+        "name": "S9K_AUTH_ENABLED",
+        "level": "CRITICAL",
+        "purpose": "interruptor global de autenticación; en producción SIEMPRE true",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "false"
+      },
+      {
+        "name": "S9K_CSRF_SECRET",
+        "level": "CRITICAL",
+        "purpose": "secreto de firma CSRF; el código NO soporta S9K_CSRF_SECRET_FILE, así que vive en /etc/s9-knowledge/viewer.env (0600 root)",
+        "secret": true,
+        "file_alternative": null,
+        "default_in_code": "s9k-csrf-change-me"
+      },
+      {
+        "name": "S9K_AUTH_MAX_FAILED_ATTEMPTS",
+        "level": "RECOMMENDED",
+        "purpose": "intentos fallidos antes de bloquear la cuenta",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "5"
+      },
+      {
+        "name": "S9K_AUTH_LOCK_MINUTES",
+        "level": "RECOMMENDED",
+        "purpose": "duración del bloqueo por fuerza bruta",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "15"
+      },
+      {
+        "name": "S9K_AUTH_EXPOSE_DOCS",
+        "level": "RECOMMENDED",
+        "purpose": "expone /docs y /openapi.json; false en producción",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "false"
+      },
+      {
+        "name": "S9K_AUTH_TRUST_PROXY_HEADERS",
+        "level": "RECOMMENDED",
+        "purpose": "confiar en X-Forwarded-For; solo con proxy que filtre la cabecera",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "false"
+      },
+      {
+        "name": "S9K_SESSION_COOKIE_NAME",
+        "level": "OPTIONAL",
+        "purpose": "nombre de la cookie de sesión",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "s9k_session"
+      },
+      {
+        "name": "S9K_SESSION_TTL_HOURS",
+        "level": "RECOMMENDED",
+        "purpose": "vida máxima de la sesión",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "12"
+      },
+      {
+        "name": "S9K_SESSION_IDLE_MINUTES",
+        "level": "RECOMMENDED",
+        "purpose": "inactividad máxima",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "60"
+      },
+      {
+        "name": "S9K_SESSION_SECURE",
+        "level": "CRITICAL",
+        "purpose": "cookie Secure; false expondría la sesión en claro",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "true"
+      },
+      {
+        "name": "S9K_SESSION_SAMESITE",
+        "level": "RECOMMENDED",
+        "purpose": "política SameSite",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "lax"
+      },
+      {
+        "name": "S9K_SESSION_HTTPONLY",
+        "level": "CRITICAL",
+        "purpose": "cookie HttpOnly; false la haría legible desde JavaScript",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "true"
+      },
+      {
+        "name": "S9K_HEALTH_VIEWER_URL",
+        "level": "RECOMMENDED",
+        "purpose": "URL que sondea el healthcheck",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": null
+      },
+      {
+        "name": "S9K_HEALTH_REPORT_PATH",
+        "level": "RECOMMENDED",
+        "purpose": "destino del informe JSON de salud",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": null
+      },
+      {
+        "name": "S9K_HEALTH_UNITS",
+        "level": "RECOMMENDED",
+        "purpose": "unidades systemd vigiladas por el healthcheck",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": null
+      },
+      {
+        "name": "S9K_HEALTH_DISK_PATH",
+        "level": "RECOMMENDED",
+        "purpose": "punto de montaje vigilado por ocupación",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": null
+      },
+      {
+        "name": "S9K_VIEWER_DEFAULT_PAGE_SIZE",
+        "level": "OPTIONAL",
+        "purpose": "tamaño de página por defecto",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "50"
+      },
+      {
+        "name": "S9K_VIEWER_MAX_PAGE_SIZE",
+        "level": "OPTIONAL",
+        "purpose": "tamaño de página máximo",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "200"
+      },
+      {
+        "name": "S9K_VIEWER_QUERY_TIMEOUT_SECONDS",
+        "level": "RECOMMENDED",
+        "purpose": "timeout de consulta al grafo",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "10"
+      },
+      {
+        "name": "S9K_VIEWER_MAX_SEARCH_LENGTH",
+        "level": "OPTIONAL",
+        "purpose": "longitud máxima de búsqueda",
+        "secret": false,
+        "file_alternative": null,
+        "default_in_code": "200"
+      }
+    ],
+    "must_be_off": [
+      "S9K_ALLOW_REAL_INGEST",
+      "S9K_ALLOW_RELATION_AUTOAPPROVAL"
+    ],
+    "secret_references": [
+      {
+        "path": "/etc/s9-knowledge/viewer.env",
+        "level": "CRITICAL",
+        "purpose": "configuración del visor; contiene S9K_CSRF_SECRET",
+        "max_mode": "0o600",
+        "note": "referenciado por ruta; su contenido no se lee ni se imprime"
+      },
+      {
+        "path": "/etc/s9-knowledge/secrets/neo4j_password",
+        "level": "CRITICAL",
+        "purpose": "secreto de Neo4j referenciado por S9K_NEO4J_PASSWORD_FILE",
+        "max_mode": "0o640",
+        "note": "referenciado por ruta; su contenido no se lee ni se imprime"
+      },
+      {
+        "path": "/etc/s9-knowledge/providers.env",
+        "level": "OPTIONAL",
+        "purpose": "claves de proveedores externos (NVIDIA); solo si se usa IA externa",
+        "max_mode": "0o600",
+        "note": "referenciado por ruta; su contenido no se lee ni se imprime"
+      }
+    ],
+    "required_directories": [
+      {
+        "path": "/opt/s9-knowledge/releases",
+        "level": "CRITICAL",
+        "purpose": "árbol de releases inmutables",
+        "max_mode": null
+      },
+      {
+        "path": "/var/lib/s9-knowledge/auth",
+        "level": "CRITICAL",
+        "purpose": "directorio de auth.db; el visor NO lo crea, debe preexistir",
+        "max_mode": "0o750"
+      },
+      {
+        "path": "/var/lib/s9-knowledge/jobs",
+        "level": "CRITICAL",
+        "purpose": "directorio de jobs.db",
+        "max_mode": "0o750"
+      },
+      {
+        "path": "/var/lib/s9-knowledge/backups",
+        "level": "CRITICAL",
+        "purpose": "destino de copias; el healthcheck falla si su contenido es rancio",
+        "max_mode": "0o750"
+      },
+      {
+        "path": "/var/lib/s9-knowledge/health",
+        "level": "RECOMMENDED",
+        "purpose": "destino del informe de salud",
+        "max_mode": null
+      },
+      {
+        "path": "/var/log/s9-knowledge",
+        "level": "RECOMMENDED",
+        "purpose": "logs de la aplicación",
+        "max_mode": null
+      }
+    ]
+  },
+  "runtime_versions": {
+    "python_tested_in_ci": "3.13",
+    "requirements": {
+      "python": ">=3.13,<3.14",
+      "neo4j": ">=5.26,<6.0"
+    },
+    "neo4j_verified": "5.26.0-community (VM105 y servicio de CI)",
+    "dependency_fingerprints": {
+      "viewer/requirements.txt": "sha256:6ce543296ec9b4b087a7ef88372f79016299d3d356aea5198ab874994c5b2ecf",
+      "data-engine/requirements.lock": "sha256:3b4bd0dc241d5e93f0b1b622c337ce31f8c2ef23d9a8ad7a87cecbcde1538bbf"
+    }
+  },
+  "services": [
+    {
+      "unit": "s9-knowledge-viewer.service",
+      "level": "CRITICAL",
+      "purpose": "uvicorn del visor"
+    },
+    {
+      "unit": "s9-knowledge-healthcheck.timer",
+      "level": "RECOMMENDED",
+      "purpose": "disparo horario del healthcheck"
+    }
+  ],
+  "healthchecks": {
+    "command": "python -m app.cli.health check",
+    "exit_codes": {
+      "0": "healthy",
+      "1": "degraded",
+      "2": "unhealthy",
+      "3": "error de configuración"
+    },
+    "http": [
+      "GET /admin/health",
+      "GET /api/admin/health (requiere rol admin)"
+    ],
+    "no_public_health_endpoint": "No existe /health sin autenticar. Cualquier sonda externa que espere /health obtendrá 404 o una redirección al login.",
+    "known_open_incident": "El healthcheck de VM105 termina en `failed` (código 2) porque el componente `backups` reporta copias rancias. Es un aviso legítimo, no un falso positivo: desplegar sin resolverlo deja el timer en rojo desde el minuto uno y enmascara fallos posteriores."
+  },
+  "smoke_tests": {
+    "runner": "deploy/release/smoke_lab.py",
+    "scope": "laboratorio (in-process, proveedor mock o Neo4j efímero)",
+    "checks": [
+      {
+        "id": "app_boots",
+        "asserts": "la aplicación importa y arranca con auth activa y CSRF válido"
+      },
+      {
+        "id": "login",
+        "asserts": "login con credenciales correctas emite sesión; con incorrectas, no"
+      },
+      {
+        "id": "viewer_home",
+        "asserts": "la portada responde a un usuario autenticado"
+      },
+      {
+        "id": "graph",
+        "asserts": "/graph y /api/graph responden dentro del workspace"
+      },
+      {
+        "id": "entities",
+        "asserts": "/entities y /api/entities responden y paginan"
+      },
+      {
+        "id": "sources",
+        "asserts": "/sources y /api/sources responden"
+      },
+      {
+        "id": "jobs",
+        "asserts": "/jobs y /api/jobs responden"
+      },
+      {
+        "id": "reviews",
+        "asserts": "/reviews y la consola de revisión responden"
+      },
+      {
+        "id": "admin",
+        "asserts": "/admin/users exige rol admin y lo deniega a un viewer"
+      },
+      {
+        "id": "health",
+        "asserts": "el CLI de salud produce un informe con veredicto explícito"
+      },
+      {
+        "id": "neo4j_connectivity",
+        "asserts": "el proveedor configurado abre sesión contra el grafo"
+      },
+      {
+        "id": "unauthorized_data_invisible",
+        "asserts": "un usuario sin concesión NO ve entidades de partida ajena por ninguna vía"
+      }
+    ]
+  },
+  "rollback": {
+    "runbook": "docs/61-release-manifest-y-rollback.md",
+    "keeps_previous_releases": 3,
+    "steps": [
+      {
+        "order": 1,
+        "action": "congelar",
+        "detail": "systemctl stop s9-knowledge-viewer.service"
+      },
+      {
+        "order": 2,
+        "action": "copia previa",
+        "detail": "copiar auth.db/jobs.db del estado ACTUAL antes de tocar nada; el rollback destruye evidencia si no se hace"
+      },
+      {
+        "order": 3,
+        "action": "restaurar código",
+        "detail": "deploy/scripts/rollback-release.sh: repuntar el symlink `current` a la release N-1 (permanece en disco: S9K_RELEASES_TO_KEEP=3)"
+      },
+      {
+        "order": 4,
+        "action": "restaurar configuración",
+        "detail": "/etc/s9-knowledge/viewer.env NO está versionado en la release: si N añadió variables, revertirlas a mano desde la copia previa"
+      },
+      {
+        "order": 5,
+        "action": "decidir sobre la BD",
+        "detail": "si N aplicó auth_db.v3, N-1 NO puede leer ese esquema con garantías: restaurar <db>.bak.v2 o aceptar operar en v3"
+      },
+      {
+        "order": 6,
+        "action": "arrancar y verificar",
+        "detail": "systemctl start + verify-deployment.sh --expected-release <N-1> + smoke suite de laboratorio contra el host"
+      }
+    ],
+    "irreversible_migrations": [
+      "auth_db.v3"
+    ],
+    "recovery_metrics": [
+      {
+        "metric": "RPO observado",
+        "value": "SIN GARANTÍA",
+        "measured": "no",
+        "detail": "No hay backup automático instalado (deploy/propuestas/backup-automatico es una propuesta, no una unidad activa). La copia más reciente en VM105 es del 2026-07-17 más el checkpoint manual del 2026-08-06. El RPO real es 'desde la última copia manual', que a fecha de hoy se mide en semanas."
+      },
+      {
+        "metric": "RTO de restore",
+        "value": "8,2 min",
+        "measured": "sí",
+        "detail": "Medido: duración de la fase de restauración en VM105. Cubre la restauración de los datos, NO el diagnóstico previo, NI la decisión humana, NI el arranque y verificación posteriores."
+      },
+      {
+        "metric": "RTO hasta servicio",
+        "value": "SIN MEDIR",
+        "measured": "no",
+        "detail": "Tiempo desde la detección del fallo hasta que el visor vuelve a servir tráfico verificado. Incluye detección, decisión, restore (8,2 min), arranque, migración/compatibilidad de esquema y smoke. Nadie lo ha cronometrado de extremo a extremo. No debe suponerse igual a 8,2 min."
+      }
+    ]
+  },
+  "explicit_non_goals": [
+    "NO se migra el grafo legacy (decisión NO APPLY del operador).",
+    "NO se activa la ingesta real: S9K_ALLOW_REAL_INGEST permanece sin definir.",
+    "NO se reduce la revisión humana: el piloto det∧NVIDIA sigue con auditoría del 100%.",
+    "NO se instala el backup automático propuesto en deploy/propuestas/: sigue siendo una propuesta."
+  ]
+}
