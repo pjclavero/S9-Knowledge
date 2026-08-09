@@ -1,0 +1,83 @@
+{
+  "_comment": "Dataset SANO sintético del carril J. Sirve de control positivo: sobre él el comprobador de datos debe salir OK, y cada corrupción conocida debe ponerlo en rojo. Sin PII, sin referencias productivas.",
+  "workspace": "taller",
+  "nodes": [
+    {
+      "entity_id": "doc_manual_01",
+      "canonical_name": "Manual de la Casa",
+      "entity_type": "Document",
+      "workspace": "taller",
+      "visibility": "reference",
+      "scope": "lore",
+      "known_from_session": 0,
+      "known_by": [],
+      "review_status": "reviewed",
+      "confidence": 1.0,
+      "knowledge_layer": "manual",
+      "source_document": "doc_manual_01",
+      "source_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+      "extractor_version": "1.5.0",
+      "created_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "entity_id": "ent_taberna",
+      "canonical_name": "Taberna del Farol",
+      "entity_type": "Location",
+      "workspace": "taller",
+      "visibility": "player",
+      "scope": "lore",
+      "known_from_session": 1,
+      "known_by": [],
+      "review_status": "reviewed",
+      "confidence": 0.9,
+      "knowledge_layer": "manual",
+      "source_document": "doc_manual_01",
+      "source_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+      "extractor_version": "1.5.0",
+      "created_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "entity_id": "ent_herrera",
+      "canonical_name": "Ada la Herrera",
+      "entity_type": "Character",
+      "workspace": "taller",
+      "visibility": "player",
+      "scope": "lore",
+      "known_from_session": 1,
+      "known_by": ["ent_taberna"],
+      "review_status": "reviewed",
+      "confidence": 0.85,
+      "knowledge_layer": "manual",
+      "source_document": "doc_manual_01",
+      "source_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+      "extractor_version": "1.5.0",
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "edges": [
+    {
+      "from": "ent_herrera",
+      "to": "ent_taberna",
+      "type": "LOCATED_IN",
+      "workspace": "taller",
+      "visibility": "player",
+      "scope": "lore",
+      "known_from_session": 1,
+      "review_status": "reviewed",
+      "confidence": 0.8,
+      "source_document": "doc_manual_01"
+    },
+    {
+      "from": "ent_taberna",
+      "to": "doc_manual_01",
+      "type": "EXTRACTED_FROM",
+      "workspace": "taller",
+      "visibility": "reference",
+      "scope": "lore",
+      "known_from_session": 0,
+      "review_status": "reviewed",
+      "confidence": 1.0,
+      "source_document": "doc_manual_01"
+    }
+  ]
+}
