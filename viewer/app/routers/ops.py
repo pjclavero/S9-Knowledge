@@ -6,7 +6,7 @@ consulta Proxmox y no revela secretos, rutas del servidor ni trazas.
 
 Montaje: `viewer/app/main.py` pertenece a otro equipo en este programa, así
 que este router NO se auto-registra. Para activarlo hace falta una línea en
-main.py (ver docs/current/ADMIN_OPERATIONS_DASHBOARD.md):
+main.py (ver docs/63-centro-de-estado-admin.md):
 
     from app.routers import ops as ops_router
     app.include_router(ops_router.router)
