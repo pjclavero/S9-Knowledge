@@ -384,7 +384,9 @@ haya arreglo, porque son deterministas: no dependen de la máquina ni del ruido.
   carpeta es `check_unicode.py`. Así que no hay nada que esta rama pueda poner en
   rojo: no es que el comprobador pase, es que no hay comprobador.
 
-Consecuencia inmediata: **esta rama no ejecuta CI en `push`**. Sí lo hará
+Consecuencia inmediata: **esta rama no ejecuta CI en `push`**. Comprobado
+empíricamente tras publicarla: `gh run list --branch perf/viewer-scale-baseline-v1`
+no devuelve ninguna ejecución. Sí lo hará
 cualquier PR que abra contra `main` (el disparador `pull_request` no filtra por
 rama de origen), pero el encargo prohíbe abrir PR en esta ronda.
 
