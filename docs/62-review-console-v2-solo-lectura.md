@@ -1,4 +1,4 @@
-# 55 — Review Console V2 (solo lectura)
+# 62 — Review Console V2 (solo lectura)
 
 Carril C. Rama `feat/review-console-v2-readonly`. Sin PR, sin despliegue.
 
