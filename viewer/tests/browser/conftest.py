@@ -18,7 +18,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api", reason="Playwright no instalado: SKIP, no PASS")
 
-from playwright.sync_api import Browser, Page, sync_playwright  # noqa: E402
+from playwright.sync_api import Browser, Error as PlaywrightError, Page, sync_playwright  # noqa: E402
 
 from e2e_support import (  # noqa: E402
     DESKTOP_VIEWPORT,
@@ -34,14 +34,40 @@ def viewer(tmp_path_factory) -> Iterator[ViewerServer]:
     yield from start_viewer(tmp_path_factory)
 
 
+# Los UNICOS motivos que justifican saltarse el modulo: el navegador no esta
+# instalado (`playwright install`) o le faltan librerias del sistema
+# (`playwright install-deps`). Ambos son «Chromium no esta aqui», no un defecto.
+#
+# Antes se capturaba `Exception` a secas, asi que cualquier fallo —incluido un
+# crash real del navegador— se presentaba como «no disponible», es decir, como un
+# SKIP verde. Ahora solo se saltan estos casos y todo lo demas se propaga en rojo.
+#
+# El mensaje que hay que mirar es `str(exc)`: Playwright adjunta el «Call log» con
+# la linea de stderr del proceso, asi que el fallo del cargador dinamico aparece
+# ahi aunque el tipo de la excepcion sea un generico `TargetClosedError`.
+# (Ojo: NO sirve sondear `browser_type.executable_path`, que apunta al Chromium
+# completo mientras que `launch()` arranca `chrome-headless-shell`; son binarios
+# distintos con dependencias distintas.)
+_CHROMIUM_NO_DISPONIBLE = (
+    "executable doesn't exist",
+    "please run the following command to download new browsers",
+    "error while loading shared libraries",
+    "cannot open shared object file",
+    "host system is missing dependencies",
+)
+
+
 @pytest.fixture(scope="module")
 def browser() -> Iterator[Browser]:
     """Un unico Chromium por modulo; cada prueba usa su propio contexto."""
     with sync_playwright() as p:
         try:
             b = p.chromium.launch()
-        except Exception as exc:                     # navegador no descargado
-            pytest.skip(f"chromium no disponible: {exc}")
+        except PlaywrightError as exc:
+            texto = str(exc).lower()
+            if not any(motivo in texto for motivo in _CHROMIUM_NO_DISPONIBLE):
+                raise                                 # crash real: que se vea rojo
+            pytest.skip(f"chromium no disponible en esta maquina: {exc}")
         try:
             yield b
         finally:

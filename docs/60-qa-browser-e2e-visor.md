@@ -111,13 +111,21 @@ No se ha tocado `viewer/app/**` ni la configuración de CI.
 | Estado sin datos | `test_estado_sin_datos_en_el_listado_de_entidades`, `test_reviews_sin_fuentes_no_finge_datos` | ✅ |
 | 403 | `test_el_403_de_reviewer_si_es_una_pagina_del_visor` + hallazgo A-02 | ✅ |
 | 404 | `test_las_rutas_inexistentes_no_dan_500_ni_filtran_trazas`, `test_el_404_de_la_ficha_de_entidad_es_una_pagina_del_visor` | ✅ |
-| Error de backend controlado | `test_jobs_sin_base_de_datos_avisa_en_vez_de_reventar` | ✅ |
+| Error de backend controlado | `test_jobs_carga_haya_o_no_base_de_datos` | ✅ |
 | Neo4j no disponible | `test_browser_backend_down.py` (9 pruebas) | ✅ |
 | Usuario desactivado | `test_usuario_desactivado_no_puede_iniciar_sesion`, `test_desactivar_por_el_panel_corta_la_sesion_viva` | ✅ |
 | **Sesión revocada → siguiente navegación denegada** | `test_revocar_sesiones_deniega_la_siguiente_navegacion` (+ API + aislamiento) | ✅ **real** |
 | Teclado | login solo con teclado, foco visible, nav alcanzable con Tab, sin `tabindex` positivo, `<select>` operable | ✅ |
 | Responsive básico | sin desbordamiento horizontal a 393 px (8 rutas), login usable en móvil, nav visible | ✅ |
 | Sin errores JS graves en consola | `test_ninguna_pagina_lanza_errores_js_graves` (8 rutas) + aserción en cada prueba de sección | ✅ |
+
+El filtro de ruido de consola tolera **solo el favicon**, que el visor no sirve y
+que todo navegador pide por su cuenta. La primera versión descartaba *todo* 404 y
+*todo* `net::ERR_`, de modo que si un `.js` o un `.css` del producto
+desapareciera, la página se rompería y esta prueba seguiría en verde. Se
+comprobó que los seis estáticos que referencian las plantillas existen, así que
+no hay 404 legítimos que tolerar. Como Chromium no pone la URL en el texto del
+mensaje, el filtro mira también `msg.location['url']`.
 
 ### 5.1 Lo que NO se ha podido cubrir, y por qué
 
@@ -191,18 +199,64 @@ tocan.
 
 | ID | Hallazgo | Evidencia |
 |---|---|---|
-| **A-01** | Los 404 de rutas HTML devuelven **JSON crudo** al navegador. `/entity/{id}`, `/reviews/{id}`, `/jobs/{id}` y las rutas inexistentes lanzan `HTTPException` sin manejador propio, así que el usuario ve `{"detail": "..."}` sin navegación ni forma de volver. `/entities/{id}` sí usa `error.html`: la incoherencia es interna del producto. | `test_404_en_html_no_deberia_devolver_json_crudo` |
-| **A-02** | Mismo defecto en el **403 de admin**: `require_admin` lanza `HTTPException` y el usuario ve JSON, mientras que `_require_reviewer_or_redirect` sí pinta `auth/403.html`. | `test_403_en_html_no_deberia_devolver_json_crudo` |
+| **A-01** | Los 404 de rutas HTML devuelven **JSON crudo** al navegador. `/entity/{id}`, `/reviews/{id}`, `/jobs/{id}` y las rutas inexistentes lanzan `HTTPException` sin manejador propio, así que el usuario ve `{"detail": "..."}` sin navegación ni forma de volver. `/entities/{id}` sí usa `error.html`: la incoherencia es interna del producto. | `test_el_404_de_entity_es_una_pagina_html_del_visor` (`xfail(strict=True)`) |
+| **A-02** | Mismo defecto en el **403 de admin**: `require_admin` lanza `HTTPException` y el usuario ve JSON, mientras que `_require_reviewer_or_redirect` sí pinta `auth/403.html`. | `test_el_403_de_admin_es_una_pagina_html_del_visor` (`xfail(strict=True)`) |
 | **T-01** | *(corregido, estaba en mi zona)* El teardown de `test_login_browser.py` **borraba** `S9K_CSRF_SECRET` en vez de restaurarlo. Latente: en CI ese módulo corre solo, y en la corrida combinada se saltaba por falta de Playwright. Al instalar el navegador, `tests/test_auth_core.py::test_login_unknown_user_generic_message` empezó a recibir 403 (CSRF firmado con un secreto y validado con otro). | corrida combinada `viewer/`, 1 failed → 0 |
+
+**Verificación posterior de T-01** (con Chromium presente, así que el teardown se
+ejecuta de verdad; con el navegador ausente todo el paquete se salta y el camino
+del defecto ni se recorre). `test_login_unknown_user_generic_message` pasa en los
+tres modos, y no se observó ningún fallo:
+
+| Modo | Comando | Resultado |
+|---|---|---|
+| Módulo aislado | `pytest -q tests/test_auth_core.py` | 18 passed |
+| Suite completa | `pytest -q` (en `viewer/`) | 810 passed, 13 xfailed |
+| Orden invertido | `pytest -q tests/browser <resto en orden inverso>` | 810 passed, 13 xfailed |
+| Navegador justo antes | `pytest -q tests/browser tests/test_auth_core.py` | 153 passed, 13 xfailed |
+
+No hay `pytest-randomly` ni `pytest-random-order` instalados, así que el tercer
+modo se construyó **invirtiendo la lista de ficheros a mano** y poniendo
+`tests/browser` en primer lugar, que es el orden que más favorece la fuga: el
+módulo que toca `S9K_CSRF_SECRET` corre antes que quien lo consume.
+
+Además se comprobó el teardown **directamente**, sin depender del orden: con un
+centinela en `S9K_CSRF_SECRET`, `start_viewer` lo restaura al valor previo al
+terminar, y lo elimina si no existía. Las dos ramas de `finally` quedan cubiertas.
 
 Nada de esto afecta a la **seguridad**: las denegaciones son correctas en código
 de estado; lo que falla es la presentación.
 
+A-01 y A-02 se escriben como la prueba **correcta** (esperan HTML) marcada
+`xfail(strict=True)`. En la primera versión de este carril afirmaban lo contrario
+—`assert es_json_crudo`— y se contaban entre las pruebas en verde: arreglar el
+defecto habría puesto la suite roja, es decir, se castigaba el arreglo. Ahora el
+arreglo produce un XPASS que obliga a retirar la marca, que es el aviso correcto.
+
 ## 8. Backlog de accesibilidad
 
 Todos requieren tocar plantillas o CSS bajo `viewer/app/**` → **fuera de mi
-zona**, ninguno corregido. Los siete están en el arnés como `xfail(strict=True)`:
-no ensucian la CI y avisan solos cuando se arreglen.
+zona**, ninguno corregido. Los siete primeros están en el arnés como
+`xfail(strict=True)`: no ensucian la CI y avisan solos cuando se arreglen.
+
+**Las marcas son lo más estrechas posible.** Un `xfail` ancho es una regresión
+esperando ocurrir: absorbe en silencio cualquier defecto NUEVO que caiga bajo su
+aserción. Por eso:
+
+- **ACC-04** está parametrizado **por página**, con la marca solo sobre las cuatro
+  defectuosas (`/entities`, `/graph`, `/sources`, `/admin/users`). Las cuatro que
+  sí tienen `<h1>` (`/`, `/jobs`, `/status`, `/reviews`) se exigen **en verde**: si
+  alguna lo perdiera, su parámetro se pone rojo en el acto. Antes era **un solo
+  test** que recorría las ocho acumulando fallos, así que perder un `<h1>` no se
+  habría notado.
+- **ACC-02** conserva su `xfail` por página, pero lo acompaña
+  `test_no_aparecen_controles_sin_etiqueta_nuevos`, en verde, que fija la lista
+  exacta de controles defectuosos conocidos y falla si aparece **uno nuevo**.
+- **ACC-03** ya no barre la página entera: el `xfail` mira solo la columna
+  «Fuente» (`[style*="color:#555"]`), y
+  `test_no_aparecen_textos_con_mal_contraste_nuevos`, en verde, barre **todo lo
+  demás** de `/entities`.
+- **ACC-06** y **ACC-07** ya nacieron acotados con `pytest.param(..., marks=...)`.
 
 | ID | Problema | Impacto | Dónde |
 |---|---|---|---|
@@ -230,9 +284,14 @@ Entorno: Debian trixie, Python 3.13, Playwright 1.62.0, Chromium 151 (headless).
 
 | Comando | Recogidos | Pasados | Saltados | xfail | Duración | Salida |
 |---|---|---|---|---|---|---|
-| `cd viewer && python3 -m pytest tests/browser -q` | 138 | **130** | 0 | 8 | 158,35 s | **0** |
-| `cd viewer && python3 -m pytest -q` | 813 | **805** | 0 | 8 | 173,40 s | **0** |
-| `python3 -m pytest -q tests/` | 198 | **196** | 2 | 0 | 3,82 s | **0** |
+| `cd viewer && python3 -m pytest -q tests/browser` | 148 | **135** | 0 | 13 | 172,04 s | **0** |
+| `cd viewer && python3 -m pytest -q` | 823 | **810** | 0 | 13 | 182,40 s | **0** |
+| `python3 -m pytest -q tests/` | 198 | **196** | 2 | 0 | 3,16 s | **0** |
+
+Los `xfail` pasan de 8 a **13** sin que se haya descubierto ningún defecto nuevo:
+ACC-04 se ha troceado en cuatro parámetros (uno por página defectuosa) en vez de
+un único test acumulado, y A-01/A-02 pasan a estar marcados en vez de contarse
+—incorrectamente— entre los verdes.
 
 Los 2 saltados de `tests/` son preexistentes y ajenos a este carril
 (`test_external_nvidia_live.py` y `test_local_llm_ollama_live.py`: requieren API
@@ -240,13 +299,20 @@ key y un Ollama alcanzable). **Cero pruebas de navegador saltadas**: con el
 navegador presente, saltárselas sería un verde que no comprueba nada, y el job de
 CI ya falla explícitamente si aparece cualquier `skipped`.
 
-Desglose de la suite de navegador (138 recogidas):
+Desglose de la suite de navegador (148 recogidas):
 
 - `test_login_browser.py` — 24 (preexistentes, siguen verdes)
 - `test_browser_auth_flows.py` — 22
-- `test_browser_navigation.py` — 31
+- `test_browser_navigation.py` — 31 (29 verdes + 2 `xfail`: A-01 y A-02)
 - `test_browser_backend_down.py` — 10
-- `test_browser_accessibility.py` — 51 (43 verdes + 8 `xfail` de defectos ACC)
+- `test_browser_accessibility.py` — 61 (50 verdes + 11 `xfail` de defectos ACC)
+
+**Cero `skipped` en la suite de navegador**, que es lo que exige el job
+`test-login-browser` de CI. Por eso `test_jobs_carga_haya_o_no_base_de_datos` ya
+no usa `pytest.skip` cuando el entorno sí tiene `jobs.db`: comprueba una cosa u
+otra según el escenario, pero comprueba algo en ambos. Un `skip` condicional bajo
+una guardia antisalto pone el job rojo por una circunstancia del entorno, no por
+un defecto.
 
 ## 10. Limitaciones y dependencias
 
@@ -256,9 +322,19 @@ Desglose de la suite de navegador (138 recogidas):
   pasado. No se ha añadido a `requirements.txt` para no imponer una descarga de
   ~120 MB a quien solo quiere correr las pruebas de servidor; si se prefiere lo
   contrario, es un cambio de una línea.
-- En la máquina de desarrollo sin `sudo`, Chromium necesita `libnspr4`/`libnss3`;
-  se resolvió extrayendo los `.deb` en un directorio y usando `LD_LIBRARY_PATH`.
-  En CI no aplica: `--with-deps` lo instala.
+- En la máquina de desarrollo sin `sudo`, Chromium necesita `libnspr4`, `libnss3`
+  y una veintena más (`libatk`, `libcups`, `libgbm`, `libpango`…); se resuelve
+  con `apt-get download` de esos paquetes, `dpkg-deb -x` en un directorio y
+  `LD_LIBRARY_PATH` apuntando ahí. En CI no aplica: `--with-deps` lo instala.
+- Si Chromium **no** puede arrancar, la fixture `browser` se salta el módulo, pero
+  solo tras comprobar que el mensaje de error corresponde a «no está instalado» o
+  «faltan librerías del sistema»; cualquier otro fallo de `launch()` se propaga en
+  rojo. Antes se capturaba `except Exception` y un crash real se presentaba como
+  «no disponible», es decir, como un verde. El texto que hay que mirar es
+  `str(exc)`, donde Playwright adjunta el *call log* con el stderr del proceso:
+  **no** sirve sondear `browser_type.executable_path`, que apunta al Chromium
+  completo mientras que `launch()` arranca `chrome-headless-shell`, un binario
+  distinto con dependencias distintas.
 - El job **Combined Test Suite** de CI no instala Playwright, así que allí las
   pruebas de navegador se saltan. Es el comportamiento previo y no lo he
   cambiado; la cobertura real la da el job dedicado, que sí falla ante cualquier

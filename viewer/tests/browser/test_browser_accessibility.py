@@ -29,11 +29,35 @@ XF_TABLA_STATUS = pytest.mark.xfail(
     strict=True, reason="ACC-06: la tabla de /status no tiene <th>")
 XF_DESBORDE_ADMIN = pytest.mark.xfail(
     strict=True, reason="ACC-07: /admin/users se desborda a lo ancho en movil (613px en 393px)")
+XF_SIN_H1 = pytest.mark.xfail(
+    strict=True, reason="ACC-04: la pagina empieza en <h2>, sin ningun <h1>")
+
+# Las UNICAS paginas que hoy no tienen <h1>: /entities, /sources y /admin/users
+# empiezan en <h2>, y /graph no tiene ningun encabezado (ver ACC-01). Las otras
+# cuatro —/, /jobs, /status, /reviews— si lo tienen y se exigen en verde: si
+# alguna lo perdiera, su parametro se pone rojo en el acto.
+PAGINAS_SIN_H1 = {"/entities", "/graph", "/sources", "/admin/users"}
 
 PAGINAS_TABLAS = [pytest.param("/status", marks=XF_TABLA_STATUS) if p == "/status" else p
                   for p in PAGINAS]
 PAGINAS_MOVIL = [pytest.param("/admin/users", marks=XF_DESBORDE_ADMIN) if p == "/admin/users" else p
                  for p in PAGINAS]
+PAGINAS_H1 = [pytest.param(p, marks=XF_SIN_H1) if p in PAGINAS_SIN_H1 else p
+              for p in PAGINAS]
+
+# Controles que HOY carecen de etiqueta accesible, uno a uno (ACC-02). El
+# identificador es el que devuelve JS_CONTROLES_SIN_ETIQUETA: `tag#id-o-name`.
+# La prueba en verde exige que no aparezca NINGUNO NUEVO fuera de esta lista; el
+# xfail persigue que la lista acabe vacia.
+SIN_ETIQUETA_CONOCIDOS = {
+    "/graph": {"input#search-input", "select#type-filter", "select#limit-select"},
+    "/entities": {"input#q", "select#entity_type"},
+}
+
+# El unico texto de /entities que incumple AA (ACC-03): la columna «Fuente»,
+# `#555` sobre `#14161c` = 2.43:1. El xfail mira SOLO esto; la guarda en verde
+# mira todo lo demas.
+SELECTOR_TEXTO_GRIS = '[style*="color:#555"]'
 
 # --- JS de auditoria, reutilizado por varias pruebas ------------------------
 
@@ -49,7 +73,9 @@ JS_CONTROLES_SIN_ETIQUETA = """
 """
 
 JS_CONTRASTE = """
-() => {
+(opts) => {
+  const incluir = (opts && opts.incluir) || 'body *';
+  const excluir = (opts && opts.excluir) || null;
   const lum = (c) => {
     const m = c.match(/[\\d.]+/g).map(Number).slice(0, 3).map(v => {
       v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
@@ -66,7 +92,8 @@ JS_CONTRASTE = """
     return 'rgb(255, 255, 255)';
   };
   const malos = [];
-  for (const el of document.querySelectorAll('body *')) {
+  for (const el of document.querySelectorAll(incluir)) {
+    if (excluir && el.matches(excluir)) continue;
     if (!el.innerText || el.children.length > 0) continue;
     const cs = getComputedStyle(el);
     if (cs.visibility === 'hidden' || cs.display === 'none') continue;
@@ -75,7 +102,8 @@ JS_CONTRASTE = """
     const ratio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
     const grande = size >= 24 || (size >= 18.66 && parseInt(cs.fontWeight) >= 700);
     if (ratio < (grande ? 3 : 4.5)) {
-      malos.push({texto: el.innerText.slice(0, 40), color: cs.color,
+      malos.push({tag: el.tagName.toLowerCase(),
+                  texto: el.innerText.slice(0, 40), color: cs.color,
                   fondo: bgOf(el), tam: size, ratio: +ratio.toFixed(2)});
     }
   }
@@ -156,6 +184,31 @@ def test_ningun_boton_ni_enlace_se_queda_sin_nombre(admin_page, viewer, path):
           .map(el => el.tagName.toLowerCase() + '.' + (el.className || ''))
     """)
     assert anonimos == [], f"{path} tiene controles sin nombre accesible: {anonimos}"
+
+
+@pytest.mark.parametrize("path", PAGINAS_H1)
+def test_cada_pagina_tiene_un_unico_h1(admin_page, viewer, path):
+    """Un <h1> por pagina: es el titulo que anuncia el lector de pantalla.
+
+    Una prueba POR PAGINA, no un barrido acumulado: asi las cuatro paginas que
+    ya cumplen se exigen en verde y solo las cuatro defectuosas van marcadas.
+    """
+    fetch_status(admin_page, viewer, path)
+    encontrados = admin_page.locator("h1").count()
+    assert encontrados == 1, f"{path} tiene {encontrados} <h1>, deberia tener exactamente 1"
+
+
+@pytest.mark.parametrize("path", sorted(SIN_ETIQUETA_CONOCIDOS))
+def test_no_aparecen_controles_sin_etiqueta_nuevos(admin_page, viewer, path):
+    """Guarda de regresion de ACC-02: la lista de defectuosos no puede crecer.
+
+    El xfail de mas abajo exige que la lista quede vacia; esta prueba, en verde,
+    impide que un control nuevo sin etiqueta se cuele escondido tras aquel.
+    """
+    fetch_status(admin_page, viewer, path)
+    sin_etiqueta = set(admin_page.evaluate(JS_CONTROLES_SIN_ETIQUETA))
+    nuevos = sin_etiqueta - SIN_ETIQUETA_CONOCIDOS[path]
+    assert nuevos == set(), f"{path} tiene controles sin etiqueta NUEVOS: {sorted(nuevos)}"
 
 
 @pytest.mark.parametrize("path", PAGINAS_TABLAS)
@@ -283,35 +336,60 @@ def test_el_grafo_tiene_landmark_principal_y_encabezado(admin_page, viewer):
     assert admin_page.locator("h1, h2").count() >= 1, "/graph sin ningun encabezado"
 
 
-@pytest.mark.xfail(strict=True, reason="ACC-02: la barra del grafo solo usa placeholder como etiqueta")
+@pytest.mark.xfail(
+    strict=True,
+    reason="ACC-02: search-input, type-filter y limit-select solo usan placeholder/nada")
 def test_los_controles_del_grafo_estan_etiquetados(admin_page, viewer):
+    """Los tres controles de la barra del grafo, nombrados uno a uno.
+
+    No absorbe defectos nuevos: `test_no_aparecen_controles_sin_etiqueta_nuevos`
+    vigila en verde que no aparezca ningun control fuera de esos tres.
+    """
     fetch_status(admin_page, viewer, "/graph")
     sin_etiqueta = admin_page.evaluate(JS_CONTROLES_SIN_ETIQUETA)
     assert sin_etiqueta == [], f"controles sin etiqueta en /graph: {sin_etiqueta}"
 
 
-@pytest.mark.xfail(strict=True, reason="ACC-02: el filtro de /entities solo usa placeholder")
+@pytest.mark.xfail(
+    strict=True,
+    reason="ACC-02: el filtro de /entities (input#q, select#entity_type) solo usa placeholder")
 def test_los_filtros_de_entidades_estan_etiquetados(admin_page, viewer):
+    """Idem para /entities; la guarda en verde cubre las altas nuevas."""
     fetch_status(admin_page, viewer, "/entities")
     sin_etiqueta = admin_page.evaluate(JS_CONTROLES_SIN_ETIQUETA)
     assert sin_etiqueta == [], f"controles sin etiqueta en /entities: {sin_etiqueta}"
 
 
-@pytest.mark.xfail(strict=True, reason="ACC-03: texto gris #555/#666 sobre fondo oscuro (ratio 2.4-3.2)")
-def test_el_texto_secundario_tiene_contraste_suficiente(admin_page, viewer):
+@pytest.mark.xfail(
+    strict=True,
+    reason="ACC-03: la columna «Fuente» de /entities usa #555 sobre #14161c (2.43:1)")
+def test_la_columna_fuente_de_entidades_tiene_contraste_suficiente(admin_page, viewer):
+    """El unico incumplimiento AA medido en /entities, acotado a sus celdas.
+
+    Medicion de la auditoria (docs/55): `#555` sobre `#14161c` = 2.43:1 en los 11
+    nodos de la columna «Fuente». Acotarlo a ese selector impide que el xfail
+    absorba un defecto de contraste NUEVO en cualquier otro punto de la pagina;
+    de eso se ocupa, en verde, la prueba de aqui abajo.
+    """
     fetch_status(admin_page, viewer, "/entities")
-    malos = admin_page.evaluate(JS_CONTRASTE)
+    malos = admin_page.evaluate(JS_CONTRASTE, {"incluir": SELECTOR_TEXTO_GRIS})
     assert malos == [], f"textos por debajo del minimo AA: {malos[:5]}"
 
 
-@pytest.mark.xfail(strict=True, reason="ACC-04: varias paginas empiezan en <h2>, sin <h1>")
-def test_cada_pagina_tiene_un_unico_h1(admin_page, viewer):
-    faltan = []
-    for path in PAGINAS:
-        fetch_status(admin_page, viewer, path)
-        if admin_page.locator("h1").count() != 1:
-            faltan.append((path, admin_page.locator("h1").count()))
-    assert faltan == [], f"paginas sin un unico <h1>: {faltan}"
+def test_no_aparecen_textos_con_mal_contraste_nuevos(admin_page, viewer):
+    """Guarda de regresion de ACC-03: fuera de la columna «Fuente», nada falla.
+
+    Barre la pagina entera EXCEPTO el defecto ya conocido. Si manana alguien
+    introduce otro gris por debajo de AA, esto se pone rojo en vez de esconderse
+    detras del xfail de arriba.
+    """
+    fetch_status(admin_page, viewer, "/entities")
+    malos = admin_page.evaluate(JS_CONTRASTE, {"excluir": SELECTOR_TEXTO_GRIS})
+    assert malos == [], f"textos por debajo del minimo AA NUEVOS en /entities: {malos[:5]}"
+
+
+# ACC-04 ya no vive aqui: se ha convertido en `test_cada_pagina_tiene_un_unico_h1`,
+# parametrizado por pagina y con la marca solo sobre las cuatro defectuosas.
 
 
 @pytest.mark.xfail(strict=True, reason="ACC-05: no hay enlace de salto al contenido")

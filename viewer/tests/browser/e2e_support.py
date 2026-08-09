@@ -45,14 +45,28 @@ DISABLED_PW = "lab-disabled-9pl03-ZXCVB"
 DESKTOP_VIEWPORT = {"width": 1280, "height": 800}
 MOBILE_VIEWPORT = {"width": 393, "height": 851}
 
-# Mensajes de consola que NO cuentan como error grave del producto: ruido del
-# navegador o del entorno de laboratorio, no defectos de la aplicacion.
-_CONSOLE_NOISE = (
-    "favicon",
-    "Failed to load resource: the server responded with a status of 404",
-    "net::ERR_",
-    "Download the React DevTools",
-)
+# UNICO ruido tolerado: el favicon, que el visor no sirve y que todo navegador
+# pide solo. Cualquier otro error de consola —incluido un 404 o un net::ERR_— es
+# un defecto del producto y debe enrojecer la prueba.
+#
+# El filtro anterior descartaba TODO 404 y TODO net::ERR_, asi que si un .js o un
+# .css del producto desapareciese, la pagina se rompería y la prueba de errores
+# de consola seguiria en verde. Se ha comprobado que los seis recursos estaticos
+# que referencian las plantillas existen: no hay 404 legitimos que tolerar.
+_FAVICON = "favicon"
+
+
+def _es_ruido_de_consola(msg) -> bool:
+    """True solo si el mensaje corresponde al favicon ausente.
+
+    Chromium emite el 404 de un recurso como «Failed to load resource: …» sin la
+    URL en el texto, asi que hay que mirar tambien `msg.location['url']`.
+    """
+    if _FAVICON in (msg.text or "").lower():
+        return True
+    location = getattr(msg, "location", None) or {}
+    url = location.get("url", "") if isinstance(location, dict) else ""
+    return _FAVICON in url.lower()
 
 
 @dataclass
@@ -179,10 +193,9 @@ def attach_recorders(page: Page) -> Page:
     def _on_console(msg):
         if msg.type != "error":
             return
-        text = msg.text or ""
-        if any(noise in text for noise in _CONSOLE_NOISE):
+        if _es_ruido_de_consola(msg):
             return
-        page.console_errors.append(text)              # type: ignore[attr-defined]
+        page.console_errors.append(msg.text or "")    # type: ignore[attr-defined]
 
     page.on("console", _on_console)
     page.on("pageerror", lambda exc: page.page_errors.append(str(exc)))  # type: ignore[attr-defined]

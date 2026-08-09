@@ -200,23 +200,35 @@ def test_las_secciones_de_reviewer_cargan_para_un_admin(admin_page, viewer, path
     assert admin_page.page_errors == [], f"{path} lanzo excepciones JS: {admin_page.page_errors}"
 
 
-def test_jobs_sin_base_de_datos_avisa_en_vez_de_reventar(admin_page, viewer):
-    """Backend caido de forma controlada: la cola de jobs no esta disponible.
+def test_jobs_carga_haya_o_no_base_de_datos(admin_page, viewer):
+    """La pagina de Jobs debe cargar (200) en los dos escenarios posibles.
 
-    En laboratorio no hay `jobs.db`, que es exactamente el fallo controlado que
-    interesa: la pagina debe cargar (200) y decirlo, no dar un 500.
+    En laboratorio no suele haber `jobs.db`, que es el fallo controlado que
+    interesa: la pagina debe cargar y DECIRLO, no dar un 500. Pero si el entorno
+    si la tiene, la exigencia no desaparece, solo cambia: debe pintar la cola.
+
+    Sin `skip`: el job de CI `test-login-browser` falla ante cualquier `skipped`,
+    asi que un salto condicional por una circunstancia del entorno pondria el job
+    rojo sin que hubiera ningun defecto. Se comprueba una cosa u otra segun el
+    escenario, y en ambos se comprueba algo.
     """
     resp = admin_page.request.get(viewer.url("/api/jobs"))
-    datos = resp.json()
-    assert resp.status == 200
-    if datos.get("ok"):
-        pytest.skip("este entorno si tiene jobs.db: no se puede observar el estado degradado")
+    assert resp.status == 200, f"/api/jobs devolvio {resp.status}"
+    hay_jobs_db = bool(resp.json().get("ok"))
 
     status = fetch_status(admin_page, viewer, "/jobs")
-    assert status == 200, f"/jobs con backend caido devolvio {status}"
+    assert status == 200, f"/jobs devolvio {status} (hay jobs.db: {hay_jobs_db})"
     texto = admin_page.locator("body").inner_text().lower()
-    assert any(p in texto for p in ("no disponible", "not_found", "error", "sin ")), \
-        f"/jobs no informa del estado degradado: {texto[:300]}"
+
+    if hay_jobs_db:
+        # Escenario nominal: la cola existe y la pagina la presenta.
+        assert "jobs" in texto, f"/jobs con base de datos no pinta la cola: {texto[:300]}"
+        assert admin_page.page_errors == [], \
+            f"/jobs lanzo excepciones JS: {admin_page.page_errors}"
+    else:
+        # Escenario degradado: sin base de datos, la pagina lo dice.
+        assert any(p in texto for p in ("no disponible", "not_found", "error", "sin ")), \
+            f"/jobs no informa del estado degradado: {texto[:300]}"
 
 
 def test_reviews_sin_fuentes_no_finge_datos(admin_page, viewer):
@@ -253,39 +265,49 @@ def test_el_404_de_la_ficha_de_entidad_es_una_pagina_del_visor(admin_page, viewe
         "la pagina de error pierde la navegacion del visor"
 
 
-def test_404_en_html_no_deberia_devolver_json_crudo(admin_page, viewer):
+@pytest.mark.xfail(
+    strict=True,
+    reason="A-01: /entity/{id} lanza HTTPException sin manejador HTML y "
+           "FastAPI responde {\"detail\": ...} en JSON crudo")
+def test_el_404_de_entity_es_una_pagina_html_del_visor(admin_page, viewer):
     """HALLAZGO A-01 (defecto de aplicacion, fuera de mi zona: NO lo corrijo).
 
-    Varias rutas HTML lanzan HTTPException sin manejador propio, asi que
-    FastAPI responde `{"detail": ...}` en JSON y el navegador ensena el JSON en
-    crudo, sin navegacion ni forma de volver. `/entities/{id}` si usa
-    `error.html`: la inconsistencia es del producto, no del navegador.
+    Escrita como la prueba CORRECTA —el 404 debe ser HTML con navegacion— y
+    marcada como fallo esperado. Antes afirmaba lo contrario (`assert
+    es_json_crudo`) y se contaba en verde, de modo que arreglar el defecto habria
+    enrojecido la suite: se castigaba el arreglo. Ahora el arreglo produce un
+    XPASS y `strict` obliga a quitar la marca, que es el aviso correcto.
 
-    Esta prueba DOCUMENTA el comportamiento actual y se pondra roja el dia que
-    se arregle — momento de borrarla y quedarse solo con la de arriba.
+    Contraste: `/entities/{id}` si usa `error.html` (ver la prueba de arriba); la
+    inconsistencia es del producto.
     """
     fetch_status(admin_page, viewer, "/entity/no-existe-esta-entidad")
     cuerpo = admin_page.content()
-    es_json_crudo = '{"detail"' in cuerpo and "topbar" not in cuerpo
-    assert es_json_crudo, (
-        "el 404 de /entity/{id} ya devuelve HTML: el defecto A-01 esta corregido, "
-        "borra esta prueba de documentacion")
+    assert '{"detail"' not in cuerpo, \
+        "el 404 de /entity/{id} se sirve como JSON crudo, no como pagina de error"
+    assert "topbar" in cuerpo, \
+        "el 404 de /entity/{id} no conserva la navegacion del visor"
 
 
-def test_403_en_html_no_deberia_devolver_json_crudo(new_page, viewer):
+@pytest.mark.xfail(
+    strict=True,
+    reason="A-02: require_admin lanza HTTPException y el 403 de /admin sale en JSON crudo")
+def test_el_403_de_admin_es_una_pagina_html_del_visor(new_page, viewer):
     """HALLAZGO A-02: mismo defecto en el 403 de admin (ver A-01).
 
     `_require_reviewer_or_redirect` si pinta `auth/403.html`; `require_admin`
-    lanza HTTPException y el usuario ve JSON. Documentado, no corregido.
+    lanza HTTPException y el usuario ve JSON. Igual que A-01, se escribe la
+    prueba correcta y se marca, en vez de consagrar el defecto en verde.
     """
     pg = new_page()
     login_as(pg, viewer, "s9viewer")
     status = fetch_status(pg, viewer, "/admin/users")
-    assert status == 403
+    assert status == 403, f"/admin/users como viewer devolvio {status}"
     cuerpo = pg.content()
-    assert '{"detail"' in cuerpo and "topbar" not in cuerpo, (
-        "el 403 de /admin ya devuelve HTML: el defecto A-02 esta corregido, "
-        "borra esta prueba de documentacion")
+    assert '{"detail"' not in cuerpo, \
+        "el 403 de /admin se sirve como JSON crudo, no como pagina de error"
+    assert "topbar" in cuerpo, \
+        "el 403 de /admin no conserva la navegacion del visor"
 
 
 def test_el_403_de_reviewer_si_es_una_pagina_del_visor(new_page, viewer):
