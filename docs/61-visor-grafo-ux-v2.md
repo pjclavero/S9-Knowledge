@@ -235,6 +235,18 @@ cierra la ficha o limpia la búsqueda, `F` encaja la vista, `E` expande los
 vecinos del nodo seleccionado. `vis-network` aporta además navegación con
 flechas sobre el lienzo enfocado.
 
+Regla del desplegable de resultados: **mientras se escribe se ofrece, y en
+cuanto se elige se cierra** — por `Intro` y por clic, exactamente igual. Un
+menú de elección que sigue abierto después de haber elegido no informa de nada
+y sí estorba: es `position:absolute` con `z-index:60`, cae sobre el lienzo,
+tapa el grafo que se acaba de centrar y se come el clic siguiente. Con el ratón
+era peor que con `Intro`, porque el puntero se queda justo encima de la lista.
+Cerrar **no** cancela la búsqueda: el término sigue en el campo y en la URL, y
+volver a teclear reabre la lista. Con cero coincidencias la lista se queda
+abierta con «Sin coincidencias», y eso es deliberado: es lo que iguala un nodo
+no autorizado a uno inexistente (huella de 17 canales en
+`tests/browser/test_browser_navigation.py`).
+
 En pantallas ≤900 px los dos paneles pasan a superponerse y la ficha entra por
 la derecha con el botón de cierre visible. **Por encima de 900 px ese botón está
 `display:none`** (es una columna fija, no un panel que tape nada): en escritorio

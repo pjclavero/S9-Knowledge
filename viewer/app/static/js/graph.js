@@ -530,6 +530,14 @@
       btn.addEventListener("click", function () {
         selectNode(n.id);
         focusNode(n.id);
+        // Misma regla que en `runSearch()`: elegir cierra el menu de eleccion.
+        // Que Intro cerrase y el raton no era una asimetria de la que la
+        // persona no tiene forma de enterarse, y con el raton el dano es mayor:
+        // acaba de mover el puntero HASTA el desplegable, asi que se queda
+        // justo encima de la lista que tapa el lienzo y su siguiente clic —el
+        // natural, sobre el grafo que se acaba de centrar— se lo come un boton
+        // de un menu que ya no queria.
+        closeSearchResults();
       });
       li.appendChild(btn);
       searchResults.appendChild(li);
