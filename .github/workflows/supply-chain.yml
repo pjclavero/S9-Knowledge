@@ -2,7 +2,8 @@ name: Supply Chain Security
 
 on:
   push:
-    branches: [ main, 'fix/**', 'feat/**', 'audit/**', 'docs/**', 'chore/**' ]
+    branches: [ main, 'fix/**', 'feat/**', 'audit/**', 'docs/**', 'chore/**',
+                'test/**', 'ops/**', 'perf/**', 'dependabot/**' ]
   pull_request:
     branches: [ main ]
   schedule:
