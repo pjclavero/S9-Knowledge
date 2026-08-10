@@ -16,8 +16,9 @@ on:
       - 'audit/**'
       - 'docs/**'
       - 'chore/**'
-      - 'test/**'   # un carril de pruebas DEBE disparar CI, por definicion
+      - 'test/**'       # un carril de pruebas DEBE disparar CI, por definicion
       - 'ops/**'        # detectado por check-ci-config: existia sin cubrir
+      - 'perf/**'       # idem: perf/viewer-scale-baseline-v1
       - 'dependabot/**' # idem: los bumps se probaban solo al abrir el PR
   pull_request:
     branches: [ main ]
