@@ -192,11 +192,24 @@ def _abrir_grafo(page, viewer):
     return page
 
 
-def _buscar(page, texto):
-    """Teclea y pulsa Intro. No se afirma nada sobre peticiones de red."""
+def _buscar(page, texto) -> list:
+    """Teclea, mira lo OFRECIDO y pulsa Intro.
+
+    Devuelve las etiquetas que el desplegable ofrecia MIENTRAS SE ESCRIBIA, que
+    es el unico momento en que existen: elegir con Intro cierra la lista (ver
+    `test_elegir_con_intro_cierra_la_lista_de_resultados`), porque un menu de
+    eleccion abierto despues de haber elegido tapa el lienzo y se come los
+    clics. Leerlo aqui es una observacion, no una interaccion: no cambia el
+    estado que la huella comparara despues.
+
+    No se afirma nada sobre peticiones de red.
+    """
     page.fill("#search-input", texto)
+    page.wait_for_timeout(300)
+    ofrecidos = _resultados(page)
     page.press("#search-input", "Enter")
     _esperar_lienzo_quieto(page)
+    return ofrecidos
 
 
 def _resultados(page) -> list:
@@ -359,11 +372,11 @@ def test_la_busqueda_encuentra_centra_y_resalta_un_nodo_visible(page, viewer):
     antes = page.evaluate(_CENTROIDE_JS, COLOR_CREATURE)
     assert antes, "el nodo de referencia no esta dibujado en el lienzo"
 
-    _buscar(page, NODO_VISIBLE)
+    ofrecidos = _buscar(page, NODO_VISIBLE)
 
-    # Lo encuentra: aparece como resultado pinchable.
-    assert any(NODO_VISIBLE in r for r in _resultados(page)), \
-        f"la busqueda no ofrece el nodo visible: {_resultados(page)}"
+    # Lo encuentra: aparece como resultado pinchable mientras se escribe.
+    assert any(NODO_VISIBLE in r for r in ofrecidos), \
+        f"la busqueda no ofrece el nodo visible: {ofrecidos}"
 
     # Lo centra: el nodo (unico de su color) queda en el centro del lienzo.
     despues = page.evaluate(_CENTROIDE_JS, COLOR_CREATURE)
@@ -446,10 +459,10 @@ def test_un_nodo_no_autorizado_es_indistinguible_de_uno_inexistente(new_page, vi
     # encontraba nada ni siquiera para el admin y la prueba de mas abajo se
     # cumplia por vacuidad, no por autorizacion.
     for termino in (SECRETO_NOMBRE, SECRETO_ID):
-        _buscar(admin, termino)
-        assert any(SECRETO_NOMBRE in r for r in _resultados(admin)), (
+        ofrecidos = _buscar(admin, termino)
+        assert any(SECRETO_NOMBRE in r for r in ofrecidos), (
             f"ni siquiera el admin encuentra el nodo secreto buscando «{termino}» "
-            f"({_resultados(admin)}): sin control positivo el resto de la prueba "
+            f"({ofrecidos}): sin control positivo el resto de la prueba "
             "no demuestra nada")
 
     # --- El rol sin autorizacion: el backend no le entrega ese nodo.

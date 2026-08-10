@@ -175,6 +175,68 @@ def test_la_lista_de_resultados_lleva_al_nodo(graph_page):
     assert "Kimi" in graph_page.locator("#side-panel").inner_text()
 
 
+_ELEMENTO_EN_LA_ESQUINA_JS = """() => {
+    const canvas = document.querySelector('#graph-canvas canvas');
+    const r = canvas.getBoundingClientRect();
+    const el = document.elementFromPoint(r.left + 5, r.top + 5);
+    return {
+      etiqueta: el ? el.tagName : null,
+      en_la_barra: !!(el && el.closest('.graph-toolbar')),
+      descripcion: el ? (el.tagName + '.' + (el.className || '')) : 'nada'
+    };
+}"""
+
+
+def test_elegir_con_intro_cierra_la_lista_de_resultados(graph_page):
+    """Elegir con Intro CIERRA el desplegable de resultados.
+
+    POR QUE ESTA PRUEBA
+    -------------------
+    `runSearch()` pintaba la lista de coincidencias y ademas seleccionaba y
+    centraba la primera. Es decir: dejaba abierto un menu de eleccion DESPUES
+    de haber elegido por ti. Ese desplegable (`.search-results`, posicion
+    absoluta, `z-index` 60, colgando de la barra) cae ENCIMA del lienzo, tapa
+    el grafo y se come los clics de la persona, que cree estar pinchando el
+    grafo y en realidad pincha un boton de un menu que ya no queria.
+
+    QUE SE CONGELA, Y EN QUE ORDEN
+    ------------------------------
+    1. EL ESTADO SEMANTICO, que es la red de verdad: tras `fill` + Intro,
+       `#search-results` esta oculto. No depende de pixeles, ni de tamano de
+       ventana, ni de la maquina: es verde o rojo igual en cualquier sitio.
+    2. LA CONSECUENCIA, como defensa secundaria: la esquina superior izquierda
+       del lienzo vuelve a ser del lienzo. Esta segunda si es geometrica —y por
+       eso NO es la evidencia principal—, pero documenta el dano real: con la
+       lista abierta el margen sobrante era de ~2 px, asi que el mismo codigo
+       pasaba en un portatil y fallaba en un runner de CI.
+
+    Lo que esta prueba NO dice: nada sobre escribir sin Intro. Esa ruta va por
+    el manejador `input` y DEBE seguir mostrando la lista; la cubre
+    `test_la_lista_de_resultados_lleva_al_nodo`.
+    """
+    graph_page.fill("#search-input", "Kimi")
+    graph_page.press("#search-input", "Enter")
+    graph_page.wait_for_timeout(1200)          # la animacion de focus dura 400 ms
+
+    assert panel_abierto(graph_page), "buscar con Intro no ha seleccionado nada"
+    assert graph_page.locator("#search-results").is_hidden(), (
+        "tras elegir con Intro el desplegable de resultados sigue abierto: "
+        f"{graph_page.locator('#search-results').inner_text()[:120]!r}")
+
+    esquina = graph_page.evaluate(_ELEMENTO_EN_LA_ESQUINA_JS)
+    assert esquina["etiqueta"] == "CANVAS" and not esquina["en_la_barra"], (
+        "la esquina del lienzo la ocupa el desplegable de busqueda, no el "
+        f"grafo: {esquina['descripcion']}")
+
+    # Y cerrarlo no lo inutiliza: una busqueda nueva vuelve a ofrecer la lista.
+    graph_page.fill("#search-input", "Oni")
+    graph_page.wait_for_timeout(300)
+    assert graph_page.locator("#search-results button.search-result").count() >= 1, (
+        "tras cerrar la lista al elegir, una busqueda nueva ya no ofrece "
+        "resultados: el desplegable ha quedado inutilizado")
+    assert graph_page.page_errors == []
+
+
 _LEYENDA_JS = """() => Array.from(document.querySelectorAll('#graph-legend li')).map((li) => {
     const sw = li.querySelector('.legend-swatch');
     return {

@@ -536,6 +536,18 @@
     });
   }
 
+  /**
+   * Cierra el desplegable de resultados SIN tocar `state.q`.
+   *
+   * Cerrar la lista no es «cancelar la búsqueda»: el término sigue escrito, en
+   * la URL y en el campo. Por eso no se pasa por `renderSearchResults([])`,
+   * que con `state.q` puesto volvería a mostrarla con «Sin coincidencias».
+   */
+  function closeSearchResults() {
+    searchResults.innerHTML = "";
+    searchResults.hidden = true;
+  }
+
   function runSearch() {
     state.q = searchInput.value.trim();
     var matches = core.searchNodes(visible.nodes, state.q, { limit: 12 });
@@ -543,6 +555,11 @@
     if (matches.length) {
       selectNode(matches[0].id);
       focusNode(matches[0].id);
+      // Ya se ha elegido: mantener abierto un menú de elección después de
+      // elegir por la persona tapa el grafo (la lista es absoluta y va por
+      // encima del lienzo) y le roba los clics siguientes. Al teclear de
+      // nuevo, el manejador `input` vuelve a abrirla.
+      closeSearchResults();
     }
     syncUrl();
   }
