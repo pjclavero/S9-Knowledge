@@ -270,6 +270,44 @@ def _under(path: Optional[str], root: Optional[str]) -> bool:
         return False
 
 
+def _schema_versions_match(release: ReleaseFacts) -> tuple[Optional[bool], str]:
+    """Compara `manifest["schema_versions"]` con lo que declara el código.
+
+    Devuelve ``(None, motivo)`` cuando no se puede comparar. UNKNOWN no es OK:
+    `_verdict` trata el ``None`` crítico como indeterminado, nunca como visto
+    bueno.
+    """
+    manifest = release.manifest or {}
+    declared = manifest.get("schema_versions")
+    if not isinstance(declared, dict) or not declared:
+        return None, "el manifiesto no declara schema_versions"
+    if not release.active_dir:
+        return None, "sin directorio de release: no se puede leer el código"
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    try:
+        import schema_versions as _sv
+    except ImportError as exc:  # pragma: no cover
+        return None, f"no se pudo cargar schema_versions.py ({exc})"
+
+    try:
+        real = _sv.declared_versions(Path(release.active_dir))
+    except _sv.SchemaDeclarationError as exc:
+        return None, f"no se pudo leer la versión real del código: {exc}"
+
+    diffs = [
+        f"{k}: manifiesto={declared.get(k)!r} código={v!r}"
+        for k, v in sorted(real.items())
+        if declared.get(k) != v
+    ]
+    extra = sorted(set(declared) - set(real))
+    if extra:
+        diffs.append(f"componentes en el manifiesto sin código que los respalde: {extra}")
+    if diffs:
+        return False, "; ".join(diffs)
+    return True, json.dumps(real, sort_keys=True)
+
+
 def classify(
     release: ReleaseFacts,
     proc: ProcessFacts,
@@ -301,6 +339,12 @@ def classify(
             add("manifest_git_commit", matches, f"{mc} vs {expected_commit}")
         add("schema_versions_present", bool(release.manifest.get("schema_versions")),
             json.dumps(release.manifest.get("schema_versions")), critical=False)
+        # «Presente» no es «cierto». El manifiesto declaraba `auth_db: 1` con el
+        # código en SCHEMA_VERSION = 3 y este verificador daba el visto bueno
+        # porque la clave existía. Se compara contra el código de la propia
+        # release: declarado != real es CRÍTICO.
+        ok, detail = _schema_versions_match(release)
+        add("schema_versions_match_code", ok, detail, critical=True)
 
     # --- proceso ---
     # No observar el proceso NO es un fallo del despliegue: es no poder afirmar
@@ -390,12 +434,20 @@ def classify(
 def _verdict(indicators: list[dict[str, Any]], symlink_interpreter: bool = False,
              unknown: bool = False, reason: str = "") -> dict[str, Any]:
     failed = [i["indicator"] for i in indicators if i["critical"] and i["ok"] is False]
+    # Un indicador CRITICO que no se pudo evaluar (ok is None) es indeterminado,
+    # no aprobado. Antes solo se miraba `is False`, asi que un critico en None
+    # colapsaba a VALID: exactamente "UNKNOWN vale por OK". Se cuenta aparte.
+    indeterminate = [i["indicator"] for i in indicators
+                     if i["critical"] and i["ok"] is None]
     # Un fallo ya constatado manda sobre la indeterminacion: si `current` apunta
     # a la release equivocada, da igual que ademas no se vea el proceso.
     if failed:
         verdict = VERDICT_INVALID
-    elif unknown:
+    elif unknown or indeterminate:
         verdict = VERDICT_UNKNOWN
+        if indeterminate and not reason:
+            reason = ("indicadores criticos no evaluables: "
+                      + ", ".join(indeterminate))
     elif symlink_interpreter:
         verdict = VERDICT_VALID_SYMLINK
     else:
