@@ -48,6 +48,25 @@ def get_conn(db_path: Optional[Path] = None) -> Generator[sqlite3.Connection, No
     Proporciona una conexión SQLite.
     Crea una conexión nueva por llamada; la cierra al salir del bloque.
     Usar como: `with get_conn(path) as conn: ...`
+
+    LÍMITE CONOCIDO Y DELIBERADO — aquí NO se comprueba el rango de esquema.
+    La puerta de `schema_compat` cubre el ARRANQUE (`ensure_migrated`), no cada
+    acceso a datos: sobre una base fuera de rango, `get_conn` entrega
+    conexiones. Hoy no es alcanzable en el servicio porque el arranque aborta
+    antes de que se atienda ninguna petición, pero un entrypoint nuevo escrito
+    con el idioma dominante del repo (`with auth_db.get_conn(p) as conn:`) y sin
+    pasar por `ensure_migrated` rodearía la puerta.
+
+    No se comprueba aquí por coste medido: `assert_compatible()` abre su propia
+    conexión de sólo lectura y encarece cada `get_conn` un 113 % (390 us -> 832
+    us por llamada, 2000 iteraciones). Cachearlo devolvería el problema a su
+    sitio peor: una caché obsoleta serviría una base cambiada bajo los pies,
+    justo en la comprobación que debe ser fail-closed.
+
+    El límite está fijado por prueba en
+    `viewer/tests/test_schema_compat_refuse_to_start.py::test_la_puerta_cubre_el_arranque_no_cada_acceso`.
+    Si algún día se cierra, esa prueba se pone roja y obliga a actualizar esta
+    nota y `docs/65-preparacion-de-release.md` §1.
     """
     path = db_path or _db_path()
     conn = _connect(path)
@@ -161,11 +180,38 @@ _DDL_V3_ALTER = [
 # ---------------------------------------------------------------------------
 
 def _current_version(conn: sqlite3.Connection) -> int:
-    try:
-        row = conn.execute("SELECT MAX(version) FROM schema_version").fetchone()
-        return row[0] or 0
-    except Exception:
+    """Versión de esquema de una conexión ya abierta.
+
+    Antes esto era `try: ... except Exception: return 0`, es decir: una base
+    ilegible, corrupta o sin sello de versión se leía como «versión 0» y por
+    tanto como «migrable desde cero» sobre datos ya existentes. La ausencia de
+    dato no es permiso: aquí sólo se devuelve 0 cuando la base está realmente
+    vacía (sin ninguna tabla); cualquier otra ausencia es desconocida y se
+    propaga como error para que el proceso se niegue a continuar.
+    """
+    from app.auth import schema_compat  # import diferido: evita ciclo
+
+    tables = {
+        r[0]
+        for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
+    if not tables:
         return 0
+    if "schema_version" not in tables:
+        raise schema_compat.SchemaVersionUnknown(
+            f"auth_db: base con tablas ({', '.join(sorted(tables))}) y sin "
+            f"tabla 'schema_version'. Versión desconocida: no se asume "
+            f"compatibilidad."
+        )
+    row = conn.execute("SELECT MAX(version) FROM schema_version").fetchone()
+    if row is None or row[0] is None:
+        raise schema_compat.SchemaVersionUnknown(
+            "auth_db: tabla 'schema_version' vacía. Una versión sin registrar "
+            "es desconocida, no es la 0."
+        )
+    return int(row[0])
 
 
 def migrate(db_path: Optional[Path] = None) -> None:
@@ -178,7 +224,20 @@ def migrate(db_path: Optional[Path] = None) -> None:
         try:
             conn = _connect(path)
             current = _current_version(conn)
-            if current >= SCHEMA_VERSION:
+            if current > SCHEMA_VERSION:
+                # Datos más nuevos que el código: migrar hacia atrás no existe.
+                # Se rehúsa en vez de «no hacer nada y seguir», que es como el
+                # llamador acababa operando sobre un esquema desconocido.
+                from app.auth import schema_compat  # import diferido
+
+                conn.close()
+                raise schema_compat.SchemaCompatibilityError(
+                    f"auth_db: '{path}' tiene esquema v{current} y esta build "
+                    f"escribe v{SCHEMA_VERSION}. No hay migración hacia atrás. "
+                    f"Rollback correcto: código N-1 y RESTAURAR la copia v"
+                    f"{SCHEMA_VERSION - 1} antes de abrir escrituras."
+                )
+            if current == SCHEMA_VERSION:
                 conn.close()
                 return
 
@@ -222,8 +281,25 @@ def migrate(db_path: Optional[Path] = None) -> None:
 
 
 def ensure_migrated(db_path: Optional[Path] = None) -> None:
-    """Ejecuta migrate() si la DB necesita actualización."""
+    """Comprueba el rango de esquema soportado y migra si hace falta.
+
+    ALCANCE EXACTO: esto cubre el ARRANQUE. Es el punto por el que pasan el
+    startup del visor, el middleware, los routers y la CLI antes de servir
+    nada, así que un proceso no llega a atender peticiones sobre una base fuera
+    de rango. Lo que NO es: una puerta en el acceso a datos. `get_conn()` no la
+    llama (ver su docstring y el coste medido), de modo que un entrypoint nuevo
+    que abra conexiones sin pasar por aquí la rodea. La garantía es «ningún
+    proceso arranca fuera de rango», no «ningún acceso ocurre fuera de rango».
+
+    Antes, `if v < SCHEMA_VERSION: migrate()` significaba que una base con
+    versión SUPERIOR (código N-1 sobre datos N) simplemente seguía adelante en
+    silencio, sirviendo con controles que no conoce. Ahora levanta
+    `SchemaCompatibilityError`: el proceso se niega a arrancar.
+    """
+    from app.auth import schema_compat  # import diferido: evita ciclo
+
     path = db_path or _db_path()
+    schema_compat.assert_compatible(path)  # fuera de rango o desconocida -> raise
     conn = _connect(path)
     v = _current_version(conn)
     conn.close()

@@ -15,6 +15,10 @@ from pathlib import Path
 
 import pytest
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from schema_source_fixture import plant_schema_sources  # noqa: E402
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LIB_SH = REPO_ROOT / "deploy" / "scripts" / "lib.sh"
 
@@ -295,6 +299,9 @@ def test_checksum_es_reproducible_entre_ejecuciones(release: Path) -> None:
 
 def test_generacion_y_verificacion_comparten_la_lista(release: Path) -> None:
     """Si create_manifest y verify usaran listas distintas, el checksum sería inútil."""
+    # `create_manifest` lee del código la version de esquema que va a declarar:
+    # una release sin esos fuentes no puede producir manifiesto.
+    plant_schema_sources(release)
     script = (
         'set -Eeuo pipefail; source "%s"; '
         'create_manifest "%s" "20260101-abc1234" "deadbeef" "production" >/dev/null; '
@@ -305,6 +312,7 @@ def test_generacion_y_verificacion_comparten_la_lista(release: Path) -> None:
 
 
 def test_create_manifest_tolera_bytecode_generado_despues(release: Path) -> None:
+    plant_schema_sources(release)
     script_create = 'set -Eeuo pipefail; source "%s"; create_manifest "%s" "r" "c" "production" >/dev/null' % (
         LIB_SH, release
     )

@@ -33,6 +33,15 @@ from datetime import datetime, timezone, timedelta
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEFAULT_DB_PATH = os.path.join(BASE_DIR, "state", "jobs.db")
 
+#: Versión de esquema de `jobs.db`. Este almacén NO tiene tabla de versión: su
+#: única migración es aditiva e idempotente (`_MIGRATION_COLUMNS` vía PRAGMA
+#: table_info), así que sigue en v1 desde el origen. La constante existe para
+#: que el manifiesto de release pueda declarar la versión LEYÉNDOLA del código
+#: en vez de repetir un literal a mano (ver deploy/scripts/schema_versions.py).
+#: Si algún día `jobs.db` necesita una migración no aditiva, subir este número
+#: exige además darle tabla de versión y su propio rango soportado.
+SCHEMA_VERSION = 1
+
 # Vocabulario de estados: unión de los dos usos (ver docstring del módulo).
 # - Ingesta de fuentes (histórico): needs_metadata, ready, processing,
 #   transcribing, extracting, completed, ignored.
