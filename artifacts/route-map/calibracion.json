@@ -1,0 +1,347 @@
+{
+  "baseline": {
+    "claves": [
+      "GET /",
+      "GET /account",
+      "GET /account/change-password",
+      "POST /account/change-password",
+      "GET /admin/audit",
+      "GET /admin/health",
+      "GET /admin/partidas",
+      "POST /admin/partidas/grant",
+      "POST /admin/partidas/{access_id}/revoke",
+      "GET /admin/users",
+      "GET /admin/users/new",
+      "POST /admin/users/new",
+      "GET /admin/users/{user_id}",
+      "POST /admin/users/{user_id}",
+      "POST /admin/users/{user_id}/revoke-sessions",
+      "POST /admin/users/{user_id}/unlock",
+      "GET /api/admin/health",
+      "GET /api/entities",
+      "GET /api/entities/{entity_id}",
+      "GET /api/entity-types",
+      "GET /api/entity/{entity_id}",
+      "GET /api/graph",
+      "GET /api/jobs",
+      "GET /api/jobs/counts",
+      "GET /api/jobs/{job_id}",
+      "GET /api/quality",
+      "GET /api/search",
+      "GET /api/sources",
+      "GET /api/sources/{source_id}",
+      "GET /api/status",
+      "GET /api/workspaces",
+      "GET /docs",
+      "GET /entities",
+      "GET /entities/{entity_id}",
+      "GET /entity/{entity_id}",
+      "GET /graph",
+      "GET /jobs",
+      "GET /jobs/{job_id}",
+      "GET /login",
+      "POST /login",
+      "POST /logout",
+      "GET /openapi.json",
+      "POST /partida/select",
+      "GET /quality",
+      "GET /redoc",
+      "GET /review-console",
+      "GET /review-console/",
+      "GET /review-console/source/{source_id}",
+      "POST /review-console/source/{source_id}/decide",
+      "GET /reviews",
+      "GET /reviews/{source_id}",
+      "GET /sources",
+      "GET /sources/{source_id}",
+      "GET /status",
+      "GET /v3/review",
+      "GET /v3/review/",
+      "POST /v3/review/decide",
+      "GET /v3/review/glossary-candidates",
+      "POST /v3/review/undo"
+    ],
+    "guardian_no_aplicado": [],
+    "montadas": 59,
+    "muertas": [],
+    "no_probadas": [
+      "GET /account",
+      "GET /admin/health",
+      "GET /admin/users/new",
+      "POST /admin/users/new",
+      "GET /admin/users/{user_id}",
+      "POST /admin/users/{user_id}",
+      "POST /admin/users/{user_id}/revoke-sessions",
+      "POST /admin/users/{user_id}/unlock",
+      "GET /review-console/",
+      "GET /v3/review/",
+      "GET /v3/review/glossary-candidates",
+      "POST /v3/review/undo"
+    ],
+    "roles": {
+      "GET /": "viewer",
+      "GET /account": "viewer",
+      "GET /account/change-password": "viewer",
+      "GET /admin/audit": "admin",
+      "GET /admin/health": "admin",
+      "GET /admin/partidas": "admin",
+      "GET /admin/users": "admin",
+      "GET /admin/users/new": "admin",
+      "GET /admin/users/{user_id}": "admin",
+      "GET /api/admin/health": "admin",
+      "GET /api/entities": "viewer",
+      "GET /api/entities/{entity_id}": "viewer",
+      "GET /api/entity-types": "viewer",
+      "GET /api/entity/{entity_id}": "viewer",
+      "GET /api/graph": "viewer",
+      "GET /api/jobs": "viewer",
+      "GET /api/jobs/counts": "viewer",
+      "GET /api/jobs/{job_id}": "viewer",
+      "GET /api/quality": "reviewer",
+      "GET /api/search": "viewer",
+      "GET /api/sources": "reviewer",
+      "GET /api/sources/{source_id}": "reviewer",
+      "GET /api/status": "viewer",
+      "GET /api/workspaces": "viewer",
+      "GET /docs": "ninguno-sirve",
+      "GET /entities": "viewer",
+      "GET /entities/{entity_id}": "viewer",
+      "GET /entity/{entity_id}": "viewer",
+      "GET /graph": "viewer",
+      "GET /jobs": "viewer",
+      "GET /jobs/{job_id}": "viewer",
+      "GET /login": "viewer",
+      "GET /openapi.json": "ninguno-sirve",
+      "GET /quality": "reviewer",
+      "GET /redoc": "ninguno-sirve",
+      "GET /review-console": "reviewer",
+      "GET /review-console/": "reviewer",
+      "GET /review-console/source/{source_id}": "reviewer",
+      "GET /reviews": "reviewer",
+      "GET /reviews/{source_id}": "reviewer",
+      "GET /sources": "reviewer",
+      "GET /sources/{source_id}": "reviewer",
+      "GET /status": "viewer",
+      "GET /v3/review": "reviewer",
+      "GET /v3/review/": "reviewer",
+      "GET /v3/review/glossary-candidates": "reviewer",
+      "POST /account/change-password": "no-concluyente-csrf",
+      "POST /admin/partidas/grant": "no-concluyente-csrf",
+      "POST /admin/partidas/{access_id}/revoke": "no-concluyente-csrf",
+      "POST /admin/users/new": "no-concluyente-csrf",
+      "POST /admin/users/{user_id}": "no-concluyente-csrf",
+      "POST /admin/users/{user_id}/revoke-sessions": "no-concluyente-csrf",
+      "POST /admin/users/{user_id}/unlock": "no-concluyente-csrf",
+      "POST /login": "no-concluyente-csrf",
+      "POST /logout": "no-concluyente-csrf",
+      "POST /partida/select": "no-concluyente-csrf",
+      "POST /review-console/source/{source_id}/decide": "no-concluyente-csrf",
+      "POST /v3/review/decide": "no-concluyente-csrf",
+      "POST /v3/review/undo": "no-concluyente-csrf"
+    },
+    "rotos": [],
+    "sin_auth": []
+  },
+  "casos": {
+    "M0-control": {
+      "delta": {
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 0,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [],
+        "roles_cambiados": {},
+        "rotos_nuevos": [],
+        "rutas_nuevas": [],
+        "sin_auth_nuevas": []
+      },
+      "detectado": true
+    },
+    "M1-router-desmontado": {
+      "delta": {
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": -10,
+        "muertas_nuevas": [
+          "GET /api/entities",
+          "GET /api/entities/{entity_id}",
+          "GET /api/quality",
+          "GET /api/sources",
+          "GET /api/sources/{source_id}",
+          "GET /entities",
+          "GET /entities/{entity_id}",
+          "GET /quality",
+          "GET /sources",
+          "GET /sources/{source_id}"
+        ],
+        "no_probadas_nuevas": [],
+        "roles_cambiados": {},
+        "rotos_nuevos": [
+          "/api/entities/ @ static/js/graph.js",
+          "/entities @ base.html",
+          "/entities @ entities.html",
+          "/entities @ entity_detail.html",
+          "/entities/ @ static/js/graph.js",
+          "/entities/{{ rel.other_entity.id | e }} @ entity_detail.html",
+          "/entities?workspace={{ workspace }}&q={{ q }}&entity_type={{ entity_type }}&limit={{ page.limit }}&offset={{ page.offset + page.limit }} @ entities.html",
+          "/entities?workspace={{ workspace }}&q={{ q }}&entity_type={{ entity_type }}&limit={{ page.limit }}&offset={{ page.offset - page.limit if page.offset - page.limit > 0 else 0 }} @ entities.html",
+          "/sources @ base.html",
+          "/sources @ source_detail.html",
+          "/sources/{{ s.source_id | e }} @ sources.html"
+        ],
+        "rutas_nuevas": [],
+        "sin_auth_nuevas": []
+      },
+      "detectado": true
+    },
+    "M2-enlace-roto": {
+      "delta": {
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 0,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [],
+        "roles_cambiados": {},
+        "rotos_nuevos": [
+          "/ruta-que-no-existe @ base.html"
+        ],
+        "rutas_nuevas": [],
+        "sin_auth_nuevas": []
+      },
+      "detectado": true
+    },
+    "M3-ruta-sin-auth": {
+      "delta": {
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 0,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [],
+        "roles_cambiados": {},
+        "rotos_nuevos": [],
+        "rutas_nuevas": [],
+        "sin_auth_nuevas": [
+          "GET /entities"
+        ]
+      },
+      "detectado": true
+    },
+    "M4-ruta-sin-test": {
+      "delta": {
+        "guardian_no_aplicado_nuevos": [
+          "GET /ruta-nueva-sin-test"
+        ],
+        "montadas": 1,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [
+          "GET /ruta-nueva-sin-test"
+        ],
+        "roles_cambiados": {
+          "GET /ruta-nueva-sin-test": [
+            null,
+            "viewer"
+          ]
+        },
+        "rotos_nuevos": [],
+        "rutas_nuevas": [
+          "GET /ruta-nueva-sin-test"
+        ],
+        "sin_auth_nuevas": [
+          "GET /ruta-nueva-sin-test"
+        ]
+      },
+      "detectado": true
+    },
+    "M5-mencion-en-comentario": {
+      "delta": {
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 0,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [],
+        "roles_cambiados": {},
+        "rotos_nuevos": [],
+        "rutas_nuevas": [],
+        "sin_auth_nuevas": []
+      },
+      "detectado": true
+    },
+    "M6-app-privada-de-test": {
+      "detectado": true,
+      "esperado": "la sonda NO registra rutas de apps privadas",
+      "exercised": {}
+    },
+    "M7-censo-de-rutas": {
+      "detectado": true,
+      "esperado": "el censo efectivo supera a app.routes y contiene todas las rutas que sirvieron respuesta durante los tests",
+      "falsos_no_montados_del_censo_naive": [
+        "GET /account",
+        "GET /account/change-password",
+        "GET /admin/audit",
+        "GET /admin/health",
+        "GET /admin/partidas",
+        "GET /admin/users",
+        "GET /admin/users/new",
+        "GET /admin/users/{user_id}",
+        "GET /api/admin/health",
+        "GET /api/entities",
+        "GET /api/entities/{entity_id}",
+        "GET /api/entity-types",
+        "GET /api/entity/{entity_id}",
+        "GET /api/graph",
+        "GET /api/jobs",
+        "GET /api/jobs/counts",
+        "GET /api/jobs/{job_id}",
+        "GET /api/quality",
+        "GET /api/search",
+        "GET /api/sources",
+        "GET /api/sources/{source_id}",
+        "GET /api/status",
+        "GET /api/workspaces",
+        "GET /entities",
+        "GET /entities/{entity_id}",
+        "GET /login",
+        "GET /quality",
+        "GET /review-console",
+        "GET /review-console/",
+        "GET /review-console/source/{source_id}",
+        "GET /sources",
+        "GET /sources/{source_id}",
+        "GET /v3/review",
+        "GET /v3/review/",
+        "GET /v3/review/glossary-candidates",
+        "POST /account/change-password",
+        "POST /admin/partidas/grant",
+        "POST /admin/partidas/{access_id}/revoke",
+        "POST /admin/users/new",
+        "POST /admin/users/{user_id}",
+        "POST /admin/users/{user_id}/revoke-sessions",
+        "POST /admin/users/{user_id}/unlock",
+        "POST /login",
+        "POST /logout",
+        "POST /partida/select",
+        "POST /review-console/source/{source_id}/decide",
+        "POST /v3/review/decide",
+        "POST /v3/review/undo"
+      ],
+      "rutas_censo_efectivo": 59,
+      "rutas_censo_naive_app_routes": 11,
+      "rutas_que_sirvieron_y_faltan_en_el_censo": [],
+      "url_path_for_entities_page_funciona": true
+    },
+    "M8-rol-degradado": {
+      "delta": {
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 0,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [],
+        "roles_cambiados": {
+          "GET /admin/audit": [
+            "admin",
+            "viewer"
+          ]
+        },
+        "rotos_nuevos": [],
+        "rutas_nuevas": [],
+        "sin_auth_nuevas": []
+      },
+      "detectado": true
+    }
+  },
+  "reversion_identica": true
+}
