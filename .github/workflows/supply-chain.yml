@@ -2,8 +2,10 @@ name: Supply Chain Security
 
 on:
   push:
-    branches: [ main, 'fix/**', 'feat/**', 'audit/**', 'docs/**', 'chore/**',
-                'test/**', 'ops/**', 'perf/**', 'dependabot/**' ]
+    # Misma politica que `ci.yml`: toda rama, sin lista blanca que mantener.
+    # Dejarla aqui como lista de prefijos reproduciria el mismo agujero
+    # silencioso en el unico workflow que audita dependencias.
+    branches: [ '**' ]
   pull_request:
     branches: [ main ]
   schedule:

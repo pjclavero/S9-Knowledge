@@ -1,23 +1,24 @@
 name: CI
 
 on:
-  # OJO: esta lista filtra por rama de ORIGEN y solo afecta a `push`.
-  # `pull_request.branches` filtra por rama DESTINO, asi que un PR contra
-  # `main` desde cualquier rama siempre ejecuta CI; el agujero esta solo
-  # en `push`: una rama con prefijo no cubierto se desarrolla sin ninguna
-  # senal de CI hasta que se abre el PR. Toda rama nueva debe estar aqui.
+  # TODA rama dispara CI. `**` casa con cualquier nombre de rama, con y sin
+  # barras, asi que una familia nueva (`work/…`, `impl/…`, `integration/…` o la
+  # que venga manana) tiene CI el dia que nace, SIN tocar este fichero.
+  #
+  # Por que se abandona la lista blanca de prefijos: este filtro es por rama de
+  # ORIGEN y solo afecta a `push` (`pull_request.branches` filtra por rama
+  # DESTINO, asi que un PR contra `main` siempre ejecuta CI). El agujero estaba
+  # en `push`: una rama con prefijo no cubierto se desarrollaba entera sin
+  # ninguna senal hasta abrir el PR. Se parcheo tres veces —`test/**`, luego
+  # `ops/**` + `dependabot/**`, luego `perf/**`— y a la cuarta ya habia nueve
+  # ramas nuevas descubiertas otra vez. Una lista que hay que mantener a mano
+  # para no tener un agujero silencioso ES el agujero: `**` lo cierra por
+  # construccion en vez de por vigilancia.
+  #
+  # Solo ramas: NO se anade `tags`, que dispararia CI en cada etiqueta.
   push:
     branches:
-      - main
-      - 'fix/**'
-      - 'feat/**'
-      - 'audit/**'
-      - 'docs/**'
-      - 'chore/**'
-      - 'test/**'       # un carril de pruebas DEBE disparar CI, por definicion
-      - 'ops/**'        # existia en origin sin cubrir
-      - 'perf/**'       # idem: perf/viewer-scale-baseline-v1
-      - 'dependabot/**' # los bumps se probaban solo al abrir el PR
+      - '**'
   pull_request:
     branches: [ main ]
 
