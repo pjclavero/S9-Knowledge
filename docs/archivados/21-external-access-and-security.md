@@ -1,5 +1,19 @@
 # 21 · Acceso externo y seguridad
 
+> **HISTÓRICO — fotografía del 2026-07-15, NO la configuración actual.**
+> Dos cosas han cambiado desde entonces y este documento no las refleja:
+>
+> 1. **La Basic Auth de nginx fue RETIRADA del proxy.** La autenticación
+>    vigente es la propia del visor (login con sesiones y CSRF). La «doble
+>    barrera» que se describe más abajo fue una medida **de transición** y ya
+>    no existe.
+> 2. **La rama `feat/viewer-auth-foundation` ya no existe**: el trabajo se
+>    integró y el login lleva desplegado en VM105 desde julio de 2026. Donde
+>    diga «implementado en rama, no activado en producción», léase
+>    **activado**.
+>
+> Configuración vigente: `docs/project-status.yaml` (`deployment.auth`).
+
 Actualizado 2026-07-15 (añadida autenticación propia del visor).
 
 ## Acceso al visor S9 Knowledge

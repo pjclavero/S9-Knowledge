@@ -21,7 +21,7 @@ timeout a 300 s), **ronda 3, CERRADA** (B1: tres categorías disjuntas con
 NVIDIA con clave válida)
 **Tests propios del bloque:** **177** (`153` de rondas 1-3 + `24` de la ronda 4,
 `test_relation_benchmark_block7_round4.py`)
-**Resultados publicados en:** [`docs/50-relation-benchmark-results.md`](../../50-relation-benchmark-results.md)
+**Resultados publicados en:** [`docs/50-relation-benchmark-results.md`](../../archivados/50-relation-benchmark-results.md)
 
 > **Vigencia: la ronda 3 había CERRADO el código; la ronda 4 es posterior y
 > puntual.** No reabre el contrato de rondas 1-3 (§3.1-§3.19 siguen vigentes tal

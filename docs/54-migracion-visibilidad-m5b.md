@@ -209,12 +209,20 @@ dato V3 nuevo desconocido -> no se escribe
 Así el fail-closed no se convierte en excusa para introducir datos incompletos
 nuevos.
 
-## Estado
+## Estado (actualizado 2026-08-09)
 
-Despliegue de M5b en el visor productivo: **no autorizado todavía**. Requiere
-antes un **revisor independiente** con dictamen CONFORME sobre el conjunto de
-M5b (contrato, adaptador, `deny` terminal, motor fail-closed, sonda de ámbito,
-propagación writer→Neo4j, herencia restrictiva, cross-workspace, cross-partida,
-`known_by`) — buscando vías de fuga, no repitiendo las pruebas.
+**En el repositorio: M5b está CERRADO.** La revisión independiente que este
+documento exigía se ejecutó y consumió **siete rondas adversariales**, cuyos
+dictámenes NO CONFORME están registrados en
+[docs/56](56-g1-g2-g3-segundo-dictamen.md),
+[docs/57](57-t1-party-t2-revelacion.md) y
+[docs/58](58-m5b-c-cadena-de-autorizacion.md). El cierre entró por la PR #153
+(`b6b0803`), con la cadena de autorización comprobable de extremo a extremo y
+el registro convertido en especificación ejecutable.
+
+**En producción: nada de esto está desplegado.** El despliegue de M5b en el
+visor productivo **sigue sin autorizar**, porque depende del despliegue de V3,
+que tampoco se ha hecho. Sobre el grafo legacy la resolución de este documento
+—**NO APPLY**— continúa vigente y sin cambios.
 
 Siguiente hito: V3 limpio + writer M5b + primera ingesta controlada.

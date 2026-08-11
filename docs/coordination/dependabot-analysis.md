@@ -1,7 +1,14 @@
 # Análisis de Dependabot y supply chain (Equipo B, B-SEC-1)
 
-Estado en `main@6d6c21f`: **no existe** `.github/dependabot.yml`. CI tiene un único
-workflow (`.github/workflows/ci.yml`) con 8 jobs. Ecosistemas detectados:
+> **SUPERSEDED (2026-08-09).** Su premisa ya no se cumple: `.github/dependabot.yml`
+> **existe** en `main` (pip para `data-engine` y `viewer`, agrupado por
+> patch/minor), hay un workflow propio `Supply Chain Security` con `pip-audit`
+> como check **requerido**, y CI tiene 11 jobs, no 8. Dependabot abre PRs con
+> normalidad. Se conserva como análisis de partida, no como estado.
+
+Estado en `main@6d6c21f` **(julio 2026, ya no vigente)**: no existía
+`.github/dependabot.yml`. CI tenía un único workflow
+(`.github/workflows/ci.yml`) con 8 jobs. Ecosistemas detectados:
 
 - **pip**: `data-engine/requirements.lock` + `requirements.in`,
   `viewer/requirements.txt`. (Actions instala versiones pinneadas.)

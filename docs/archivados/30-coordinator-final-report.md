@@ -64,8 +64,14 @@ La frase "ninguno afecta a seguridad" fue reemplazada en 6 ubicaciones por:
 
 ## 3. Análisis de los 41 tests fallidos
 
-> Documento completo: [docs/25-test-failure-analysis.md](25-test-failure-analysis.md)
+> Documento completo: `docs/25-test-failure-analysis.md`
 > Rama: `audit/test-failures-20260713` | PR #4
+>
+> **Nota 2026-08-09: ese documento nunca llegó a existir en el repositorio.**
+> No hay ningún commit que lo haya añadido ni borrado; el enlace apuntaba a la
+> nada desde el principio. Se deja la referencia como constancia de lo que se
+> pensó escribir, sin enlace roto. El análisis que sí se conserva está en
+> [31 · Remediación de tests y CI](31-test-remediation-and-ci-report.md).
 
 | Campo | Valor |
 |---|---|

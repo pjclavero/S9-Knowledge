@@ -1,7 +1,7 @@
 # DOSIER DE ESTADO, CORRECCIÓN Y EJECUCIÓN  
 
 > **AVISO — estado vigente en [02 · Estado actual](02-current-state.md) y
-> [project-status.yaml](project-status.yaml).** Este dosier es un documento
+> [project-status.yaml](../project-status.yaml).** Este dosier es un documento
 > histórico de trabajo: contiene fotografías antiguas (p. ej. commit `cef9233`,
 > 220/220 tests, Basic Auth en el proxy) que **ya no reflejan producción**. A
 > 2026-07-18 la producción es **RC5.1** (`47bc314`) con **login propio del visor**
@@ -106,7 +106,7 @@ Sin embargo, tampoco puede considerarse terminado. Los bloqueos resueltos y pend
 
 1. ✅ Fotografía verificable del estado: commit `cef9233` en VM105, 220/220 tests, CI activa.
 2. ✅ Documentación reconciliada: docs/02, 26–33, ROADMAP, CHANGELOG, INDEX, dossier actualizados.
-6. ✅ Backup, restore y rollback: primer backup real ejecutado, restore aislado verificado, rollback validado en lab, copia externa a yggdrasil verificada. Ver docs/32.
+6. ✅ Backup, restore y rollback: primer backup real ejecutado, restore del *dump de Neo4j* en instancia aislada verificado, rollback validado en lab, copia al hipervisor `yggdrasil` verificada por checksum. Ver docs/32. **Corrección 2026-08-09: esa copia NO es off-host (`yggdrasil` ejecuta VM105) y aquel restore no era el de la máquina completa; ver [docs/53](../53-recuperacion-y-credenciales-2026-08.md).**
 11. ✅ CI en GitHub Actions: 4 jobs verdes (Python 3.13).
 
 **PENDIENTES:**
@@ -527,9 +527,9 @@ Neo4j 5.26.0 Community en VM105, puertos limitados a 127.0.0.1 desde 2026-07-12.
 | Ítem | Estado | Evidencia |
 |------|--------|-----------|
 | Backup real de producción | ✅ | neo4j-20260713-174909/neo4j.dump, 132 KB, SHA256 c3179c01... |
-| Restore en instancia aislada | ✅ | 199/140 nodos/relaciones, idéntico a producción |
+| Restore del dump de Neo4j en instancia aislada | ✅ | 199/140 nodos/relaciones, idéntico a producción. **No** es el restore de VM105 (ése se ensayó el 2026-08-08, [docs/53](../53-recuperacion-y-credenciales-2026-08.md)) |
 | Rollback por source_id | ✅ | Patrón Cypher validado en lab |
-| Copia externa a yggdrasil | ✅ | /var/backups/s9-knowledge/neo4j/, SHA256 verificado, 2026-07-14 |
+| Copia al hipervisor yggdrasil (**NO off-host**) | ✅ | /var/backups/s9-knowledge/neo4j/, SHA256 verificado, 2026-07-14. Mismo chasis que VM105: el P0 de copia fuera del chasis sigue abierto |
 | Scripts backup/restore/rollback | ✅ | scripts/backup/ en main |
 | Documentación | ✅ | docs/26–29, 32 |
 
