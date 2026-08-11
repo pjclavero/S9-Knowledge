@@ -55,15 +55,13 @@ def _clear_caches() -> None:
         pass
 
 
-# ---------------------------------------------------------------------------
-# Playwright (compat con fase 1): SKIP limpio, nunca PASS falso
-# ---------------------------------------------------------------------------
-@pytest.fixture(scope="session")
-def require_playwright():
-    pytest.importorskip("playwright.sync_api", reason="Playwright no instalado: SKIP, no PASS")
-    from playwright.sync_api import sync_playwright  # noqa: WPS433
-
-    return sync_playwright
+# NOTA (carril L, integridad de gates): aqui vivia una fixture
+# `require_playwright` que se auto-omitia si Playwright no estaba. NINGUN test
+# la usaba, y ningun job de CI instalaba Chromium para este directorio: era una
+# guardia de omision que no guardaba nada y que, el dia que alguien la hubiera
+# usado, habria producido skips verdes. Se retira en vez de dejarla como
+# adorno. Los tests de navegador de verdad viven en `viewer/tests/browser/`,
+# que si tienen job con `playwright install` y guardia anti-salto.
 
 
 # ---------------------------------------------------------------------------
