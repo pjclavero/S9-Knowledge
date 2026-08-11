@@ -50,7 +50,8 @@
     <script>
       (function(){
         var c = document.querySelector('.rev-cell-{{ loop.index }}');
-        if (c) c.textContent = {{ (row.review_status or '—') | tojson }};
+        {# ETIQUETA, no clave cruda: ver el comentario de quality.html. #}
+        if (c) c.textContent = {{ (row.review_status_label or '—') | tojson }};
       })();
     </script>
     {% endfor %}

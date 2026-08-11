@@ -18,28 +18,13 @@ if str(_APP_DIR) not in sys.path:
     sys.path.insert(0, str(_APP_DIR))
 
 from review.models import Decision
-
-# --- Vocabulario canonico de `review_status` (contracts/review-status/v1) ---
+# Modulo frontera UNICO hacia `contracts/review-status/v1` (ver su docstring).
 # Este writer es el lado LEGACY de la frontera: emite `auto_approved`, que no
 # pertenece al vocabulario de dominio. No se renombra a la ligera --el guardian
-# de `review/ingest_approved.py` depende de que ese payload NO acredite
-# revision humana-- asi que en vez de un literal suelto se cita la constante de
-# frontera declarada en el contrato. Un unico sitio donde consta que ese token
-# existe y por que.
-import importlib.util  # noqa: E402
-
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_RS_PATH = _REPO_ROOT / "contracts" / "review-status" / "v1" / "model.py"
-_RS_MODULE = "s9k_review_status_v1_model"
-if _RS_MODULE in sys.modules:  # pragma: no cover - cache entre imports
-    review_status_contract = sys.modules[_RS_MODULE]
-else:  # pragma: no cover - trivial
-    _spec = importlib.util.spec_from_file_location(_RS_MODULE, _RS_PATH)
-    if _spec is None or _spec.loader is None:
-        raise ImportError(f"no se pudo cargar review-status/v1 en {_RS_PATH}")
-    review_status_contract = importlib.util.module_from_spec(_spec)
-    sys.modules[_RS_MODULE] = review_status_contract
-    _spec.loader.exec_module(review_status_contract)
+# de `review/ingest_approved.py` depende de que ese payload NO acredite revision
+# humana--, asi que en vez de un literal suelto se cita la constante de frontera
+# declarada en el contrato.
+import review_status_contract
 
 log = logging.getLogger(__name__)
 

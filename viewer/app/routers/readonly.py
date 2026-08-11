@@ -27,10 +27,38 @@ from app.config import get_settings
 # proveedor filtrado por politica; tener el crudo importado al lado invita
 # a usarlo por error, y esa via se salta la autorizacion entera.
 from app.deps import get_default_workspace
+from app.labels import review_status_label
 from app.providers.base import GraphProvider
 from app.serializers import serialize_edge, serialize_node
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _etiquetar_conteos_por_estado(conteos):
+    """Añade etiqueta legible a los contadores agregados de `review_status`.
+
+    Los paneles de calidad y de fuente pintaban la CLAVE CRUDA del contador.
+    Eso dejaba el defecto cerrado a medias: `review_status_label` protegía la
+    ficha de una entidad, pero un `approved` heredado en el grafo —valor que el
+    vocabulario canónico no contiene— seguía apareciendo en el panel de calidad
+    como si fuera un estado legítimo del sistema, y encima agregado y contado.
+
+    Un contador no es menos dato que una ficha: si el recuento nombra estados
+    que el sistema no reconoce, lo que se está midiendo no es lo que se cree.
+    """
+    if not conteos:
+        return conteos
+    if isinstance(conteos, dict):
+        return {
+            clave: {"clave": clave, "etiqueta": review_status_label(clave) or "—",
+                    "count": valor}
+            for clave, valor in conteos.items()
+        }
+    return [
+        {**fila, "review_status_label":
+            review_status_label(fila.get("review_status")) or "—"}
+        for fila in conteos
+    ]
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # ---------------------------------------------------------------------------
@@ -442,6 +470,10 @@ def source_detail_page(
             status_code=404,
         )
 
+    detail = dict(detail)
+    detail["by_review_status"] = _etiquetar_conteos_por_estado(
+        detail.get("by_review_status")
+    )
     return templates.TemplateResponse(
         request, "source_detail.html",
         {"workspace": ws, "source": detail, "auth_user": user},
@@ -486,6 +518,10 @@ def quality_page(
         metrics = provider.quality_metrics(ws)
     except Exception:
         metrics = {}
+    metrics = dict(metrics)
+    metrics["by_review_status"] = _etiquetar_conteos_por_estado(
+        metrics.get("by_review_status")
+    )
     return templates.TemplateResponse(
         request, "quality.html",
         {"workspace": ws, "metrics": metrics, "auth_user": user},

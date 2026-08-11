@@ -99,15 +99,18 @@
       <th style="padding:.4rem;text-align:right;">Entidades</th>
     </tr></thead>
     <tbody>
-    {% for rev_key, cnt in metrics.by_review_status.items() %}
+    {# Se pinta la ETIQUETA, no la clave cruda. Un `review_status` que el
+       vocabulario canónico no reconoce sale marcado como no reconocido en vez
+       de aparecer en el panel como si fuera un estado legítimo del sistema. #}
+    {% for rev_key, fila in metrics.by_review_status.items() %}
     <tr style="border-bottom:1px solid #eee;">
       <td style="padding:.4rem;" class="qrev-{{ loop.index }}"></td>
-      <td style="padding:.4rem;text-align:right;">{{ cnt }}</td>
+      <td style="padding:.4rem;text-align:right;">{{ fila.count }}</td>
     </tr>
     <script>
       (function(){
         var c = document.querySelector('.qrev-{{ loop.index }}');
-        if (c) c.textContent = {{ rev_key | tojson }};
+        if (c) c.textContent = {{ fila.etiqueta | tojson }};
       })();
     </script>
     {% endfor %}

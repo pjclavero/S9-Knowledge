@@ -226,18 +226,26 @@ _DESDE_REVIEW_MANUAL: dict[str, ReviewStatus] = {
 def from_review_manual_status(value: Any) -> ReviewStatus:
     """Adapta el vocabulario de la CLI de revision manual al canonico.
 
-    Fail-closed: `auto_approved`, MAYUSCULAS, vacio, `None` o cualquier cadena
-    no prevista levantan. No hay traduccion "por parecido".
+    ESTRICTO, igual que los otros dos adaptadores. La primera version hacia
+    `value.strip().lower()` antes de buscar, y esa asimetria no estaba
+    razonada: los otros dos exigen el valor exacto. Normalizar aqui y no alli
+    hace que `" Approved "` se acepte por una frontera y se rechace por las
+    otras, con lo que "que idioma habla este dato" pasa a depender de por donde
+    entro. Ademas, un `.lower()` escondido dentro de un adaptador que decide
+    sobre revision humana es una reparacion que adivina: si el productor
+    escribe con un formato distinto del declarado, eso es un dato que incumple
+    el contrato, no un dato que haya que arreglar en silencio.
+
+    Quien deba tolerar espacios o mayusculas lo hace ANTES de llamar y de forma
+    visible --`review/ingest_approved.py` ya aplica `.strip().lower()` en su
+    validacion--, no oculto dentro de la traduccion.
     """
-    if not isinstance(value, str):
-        raise ReviewStatusError(f"review_status de revision manual ausente: {value!r}")
-    clave = value.strip().lower()
-    if clave not in _DESDE_REVIEW_MANUAL:
+    if not isinstance(value, str) or value not in _DESDE_REVIEW_MANUAL:
         raise ReviewStatusError(
             f"review_status de revision manual desconocido: {value!r} "
             f"(admitidos: {sorted(_DESDE_REVIEW_MANUAL)})"
         )
-    return _DESDE_REVIEW_MANUAL[clave]
+    return _DESDE_REVIEW_MANUAL[value]
 
 
 def estados_de_revision_manual_cubiertos() -> frozenset[str]:
