@@ -237,6 +237,93 @@ def test_elegir_con_intro_cierra_la_lista_de_resultados(graph_page):
     assert graph_page.page_errors == []
 
 
+_QUIEN_OCUPA_ESE_PUNTO_JS = """(punto) => {
+    const el = document.elementFromPoint(punto.x, punto.y);
+    return {
+      etiqueta: el ? el.tagName : null,
+      en_la_lista: !!(el && el.closest('#search-results')),
+      descripcion: el ? (el.tagName + '.' + (el.className || '')) : 'nada'
+    };
+}"""
+
+
+def test_elegir_con_raton_cierra_la_lista_de_resultados(graph_page):
+    """Elegir PINCHANDO un resultado tambien CIERRA el desplegable.
+
+    POR QUE ESTA PRUEBA
+    -------------------
+    `test_elegir_con_intro_cierra_la_lista_de_resultados` fijo la regla
+    «seleccion completada -> menu cerrado», pero solo por la ruta de Intro. El
+    manejador `click` de cada `button.search-result` seguia haciendo
+    `selectNode` + `focusNode` y dejando la lista abierta, asi que la misma
+    accion —elegir un resultado— terminaba en dos estados distintos segun el
+    dispositivo. Eso no es una diferencia que la persona pueda anticipar.
+
+    Y por el raton el dano es PEOR que por Intro: para pinchar el resultado ha
+    tenido que llevar el puntero hasta el desplegable, asi que se queda
+    exactamente encima de la lista que tapa el lienzo. Su siguiente clic —el
+    natural, sobre el grafo que se acaba de centrar— cae en un boton de un menu
+    que ya no queria y le lleva a otro nodo.
+
+    QUE SE CONGELA, Y EN QUE ORDEN
+    ------------------------------
+    1. Un CONTROL ANTIVACUIDAD primero: la busqueda tiene que haber ofrecido de
+       verdad al menos un resultado pinchable. Sin el, un fallo que dejara la
+       lista siempre vacia haria pasar esta prueba sin haber pinchado nada.
+    2. Que el clic ha SELECCIONADO: ficha abierta con el nodo correcto. Si no,
+       lo unico demostrado seria que la lista se cierra, que es tambien lo que
+       haria un manejador roto.
+    3. EL ESTADO SEMANTICO, la evidencia principal: `#search-results` oculto.
+       No depende de pixeles ni del tamano de ventana.
+    4. LA CONSECUENCIA, defensa secundaria y por eso la ultima: el punto EXACTO
+       que ocupaba el desplegable —medido antes del clic, no una esquina fija—
+       vuelve a ser del lienzo. Es geometrica, y documenta el dano real: ahi es
+       donde caeria el siguiente clic de la persona.
+    """
+    graph_page.fill("#search-input", "Kimi")
+    graph_page.wait_for_timeout(300)
+
+    resultados = graph_page.locator("#search-results button.search-result")
+    assert resultados.count() >= 1, (
+        "la busqueda no ha ofrecido ningun resultado pinchable: sin eso esta "
+        "prueba pasaria por vacuidad, sin llegar a elegir nada")
+
+    # Donde esta el desplegable AHORA. Ese es el punto que la persona tendra
+    # bajo el puntero justo despues de pinchar.
+    caja = graph_page.locator("#search-results").bounding_box()
+    assert caja, "el desplegable no ocupa sitio en pantalla"
+    punto = {"x": caja["x"] + caja["width"] / 2, "y": caja["y"] + caja["height"] / 2}
+    antes = graph_page.evaluate(_QUIEN_OCUPA_ESE_PUNTO_JS, punto)
+    assert antes["en_la_lista"], (
+        "el punto medido no lo ocupa el desplegable, asi que la comprobacion "
+        f"geometrica de mas abajo no probaria nada: {antes['descripcion']}")
+
+    resultados.first.click()
+    graph_page.wait_for_timeout(1200)          # la animacion de focus dura 400 ms
+
+    assert panel_abierto(graph_page), "pinchar el resultado no ha seleccionado nada"
+    assert "Kimi" in graph_page.locator("#side-panel").inner_text(), (
+        "pinchar el resultado ha abierto la ficha de otro nodo")
+
+    assert graph_page.locator("#search-results").is_hidden(), (
+        "tras elegir con el RATON el desplegable de resultados sigue abierto: "
+        f"{graph_page.locator('#search-results').inner_text()[:120]!r}")
+
+    despues = graph_page.evaluate(_QUIEN_OCUPA_ESE_PUNTO_JS, punto)
+    assert not despues["en_la_lista"], (
+        "el desplegable sigue ocupando el punto donde la persona acaba de "
+        f"dejar el puntero: su siguiente clic no llegara al grafo "
+        f"({despues['descripcion']})")
+
+    # Y cerrarlo no lo inutiliza: una busqueda nueva vuelve a ofrecer la lista.
+    graph_page.fill("#search-input", "Oni")
+    graph_page.wait_for_timeout(300)
+    assert graph_page.locator("#search-results button.search-result").count() >= 1, (
+        "tras cerrar la lista al pinchar, una busqueda nueva ya no ofrece "
+        "resultados: el desplegable ha quedado inutilizado")
+    assert graph_page.page_errors == []
+
+
 _LEYENDA_JS = """() => Array.from(document.querySelectorAll('#graph-legend li')).map((li) => {
     const sw = li.querySelector('.legend-swatch');
     return {
