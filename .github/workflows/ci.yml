@@ -54,7 +54,20 @@ jobs:
         env:
           S9K_ALLOW_REAL_INGEST: ""
         run: |
-          python -m pytest data-engine/app/tests/ -v --tb=short --no-header
+          # Guardia anti-cero: un pytest que colecciona 0 tests (directorio
+          # renombrado, filtro que no casa) saldria en verde sin comprobar
+          # nada. `check-ci-config` exige esta guardia en todo paso que
+          # invoque pytest.
+          set +e
+          out="$(python -m pytest data-engine/app/tests/ -v --tb=short --no-header 2>&1)"
+          rc=$?
+          set -e
+          echo "$out"
+          [ "$rc" -eq 0 ] || exit 1
+          if ! grep -qE '[0-9]+ passed' <<<"$out"; then
+            echo "::error::no se ejecuto ninguna prueba de data-engine"
+            exit 1
+          fi
 
   test-viewer:
     name: Viewer Tests
@@ -78,7 +91,17 @@ jobs:
         env:
           S9K_ALLOW_REAL_INGEST: ""
         run: |
-          python -m pytest viewer/tests/ -v --tb=short --no-header
+          # Guardia anti-cero (ver `check-ci-config`).
+          set +e
+          out="$(python -m pytest viewer/tests/ -v --tb=short --no-header 2>&1)"
+          rc=$?
+          set -e
+          echo "$out"
+          [ "$rc" -eq 0 ] || exit 1
+          if ! grep -qE '[0-9]+ passed' <<<"$out"; then
+            echo "::error::no se ejecuto ninguna prueba del visor"
+            exit 1
+          fi
 
   test-neo4j-authz:
     name: Authz integration (Neo4j efímero)
@@ -208,7 +231,17 @@ jobs:
         env:
           S9K_ALLOW_REAL_INGEST: ""
         run: |
-          python -m pytest --tb=short --no-header -q
+          # Guardia anti-cero (ver `check-ci-config`).
+          set +e
+          out="$(python -m pytest --tb=short --no-header -q 2>&1)"
+          rc=$?
+          set -e
+          echo "$out"
+          [ "$rc" -eq 0 ] || exit 1
+          if ! grep -qE '[0-9]+ passed' <<<"$out"; then
+            echo "::error::la suite combinada no ejecuto ninguna prueba"
+            exit 1
+          fi
 
   review-ingest-contracts:
     name: Contratos review/ingest v1 (JSON Schema)
@@ -231,8 +264,17 @@ jobs:
 
       - name: Validate contracts (schemas + examples + semantics)
         run: |
-          set -euo pipefail
-          python -m pytest contracts/review-ingest/v1/tests/ -q
+          # Guardia anti-cero (ver `check-ci-config`).
+          set +e
+          out="$(python -m pytest contracts/review-ingest/v1/tests/ -q --no-header 2>&1)"
+          rc=$?
+          set -e
+          echo "$out"
+          [ "$rc" -eq 0 ] || exit 1
+          if ! grep -qE '[0-9]+ passed' <<<"$out"; then
+            echo "::error::los tests de contratos review/ingest no se ejecutaron"
+            exit 1
+          fi
 
   knowledge-v3-contracts:
     name: Contratos internos V3 (v3-internal-v1)
@@ -297,7 +339,17 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Ninguna rama sin CI y ningun test que se omita por falta de Node
+      - name: Install PyYAML
+        run: |
+          # El gate parsea los workflows con `yaml.safe_load`, no con regex:
+          # una regex de texto se saltaba con una comilla o un espacio antes de
+          # los dos puntos. Sin `|| true`: si falta PyYAML el gate falla.
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install pyyaml
+          python -c "import yaml; print('pyyaml', yaml.__version__)"
+
+      - name: Ninguna rama sin CI, ningun job con 0 tests, ningun skip critico
         run: python3 .github/scripts/check_ci_config.py
 
   # Instalado desde .github/ci-fragments/test-graph-js.yml al llegar
