@@ -17,7 +17,9 @@ on:
   #
   # `check-ci-config` ya no vigila prefijos uno a uno: comprueba la PROPIEDAD
   # (que cualquier nombre de rama, real o inventado, quede cubierto), asi que
-  # volver a una lista blanca —aunque sea larga— pone el gate en rojo.
+  # volver a una lista blanca —aunque sea larga— pone el gate en rojo. Ademas
+  # rechaza `paths`/`paths-ignore`/`branches-ignore` bajo `on.push`, que podrian
+  # apagar CI sin tocar `branches`. Vigila `ci.yml` y `supply-chain.yml`.
   #
   # Solo ramas: NO se anade `tags`, que dispararia CI en cada etiqueta.
   push:
