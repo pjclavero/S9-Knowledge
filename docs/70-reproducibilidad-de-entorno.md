@@ -200,6 +200,13 @@ obligado a mirar un aviso, y esta deriva es real y viva.
 - **Qué queda abierto**: `docs/v3/02-multimodal.md` afirma una versión de
   `pypdf` que el `.lock` contradice. Cualquier lector que instale lo que dice
   la documentación se aparta del entorno declarado.
+- **Falso positivo conocido del check**: `docs/65-preparacion-de-release.md`
+  también se señala, pero allí la cadena aparece **citando** la deriva al
+  documentar D7, no afirmándola. El check compara texto y no distingue una
+  cita de una afirmación; por eso el aviso se lee, no se obedece a ciegas.
+  Este mismo documento evita escribir la cadena literal justamente para no
+  añadir un tercer falso positivo. Si D7 se promueve a error, hay que resolver
+  antes esa distinción (por ejemplo, exceptuando los bloques de cita).
 - **Dueño**: el carril propietario de `docs/v3/**` (documentación V3
   multimodal). Este carril no puede tocar `docs/` salvo este fichero.
 - **Fecha**: en el siguiente cambio que toque `docs/v3/02-multimodal.md`, y en
