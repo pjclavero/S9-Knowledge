@@ -169,14 +169,14 @@ lo que uno no ve. No hay contador, ni hueco, ni "3 de 7".
 | `viewer/app/static/js/graph.js` | Reescrito: capa de UI |
 | `viewer/app/templates/graph.html` | Reescrito: layout de tres columnas |
 | `viewer/app/static/css/app.css` | Bloque de grafo sustituido (`/* Graph page layout (UX V2) */`) |
-| `viewer/tests/test_graph_ux_v2.py` | **Nuevo.** 60 casos |
-| `viewer/tests/js/graph_core_spec.js` | **Nuevo.** 47 casos de lógica pura |
-| `viewer/tests/browser/test_browser_graph_ux.py` | **Nuevo.** 17 casos en Chromium real |
+| `viewer/tests/test_graph_ux_v2.py` | **Nuevo.** 65 casos |
+| `viewer/tests/js/graph_core_spec.js` | **Nuevo.** 50 casos de lógica pura |
+| `viewer/tests/browser/test_browser_graph_ux.py` | **Nuevo.** 21 casos en Chromium real |
 | `viewer/tests/browser/{conftest,e2e_support}.py` | Traídos del carril D `test/viewer-browser-e2e-v1` (`67c1758`), sin modificar |
 | `viewer/app/templates/entity.html` | Se retiran visibilidad y capa de conocimiento |
 | `viewer/app/templates/entity_detail.html` | Ídem |
 | `.github/workflows/ci.yml` | Jobs `check-ci-config` y `test-graph-js` |
-| `.github/scripts/check_ci_config.py` | Traído de `chore/ci-test-branches-y-node`, sin modificar |
+| `.github/scripts/check_ci_config.py` | Traído de `chore/ci-test-branches-y-node` y **reescrito**: verifica que la política de disparo cubre toda rama (nombres sonda inventados) y rechaza `paths`/`paths-ignore`/`branches-ignore` bajo `on.push`, en `ci.yml` y en `supply-chain.yml` |
 | `.github/ci-fragments/test-graph-js.yml` | Ídem: se conserva verbatim para que el merge con esa rama sea limpio |
 
 `viewer/app/main.py` no ha necesitado cambios: la ruta `/graph` ya pasaba
@@ -268,7 +268,7 @@ Tres capas, cada una en su sitio:
 
 ```
 $ cd viewer && node tests/js/graph_core_spec.js
-47 pasados, 0 fallidos   ·   exit 0
+50 pasados, 0 fallidos   ·   exit 0
 ```
 
 Antes 38; los nueve nuevos son el ranking de búsqueda que sí discrimina (H4),
@@ -500,7 +500,7 @@ con sufijo `-x`.
 ```
 navegador : 5 failed, 2 passed, 10 errors   (246 s)   ROJO
 pytest    : 4 failed, 42 passed                       ROJO
-node      : 47 pasados, 0 fallidos                    VERDE (correcto: no ve el DOM)
+node      : 50 pasados, 0 fallidos                    VERDE (correcto: no ve el DOM)
 ```
 
 Antes de este trabajo, ese mismo ataque dejaba la suite entera en verde con la
@@ -578,7 +578,7 @@ node : 3 fallidos   ROJO
   `LD_LIBRARY_PATH`. **Eso es un apaño local, no forma parte del repositorio**:
   en CI el job `test-login-browser` usa `playwright install --with-deps chromium`
   y no necesita nada de esto. Cualquiera que repita las cifras en local tendrá
-  que hacer lo mismo o los 17 casos se le saltarán.
+  que hacer lo mismo o los 21 casos se le saltarán.
 - **El responsive se ha razonado por CSS, no medido en dispositivos.**
 - **Expandir vecinos no tiene tope.** Expandir repetidamente sobre un nodo muy
   conectado puede degradar el rendimiento del lienzo. No hay límite ni aviso.
@@ -595,7 +595,7 @@ node : 3 fallidos   ROJO
 
 - **De otras ramas, sin modificar:** `viewer/tests/browser/{conftest,e2e_support}.py`
   de `test/viewer-browser-e2e-v1` (`67c1758`) y
-  `.github/scripts/check_ci_config.py` + `.github/ci-fragments/test-graph-js.yml`
+  `.github/ci-fragments/test-graph-js.yml` (y `check_ci_config.py`, ya reescrito aquí)
   de `chore/ci-test-branches-y-node` (`6c1a8c6`). Copiados byte a byte para que,
   cuando esas ramas se fusionen, no haya conflicto. **No se ha montado una
   segunda infraestructura de navegador.**
