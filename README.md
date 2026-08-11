@@ -8,30 +8,50 @@ Pensada para campañas de rol (L5A "Leyenda", Mundo de Tinieblas, Trudvang…): 
 personajes, criaturas, lugares, facciones, objetos, eventos, combates y sesiones, y
 la evolución del conocimiento de cada personaje a lo largo de la campaña.
 
-## Estado actual (desarrollo vs. producción — 2026-08-06)
+## Estado actual (desarrollo vs. producción — 2026-08-09)
 
 `docs/project-status.yaml` separa explícitamente tres bloques: `development`
 (lo que hay en `main`), `production` (lo desplegado de verdad en VM105) y
 `next_release` (el candidato y qué lo bloquea). No los confundas: desde el
 merge de V3 (PR #110), `main` y VM105 van desacoplados.
 
-> **Desarrollo (`main`, commit `fb4a6fe`):** motor vigente `knowledge_v3`.
-> Puerta 4 (cobertura del extractor) cerrada **PARCIAL**; Puerta 6
-> (factividad composicional) cerrada **CONFORME CON RESERVAS**; medición del
-> acuerdo determinista∧NVIDIA completada con **piloto controlado** aprobado
-> (sin reducir revisión humana todavía); programa **multi-partida** en curso
-> (M0/M2/M3/M4/M5a mergeados, M1 bloqueado por Nextcloud, M5b/M6 pendientes).
-> CI verde en el último merge (PR #144).
+> **«Está en `main`» no significa «está desplegado».** Todo lo que sigue bajo
+> *Desarrollo* describe el repositorio. Nada de ello corre hoy en VM105.
+
+> **Desarrollo (`main`, commit `8c70226`, último PR mergeado #164):** motor
+> vigente `knowledge_v3`. Puerta 4 (cobertura del extractor) cerrada
+> **PARCIAL**; Puerta 6 (factividad composicional) cerrada **CONFORME CON
+> RESERVAS**; medición del acuerdo determinista∧NVIDIA completada con
+> **piloto controlado** aprobado (sin reducir revisión humana todavía);
+> programa **multi-partida** con M0/M2/M3/M4/M5a mergeados, **M5b cerrado**
+> (contrato, writer, migración fail-closed, M5c y cadena de autorización;
+> PRs #147, #150–#153), M1 bloqueado por Nextcloud y M6 pendiente. Carril D
+> (E2E de navegador y QA de producto, PR #154) completado. **Carril A**
+> (Graph UX V2 del visor, PR #158) y **carril L** (integridad de gates, PR
+> #163) cerrados, más el **carril I** (rango de esquema soportado, PR #165) y
+> **BKP-4** (destino off-host, PR #164). CI dispara ya en **toda** rama
+> (`branches: ['**']`, PR #160): se acabó la lista blanca de prefijos, y con
+> ella RK-16. CI verde en `8c70226` (2026-08-11).
+>
+> **«Corre» no es «se exige».** De esos 14 jobs, **11 son requeridos** para
+> fusionar; tres corren sin bloquear (la especificación JS del grafo y los dos
+> meta-gates del carril L). Un job no requerido no impide un merge en rojo: es
+> un informe, no una puerta. Ver `RK-20` en
+> [risk-register](docs/coordination/risk-register.md).
 >
 > **Producción (VM105):** sigue siendo `deploy-v0.3.0-rc5.1` (`47bc314`),
-> **V3 no está desplegada**. Último estado verificado por SSH (2026-07-18):
-> visor `s9-knowledge-viewer.service` active/running, login propio del visor
-> (Basic Auth retirada del proxy), Neo4j 199 nodos / 140 relaciones, 1
-> administrador, 1 job, 0 ingestas (ingesta real bloqueada por doble guard),
-> healthcheck con timer horario activo. Estos datos de producción **no se
-> han vuelto a verificar** en esta actualización de la documentación;
-> `docs/project-status.yaml` lo marca como pendiente de reconfirmar en el
-> servidor.
+> **V3 no está desplegada** y **M5b no está desplegado**. Último estado
+> verificado por SSH el **2026-08-06**: visor `s9-knowledge-viewer.service`
+> active/running, login propio del visor (Basic Auth retirada del proxy),
+> Neo4j 199 nodos / 140 relaciones, 1 administrador, 1 job, 0 ingestas
+> (ingesta real bloqueada por doble guard), healthcheck con timer horario
+> activo. **Ninguno de estos datos se ha vuelto a leer desde entonces**, y
+> desde esa fecha se han ejecutado dos operaciones en el servidor
+> ([`docs/53`](docs/53-recuperacion-y-credenciales-2026-08.md): rotación de la
+> credencial de Neo4j y restore de ensayo desde `vzdump`, ambas el
+> 2026-08-08). El estado del healthcheck está marcado
+> `PENDING_VERIFICATION` en `docs/project-status.yaml`: no comprobado, ni
+> bueno ni malo.
 >
 > El estado autoritativo y verificable está en
 > [`docs/project-status.yaml`](docs/project-status.yaml). La narrativa de la
@@ -102,9 +122,39 @@ Invariante 1, PR #140), M3 (writer con ámbito estampado, Invariante 2,
 PR #141), M4 (divergencias locales del lore, `local_override_of`, PR #142) y
 M5a (selector de partida y aislamiento de ámbito en el visor, PR #143). M1
 (mapeo de ingesta Nextcloud→ámbito) sigue **bloqueado** a que Nextcloud
-vuelva a estar disponible; M5b y M6 quedan pendientes. Ver
+vuelva a estar disponible; **M6** queda pendiente y es *housekeeping*
+operativo sobre el grafo de prueba, con aprobación explícita del operador
+como requisito. Ver
 [`docs/v3/49-multipartida-diseno.md`](docs/v3/49-multipartida-diseno.md) y el
 índice [`docs/v3/README.md`](docs/v3/README.md).
+
+### M5b — niebla de guerra y cadena de autorización (cerrado en `main`)
+
+**M5b está cerrado en el repositorio, no desplegado.** Comprende el contrato
+canónico `knowledge-visibility/v1` (M5b-0, PR #147), el estampado de
+visibilidad desde contrato validado en el writer (M5b-1, PR #150), la
+migración fail-closed y el cierre del defecto permisivo (M5b-2/M5b-3,
+PR #151), el cierre de ámbito y serializadores (M5c, PR #152) y la cadena de
+autorización comprobable de extremo a extremo (M5b-C, PR #153), esta última
+tras **siete rondas de revisión adversarial**. El modelo se aplica ya en las
+consultas del visor en `main` (`viewer/app/authz/`, `viewer/app/policies/`).
+
+Sobre el **grafo legacy de producción** la resolución es **NO APPLY**: el plan
+`12f7278f` pasó el dry-run (339/339 objetos, 0 errores) pero no se aplica,
+porque `known_by` está ausente en los 199 nodos y el sellado no tendría valor
+semántico. El grafo se conserva intacto, marcado `LEGACY_TEST_GRAPH`, hasta
+que V3 demuestre una primera ingesta validada. Ver
+[`docs/54-migracion-visibilidad-m5b.md`](docs/54-migracion-visibilidad-m5b.md).
+
+### Carril D — QA de producto y E2E de navegador (PR #154)
+
+La suite Playwright del visor pasó de 24 a **148 pruebas de navegador**,
+ejecutadas por el check **requerido** *Login browser contract (Playwright)*
+con guard que falla si algo se salta. El carril dejó **11 defectos de
+aplicación abiertos** marcados como `xfail(strict=True)` (ACC-01..ACC-09 de
+accesibilidad, A-01/A-02 de páginas de error): son defectos de **código**, no
+de documentación, y viven en el arnés en vez de pudrirse en un backlog. Ver
+[`docs/60-qa-browser-e2e-visor.md`](docs/60-qa-browser-e2e-visor.md).
 
 Dependencias mantenidas al día vía Dependabot: aiohttp actualizado a 3.14.3
 por CVE-2026-59881/69243/69244 (PR #128); httpx, argon2-cffi, fastapi,
@@ -143,7 +193,7 @@ s9-knowledge-repo/
 ├── ROADMAP.md         · fases y plan
 ├── .gitignore
 ├── .env.example       · variables de entorno (sin secretos)
-├── docs/              · documentación del proyecto (00–22 + current/)
+├── docs/              · documentación (v3/ vigente · archivados/ histórico · current/ histórico)
 ├── data-engine/       · motor de datos (app/, tests/, docs/…)
 ├── viewer/            · visor web (FastAPI, desplegado en VM105:8088)
 ├── shared/            · utilidades compartidas (FUTURO)
@@ -175,8 +225,13 @@ datos SQLite de runtime, `.env` con secretos ni archivos fuente pesados (PDF/aud
 - Neo4j y Ollama no se exponen a Internet.
 - Acceso externo via `https://knowledge.seccionnueve.duckdns.org` (HTTPS, nginx VM104).
   La autenticación es del propio visor (login con sesiones/CSRF); Basic Auth retirada del proxy.
-- Ver [`docs/07-users-permissions.md`](docs/archivados/07-users-permissions.md)
-  para el modelo legacy de permisos.
+- La credencial de Neo4j de VM105 se **rotó el 2026-08-08** (credencial nueva
+  autentica, la anterior no; grafo intacto). Procedimiento y alcance en
+  [`docs/53-recuperacion-y-credenciales-2026-08.md`](docs/53-recuperacion-y-credenciales-2026-08.md).
+  Ningún valor de credencial se versiona.
+- Ver [`docs/archivados/07-users-permissions.md`](docs/archivados/07-users-permissions.md)
+  para el modelo legacy de permisos, y `viewer/app/authz/` + `viewer/app/policies/`
+  para el modelo vigente (M5b/M5c) en `main`.
 - Ver
   [`docs/21-external-access-and-security.md`](docs/archivados/21-external-access-and-security.md)
   para acceso externo y hardening de la release desplegada.

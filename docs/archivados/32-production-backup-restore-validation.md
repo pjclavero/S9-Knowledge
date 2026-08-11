@@ -1,5 +1,20 @@
 # Validación de Backup Real en Producción — 2026-07-13
 
+> **HISTÓRICO (julio 2026), con dos precisiones añadidas el 2026-08-09:**
+>
+> 1. **«Copia externa a yggdrasil» NO es una copia off-host.** `yggdrasil` es
+>    el hipervisor Proxmox que ejecuta VM105: la copia acaba en el **mismo
+>    chasis** que los datos. Lo verificado fue la transferencia y su checksum.
+>    El P0 de replicación fuera del chasis **sigue abierto**.
+> 2. **«Restore real» aquí significa restore del *dump de Neo4j* en una
+>    instancia aislada**, no la recuperación de VM105. El primer restore de la
+>    **máquina completa** se ensayó el 2026-08-08 y está en
+>    [docs/53](../53-recuperacion-y-credenciales-2026-08.md), con sus propios
+>    límites.
+>
+> Estado vigente de recuperación: [docs/52](../52-backup-manual-checkpoint.md)
+> y [docs/53](../53-recuperacion-y-credenciales-2026-08.md).
+
 ## Resumen ejecutivo
 
 Primer backup real de Neo4j (producción) ejecutado el 2026-07-13 21:49 UTC, restaurado en instancia aislada y validado con rollback por `source_id` en laboratorio.

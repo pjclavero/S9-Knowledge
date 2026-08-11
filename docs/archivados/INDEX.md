@@ -1,16 +1,33 @@
 # Índice de documentación — S9 Knowledge
 
+> **Índice de `docs/archivados/` — TODO lo listado aquí es HISTÓRICO.** Las
+> marcas «vigente/operativo» de abajo son las que tenían estos documentos
+> cuando se archivaron, en julio de 2026; describen la línea v1/v2 y la
+> release RC5.1, no el repositorio de hoy. El **único** estado autoritativo es
+> [`docs/project-status.yaml`](../project-status.yaml), y la línea vigente de
+> desarrollo es [`docs/v3/`](../v3/).
+
+> **Colisiones de numeración conocidas en este directorio (no se corrigen).**
+> Tres ficheros comparten el prefijo `51-` (`51-deploy-forward-ref-regression`,
+> `51-relation-review-policy-calibration`, `51-relation-pipeline-runtime`) y
+> dos el prefijo `50-` (`50-deploy-state-continuity`,
+> `50-relation-benchmark-results`): dos series de numeración distintas se
+> archivaron en el mismo cajón. **Cita estos documentos por nombre completo,
+> nunca por «docs/51»**, que es ambiguo. No se renumeran porque decenas de
+> enlaces apuntan a sus rutas actuales y romperlos costaría más de lo que
+> arregla. Los números nuevos se asignan en `docs/` y `docs/v3/`, donde no hay
+> colisiones.
+
 **Clasificación:** `vigente` · `operativo` · `diseño` · `auditoría` · `histórico` · `deprecado`.
 Los documentos **históricos** (diseño inicial) están agrupados aparte y no deben
 leerse como estado vigente. El estado autoritativo está en
-[02 · Estado actual](02-current-state.md) (canónico) y
-[project-status.yaml](project-status.yaml) (estructurado, verificado por
+[project-status.yaml](../project-status.yaml) (estructurado, verificado por
 `scripts/check_docs_consistency.py`).
 
-## Despliegue y operación (vigente / operativo)
+## Despliegue y operación (histórico de la línea RC5.1)
 
-- [project-status.yaml](project-status.yaml) — **vigente** · estado estructurado (fuente de coherencia).
-- [02 · Estado actual](02-current-state.md) — **vigente** · 2026-07-18 · estado canónico narrado (RC5.1 activa).
+- [project-status.yaml](../project-status.yaml) — **vigente** · estado estructurado (fuente de coherencia). Vive fuera de este directorio.
+- [02 · Estado actual](02-current-state.md) — **histórico** · 2026-07-18 · narrativa de RC5.1. Ya **no** es el documento canónico de estado.
 - [46 · Healthchecks operativos](46-operational-healthchecks.md) — **operativo** · healthcheck de solo lectura + timer horario.
 - [47 · Despliegue reproducible](47-reproducible-deployment.md) — **operativo** · instalación limpia y releases.
 - [50 · Continuidad de estado en el despliegue](50-deploy-state-continuity.md) — **operativo** · estado externo a la release, migración/validación.
@@ -43,7 +60,7 @@ leerse como estado vigente. El estado autoritativo está en
 - [24 · Baseline VM105 y Verificación Fase 0A](24-vm105-baseline-and-verification.md) — **Informe de auditoría verificable 2026-07-13**
 - [30 · Informe coordinador — Cierre Fase 0 y Prioridad 1](30-coordinator-final-report.md) — Consolidado: PR #3, VM105 sync, tests (2 causas raíz), backup/restore lab, rollback diseño
 - [31 · Remediación de tests y CI](31-test-remediation-and-ci-report.md) — **220/220 passed, 0 errores de colección; CI añadido 2026-07-13**
-- [32 · Backup y restore de producción — Validación P1](32-production-backup-restore-validation.md) — Backup real 132 KB, restore verificado, copia externa completada
+- [32 · Backup y restore de producción — Validación P1](32-production-backup-restore-validation.md) — Backup real 132 KB, restore **del dump de Neo4j** verificado en instancia aislada, copia **al hipervisor** completada (**no** es off-host; ver corrección en el propio documento y [docs/53](../53-recuperacion-y-credenciales-2026-08.md))
 - [33 · Plan de evaluación del extractor — Prioridad 2](33-extractor-quality-benchmark-plan.md) — Plan de benchmark: corpus, métricas, umbrales, criterios de ingesta
 - [34 · Resultados del benchmark del extractor — Prioridad 2](34-extractor-quality-benchmark-results.md) — 35/35 runs OK; F1 ent hybrid 0.728 / llm 0.718; relaciones F1≈0; autoaprobación 0.85. Dictamen PARCIAL — REQUIERE CORRECCIONES; ingesta BLOQUEADA.
 - [44 · Autenticación del visor — foundation](44-viewer-authentication-and-users.md) — Login, sesiones server-side, roles (admin/reviewer/viewer), auditoría append-only, panel admin, CLI administrativa
@@ -76,9 +93,9 @@ leerse como estado vigente. El estado autoritativo está en
 >
 > - `S9_Knowledge_diseno_estado_fases_v2.docx` -> vigente en
 >   [02 · Estado actual](02-current-state.md) + [03 · Fases](03-phases.md) +
->   [project-status.yaml](project-status.yaml).
+>   [project-status.yaml](../project-status.yaml).
 > - `S9_Knowledge_especificacion_visor_panel_permisos.docx` -> vigente en
->   [viewer/README](../viewer/README.md) + [07 · Usuarios y permisos](07-users-permissions.md).
+>   [viewer/README](../../viewer/README.md) + [07 · Usuarios y permisos](07-users-permissions.md).
 >
 > Generación de DOCX v3 con `python-docx`: **NOT_AVAILABLE** en el entorno actual
 > (sin `python3-venv`/`ensurepip`); el contenido v3 se mantiene en Markdown.

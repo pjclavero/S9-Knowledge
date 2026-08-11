@@ -1,13 +1,17 @@
 # 02 · Estado actual
 
-> **Documento canónico de estado.** Se deriva de la fuente de verdad (ver la
-> sección final). El estado estructurado y verificable está en
-> [`docs/project-status.yaml`](project-status.yaml); este documento lo narra.
+> **HISTÓRICO — narrativa de la release RC5.1, NO estado del repositorio.**
+> Dejó de ser el documento canónico de estado: `main` y VM105 van desacoplados
+> desde el merge de V3 (PR #110), y este texto describe **solo** la producción
+> tal como quedó el 2026-07-18. El estado vigente y verificable está en
+> [`docs/project-status.yaml`](../project-status.yaml).
 
 - **Fecha de actualización:** 2026-07-18
 - **Versión productiva:** `0.3.0-rc5.1`
 - **Tag:** `deploy-v0.3.0-rc5.1`
-- **Commit:** `47bc3147fdab6b642ab72ffe0cf84133e3a57b2e` (= `main`)
+- **Commit desplegado:** `47bc3147fdab6b642ab72ffe0cf84133e3a57b2e`
+  — **ya NO es `main`**: cuando se escribió esto coincidían; hoy `main` va muy
+  por delante (ver `development.main_commit` en `project-status.yaml`).
 - **release_id activo:** `deploy--20260718-133409`
 
 ## Producción (VM105, verificado por SSH 2026-07-18)
@@ -57,7 +61,7 @@
 
 - FastAPI desplegado por releases (a través de `current`). Provider Neo4j, auth DB y jobs DB externas.
 - Rutas: `/login`, `/graph` (vis.js), `/jobs`, `/reviews` (panel de revisión enriquecido).
-- Login propio, roles, sesiones, CSRF. Diferencias local/producción documentadas en [viewer/README](../viewer/README.md).
+- Login propio, roles, sesiones, CSRF. Diferencias local/producción documentadas en [viewer/README](../../viewer/README.md).
 
 ## Seguridad
 
@@ -67,10 +71,14 @@
 
 ## Tests y CI
 
-- **Suite verde.** A fecha de corte, `pytest --collect-only` recopila **912 tests**
-  (deploy 149, viewer 296, data-engine 467). CI de GitHub Actions en verde en `main`.
-- El número exacto de tests cambia con el desarrollo; la referencia estable es
-  `docs/project-status.yaml` y la ejecución real de CI.
+- **Suite verde.** En la release RC5.1 (`47bc314`, corte del 2026-07-18),
+  `pytest --collect-only` recopilaba **912 tests** (deploy 149, viewer 296,
+  data-engine 467). Esta cifra es **histórica de esa release** y no describe
+  `main`.
+- El número exacto de tests cambia con el desarrollo, y depende del entorno
+  (con o sin navegador y Neo4j disponibles). La referencia con commit, fecha y
+  entorno está en `development.tests` de
+  [`docs/project-status.yaml`](../project-status.yaml).
 
 ## Deuda técnica y limitaciones conocidas
 
@@ -104,5 +112,5 @@ El estado de este documento **no** se copia de informes anteriores: se deriva de
    auth, consultas Neo4j de solo lectura, healthcheck).
 
 El estado estructurado y verificable está en
-[`docs/project-status.yaml`](project-status.yaml), validado por
-[`scripts/check_docs_consistency.py`](../scripts/check_docs_consistency.py).
+[`docs/project-status.yaml`](../project-status.yaml), validado por
+[`scripts/check_docs_consistency.py`](../../scripts/check_docs_consistency.py).

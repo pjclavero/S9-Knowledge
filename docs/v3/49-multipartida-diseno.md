@@ -1,5 +1,20 @@
 # 49 — Diseño: separación de partidas por ámbitos (multi-partida)
 
+> **AVISO DE VIGENCIA (2026-08-09).** Este documento es el **diseño** del
+> programa y se conserva como tal. Varias de sus afirmaciones de estado han
+> quedado atrás: donde diga que M5b «no existe», «sigue sin implementar» o
+> «es el hueco más grande del programa», léase **superado**. M5b se
+> implementó y cerró en `main` (PRs #147, #150–#153); el contrato canónico
+> está en [51](51-m5b0-knowledge-visibility-contrato.md) y la ejecución en
+> [docs/54](../54-migracion-visibilidad-m5b.md),
+> [55](../55-m5c-cierre-ambito-y-serializadores.md) y
+> [58](../58-m5b-c-cadena-de-autorizacion.md).
+>
+> Lo que **sigue vigente** de este documento: el modelo de ámbitos, los
+> invariantes 1 y 2, y que **M6** es housekeeping operativo con aprobación
+> explícita del operador. Estado autoritativo:
+> [`docs/project-status.yaml`](../project-status.yaml).
+
 Estado: DISEÑO, sin código de producción. **La Puerta 6 está CERRADA y
 ratificada** (`main` `cbf461d`, ver `docs/v3/46-gate6-cierre-programa.md` y la
 ratificación del operador) — la implementación de este programa **ya no está

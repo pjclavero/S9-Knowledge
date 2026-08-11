@@ -9,7 +9,7 @@
 documentacion. Sin activacion en produccion.
 **Tests propios del bloque:** **111** (36 de humo del AGENTE-IMPLEMENTADOR +
 75 completos del AGENTE-TESTS)
-**Resultados publicados en:** [`docs/51-relation-review-policy-calibration.md`](../../51-relation-review-policy-calibration.md)
+**Resultados publicados en:** [`docs/51-relation-review-policy-calibration.md`](../../archivados/51-relation-review-policy-calibration.md)
 
 ---
 

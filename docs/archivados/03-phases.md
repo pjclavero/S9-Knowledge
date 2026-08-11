@@ -3,7 +3,7 @@
 > **Estado vigente (2026-07-18):** producción en **RC5.1** (`deploy-v0.3.0-rc5.1`,
 > `47bc314`), login propio del visor (Basic Auth retirada), healthcheck con timer
 > horario, Neo4j 199/140, 0 ingestas. El estado autoritativo está en
-> [02 · Estado actual](02-current-state.md) y [project-status.yaml](project-status.yaml).
+> [02 · Estado actual](02-current-state.md) y [project-status.yaml](../project-status.yaml).
 > Este documento describe la **secuencia de fases**; para el estado real prevalece
 > el canónico.
 

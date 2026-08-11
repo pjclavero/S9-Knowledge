@@ -11,15 +11,72 @@
 # avanzar sin que VM105 cambie. Los tres bloques de abajo lo hacen explícito;
 # no los mezcles al leer o escribir aquí.
 #
-# Actualizado tras el cierre de los programas de calidad V3 (Puertas 4 y 6),
-# la medición del acuerdo determinista∧NVIDIA y los bloques M0/M2/M3/M4/M5a
-# del programa multi-partida (2026-08-06).
+# Actualizado tras el cierre del carril A (Graph UX V2, PR #158) y del disparo
+# de CI en toda rama (PR #160) — 2026-08-11.
+#
+# `main_commit` y `latest_merged_pr` NO se escriben de memoria:
+# scripts/check_docs_consistency.py los contrasta contra `origin/main` y falla
+# si divergen. Editarlos a mano y equivocarse pone el gate en rojo.
+#
+# CONVENCIÓN DE PROCEDENCIA. Cada dato de `production` declara cómo se sabe:
+#   VERIFIED             — leído directamente en el destino, con fecha.
+#   PENDING_VERIFICATION — conocido en el pasado y NO releído desde entonces.
+# Un dato PENDING_VERIFICATION no es falso ni verdadero: es NO COMPROBADO, y
+# ningún documento debe citarlo como estado actual. El recuerdo de una
+# conversación no es verificación.
 
 development:
   # Lo que hay en `main` ahora mismo. NO implica que esté desplegado.
-  main_commit: "fb4a6fe6fb95d647dc8622ce0bac599ee7e9d246"
-  latest_merged_pr: 144
-  latest_ci: "green"  # gh run list --branch main: última ejecución en fb4a6fe, conclusion=success
+  main_commit: "8c7022627ff868427b9ee36dcfc27af8f1bc7b5c"
+  latest_merged_pr: 164  # ojo: el #158 se fusionó DESPUÉS que el #160 — el último NO es el de número mayor
+  latest_ci: "green"  # CI en 8c70226 (leído con `gh run view`, 2026-08-11)
+
+  # Cuántos jobs CORREN frente a cuántos BLOQUEAN un merge. La diferencia se
+  # escribe a propósito: un job que corre pero no se exige no impide fusionar
+  # en rojo. Es un informe, no una puerta. Ver RK-20.
+  #
+  # Estos números NO son prosa: `check_ci_inventory` los deriva de los ficheros
+  # de workflow y exige que la aritmética cuadre. Antes eran texto libre dentro
+  # del mismo YAML que este gate obliga a verificar —se podían poner a 99/99 y
+  # pasaba en verde—, que es exactamente el vicio que el gate persigue.
+  ci_jobs_running: 14        # jobs definidos en ci.yml (13) + supply-chain.yml (1)
+  ci_checks_required: 11     # = len(ci_required_checks); leído con `gh api`, no de un documento
+  ci_required_checks:
+    - "Data Engine Tests"
+    - "Viewer Tests"
+    - "Authz integration (Neo4j efímero)"
+    - "Login browser contract (Playwright)"
+    - "Combined Test Suite (no collection errors)"
+    - "Contratos review/ingest v1 (JSON Schema)"
+    - "Contratos internos V3 (v3-internal-v1)"
+    - "No dangerous Unicode (Trojan Source)"
+    - "No hardcoded absolute paths in sys.path"
+    - "Deployment scripts validation"
+    - "pip-audit (data-engine + viewer)"
+  # Derivado: jobs de los workflows MENOS los requeridos. Corren sin bloquear.
+  ci_running_but_not_required:
+    - "Calibracion de gates (cada violacion tiene que ponerse ROJA)"
+    - "Especificacion JS del grafo (Node obligatorio)"
+    - "Integridad de gates (cobertura de ramas, 0 tests, skips criticos)"
+
+  # Cuántos merges puede ir por detrás este bloque antes de que el gate lo
+  # considere una mentira. NO es cero a propósito: exigir igualdad con la punta
+  # de `main` dejaría el gate en rojo permanente en `main` —cada merge lo
+  # rompería— y un rojo permanente no se lee, se ignora. Lo que el gate exige
+  # siempre, sin tolerancia, es que el commit sea REAL y esté en la historia de
+  # `main`: eso es lo que mata al SHA inventado. Esto solo acota el desfase.
+  #
+  # CONSECUENCIA OPERATIVA, para que nadie se sorprenda: con el valor 3, `main`
+  # NO se pone rojo en los tres merges siguientes a una actualización de este
+  # bloque; se pone rojo al CUARTO. Es el precio deliberado de no tener un gate
+  # permanentemente en rojo. Bajarlo a 0 lo vuelve estricto y ruidoso; subirlo
+  # mucho lo vuelve decorativo.
+  max_lag_commits: 3
+
+  # Caducidad del bloque `tests`. Una marca `stale: true` sin fecha límite es
+  # honesta pero inerte: avisa una vez y se queda ahí para siempre. Pasados
+  # estos días con una medición que ya no es la de `main`, el gate enrojece.
+  max_test_age_days: 30
   active_engine: "knowledge_v3"  # mergeado en main desde PR #110 (2026-07-29); sustituye a v1/v2 como línea vigente
   contracts_tag: "v3-contracts-frozen-1.0.0"
 
@@ -47,25 +104,119 @@ development:
         ámbito estampado, Invariante 2), M4 (divergencias locales del lore,
         local_override_of) y M5a (selector de partida y aislamiento en el
         visor) mergeados. M1 (mapeo de ingesta Nextcloud→ámbito) BLOQUEADO a
-        que Nextcloud vuelva a estar disponible. M5b y M6 pendientes. Ver
-        docs/v3/49-multipartida-diseno.md.
+        que Nextcloud vuelva a estar disponible. M5b CERRADO (ver entrada
+        propia). M6 pendiente: es housekeeping OPERATIVO sobre el grafo de
+        prueba, requiere aprobación explícita del operador y no se ejecuta
+        hasta desplegar V3. Ver docs/v3/49-multipartida-diseno.md.
+    - name: "M5b/M5c — niebla de guerra y cadena de autorización"
+      prs: "#146-#147, #150-#153"
+      state: "CERRADO EN `main` — NO DESPLEGADO"
+      # Frases que contradicen este estado. scripts/check_docs_consistency.py
+      # falla si aparecen en la documentación clave (fuera de bloques marcados
+      # como históricos). Añadir aquí, no en el script, al cerrar un programa.
+      doc_forbids:
+        - "M5b y M6 | **PENDIENTES**"
+        - "M5b/M6 pendientes"
+        - "M5b y M6 pendientes"
+        - "M5b y M6 quedan pendientes"
+      detail: >
+        Contrato canónico knowledge-visibility/v1 (M5b-0), estampado de
+        visibilidad desde contrato validado en el writer (M5b-1), migración
+        fail-closed y cierre del defecto permisivo (M5b-2/M5b-3), cierre de
+        ámbito y serializadores (M5c) y cadena de autorización comprobable de
+        extremo a extremo (M5b-C), esta última tras siete rondas de revisión
+        adversarial. El modelo se aplica YA en las consultas del visor en
+        `main` (viewer/app/authz/ + viewer/app/policies/). Sobre el grafo
+        legacy de producción la resolución es NO APPLY: ver
+        docs/54-migracion-visibilidad-m5b.md. Nada de esto está desplegado en
+        VM105.
+    - name: "Carril D — QA de producto y E2E de navegador del visor"
+      prs: "#154, #157"
+      state: "COMPLETADO"
+      detail: >
+        Suite Playwright real ampliada de 24 a 148 pruebas de navegador,
+        ejecutada por el check REQUERIDO `Login browser contract (Playwright)`
+        con guard anti-skip. Dejó 11 defectos de aplicación abiertos como
+        xfail(strict=True) (ACC-01..ACC-09, A-01, A-02): son defectos de
+        CÓDIGO, no de documentación. Ver docs/60-qa-browser-e2e-visor.md.
+        #157 saneó dos fixtures en los que un nodo entregable nombraba en
+        texto libre a un nodo `secret`, con gate de regresión propio.
+    - name: "Carril A — Graph UX V2 del visor"
+      prs: "#158 (e9c66dc)"
+      state: "CERRADO EN `main` — NO DESPLEGADO"
+      detail: >
+        Rediseño de la vista de grafo, con la lógica pura extraída a
+        viewer/app/static/js/graph-core.js. Recuentos VERIFICADOS por colección
+        real, no copiados de la prosa: viewer/tests/test_graph_ux_v2.py 65 casos
+        y viewer/tests/browser/test_browser_graph_ux.py 21 casos (ambos con
+        `pytest --collect-only`, que expande `parametrize`: contar `def test_`
+        daba 27 y 20), y viewer/tests/js/graph_core_spec.js 50 casos (`test(`
+        en columna 0; un grep de `test(` a secas da 55 porque cuenta llamadas
+        a `.test()` de expresiones regulares). Una versión previa de docs/61
+        declaraba 60/47/17. Ver docs/61-visor-grafo-ux-v2.md. Nada de esto
+        está desplegado en VM105.
+    - name: "CI en toda rama (fin de la lista blanca de prefijos)"
+      prs: "#159-#160 (e21f766)"
+      state: "CERRADO EN `main`"
+      # Deliberadamente estrechas: "no dispara CI" a secas daría falso positivo
+      # sobre una frase CIERTA — las ETIQUETAS siguen sin disparar CI a propósito.
+      doc_forbids:
+        - "no disparan CI en `push`"
+        - "no dispara CI en `push`"
+        - "sin integrar en la rama `chore/ci-test-branches-y-node`"
+      detail: >
+        `on.push.branches` pasa a `['**']`: cualquier rama tiene CI el día que
+        nace, sin lista de prefijos que mantener. El gate `check-ci-config` ya
+        no vigila prefijos uno a uno, comprueba la PROPIEDAD de que ningún
+        nombre de rama quede fuera, así que volver a una lista blanca pone CI
+        en rojo. Cierra RK-16.
+    - name: "Carril L — integridad y calibración de gates"
+      prs: "#163 (cb874fe)"
+      state: "CERRADO EN `main`"
+      detail: >
+        Parseo YAML semántico de la configuración de CI y meta-gates que
+        detectan gates incapaces de ponerse rojos (0 tests recogidos, skips
+        críticos). Ver docs/64-integridad-de-gates.md, que es el documento
+        propio de ese carril. Se anota aquí solo como puntero de estado.
+        ATENCIÓN: sus dos jobs CORREN pero NO son requeridos — ver RK-20.
 
   gated_or_pending:
     - "Lote 4 V3 (política común de condicionales): pendiente de decisión del operador"
     - "Lote 5 V3 (umbrales de creación de entidades / LINK_EXISTING): pendiente de decisión del operador"
     - "Activación de las políticas graduadas de negación/temporalidad: flags OFF hasta medición en sombra"
     - "M1 multi-partida: bloqueado por disponibilidad de Nextcloud"
-    - "M5b y M6 multi-partida: pendientes"
+    - "M6 multi-partida: pendiente, operativo, requiere aprobación explícita"
+    - "Despliegue de M5b en el visor productivo: no autorizado (V3 sin desplegar)"
 
   tests:
+    # Un recuento sin entorno ni commit no significa nada: la misma suite da
+    # cifras distintas según haya navegador y Neo4j disponibles.
+    #
+    # ATENCIÓN: esta medición es de `28320bd`, y `main` ya está en `e9c66dc`
+    # (el carril A añadió 86 casos). NO describe el `main` de hoy y no debe
+    # citarse como tal. No se sustituye por una cifra nueva porque no hay
+    # ninguna medida limpia: el intento del 2026-08-11 se hizo en un worktree
+    # compartido con otros carriles, cuyos ficheros sin versionar bajo
+    # `deploy/` provocaron 9 fallos ajenos tanto a `main` como a esta rama.
+    # Un número medido en un árbol contaminado no es un dato: es ruido.
+    stale: true            # medido en un commit que ya no es `main`
+    remeasure_pending: true
+    commit: "28320bd20a4202843ce93bdc98839a4f0091aa89"
+    measured_at: "2026-08-09"
+    collected: 7284
+    passed: 7061
+    skipped: 219
+    xfailed: 4
+    environment: >
+      Ejecución local de auditoría: Debian trixie, Python 3.13.5, pytest
+      8.4.2, `python3 -m pytest -q`, rc=0. SIN Playwright ni Neo4j locales,
+      de ahí los 219 saltados. En CI ambos existen (servicio neo4j:5.26.0 y
+      chromium instalado), los jobs FALLAN si algo se salta, y por tanto la
+      cifra de CI tiene menos saltados que esta. No se han leído los
+      artefactos de conteo de GitHub Actions.
     note: >
-      No verificado en esta pasada de forma independiente (no se ejecutó la
-      suite completa localmente ni se leyó un artefacto de conteo reciente).
-      El único indicador verificado del repo es que la última ejecución de
-      CI en main (fb4a6fe, PR #144) terminó en success. El conteo "912" de
-      abajo, bajo `production`, es el histórico de la release RC5.1 y NO
-      describe el estado de `main`. PENDIENTE DE VERIFICAR: conteo actual de
-      tests en main.
+      El conteo "912" que aparece bajo `production` es el histórico de la
+      release RC5.1 y NO describe `main`.
 
 production:
   # Lo que está desplegado de verdad en VM105. VERIFICADO por diagnóstico SSH
@@ -78,6 +229,12 @@ production:
   v3_deployed: false
 
   last_verified_at: "2026-08-06T17:18:39Z"
+  # AVISO DE FRESCURA. Desde esa fecha han ocurrido en VM105 al menos dos
+  # operaciones documentadas (rotación de la credencial de Neo4j y restore de
+  # ensayo desde vzdump, ambas el 2026-08-08; ver
+  # docs/53-recuperacion-y-credenciales-2026-08.md) y NINGÚN dato de este
+  # bloque se ha vuelto a leer en el servidor. Trátese como fotografía del
+  # 2026-08-06, no como estado de hoy.
   verification_note: >
     VERIFICADO por diagnóstico SSH de solo lectura el 2026-08-06 (host
     `common`, usuario root, autorizado por el operador con alcance limitado a
@@ -88,7 +245,8 @@ production:
     flags.
 
   # Recuento de la suite en la release de producción 47bc314 (histórico de
-  # RC5.1; `main` va por 6588 — ver el bloque `development`).
+  # RC5.1). Para el recuento de `main`, con su entorno y su commit, ver el
+  # bloque `development.tests`. No son comparables.
   tests_collected: 912
   ci_status_at_deploy: "green"
 
@@ -106,25 +264,45 @@ production:
   health_timer: "active_hourly"          # verificado 2026-08-06: enabled + active, dispara cada hora
   viewer_status: "active_running"        # verificado 2026-08-06: PID 740, NRestarts=0, activo desde 2026-08-02T22:41 (corte de luz/arranque)
 
-  # INCIDENCIA ABIERTA detectada en la verificación del 2026-08-06.
-  # El timer dispara correctamente, pero el chequeo termina en fallo: el
-  # servicio queda `failed` (código 2) porque el estado global es UNHEALTHY.
+  # ESTADO DEL HEALTHCHECK — NO COMPROBADO A DÍA DE HOY.
+  #
+  # Aquí había un dato en conflicto con docs/52-backup-manual-checkpoint.md.
+  # Las dos lecturas son del MISMO día y ambas son ciertas en su momento:
+  #   17:02Z — UNHEALTHY, servicio `failed` (código 2), componente `backups`
+  #            en rojo porque la copia más reciente tenía ~475 h (umbral 48 h).
+  #   19:06Z — tras tomar el backup manual, el chequeo volvió a
+  #            `Result=success` con código 1 (degradado por Ollama y Nextcloud
+  #            "no configurado", que la unidad acepta). Ver docs/52 §Estado
+  #            del healthcheck.
+  # No se contradicen: describen antes y después de la copia manual.
+  #
+  # Lo que NO se sabe es qué ocurrió DESPUÉS. Sin automatización activa, la
+  # copia manual envejece igual, y el umbral de 48 h se habrá vuelto a
+  # superar salvo que alguien haya tomado otra. Nadie lo ha leído.
   health_status:
-    last_run: "2026-08-06T17:02:00Z"
-    global_result: "UNHEALTHY"
-    service_state: "failed (exit code 2)"
-    failing_component: "backups"
+    status: "PENDING_VERIFICATION"
+    last_known_good_run: "2026-08-06T19:06:00Z"   # posterior al backup manual
+    last_known_good_result: "success (exit code 1, degradado aceptado)"
+    prior_failure: "2026-08-06T17:02:00Z — UNHEALTHY, failed (exit 2), componente `backups` rancio"
     detail: >
-      El backup más reciente es válido pero rancio: ~475 h de antigüedad
-      (umbral máximo 48 h). Los backups en /var/lib/s9-knowledge/backups son
-      los pre-reset y pre-rc4 del 2026-07-17; desde entonces no se ha
-      generado ninguno nuevo. Todos los demás componentes están OK: visor,
-      Neo4j, cola de jobs, auth.db, sistema de ficheros (68.6% de uso) y
-      unidades de systemd. Ollama y rclone de Nextcloud figuran como "no
-      configurado" (opcionales, no usados).
+      Estado actual NO comprobado. La reverificación por SSH de solo lectura
+      no se ha ejecutado en esta pasada de documentación. Expectativa
+      razonada, NO un hecho: sin backup automático activo, el componente
+      `backups` vuelve a rojo pasadas 48 h desde la última copia manual. Nada
+      de esto sustituye a leerlo en el servidor.
     requires_operator_decision: true
+    how_to_verify: >
+      Lectura de solo lectura en VM105: `systemctl status` del timer y del
+      servicio de healthcheck y su última salida. Sin reinicios, sin
+      recargas, sin escrituras, sin secretos en argv ni en el entorno.
 
   deployment:
+    # PROCEDENCIA (la convención de la cabecera aplica también aquí, y antes
+    # faltaba): todo este bloque es PENDING_VERIFICATION. Se leyó por SSH el
+    # 2026-08-06 y NO se ha vuelto a leer desde entonces. No es falso: es NO
+    # COMPROBADO, y ningún documento debe citarlo como estado de hoy.
+    provenance: "PENDING_VERIFICATION"
+    last_verified_at: "2026-08-06"
     active_release: "deploy--20260718-133409"
     previous_release: "91bdc51-20260717-211720"    # RC4, conservada para rollback
     deploy_tools: "/opt/s9-knowledge/deploy-tools/47bc314 (current -> 47bc314)"
@@ -134,6 +312,45 @@ production:
     password_managed_by_deploy: false
     real_ingest_flag: "S9K_ALLOW_REAL_INGEST unset (off), último estado conocido"
 
+  # Operaciones ejecutadas en VM105 el 2026-08-08, documentadas con su
+  # alcance exacto en docs/53-recuperacion-y-credenciales-2026-08.md.
+  operations_2026_08_08:
+    neo4j_credential_rotation:
+      status: "VERIFIED"
+      verified_at: "2026-08-08"
+      what: >
+        Rotación de la credencial de Neo4j: cambio de contraseña en la base,
+        actualización del fichero de secreto conservando dueño y permisos,
+        sincronización de NEO4J_AUTH y reinicio del visor.
+      evidence: >
+        La credencial nueva autentica y la anterior NO. Grafo intacto:
+        199 nodos / 140 relaciones antes y después.
+      # El valor no pasó por el contexto del agente y NO se documenta en
+      # ningún sitio del repositorio. Aquí consta el HECHO, no el secreto.
+      secret_recorded_in_repo: false
+    vzdump_restore_drill:
+      status: "VERIFIED"
+      verified_at: "2026-08-08"
+      source_backup_date: "2026-08-02"
+      what: >
+        Restore REAL de la copia vzdump de VM105 a un VMID de prueba (900),
+        sin NIC (dentro solo `lo`), onboot=0 y destino distinto de local-lvm.
+      verified:
+        - "integridad zstd del archivo: OK"
+        - "restore completo de 70 GiB en 8.2 min"
+        - "e2fsck limpio"
+        - "arranque con guest agent en 23 s"
+        - "auth.db: integrity_check = ok"
+        - "store de Neo4j presente y completo"
+      not_verified:
+        - "contenido semántico del grafo (presencia e integridad de fichero, NO significado)"
+        - "validez funcional de los secretos restaurados"
+      teardown: "entorno de prueba destruido y verificado, espacio liberado, producción intacta"
+      # Distinguir con cuidado, porque es el error clásico:
+      rto_restore_phase_minutes: 8.2
+      rto_to_service: "SIN MEDIR"
+      off_host: false   # la copia vive en el mismo chasis; ver docs/52 y RK-14
+
   release_candidates:
     rc4: {tag: "deploy-v0.3.0-rc4", commit: "91bdc5148308d20c4cb76b44280dd7e1aafeb9e3", state: "previous, rollback target"}
     rc5: {tag: "deploy-v0.3.0-rc5", commit: "bcc3a59c3b0097a5ea24f9b76507760f412268d6", state: "candidata NO desplegada (cutover abortado)"}
@@ -142,7 +359,7 @@ production:
 next_release:
   # El candidato para reemplazar RC5.1 y qué lo bloquea todavía.
   candidate: "knowledge_v3 (main)"
-  candidate_commit: "fb4a6fe6fb95d647dc8622ce0bac599ee7e9d246"
+  candidate_commit: "28320bd20a4202843ce93bdc98839a4f0091aa89"
   blockers:
     - "Sin release/tag de despliegue V3 cortado todavía (no existe deploy-v3-* en el repo)"
     - "Lotes 4 y 5 de V3 pendientes de decisión de producto del operador"
@@ -150,3 +367,5 @@ next_release:
     - "Puerta 4: recall de autoaprobación SIMPLE 0.10 por debajo del umbral 0.70 (veredicto PARCIAL, no NO_CONFORME por invariantes de precisión intactos)"
     - "Reducción de revisión humana vía acuerdo determinista∧NVIDIA gateada al propio despliegue de V3 y a la primera ingesta autorizada (dependencia circular reconocida: el piloto necesita V3 desplegada)"
     - "Primera ingesta real sigue sin ejecutarse en ninguna línea (bloqueada por doble guard, decisión deliberada)"
+    - "Despliegue de M5b en el visor productivo: cerrado en `main`, no autorizado en VM105"
+    - "P0 de recuperación abierto: no existe copia verificada fuera del chasis (ver RK-14 y docs/52)"

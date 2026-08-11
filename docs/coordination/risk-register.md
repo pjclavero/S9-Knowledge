@@ -1,5 +1,14 @@
 # Registro de riesgos
 
+> **Alcance.** Las entradas RK-01..RK-13 nacieron con el programa RC6+
+> (julio 2026) y varias han quedado atrás con él; se revisaron el 2026-08-09 y
+> las que ya no aplican están marcadas **CERRADO** con su evidencia, no
+> borradas. Las entradas RK-14 en adelante son del estado vigente.
+>
+> Este fichero es el **único sitio** donde se enuncia cada riesgo. Si un
+> documento describe un riesgo, que enlace aquí en vez de reformularlo: el
+> mismo riesgo contado de cinco maneras acaba teniendo cinco gravedades.
+
 Prioridades: **P0** (bloqueante: seguridad, pérdida de datos, fuga entre workspaces,
 escritura no autorizada, producción) · **P1** · **P2** · **P3**.
 
@@ -9,7 +18,7 @@ escritura no autorizada, producción) · **P1** · **P2** · **P3**.
 | RK-02 | P0 | Fuga entre workspaces por endpoint nuevo sin filtrar | B (export), A (relaciones) | Todo endpoint de datos usa `get_filtered_provider`; Q audita cada PR; regresión de fuga en CI | Vigilado |
 | RK-03 | P0 | Importación hostil (zip bomb, path traversal, JSON gigante) | B (import) | Import siempre dry-run por defecto; validación de schema; límites; suite hostil obligatoria (qa-matrix) | Diseñado |
 | RK-04 | P0 | Contaminación entre worktrees (visto en RC6 ETAPA 2) | worktrees compartidos | Worktree exclusivo por equipo; push con refspec+lease explícitos; `set -euo pipefail`; nunca `cd` a placeholder | Regla dura |
-| RK-05 | P0 | Config default apunta a Neo4j productivo (`bolt://192.168.1.205:7687` en viewer/app/config.py) | preexistente | Los tests usan mock/lab; en laboratorio nunca se conecta; documentar que la primera ingesta real requiere autorización explícita | Preexistente, vigilado |
+| RK-05 | P0 | Config default apuntaba a Neo4j productivo en `viewer/app/config.py` | preexistente | Corregido en código: el valor por defecto es `bolt://127.0.0.1:7687` (`viewer/app/config.py:21-24`), con comentario que prohíbe expresamente una IP productiva | **CERRADO** (verificado 2026-08-09) |
 | RK-06 | P1 | Duplicar scaffolding existente (external_ai, nvidia, transcriber, export_import) | A/B | ownership-map §scaffolding: extender, no reescribir | Mitigado |
 | RK-07 | P1 | Sobrescribir benchmark ya publicado (docs/34/36/37) | A (benchmark relaciones) | Benchmark de relaciones en docs/41,42 NUEVOS; prohibido tocar 33–37 | Regla dura |
 | RK-08 | P1 | Regresión de RC6 al integrar A/B | cualquiera | Q corre la suite completa + mutación en cada PR; no-degradación obligatoria | Vigilado |
@@ -18,6 +27,13 @@ escritura no autorizada, producción) · **P1** · **P2** · **P3**.
 | RK-11 | P2 | Corpus privado/imágenes sin sanitizar en Git | A/B | Solo fixtures sintéticas/sanitizadas + hashes; secret scan en CI; nada de texto privado | Regla dura |
 | RK-12 | P2 | Coste/latencia de IA externa (NVIDIA) en benchmark | A | Modo sombra; presupuesto y timeouts registrados; sin cargas pesadas en paralelo en VM105 | Diseñado |
 | RK-13 | P3 | Flaky tests por no determinismo LLM | A | 3 ejecuciones + medida de variabilidad; semilla si soportada | Diseñado |
+| **RK-14** | **P0** | **No existe ninguna copia de seguridad fuera del chasis.** Todas las copias (export lógico, dump físico, `vzdump`) viven en el mismo servidor físico que los datos que protegen. La copia al hipervisor `yggdrasil` **no** es off-host: `yggdrasil` ejecuta VM105 | preexistente | Ninguna eficaz. Protege frente a error lógico y borrado accidental; **no** frente a pérdida del host, del almacenamiento o del emplazamiento | **ABIERTO** — enunciado único en [docs/52 §Limitaciones](../52-backup-manual-checkpoint.md) y [docs/53](../53-recuperacion-y-credenciales-2026-08.md) |
+| **RK-15** | **P1** | `Authz integration (Neo4j efímero)` **no era check requerido** en la protección de `main`: el único job que ejerce la frontera Neo4j→serializador→política no bloqueaba un merge. Es justo la frontera donde `partida_id` se perdía con 675 pruebas en verde | configuración de GitHub | El operador lo añadió a la protección de rama. Hoy `main` exige **11** contextos e `Authz integration (Neo4j efímero)` es uno de ellos | **CERRADO** (2026-08-11) — verificado con `gh api repos/.../branches/main/protection`, no leyendo documentación |
+| **RK-20** | **P2** | **Tres jobs corren en cada PR pero NO son requeridos**, así que un merge puede entrar con ellos en rojo: `Especificacion JS del grafo (Node obligatorio)` (carril A), `Integridad de gates (cobertura de ramas, 0 tests, skips criticos)` y `Calibracion de gates (cada violacion tiene que ponerse ROJA)` (carril L). Corren 14 jobs; solo 11 bloquean. **Un gate que no se exige no es un gate: es un informe**, y los dos últimos existen precisamente para detectar gates que no pueden ponerse rojos | configuración de GitHub | Ninguna documental. Se arregla en los ajustes de protección de rama, no aquí. Se enuncia para que la diferencia entre «corre» y «se exige» conste por escrito | **ABIERTO** — requiere acción del operador |
+| **RK-16** | **P1** | Una lista blanca de prefijos en `on.push.branches` dejaba familias enteras (`test/**`, `ops/**`, `dependabot/**`, `perf/**`) desarrollándose sin señal de CI hasta abrir el PR. Se parcheó tres veces y a la cuarta había prefijos nuevos otra vez sin cubrir: la lista que hay que mantener a mano **era** el agujero | configuración de CI | `on.push.branches: ['**']` (PR #160, `e21f766`, en `main`): toda rama tiene CI el día que nace, sin tocar el fichero. El gate `check-ci-config` ya no vigila prefijos uno a uno: comprueba la **propiedad** de que ningún nombre de rama quede fuera, así que volver a una lista blanca —aunque sea larga— pone CI en rojo | **CERRADO** (2026-08-11) — verificado leyendo `.github/workflows/ci.yml` en `e9c66dc`, no la documentación |
+| **RK-17** | **P1** | 11 defectos de accesibilidad y de páginas de error abiertos en el visor (ACC-01..ACC-09, A-01, A-02) | Carril D (PR #154) | Fijados como `xfail(strict=True)`: no enrojecen hoy, y el día que se corrijan el XPASS obliga a retirar la marca | **ABIERTO** — defectos de código, ver [docs/60](../60-qa-browser-e2e-visor.md) |
+| **RK-19** | **P1** | **El repositorio es PÚBLICO y la documentación histórica publica la topología interna**: `192.168.1.152/.157/.204/.205`, `100.103.100.105` y puertos, en al menos una docena de ficheros de `docs/archivados/` y en la documentación consolidada | preexistente | `.env.example` pasa a usar marcadores **en este mismo cambio**, no antes: hasta ahora publicaba dos IP privadas. Una versión previa de esta fila daba la corrección por hecha con una fecha que `git log -- .env.example` desmiente; es exactamente el error que este registro existe para evitar, y se corrige tras revisión independiente. Los documentos históricos **no** se han redactado: hacerlo en masa destruiría el valor probatorio de informes de auditoría. Decisión del operador: redactar, mover a privado, o aceptar | **ABIERTO** — requiere decisión, no una edición unilateral |
+| **RK-18** | **P1** | RTO **hasta servicio** sin medir. El ensayo del 2026-08-08 midió la fase de restore (8,2 min / 70 GiB), no el tiempo hasta volver a dar servicio | recuperación | Ninguna: falta el ensayo | **ABIERTO** — ver [docs/53](../53-recuperacion-y-credenciales-2026-08.md) |
 
 ## Notas P0 sobre producción
 

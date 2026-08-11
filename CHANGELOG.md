@@ -4,6 +4,132 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-08-11 — Segunda ronda de revisión adversarial del gate documental
+
+- **La calibración pasa a ser ejecutable.** Vivía en el cuerpo de un PR, y el
+  cuerpo de un PR no se ejecuta: las ~300 líneas nuevas del validador no tenían
+  ni una prueba. Las filas C0–C11 son ahora **22 pruebas** en
+  `deploy/tests/test_docs_consistency.py`, sobre un repositorio de mentira
+  construido en el propio test. Verificadas **por mutación**: desactivar el
+  punto 0 tumba 5 pruebas, la lectura de `ci.yml` 1, el inventario de CI 3, la
+  caducidad de tests 2, el titular honesto 1 y el *fail-closed* 1.
+- **C9 medía otra cosa.** Enrojecía por contradicción documento→YAML, no por el
+  desfase que decía comprobar. Corregida y anotada en el propio test.
+- **R5 — la contradicción más incómoda:** «`test/**` no dispara CI en push»
+  **pasaba en verde** con `branches: ['**']` en `ci.yml`. Era el defecto exacto
+  por el que se rechazó `bf03ca7`, y el gate no podía verlo porque nunca leía
+  `ci.yml`. Ahora lo lee, con control negativo para no opinar si vuelve una
+  lista blanca.
+- **R7 — los números de CI se verificaban a sí mismos.** `ci_jobs_running: 14` y
+  `ci_checks_required: 11` eran prosa numérica dentro del mismo YAML que este
+  gate obliga a contrastar: puestos a `99/99`, pasaban. Ahora se derivan de los
+  ficheros de workflow y la partición requeridos/no-requeridos debe cuadrar.
+- **`S9_DOCS_SKIP_GIT` ya no miente ni se puede colar.** Imprimía «DOCUMENTACION
+  COHERENTE» a secas; ahora dice **«COHERENTE (SIN VERIFICAR CONTRA GIT)»**, y
+  una prueba exige que la variable no aparezca en ningún workflow — el meta-gate
+  que lo detectaría no es requerido, así que se cierra desde uno que sí lo es.
+- **La marca `stale` caduca** (`max_test_age_days`): era honesta pero inerte.
+- **`.env.example`: fecha inventada, corregida.** RK-19 daba el saneamiento por
+  hecho «el 2026-08-09»; `git log -- .env.example` demuestra que ocurre **aquí**,
+  y que hasta ahora se publicaban dos IP privadas. Una fecha falsa dentro del
+  cambio cuya tesis es no fiarse de los documentos.
+- `production.deployment` declara **procedencia** (`PENDING_VERIFICATION`,
+  leído el 2026-08-06), que es lo que la cabecera del propio fichero exige.
+
+**Límites declarados** (no cubiertos, para que nadie los descubra creyéndolos
+cubiertos): no hay detección de contradicción **documento↔documento**; no se
+verifica que las **cifras** de tests sean ciertas (exigiría ejecutar la suite);
+y la detección de SHA en prosa depende de una **redacción concreta** —«La punta
+de `main` apunta hoy a `abc1234`» no se detecta—, decisión deliberada para no
+enrojecer sobre frases correctas, cubierta por la vía dura contra Git.
+
+### 2026-08-11 — Revisión independiente de la auditoría documental (P0+P1)
+
+- **El gate documental no comprobaba la fuente de verdad.** `check_docs_consistency.py`
+  medía coherencia entre los documentos y `project-status.yaml`, pero **nunca
+  contrastaba el YAML contra Git**. Calibrado con una contradicción inyectada:
+  poniendo `main_commit: 1111111…` y `latest_merged_pr: 4242` y propagando la
+  mentira a los cinco documentos, el gate contestaba *«DOCUMENTACION
+  COHERENTE»* — describía con toda consistencia un repositorio inexistente.
+  Se añade el **punto 0**: `main_commit` y `latest_merged_pr` se verifican
+  contra `origin/main`. Si `main` no se puede resolver, el gate se pone **rojo**
+  en vez de degradarse a verde en silencio (`S9_DOCS_SKIP_GIT=1` para asumirlo
+  explícitamente).
+- **El propio YAML entregado estaba desfasado y el gate lo daba por bueno:**
+  declaraba `28320bd`/#157 con `origin/main` en `e9c66dc`/#158. Corregido, y
+  ahora esa clase de desfase enrojece.
+- `RK-16` pasa a **CERRADO**: `on.push.branches` es `['**']` desde el PR #160
+  (`e21f766`). La documentación aún lo describía como abierto y «pendiente de
+  merge en `chore/ci-test-branches-y-node`». Corregido en el registro de
+  riesgos, en `docs/60` y en el README. Verificado leyendo `ci.yml`, no un documento.
+- Se registran el **carril A** (Graph UX V2, PR #158) y el cambio de CI como
+  programas cerrados. Los recuentos de casos de docs/61 (65/50/21) se
+  **verificaron por colección real**, no por lectura de la prosa: `def test_`
+  daba 27/20 porque no expande `parametrize`, y un grep de `test(` daba 55 en
+  el fichero JS porque contaba llamadas a `.test()` de expresiones regulares.
+- `RK-15` pasa a **CERRADO**: `Authz integration (Neo4j efímero)` **sí** es hoy
+  check requerido. Leído de la protección de rama con `gh api`, no de un documento.
+- **Nuevo `RK-20`**: se distingue por escrito entre *correr* y *exigirse*. En
+  `main` corren **14** jobs pero solo **11** bloquean un merge; quedan fuera la
+  especificación JS del grafo y los **dos meta-gates del carril L**. Un gate que
+  no se exige no es un gate, es un informe — y resulta especialmente delicado
+  cuando lo que ese gate vigila es, justamente, que los gates puedan ponerse rojos.
+- El recuento de tests de `development` se marca `stale` + `remeasure_pending`
+  en vez de sustituirse por una cifra nueva: la única medida disponible se
+  tomó en un árbol de trabajo compartido y contaminado por ficheros sin
+  versionar de otros carriles. Un número medido en un árbol sucio no es un dato.
+
+### 2026-08-09 — Auditoría documental y sincronización de estado
+
+- `docs/project-status.yaml`: `main_commit` y `latest_merged_pr` corregidos
+  (`fb4a6fe`/#144 → `28320bd`/#157), que llevaban tres días desfasados y
+  arrastraban al README y al ROADMAP.
+- Se introduce una **convención de procedencia** en el bloque `production`:
+  `VERIFIED` (leído en el destino, con fecha) frente a `PENDING_VERIFICATION`
+  (conocido antes, no releído). El estado del healthcheck pasa a
+  `PENDING_VERIFICATION`: la lectura del 2026-08-06 17:02Z (UNHEALTHY) y la de
+  las 19:06Z (recuperado tras el backup manual) describían antes y después de
+  la copia, no una contradicción — pero **nadie ha vuelto a mirarlo desde
+  entonces**, y eso es lo que ahora consta.
+- El recuento de tests de `main` deja de ser un número suelto: `7284` recogidos
+  / `7061` passed / `219` skipped, **con commit, fecha y entorno**, y con la
+  advertencia de que la cifra de CI difiere porque allí sí hay navegador y
+  Neo4j.
+- `ROADMAP.md`: **M5b dejaba de estar «sin trabajo iniciado»** — estaba cerrado
+  desde hacía días (PRs #147, #150-#153). M6 se reetiqueta como lo que es:
+  housekeeping **operativo** con aprobación explícita del operador.
+- `viewer/README.md`: corregida una afirmación **invertida en materia de
+  seguridad** — decía que la visibilidad por personaje «aún no se aplica en las
+  consultas del visor» cuando se aplica desde M5b/M5c.
+- **Nuevo** [`docs/53-recuperacion-y-credenciales-2026-08.md`](docs/53-recuperacion-y-credenciales-2026-08.md):
+  rotación de la credencial de Neo4j y restore real de VM105 desde `vzdump`
+  (ambos del 2026-08-08), con su alcance exacto y sus límites — y con la
+  distinción explícita entre los **8,2 min de la fase de restore** y el **RTO
+  hasta servicio, que sigue sin medir**.
+- Corregido en seis documentos el error de llamar **off-host** a la copia en
+  `yggdrasil`: `yggdrasil` es el hipervisor que ejecuta VM105, así que la copia
+  vive en el mismo chasis. El P0 de replicación fuera del chasis sigue abierto
+  (`RK-14`).
+- Corregida la confusión entre **backup** y **restore verificado**: el «restore
+  real» de julio era el del *dump de Neo4j* en instancia aislada, no la
+  recuperación de la máquina.
+- `docs/coordination/**` marcado **HISTÓRICO** (programa RC6+, ramas
+  inexistentes, RC6 nunca creada), con aviso de que sus «Carriles A/B/R» no son
+  los carriles A-E de agosto. `dependabot-analysis.md` marcado **SUPERSEDED**:
+  su premisa («no existe `.github/dependabot.yml`») dejó de ser cierta.
+- `risk-register.md`: RK-05 **cerrado** con evidencia (el default ya es
+  `127.0.0.1`), y añadidos RK-14 a RK-18 para los riesgos abiertos que estaban
+  descritos de varias formas en varios sitios o directamente sin registrar.
+- `.env.example`: sustituidas las IP internas por marcadores. El repositorio es
+  público y una IP privada publica gratis la topología de la red.
+- `docs/archivados/02-current-state.md` deja de anunciarse como «documento
+  canónico de estado» y de afirmar que el commit desplegado «= `main`».
+- Enlaces internos rotos reparados en `viewer/README.md`,
+  `docs/archivados/02-current-state.md` y `docs/archivados/INDEX.md`.
+- `scripts/check_docs_consistency.py` ampliado: hasta ahora daba «COHERENTE»
+  mientras el README anunciaba un `main` de tres días atrás. Ver la sección
+  siguiente.
+
 ### 2026-08-06 — Sincronización de documentación de estado (desarrollo vs. producción)
 - `docs/project-status.yaml` reestructurado en tres bloques explícitos:
   `development` (estado de `main`), `production` (último estado verificado
@@ -12,7 +138,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
   desactualizada frente a `main`.
 - README.md, ROADMAP.md y CHANGELOG.md actualizados para reflejar el cierre
   del programa multi-partida M0/M2/M3/M4/M5a (PRs #138, #140-#143; M1
-  bloqueado por Nextcloud, M5b/M6 pendientes), que no se había documentado
+  bloqueado por Nextcloud, M5b/M6 pendientes), <!-- consistency:ignore --> que no se había documentado
   fuera del README (PR #139 solo tocó README y la documentación consolidada).
 - Corregido enlace roto en este CHANGELOG a `docs/02-current-state.md`
   (la ruta real es `docs/archivados/02-current-state.md`).
@@ -34,7 +160,12 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
   acceso estampado por workspace efectivo en el visor. PR #144 corrige un
   fallo de CI introducido por #143 (import perezoso en `app.authz`).
 - M1 (mapeo de ingesta Nextcloud→ámbito) sigue bloqueado a que Nextcloud
-  vuelva a estar disponible. M5b y M6 pendientes.
+  vuelva a estar disponible. M5b y M6 pendientes. <!-- consistency:ignore -->
+
+  Un CHANGELOG registra lo que era cierto en su fecha, así que estas líneas se
+  conservan tal cual y quedan exentas del gate de coherencia (M5b se cerró
+  después, el 2026-08-09). Lo que ya no es cierto se corrige en la entrada
+  nueva, no reescribiendo el pasado.
 
 ### 2026-08-05 — Cierre de Puertas 4 y 6, medición del acuerdo determinista∧NVIDIA (PRs #124–#136)
 - **Puerta 4 — cobertura del extractor (PRs #124-#130):** veredicto
@@ -87,7 +218,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
   duplicaba (`invalid refspec`). Nueva función central `resolve_release_commit`
   (un único SHA a stdout, diagnósticos a stderr, rechazo de refs ambiguas /
   multilínea / con `-` inicial, fetch específico y seguro). Prueba E2E con
-  repositorios git reales. Ver [docs/51](docs/51-deploy-forward-ref-regression.md).
+  repositorios git reales. Ver [docs/51](docs/archivados/51-deploy-forward-ref-regression.md).
 - **RC5** (`deploy-v0.3.0-rc5`, `bcc3a59`) — candidata **NO desplegada**: el cutover
   se abortó antes de activarse; se conserva para auditoría.
 - **RC4** (`deploy-v0.3.0-rc4`, `91bdc51`) — login con **submit explícito** (evita el
@@ -267,7 +398,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 - Estado verificado en commit `1fd94b85` (v0.2.5b): 196 recopilados, 155 aprobados, 41 fallidos.
 - Los 41 fallos eran deuda técnica funcional (semántica del grafo, jobs, multimedia, visor).
 - Guard de ingesta 16/16 confirmado en estado histórico.
-- Baseline: [`docs/24-vm105-baseline-and-verification.md`](docs/24-vm105-baseline-and-verification.md).
+- Baseline: [`docs/24-vm105-baseline-and-verification.md`](docs/archivados/24-vm105-baseline-and-verification.md).
 - Estado corregido posteriormente a 220/220 (commit cef9233).
 
 ### Fixed — 2026-07-13 (rama fix/tests-imports-cache-and-ci)
@@ -293,7 +424,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 - Commit auditado: `1fd94b85` (v0.2.5b). Estado verificado: Neo4j 199 nodos / 140 relaciones,
   visor HTTP 200 en todos los endpoints, 2 servicios systemd activos, guard de ingesta confirmado.
 - Tests verificados: 196 recopilados, 155 aprobados, 41 fallidos (deuda técnica funcional — semántica del grafo, jobs, multimedia, visor; guard de ingesta 16/16 confirmado).
-- Nuevo informe de baseline: [`docs/24-vm105-baseline-and-verification.md`](docs/24-vm105-baseline-and-verification.md).
+- Nuevo informe de baseline: [`docs/24-vm105-baseline-and-verification.md`](docs/archivados/24-vm105-baseline-and-verification.md).
 - Corrección: `docs/06-viewer-panel.md` — visor marcado como en producción (no "no implementado").
 - Corrección: `docs/05-data-engine.md` — cifra de tests actualizada (196/155 vs histórico 8/8).
 
