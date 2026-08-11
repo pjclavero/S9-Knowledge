@@ -4,7 +4,13 @@ jinja2>=3.1.6,<4.0
 pydantic>=2.13.4,<3.0
 pydantic-settings>=2.14.2,<3.0
 neo4j>=5.20,<6.0
-python-multipart>=0.0.9
+# Sin cota superior, `pip install` traia manana una version mayor sin cambiar
+# una linea del repositorio: la instalada dejaba de ser la probada.
+python-multipart>=0.0.9,<0.1
+# Se IMPORTA directamente en viewer/app/auth/middleware.py. Hasta ahora llegaba
+# solo como dependencia transitiva de FastAPI: el dia que FastAPI cambie de
+# rango, el fallo aparece en ejecucion y no al instalar. Se declara explicito.
+starlette>=0.46.0,<2.0
 # pytest 9.0.3+ resuelve PYSEC-2026-1845 (pip-audit) y alinea con data-engine (9.1.1)
 pytest>=9.1.1,<10.0
 httpx>=0.28.1,<1.0

@@ -1,0 +1,46 @@
+# FRAGMENTO, no es un workflow. Vive fuera de `.github/workflows/` a proposito:
+# alli GitHub intentaria ejecutarlo y fallaria al parsearlo.
+#
+# Este job SI esta ya instalado en `.github/workflows/ci.yml`. La copia existe
+# porque varios carriles editan `ci.yml` a la vez: si una resolucion de
+# conflicto se lleva el bloque por delante, este fichero es la version
+# canonica que hay que volver a pegar (al nivel de los demas jobs, dos
+# espacios de indentacion).
+#
+# Ademas de este job, la reproducibilidad de entorno anade dos pasos DENTRO de
+# jobs existentes, que tambien hay que restituir si un merge los pierde:
+#
+#   * `test-graph-js`, tras `node --version`:
+#         python3 .github/scripts/check_env_reproducibility.py runtimes --require node
+#   * `test-login-browser`, tras `playwright install --with-deps chromium`:
+#         python3 .github/scripts/check_env_reproducibility.py runtimes --require chromium
+#
+# `check-env-reproducibility` FALLA si esos pasos no estan, asi que la perdida
+# no puede pasar desapercibida.
+
+  check-env-reproducibility:
+    name: Reproducibilidad de entorno (declarado == instalado)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Install declared dependencies
+        run: |
+          # Exactamente lo que instalan los jobs de test, en el mismo orden que
+          # el job combinado: lo que se audita es EL entorno de CI, no otro.
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r data-engine/requirements.lock
+          pip install -r viewer/requirements.txt
+
+      - name: Lo declarado tiene que ser lo instalado
+        run: |
+          # --strict-missing: aqui las dependencias YA estan instaladas, asi que
+          # una declarada y ausente es un fallo, no un aviso.
+          set -euo pipefail
+          python3 .github/scripts/check_env_reproducibility.py all --strict-missing
