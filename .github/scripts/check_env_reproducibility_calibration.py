@@ -242,6 +242,55 @@ def calibra_version_de_runtime(c: "Calibracion") -> None:
             )
         )
 
+        # N2: la comprobacion de version NO puede degradar a solo-presencia en
+        # silencio. Se deja `node` v18 en el PATH —version equivocada— y se
+        # rompe la LEGIBILIDAD de la declaracion: si el gate degradase, esos
+        # v18 pasarian en verde. Tiene que ponerse rojo por la declaracion.
+        ci_path = raiz / ".github" / "workflows" / "ci.yml"
+        original = ci_path.read_text(encoding="utf-8")
+        instala_node("18.0.0")
+        for etiqueta, mutado, senal in (
+            (
+                "N2: `node-version` no literal (${{ env.NODE_V }})",
+                original.replace("node-version: '20'", "node-version: ${{ env.NODE_V }}"),
+                "NO literal",
+            ),
+            (
+                "N2: dos `node-version` distintos en ci.yml",
+                original.replace(
+                    "  test-login-browser:",
+                    "  otro-job-con-node:\n"
+                    "    runs-on: ubuntu-latest\n"
+                    "    steps:\n"
+                    "      - uses: actions/setup-node@v4\n"
+                    "        with:\n"
+                    "          node-version: '18'\n"
+                    "  test-login-browser:",
+                ),
+                "VARIAS versiones distintas",
+            ),
+        ):
+            escribe(ci_path, mutado)
+            rc, out = corre(raiz, "runtimes", "--require", "node", path_extra=str(falso))
+            ok = rc != 0 and senal in out
+            if not ok:
+                c.fallos.append(
+                    f"[{etiqueta}] la degradacion silenciosa NO se detecta "
+                    f"(rc={rc}); se esperaba rojo mencionando `{senal}`.\n{out}"
+                )
+            escribe(ci_path, original)
+            instala_node("20.11.0")
+            rc_v, _ = corre(raiz, "runtimes", "--require", "node", path_extra=str(falso))
+            instala_node("18.0.0")
+            c.filas.append(
+                (
+                    etiqueta,
+                    f"ROJO (rc={rc})" if ok else f"rc={rc} <-- NO DETECTA",
+                    f"vuelve a VERDE (rc={rc_v})" if rc_v == 0 else f"rc={rc_v}",
+                )
+            )
+        escribe(ci_path, original)
+
 
 LIB_SH = AQUI.parents[1] / "deploy" / "scripts" / "lib.sh"
 
@@ -266,6 +315,9 @@ printf '#!/bin/sh\\necho "otracosa==1.0"\\n' > "$T/d/viewer/.venv/bin/pip"; chmo
 printf 'fastapi>=1,<2\\n' > "$T/e/viewer/requirements.txt"
 mkdir -p "$T/e/viewer/.venv/bin"
 printf '#!/bin/sh\\necho "fastapi==0.141.1"\\n' > "$T/e/viewer/.venv/bin/pip"; chmod +x "$T/e/viewer/.venv/bin/pip"; caso VENV_SANO "$T/e"
+printf 'fastapi>=1,<2\\n' > "$T/f/viewer/requirements.txt"
+mkdir -p "$T/f/viewer/.venv/bin"
+printf '#!/bin/sh\\necho "fastapi-extra==1.0"\\n' > "$T/f/viewer/.venv/bin/pip"; chmod +x "$T/f/viewer/.venv/bin/pip"; caso PIP_PREFIJO_COLISION "$T/f"
 """
 
 # sha256 de la cadena vacia. Es el valor que `pip freeze` vacio producia
@@ -279,6 +331,11 @@ ESPERADO_FINGERPRINT = {
     "PIP_VACIO": ("unresolved", "unknown"),
     "PIP_SIN_LO_DECLARADO": ("unresolved", "unknown"),
     "VENV_SANO": ("resolved:pip-freeze", None),
+    # N4d: `fastapi-extra==1.0` NO satisface el requisito de `fastapi`. Con
+    # `-` dentro de la clase del separador, un venv sin `fastapi` se etiquetaba
+    # `resolved:pip-freeze`: la huella afirmaba identificar unas dependencias
+    # que no estaban.
+    "PIP_PREFIJO_COLISION": ("unresolved", "unknown"),
 }
 
 
@@ -303,7 +360,7 @@ def calibra_fingerprint(c: "Calibracion") -> None:
         c.fallos.append(f"[fingerprint] no se pudo cargar schema_source_fixture: {exc}")
         return
     with tempfile.TemporaryDirectory() as tmp:
-        for sub in "abcde":
+        for sub in "abcdef":
             plant_schema_sources(Path(tmp) / sub)
         guion = Path(tmp) / "fp.sh"
         guion.write_text(GUION_FINGERPRINT.format(lib=LIB_SH), encoding="utf-8")

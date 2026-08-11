@@ -76,14 +76,25 @@ Sin dependencias externas. Dos modos:
   declara versión en el workflow (la fija Playwright), así que ahí sólo se
   exige presencia, y el gate lo dice en voz alta en vez de callarlo.
 
+  Y la comprobación **no puede apagarse sola**. Cuando la declaración existía
+  pero no era legible —`node-version: ${{ env.NODE_V }}`, que es idioma normal
+  de Actions— o cuando había **dos** `node-version` distintos, el gate dejaba
+  de comparar versiones y seguía en verde con un `node` v18: la ausencia de una
+  *declaración legible* degradaba la comprobación en silencio, que es
+  exactamente lo que este carril persigue en los demás. Ahora cada caso es
+  **rojo con su mensaje propio** —«no declara», «declara de forma no literal»,
+  «declara varias distintas»—; antes el mensaje además **mentía**, decía «no
+  declara version» cuando declaraba dos. La única salida verde es escribir la
+  versión literal en el workflow.
+
 La raíz del repositorio es inyectable con `S9K_ENV_REPRO_ROOT`, para poder
 calibrar el gate contra repositorios sintéticos sin romper el real.
 
 ### `.github/scripts/check_env_reproducibility_calibration.py`
 
 La calibración, ejecutada **en cada corrida de CI**. Construye un repositorio
-sintético que sale verde, y para cada una de las **21 reglas** (incluidos los
-cinco caminos del `dependency_fingerprint` y el `node` de versión equivocada,
+sintético que sale verde, y para cada una de las **24 reglas** (incluidos los
+seis caminos del `dependency_fingerprint` y el `node` de versión equivocada,
 inyectado como ejecutable falso al frente del `PATH`): introduce la
 violación, exige rojo (o el aviso, para las señaladas) con el mensaje
 correcto, revierte y exige verde. Un gate cuyo mecanismo de medida no se
@@ -148,7 +159,7 @@ una corrida local.
 | # | Estado | Detalle |
 |---|---|---|
 | D1 | **ABIERTA, con motivo + procedimiento** | `viewer/` no tiene lock. No se genera aquí: el único `pip freeze` disponible es el de esta máquina, que diverge en 6 paquetes; un lock generado desde aquí **congelaría la divergencia** (`fastapi 0.139.0`, `argon2-cffi 23.1.0`) en vez de cerrarla — pondría el gate verde **bajando el listón** y convertiría un hallazgo de auditoría en hecho consagrado. El procedimiento para hacerlo bien está abajo. |
-| D2 | **CERRADA** | `dependency_fingerprint` se calcula ahora sobre `pip freeze --all` del venv de la release (versiones **resueltas**), **y sólo si esa salida no está vacía y contiene los paquetes declarados**. Un `pip` que sale 0 sin decir nada producía el sha256 de la cadena vacía etiquetado como resuelto —el mismo defecto que D2 venía a cerrar, y peor: dos despliegues rotos compartirían huella y se leerían como «mismas dependencias»—; ahora eso es `dependency_fingerprint_source: unresolved` con valor `unknown`. Los cinco caminos (`none`, `declared-ranges`, `unresolved` ×2, `resolved:pip-freeze`) están calibrados en CI. |
+| D2 | **CERRADA** | `dependency_fingerprint` se calcula ahora sobre `pip freeze --all` del venv de la release (versiones **resueltas**), **y sólo si esa salida no está vacía y contiene los paquetes declarados**. Un `pip` que sale 0 sin decir nada producía el sha256 de la cadena vacía etiquetado como resuelto —el mismo defecto que D2 venía a cerrar, y peor: dos despliegues rotos compartirían huella y se leerían como «mismas dependencias»—; ahora eso es `dependency_fingerprint_source: unresolved` con valor `unknown`. La comprobación de «contiene los paquetes declarados» compara el nombre **completo**: incluir `-` en la clase del separador hacía que `fastapi-extra==1.0` satisficiera el requisito de `fastapi`, y un venv sin `fastapi` se etiquetaba como resuelto. Los seis caminos (`none`, `declared-ranges`, `unresolved` ×3 —vacío, sin lo declarado, colisión de prefijo—, `resolved:pip-freeze`) están calibrados en CI. |
 | D3 | **ABIERTA, mitigada** | CI sigue instalando `viewer/requirements.txt` por rangos. Depende de D1. Mitigación: el job nuevo verifica que lo instalado cae dentro de lo declarado en cada corrida, así que un resolutor que se desvíe se ve; lo que no se garantiza es que dos corridas instalen lo mismo. |
 | D4 | **CERRADA** | `python-multipart>=0.0.9,<0.1`. |
 | D5 | **CERRADA, condicionada a instalación completa** | `pytest` y `pytest-asyncio` declarados en `data-engine/requirements.in`, y **check nuevo**: todo pin del `.lock` debe alcanzarse desde las raíces del `.in` por el grafo real de `Requires-Dist`. Ver el aviso de abajo sobre su precisión. |
