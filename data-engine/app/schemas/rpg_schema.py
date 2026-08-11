@@ -1,11 +1,32 @@
 """Schema Pydantic para extracción de entidades RPG narrativas."""
 from __future__ import annotations
+import importlib.util
 import logging
+import sys
 import unicodedata
+from pathlib import Path
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 
 log = logging.getLogger(__name__)
+
+# --- Vocabulario canonico de `review_status` -------------------------------
+# Se CARGA, no se redeclara. Antes esta lista se mantenia a mano aqui y otra
+# igual a mano en `viewer/app/labels.py`; dos listas separadas del mismo
+# vocabulario son dos oportunidades de que se separen. Mismo patron de carga
+# por ruta que `viewer/app/authz/visibility_contract.py`.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_RS_PATH = _REPO_ROOT / "contracts" / "review-status" / "v1" / "model.py"
+_RS_MODULE = "s9k_review_status_v1_model"
+if _RS_MODULE in sys.modules:  # pragma: no cover - cache entre imports
+    review_status_contract = sys.modules[_RS_MODULE]
+else:  # pragma: no cover - trivial
+    _spec = importlib.util.spec_from_file_location(_RS_MODULE, _RS_PATH)
+    if _spec is None or _spec.loader is None:
+        raise ImportError(f"no se pudo cargar review-status/v1 en {_RS_PATH}")
+    review_status_contract = importlib.util.module_from_spec(_spec)
+    sys.modules[_RS_MODULE] = review_status_contract
+    _spec.loader.exec_module(review_status_contract)
 
 SCHEMA_VERSION = "1.5.0"
 
@@ -93,9 +114,10 @@ ALLOWED_VISIBILITY: frozenset[str] = frozenset({
 ALLOWED_KNOWLEDGE_LAYER: frozenset[str] = frozenset({
     "campaign", "book", "transcript", "manual", "inferred", "reviewed", "test",
 })
-ALLOWED_REVIEW_STATUS: frozenset[str] = frozenset({
-    "auto_extracted", "needs_review", "reviewed", "rejected", "corrected",
-})
+#: DERIVADO del vocabulario canonico (`contracts/review-status/v1`). Anadir o
+#: quitar un estado alli se propaga solo hasta aqui; ya no hay una segunda
+#: lista que actualizar y olvidar.
+ALLOWED_REVIEW_STATUS: frozenset[str] = review_status_contract.CANONICAL_VALUES
 # ── Conocimiento por personaje (Fase conocimiento) ────────────────────────────
 ALLOWED_KNOWN_BY_SCOPE: frozenset[str] = frozenset({
     "character", "party", "public", "narrator", "admin_only",
