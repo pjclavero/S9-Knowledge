@@ -70,11 +70,23 @@ EXCLUIDOS = {".git", "node_modules", ".venv", "venv", "__pycache__", ".mypy_cach
 # La deteccion es por EJECUTABLE, no por paquete: `pip install playwright` no
 # implica que el navegador este descargado, y ese es justo el fallo que se ha
 # dado (Chromium ausente -> skip verde).
+#
+# Y no basta con que ESTE: tiene que ser el que se declara. Comprobar solo la
+# presencia era una asimetria de fondo —para los paquetes de Python se exige
+# version y para los runtimes no— justo bajo la tesis «lo declarado tiene que
+# ser lo ejecutado»: un `node` v18 al frente del PATH pasaba en verde con
+# `node-version: '20'` declarado en el workflow, y la version llegaba a
+# imprimirse sin compararla con nada.
+#
+# La version esperada NO se escribe aqui: se DERIVA de `ci.yml` con
+# `declara_re`, de modo que cambiar `node-version` en el workflow cambia
+# tambien lo que este gate exige, sin tocar este fichero.
 RUNTIMES = {
     "node": {
         "cmds": ("node",),
         "prueba": ("node", "--version"),
         "provision": ("actions/setup-node",),
+        "declara_re": r"node-version:\s*'?([0-9]+(?:\.[0-9]+)*)",
     },
     "chromium": {
         "cmds": (),  # se resuelve via playwright, ver `presente_chromium`
@@ -495,6 +507,53 @@ def check_docs_versiones() -> list[str]:
 
 
 # --------------------------------------------------------------------------
+# 3 quater. los fragmentos de CI tienen que ser fieles a ci.yml
+# --------------------------------------------------------------------------
+def _sin_comentarios(bloque: str) -> list[str]:
+    return [
+        linea.rstrip()
+        for linea in bloque.splitlines()
+        if linea.strip() and not linea.lstrip().startswith("#")
+    ]
+
+
+def check_fragmentos() -> list[str]:
+    """Un fragmento que no es fiel restituye MENOS de lo que se llevo el merge.
+
+    `.github/ci-fragments/*.yml` existe para volver a pegar un job si una
+    resolucion de conflicto se lo lleva por delante. Si el fragmento ha
+    derivado del job real, quien restituya desde el pierde pasos EN SILENCIO
+    —exactamente el modo de fallo que este carril combate—. Aqui ocurrio: el
+    fragmento se escribio antes de anadir el paso de calibracion, y quien
+    restituyera desde el se habria quedado sin calibracion sin enterarse.
+
+    Un fragmento cuyo job aun NO esta en `ci.yml` es legitimo (asi nacio
+    `test-graph-js`): se ignora, porque no hay con que compararlo.
+    """
+    errores = []
+    dir_frag = REPO / ".github" / "ci-fragments"
+    if not (dir_frag.exists() and CI.exists()):
+        return errores
+    jobs_ci = jobs_de(CI.read_text(encoding="utf-8"))
+    for frag in sorted(dir_frag.glob("*.yml")):
+        texto = frag.read_text(encoding="utf-8")
+        for nombre, bloque in jobs_de(texto).items():
+            if nombre not in jobs_ci:
+                print(f"-- fragmento `{frag.name}`: job `{nombre}` aun no instalado")
+                continue
+            if _sin_comentarios(bloque) != _sin_comentarios(jobs_ci[nombre]):
+                errores.append(
+                    f"{frag.relative_to(REPO)}: el job `{nombre}` NO coincide con "
+                    f"el de ci.yml (ignorando comentarios). El fragmento es la "
+                    f"copia de restitucion: si ha derivado, quien lo use para "
+                    f"reparar un conflicto perdera pasos en silencio. Sincronizalo."
+                )
+            else:
+                print(f"-- fragmento `{frag.name}`: job `{nombre}` fiel a ci.yml")
+    return errores
+
+
+# --------------------------------------------------------------------------
 # 4. runtimes externos
 # --------------------------------------------------------------------------
 def presente_chromium() -> tuple[bool, str]:
@@ -531,17 +590,64 @@ def presente(runtime: str) -> tuple[bool, str]:
     return False, f"no se encuentra ningun ejecutable de {runtime}"
 
 
+def version_declarada(runtime: str) -> str | None:
+    """Version que `ci.yml` declara para ese runtime. Derivada, no escrita."""
+    patron = RUNTIMES.get(runtime, {}).get("declara_re")
+    if not patron or not CI.exists():
+        return None
+    encontradas = set(re.findall(patron, CI.read_text(encoding="utf-8")))
+    if len(encontradas) != 1:
+        # Ninguna declaracion, o varias distintas: no se puede exigir una sola.
+        return None
+    return encontradas.pop()
+
+
+def version_observada(detalle: str) -> str | None:
+    m = re.search(r"v?(\d+(?:\.\d+)*)", detalle.split("(", 1)[-1])
+    return m.group(1) if m else None
+
+
 def check_require(runtimes: list[str]) -> list[str]:
     errores = []
     for rt in runtimes:
         ok, detalle = presente(rt)
-        if ok:
-            print(f"OK: runtime `{rt}` presente: {detalle}")
-        else:
+        if not ok:
             errores.append(
                 f"RUNTIME AUSENTE `{rt}`: {detalle}. Sin el, las pruebas que lo "
                 f"necesitan se auto-omiten y el job pasa en VERDE sin haber "
                 f"comprobado nada. Aqui eso es un FALLO, no un skip."
+            )
+            continue
+        print(f"OK: runtime `{rt}` presente: {detalle}")
+        # Presente no basta: tiene que ser el DECLARADO. Un `node` v18 al
+        # frente del PATH con `node-version: '20'` en el workflow es
+        # exactamente la misma clase de defecto que un paquete de Python
+        # instalado por debajo de su rango, y pasaba en verde.
+        declarada = version_declarada(rt)
+        if declarada is None:
+            print(
+                f"AVISO: `{rt}` no declara version en ci.yml; solo se puede "
+                f"exigir presencia (para chromium la fija Playwright)"
+            )
+            continue
+        observada = version_observada(detalle)
+        if observada is None:
+            errores.append(
+                f"RUNTIME `{rt}`: presente pero no se pudo leer su version "
+                f"({detalle!r}); no se puede afirmar que sea la declarada "
+                f"(`{declarada}`)."
+            )
+            continue
+        # Se compara con la PRECISION que se declara: `20` exige major 20,
+        # `20.19` exige tambien el minor.
+        piezas = len(declarada.split("."))
+        if ".".join(observada.split(".")[:piezas]) != declarada:
+            errores.append(
+                f"RUNTIME `{rt}`: DIVERGENCIA de version. `ci.yml` declara "
+                f"`{declarada}` y el ejecutable en el PATH es `{observada}` "
+                f"({detalle}). Un runtime presente pero equivocado ejecuta las "
+                f"pruebas con un motor que nadie ha declarado: lo declarado "
+                f"tiene que ser lo ejecutado tambien aqui, no solo en pip."
             )
     return errores
 
@@ -755,6 +861,8 @@ def main() -> int:
         print("=== 3 bis/ter. interprete desplegado y deriva de documentacion ===")
         avisos += check_interprete()
         avisos += check_docs_versiones()
+        print("=== 3 quater. fragmentos de CI fieles a ci.yml ===")
+        errores += check_fragmentos()
         print("=== 4. puertas de runtime externo (Node, Chromium) ===")
         errores += check_runtime_gates()
 

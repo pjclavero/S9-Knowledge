@@ -36,6 +36,10 @@
           # de degradarse a un skip verde mas abajo.
           set -euo pipefail
           node --version
+          # Y la misma comprobacion por el camino comun a todos los runtimes,
+          # que es el que `check-env-reproducibility` exige que exista: la
+          # ausencia sale por `::error::`, nunca como skip.
+          python3 .github/scripts/check_env_reproducibility.py runtimes --require node
 
       - name: Install viewer dependencies
         run: |

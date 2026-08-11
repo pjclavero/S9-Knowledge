@@ -20,6 +20,7 @@ No toca el repositorio real ni la red.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -48,6 +49,8 @@ jobs:
         with:
           python-version: '3.13'
       - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
       - name: node
         run: |
           python3 .github/scripts/check_env_reproducibility.py runtimes --require node
@@ -94,9 +97,23 @@ def escribe(ruta: Path, texto: str) -> None:
     ruta.write_text(texto, encoding="utf-8")
 
 
+def bloque_job(texto: str, nombre: str) -> str:
+    """Extrae el bloque de un job, para poder copiarlo a un fragmento."""
+    inicio = texto.index(f"  {nombre}:\n")
+    resto = texto[inicio + 1:]
+    siguiente = re.search(r"^  [A-Za-z0-9_-]+:\s*$", resto, re.M)
+    fin = inicio + 1 + siguiente.start() if siguiente else len(texto)
+    return texto[inicio:fin]
+
+
 def construye(raiz: Path) -> None:
     """Repositorio sintetico que DEBE salir verde."""
     escribe(raiz / ".github" / "workflows" / "ci.yml", CI_BASE)
+    # Fragmento FIEL al job de ci.yml: es el estado que debe salir verde.
+    escribe(
+        raiz / ".github" / "ci-fragments" / "frag.yml",
+        "# copia canonica de restitucion\n" + bloque_job(CI_BASE, "test-graph-js"),
+    )
     escribe(raiz / "viewer" / "requirements.txt", f"{SUJETO}>=4.0,<5.0\n")
     escribe(raiz / "data-engine" / "requirements.lock", f"{SUJETO}==4.26.0\n")
     escribe(raiz / "data-engine" / "requirements.in", f"{SUJETO}\n")
@@ -112,8 +129,10 @@ def construye(raiz: Path) -> None:
     escribe(raiz / "viewer" / "tests" / "browser" / "test_login.py", TEST_BROWSER)
 
 
-def corre(raiz: Path, *args: str) -> tuple[int, str]:
+def corre(raiz: Path, *args: str, path_extra: str = "") -> tuple[int, str]:
     entorno = dict(os.environ, S9K_ENV_REPRO_ROOT=str(raiz))
+    if path_extra:
+        entorno["PATH"] = path_extra + os.pathsep + entorno.get("PATH", "")
     r = subprocess.run(
         [sys.executable, str(CHECKER), *args],
         capture_output=True, text=True, env=entorno, timeout=300,
@@ -171,6 +190,137 @@ class Calibracion:
                 )
             self.filas.append(
                 (nombre, etiqueta_rojo, f"vuelve a VERDE (rc={rc2})" if rc2 == 0 else f"rc={rc2}")
+            )
+
+
+def calibra_version_de_runtime(c: "Calibracion") -> None:
+    """Un runtime PRESENTE pero de version equivocada tiene que ponerse ROJO.
+
+    Comprobar solo la presencia era una asimetria: para los paquetes de Python
+    se exigia version y para los runtimes no, bajo la tesis «lo declarado tiene
+    que ser lo ejecutado». Un `node` v18 al frente del PATH pasaba en verde con
+    `node-version: '20'` declarado, y la version se llegaba a imprimir sin
+    compararla con nada.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        raiz = Path(tmp) / "repo"
+        construye(raiz)
+        falso = Path(tmp) / "bin"
+        falso.mkdir()
+
+        def instala_node(version: str) -> None:
+            binario = falso / "node"
+            binario.write_text(f'#!/bin/sh\necho "v{version}"\n', encoding="utf-8")
+            binario.chmod(0o755)
+
+        # Base: el `node` falso declara la MISMA version que el ci.yml sintetico.
+        instala_node("20.11.0")
+        rc0, out0 = corre(raiz, "runtimes", "--require", "node", path_extra=str(falso))
+        if rc0 != 0:
+            c.fallos.append(f"[runtime con version correcta] deberia ser verde.\n{out0}")
+            return
+
+        instala_node("18.0.0")
+        rc1, out1 = corre(raiz, "runtimes", "--require", "node", path_extra=str(falso))
+        if rc1 == 0:
+            c.fallos.append(
+                f"[runtime con version equivocada] node v18 con `node-version: "
+                f"'20'` declarado NO se detecta: pasa en verde.\n{out1}"
+            )
+        elif "DIVERGENCIA de version" not in out1:
+            c.fallos.append(f"[runtime con version equivocada] mensaje inesperado.\n{out1}")
+
+        instala_node("20.11.0")
+        rc2, out2 = corre(raiz, "runtimes", "--require", "node", path_extra=str(falso))
+        if rc2 != 0:
+            c.fallos.append(f"[runtime con version equivocada] no vuelve a verde.\n{out2}")
+        c.filas.append(
+            (
+                "runtime PRESENTE con version equivocada (node 18 vs 20 declarado)",
+                f"ROJO (rc={rc1})" if rc1 != 0 else f"VERDE (rc={rc1}) <-- NO DETECTA",
+                f"vuelve a VERDE (rc={rc2})" if rc2 == 0 else f"rc={rc2}",
+            )
+        )
+
+
+LIB_SH = AQUI.parents[1] / "deploy" / "scripts" / "lib.sh"
+
+GUION_FINGERPRINT = """
+set -u
+export S9K_CHECKSUM_ALGO=sha256
+# shellcheck disable=SC1090
+. "{lib}"
+caso() {{
+  create_manifest "$2" "rel-x" "abc123" "test" >/dev/null 2>&1
+  python3 -c "import json;m=json.load(open('$2/manifest.json'));print('$1', m.get('dependency_fingerprint_source'), m.get('dependency_fingerprint'))"
+}}
+T="$1"
+mkdir -p "$T/a"; caso SIN_NADA "$T/a"
+mkdir -p "$T/b/viewer"; printf 'fastapi>=1,<2\\n' > "$T/b/viewer/requirements.txt"; caso SOLO_RANGOS "$T/b"
+mkdir -p "$T/c/viewer/.venv/bin"; printf 'fastapi>=1,<2\\n' > "$T/c/viewer/requirements.txt"
+printf '#!/bin/sh\\nexit 0\\n' > "$T/c/viewer/.venv/bin/pip"; chmod +x "$T/c/viewer/.venv/bin/pip"; caso PIP_VACIO "$T/c"
+mkdir -p "$T/d/viewer/.venv/bin"; printf 'fastapi>=1,<2\\n' > "$T/d/viewer/requirements.txt"
+printf '#!/bin/sh\\necho "otracosa==1.0"\\n' > "$T/d/viewer/.venv/bin/pip"; chmod +x "$T/d/viewer/.venv/bin/pip"; caso PIP_SIN_LO_DECLARADO "$T/d"
+mkdir -p "$T/e/viewer/.venv/bin"; printf 'fastapi>=1,<2\\n' > "$T/e/viewer/requirements.txt"
+printf '#!/bin/sh\\necho "fastapi==0.141.1"\\n' > "$T/e/viewer/.venv/bin/pip"; chmod +x "$T/e/viewer/.venv/bin/pip"; caso VENV_SANO "$T/e"
+"""
+
+# sha256 de la cadena vacia. Es el valor que `pip freeze` vacio producia
+# ETIQUETADO como resuelto: un fingerprint que no identifica nada y que dos
+# despliegues rotos compartirian, leyendose como «mismas dependencias».
+SHA_VACIO = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+ESPERADO_FINGERPRINT = {
+    "SIN_NADA": ("none", "unknown"),
+    "SOLO_RANGOS": ("declared-ranges", None),
+    "PIP_VACIO": ("unresolved", "unknown"),
+    "PIP_SIN_LO_DECLARADO": ("unresolved", "unknown"),
+    "VENV_SANO": ("resolved:pip-freeze", None),
+}
+
+
+def calibra_fingerprint(c: "Calibracion") -> None:
+    """`dependency_fingerprint` no puede afirmar mas de lo que sabe (D2).
+
+    Los cinco caminos de `create_manifest`, ejecutados de verdad contra
+    `lib.sh`. El caso critico es `PIP_VACIO`: un pip que sale 0 sin salida
+    daba el sha256 de la cadena vacia etiquetado `resolved:pip-freeze`, que es
+    el MISMO defecto que D2 venia a cerrar.
+    """
+    if not LIB_SH.exists():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        guion = Path(tmp) / "fp.sh"
+        guion.write_text(GUION_FINGERPRINT.format(lib=LIB_SH), encoding="utf-8")
+        r = subprocess.run(
+            ["bash", str(guion), tmp], capture_output=True, text=True, timeout=300
+        )
+        observado = {}
+        for linea in r.stdout.splitlines():
+            piezas = linea.split()
+            if len(piezas) >= 3:
+                observado[piezas[0]] = (piezas[1], piezas[2])
+        for nombre, (src_esperado, hash_esperado) in ESPERADO_FINGERPRINT.items():
+            if nombre not in observado:
+                c.fallos.append(f"[fingerprint {nombre}] no se ejecuto.\n{r.stdout}{r.stderr}")
+                continue
+            src, valor = observado[nombre]
+            ok = src == src_esperado and (hash_esperado is None or valor == hash_esperado)
+            if ok and SHA_VACIO in valor:
+                ok = False
+                valor += " (!! sha256 de la cadena vacia)"
+            if not ok:
+                c.fallos.append(
+                    f"[fingerprint {nombre}] esperado source={src_esperado} "
+                    f"hash={hash_esperado or '<cualquiera no vacio>'}, "
+                    f"observado source={src} hash={valor}"
+                )
+            c.filas.append(
+                (
+                    f"D2 fingerprint: {nombre.lower().replace('_', ' ')}",
+                    f"source={src}",
+                    "correcto" if ok else "<-- INCORRECTO",
+                )
             )
 
 
@@ -253,7 +403,25 @@ def main() -> int:
             'if [ "${py_minor}" -ge 11 ]; then ok; fi\n',
         )
 
+    def m_fragmento_derivado(raiz: Path) -> None:
+        # El fragmento pierde un paso que ci.yml SI tiene. Quien restituya
+        # desde el se queda sin ese paso, en silencio.
+        frag = raiz / ".github" / "ci-fragments" / "frag.yml"
+        texto = frag.read_text(encoding="utf-8")
+        escribe(
+            frag,
+            texto.replace(
+                "          python3 .github/scripts/check_env_reproducibility.py runtimes --require node\n",
+                "",
+            ),
+        )
+
     c.caso("version declarada != instalada", m_version, senal="DIVERGENCIA")
+    c.caso(
+        "fragmento de CI que ha derivado de ci.yml",
+        m_fragmento_derivado,
+        senal="perdera pasos en silencio",
+    )
     c.caso("D5: pin huerfano en el .lock", m_lock_huerfano, senal="no se alcanzan")
     c.caso("D5: raiz del .in sin fijar en el .lock", m_raiz_sin_pin, senal="NO aparecen fijados")
     c.caso(
@@ -287,6 +455,9 @@ def main() -> int:
     c.caso("guardia antisalto retirada de ci.yml", m_sin_guardia_antisalto, senal="skipped")
     c.caso("paso `runtimes --require` retirado de ci.yml", m_sin_require, senal="--require")
     c.caso("test NUEVO que depende de Node sin job propio", m_test_nuevo_con_node, senal="Node".lower())
+
+    calibra_version_de_runtime(c)
+    calibra_fingerprint(c)
 
     print("\n=== CALIBRACION: mutacion -> resultado -> reversion ===")
     ancho = max(len(f[0]) for f in c.filas)

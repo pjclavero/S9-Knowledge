@@ -436,10 +436,45 @@ create_manifest() {
     # ningun consumidor lo confunda con una huella de versiones resueltas.
     local dep_hash="unknown"
     local dep_source="none"
+    #
+    # Y `pip freeze` tiene que producir ALGO: un pip que sale 0 sin salida daba
+    # el sha256 de la cadena vacia (e3b0c442...) etiquetado como resuelto, que
+    # es el mismo defecto que D2 venia a cerrar —un campo que afirma
+    # identificar dependencias resueltas sin identificar ninguna— y ademas dos
+    # despliegues rotos compartirian huella y se leerian como «mismas
+    # dependencias». Se exige salida no vacia y que contenga los paquetes
+    # declarados; si no, el modo es `unresolved` y NO se disfraza de resuelto.
     local venv_pip="${release_dir}/viewer/.venv/bin/pip"
+    local freeze_out=""
     if [ -x "${venv_pip}" ]; then
-        dep_hash="sha256:$("${venv_pip}" freeze --all 2>/dev/null | LC_ALL=C sort | sha256sum | awk '{print $1}')"
+        freeze_out="$("${venv_pip}" freeze --all 2>/dev/null | LC_ALL=C sort || true)"
+    fi
+    local freeze_ok=0
+    local declarados=""
+    if [ -n "${freeze_out}" ]; then
+        freeze_ok=1
+        if [ -f "${release_dir}/viewer/requirements.txt" ]; then
+            declarados="$(sed -e 's/#.*//' -e 's/[][<>=!~,;].*//' \
+                              -e 's/[[:space:]]//g' \
+                              "${release_dir}/viewer/requirements.txt" \
+                          | grep -v '^$' || true)"
+            local paquete
+            for paquete in ${declarados}; do
+                if ! printf '%s\n' "${freeze_out}" \
+                     | grep -qiE "^${paquete}([[:space:]=<>!~@-]|$)"; then
+                    freeze_ok=0
+                    break
+                fi
+            done
+        fi
+    fi
+    if [ "${freeze_ok}" -eq 1 ]; then
+        dep_hash="sha256:$(printf '%s\n' "${freeze_out}" | sha256sum | awk '{print $1}')"
         dep_source="resolved:pip-freeze"
+    elif [ -x "${venv_pip}" ]; then
+        dep_hash="unknown"
+        dep_source="unresolved"
+        printf 'AVISO: pip freeze del venv no identifica las dependencias declaradas; dependency_fingerprint=unknown\n' >&2
     elif [ -f "${release_dir}/viewer/requirements.txt" ]; then
         dep_hash="ranges-sha256:$(sha256sum "${release_dir}/viewer/requirements.txt" | awk '{print $1}')"
         dep_source="declared-ranges"
