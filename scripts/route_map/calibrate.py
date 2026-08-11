@@ -123,6 +123,45 @@ def m8_rol_degradado(tree: Path) -> None:
            "from app.auth.dependencies import require_admin, require_authenticated_user")
 
 
+def m10_ruta_capturada(tree: Path) -> None:
+    """Ruta declarada DESPUÉS de una dinámica que la absorbe, y sin guardián.
+
+    Es el caso que sobrevivía: `/sources/panel` la sirve `/sources/{source_id}`,
+    así que su (inexistente) autorización nunca se evalúa y el barrido anónimo
+    le atribuía el 403 del handler que la ensombrece. Debe salir CAPTURADA, no
+    como ruta que deniega bien.
+    """
+    p = tree / "viewer/app/routers/readonly.py"
+    p.write_text(p.read_text(encoding="utf-8") + '''
+
+# MUTACION M10: ruta capturada por /sources/{source_id} y SIN guardián
+@router.get("/sources/panel")
+def ruta_capturada_sin_guardian(request: Request):
+    return {"secreto": "servido sin autorización"}
+''', encoding="utf-8")
+
+
+def m11_senuelo_isinstance(tree: Path) -> None:
+    """Guardián pasivo declarado y NO devuelto, con un `isinstance` señuelo.
+
+    Derrota a un detector que busque subcadenas: el cuerpo contiene
+    `isinstance(...)` y hasta el nombre `RedirectResponse`, pero no devuelve
+    jamás la salida del guardián.
+    """
+    p = tree / "viewer/app/routers/readonly.py"
+    p.write_text(p.read_text(encoding="utf-8") + '''
+
+# MUTACION M11: guardián declarado, isinstance SEÑUELO, salida nunca devuelta
+@router.get("/ruta-con-senuelo")
+def ruta_con_senuelo(request: Request, user=Depends(html_guard)):
+    datos = [1, 2, 3]
+    if isinstance(datos, list):  # señuelo: no comprueba `user`
+        datos = list(datos)
+    # menciona RedirectResponse sin usarlo
+    return {"ok": True, "tipo": "RedirectResponse"}
+''', encoding="utf-8")
+
+
 MUTATIONS = {
     "M0-control": m0_control,
     "M1-router-desmontado": m1_desmontar_router,
@@ -132,6 +171,8 @@ MUTATIONS = {
     "M5-mencion-en-comentario": m5_mencion_en_comentario,
     "M8-rol-degradado": m8_rol_degradado,
     "M9-nav-de-datos-rota": m9_nav_de_datos_rota,
+    "M10-ruta-capturada": m10_ruta_capturada,
+    "M11-senuelo-isinstance": m11_senuelo_isinstance,
 }
 
 
@@ -158,6 +199,9 @@ def summarize(m: dict) -> dict:
         "sin_auth": [r["key"] for r in f["rutas_sin_auth"]],
         "no_probadas": [r["key"] for r in f["rutas_no_probadas"]],
         "guardian_no_aplicado": [r["key"] for r in f["guardian_declarado_pero_no_aplicado"]],
+        "capturadas": [f"{r['key']} <- {r['capturada_por']}" for r in f["rutas_capturadas"]],
+        "roles_no_evaluables": [r["key"] for r in m["routes"]
+                                if r["rol_minimo_observado"] == "no-evaluable-capturada"],
         "claves": [r["key"] for r in m["routes"]],
         "roles": {r["key"]: r["rol_minimo_observado"] for r in m["routes"]},
     }
@@ -248,15 +292,20 @@ def m7_enumerador(base: Path, tested: Path | None) -> dict:
         servidas = {k for k, v in raw.items()
                     if v.get("statuses") and not k.split(" ", 1)[-1].startswith("/static")}
     faltan_en_censo = sorted(servidas - eff)
+    # La aserción con carga NO es `len(eff) > len(naive)` (se cumple sola): es
+    # que el censo no pierda ninguna ruta que de verdad sirvió respuesta, y que
+    # el censo ingenuo SÍ pierda algunas de ésas.
+    perdidas_del_naive_que_sirvieron = sorted(servidas - naive)
     return {
         "rutas_censo_efectivo": len(eff),
         "rutas_censo_naive_app_routes": len(naive),
         "falsos_no_montados_del_censo_naive": sorted(eff - naive),
         "url_path_for_entities_page_funciona": data["url_path_for_entities_page"],
         "rutas_que_sirvieron_y_faltan_en_el_censo": faltan_en_censo,
-        "detectado": len(eff) > len(naive) and not faltan_en_censo,
-        "esperado": ("el censo efectivo supera a app.routes y contiene todas las "
-                     "rutas que sirvieron respuesta durante los tests"),
+        "rutas_que_sirvieron_y_pierde_el_censo_naive": perdidas_del_naive_que_sirvieron,
+        "detectado": not faltan_en_censo and bool(perdidas_del_naive_que_sirvieron),
+        "esperado": ("el censo no pierde ninguna ruta que sirvió respuesta, y el "
+                     "censo ingenuo sí pierde varias de ellas"),
     }
 
 
@@ -286,6 +335,9 @@ def main(argv=None) -> int:
             "rutas_nuevas": sorted(set(s["claves"]) - set(baseline["claves"])),
             "guardian_no_aplicado_nuevos": sorted(
                 set(s["guardian_no_aplicado"]) - set(baseline["guardian_no_aplicado"])),
+            "capturadas_nuevas": sorted(set(s["capturadas"]) - set(baseline["capturadas"])),
+            "roles_no_evaluables_nuevos": sorted(
+                set(s["roles_no_evaluables"]) - set(baseline["roles_no_evaluables"])),
             "roles_cambiados": {k: [baseline["roles"].get(k), v]
                                 for k, v in s["roles"].items()
                                 if baseline["roles"].get(k) != v},
@@ -294,7 +346,8 @@ def main(argv=None) -> int:
             "M0-control": lambda d: not any([d["muertas_nuevas"], d["rotos_nuevos"],
                                              d["sin_auth_nuevas"], d["no_probadas_nuevas"],
                                              d["rutas_nuevas"], d["roles_cambiados"],
-                                             d["guardian_no_aplicado_nuevos"]])
+                                             d["guardian_no_aplicado_nuevos"],
+                                             d["capturadas_nuevas"]])
             and d["montadas"] == 0,
             "M1-router-desmontado": lambda d: len(d["muertas_nuevas"]) > 0 and d["montadas"] < 0,
             "M2-enlace-roto": lambda d: any("/ruta-que-no-existe" in x for x in d["rotos_nuevos"]),
@@ -310,6 +363,15 @@ def main(argv=None) -> int:
                 "solo-mencionada" in k for k in d["rutas_nuevas"]) and not d["rutas_nuevas"],
             "M8-rol-degradado": lambda d: d["roles_cambiados"].get("GET /admin/audit")
             == ["admin", "viewer"],
+            # No basta con que la vea: debe distinguirla. Una ruta capturada no
+            # puede quedar con el mismo veredicto que /docs («ninguno sirve»).
+            "M10-ruta-capturada": lambda d: (
+                any(x.startswith("GET /sources/panel <- /sources/{source_id}")
+                    for x in d["capturadas_nuevas"])
+                and "GET /sources/panel" in d["roles_no_evaluables_nuevos"]),
+            "M11-senuelo-isinstance": lambda d: (
+                "GET /ruta-con-senuelo" in d["guardian_no_aplicado_nuevos"]
+                and "GET /ruta-con-senuelo" in d["sin_auth_nuevas"]),
             "M9-nav-de-datos-rota": lambda d: (
                 any("ruta_que_no_existe" in x for x in d["rotos_nuevos"])
                 if (base / "viewer/app/chassis.py").exists() else True),

@@ -172,13 +172,7 @@ def collect_mounted(app) -> list[dict]:
             d.rsplit(".", 1)[-1] in {"html_guard", "_guard"} for d in deps)
         aplica = True
         if declara_guardian_pasivo:
-            try:
-                import inspect
-
-                src = inspect.getsource(endpoint)
-            except Exception:
-                src = ""
-            aplica = "RedirectResponse" in src or "isinstance(" in src
+            aplica = _devuelve_la_salida_del_guardian(endpoint)
         for m in methods:
             if m == "HEAD":
                 continue
@@ -195,6 +189,77 @@ def collect_mounted(app) -> list[dict]:
                 "guardian_pasivo_no_aplicado": bool(declara_guardian_pasivo and not aplica),
             })
     return out
+
+
+PASSIVE_GUARDS = {"html_guard", "html_role_guard"}
+
+
+def _endpoint_ast(endpoint):
+    try:
+        import inspect
+        import textwrap
+
+        tree = ast.parse(textwrap.dedent(inspect.getsource(endpoint)))
+    except Exception:
+        return None
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return node
+    return None
+
+
+def _passive_guard_params(fn: ast.AST) -> set[str]:
+    """Parámetros cuyo valor por defecto es `Depends(html_guard|html_role_guard(...))`."""
+    out: set[str] = set()
+    args = fn.args
+    posibles = list(args.args) + list(args.kwonlyargs)
+    defaults = list(args.defaults) + [d for d in args.kw_defaults or [] if d is not None]
+    # Emparejar por la cola: los defaults corresponden a los últimos posicionales.
+    pares = list(zip(args.args[len(args.args) - len(args.defaults):], args.defaults))
+    pares += [(a, d) for a, d in zip(args.kwonlyargs, args.kw_defaults or []) if d is not None]
+    for arg, default in pares:
+        if not isinstance(default, ast.Call):
+            continue
+        fname = getattr(default.func, "id", None) or getattr(default.func, "attr", None)
+        if fname != "Depends" or not default.args:
+            continue
+        inner = default.args[0]
+        nombre = (getattr(inner, "id", None) or getattr(inner, "attr", None)
+                  or getattr(getattr(inner, "func", None), "id", None)
+                  or getattr(getattr(inner, "func", None), "attr", None))
+        if nombre in PASSIVE_GUARDS:
+            out.add(arg.arg)
+    del posibles, defaults
+    return out
+
+
+def _devuelve_la_salida_del_guardian(endpoint) -> bool:
+    """¿El handler DEVUELVE de verdad la respuesta que le entrega el guardián?
+
+    Comprobación sintáctica sobre el parámetro CONCRETO al que está atado el
+    guardián pasivo, no búsqueda de subcadenas: un `isinstance(datos, list)`
+    ajeno en el cuerpo no cuenta, ni la palabra `RedirectResponse` suelta.
+    Debe existir un `if isinstance(<ese parámetro>, ...)` cuyo cuerpo retorne, o
+    un `return <ese parámetro>` directo.
+    """
+    fn = _endpoint_ast(endpoint)
+    if fn is None:
+        return True  # sin fuente no se puede afirmar el defecto: no se inventa
+    params = _passive_guard_params(fn)
+    if not params:
+        return True
+    for node in ast.walk(fn):
+        if isinstance(node, ast.If) and isinstance(node.test, ast.Call):
+            f = node.test.func
+            if (getattr(f, "id", None) == "isinstance" and node.test.args
+                    and isinstance(node.test.args[0], ast.Name)
+                    and node.test.args[0].id in params
+                    and any(isinstance(s, ast.Return) for s in ast.walk(node))):
+                return True
+        if isinstance(node, ast.Return) and isinstance(node.value, ast.Name) \
+                and node.value.id in params:
+            return True
+    return False
 
 
 def _body_guard_calls(endpoint) -> list[str]:
@@ -519,6 +584,37 @@ def _fresh_token(db_path: str, role: str) -> str:
     return token
 
 
+def _install_resolver(app) -> list:
+    """Instrumenta las rutas para saber QUÉ handler atiende cada URL.
+
+    Una ruta puede quedar CAPTURADA por otra declarada antes (`/sources/panel`
+    la absorbe `/sources/{source_id}`). Sin esto, el barrido le atribuiría a la
+    ruta capturada el resultado de autorización del handler que la ensombrece:
+    una ruta sin guardián parecería denegar correctamente. La lista devuelta
+    recibe el path del handler REALMENTE ejecutado en cada petición.
+    """
+    registro: list[str] = []
+
+    def _wrap(route, path):
+        if getattr(route, "_s9k_resolver", False):
+            return
+        handle = getattr(route, "handle", None)
+        if handle is None:
+            return
+
+        async def _handle(scope, receive, send, _orig=handle, _path=path):
+            registro.append(_path)
+            await _orig(scope, receive, send)
+
+        route.handle = _handle
+        route._s9k_resolver = True
+
+    for path, _m, _d, _e, handler_route, kind in iter_effective_routes(app):
+        if kind == "route":
+            _wrap(handler_route, path)
+    return registro
+
+
 def probe_main(repo: Path, out_path: Path) -> None:
     app = load_real_app(repo)
     # El visor NO crea la auth DB (fail-closed de `enforce_auth_security`): la
@@ -535,11 +631,13 @@ def probe_main(repo: Path, out_path: Path) -> None:
     cookie_name = get_auth_settings().S9K_SESSION_COOKIE_NAME
 
     results: dict[str, dict] = {}
+    registro = _install_resolver(app)
     with TestClient(app, follow_redirects=False) as client:
         routes = [r for r in collect_mounted(app) if r["method"] != "MOUNT"]
 
         def _hit(r, cookies):
             url = _concrete_url(r["path"])
+            registro.clear()
             resp = client.request(r["method"], url, cookies=cookies)
             # 422 = la validación del cuerpo se evaluó antes del guardián. Se
             # reintenta rellenando los campos declarados para que la petición
@@ -547,7 +645,8 @@ def probe_main(repo: Path, out_path: Path) -> None:
             if resp.status_code == 422 and r.get("body_fields"):
                 resp = client.request(r["method"], url, cookies=cookies,
                                       data={f: "probe" for f in r["body_fields"]})
-            return {"status": resp.status_code, "location": resp.headers.get("location", "")}
+            return {"status": resp.status_code, "location": resp.headers.get("location", ""),
+                    "resolvio_a": registro[-1] if registro else None}
 
         for r in routes:
             try:
@@ -576,13 +675,16 @@ def _is_denial(st: int | None, loc: str) -> bool:
     return False
 
 
-def role_verdict(key: str, res: dict | None, has_params: bool = False) -> dict:
+def role_verdict(key: str, res: dict | None, has_params: bool = False,
+                 path: str = "") -> dict:
     """Rol MÍNIMO que obtiene respuesta servida, medido de verdad por rol.
 
     Sólo se concluye para GET: en POST la protección CSRF responde antes que el
     control de rol, así que un 403 no distingue «rol insuficiente» de «falta el
     token CSRF». Ese caso se declara no concluyente en vez de inventarlo.
     """
+    if capturada_por(path or key.split(" ", 1)[-1], res):
+        return {"rol_minimo": "no-evaluable-capturada", "por_rol": {}}
     if not res or not res.get("por_rol"):
         return {"rol_minimo": "sin-sonda", "por_rol": {}}
     per = {}
@@ -604,8 +706,23 @@ def role_verdict(key: str, res: dict | None, has_params: bool = False) -> dict:
     return {"rol_minimo": "ninguno-sirve", "por_rol": per}
 
 
-def classify_probe(key: str, res: dict | None) -> tuple[str, str]:
+def capturada_por(path: str, res: dict | None) -> str | None:
+    """Path del handler que ensombrece a esta ruta, si la ha capturado."""
+    if not res:
+        return None
+    resuelto = res.get("resolvio_a")
+    if resuelto and resuelto != path:
+        return resuelto
+    return None
+
+
+def classify_probe(key: str, res: dict | None, path: str = "") -> tuple[str, str]:
     """(veredicto, detalle) de la sonda anónima."""
+    captor = capturada_por(path or key.split(" ", 1)[-1], res)
+    if captor:
+        # No se le puede atribuir el resultado del handler que la ensombrece:
+        # sería dar por autorizada una ruta cuyo guardián no se ejecuta jamás.
+        return "CAPTURADA", f"la sirve {captor}"
     if key in PUBLIC_BY_DESIGN:
         return "publica-por-diseno", "allowlist"
     if not res:
@@ -738,8 +855,10 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
     rows = []
     for r in sorted(mounted_routes, key=lambda x: (x["path"], x["method"])):
         k = r["key"]
-        verdict, detail = classify_probe(k, probe.get(k))
-        roles = role_verdict(k, probe.get(k), has_params="{" in r["path"])
+        verdict, detail = classify_probe(k, probe.get(k), r["path"])
+        roles = role_verdict(k, probe.get(k), has_params="{" in r["path"],
+                             path=r["path"])
+        captor = capturada_por(r["path"], probe.get(k))
         t = tested.get(k)
         static_guard = bool(r["deps"] or r["body_guards"])
         rows.append({
@@ -755,6 +874,7 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
             "authz_deps": r["deps"], "authz_body_guards": r["body_guards"],
             "scoping_deps": r["scoping_deps"],
             "authz_probe": verdict, "authz_probe_detail": detail,
+            "capturada_por": captor,
             "rol_minimo_observado": roles["rol_minimo"],
             "status_por_rol": roles["por_rol"],
             "guardian_pasivo_no_aplicado": r.get("guardian_pasivo_no_aplicado", False),
@@ -772,6 +892,7 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
             r for r in rows if not r["authz_static"] and r["key"] not in PUBLIC_BY_DESIGN
         ],
         "rutas_no_probadas": [r for r in rows if not r["tested"]],
+        "rutas_capturadas": [r for r in rows if r["capturada_por"]],
         "guardian_declarado_pero_no_aplicado": [
             r for r in rows if r["guardian_pasivo_no_aplicado"]
         ],
@@ -862,6 +983,11 @@ def render_md(m: dict) -> str:
     L.append(f"### Rutas HUÉRFANAS (no alcanzables desde navegación): {len(f['rutas_huerfanas'])}")
     for r in f["rutas_huerfanas"]:
         L.append(f"- `{r['key']}`")
+    L.append("")
+    L.append(f"### Rutas CAPTURADAS por otro patrón: {len(f['rutas_capturadas'])}")
+    for r in f["rutas_capturadas"]:
+        L.append(f"- `{r['key']}` — la sirve `{r['capturada_por']}`; su guardián "
+                 f"nunca se ejecuta, su autorización NO es evaluable")
     L.append("")
     L.append("### Guardián declarado pero NO aplicado: "
              f"{len(f['guardian_declarado_pero_no_aplicado'])}")

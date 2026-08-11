@@ -1,5 +1,6 @@
 {
   "baseline": {
+    "capturadas": [],
     "claves": [
       "GET /",
       "GET /account",
@@ -142,17 +143,20 @@
       "POST /v3/review/decide": "no-concluyente-csrf",
       "POST /v3/review/undo": "no-concluyente-csrf"
     },
+    "roles_no_evaluables": [],
     "rotos": [],
     "sin_auth": []
   },
   "casos": {
     "M0-control": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
         "no_probadas_nuevas": [],
         "roles_cambiados": {},
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [],
         "rutas_nuevas": [],
         "sin_auth_nuevas": []
@@ -161,6 +165,7 @@
     },
     "M1-router-desmontado": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": -10,
         "muertas_nuevas": [
@@ -177,6 +182,7 @@
         ],
         "no_probadas_nuevas": [],
         "roles_cambiados": {},
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [
           "/api/entities/ @ static/js/graph.js",
           "/entities @ entities.html",
@@ -194,13 +200,71 @@
       },
       "detectado": true
     },
+    "M10-ruta-capturada": {
+      "delta": {
+        "capturadas_nuevas": [
+          "GET /sources/panel <- /sources/{source_id}"
+        ],
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 1,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [
+          "GET /sources/panel"
+        ],
+        "roles_cambiados": {
+          "GET /sources/panel": [
+            null,
+            "no-evaluable-capturada"
+          ]
+        },
+        "roles_no_evaluables_nuevos": [
+          "GET /sources/panel"
+        ],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [
+          "GET /sources/panel"
+        ],
+        "sin_auth_nuevas": []
+      },
+      "detectado": true
+    },
+    "M11-senuelo-isinstance": {
+      "delta": {
+        "capturadas_nuevas": [],
+        "guardian_no_aplicado_nuevos": [
+          "GET /ruta-con-senuelo"
+        ],
+        "montadas": 1,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [
+          "GET /ruta-con-senuelo"
+        ],
+        "roles_cambiados": {
+          "GET /ruta-con-senuelo": [
+            null,
+            "viewer"
+          ]
+        },
+        "roles_no_evaluables_nuevos": [],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [
+          "GET /ruta-con-senuelo"
+        ],
+        "sin_auth_nuevas": [
+          "GET /ruta-con-senuelo"
+        ]
+      },
+      "detectado": true
+    },
     "M2-enlace-roto": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
         "no_probadas_nuevas": [],
         "roles_cambiados": {},
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [
           "/ruta-que-no-existe @ base.html"
         ],
@@ -211,11 +275,13 @@
     },
     "M3-ruta-sin-auth": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
         "no_probadas_nuevas": [],
         "roles_cambiados": {},
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [],
         "rutas_nuevas": [],
         "sin_auth_nuevas": [
@@ -226,6 +292,7 @@
     },
     "M4-ruta-sin-test": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [
           "GET /ruta-nueva-sin-test"
         ],
@@ -240,6 +307,7 @@
             "viewer"
           ]
         },
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [],
         "rutas_nuevas": [
           "GET /ruta-nueva-sin-test"
@@ -252,11 +320,13 @@
     },
     "M5-mencion-en-comentario": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
         "no_probadas_nuevas": [],
         "roles_cambiados": {},
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [],
         "rutas_nuevas": [],
         "sin_auth_nuevas": []
@@ -270,7 +340,7 @@
     },
     "M7-censo-de-rutas": {
       "detectado": true,
-      "esperado": "el censo efectivo supera a app.routes y contiene todas las rutas que sirvieron respuesta durante los tests",
+      "esperado": "el censo no pierde ninguna ruta que sirvió respuesta, y el censo ingenuo sí pierde varias de ellas",
       "falsos_no_montados_del_censo_naive": [
         "GET /account",
         "GET /account/change-password",
@@ -332,10 +402,69 @@
       "rutas_censo_efectivo": 67,
       "rutas_censo_naive_app_routes": 11,
       "rutas_que_sirvieron_y_faltan_en_el_censo": [],
+      "rutas_que_sirvieron_y_pierde_el_censo_naive": [
+        "GET /account",
+        "GET /account/change-password",
+        "GET /admin/audit",
+        "GET /admin/health",
+        "GET /admin/partidas",
+        "GET /admin/users",
+        "GET /admin/users/new",
+        "GET /admin/users/{user_id}",
+        "GET /api/admin/health",
+        "GET /api/entities",
+        "GET /api/entities/{entity_id}",
+        "GET /api/entity-types",
+        "GET /api/entity/{entity_id}",
+        "GET /api/graph",
+        "GET /api/jobs",
+        "GET /api/jobs/counts",
+        "GET /api/jobs/{job_id}",
+        "GET /api/quality",
+        "GET /api/search",
+        "GET /api/sources",
+        "GET /api/sources/{source_id}",
+        "GET /api/status",
+        "GET /api/workspaces",
+        "GET /entities",
+        "GET /entities/{entity_id}",
+        "GET /login",
+        "GET /panel/entities",
+        "GET /panel/entities/",
+        "GET /panel/operations",
+        "GET /panel/operations/",
+        "GET /panel/review",
+        "GET /panel/review/",
+        "GET /panel/sources",
+        "GET /panel/sources/",
+        "GET /quality",
+        "GET /review-console",
+        "GET /review-console/",
+        "GET /review-console/source/{source_id}",
+        "GET /sources",
+        "GET /sources/{source_id}",
+        "GET /v3/review",
+        "GET /v3/review/",
+        "GET /v3/review/glossary-candidates",
+        "POST /account/change-password",
+        "POST /admin/partidas/grant",
+        "POST /admin/partidas/{access_id}/revoke",
+        "POST /admin/users/new",
+        "POST /admin/users/{user_id}",
+        "POST /admin/users/{user_id}/revoke-sessions",
+        "POST /admin/users/{user_id}/unlock",
+        "POST /login",
+        "POST /logout",
+        "POST /partida/select",
+        "POST /review-console/source/{source_id}/decide",
+        "POST /v3/review/decide",
+        "POST /v3/review/undo"
+      ],
       "url_path_for_entities_page_funciona": true
     },
     "M8-rol-degradado": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
@@ -346,6 +475,7 @@
             "viewer"
           ]
         },
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [],
         "rutas_nuevas": [],
         "sin_auth_nuevas": []
@@ -354,11 +484,13 @@
     },
     "M9-nav-de-datos-rota": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
         "no_probadas_nuevas": [],
         "roles_cambiados": {},
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [
           "ChassisContractError: El elemento de navegación 'Fantasma' apunta a la ruta 'ruta_que_no_existe', que no está montada. Rutas conocidas: ['_openapi', '_redoc', '_swagger', 'account_page', 'admin_audit', 'admin_health_panel', 'admin_partidas', 'admin_partidas_grant', 'admin_partidas_revoke', 'admin_revoke_sessions', 'admin_user_detail', 'admin_user_unlock', 'admin_user_update', 'admin_users', 'admin_users_new', 'admin_users_new_submit', 'api_admin_health', 'api_entities', 'api_entity', 'api_entity_detail', 'api_entity_types', 'api_graph', 'api_job_detail', 'api_jobs', 'api_jobs_counts', 'api_quality', 'api_search', 'api_source_detail', 'api_sources', 'api_status', 'api_workspaces', 'change_password_page', 'change_password_submit', 'chassis_entities', 'chassis_operations', 'chassis_review', 'chassis_sources', 'decide', 'entities_page', 'entity_detail_page', 'entity_view', 'glossary_candidates', 'graph_view', 'home', 'inbox', 'job_detail_view', 'jobs_view', 'login_page', 'login_submit', 'logout', 'quality_page', 'queue', 'reviews_detail_view', 'reviews_view', 'select_partida', 'source_detail', 'source_detail_page', 'sources_page', 'static', 'status_view', 'undo'] @ app.chassis.NAV"
         ],

@@ -121,6 +121,8 @@
 - `GET /v3/review/`
 - `GET /v3/review/glossary-candidates`
 
+### Rutas CAPTURADAS por otro patrón: 0
+
 ### Guardián declarado pero NO aplicado: 0
 
 ### Rutas servidas a rol viewer: 21

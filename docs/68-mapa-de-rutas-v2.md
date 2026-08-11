@@ -119,9 +119,14 @@ obtiene 2xx.
   `POST /v3/review/undo`. La gestión de usuarios del panel admin es el hueco más
   visible: se prueba por otras vías, pero no atravesando sus rutas.
 - **28 rutas no alcanzables desde la navegación**: casi todas son APIs JSON
-  consumidas por fetch (legítimo), pero hay HTML sin ningún enlace que lleve a
-  él: `GET /admin/health`, `GET /quality`, `GET /review-console`,
-  `GET /review-console/source/{source_id}` y `GET /v3/review/glossary-candidates`.
+  consumidas por fetch (legítimo). Al filtrar sólo las **pantallas HTML** quedan
+  seis: `GET /admin/health`, `GET /quality`, `GET /review-console`,
+  `GET /review-console/` , `GET /review-console/source/{source_id}`,
+  `GET /v3/review/` y `GET /v3/review/glossary-candidates`. Cuando hablo de
+  «cinco pantallas» me refiero a **pantallas distintas**: `/review-console/` y
+  `/v3/review/` son la variante con barra de una pantalla cuya forma canónica sí
+  está enlazada, así que no añaden una pantalla inalcanzable, sino una entrada
+  más al censo. La lista cruda de 28, sin curar, está en el artefacto JSON.
   Existen, están protegidas y funcionan: simplemente no hay forma de llegar
   navegando. Material directo para el carril chasis.
 - **`POST /logout` es la única ruta sin guardián estático detectable**; el
@@ -137,9 +142,20 @@ obtiene 2xx.
 `RedirectResponse` que el handler tiene que devolver (`if isinstance(user,
 RedirectResponse): return user`). Una ruta que declare la dependencia y olvide la
 comprobación **sirve 200 a un anónimo aunque parezca protegida**. En `cb874fe`
-todas las rutas que lo usan sí lo comprueban (0 hallazgos), pero el mapa incluye
-un detector específico (`guardian_declarado_pero_no_aplicado`) calibrado con una
-ruta que comete exactamente ese olvido — véase M4.
+todas las rutas que lo usan sí lo comprueban.
+
+**Quién caza esto de verdad es el barrido anónimo.** La comprobación estática
+(`guardian_declarado_pero_no_aplicado`) es una **ayuda heurística subordinada**,
+no la garantía. Su primera versión era literalmente una búsqueda de subcadenas
+(`"RedirectResponse" in src or "isinstance(" in src`): el mismo pecado que
+denuncia §1 —contar menciones— sobreviviendo dentro de mi propio detector. Un
+revisor metió un `isinstance(datos, list)` ajeno como señuelo y **la estática no
+se disparó**; la ruta la cazó la dinámica. Ahora la comprobación es sintáctica
+sobre el **parámetro concreto** al que está atado el guardián (exige un
+`if isinstance(<ese parámetro>, ...)` que retorne, o un `return <ese parámetro>`)
+y está calibrada con ese señuelo — caso **M11**. Aun así el orden de confianza es:
+**primero la medida dinámica, después la estática**; si divergen, manda la que
+hace la petición.
 
 ## 4. Calibración: el instrumento se ha visto rojo
 
@@ -158,11 +174,25 @@ exactamente lo mismo.
 | M4 | ruta nueva sin ningún test, con guardián declarado y no aplicado | NO PROBADA + SIN-AUTH + `guardian_declarado_pero_no_aplicado`: `GET /ruta-nueva-sin-test` | sí |
 | M5 | `/ruta-solo-mencionada` citada en un comentario | **0 rutas nuevas**: la mención no crea ni cubre nada | sí |
 | M6 | un test ejercita el router en una app `FastAPI()` **privada** | la sonda no registra `GET /entities`: no cuenta como cobertura | sí |
-| M7 | censo: `app.routes` frente al censo efectivo | 11 vs **59**; 0 rutas que sirvieron y falten en el censo | sí |
+| M7 | censo: `app.routes` frente al censo efectivo | 0 rutas servidas fuera del censo efectivo, y **36 rutas que sirvieron respuesta se le pierden al censo ingenuo** | sí |
 | M8 | `GET /admin/audit` degradada de `require_admin` a autenticado | rol mínimo medido cambia **admin → viewer** | sí |
+| M9 | `NavItem` a una ruta no montada (navegación por datos) | ROTO con el `ChassisContractError` textual | sí |
+| M10 | `/sources/panel` declarada **tras** `/sources/{source_id}` y **sin guardián** | `CAPTURADA` por `/sources/{source_id}` + rol `no-evaluable-capturada` | sí |
+| M11 | guardián pasivo no devuelto, con `isinstance(datos, list)` **señuelo** | `guardian_declarado_pero_no_aplicado` + SIN-AUTH: `GET /ruta-con-senuelo` | sí |
 
-`reversion_identica: true` — tras las nueve mutaciones, el árbol limpio devuelve
+`reversion_identica: true` — tras las doce mutaciones, el árbol limpio devuelve
 el mismo mapa. Salida completa en `artifacts/route-map/calibracion.json`.
+
+Sobre la **aserción de M7**: `len(censo_efectivo) > len(app.routes)` se cumple
+sola y no prueba nada. La que carga el peso es doble y es la que se evalúa: el
+censo **no pierde ninguna ruta que sirviera respuesta**, y el censo ingenuo **sí
+pierde varias de ésas**.
+
+**M10 y M11 nacieron rojos, y no por accidente**: son dos supervivientes que
+encontró una revisión externa de este mismo mapa. Antes de arreglarlos, sobre el
+árbol mutado idéntico, el instrumento `9afd737` daba `denegada`/`ninguno-sirve`
+para la ruta capturada y **no marcaba nada** para el señuelo. La tabla comparativa
+está en §6.
 
 M1 y M3 son además la calibración pedida del enumerador: una ruta desmontada
 desaparece del censo (y sale como muerta), y una ruta que sirve 200 aparece
@@ -196,11 +226,28 @@ contra una app privada de test.
   cubre: los huecos están vacíos (una pantalla sin funcionalidad), así que se
   verifica el montaje, no lo que cada carril meta dentro después; y el veredicto
   vale para `4b2ae5a`, no para lo que se le añada luego sin volver a medir.
+- **Routers incluidos condicionalmente** (p. ej. `if os.environ.get(...):
+  app.include_router(...)`) **no generan aviso**: el mapa describe el montaje del
+  proceso que arranca con las variables de entorno de la sonda, así que una ruta
+  que sólo existe con cierta configuración aparecerá montada o ausente según cómo
+  se ejecute, sin señalar que su montaje es condicional. Es coherente con «el mapa
+  describe el código, no el despliegue», pero conviene tenerlo presente: para una
+  ruta así, hay que ejecutar el mapa una vez por configuración.
 - **Este mapa no se revisa a sí mismo**: la calibración demuestra que el
-  instrumento se pone rojo ante nueve defectos concretos; no demuestra que no
-  existan géneros de defecto que ninguno de los nueve representa.
+  instrumento se pone rojo ante doce defectos concretos; no demuestra que no
+  existan géneros de defecto que ninguno de los doce representa. La prueba está
+  a la vista: dos de esos doce (M10, M11) existen porque una revisión externa
+  encontró lo que yo no había pensado en inyectar.
 
 ## 5.bis Verificación del chasis (PR #166, `feat/chasis-montaje-v1` @ `4b2ae5a`)
+
+> **Alcance: esto es un ENTREGABLE APARTE.** Las secciones 1–5 son el mapa y su
+> calibración, que es lo que se revisó y avaló para este PR. Esta sección 5.bis es
+> un **dictamen sobre un tercero** (PR #166), emitido con el mismo instrumento
+> pero **no cubierto por el aval de la revisión de este PR**. Sus artefactos viven
+> aparte, en `artifacts/route-map/chasis-4b2ae5a/`. Quien fusione el chasis debe
+> tratarla como lo que es: una medición de K sobre otra rama, no una revisión
+> independiente del chasis.
 
 Es el paso para el que existe este mapa: **C/B/F/G no se montan hasta que se
 verifique que el chasis no deja routers muertos, enlaces rotos ni rutas sin
@@ -281,14 +328,43 @@ apunta a una ruta no montada → ROTO, con el `ChassisContractError` textual) y 
 (censo: 11 vs 67, sin rutas servidas fuera del censo). Un instrumento que juzga
 una rama debe haberse visto rojo **en esa rama**.
 
-## 6. Aviso de captura, para el que venga detrás
+## 6. Rutas CAPTURADAS: detector, no aviso en prosa
 
-Una ruta puede quedar **capturada** por otra sin que nada falle: `/sources/panel`
-lo absorbería `/sources/{source_id}`, que respondería 404 «fuente no encontrada»
-en vez de avisar de la colisión. El censo de este mapa lista las rutas efectivas
-en el orden en que el enrutador las resuelve, y las sondas piden URLs concretas,
-así que una ruta capturada se manifiesta como ruta cuyo handler nunca es el que
-uno cree. Es la razón por la que el chasis eligió el prefijo `/panel/…`.
+Una ruta puede quedar **capturada** por otra declarada antes sin que nada falle:
+`/sources/panel` la absorbe `/sources/{source_id}`, que responde «fuente no
+encontrada» en vez de avisar de la colisión. Es la razón por la que el chasis
+eligió el prefijo `/panel/…`.
+
+**Esta sección afirmaba antes que una ruta capturada «se manifiesta como ruta
+cuyo handler nunca es el que uno cree». Era falso, y una revisión lo demostró**:
+una ruta capturada **y sin ningún guardián** no producía señal alguna. El mapa la
+marcaba `rol_minimo_observado: "ninguno-sirve"` —el mismo valor que `/docs`,
+`/redoc` y `/openapi.json`— y no entraba en `rutas_sin_auth`. Es decir: el mapa le
+atribuía a la ruta capturada **el resultado de autorización del handler que la
+ensombrece**, dando falsa tranquilidad justo en el «0 rutas sin auth», que es la
+afirmación que sostiene este carril.
+
+Ahora hay detector. Cada petición del barrido registra **qué handler la atendió
+de verdad** (se instrumenta `handle` de cada ruta del censo). Si la URL
+representativa de una ruta la atiende otro path, esa ruta es **CAPTURADA** y:
+
+- entra en el hallazgo `rutas_capturadas` con el path del captor;
+- su veredicto anónimo pasa a `CAPTURADA` (no «denegada»);
+- su rol pasa a `no-evaluable-capturada` (no «ninguno-sirve»).
+
+Una ruta capturada **nunca hereda el veredicto de autorización de su captor**,
+porque su guardián no se ejecuta jamás. Diferencial real sobre el mismo árbol
+mutado (`/sources/panel` declarada después de `/sources/{source_id}`, sin
+guardián):
+
+| | instrumento `9afd737` | instrumento actual |
+|---|---|---|
+| `GET /sources/panel` anónimo | `denegada` | **`CAPTURADA`** |
+| rol mínimo | `ninguno-sirve` (igual que `/docs`) | **`no-evaluable-capturada`** |
+| `rutas_capturadas` | detector inexistente | **`['GET /sources/panel']`** |
+
+Calibrado en el caso **M10**, que no se conforma con «lo ve»: exige que lo
+**distinga** de una ruta que legítimamente deniega a todos.
 
 ## 7. Ficheros
 
@@ -300,4 +376,7 @@ uno cree. Es la razón por la que el chasis eligió el prefijo `/panel/…`.
 - `artifacts/route-map/calibracion.json` — salidas reales de la calibración.
 - `artifacts/route-map/chasis-4b2ae5a/route_map.{json,md}` — mapa del chasis.
 - `artifacts/route-map/chasis-4b2ae5a/calibracion.json` — calibración sobre la
-  rama del chasis (10/10).
+  rama del chasis (12/12).
+- `artifacts/route-map/diferencial-n3-n1-instrumento-{viejo,nuevo}.json` — el
+  mismo árbol mutado (ruta capturada sin guardián + guardián con señuelo) visto
+  por el instrumento `9afd737` y por el actual: el rojo previo de M10 y M11.

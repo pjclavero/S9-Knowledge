@@ -1,16 +1,15 @@
 {
   "counts": {
-    "autorizadas": 57,
-    "consumidas": 56,
-    "definidas": 59,
+    "autorizadas": 58,
+    "consumidas": 39,
+    "definidas": 61,
     "enlazadas": 31,
-    "montadas": 59,
-    "probadas": 47
+    "montadas": 61,
+    "probadas": 0
   },
   "findings": {
     "enlaces_rotos": [],
     "guardian_declarado_pero_no_aplicado": [],
-    "rutas_capturadas": [],
     "rutas_huerfanas": [
       {
         "authz_body_guards": [],
@@ -21,7 +20,6 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": false,
         "consumers": [],
         "defined": true,
@@ -56,7 +54,6 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:auth/admin/users.html"
@@ -93,7 +90,6 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:auth/admin/users.html"
@@ -129,11 +125,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:3 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_admin_health",
         "guardian_pasivo_no_aplicado": false,
@@ -153,13 +146,9 @@
           "reviewer": 403,
           "viewer": 403
         },
-        "tested": true,
-        "tested_hits": 3,
-        "tested_statuses": [
-          401,
-          403,
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -169,11 +158,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:83 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_entities",
         "guardian_pasivo_no_aplicado": false,
@@ -196,13 +182,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 83,
-        "tested_statuses": [
-          200,
-          401,
-          422
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -212,11 +194,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:4 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_entity_types",
         "guardian_pasivo_no_aplicado": false,
@@ -239,12 +218,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 4,
-        "tested_statuses": [
-          401,
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -254,11 +230,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:6 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_entity",
         "guardian_pasivo_no_aplicado": false,
@@ -281,12 +254,9 @@
           "reviewer": 404,
           "viewer": 404
         },
-        "tested": true,
-        "tested_hits": 6,
-        "tested_statuses": [
-          404,
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -296,11 +266,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:8 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_jobs",
         "guardian_pasivo_no_aplicado": false,
@@ -322,12 +289,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 8,
-        "tested_statuses": [
-          200,
-          401
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -337,11 +301,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:4 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_jobs_counts",
         "guardian_pasivo_no_aplicado": false,
@@ -363,12 +324,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 4,
-        "tested_statuses": [
-          200,
-          401
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -378,11 +336,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:4 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_job_detail",
         "guardian_pasivo_no_aplicado": false,
@@ -404,11 +359,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 4,
-        "tested_statuses": [
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -418,11 +371,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:3 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_quality",
         "guardian_pasivo_no_aplicado": false,
@@ -445,12 +395,9 @@
           "reviewer": 200,
           "viewer": 403
         },
-        "tested": true,
-        "tested_hits": 3,
-        "tested_statuses": [
-          200,
-          401
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -460,11 +407,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:8 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_search",
         "guardian_pasivo_no_aplicado": false,
@@ -487,12 +431,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 8,
-        "tested_statuses": [
-          200,
-          401
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -502,11 +443,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:2 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_sources",
         "guardian_pasivo_no_aplicado": false,
@@ -529,11 +467,9 @@
           "reviewer": 200,
           "viewer": 403
         },
-        "tested": true,
-        "tested_hits": 2,
-        "tested_statuses": [
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -543,11 +479,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:1 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_source_detail",
         "guardian_pasivo_no_aplicado": false,
@@ -570,11 +503,9 @@
           "reviewer": 404,
           "viewer": 403
         },
-        "tested": true,
-        "tested_hits": 1,
-        "tested_statuses": [
-          404
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -584,11 +515,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:11 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_status",
         "guardian_pasivo_no_aplicado": false,
@@ -611,12 +539,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 11,
-        "tested_statuses": [
-          200,
-          401
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -626,11 +551,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:6 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_workspaces",
         "guardian_pasivo_no_aplicado": false,
@@ -653,12 +575,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 6,
-        "tested_statuses": [
-          401,
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -668,11 +587,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "404",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:4 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "_swagger",
         "guardian_pasivo_no_aplicado": false,
@@ -692,14 +608,9 @@
           "reviewer": 404,
           "viewer": 404
         },
-        "tested": true,
-        "tested_hits": 4,
-        "tested_statuses": [
-          404,
-          401,
-          403,
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -707,12 +618,10 @@
         "authz_probe": "publica-por-diseno",
         "authz_probe_detail": "allowlist",
         "authz_static": false,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template-js:auth/login.html",
-          "template:auth/login.html",
-          "tests:12 peticiones"
+          "template:auth/login.html"
         ],
         "defined": true,
         "endpoint": "login_page",
@@ -733,11 +642,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 12,
-        "tested_statuses": [
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -745,12 +652,10 @@
         "authz_probe": "publica-por-diseno",
         "authz_probe_detail": "allowlist",
         "authz_static": false,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template-js:auth/login.html",
-          "template:auth/login.html",
-          "tests:11 peticiones"
+          "template:auth/login.html"
         ],
         "defined": true,
         "endpoint": "login_submit",
@@ -771,15 +676,9 @@
           "reviewer": 400,
           "viewer": 400
         },
-        "tested": true,
-        "tested_hits": 11,
-        "tested_statuses": [
-          401,
-          403,
-          302,
-          400,
-          303
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -789,11 +688,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "404",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:1 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "_openapi",
         "guardian_pasivo_no_aplicado": false,
@@ -813,11 +709,9 @@
           "reviewer": 404,
           "viewer": 404
         },
-        "tested": true,
-        "tested_hits": 1,
-        "tested_statuses": [
-          404
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -829,11 +723,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/quality",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:2 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "quality_page",
         "guardian_pasivo_no_aplicado": false,
@@ -850,18 +741,15 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/routers/readonly.py:474",
+        "source": "@router.get(\"/quality\", response_class=HTMLResponse)\ndef quality_page(\n    request: Request,\n    workspace: Optional[str] = None,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_role_guard(\"reviewer\")),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n    try:\n        metrics = provider.quality_metrics(ws)\n    except Exception:\n        metrics = {}\n    return templates.TemplateResponse(\n        request, \"quality.html\",\n        {\"workspace\": ws, \"metrics\": metrics, \"auth_user\": user},\n    )\n",
         "status_por_rol": {
           "admin": 200,
           "reviewer": 200,
           "viewer": 403
         },
-        "tested": true,
-        "tested_hits": 2,
-        "tested_statuses": [
-          302,
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -871,11 +759,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "404",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:1 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "_redoc",
         "guardian_pasivo_no_aplicado": false,
@@ -895,11 +780,9 @@
           "reviewer": 404,
           "viewer": 404
         },
-        "tested": true,
-        "tested_hits": 1,
-        "tested_statuses": [
-          404
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -909,11 +792,9 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/review-console",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "template:reviews_console_source.html",
-          "tests:7 peticiones"
+          "template:reviews_console_source.html"
         ],
         "defined": true,
         "endpoint": "inbox",
@@ -936,12 +817,9 @@
           "reviewer": 200,
           "viewer": 403
         },
-        "tested": true,
-        "tested_hits": 7,
-        "tested_statuses": [
-          200,
-          302
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -951,7 +829,6 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/review-console/",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": false,
         "consumers": [],
         "defined": true,
@@ -987,11 +864,9 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/review-console/source/probe",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "template:reviews_console.html",
-          "tests:8 peticiones"
+          "template:reviews_console.html"
         ],
         "defined": true,
         "endpoint": "source_detail",
@@ -1014,12 +889,9 @@
           "reviewer": 404,
           "viewer": 403
         },
-        "tested": true,
-        "tested_hits": 8,
-        "tested_statuses": [
-          200,
-          404
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -1029,11 +901,9 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/review-console/source/probe/decide",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "template:reviews_console_source.html",
-          "tests:7 peticiones"
+          "template:reviews_console_source.html"
         ],
         "defined": true,
         "endpoint": "decide",
@@ -1056,12 +926,73 @@
           "reviewer": 403,
           "viewer": 403
         },
-        "tested": true,
-        "tested_hits": 7,
-        "tested_statuses": [
-          400,
-          303
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.routers.readonly.html_guard"
+        ],
+        "authz_probe": "SIN-AUTH",
+        "authz_probe_detail": "200",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "ruta_con_senuelo",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /ruta-con-senuelo",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/ruta-con-senuelo",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [],
+        "source": "@router.get(\"/ruta-con-senuelo\")\ndef ruta_con_senuelo(request: Request, user=Depends(html_guard)):\n    datos = [1, 2, 3]\n    if isinstance(datos, list):  # señuelo: no comprueba `user`\n        datos = list(datos)\n    # menciona RedirectResponse sin usarlo\n    return {\"ok\": True, \"tipo\": \"RedirectResponse\"}\n",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/sources/panel",
+        "authz_static": false,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "ruta_capturada_sin_guardian",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /sources/panel",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/sources/panel",
+        "rol_minimo_observado": "ninguno-sirve",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/readonly.py:496",
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -1071,7 +1002,6 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/v3/review/",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": false,
         "consumers": [],
         "defined": true,
@@ -1107,7 +1037,6 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/v3/review/glossary-candidates",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template-js:v3_glossary_candidates.html",
@@ -1142,6 +1071,52 @@
     "rutas_muertas": [],
     "rutas_no_probadas": [
       {
+        "authz_body_guards": [
+          "_require_user_or_redirect"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template:auth/403.html",
+          "template:base.html",
+          "template:error.html"
+        ],
+        "defined": true,
+        "endpoint": "home",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/account.html:/",
+          "auth/admin/audit.html:/",
+          "auth/admin/partidas.html:/",
+          "auth/admin/user_detail.html:/",
+          "auth/admin/users.html:/",
+          "auth/change_password.html:/"
+        ],
+        "method": "GET",
+        "module": "app.main",
+        "mounted": true,
+        "path": "/",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/main.py:428",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
         "authz_body_guards": [],
         "authz_deps": [
           "app.auth.dependencies.require_authenticated_user"
@@ -1149,7 +1124,6 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:auth/change_password.html",
@@ -1188,13 +1162,131 @@
       {
         "authz_body_guards": [],
         "authz_deps": [
+          "app.auth.dependencies.require_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template-js:auth/change_password.html",
+          "template:auth/account.html",
+          "template:auth/change_password.html"
+        ],
+        "defined": true,
+        "endpoint": "change_password_page",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /account/change-password",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/account.html:/account/change-password",
+          "auth/change_password.html:/account/change-password"
+        ],
+        "method": "GET",
+        "module": "app.routers.auth",
+        "mounted": true,
+        "path": "/account/change-password",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/auth.py:310",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template-js:auth/change_password.html",
+          "template:auth/account.html",
+          "template:auth/change_password.html"
+        ],
+        "defined": true,
+        "endpoint": "change_password_submit",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "POST /account/change-password",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/change_password.html:/account/change-password"
+        ],
+        "method": "POST",
+        "module": "app.routers.auth",
+        "mounted": true,
+        "path": "/account/change-password",
+        "rol_minimo_observado": "no-concluyente-csrf",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/auth.py:334",
+        "status_por_rol": {
+          "admin": 400,
+          "reviewer": 400,
+          "viewer": 400
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
           "app.auth.dependencies.require_admin",
           "app.auth.dependencies.require_authenticated_user"
         ],
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "template:auth/admin/audit.html",
+          "template:auth/admin/users.html"
+        ],
+        "defined": true,
+        "endpoint": "admin_audit",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /admin/audit",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/admin/audit.html:/admin/audit",
+          "auth/admin/users.html:/admin/audit"
+        ],
+        "method": "GET",
+        "module": "app.routers.admin",
+        "mounted": true,
+        "path": "/admin/audit",
+        "rol_minimo_observado": "admin",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/admin.py:325",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 403,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_admin",
+          "app.auth.dependencies.require_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
         "consumed": false,
         "consumers": [],
         "defined": true,
@@ -1221,6 +1313,133 @@
         "tested_statuses": []
       },
       {
+        "authz_body_guards": [
+          "list_partida_access"
+        ],
+        "authz_deps": [
+          "app.auth.dependencies.require_admin",
+          "app.auth.dependencies.require_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template:auth/admin/users.html",
+          "template:base.html"
+        ],
+        "defined": true,
+        "endpoint": "admin_partidas",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /admin/partidas",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/account.html:/admin/partidas",
+          "auth/admin/audit.html:/admin/partidas",
+          "auth/admin/partidas.html:/admin/partidas",
+          "auth/admin/user_detail.html:/admin/partidas",
+          "auth/admin/users.html:/admin/partidas",
+          "auth/change_password.html:/admin/partidas"
+        ],
+        "method": "GET",
+        "module": "app.routers.admin",
+        "mounted": true,
+        "path": "/admin/partidas",
+        "rol_minimo_observado": "admin",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/admin.py:395",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 403,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "grant_partida_access"
+        ],
+        "authz_deps": [
+          "app.auth.dependencies.require_admin",
+          "app.auth.dependencies.require_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template-js:auth/admin/partidas.html",
+          "template:auth/admin/partidas.html"
+        ],
+        "defined": true,
+        "endpoint": "admin_partidas_grant",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "POST /admin/partidas/grant",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/admin/partidas.html:/admin/partidas/grant"
+        ],
+        "method": "POST",
+        "module": "app.routers.admin",
+        "mounted": true,
+        "path": "/admin/partidas/grant",
+        "rol_minimo_observado": "no-concluyente-csrf",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/admin.py:421",
+        "status_por_rol": {
+          "admin": 422,
+          "reviewer": 403,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "revoke_partida_access"
+        ],
+        "authz_deps": [
+          "app.auth.dependencies.require_admin",
+          "app.auth.dependencies.require_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template:auth/admin/partidas.html"
+        ],
+        "defined": true,
+        "endpoint": "admin_partidas_revoke",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "POST /admin/partidas/{access_id}/revoke",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/admin/partidas.html:/admin/partidas/{{ a.id }}/revoke"
+        ],
+        "method": "POST",
+        "module": "app.routers.admin",
+        "mounted": true,
+        "path": "/admin/partidas/{access_id}/revoke",
+        "rol_minimo_observado": "no-concluyente-csrf",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/admin.py:482",
+        "status_por_rol": {
+          "admin": 403,
+          "reviewer": 403,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
         "authz_body_guards": [],
         "authz_deps": [
           "app.auth.dependencies.require_admin",
@@ -1229,7 +1448,50 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "template:auth/admin/user_detail.html",
+          "template:base.html"
+        ],
+        "defined": true,
+        "endpoint": "admin_users",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /admin/users",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/account.html:/admin/users",
+          "auth/admin/audit.html:/admin/users",
+          "auth/admin/partidas.html:/admin/users",
+          "auth/admin/user_detail.html:/admin/users",
+          "auth/admin/users.html:/admin/users",
+          "auth/change_password.html:/admin/users"
+        ],
+        "method": "GET",
+        "module": "app.routers.admin",
+        "mounted": true,
+        "path": "/admin/users",
+        "rol_minimo_observado": "admin",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/admin.py:47",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 403,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_admin",
+          "app.auth.dependencies.require_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
         "consumed": true,
         "consumers": [
           "template:auth/admin/users.html"
@@ -1268,7 +1530,6 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:auth/admin/users.html"
@@ -1305,7 +1566,6 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:auth/admin/users.html"
@@ -1345,7 +1605,6 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:auth/admin/users.html"
@@ -1382,7 +1641,6 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:auth/admin/user_detail.html"
@@ -1421,7 +1679,6 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:auth/admin/user_detail.html",
@@ -1455,13 +1712,1138 @@
       },
       {
         "authz_body_guards": [
+          "require_api_role"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "api_admin_health",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/admin/health",
+        "kind": "api",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.health_admin",
+        "mounted": true,
+        "path": "/api/admin/health",
+        "rol_minimo_observado": "admin",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/health_admin.py:24",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 403,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_api_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "api_entities",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/entities",
+        "kind": "api",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/api/entities",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/routers/readonly.py:117",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_api_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "js:static/js/graph.js"
+        ],
+        "defined": true,
+        "endpoint": "api_entity_detail",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/entities/{entity_id}",
+        "kind": "api",
+        "linked": true,
+        "linked_by": [
+          "graph.html:/api/entities/"
+        ],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/api/entities/{entity_id}",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/routers/readonly.py:183",
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 404
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_api_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "api_entity_types",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/entity-types",
+        "kind": "api",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.api.entities",
+        "mounted": true,
+        "path": "/api/entity-types",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/api/entities.py:19",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_api_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "api_entity",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/entity/{entity_id}",
+        "kind": "api",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.api.entities",
+        "mounted": true,
+        "path": "/api/entity/{entity_id}",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/api/entities.py:45",
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 404
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_api_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "js:static/js/graph.js"
+        ],
+        "defined": true,
+        "endpoint": "api_graph",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/graph",
+        "kind": "api",
+        "linked": true,
+        "linked_by": [
+          "graph.html:/api/graph?"
+        ],
+        "method": "GET",
+        "module": "app.api.graph",
+        "mounted": true,
+        "path": "/api/graph",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/api/graph.py:14",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_api_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "api_jobs",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/jobs",
+        "kind": "api",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.api.jobs",
+        "mounted": true,
+        "path": "/api/jobs",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_visibility_scope"
+        ],
+        "source": "viewer/app/api/jobs.py:24",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_api_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "api_jobs_counts",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/jobs/counts",
+        "kind": "api",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.api.jobs",
+        "mounted": true,
+        "path": "/api/jobs/counts",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_visibility_scope"
+        ],
+        "source": "viewer/app/api/jobs.py:41",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_api_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "api_job_detail",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/jobs/{job_id}",
+        "kind": "api",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.api.jobs",
+        "mounted": true,
+        "path": "/api/jobs/{job_id}",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_visibility_scope"
+        ],
+        "source": "viewer/app/api/jobs.py:53",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "require_api_role"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "api_quality",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/quality",
+        "kind": "api",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/api/quality",
+        "rol_minimo_observado": "reviewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/routers/readonly.py:455",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_api_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "api_search",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/search",
+        "kind": "api",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.api.entities",
+        "mounted": true,
+        "path": "/api/search",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/api/entities.py:28",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "require_api_role"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "api_sources",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/sources",
+        "kind": "api",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/api/sources",
+        "rol_minimo_observado": "reviewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/routers/readonly.py:346",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "require_api_role"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "api_source_detail",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/sources/{source_id}",
+        "kind": "api",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/api/sources/{source_id}",
+        "rol_minimo_observado": "reviewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/routers/readonly.py:365",
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_api_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "api_status",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/status",
+        "kind": "api",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.api.status",
+        "mounted": true,
+        "path": "/api/status",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/api/status.py:12",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_api_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "api_workspaces",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /api/workspaces",
+        "kind": "api",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.api.entities",
+        "mounted": true,
+        "path": "/api/workspaces",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/api/entities.py:14",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_docs_access"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "404",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "_swagger",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /docs",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.main",
+        "mounted": true,
+        "path": "/docs",
+        "rol_minimo_observado": "ninguno-sirve",
+        "scoping_deps": [],
+        "source": "viewer/app/main.py:161",
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 404
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.routers.readonly.html_guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/entities",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template-js:entities.html",
+          "template:base.html",
+          "template:entities.html",
+          "template:entity_detail.html"
+        ],
+        "defined": true,
+        "endpoint": "entities_page",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /entities",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/account.html:/entities",
+          "auth/admin/audit.html:/entities",
+          "auth/admin/partidas.html:/entities",
+          "auth/admin/user_detail.html:/entities",
+          "auth/admin/users.html:/entities",
+          "auth/change_password.html:/entities"
+        ],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/entities",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "@router.get(\"/entities\", response_class=HTMLResponse)\ndef entities_page(\n    request: Request,\n    workspace: Optional[str] = None,\n    q: str = \"\",\n    entity_type: Optional[str] = None,\n    source_kind: Optional[str] = None,\n    review_status: Optional[str] = None,\n    min_confidence: Optional[float] = None,\n    sort: str = \"canonical_name\",\n    order: str = \"asc\",\n    limit: Optional[int] = None,\n    offset: int = 0,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_guard),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    if limit is None:\n        limit = settings.S9K_VIEWER_DEFAULT_PAGE_SIZE\n    q, limit, offset, sort, order = _validate_query_params(q, limit, offset, sort, order, settings)\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n\n    try:\n        items, total = provider.list_entities(\n            ws,\n            q=q,\n            entity_type=entity_type,\n            source_kind=source_kind,\n            review_status=review_status,\n            min_confidence=min_confidence,\n            sort=sort,\n            order=order,\n            limit=limit,\n            offset=offset,\n        )\n    except Exception:\n        items, total = [], 0\n\n    serialized = [serialize_node(n) for n in items]\n    pagination = _build_pagination(total, limit, offset)\n    types = provider.entity_types(ws)\n\n    return templates.TemplateResponse(\n        request,\n        \"entities.html\",\n        {\n            \"workspace\": ws,\n            \"q\": q,\n            \"entity_type\": entity_type or \"\",\n            \"types\": types,\n            \"page\": {**pagination, \"items\": serialized},\n            \"auth_user\": user,\n            \"sort\": sort,\n            \"order\": order,\n            \"limit\": limit,\n        },\n    )\n",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.routers.readonly.html_guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/entities/probe",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "js:static/js/graph.js",
+          "template:entity_detail.html"
+        ],
+        "defined": true,
+        "endpoint": "entity_detail_page",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /entities/{entity_id}",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "entity_detail.html:/entities/{{ rel.other_entity.id | e }}",
+          "graph.html:/entities/"
+        ],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/entities/{entity_id}",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "@router.get(\"/entities/{entity_id}\", response_class=HTMLResponse)\ndef entity_detail_page(\n    request: Request,\n    entity_id: str,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_guard),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n\n    try:\n        node = provider.entity(entity_id)\n    except Exception:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 503, \"message\": \"Fuente de datos no disponible\", \"auth_user\": user},\n            status_code=503,\n        )\n\n    if node is None:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 404, \"message\": \"Entidad no encontrada\", \"auth_user\": user},\n            status_code=404,\n        )\n\n    try:\n        outgoing, incoming = provider.relations_for_entity(entity_id)\n    except Exception:\n        outgoing, incoming = [], []\n\n    def _with_other(edge: dict, other_key: str) -> dict:\n        s = serialize_edge(edge)\n        try:\n            other = provider.entity(edge.get(other_key))\n            s[\"other_entity\"] = serialize_node(other) if other else None\n        except Exception:\n            s[\"other_entity\"] = None\n        return s\n\n    return templates.TemplateResponse(\n        request,\n        \"entity_detail.html\",\n        {\n            \"entity\": serialize_node(node),\n            \"outgoing\": [_with_other(e, \"to\") for e in outgoing],\n            \"incoming\": [_with_other(e, \"from\") for e in incoming],\n            \"auth_user\": user,\n        },\n    )\n",
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 404
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_require_user_or_redirect"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/entity/probe",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template:entities.html",
+          "template:entity.html"
+        ],
+        "defined": true,
+        "endpoint": "entity_view",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /entity/{entity_id}",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "entities.html:/entity/{{ e.id }}",
+          "entity.html:/entity/{{ rel.other_entity.id }}"
+        ],
+        "method": "GET",
+        "module": "app.main",
+        "mounted": true,
+        "path": "/entity/{entity_id}",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/main.py:471",
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 404
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_require_user_or_redirect"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/graph",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template:base.html",
+          "template:index.html"
+        ],
+        "defined": true,
+        "endpoint": "graph_view",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /graph",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/account.html:/graph",
+          "auth/admin/audit.html:/graph",
+          "auth/admin/partidas.html:/graph",
+          "auth/admin/user_detail.html:/graph",
+          "auth/admin/users.html:/graph",
+          "auth/change_password.html:/graph"
+        ],
+        "method": "GET",
+        "module": "app.main",
+        "mounted": true,
+        "path": "/graph",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [],
+        "source": "viewer/app/main.py:445",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_require_user_or_redirect"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/jobs",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template-js:jobs.html",
+          "template:base.html",
+          "template:jobs.html"
+        ],
+        "defined": true,
+        "endpoint": "jobs_view",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /jobs",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/account.html:/jobs",
+          "auth/admin/audit.html:/jobs",
+          "auth/admin/partidas.html:/jobs",
+          "auth/admin/user_detail.html:/jobs",
+          "auth/admin/users.html:/jobs",
+          "auth/change_password.html:/jobs"
+        ],
+        "method": "GET",
+        "module": "app.main",
+        "mounted": true,
+        "path": "/jobs",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [],
+        "source": "viewer/app/main.py:503",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_require_user_or_redirect"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/jobs/probe",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template:jobs.html"
+        ],
+        "defined": true,
+        "endpoint": "job_detail_view",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /jobs/{job_id}",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "jobs.html:/jobs/{{ job.job_id }}"
+        ],
+        "method": "GET",
+        "module": "app.main",
+        "mounted": true,
+        "path": "/jobs/{job_id}",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [],
+        "source": "viewer/app/main.py:534",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [],
+        "authz_probe": "publica-por-diseno",
+        "authz_probe_detail": "allowlist",
+        "authz_static": false,
+        "consumed": true,
+        "consumers": [
+          "template-js:auth/login.html",
+          "template:auth/login.html"
+        ],
+        "defined": true,
+        "endpoint": "login_page",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /login",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.auth",
+        "mounted": true,
+        "path": "/login",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/auth.py:96",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [],
+        "authz_probe": "publica-por-diseno",
+        "authz_probe_detail": "allowlist",
+        "authz_static": false,
+        "consumed": true,
+        "consumers": [
+          "template-js:auth/login.html",
+          "template:auth/login.html"
+        ],
+        "defined": true,
+        "endpoint": "login_submit",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "POST /login",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "POST",
+        "module": "app.routers.auth",
+        "mounted": true,
+        "path": "/login",
+        "rol_minimo_observado": "no-concluyente-csrf",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/auth.py:123",
+        "status_por_rol": {
+          "admin": 400,
+          "reviewer": 400,
+          "viewer": 400
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login",
+        "authz_static": false,
+        "consumed": true,
+        "consumers": [
+          "template-js:auth/account.html",
+          "template-js:base.html",
+          "template:auth/account.html",
+          "template:base.html"
+        ],
+        "defined": true,
+        "endpoint": "logout",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "POST /logout",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/account.html:/logout",
+          "auth/admin/audit.html:/logout",
+          "auth/admin/partidas.html:/logout",
+          "auth/admin/user_detail.html:/logout",
+          "auth/admin/users.html:/logout",
+          "auth/change_password.html:/logout"
+        ],
+        "method": "POST",
+        "module": "app.routers.auth",
+        "mounted": true,
+        "path": "/logout",
+        "rol_minimo_observado": "no-concluyente-csrf",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/auth.py:252",
+        "status_por_rol": {
+          "admin": 403,
+          "reviewer": 403,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_docs_access"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "404",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "_openapi",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /openapi.json",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.main",
+        "mounted": true,
+        "path": "/openapi.json",
+        "rol_minimo_observado": "ninguno-sirve",
+        "scoping_deps": [],
+        "source": "viewer/app/main.py:155",
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 404
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.auth.dependencies.require_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template-js:base.html",
+          "template:base.html"
+        ],
+        "defined": true,
+        "endpoint": "select_partida",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "POST /partida/select",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/account.html:/partida/select",
+          "auth/admin/audit.html:/partida/select",
+          "auth/admin/partidas.html:/partida/select",
+          "auth/admin/user_detail.html:/partida/select",
+          "auth/admin/users.html:/partida/select",
+          "auth/change_password.html:/partida/select"
+        ],
+        "method": "POST",
+        "module": "app.routers.partida",
+        "mounted": true,
+        "path": "/partida/select",
+        "rol_minimo_observado": "no-concluyente-csrf",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/partida.py:43",
+        "status_por_rol": {
+          "admin": 403,
+          "reviewer": 403,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "html_role_guard"
+        ],
+        "authz_deps": [
+          "app.routers.readonly._guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/quality",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "quality_page",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /quality",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/quality",
+        "rol_minimo_observado": "reviewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "@router.get(\"/quality\", response_class=HTMLResponse)\ndef quality_page(\n    request: Request,\n    workspace: Optional[str] = None,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_role_guard(\"reviewer\")),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n    try:\n        metrics = provider.quality_metrics(ws)\n    except Exception:\n        metrics = {}\n    return templates.TemplateResponse(\n        request, \"quality.html\",\n        {\"workspace\": ws, \"metrics\": metrics, \"auth_user\": user},\n    )\n",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_docs_access"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "404",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "_redoc",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /redoc",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.main",
+        "mounted": true,
+        "path": "/redoc",
+        "rol_minimo_observado": "ninguno-sirve",
+        "scoping_deps": [],
+        "source": "viewer/app/main.py:168",
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 404
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_guard"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/review-console",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template:reviews_console_source.html"
+        ],
+        "defined": true,
+        "endpoint": "inbox",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /review-console",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.reviews_console",
+        "mounted": true,
+        "path": "/review-console",
+        "rol_minimo_observado": "reviewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_visibility_scope"
+        ],
+        "source": "viewer/app/routers/reviews_console.py:80",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
           "_guard"
         ],
         "authz_deps": [],
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/review-console/",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": false,
         "consumers": [],
         "defined": true,
@@ -1495,9 +2877,408 @@
         ],
         "authz_deps": [],
         "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/review-console/source/probe",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template:reviews_console.html"
+        ],
+        "defined": true,
+        "endpoint": "source_detail",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /review-console/source/{source_id}",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.reviews_console",
+        "mounted": true,
+        "path": "/review-console/source/{source_id}",
+        "rol_minimo_observado": "reviewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_visibility_scope"
+        ],
+        "source": "viewer/app/routers/reviews_console.py:98",
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_guard"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/review-console/source/probe/decide",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template:reviews_console_source.html"
+        ],
+        "defined": true,
+        "endpoint": "decide",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "POST /review-console/source/{source_id}/decide",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "POST",
+        "module": "app.routers.reviews_console",
+        "mounted": true,
+        "path": "/review-console/source/{source_id}/decide",
+        "rol_minimo_observado": "no-concluyente-csrf",
+        "scoping_deps": [
+          "app.authz.dependencies.get_visibility_scope"
+        ],
+        "source": "viewer/app/routers/reviews_console.py:126",
+        "status_por_rol": {
+          "admin": 403,
+          "reviewer": 403,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_require_reviewer_or_redirect"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/reviews",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template:base.html",
+          "template:reviews_detail.html"
+        ],
+        "defined": true,
+        "endpoint": "reviews_view",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /reviews",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/account.html:/reviews",
+          "auth/admin/audit.html:/reviews",
+          "auth/admin/partidas.html:/reviews",
+          "auth/admin/user_detail.html:/reviews",
+          "auth/admin/users.html:/reviews",
+          "auth/change_password.html:/reviews"
+        ],
+        "method": "GET",
+        "module": "app.main",
+        "mounted": true,
+        "path": "/reviews",
+        "rol_minimo_observado": "reviewer",
+        "scoping_deps": [],
+        "source": "viewer/app/main.py:551",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_require_reviewer_or_redirect"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/reviews/probe",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template:reviews.html"
+        ],
+        "defined": true,
+        "endpoint": "reviews_detail_view",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /reviews/{source_id}",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "reviews.html:/reviews/{{ src.source_id }}"
+        ],
+        "method": "GET",
+        "module": "app.main",
+        "mounted": true,
+        "path": "/reviews/{source_id}",
+        "rol_minimo_observado": "reviewer",
+        "scoping_deps": [],
+        "source": "viewer/app/main.py:565",
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.routers.readonly.html_guard"
+        ],
+        "authz_probe": "SIN-AUTH",
+        "authz_probe_detail": "200",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "ruta_con_senuelo",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /ruta-con-senuelo",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/ruta-con-senuelo",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [],
+        "source": "@router.get(\"/ruta-con-senuelo\")\ndef ruta_con_senuelo(request: Request, user=Depends(html_guard)):\n    datos = [1, 2, 3]\n    if isinstance(datos, list):  # señuelo: no comprueba `user`\n        datos = list(datos)\n    # menciona RedirectResponse sin usarlo\n    return {\"ok\": True, \"tipo\": \"RedirectResponse\"}\n",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "html_role_guard"
+        ],
+        "authz_deps": [
+          "app.routers.readonly._guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/sources",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template:base.html",
+          "template:source_detail.html"
+        ],
+        "defined": true,
+        "endpoint": "sources_page",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /sources",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/account.html:/sources",
+          "auth/admin/audit.html:/sources",
+          "auth/admin/partidas.html:/sources",
+          "auth/admin/user_detail.html:/sources",
+          "auth/admin/users.html:/sources",
+          "auth/change_password.html:/sources"
+        ],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/sources",
+        "rol_minimo_observado": "reviewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "@router.get(\"/sources\", response_class=HTMLResponse)\ndef sources_page(\n    request: Request,\n    workspace: Optional[str] = None,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_role_guard(\"reviewer\")),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n    try:\n        sources = provider.list_sources(ws)\n    except Exception:\n        sources = []\n    return templates.TemplateResponse(\n        request, \"sources.html\",\n        {\"workspace\": ws, \"sources\": sources, \"auth_user\": user},\n    )\n",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/sources/panel",
+        "authz_static": false,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "ruta_capturada_sin_guardian",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /sources/panel",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/sources/panel",
+        "rol_minimo_observado": "ninguno-sirve",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/readonly.py:496",
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "html_role_guard"
+        ],
+        "authz_deps": [
+          "app.routers.readonly._guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/sources/probe",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template:sources.html"
+        ],
+        "defined": true,
+        "endpoint": "source_detail_page",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /sources/{source_id}",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "sources.html:/sources/{{ s.source_id | e }}"
+        ],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/sources/{source_id}",
+        "rol_minimo_observado": "reviewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "@router.get(\"/sources/{source_id}\", response_class=HTMLResponse)\ndef source_detail_page(\n    request: Request,\n    source_id: str,\n    workspace: Optional[str] = None,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_role_guard(\"reviewer\")),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n\n    try:\n        detail = provider.source_detail(ws, source_id)\n    except Exception:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 503, \"message\": \"Fuente de datos no disponible\", \"auth_user\": user},\n            status_code=503,\n        )\n\n    if detail is None:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 404, \"message\": \"Fuente no encontrada\", \"auth_user\": user},\n            status_code=404,\n        )\n\n    return templates.TemplateResponse(\n        request, \"source_detail.html\",\n        {\"workspace\": ws, \"source\": detail, \"auth_user\": user},\n    )\n",
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_require_user_or_redirect"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/status",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template:base.html",
+          "template:index.html"
+        ],
+        "defined": true,
+        "endpoint": "status_view",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /status",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/account.html:/status",
+          "auth/admin/audit.html:/status",
+          "auth/admin/partidas.html:/status",
+          "auth/admin/user_detail.html:/status",
+          "auth/admin/users.html:/status",
+          "auth/change_password.html:/status"
+        ],
+        "method": "GET",
+        "module": "app.main",
+        "mounted": true,
+        "path": "/status",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/main.py:462",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_guard"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/v3/review",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template-js:v3_review.html",
+          "template:base.html",
+          "template:v3_review.html"
+        ],
+        "defined": true,
+        "endpoint": "queue",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /v3/review",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/account.html:/v3/review",
+          "auth/admin/audit.html:/v3/review",
+          "auth/admin/partidas.html:/v3/review",
+          "auth/admin/user_detail.html:/v3/review",
+          "auth/admin/users.html:/v3/review",
+          "auth/change_password.html:/v3/review"
+        ],
+        "method": "GET",
+        "module": "app.routers.v3_review",
+        "mounted": true,
+        "path": "/v3/review",
+        "rol_minimo_observado": "reviewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_visibility_scope"
+        ],
+        "source": "viewer/app/routers/v3_review.py:87",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_guard"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/v3/review/",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": false,
         "consumers": [],
         "defined": true,
@@ -1531,9 +3312,48 @@
         ],
         "authz_deps": [],
         "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/v3/review/decide",
+        "authz_static": true,
+        "consumed": true,
+        "consumers": [
+          "template-js:v3_review.html",
+          "template:v3_review.html"
+        ],
+        "defined": true,
+        "endpoint": "decide",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "POST /v3/review/decide",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "v3_review.html:/v3/review/decide"
+        ],
+        "method": "POST",
+        "module": "app.routers.v3_review",
+        "mounted": true,
+        "path": "/v3/review/decide",
+        "rol_minimo_observado": "no-concluyente-csrf",
+        "scoping_deps": [
+          "app.authz.dependencies.get_visibility_scope"
+        ],
+        "source": "viewer/app/routers/v3_review.py:131",
+        "status_por_rol": {
+          "admin": 403,
+          "reviewer": 403,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [
+          "_guard"
+        ],
+        "authz_deps": [],
+        "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/v3/review/glossary-candidates",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template-js:v3_glossary_candidates.html",
@@ -1572,7 +3392,6 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/v3/review/undo",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template-js:v3_review.html",
@@ -1615,13 +3434,11 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:auth/403.html",
           "template:base.html",
-          "template:error.html",
-          "tests:8 peticiones"
+          "template:error.html"
         ],
         "defined": true,
         "endpoint": "home",
@@ -1651,12 +3468,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 8,
-        "tested_statuses": [
-          200,
-          302
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -1666,7 +3480,6 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:auth/change_password.html",
@@ -1710,13 +3523,11 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template-js:auth/change_password.html",
           "template:auth/account.html",
-          "template:auth/change_password.html",
-          "tests:9 peticiones"
+          "template:auth/change_password.html"
         ],
         "defined": true,
         "endpoint": "change_password_page",
@@ -1740,11 +3551,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 9,
-        "tested_statuses": [
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -1754,11 +3563,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:83 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_entities",
         "guardian_pasivo_no_aplicado": false,
@@ -1781,13 +3587,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 83,
-        "tested_statuses": [
-          200,
-          401,
-          422
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -1797,11 +3599,9 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "js:static/js/graph.js",
-          "tests:16 peticiones"
+          "js:static/js/graph.js"
         ],
         "defined": true,
         "endpoint": "api_entity_detail",
@@ -1827,12 +3627,9 @@
           "reviewer": 404,
           "viewer": 404
         },
-        "tested": true,
-        "tested_hits": 16,
-        "tested_statuses": [
-          404,
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -1842,11 +3639,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:4 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_entity_types",
         "guardian_pasivo_no_aplicado": false,
@@ -1869,12 +3663,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 4,
-        "tested_statuses": [
-          401,
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -1884,11 +3675,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:6 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_entity",
         "guardian_pasivo_no_aplicado": false,
@@ -1911,12 +3699,9 @@
           "reviewer": 404,
           "viewer": 404
         },
-        "tested": true,
-        "tested_hits": 6,
-        "tested_statuses": [
-          404,
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -1926,11 +3711,9 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "js:static/js/graph.js",
-          "tests:12 peticiones"
+          "js:static/js/graph.js"
         ],
         "defined": true,
         "endpoint": "api_graph",
@@ -1956,12 +3739,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 12,
-        "tested_statuses": [
-          200,
-          401
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -1971,11 +3751,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:8 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_jobs",
         "guardian_pasivo_no_aplicado": false,
@@ -1997,12 +3774,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 8,
-        "tested_statuses": [
-          200,
-          401
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -2012,11 +3786,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:4 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_jobs_counts",
         "guardian_pasivo_no_aplicado": false,
@@ -2038,12 +3809,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 4,
-        "tested_statuses": [
-          200,
-          401
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -2053,11 +3821,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:4 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_job_detail",
         "guardian_pasivo_no_aplicado": false,
@@ -2079,11 +3844,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 4,
-        "tested_statuses": [
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -2093,11 +3856,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:8 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_search",
         "guardian_pasivo_no_aplicado": false,
@@ -2120,12 +3880,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 8,
-        "tested_statuses": [
-          200,
-          401
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -2135,11 +3892,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:11 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_status",
         "guardian_pasivo_no_aplicado": false,
@@ -2162,12 +3916,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 11,
-        "tested_statuses": [
-          200,
-          401
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -2177,11 +3928,8 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "tests:6 peticiones"
-        ],
+        "consumed": false,
+        "consumers": [],
         "defined": true,
         "endpoint": "api_workspaces",
         "guardian_pasivo_no_aplicado": false,
@@ -2204,12 +3952,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 6,
-        "tested_statuses": [
-          401,
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -2219,14 +3964,12 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/entities",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template-js:entities.html",
           "template:base.html",
           "template:entities.html",
-          "template:entity_detail.html",
-          "tests:30 peticiones"
+          "template:entity_detail.html"
         ],
         "defined": true,
         "endpoint": "entities_page",
@@ -2251,18 +3994,15 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/routers/readonly.py:225",
+        "source": "@router.get(\"/entities\", response_class=HTMLResponse)\ndef entities_page(\n    request: Request,\n    workspace: Optional[str] = None,\n    q: str = \"\",\n    entity_type: Optional[str] = None,\n    source_kind: Optional[str] = None,\n    review_status: Optional[str] = None,\n    min_confidence: Optional[float] = None,\n    sort: str = \"canonical_name\",\n    order: str = \"asc\",\n    limit: Optional[int] = None,\n    offset: int = 0,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_guard),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    if limit is None:\n        limit = settings.S9K_VIEWER_DEFAULT_PAGE_SIZE\n    q, limit, offset, sort, order = _validate_query_params(q, limit, offset, sort, order, settings)\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n\n    try:\n        items, total = provider.list_entities(\n            ws,\n            q=q,\n            entity_type=entity_type,\n            source_kind=source_kind,\n            review_status=review_status,\n            min_confidence=min_confidence,\n            sort=sort,\n            order=order,\n            limit=limit,\n            offset=offset,\n        )\n    except Exception:\n        items, total = [], 0\n\n    serialized = [serialize_node(n) for n in items]\n    pagination = _build_pagination(total, limit, offset)\n    types = provider.entity_types(ws)\n\n    return templates.TemplateResponse(\n        request,\n        \"entities.html\",\n        {\n            \"workspace\": ws,\n            \"q\": q,\n            \"entity_type\": entity_type or \"\",\n            \"types\": types,\n            \"page\": {**pagination, \"items\": serialized},\n            \"auth_user\": user,\n            \"sort\": sort,\n            \"order\": order,\n            \"limit\": limit,\n        },\n    )\n",
         "status_por_rol": {
           "admin": 200,
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 30,
-        "tested_statuses": [
-          200,
-          302
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [],
@@ -2272,12 +4012,10 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/entities/probe",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "js:static/js/graph.js",
-          "template:entity_detail.html",
-          "tests:3 peticiones"
+          "template:entity_detail.html"
         ],
         "defined": true,
         "endpoint": "entity_detail_page",
@@ -2298,18 +4036,15 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/routers/readonly.py:290",
+        "source": "@router.get(\"/entities/{entity_id}\", response_class=HTMLResponse)\ndef entity_detail_page(\n    request: Request,\n    entity_id: str,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_guard),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n\n    try:\n        node = provider.entity(entity_id)\n    except Exception:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 503, \"message\": \"Fuente de datos no disponible\", \"auth_user\": user},\n            status_code=503,\n        )\n\n    if node is None:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 404, \"message\": \"Entidad no encontrada\", \"auth_user\": user},\n            status_code=404,\n        )\n\n    try:\n        outgoing, incoming = provider.relations_for_entity(entity_id)\n    except Exception:\n        outgoing, incoming = [], []\n\n    def _with_other(edge: dict, other_key: str) -> dict:\n        s = serialize_edge(edge)\n        try:\n            other = provider.entity(edge.get(other_key))\n            s[\"other_entity\"] = serialize_node(other) if other else None\n        except Exception:\n            s[\"other_entity\"] = None\n        return s\n\n    return templates.TemplateResponse(\n        request,\n        \"entity_detail.html\",\n        {\n            \"entity\": serialize_node(node),\n            \"outgoing\": [_with_other(e, \"to\") for e in outgoing],\n            \"incoming\": [_with_other(e, \"from\") for e in incoming],\n            \"auth_user\": user,\n        },\n    )\n",
         "status_por_rol": {
           "admin": 404,
           "reviewer": 404,
           "viewer": 404
         },
-        "tested": true,
-        "tested_hits": 3,
-        "tested_statuses": [
-          200,
-          404
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -2319,12 +4054,10 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/entity/probe",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:entities.html",
-          "template:entity.html",
-          "tests:2 peticiones"
+          "template:entity.html"
         ],
         "defined": true,
         "endpoint": "entity_view",
@@ -2351,12 +4084,9 @@
           "reviewer": 404,
           "viewer": 404
         },
-        "tested": true,
-        "tested_hits": 2,
-        "tested_statuses": [
-          404,
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -2366,12 +4096,10 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/graph",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:base.html",
-          "template:index.html",
-          "tests:22 peticiones"
+          "template:index.html"
         ],
         "defined": true,
         "endpoint": "graph_view",
@@ -2399,11 +4127,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 22,
-        "tested_statuses": [
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -2413,13 +4139,11 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/jobs",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template-js:jobs.html",
           "template:base.html",
-          "template:jobs.html",
-          "tests:5 peticiones"
+          "template:jobs.html"
         ],
         "defined": true,
         "endpoint": "jobs_view",
@@ -2447,11 +4171,9 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 5,
-        "tested_statuses": [
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -2461,11 +4183,9 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/jobs/probe",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "template:jobs.html",
-          "tests:1 peticiones"
+          "template:jobs.html"
         ],
         "defined": true,
         "endpoint": "job_detail_view",
@@ -2488,11 +4208,42 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 1,
-        "tested_statuses": [
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.routers.readonly.html_guard"
+        ],
+        "authz_probe": "SIN-AUTH",
+        "authz_probe_detail": "200",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "ruta_con_senuelo",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /ruta-con-senuelo",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/ruta-con-senuelo",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [],
+        "source": "@router.get(\"/ruta-con-senuelo\")\ndef ruta_con_senuelo(request: Request, user=Depends(html_guard)):\n    datos = [1, 2, 3]\n    if isinstance(datos, list):  # señuelo: no comprueba `user`\n        datos = list(datos)\n    # menciona RedirectResponse sin usarlo\n    return {\"ok\": True, \"tipo\": \"RedirectResponse\"}\n",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       },
       {
         "authz_body_guards": [
@@ -2502,12 +4253,10 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/status",
         "authz_static": true,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:base.html",
-          "template:index.html",
-          "tests:2 peticiones"
+          "template:index.html"
         ],
         "defined": true,
         "endpoint": "status_view",
@@ -2538,14 +4287,46 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": true,
-        "tested_hits": 2,
-        "tested_statuses": [
-          200
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       }
     ],
-    "rutas_sin_auth": [],
+    "rutas_sin_auth": [
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
+          "app.routers.readonly.html_guard"
+        ],
+        "authz_probe": "SIN-AUTH",
+        "authz_probe_detail": "200",
+        "authz_static": true,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "ruta_con_senuelo",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /ruta-con-senuelo",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/ruta-con-senuelo",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [],
+        "source": "@router.get(\"/ruta-con-senuelo\")\ndef ruta_con_senuelo(request: Request, user=Depends(html_guard)):\n    datos = [1, 2, 3]\n    if isinstance(datos, list):  # señuelo: no comprueba `user`\n        datos = list(datos)\n    # menciona RedirectResponse sin usarlo\n    return {\"ok\": True, \"tipo\": \"RedirectResponse\"}\n",
+        "status_por_rol": {
+          "admin": 200,
+          "reviewer": 200,
+          "viewer": 200
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      }
+    ],
     "rutas_sin_guardian_estatico": [
       {
         "authz_body_guards": [],
@@ -2553,14 +4334,12 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login",
         "authz_static": false,
-        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template-js:auth/account.html",
           "template-js:base.html",
           "template:auth/account.html",
-          "template:base.html",
-          "tests:2 peticiones"
+          "template:base.html"
         ],
         "defined": true,
         "endpoint": "logout",
@@ -2588,18 +4367,47 @@
           "reviewer": 403,
           "viewer": 403
         },
-        "tested": true,
-        "tested_hits": 2,
-        "tested_statuses": [
-          302
-        ]
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/sources/panel",
+        "authz_static": false,
+        "consumed": false,
+        "consumers": [],
+        "defined": true,
+        "endpoint": "ruta_capturada_sin_guardian",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /sources/panel",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.readonly",
+        "mounted": true,
+        "path": "/sources/panel",
+        "rol_minimo_observado": "ninguno-sirve",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/readonly.py:496",
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 403
+        },
+        "tested": false,
+        "tested_hits": 0,
+        "tested_statuses": []
       }
     ],
     "sondas_inconcluyentes": []
   },
-  "head": "cb874fe1141e4a17008c362c0aa404a90889128d",
+  "head": "INSTRUMENTO-VIEJO",
   "probe_error": null,
-  "repo": "/tmp/s9k-base2",
+  "repo": "/tmp/n3",
   "routes": [
     {
       "authz_body_guards": [
@@ -2609,13 +4417,11 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/403.html",
         "template:base.html",
-        "template:error.html",
-        "tests:8 peticiones"
+        "template:error.html"
       ],
       "defined": true,
       "endpoint": "home",
@@ -2645,12 +4451,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 8,
-      "tested_statuses": [
-        200,
-        302
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -2660,7 +4463,6 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/change_password.html",
@@ -2704,13 +4506,11 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:auth/change_password.html",
         "template:auth/account.html",
-        "template:auth/change_password.html",
-        "tests:9 peticiones"
+        "template:auth/change_password.html"
       ],
       "defined": true,
       "endpoint": "change_password_page",
@@ -2734,11 +4534,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 9,
-      "tested_statuses": [
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -2748,13 +4546,11 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:auth/change_password.html",
         "template:auth/account.html",
-        "template:auth/change_password.html",
-        "tests:9 peticiones"
+        "template:auth/change_password.html"
       ],
       "defined": true,
       "endpoint": "change_password_submit",
@@ -2777,13 +4573,9 @@
         "reviewer": 400,
         "viewer": 400
       },
-      "tested": true,
-      "tested_hits": 9,
-      "tested_statuses": [
-        302,
-        400,
-        403
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -2794,12 +4586,10 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/audit.html",
-        "template:auth/admin/users.html",
-        "tests:1 peticiones"
+        "template:auth/admin/users.html"
       ],
       "defined": true,
       "endpoint": "admin_audit",
@@ -2823,11 +4613,9 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 1,
-      "tested_statuses": [
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -2838,7 +4626,6 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": false,
       "consumers": [],
       "defined": true,
@@ -2875,12 +4662,10 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/users.html",
-        "template:base.html",
-        "tests:11 peticiones"
+        "template:base.html"
       ],
       "defined": true,
       "endpoint": "admin_partidas",
@@ -2908,12 +4693,9 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 11,
-      "tested_statuses": [
-        200,
-        403
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -2926,12 +4708,10 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:auth/admin/partidas.html",
-        "template:auth/admin/partidas.html",
-        "tests:9 peticiones"
+        "template:auth/admin/partidas.html"
       ],
       "defined": true,
       "endpoint": "admin_partidas_grant",
@@ -2954,13 +4734,9 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 9,
-      "tested_statuses": [
-        302,
-        400,
-        403
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -2973,11 +4749,9 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:auth/admin/partidas.html",
-        "tests:1 peticiones"
+        "template:auth/admin/partidas.html"
       ],
       "defined": true,
       "endpoint": "admin_partidas_revoke",
@@ -3000,11 +4774,9 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 1,
-      "tested_statuses": [
-        302
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -3015,12 +4787,10 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/user_detail.html",
-        "template:base.html",
-        "tests:3 peticiones"
+        "template:base.html"
       ],
       "defined": true,
       "endpoint": "admin_users",
@@ -3048,12 +4818,9 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 3,
-      "tested_statuses": [
-        403,
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -3064,7 +4831,6 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/users.html"
@@ -3103,7 +4869,6 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/users.html"
@@ -3140,7 +4905,6 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/users.html"
@@ -3180,7 +4944,6 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/users.html"
@@ -3217,7 +4980,6 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/user_detail.html"
@@ -3256,7 +5018,6 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/user_detail.html",
@@ -3296,11 +5057,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:3 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "api_admin_health",
       "guardian_pasivo_no_aplicado": false,
@@ -3320,13 +5078,9 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 3,
-      "tested_statuses": [
-        401,
-        403,
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -3336,11 +5090,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:83 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "api_entities",
       "guardian_pasivo_no_aplicado": false,
@@ -3363,13 +5114,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 83,
-      "tested_statuses": [
-        200,
-        401,
-        422
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -3379,11 +5126,9 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "js:static/js/graph.js",
-        "tests:16 peticiones"
+        "js:static/js/graph.js"
       ],
       "defined": true,
       "endpoint": "api_entity_detail",
@@ -3409,12 +5154,9 @@
         "reviewer": 404,
         "viewer": 404
       },
-      "tested": true,
-      "tested_hits": 16,
-      "tested_statuses": [
-        404,
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -3424,11 +5166,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:4 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "api_entity_types",
       "guardian_pasivo_no_aplicado": false,
@@ -3451,12 +5190,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 4,
-      "tested_statuses": [
-        401,
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -3466,11 +5202,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:6 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "api_entity",
       "guardian_pasivo_no_aplicado": false,
@@ -3493,12 +5226,9 @@
         "reviewer": 404,
         "viewer": 404
       },
-      "tested": true,
-      "tested_hits": 6,
-      "tested_statuses": [
-        404,
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -3508,11 +5238,9 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "js:static/js/graph.js",
-        "tests:12 peticiones"
+        "js:static/js/graph.js"
       ],
       "defined": true,
       "endpoint": "api_graph",
@@ -3538,12 +5266,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 12,
-      "tested_statuses": [
-        200,
-        401
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -3553,11 +5278,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:8 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "api_jobs",
       "guardian_pasivo_no_aplicado": false,
@@ -3579,12 +5301,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 8,
-      "tested_statuses": [
-        200,
-        401
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -3594,11 +5313,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:4 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "api_jobs_counts",
       "guardian_pasivo_no_aplicado": false,
@@ -3620,12 +5336,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 4,
-      "tested_statuses": [
-        200,
-        401
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -3635,11 +5348,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:4 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "api_job_detail",
       "guardian_pasivo_no_aplicado": false,
@@ -3661,11 +5371,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 4,
-      "tested_statuses": [
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -3675,11 +5383,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:3 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "api_quality",
       "guardian_pasivo_no_aplicado": false,
@@ -3702,12 +5407,9 @@
         "reviewer": 200,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 3,
-      "tested_statuses": [
-        200,
-        401
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -3717,11 +5419,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:8 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "api_search",
       "guardian_pasivo_no_aplicado": false,
@@ -3744,12 +5443,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 8,
-      "tested_statuses": [
-        200,
-        401
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -3759,11 +5455,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:2 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "api_sources",
       "guardian_pasivo_no_aplicado": false,
@@ -3786,11 +5479,9 @@
         "reviewer": 200,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 2,
-      "tested_statuses": [
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -3800,11 +5491,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:1 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "api_source_detail",
       "guardian_pasivo_no_aplicado": false,
@@ -3827,11 +5515,9 @@
         "reviewer": 404,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 1,
-      "tested_statuses": [
-        404
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -3841,11 +5527,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:11 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "api_status",
       "guardian_pasivo_no_aplicado": false,
@@ -3868,12 +5551,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 11,
-      "tested_statuses": [
-        200,
-        401
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -3883,11 +5563,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:6 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "api_workspaces",
       "guardian_pasivo_no_aplicado": false,
@@ -3910,12 +5587,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 6,
-      "tested_statuses": [
-        401,
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -3925,11 +5599,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "404",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:4 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "_swagger",
       "guardian_pasivo_no_aplicado": false,
@@ -3949,14 +5620,9 @@
         "reviewer": 404,
         "viewer": 404
       },
-      "tested": true,
-      "tested_hits": 4,
-      "tested_statuses": [
-        404,
-        401,
-        403,
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -3966,14 +5632,12 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/entities",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:entities.html",
         "template:base.html",
         "template:entities.html",
-        "template:entity_detail.html",
-        "tests:30 peticiones"
+        "template:entity_detail.html"
       ],
       "defined": true,
       "endpoint": "entities_page",
@@ -3998,18 +5662,15 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:225",
+      "source": "@router.get(\"/entities\", response_class=HTMLResponse)\ndef entities_page(\n    request: Request,\n    workspace: Optional[str] = None,\n    q: str = \"\",\n    entity_type: Optional[str] = None,\n    source_kind: Optional[str] = None,\n    review_status: Optional[str] = None,\n    min_confidence: Optional[float] = None,\n    sort: str = \"canonical_name\",\n    order: str = \"asc\",\n    limit: Optional[int] = None,\n    offset: int = 0,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_guard),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    if limit is None:\n        limit = settings.S9K_VIEWER_DEFAULT_PAGE_SIZE\n    q, limit, offset, sort, order = _validate_query_params(q, limit, offset, sort, order, settings)\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n\n    try:\n        items, total = provider.list_entities(\n            ws,\n            q=q,\n            entity_type=entity_type,\n            source_kind=source_kind,\n            review_status=review_status,\n            min_confidence=min_confidence,\n            sort=sort,\n            order=order,\n            limit=limit,\n            offset=offset,\n        )\n    except Exception:\n        items, total = [], 0\n\n    serialized = [serialize_node(n) for n in items]\n    pagination = _build_pagination(total, limit, offset)\n    types = provider.entity_types(ws)\n\n    return templates.TemplateResponse(\n        request,\n        \"entities.html\",\n        {\n            \"workspace\": ws,\n            \"q\": q,\n            \"entity_type\": entity_type or \"\",\n            \"types\": types,\n            \"page\": {**pagination, \"items\": serialized},\n            \"auth_user\": user,\n            \"sort\": sort,\n            \"order\": order,\n            \"limit\": limit,\n        },\n    )\n",
       "status_por_rol": {
         "admin": 200,
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 30,
-      "tested_statuses": [
-        200,
-        302
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -4019,12 +5680,10 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/entities/probe",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "js:static/js/graph.js",
-        "template:entity_detail.html",
-        "tests:3 peticiones"
+        "template:entity_detail.html"
       ],
       "defined": true,
       "endpoint": "entity_detail_page",
@@ -4045,18 +5704,15 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:290",
+      "source": "@router.get(\"/entities/{entity_id}\", response_class=HTMLResponse)\ndef entity_detail_page(\n    request: Request,\n    entity_id: str,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_guard),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n\n    try:\n        node = provider.entity(entity_id)\n    except Exception:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 503, \"message\": \"Fuente de datos no disponible\", \"auth_user\": user},\n            status_code=503,\n        )\n\n    if node is None:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 404, \"message\": \"Entidad no encontrada\", \"auth_user\": user},\n            status_code=404,\n        )\n\n    try:\n        outgoing, incoming = provider.relations_for_entity(entity_id)\n    except Exception:\n        outgoing, incoming = [], []\n\n    def _with_other(edge: dict, other_key: str) -> dict:\n        s = serialize_edge(edge)\n        try:\n            other = provider.entity(edge.get(other_key))\n            s[\"other_entity\"] = serialize_node(other) if other else None\n        except Exception:\n            s[\"other_entity\"] = None\n        return s\n\n    return templates.TemplateResponse(\n        request,\n        \"entity_detail.html\",\n        {\n            \"entity\": serialize_node(node),\n            \"outgoing\": [_with_other(e, \"to\") for e in outgoing],\n            \"incoming\": [_with_other(e, \"from\") for e in incoming],\n            \"auth_user\": user,\n        },\n    )\n",
       "status_por_rol": {
         "admin": 404,
         "reviewer": 404,
         "viewer": 404
       },
-      "tested": true,
-      "tested_hits": 3,
-      "tested_statuses": [
-        200,
-        404
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4066,12 +5722,10 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/entity/probe",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:entities.html",
-        "template:entity.html",
-        "tests:2 peticiones"
+        "template:entity.html"
       ],
       "defined": true,
       "endpoint": "entity_view",
@@ -4098,12 +5752,9 @@
         "reviewer": 404,
         "viewer": 404
       },
-      "tested": true,
-      "tested_hits": 2,
-      "tested_statuses": [
-        404,
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4113,12 +5764,10 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/graph",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:base.html",
-        "template:index.html",
-        "tests:22 peticiones"
+        "template:index.html"
       ],
       "defined": true,
       "endpoint": "graph_view",
@@ -4146,11 +5795,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 22,
-      "tested_statuses": [
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4160,13 +5807,11 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/jobs",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:jobs.html",
         "template:base.html",
-        "template:jobs.html",
-        "tests:5 peticiones"
+        "template:jobs.html"
       ],
       "defined": true,
       "endpoint": "jobs_view",
@@ -4194,11 +5839,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 5,
-      "tested_statuses": [
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4208,11 +5851,9 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/jobs/probe",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:jobs.html",
-        "tests:1 peticiones"
+        "template:jobs.html"
       ],
       "defined": true,
       "endpoint": "job_detail_view",
@@ -4235,11 +5876,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 1,
-      "tested_statuses": [
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -4247,12 +5886,10 @@
       "authz_probe": "publica-por-diseno",
       "authz_probe_detail": "allowlist",
       "authz_static": false,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:auth/login.html",
-        "template:auth/login.html",
-        "tests:12 peticiones"
+        "template:auth/login.html"
       ],
       "defined": true,
       "endpoint": "login_page",
@@ -4273,11 +5910,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 12,
-      "tested_statuses": [
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -4285,12 +5920,10 @@
       "authz_probe": "publica-por-diseno",
       "authz_probe_detail": "allowlist",
       "authz_static": false,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:auth/login.html",
-        "template:auth/login.html",
-        "tests:11 peticiones"
+        "template:auth/login.html"
       ],
       "defined": true,
       "endpoint": "login_submit",
@@ -4311,15 +5944,9 @@
         "reviewer": 400,
         "viewer": 400
       },
-      "tested": true,
-      "tested_hits": 11,
-      "tested_statuses": [
-        401,
-        403,
-        302,
-        400,
-        303
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -4327,14 +5954,12 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login",
       "authz_static": false,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:auth/account.html",
         "template-js:base.html",
         "template:auth/account.html",
-        "template:base.html",
-        "tests:2 peticiones"
+        "template:base.html"
       ],
       "defined": true,
       "endpoint": "logout",
@@ -4362,11 +5987,9 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 2,
-      "tested_statuses": [
-        302
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4376,11 +5999,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "404",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:1 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "_openapi",
       "guardian_pasivo_no_aplicado": false,
@@ -4400,11 +6020,9 @@
         "reviewer": 404,
         "viewer": 404
       },
-      "tested": true,
-      "tested_hits": 1,
-      "tested_statuses": [
-        404
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [],
@@ -4414,12 +6032,10 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:base.html",
-        "template:base.html",
-        "tests:31 peticiones"
+        "template:base.html"
       ],
       "defined": true,
       "endpoint": "select_partida",
@@ -4447,15 +6063,9 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 31,
-      "tested_statuses": [
-        302,
-        403,
-        422,
-        400,
-        401
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4467,11 +6077,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/quality",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:2 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "quality_page",
       "guardian_pasivo_no_aplicado": false,
@@ -4488,18 +6095,15 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:474",
+      "source": "@router.get(\"/quality\", response_class=HTMLResponse)\ndef quality_page(\n    request: Request,\n    workspace: Optional[str] = None,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_role_guard(\"reviewer\")),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n    try:\n        metrics = provider.quality_metrics(ws)\n    except Exception:\n        metrics = {}\n    return templates.TemplateResponse(\n        request, \"quality.html\",\n        {\"workspace\": ws, \"metrics\": metrics, \"auth_user\": user},\n    )\n",
       "status_por_rol": {
         "admin": 200,
         "reviewer": 200,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 2,
-      "tested_statuses": [
-        302,
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4509,11 +6113,8 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "404",
       "authz_static": true,
-      "capturada_por": null,
-      "consumed": true,
-      "consumers": [
-        "tests:1 peticiones"
-      ],
+      "consumed": false,
+      "consumers": [],
       "defined": true,
       "endpoint": "_redoc",
       "guardian_pasivo_no_aplicado": false,
@@ -4533,11 +6134,9 @@
         "reviewer": 404,
         "viewer": 404
       },
-      "tested": true,
-      "tested_hits": 1,
-      "tested_statuses": [
-        404
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4547,11 +6146,9 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/review-console",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:reviews_console_source.html",
-        "tests:7 peticiones"
+        "template:reviews_console_source.html"
       ],
       "defined": true,
       "endpoint": "inbox",
@@ -4574,12 +6171,9 @@
         "reviewer": 200,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 7,
-      "tested_statuses": [
-        200,
-        302
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4589,7 +6183,6 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/review-console/",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": false,
       "consumers": [],
       "defined": true,
@@ -4625,11 +6218,9 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/review-console/source/probe",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:reviews_console.html",
-        "tests:8 peticiones"
+        "template:reviews_console.html"
       ],
       "defined": true,
       "endpoint": "source_detail",
@@ -4652,12 +6243,9 @@
         "reviewer": 404,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 8,
-      "tested_statuses": [
-        200,
-        404
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4667,11 +6255,9 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/review-console/source/probe/decide",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:reviews_console_source.html",
-        "tests:7 peticiones"
+        "template:reviews_console_source.html"
       ],
       "defined": true,
       "endpoint": "decide",
@@ -4694,12 +6280,9 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 7,
-      "tested_statuses": [
-        400,
-        303
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4709,12 +6292,10 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/reviews",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:base.html",
-        "template:reviews_detail.html",
-        "tests:7 peticiones"
+        "template:reviews_detail.html"
       ],
       "defined": true,
       "endpoint": "reviews_view",
@@ -4742,12 +6323,9 @@
         "reviewer": 200,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 7,
-      "tested_statuses": [
-        403,
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4757,11 +6335,9 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/reviews/probe",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:reviews.html",
-        "tests:9 peticiones"
+        "template:reviews.html"
       ],
       "defined": true,
       "endpoint": "reviews_detail_view",
@@ -4784,12 +6360,42 @@
         "reviewer": 404,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 9,
-      "tested_statuses": [
-        200,
-        404
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
+    },
+    {
+      "authz_body_guards": [],
+      "authz_deps": [
+        "app.routers.readonly.html_guard"
+      ],
+      "authz_probe": "SIN-AUTH",
+      "authz_probe_detail": "200",
+      "authz_static": true,
+      "consumed": false,
+      "consumers": [],
+      "defined": true,
+      "endpoint": "ruta_con_senuelo",
+      "guardian_pasivo_no_aplicado": false,
+      "key": "GET /ruta-con-senuelo",
+      "kind": "html",
+      "linked": false,
+      "linked_by": [],
+      "method": "GET",
+      "module": "app.routers.readonly",
+      "mounted": true,
+      "path": "/ruta-con-senuelo",
+      "rol_minimo_observado": "viewer",
+      "scoping_deps": [],
+      "source": "@router.get(\"/ruta-con-senuelo\")\ndef ruta_con_senuelo(request: Request, user=Depends(html_guard)):\n    datos = [1, 2, 3]\n    if isinstance(datos, list):  # señuelo: no comprueba `user`\n        datos = list(datos)\n    # menciona RedirectResponse sin usarlo\n    return {\"ok\": True, \"tipo\": \"RedirectResponse\"}\n",
+      "status_por_rol": {
+        "admin": 200,
+        "reviewer": 200,
+        "viewer": 200
+      },
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4801,12 +6407,10 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/sources",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:base.html",
-        "template:source_detail.html",
-        "tests:4 peticiones"
+        "template:source_detail.html"
       ],
       "defined": true,
       "endpoint": "sources_page",
@@ -4831,18 +6435,46 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:391",
+      "source": "@router.get(\"/sources\", response_class=HTMLResponse)\ndef sources_page(\n    request: Request,\n    workspace: Optional[str] = None,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_role_guard(\"reviewer\")),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n    try:\n        sources = provider.list_sources(ws)\n    except Exception:\n        sources = []\n    return templates.TemplateResponse(\n        request, \"sources.html\",\n        {\"workspace\": ws, \"sources\": sources, \"auth_user\": user},\n    )\n",
       "status_por_rol": {
         "admin": 200,
         "reviewer": 200,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 4,
-      "tested_statuses": [
-        403,
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
+    },
+    {
+      "authz_body_guards": [],
+      "authz_deps": [],
+      "authz_probe": "denegada",
+      "authz_probe_detail": "302 -> /login?next=/sources/panel",
+      "authz_static": false,
+      "consumed": false,
+      "consumers": [],
+      "defined": true,
+      "endpoint": "ruta_capturada_sin_guardian",
+      "guardian_pasivo_no_aplicado": false,
+      "key": "GET /sources/panel",
+      "kind": "html",
+      "linked": false,
+      "linked_by": [],
+      "method": "GET",
+      "module": "app.routers.readonly",
+      "mounted": true,
+      "path": "/sources/panel",
+      "rol_minimo_observado": "ninguno-sirve",
+      "scoping_deps": [],
+      "source": "viewer/app/routers/readonly.py:496",
+      "status_por_rol": {
+        "admin": 404,
+        "reviewer": 404,
+        "viewer": 403
+      },
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4854,11 +6486,9 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/sources/probe",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:sources.html",
-        "tests:1 peticiones"
+        "template:sources.html"
       ],
       "defined": true,
       "endpoint": "source_detail_page",
@@ -4878,17 +6508,15 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:416",
+      "source": "@router.get(\"/sources/{source_id}\", response_class=HTMLResponse)\ndef source_detail_page(\n    request: Request,\n    source_id: str,\n    workspace: Optional[str] = None,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_role_guard(\"reviewer\")),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n\n    try:\n        detail = provider.source_detail(ws, source_id)\n    except Exception:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 503, \"message\": \"Fuente de datos no disponible\", \"auth_user\": user},\n            status_code=503,\n        )\n\n    if detail is None:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 404, \"message\": \"Fuente no encontrada\", \"auth_user\": user},\n            status_code=404,\n        )\n\n    return templates.TemplateResponse(\n        request, \"source_detail.html\",\n        {\"workspace\": ws, \"source\": detail, \"auth_user\": user},\n    )\n",
       "status_por_rol": {
         "admin": 404,
         "reviewer": 404,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 1,
-      "tested_statuses": [
-        404
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4898,12 +6526,10 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/status",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:base.html",
-        "template:index.html",
-        "tests:2 peticiones"
+        "template:index.html"
       ],
       "defined": true,
       "endpoint": "status_view",
@@ -4934,11 +6560,9 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": true,
-      "tested_hits": 2,
-      "tested_statuses": [
-        200
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -4948,13 +6572,11 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/v3/review",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:v3_review.html",
         "template:base.html",
-        "template:v3_review.html",
-        "tests:24 peticiones"
+        "template:v3_review.html"
       ],
       "defined": true,
       "endpoint": "queue",
@@ -4984,14 +6606,9 @@
         "reviewer": 200,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 24,
-      "tested_statuses": [
-        200,
-        302,
-        403,
-        404
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -5001,7 +6618,6 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/v3/review/",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": false,
       "consumers": [],
       "defined": true,
@@ -5037,12 +6653,10 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/v3/review/decide",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:v3_review.html",
-        "template:v3_review.html",
-        "tests:21 peticiones"
+        "template:v3_review.html"
       ],
       "defined": true,
       "endpoint": "decide",
@@ -5067,14 +6681,9 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": true,
-      "tested_hits": 21,
-      "tested_statuses": [
-        400,
-        303,
-        302,
-        403
-      ]
+      "tested": false,
+      "tested_hits": 0,
+      "tested_statuses": []
     },
     {
       "authz_body_guards": [
@@ -5084,7 +6693,6 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/v3/review/glossary-candidates",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:v3_glossary_candidates.html",
@@ -5123,7 +6731,6 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/v3/review/undo",
       "authz_static": true,
-      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:v3_review.html",
@@ -5157,9 +6764,6 @@
       "tested_statuses": []
     }
   ],
-  "tested_meta": {
-    "apps_instrumented": 1,
-    "exitstatus": 0
-  },
-  "tested_source": "/tmp/s9k-work/tested_routes_cb874fe.json"
+  "tested_meta": {},
+  "tested_source": null
 }

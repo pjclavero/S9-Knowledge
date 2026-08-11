@@ -10,6 +10,7 @@
   "findings": {
     "enlaces_rotos": [],
     "guardian_declarado_pero_no_aplicado": [],
+    "rutas_capturadas": [],
     "rutas_huerfanas": [
       {
         "authz_body_guards": [],
@@ -20,6 +21,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:1 peticiones"
@@ -58,6 +60,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:auth/admin/users.html",
@@ -97,6 +100,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:auth/admin/users.html",
@@ -135,6 +139,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:4 peticiones"
@@ -174,6 +179,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:84 peticiones"
@@ -216,6 +222,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:5 peticiones"
@@ -257,6 +264,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:7 peticiones"
@@ -299,6 +307,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:9 peticiones"
@@ -339,6 +348,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:5 peticiones"
@@ -379,6 +389,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:5 peticiones"
@@ -419,6 +430,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:4 peticiones"
@@ -460,6 +472,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:9 peticiones"
@@ -501,6 +514,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:3 peticiones"
@@ -542,6 +556,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:2 peticiones"
@@ -583,6 +598,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:12 peticiones"
@@ -624,6 +640,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:7 peticiones"
@@ -665,6 +682,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "404",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:5 peticiones"
@@ -703,6 +721,7 @@
         "authz_probe": "publica-por-diseno",
         "authz_probe_detail": "allowlist",
         "authz_static": false,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template-js:auth/login.html",
@@ -740,6 +759,7 @@
         "authz_probe": "publica-por-diseno",
         "authz_probe_detail": "allowlist",
         "authz_static": false,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template-js:auth/login.html",
@@ -783,6 +803,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "404",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:2 peticiones"
@@ -822,6 +843,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/panel/entities/",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:1 peticiones"
@@ -839,7 +861,7 @@
         "path": "/panel/entities/",
         "rol_minimo_observado": "viewer",
         "scoping_deps": [],
-        "source": "    @router.get(\"\", response_class=HTMLResponse, name=slot.route_name)\n    @router.get(\"/\", response_class=HTMLResponse, name=slot.route_name)\n    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):\n        # `html_role_guard` devuelve la redirección a /login para el anónimo y\n        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.\n        if isinstance(user, RedirectResponse):\n            return user\n        return templates.TemplateResponse(\n            request, slot.template, slot_context(slot, user, items=[], error=None)\n        )\n",
+        "source": "viewer/app/routers/chassis_slot.py:55",
         "status_por_rol": {
           "admin": 200,
           "reviewer": 200,
@@ -861,6 +883,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/panel/operations/",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:1 peticiones"
@@ -878,7 +901,7 @@
         "path": "/panel/operations/",
         "rol_minimo_observado": "admin",
         "scoping_deps": [],
-        "source": "    @router.get(\"\", response_class=HTMLResponse, name=slot.route_name)\n    @router.get(\"/\", response_class=HTMLResponse, name=slot.route_name)\n    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):\n        # `html_role_guard` devuelve la redirección a /login para el anónimo y\n        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.\n        if isinstance(user, RedirectResponse):\n            return user\n        return templates.TemplateResponse(\n            request, slot.template, slot_context(slot, user, items=[], error=None)\n        )\n",
+        "source": "viewer/app/routers/chassis_slot.py:55",
         "status_por_rol": {
           "admin": 200,
           "reviewer": 403,
@@ -900,6 +923,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/panel/review/",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:1 peticiones"
@@ -917,7 +941,7 @@
         "path": "/panel/review/",
         "rol_minimo_observado": "reviewer",
         "scoping_deps": [],
-        "source": "    @router.get(\"\", response_class=HTMLResponse, name=slot.route_name)\n    @router.get(\"/\", response_class=HTMLResponse, name=slot.route_name)\n    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):\n        # `html_role_guard` devuelve la redirección a /login para el anónimo y\n        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.\n        if isinstance(user, RedirectResponse):\n            return user\n        return templates.TemplateResponse(\n            request, slot.template, slot_context(slot, user, items=[], error=None)\n        )\n",
+        "source": "viewer/app/routers/chassis_slot.py:55",
         "status_por_rol": {
           "admin": 200,
           "reviewer": 200,
@@ -939,6 +963,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/panel/sources/",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:1 peticiones"
@@ -956,7 +981,7 @@
         "path": "/panel/sources/",
         "rol_minimo_observado": "reviewer",
         "scoping_deps": [],
-        "source": "    @router.get(\"\", response_class=HTMLResponse, name=slot.route_name)\n    @router.get(\"/\", response_class=HTMLResponse, name=slot.route_name)\n    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):\n        # `html_role_guard` devuelve la redirección a /login para el anónimo y\n        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.\n        if isinstance(user, RedirectResponse):\n            return user\n        return templates.TemplateResponse(\n            request, slot.template, slot_context(slot, user, items=[], error=None)\n        )\n",
+        "source": "viewer/app/routers/chassis_slot.py:55",
         "status_por_rol": {
           "admin": 200,
           "reviewer": 200,
@@ -978,6 +1003,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/quality",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:3 peticiones"
@@ -998,7 +1024,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "@router.get(\"/quality\", response_class=HTMLResponse)\ndef quality_page(\n    request: Request,\n    workspace: Optional[str] = None,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_role_guard(\"reviewer\")),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n    try:\n        metrics = provider.quality_metrics(ws)\n    except Exception:\n        metrics = {}\n    return templates.TemplateResponse(\n        request, \"quality.html\",\n        {\"workspace\": ws, \"metrics\": metrics, \"auth_user\": user},\n    )\n",
+        "source": "viewer/app/routers/readonly.py:474",
         "status_por_rol": {
           "admin": 200,
           "reviewer": 200,
@@ -1019,6 +1045,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "404",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:2 peticiones"
@@ -1056,6 +1083,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/review-console",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:reviews_console_source.html",
@@ -1097,6 +1125,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/review-console/",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:1 peticiones"
@@ -1136,6 +1165,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/review-console/source/probe",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:reviews_console.html",
@@ -1178,6 +1208,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/review-console/source/probe/decide",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:reviews_console_source.html",
@@ -1220,6 +1251,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/v3/review/",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:1 peticiones"
@@ -1259,6 +1291,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/v3/review/glossary-candidates",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template-js:v3_glossary_candidates.html",
@@ -1304,6 +1337,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "nav-contrato:app.chassis.NAV",
@@ -1354,6 +1388,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:auth/change_password.html",
@@ -1400,6 +1435,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template-js:auth/change_password.html",
@@ -1444,6 +1480,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:84 peticiones"
@@ -1486,6 +1523,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "js:static/js/graph.js",
@@ -1531,6 +1569,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:5 peticiones"
@@ -1572,6 +1611,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:7 peticiones"
@@ -1614,6 +1654,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "js:static/js/graph.js",
@@ -1658,6 +1699,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:9 peticiones"
@@ -1698,6 +1740,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:5 peticiones"
@@ -1738,6 +1781,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:5 peticiones"
@@ -1778,6 +1822,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:9 peticiones"
@@ -1819,6 +1864,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:12 peticiones"
@@ -1860,6 +1906,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "401",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:7 peticiones"
@@ -1901,6 +1948,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/entities",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "nav-contrato:app.chassis.NAV",
@@ -1932,7 +1980,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "@router.get(\"/entities\", response_class=HTMLResponse)\ndef entities_page(\n    request: Request,\n    workspace: Optional[str] = None,\n    q: str = \"\",\n    entity_type: Optional[str] = None,\n    source_kind: Optional[str] = None,\n    review_status: Optional[str] = None,\n    min_confidence: Optional[float] = None,\n    sort: str = \"canonical_name\",\n    order: str = \"asc\",\n    limit: Optional[int] = None,\n    offset: int = 0,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_guard),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    if limit is None:\n        limit = settings.S9K_VIEWER_DEFAULT_PAGE_SIZE\n    q, limit, offset, sort, order = _validate_query_params(q, limit, offset, sort, order, settings)\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n\n    try:\n        items, total = provider.list_entities(\n            ws,\n            q=q,\n            entity_type=entity_type,\n            source_kind=source_kind,\n            review_status=review_status,\n            min_confidence=min_confidence,\n            sort=sort,\n            order=order,\n            limit=limit,\n            offset=offset,\n        )\n    except Exception:\n        items, total = [], 0\n\n    serialized = [serialize_node(n) for n in items]\n    pagination = _build_pagination(total, limit, offset)\n    types = provider.entity_types(ws)\n\n    return templates.TemplateResponse(\n        request,\n        \"entities.html\",\n        {\n            \"workspace\": ws,\n            \"q\": q,\n            \"entity_type\": entity_type or \"\",\n            \"types\": types,\n            \"page\": {**pagination, \"items\": serialized},\n            \"auth_user\": user,\n            \"sort\": sort,\n            \"order\": order,\n            \"limit\": limit,\n        },\n    )\n",
+        "source": "viewer/app/routers/readonly.py:225",
         "status_por_rol": {
           "admin": 200,
           "reviewer": 200,
@@ -1953,6 +2001,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/entities/probe",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "js:static/js/graph.js",
@@ -1978,7 +2027,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "@router.get(\"/entities/{entity_id}\", response_class=HTMLResponse)\ndef entity_detail_page(\n    request: Request,\n    entity_id: str,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_guard),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n\n    try:\n        node = provider.entity(entity_id)\n    except Exception:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 503, \"message\": \"Fuente de datos no disponible\", \"auth_user\": user},\n            status_code=503,\n        )\n\n    if node is None:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 404, \"message\": \"Entidad no encontrada\", \"auth_user\": user},\n            status_code=404,\n        )\n\n    try:\n        outgoing, incoming = provider.relations_for_entity(entity_id)\n    except Exception:\n        outgoing, incoming = [], []\n\n    def _with_other(edge: dict, other_key: str) -> dict:\n        s = serialize_edge(edge)\n        try:\n            other = provider.entity(edge.get(other_key))\n            s[\"other_entity\"] = serialize_node(other) if other else None\n        except Exception:\n            s[\"other_entity\"] = None\n        return s\n\n    return templates.TemplateResponse(\n        request,\n        \"entity_detail.html\",\n        {\n            \"entity\": serialize_node(node),\n            \"outgoing\": [_with_other(e, \"to\") for e in outgoing],\n            \"incoming\": [_with_other(e, \"from\") for e in incoming],\n            \"auth_user\": user,\n        },\n    )\n",
+        "source": "viewer/app/routers/readonly.py:290",
         "status_por_rol": {
           "admin": 404,
           "reviewer": 404,
@@ -2000,6 +2049,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/entity/probe",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:entities.html",
@@ -2047,6 +2097,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/graph",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "nav-contrato:app.chassis.NAV",
@@ -2094,6 +2145,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/jobs",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "nav-contrato:app.chassis.NAV",
@@ -2142,6 +2194,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/jobs/probe",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template:jobs.html",
@@ -2185,6 +2238,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/panel/entities",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "nav-contrato:app.chassis.NAV",
@@ -2210,7 +2264,7 @@
         "path": "/panel/entities",
         "rol_minimo_observado": "viewer",
         "scoping_deps": [],
-        "source": "    @router.get(\"\", response_class=HTMLResponse, name=slot.route_name)\n    @router.get(\"/\", response_class=HTMLResponse, name=slot.route_name)\n    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):\n        # `html_role_guard` devuelve la redirección a /login para el anónimo y\n        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.\n        if isinstance(user, RedirectResponse):\n            return user\n        return templates.TemplateResponse(\n            request, slot.template, slot_context(slot, user, items=[], error=None)\n        )\n",
+        "source": "viewer/app/routers/chassis_slot.py:55",
         "status_por_rol": {
           "admin": 200,
           "reviewer": 200,
@@ -2233,6 +2287,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/panel/entities/",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "tests:1 peticiones"
@@ -2250,7 +2305,7 @@
         "path": "/panel/entities/",
         "rol_minimo_observado": "viewer",
         "scoping_deps": [],
-        "source": "    @router.get(\"\", response_class=HTMLResponse, name=slot.route_name)\n    @router.get(\"/\", response_class=HTMLResponse, name=slot.route_name)\n    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):\n        # `html_role_guard` devuelve la redirección a /login para el anónimo y\n        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.\n        if isinstance(user, RedirectResponse):\n            return user\n        return templates.TemplateResponse(\n            request, slot.template, slot_context(slot, user, items=[], error=None)\n        )\n",
+        "source": "viewer/app/routers/chassis_slot.py:55",
         "status_por_rol": {
           "admin": 200,
           "reviewer": 200,
@@ -2270,6 +2325,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login?next=/status",
         "authz_static": true,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "nav-contrato:app.chassis.NAV",
@@ -2321,6 +2377,7 @@
         "authz_probe": "denegada",
         "authz_probe_detail": "302 -> /login",
         "authz_static": false,
+        "capturada_por": null,
         "consumed": true,
         "consumers": [
           "template-js:auth/account.html",
@@ -2376,6 +2433,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "nav-contrato:app.chassis.NAV",
@@ -2426,6 +2484,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/change_password.html",
@@ -2472,6 +2531,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:auth/change_password.html",
@@ -2516,6 +2576,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:auth/change_password.html",
@@ -2561,6 +2622,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/audit.html",
@@ -2605,6 +2667,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:1 peticiones"
@@ -2645,6 +2708,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "nav-contrato:app.chassis.NAV",
@@ -2696,6 +2760,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:auth/admin/partidas.html",
@@ -2743,6 +2808,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/partidas.html",
@@ -2785,6 +2851,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "nav-contrato:app.chassis.NAV",
@@ -2834,6 +2901,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/users.html",
@@ -2875,6 +2943,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/users.html",
@@ -2914,6 +2983,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/users.html",
@@ -2956,6 +3026,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/users.html",
@@ -2995,6 +3066,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/user_detail.html",
@@ -3036,6 +3108,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:auth/admin/user_detail.html",
@@ -3078,6 +3151,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:4 peticiones"
@@ -3117,6 +3191,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:84 peticiones"
@@ -3159,6 +3234,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "js:static/js/graph.js",
@@ -3204,6 +3280,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:5 peticiones"
@@ -3245,6 +3322,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:7 peticiones"
@@ -3287,6 +3365,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "js:static/js/graph.js",
@@ -3331,6 +3410,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:9 peticiones"
@@ -3371,6 +3451,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:5 peticiones"
@@ -3411,6 +3492,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:5 peticiones"
@@ -3451,6 +3533,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:4 peticiones"
@@ -3492,6 +3575,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:9 peticiones"
@@ -3533,6 +3617,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:3 peticiones"
@@ -3574,6 +3659,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:2 peticiones"
@@ -3615,6 +3701,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:12 peticiones"
@@ -3656,6 +3743,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:7 peticiones"
@@ -3697,6 +3785,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "404",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:5 peticiones"
@@ -3737,6 +3826,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/entities",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "nav-contrato:app.chassis.NAV",
@@ -3768,7 +3858,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "@router.get(\"/entities\", response_class=HTMLResponse)\ndef entities_page(\n    request: Request,\n    workspace: Optional[str] = None,\n    q: str = \"\",\n    entity_type: Optional[str] = None,\n    source_kind: Optional[str] = None,\n    review_status: Optional[str] = None,\n    min_confidence: Optional[float] = None,\n    sort: str = \"canonical_name\",\n    order: str = \"asc\",\n    limit: Optional[int] = None,\n    offset: int = 0,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_guard),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    if limit is None:\n        limit = settings.S9K_VIEWER_DEFAULT_PAGE_SIZE\n    q, limit, offset, sort, order = _validate_query_params(q, limit, offset, sort, order, settings)\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n\n    try:\n        items, total = provider.list_entities(\n            ws,\n            q=q,\n            entity_type=entity_type,\n            source_kind=source_kind,\n            review_status=review_status,\n            min_confidence=min_confidence,\n            sort=sort,\n            order=order,\n            limit=limit,\n            offset=offset,\n        )\n    except Exception:\n        items, total = [], 0\n\n    serialized = [serialize_node(n) for n in items]\n    pagination = _build_pagination(total, limit, offset)\n    types = provider.entity_types(ws)\n\n    return templates.TemplateResponse(\n        request,\n        \"entities.html\",\n        {\n            \"workspace\": ws,\n            \"q\": q,\n            \"entity_type\": entity_type or \"\",\n            \"types\": types,\n            \"page\": {**pagination, \"items\": serialized},\n            \"auth_user\": user,\n            \"sort\": sort,\n            \"order\": order,\n            \"limit\": limit,\n        },\n    )\n",
+      "source": "viewer/app/routers/readonly.py:225",
       "status_por_rol": {
         "admin": 200,
         "reviewer": 200,
@@ -3789,6 +3879,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/entities/probe",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "js:static/js/graph.js",
@@ -3814,7 +3905,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "@router.get(\"/entities/{entity_id}\", response_class=HTMLResponse)\ndef entity_detail_page(\n    request: Request,\n    entity_id: str,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_guard),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n\n    try:\n        node = provider.entity(entity_id)\n    except Exception:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 503, \"message\": \"Fuente de datos no disponible\", \"auth_user\": user},\n            status_code=503,\n        )\n\n    if node is None:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 404, \"message\": \"Entidad no encontrada\", \"auth_user\": user},\n            status_code=404,\n        )\n\n    try:\n        outgoing, incoming = provider.relations_for_entity(entity_id)\n    except Exception:\n        outgoing, incoming = [], []\n\n    def _with_other(edge: dict, other_key: str) -> dict:\n        s = serialize_edge(edge)\n        try:\n            other = provider.entity(edge.get(other_key))\n            s[\"other_entity\"] = serialize_node(other) if other else None\n        except Exception:\n            s[\"other_entity\"] = None\n        return s\n\n    return templates.TemplateResponse(\n        request,\n        \"entity_detail.html\",\n        {\n            \"entity\": serialize_node(node),\n            \"outgoing\": [_with_other(e, \"to\") for e in outgoing],\n            \"incoming\": [_with_other(e, \"from\") for e in incoming],\n            \"auth_user\": user,\n        },\n    )\n",
+      "source": "viewer/app/routers/readonly.py:290",
       "status_por_rol": {
         "admin": 404,
         "reviewer": 404,
@@ -3836,6 +3927,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/entity/probe",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:entities.html",
@@ -3883,6 +3975,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/graph",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "nav-contrato:app.chassis.NAV",
@@ -3930,6 +4023,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/jobs",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "nav-contrato:app.chassis.NAV",
@@ -3978,6 +4072,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/jobs/probe",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:jobs.html",
@@ -4017,6 +4112,7 @@
       "authz_probe": "publica-por-diseno",
       "authz_probe_detail": "allowlist",
       "authz_static": false,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:auth/login.html",
@@ -4054,6 +4150,7 @@
       "authz_probe": "publica-por-diseno",
       "authz_probe_detail": "allowlist",
       "authz_static": false,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:auth/login.html",
@@ -4095,6 +4192,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login",
       "authz_static": false,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:auth/account.html",
@@ -4143,6 +4241,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "404",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:2 peticiones"
@@ -4182,6 +4281,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/panel/entities",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "nav-contrato:app.chassis.NAV",
@@ -4207,7 +4307,7 @@
       "path": "/panel/entities",
       "rol_minimo_observado": "viewer",
       "scoping_deps": [],
-      "source": "    @router.get(\"\", response_class=HTMLResponse, name=slot.route_name)\n    @router.get(\"/\", response_class=HTMLResponse, name=slot.route_name)\n    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):\n        # `html_role_guard` devuelve la redirección a /login para el anónimo y\n        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.\n        if isinstance(user, RedirectResponse):\n            return user\n        return templates.TemplateResponse(\n            request, slot.template, slot_context(slot, user, items=[], error=None)\n        )\n",
+      "source": "viewer/app/routers/chassis_slot.py:55",
       "status_por_rol": {
         "admin": 200,
         "reviewer": 200,
@@ -4230,6 +4330,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/panel/entities/",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:1 peticiones"
@@ -4247,7 +4348,7 @@
       "path": "/panel/entities/",
       "rol_minimo_observado": "viewer",
       "scoping_deps": [],
-      "source": "    @router.get(\"\", response_class=HTMLResponse, name=slot.route_name)\n    @router.get(\"/\", response_class=HTMLResponse, name=slot.route_name)\n    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):\n        # `html_role_guard` devuelve la redirección a /login para el anónimo y\n        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.\n        if isinstance(user, RedirectResponse):\n            return user\n        return templates.TemplateResponse(\n            request, slot.template, slot_context(slot, user, items=[], error=None)\n        )\n",
+      "source": "viewer/app/routers/chassis_slot.py:55",
       "status_por_rol": {
         "admin": 200,
         "reviewer": 200,
@@ -4269,6 +4370,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/panel/operations",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "nav-contrato:app.chassis.NAV",
@@ -4294,7 +4396,7 @@
       "path": "/panel/operations",
       "rol_minimo_observado": "admin",
       "scoping_deps": [],
-      "source": "    @router.get(\"\", response_class=HTMLResponse, name=slot.route_name)\n    @router.get(\"/\", response_class=HTMLResponse, name=slot.route_name)\n    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):\n        # `html_role_guard` devuelve la redirección a /login para el anónimo y\n        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.\n        if isinstance(user, RedirectResponse):\n            return user\n        return templates.TemplateResponse(\n            request, slot.template, slot_context(slot, user, items=[], error=None)\n        )\n",
+      "source": "viewer/app/routers/chassis_slot.py:55",
       "status_por_rol": {
         "admin": 200,
         "reviewer": 403,
@@ -4318,6 +4420,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/panel/operations/",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:1 peticiones"
@@ -4335,7 +4438,7 @@
       "path": "/panel/operations/",
       "rol_minimo_observado": "admin",
       "scoping_deps": [],
-      "source": "    @router.get(\"\", response_class=HTMLResponse, name=slot.route_name)\n    @router.get(\"/\", response_class=HTMLResponse, name=slot.route_name)\n    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):\n        # `html_role_guard` devuelve la redirección a /login para el anónimo y\n        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.\n        if isinstance(user, RedirectResponse):\n            return user\n        return templates.TemplateResponse(\n            request, slot.template, slot_context(slot, user, items=[], error=None)\n        )\n",
+      "source": "viewer/app/routers/chassis_slot.py:55",
       "status_por_rol": {
         "admin": 200,
         "reviewer": 403,
@@ -4357,6 +4460,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/panel/review",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "nav-contrato:app.chassis.NAV",
@@ -4382,7 +4486,7 @@
       "path": "/panel/review",
       "rol_minimo_observado": "reviewer",
       "scoping_deps": [],
-      "source": "    @router.get(\"\", response_class=HTMLResponse, name=slot.route_name)\n    @router.get(\"/\", response_class=HTMLResponse, name=slot.route_name)\n    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):\n        # `html_role_guard` devuelve la redirección a /login para el anónimo y\n        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.\n        if isinstance(user, RedirectResponse):\n            return user\n        return templates.TemplateResponse(\n            request, slot.template, slot_context(slot, user, items=[], error=None)\n        )\n",
+      "source": "viewer/app/routers/chassis_slot.py:55",
       "status_por_rol": {
         "admin": 200,
         "reviewer": 200,
@@ -4406,6 +4510,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/panel/review/",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:1 peticiones"
@@ -4423,7 +4528,7 @@
       "path": "/panel/review/",
       "rol_minimo_observado": "reviewer",
       "scoping_deps": [],
-      "source": "    @router.get(\"\", response_class=HTMLResponse, name=slot.route_name)\n    @router.get(\"/\", response_class=HTMLResponse, name=slot.route_name)\n    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):\n        # `html_role_guard` devuelve la redirección a /login para el anónimo y\n        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.\n        if isinstance(user, RedirectResponse):\n            return user\n        return templates.TemplateResponse(\n            request, slot.template, slot_context(slot, user, items=[], error=None)\n        )\n",
+      "source": "viewer/app/routers/chassis_slot.py:55",
       "status_por_rol": {
         "admin": 200,
         "reviewer": 200,
@@ -4445,6 +4550,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/panel/sources",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "nav-contrato:app.chassis.NAV",
@@ -4470,7 +4576,7 @@
       "path": "/panel/sources",
       "rol_minimo_observado": "reviewer",
       "scoping_deps": [],
-      "source": "    @router.get(\"\", response_class=HTMLResponse, name=slot.route_name)\n    @router.get(\"/\", response_class=HTMLResponse, name=slot.route_name)\n    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):\n        # `html_role_guard` devuelve la redirección a /login para el anónimo y\n        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.\n        if isinstance(user, RedirectResponse):\n            return user\n        return templates.TemplateResponse(\n            request, slot.template, slot_context(slot, user, items=[], error=None)\n        )\n",
+      "source": "viewer/app/routers/chassis_slot.py:55",
       "status_por_rol": {
         "admin": 200,
         "reviewer": 200,
@@ -4494,6 +4600,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/panel/sources/",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:1 peticiones"
@@ -4511,7 +4618,7 @@
       "path": "/panel/sources/",
       "rol_minimo_observado": "reviewer",
       "scoping_deps": [],
-      "source": "    @router.get(\"\", response_class=HTMLResponse, name=slot.route_name)\n    @router.get(\"/\", response_class=HTMLResponse, name=slot.route_name)\n    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):\n        # `html_role_guard` devuelve la redirección a /login para el anónimo y\n        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.\n        if isinstance(user, RedirectResponse):\n            return user\n        return templates.TemplateResponse(\n            request, slot.template, slot_context(slot, user, items=[], error=None)\n        )\n",
+      "source": "viewer/app/routers/chassis_slot.py:55",
       "status_por_rol": {
         "admin": 200,
         "reviewer": 200,
@@ -4531,6 +4638,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "401",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:base.html",
@@ -4583,6 +4691,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/quality",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:3 peticiones"
@@ -4603,7 +4712,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "@router.get(\"/quality\", response_class=HTMLResponse)\ndef quality_page(\n    request: Request,\n    workspace: Optional[str] = None,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_role_guard(\"reviewer\")),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n    try:\n        metrics = provider.quality_metrics(ws)\n    except Exception:\n        metrics = {}\n    return templates.TemplateResponse(\n        request, \"quality.html\",\n        {\"workspace\": ws, \"metrics\": metrics, \"auth_user\": user},\n    )\n",
+      "source": "viewer/app/routers/readonly.py:474",
       "status_por_rol": {
         "admin": 200,
         "reviewer": 200,
@@ -4624,6 +4733,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "404",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:2 peticiones"
@@ -4661,6 +4771,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/review-console",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:reviews_console_source.html",
@@ -4702,6 +4813,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/review-console/",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:1 peticiones"
@@ -4741,6 +4853,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/review-console/source/probe",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:reviews_console.html",
@@ -4783,6 +4896,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/review-console/source/probe/decide",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:reviews_console_source.html",
@@ -4825,6 +4939,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/reviews",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "nav-contrato:app.chassis.NAV",
@@ -4873,6 +4988,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/reviews/probe",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:reviews.html",
@@ -4917,6 +5033,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/sources",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "nav-contrato:app.chassis.NAV",
@@ -4946,7 +5063,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "@router.get(\"/sources\", response_class=HTMLResponse)\ndef sources_page(\n    request: Request,\n    workspace: Optional[str] = None,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_role_guard(\"reviewer\")),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n    try:\n        sources = provider.list_sources(ws)\n    except Exception:\n        sources = []\n    return templates.TemplateResponse(\n        request, \"sources.html\",\n        {\"workspace\": ws, \"sources\": sources, \"auth_user\": user},\n    )\n",
+      "source": "viewer/app/routers/readonly.py:391",
       "status_por_rol": {
         "admin": 200,
         "reviewer": 200,
@@ -4970,6 +5087,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/sources/probe",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template:sources.html",
@@ -4993,7 +5111,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "@router.get(\"/sources/{source_id}\", response_class=HTMLResponse)\ndef source_detail_page(\n    request: Request,\n    source_id: str,\n    workspace: Optional[str] = None,\n    provider: GraphProvider = Depends(get_filtered_provider),\n    user=Depends(html_role_guard(\"reviewer\")),\n):\n    if isinstance(user, RedirectResponse):\n        return user\n    settings = get_settings()\n    ws = workspace or settings.S9K_DEFAULT_WORKSPACE\n\n    try:\n        detail = provider.source_detail(ws, source_id)\n    except Exception:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 503, \"message\": \"Fuente de datos no disponible\", \"auth_user\": user},\n            status_code=503,\n        )\n\n    if detail is None:\n        return templates.TemplateResponse(\n            request, \"error.html\",\n            {\"code\": 404, \"message\": \"Fuente no encontrada\", \"auth_user\": user},\n            status_code=404,\n        )\n\n    return templates.TemplateResponse(\n        request, \"source_detail.html\",\n        {\"workspace\": ws, \"source\": detail, \"auth_user\": user},\n    )\n",
+      "source": "viewer/app/routers/readonly.py:416",
       "status_por_rol": {
         "admin": 404,
         "reviewer": 404,
@@ -5014,6 +5132,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/status",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "nav-contrato:app.chassis.NAV",
@@ -5064,6 +5183,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/v3/review",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "nav-contrato:app.chassis.NAV",
@@ -5116,6 +5236,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/v3/review/",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "tests:1 peticiones"
@@ -5155,6 +5276,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/v3/review/decide",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:v3_review.html",
@@ -5202,6 +5324,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/v3/review/glossary-candidates",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:v3_glossary_candidates.html",
@@ -5243,6 +5366,7 @@
       "authz_probe": "denegada",
       "authz_probe_detail": "302 -> /login?next=/v3/review/undo",
       "authz_static": true,
+      "capturada_por": null,
       "consumed": true,
       "consumers": [
         "template-js:v3_review.html",

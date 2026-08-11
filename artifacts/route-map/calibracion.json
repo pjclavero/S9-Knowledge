@@ -1,5 +1,6 @@
 {
   "baseline": {
+    "capturadas": [],
     "claves": [
       "GET /",
       "GET /account",
@@ -139,17 +140,20 @@
       "POST /v3/review/decide": "no-concluyente-csrf",
       "POST /v3/review/undo": "no-concluyente-csrf"
     },
+    "roles_no_evaluables": [],
     "rotos": [],
     "sin_auth": []
   },
   "casos": {
     "M0-control": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
         "no_probadas_nuevas": [],
         "roles_cambiados": {},
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [],
         "rutas_nuevas": [],
         "sin_auth_nuevas": []
@@ -158,6 +162,7 @@
     },
     "M1-router-desmontado": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": -10,
         "muertas_nuevas": [
@@ -174,6 +179,7 @@
         ],
         "no_probadas_nuevas": [],
         "roles_cambiados": {},
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [
           "/api/entities/ @ static/js/graph.js",
           "/entities @ base.html",
@@ -192,13 +198,71 @@
       },
       "detectado": true
     },
+    "M10-ruta-capturada": {
+      "delta": {
+        "capturadas_nuevas": [
+          "GET /sources/panel <- /sources/{source_id}"
+        ],
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 1,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [
+          "GET /sources/panel"
+        ],
+        "roles_cambiados": {
+          "GET /sources/panel": [
+            null,
+            "no-evaluable-capturada"
+          ]
+        },
+        "roles_no_evaluables_nuevos": [
+          "GET /sources/panel"
+        ],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [
+          "GET /sources/panel"
+        ],
+        "sin_auth_nuevas": []
+      },
+      "detectado": true
+    },
+    "M11-senuelo-isinstance": {
+      "delta": {
+        "capturadas_nuevas": [],
+        "guardian_no_aplicado_nuevos": [
+          "GET /ruta-con-senuelo"
+        ],
+        "montadas": 1,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [
+          "GET /ruta-con-senuelo"
+        ],
+        "roles_cambiados": {
+          "GET /ruta-con-senuelo": [
+            null,
+            "viewer"
+          ]
+        },
+        "roles_no_evaluables_nuevos": [],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [
+          "GET /ruta-con-senuelo"
+        ],
+        "sin_auth_nuevas": [
+          "GET /ruta-con-senuelo"
+        ]
+      },
+      "detectado": true
+    },
     "M2-enlace-roto": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
         "no_probadas_nuevas": [],
         "roles_cambiados": {},
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [
           "/ruta-que-no-existe @ base.html"
         ],
@@ -209,11 +273,13 @@
     },
     "M3-ruta-sin-auth": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
         "no_probadas_nuevas": [],
         "roles_cambiados": {},
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [],
         "rutas_nuevas": [],
         "sin_auth_nuevas": [
@@ -224,6 +290,7 @@
     },
     "M4-ruta-sin-test": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [
           "GET /ruta-nueva-sin-test"
         ],
@@ -238,6 +305,7 @@
             "viewer"
           ]
         },
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [],
         "rutas_nuevas": [
           "GET /ruta-nueva-sin-test"
@@ -250,11 +318,13 @@
     },
     "M5-mencion-en-comentario": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
         "no_probadas_nuevas": [],
         "roles_cambiados": {},
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [],
         "rutas_nuevas": [],
         "sin_auth_nuevas": []
@@ -268,7 +338,7 @@
     },
     "M7-censo-de-rutas": {
       "detectado": true,
-      "esperado": "el censo efectivo supera a app.routes y contiene todas las rutas que sirvieron respuesta durante los tests",
+      "esperado": "el censo no pierde ninguna ruta que sirvió respuesta, y el censo ingenuo sí pierde varias de ellas",
       "falsos_no_montados_del_censo_naive": [
         "GET /account",
         "GET /account/change-password",
@@ -322,10 +392,49 @@
       "rutas_censo_efectivo": 59,
       "rutas_censo_naive_app_routes": 11,
       "rutas_que_sirvieron_y_faltan_en_el_censo": [],
+      "rutas_que_sirvieron_y_pierde_el_censo_naive": [
+        "GET /account/change-password",
+        "GET /admin/audit",
+        "GET /admin/partidas",
+        "GET /admin/users",
+        "GET /api/admin/health",
+        "GET /api/entities",
+        "GET /api/entities/{entity_id}",
+        "GET /api/entity-types",
+        "GET /api/entity/{entity_id}",
+        "GET /api/graph",
+        "GET /api/jobs",
+        "GET /api/jobs/counts",
+        "GET /api/jobs/{job_id}",
+        "GET /api/quality",
+        "GET /api/search",
+        "GET /api/sources",
+        "GET /api/sources/{source_id}",
+        "GET /api/status",
+        "GET /api/workspaces",
+        "GET /entities",
+        "GET /entities/{entity_id}",
+        "GET /login",
+        "GET /quality",
+        "GET /review-console",
+        "GET /review-console/source/{source_id}",
+        "GET /sources",
+        "GET /sources/{source_id}",
+        "GET /v3/review",
+        "POST /account/change-password",
+        "POST /admin/partidas/grant",
+        "POST /admin/partidas/{access_id}/revoke",
+        "POST /login",
+        "POST /logout",
+        "POST /partida/select",
+        "POST /review-console/source/{source_id}/decide",
+        "POST /v3/review/decide"
+      ],
       "url_path_for_entities_page_funciona": true
     },
     "M8-rol-degradado": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
@@ -336,6 +445,7 @@
             "viewer"
           ]
         },
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [],
         "rutas_nuevas": [],
         "sin_auth_nuevas": []
@@ -344,11 +454,13 @@
     },
     "M9-nav-de-datos-rota": {
       "delta": {
+        "capturadas_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
         "no_probadas_nuevas": [],
         "roles_cambiados": {},
+        "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [],
         "rutas_nuevas": [],
         "sin_auth_nuevas": []
