@@ -3,6 +3,7 @@
   "nodes": [
     {
       "id": "n_agasha_tamori",
+      "entity_id": "n_agasha_tamori",
       "label": "Agasha Tamori",
       "type": "Character",
       "type_label": "Personaje",
@@ -22,6 +23,7 @@
     },
     {
       "id": "n_togashi_mitsu",
+      "entity_id": "n_togashi_mitsu",
       "label": "Togashi Mitsu",
       "type": "Character",
       "type_label": "Personaje",
@@ -39,6 +41,7 @@
     },
     {
       "id": "n_oni_montana_negra",
+      "entity_id": "n_oni_montana_negra",
       "label": "Oni de la Montaña Negra",
       "type": "Creature",
       "type_label": "Criatura",
@@ -54,6 +57,7 @@
     },
     {
       "id": "n_kakita_asuka",
+      "entity_id": "n_kakita_asuka",
       "label": "Kakita Asuka",
       "type": "Character",
       "type_label": "Personaje",
@@ -71,6 +75,7 @@
     },
     {
       "id": "n_kimi",
+      "entity_id": "n_kimi",
       "label": "Kimi",
       "type": "Character",
       "type_label": "Personaje",
@@ -86,6 +91,7 @@
     },
     {
       "id": "n_bayushi_hisao",
+      "entity_id": "n_bayushi_hisao",
       "label": "Bayushi Hisao",
       "type": "Character",
       "type_label": "Personaje",
@@ -103,6 +109,7 @@
     },
     {
       "id": "n_santuario_abandonado",
+      "entity_id": "n_santuario_abandonado",
       "label": "Santuario abandonado",
       "type": "Location",
       "type_label": "Lugar",
@@ -118,6 +125,7 @@
     },
     {
       "id": "n_sesion_4",
+      "entity_id": "n_sesion_4",
       "label": "Sesión 4",
       "type": "Session",
       "type_label": "Sesión",
@@ -133,6 +141,7 @@
     },
     {
       "id": "n_clan_dragon",
+      "entity_id": "n_clan_dragon",
       "label": "Clan Dragón",
       "type": "Clan",
       "type_label": "Clan",
@@ -153,6 +162,7 @@
     },
     {
       "id": "n_dark_oracle_fire",
+      "entity_id": "n_dark_oracle_fire",
       "label": "Dark Oracle of Fire",
       "type": "Concept",
       "type_label": "Concepto",
@@ -173,6 +183,7 @@
     },
     {
       "id": "n_culto_pozo_viejo",
+      "entity_id": "n_culto_pozo_viejo",
       "label": "Culto del Pozo Viejo",
       "type": "Faction",
       "type_label": "Facción",

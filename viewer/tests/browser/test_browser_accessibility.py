@@ -325,6 +325,24 @@ def test_la_navegacion_sigue_disponible_en_movil(new_page, viewer):
     assert enlaces.first.is_visible(), "la nav desaparece en movil sin alternativa"
 
 
+def test_los_controles_del_grafo_estan_etiquetados(admin_page, viewer):
+    """Todos los controles de la barra del grafo, nombrados uno a uno.
+
+    ACC-02 CORREGIDO por la UX V2 del grafo: los controles de `/graph` ya
+    declaran su nombre accesible, asi que el `xfail(strict=True)` que llevaba
+    esta prueba producia un XPASS. Segun la propia doctrina del fichero, un
+    XPASS estricto obliga a QUITAR la marca, no a relajarla: la prueba pasa a
+    la seccion verde y desde ahora protege el arreglo contra regresiones.
+    (El defecto hermano de `/entities`, ACC-02b, sigue abierto mas abajo.)
+
+    No absorbe defectos nuevos: `test_no_aparecen_controles_sin_etiqueta_nuevos`
+    vigila en verde que no aparezca ningun control sin etiqueta.
+    """
+    fetch_status(admin_page, viewer, "/graph")
+    sin_etiqueta = admin_page.evaluate(JS_CONTROLES_SIN_ETIQUETA)
+    assert sin_etiqueta == [], f"controles sin etiqueta en /graph: {sin_etiqueta}"
+
+
 # ---------------------------------------------------------------------------
 # DEFECTOS CONOCIDOS — la prueba correcta, marcada como fallo esperado
 # ---------------------------------------------------------------------------
@@ -338,21 +356,7 @@ def test_el_grafo_tiene_landmark_principal_y_encabezado(admin_page, viewer):
 
 @pytest.mark.xfail(
     strict=True,
-    reason="ACC-02: search-input, type-filter y limit-select solo usan placeholder/nada")
-def test_los_controles_del_grafo_estan_etiquetados(admin_page, viewer):
-    """Los tres controles de la barra del grafo, nombrados uno a uno.
-
-    No absorbe defectos nuevos: `test_no_aparecen_controles_sin_etiqueta_nuevos`
-    vigila en verde que no aparezca ningun control fuera de esos tres.
-    """
-    fetch_status(admin_page, viewer, "/graph")
-    sin_etiqueta = admin_page.evaluate(JS_CONTROLES_SIN_ETIQUETA)
-    assert sin_etiqueta == [], f"controles sin etiqueta en /graph: {sin_etiqueta}"
-
-
-@pytest.mark.xfail(
-    strict=True,
-    reason="ACC-02: el filtro de /entities (input#q, select#entity_type) solo usa placeholder")
+    reason="ACC-02b: el filtro de /entities (input#q, select#entity_type) solo usa placeholder")
 def test_los_filtros_de_entidades_estan_etiquetados(admin_page, viewer):
     """Idem para /entities; la guarda en verde cubre las altas nuevas."""
     fetch_status(admin_page, viewer, "/entities")

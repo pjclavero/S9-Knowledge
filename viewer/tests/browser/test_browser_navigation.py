@@ -8,15 +8,16 @@ real; el unico elemento sustituido es el origen de datos del grafo (proveedor
 """
 from __future__ import annotations
 
+import re
+import unicodedata
+from urllib.parse import quote, quote_plus
+
 import pytest
 
 from e2e_support import fetch_status, login_as
 
 # Una entidad que existe de verdad en examples/sample_graph.json.
 ENTIDAD_CONOCIDA = "Agasha Tamori"
-# Termino que aisla UN solo nodo en el grafo de ejemplo (comprobado en la
-# propia prueba: si dejara de ser unico, la prueba falla en vez de saltarse).
-ENTIDAD_UNICA = "Kimi"
 
 
 @pytest.fixture()
@@ -65,80 +66,447 @@ def test_el_grafo_se_dibuja(admin_page, viewer):
     assert admin_page.page_errors == [], f"excepciones JS al dibujar el grafo: {admin_page.page_errors}"
 
 
-def test_la_busqueda_del_grafo_filtra_de_verdad(admin_page, viewer):
-    """Escribir y pulsar Enter dispara una consulta filtrada al backend."""
-    admin_page.goto(viewer.url("/graph"))
-    admin_page.wait_for_selector("#graph-canvas canvas", timeout=10_000)
+# ---------------------------------------------------------------------------
+# Busqueda del grafo: QUE puede encontrar, no COMO lo busca
+# ---------------------------------------------------------------------------
+#
+# POR QUE SE REESCRIBIERON ESTAS PRUEBAS
+# --------------------------------------
+# Las dos versiones anteriores (`test_la_busqueda_del_grafo_filtra_de_verdad` y
+# `test_seleccionar_un_nodo_abre_su_ficha_lateral`) exigian que teclear en el
+# buscador disparase una peticion `/api/graph?...&q=...`. Eso NO era un requisito
+# de producto: era la implementacion de entonces. La UX V2 del grafo busca en el
+# cliente, sobre lo que el backend ya entrego, y aquellas pruebas se rompian sin
+# que hubiera ningun defecto.
+#
+# Se congela el RESULTADO DE SEGURIDAD, no la implementacion:
+#
+#     «la busqueda solo puede encontrar lo que ya existe en la vista autorizada»
+#
+# Deliberadamente NO se afirma «buscar no hace ninguna peticion». Si manana se
+# decide una busqueda remota AUTORIZADA, estas tres pruebas deben seguir valiendo
+# tal cual: solo hablan de lo que la persona encuentra, no de por que canal.
 
-    with admin_page.expect_response(lambda r: "/api/graph" in r.url and "q=" in r.url) as info:
-        admin_page.fill("#search-input", ENTIDAD_CONOCIDA)
-        admin_page.press("#search-input", "Enter")
-    respuesta = info.value
-    assert respuesta.status == 200, f"la busqueda del grafo fallo: {respuesta.status}"
-    datos = respuesta.json()
-    etiquetas = [n["label"] for n in datos.get("nodes", [])]
-    assert ENTIDAD_CONOCIDA in etiquetas, f"la busqueda no encontro la entidad: {etiquetas}"
+# El nodo `secret` del grafo de ejemplo. El backend NO lo entrega a un `viewer`
+# (9 nodos frente a los 11 del admin) y le responde 404 a su id. Ambas cosas se
+# comprueban dentro de la prueba, no se dan por supuestas.
+SECRETO_NOMBRE = "Culto del Pozo Viejo"
+SECRETO_ID = "n_culto_pozo_viejo"
+
+# Nodo unico de tipo Creature (color propio en graph-core.js): permite localizar
+# en el <canvas> exactamente un nodo por su color. Lo ve cualquier rol.
+NODO_VISIBLE = "Oni de la Montaña Negra"
+COLOR_CREATURE = "#e5534b"
+
+INEXISTENTE_NOMBRE = "Zzyzx Fantasmagorico Inexistente"
+INEXISTENTE_ID = "n_zzyzx_fantasmagorico_inexistente"
+
+_CENTROIDE_JS = """(color) => {
+    const canvas = document.querySelector('#graph-canvas canvas');
+    if (!canvas) { return null; }
+    const ctx = canvas.getContext('2d');
+    const {width, height} = canvas;
+    const data = ctx.getImageData(0, 0, width, height).data;
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    let sx = 0, sy = 0, n = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        if (Math.abs(data[i] - r) < 12 && Math.abs(data[i+1] - g) < 12
+            && Math.abs(data[i+2] - b) < 12 && data[i+3] > 200) {
+          sx += x; sy += y; n++;
+        }
+      }
+    }
+    if (n === 0) { return null; }
+    return {x: sx / n, y: sy / n, w: width, h: height, n: n};
+}"""
 
 
-def test_seleccionar_un_nodo_abre_su_ficha_lateral(admin_page, viewer):
-    """Filtra a un unico nodo y pincha en el lienzo: el panel debe describirlo.
+# Huella del lienzo. Se resume en un entero (FNV-1a sobre TODOS los canales de
+# TODOS los pixeles) mas el numero de pixeles no transparentes: cualquier
+# diferencia de dibujo —un nodo mas, un resaltado, un encuadre distinto— cambia
+# el resumen. Comparar dataURL completas seria equivalente pero mucho mas caro
+# de mover entre navegador y prueba.
+_HUELLA_CANVAS_JS = """() => {
+    const c = document.querySelector('#graph-canvas canvas');
+    if (!c) { return null; }
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let h = 0x811c9dc5, opacos = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      h = ((h ^ d[i]) * 16777619) >>> 0;
+      h = ((h ^ d[i + 1]) * 16777619) >>> 0;
+      h = ((h ^ d[i + 2]) * 16777619) >>> 0;
+      h = ((h ^ d[i + 3]) * 16777619) >>> 0;
+      if (d[i + 3] > 0) { opacos++; }
+    }
+    return c.width + 'x' + c.height + ':' + h.toString(16) + ':' + opacos;
+}"""
 
-    Con un solo nodo, vis-network lo situa en el centro del lienzo; ese es el
-    unico punto de entrada realista, porque el grafo se pinta en <canvas> y no
-    expone elementos DOM por nodo (ver limitacion documentada).
+
+def _esperar_lienzo_quieto(page, timeout_ms: int = 20_000) -> str:
+    """Espera a que la FISICA se pare y devuelve la huella del lienzo.
+
+    POR QUE ESTO Y NO UN `wait_for_timeout` GENEROSO
+    ------------------------------------------------
+    El grafo se dibuja con vis-network, que mueve los nodos solo hasta que el
+    motor de fisicas converge. Comparar dos capturas con el grafo todavia en
+    movimiento produce una prueba que falla al azar, y una prueba que falla al
+    azar es peor que no tenerla: se acaba ignorando.
+
+    Se esperan DOS cosas, y las dos hacen falta:
+      1. Que el producto declare la estabilizacion (evento `stabilized` de
+         vis-network, expuesto en `S9KGraphView.isStabilized`). Es la senal
+         autoritativa del motor de fisicas.
+      2. Que dos capturas consecutivas del lienzo sean identicas. Cubre lo que
+         el evento no cubre: las animaciones de `focus`/`fit`, que mueven la
+         camara DESPUES de que la fisica se haya parado.
     """
-    admin_page.goto(viewer.url("/graph"))
-    admin_page.wait_for_selector("#graph-canvas canvas", timeout=10_000)
+    page.wait_for_function(
+        "() => window.S9KGraphView && window.S9KGraphView.isStabilized()",
+        timeout=timeout_ms)
+    anterior = None
+    intentos = max(4, timeout_ms // 250)
+    for _ in range(intentos):
+        actual = page.evaluate(_HUELLA_CANVAS_JS)
+        assert actual is not None, "no hay lienzo del grafo que observar"
+        if actual == anterior:
+            return actual
+        anterior = actual
+        page.wait_for_timeout(250)
+    raise AssertionError(
+        "el lienzo del grafo no se queda quieto: comparar huellas seria un "
+        "sorteo. Ultimas capturas distintas entre si.")
 
-    with admin_page.expect_response(lambda r: "/api/graph" in r.url and "q=" in r.url) as info:
-        admin_page.fill("#search-input", ENTIDAD_UNICA)
-        admin_page.press("#search-input", "Enter")
-    nodos = info.value.json().get("nodes", [])
-    assert len(nodos) == 1, (
-        f"«{ENTIDAD_UNICA}» ya no aisla un unico nodo ({[n['label'] for n in nodos]}); "
-        "elige otro termino en vez de saltarte la prueba")
 
-    admin_page.wait_for_timeout(2500)                 # estabilizacion del layout
+def _abrir_grafo(page, viewer):
+    """Grafo cargado y con el layout fisico ya estabilizado."""
+    page.goto(viewer.url("/graph"))
+    page.wait_for_selector("#graph-canvas canvas", timeout=15_000)
+    page.wait_for_function(
+        "() => document.getElementById('counter-nodes').textContent !== '0'",
+        timeout=15_000)
+    _esperar_lienzo_quieto(page)
+    return page
 
-    # El grafo se pinta en <canvas>: no hay elemento DOM por nodo. Se localiza
-    # el nodo por su color de relleno (Character = #6ea8fe en graph.js) leyendo
-    # los pixeles reales que el navegador dibujo, y se pincha ahi. Nada de
-    # tocar el objeto vis-network: el click es un click de raton de verdad.
-    punto = admin_page.evaluate(
-        """(color) => {
-            const canvas = document.querySelector('#graph-canvas canvas');
-            const ctx = canvas.getContext('2d');
-            const {width, height} = canvas;
-            const data = ctx.getImageData(0, 0, width, height).data;
-            const r = parseInt(color.slice(1, 3), 16);
-            const g = parseInt(color.slice(3, 5), 16);
-            const b = parseInt(color.slice(5, 7), 16);
-            let sx = 0, sy = 0, n = 0;
-            for (let y = 0; y < height; y++) {
-              for (let x = 0; x < width; x++) {
-                const i = (y * width + x) * 4;
-                if (Math.abs(data[i] - r) < 12 && Math.abs(data[i+1] - g) < 12
-                    && Math.abs(data[i+2] - b) < 12 && data[i+3] > 200) {
-                  sx += x; sy += y; n++;
-                }
-              }
-            }
-            if (n === 0) { return null; }
-            const rect = canvas.getBoundingClientRect();
-            const ratio = rect.width / width;
-            return {x: rect.left + (sx / n) * ratio, y: rect.top + (sy / n) * ratio, n};
-        }""",
-        "#6ea8fe",
-    )
-    assert punto, "no se encontro el nodo dibujado en el lienzo"
-    admin_page.mouse.click(punto["x"], punto["y"])
-    admin_page.wait_for_timeout(400)
 
-    panel = admin_page.locator("#side-panel")
-    assert ENTIDAD_UNICA in panel.inner_text(), \
-        f"el panel no describe el nodo seleccionado: {panel.inner_text()[:200]}"
-    assert panel.locator("a[href^='/entity/']").count() == 1, \
+def _buscar(page, texto) -> list:
+    """Teclea, mira lo OFRECIDO y pulsa Intro.
+
+    Devuelve las etiquetas que el desplegable ofrecia MIENTRAS SE ESCRIBIA, que
+    es el unico momento en que existen: elegir con Intro cierra la lista (ver
+    `test_elegir_con_intro_cierra_la_lista_de_resultados`), porque un menu de
+    eleccion abierto despues de haber elegido tapa el lienzo y se come los
+    clics. Leerlo aqui es una observacion, no una interaccion: no cambia el
+    estado que la huella comparara despues.
+
+    No se afirma nada sobre peticiones de red.
+    """
+    page.fill("#search-input", texto)
+    page.wait_for_timeout(300)
+    ofrecidos = _resultados(page)
+    page.press("#search-input", "Enter")
+    _esperar_lienzo_quieto(page)
+    return ofrecidos
+
+
+def _resultados(page) -> list:
+    """Etiquetas de los resultados pinchables que ofrece el buscador."""
+    items = page.locator("#search-results button.search-result")
+    return [items.nth(i).inner_text() for i in range(items.count())]
+
+
+def _variantes(termino: str) -> list:
+    """Las formas en que el termino buscado puede aparecer escrito en la UI."""
+    formas = {
+        termino,
+        termino.lower(),
+        quote(termino, safe=""),
+        quote(termino, safe="").lower(),
+        quote_plus(termino),
+        unicodedata.normalize("NFD", termino).encode("ascii", "ignore").decode(),
+    }
+    return sorted((f for f in formas if f), key=len, reverse=True)
+
+
+def _sin_el_termino(valor, termino: str):
+    """Sustituye el texto buscado por un marcador, en cualquier profundidad.
+
+    POR QUE HACE FALTA NORMALIZAR
+    -----------------------------
+    Dos busquedas distintas se distinguen siempre en una cosa trivial: el texto
+    que se ha tecleado, que viaja al campo, a la URL (`?q=…`) y a cualquier
+    mensaje que lo cite. Eso no es un canal lateral, es la busqueda haciendo su
+    trabajo; exigir igualdad literal haria imposible comparar nada.
+
+    Lo que SI es un canal lateral es cualquier diferencia que quede DESPUES de
+    borrar el termino: un parametro de mas en la URL, un contador que cambia,
+    un mensaje que solo aparece para un nombre concreto. Por eso se compara la
+    huella con el termino sustituido por `<TERMINO>`: lo que sobreviva a esa
+    sustitucion y siga siendo distinto solo puede venir de los DATOS, no de la
+    consulta.
+    """
+    if isinstance(valor, str):
+        out = valor
+        for forma in _variantes(termino):
+            out = re.sub(re.escape(forma), "<TERMINO>", out, flags=re.IGNORECASE)
+        return out
+    if isinstance(valor, list):
+        return [_sin_el_termino(v, termino) for v in valor]
+    if isinstance(valor, dict):
+        return {k: _sin_el_termino(v, termino) for k, v in valor.items()}
+    return valor
+
+
+def _huella_de_busqueda(page, termino: str) -> dict:
+    """Los DIECISIETE canales observables que esta huella cubre.
+
+    Si un nodo no autorizado y un nombre inexistente producen la misma huella,
+    esos diecisiete canales no permiten distinguirlos. Eso es lo que la prueba
+    demuestra; ni mas, ni menos.
+
+    QUE CANALES ENTRAN
+    ------------------
+    La version anterior de esta funcion miraba cuatro cosas (la lista de
+    resultados, el contador de nodos y si la ficha estaba abierta) y por eso no
+    valia: un revisor escribio fugas en el contador de ARISTAS, en el mensaje
+    de `#graph-status` —visible y anunciado por `aria-live`— y en la URL, y la
+    prueba siguio verde. La lista cubierta hoy, enumerada sin adornos:
+
+       1. `resultados`         lista de resultados pinchables
+       2. `texto_lista`        texto de `#search-results`
+       3. `lista_oculta`       visibilidad de `#search-results`
+       4. `contador_nodos`     `#counter-nodes`
+       5. `contador_aristas`   `#counter-edges`
+       6. `estado_texto`       texto de `#graph-status` (anunciado por aria-live)
+       7. `estado_visible`     visibilidad de `#graph-status`
+       8. `ficha_texto`        texto de la ficha lateral
+       9. `ficha_abierta`      si la ficha esta desplegada
+      10. `ficha_aria`         `aria-label` + `aria-hidden` de la ficha lateral
+      11. `titulo`             `document.title`
+      12. `contadores_filtro`  todos los `.filter-count` del panel de filtros
+      13. `leyenda`            texto de cada fila de `#graph-legend`
+      14. `url`                la URL COMPLETA
+      15. `seleccion`          seleccion REAL de vis-network (via S9KGraphView)
+      16. `encuadre`           zoom y centro del lienzo (via S9KGraphView)
+      17. `lienzo`             el `<canvas>` pixel a pixel, con la fisica parada
+
+    QUE NO ENTRA, NOMINALMENTE
+    --------------------------
+    Esta lista es la parte importante del docstring. Una version anterior decia
+    «todo el estado observable»; era falso, y una afirmacion falsa en una prueba
+    de seguridad es peor que una limitacion escrita.
+
+      a) DETALLES DE IMPLEMENTACION, a proposito: si hubo peticion de red, que
+         funcion se llamo, en que orden se pintaron los filtros. La prueba habla
+         de lo que una persona percibe, no de como esta hecho el visor.
+
+      b) EL LIMITE INTRINSECO DE LA TECNICA — el mas sutil, y el que no se puede
+         cerrar sin romper la prueba entera. Antes de comparar, `_sin_el_termino`
+         borra el termino buscado en todas sus formas (tal cual, minusculas,
+         percent-encoded, sin acentos). Eso es necesario —dos busquedas siempre
+         difieren en el texto tecleado— pero tiene un precio exacto: BORRA
+         TAMBIEN CUALQUIER FUGA QUE SOLO SE DISTINGA POR COMO SE RENDERIZA EL
+         TERMINO BUSCADO. Si el visor mostrase el nombre CANONICO del nodo
+         autorizado alli donde para un termino inventado repite lo tecleado
+         —distinta capitalizacion, acentos restituidos, forma canonica—, la
+         sustitucion tapa la diferencia y la huella sale igual. No es un
+         descuido: es el precio de poder comparar dos busquedas distintas. Un
+         canal de ese tipo necesita una prueba dedicada que compare la forma
+         literal, no esta.
+
+      c) Todo canal fuera del `<body>` de `/graph`: cabeceras HTTP, cookies,
+         `localStorage`, tiempos de respuesta. La promesa es sobre la VISTA
+         ORDINARIA, no sobre un atacante con herramientas de red.
+
+    Los cuatro canales que el revisor encontro escapados —`.filter-count`, fila
+    extra en la leyenda, `document.title` y el `aria-label` de la ficha— SI se
+    han incorporado (10-13). Son lecturas de DOM baratas y deterministas: no
+    dependen del termino buscado, asi que no introducen intermitencia, y los
+    tres primeros se derivan de los datos cargados, que es justo por donde
+    entraria una fuga de autorizacion.
+    """
+    panel = page.locator("#side-panel")
+    estado = page.locator("#graph-status")
+    filtros = page.locator(".filter-count")
+    leyenda = page.locator("#graph-legend li")
+    huella = {
+        "resultados": _resultados(page),
+        "texto_lista": page.locator("#search-results").inner_text().strip(),
+        "lista_oculta": page.locator("#search-results").is_hidden(),
+        "contador_nodos": page.locator("#counter-nodes").inner_text().strip(),
+        "contador_aristas": page.locator("#counter-edges").inner_text().strip(),
+        "estado_texto": estado.inner_text().strip(),
+        "estado_visible": estado.is_visible(),
+        "ficha_texto": panel.inner_text().strip(),
+        "ficha_abierta": "side-panel-closed" not in (panel.get_attribute("class") or ""),
+        "ficha_aria": [panel.get_attribute("aria-label"), panel.get_attribute("aria-hidden")],
+        "titulo": page.title(),
+        "contadores_filtro": [filtros.nth(i).inner_text().strip()
+                              for i in range(filtros.count())],
+        "leyenda": [leyenda.nth(i).inner_text().strip()
+                    for i in range(leyenda.count())],
+        "url": page.url,
+        "seleccion": page.evaluate("() => window.S9KGraphView.selection()"),
+        "encuadre": page.evaluate(
+            "() => { const v = window.S9KGraphView.viewport();"
+            "  return v && {scale: Math.round(v.scale * 1000),"
+            "               x: Math.round(v.x), y: Math.round(v.y)}; }"),
+        "lienzo": _esperar_lienzo_quieto(page),
+    }
+    return _sin_el_termino(huella, termino)
+
+
+def test_la_busqueda_encuentra_centra_y_resalta_un_nodo_visible(page, viewer):
+    """CASO 1. Un nodo que el backend SI entrego a este rol se encuentra,
+    se centra en el lienzo y queda resaltado (seleccionado y con su ficha)."""
+    login_as(page, viewer, "s9viewer")
+    entregados = [n["label"] for n in
+                  page.request.get(viewer.url("/api/graph?limit=300")).json()["nodes"]]
+    assert NODO_VISIBLE in entregados, \
+        f"el nodo de referencia ya no llega a este rol ({entregados}); elige otro"
+
+    _abrir_grafo(page, viewer)
+    antes = page.evaluate(_CENTROIDE_JS, COLOR_CREATURE)
+    assert antes, "el nodo de referencia no esta dibujado en el lienzo"
+
+    ofrecidos = _buscar(page, NODO_VISIBLE)
+
+    # Lo encuentra: aparece como resultado pinchable mientras se escribe.
+    assert any(NODO_VISIBLE in r for r in ofrecidos), \
+        f"la busqueda no ofrece el nodo visible: {ofrecidos}"
+
+    # Lo centra: el nodo (unico de su color) queda en el centro del lienzo.
+    despues = page.evaluate(_CENTROIDE_JS, COLOR_CREATURE)
+    assert despues, "el nodo buscado ha desaparecido del lienzo"
+    dx = abs(despues["x"] - despues["w"] / 2) / despues["w"]
+    dy = abs(despues["y"] - despues["h"] / 2) / despues["h"]
+    assert dx < 0.12 and dy < 0.12, (
+        f"buscar no centro el nodo: centro relativo ({dx:.2f}, {dy:.2f}); "
+        f"antes estaba en ({antes['x']:.0f}, {antes['y']:.0f})")
+
+    # Lo resalta: se comprueba la seleccion REAL de vis-network (ventana de
+    # observacion de solo lectura) ademas de su reflejo en la ficha lateral.
+    # Con solo la ficha, un visor que abriese el panel sin seleccionar nada en
+    # el lienzo pasaria por bueno.
+    seleccion = page.evaluate("() => window.S9KGraphView.selection()")
+    assert seleccion and len(seleccion["nodes"]) == 1, \
+        f"buscar no dejo el nodo seleccionado en el lienzo: {seleccion}"
+
+    panel = page.locator("#side-panel")
+    assert "side-panel-closed" not in (panel.get_attribute("class") or ""), \
+        "buscar no abrio la ficha del nodo"
+    assert NODO_VISIBLE in panel.inner_text(), \
+        f"la ficha no describe el nodo buscado: {panel.inner_text()[:200]}"
+    assert panel.locator("a[href^='/entities/'], a[href^='/entity/']").count() >= 1, \
         "la ficha lateral no ofrece el enlace a la ficha completa"
+    assert page.page_errors == [], f"excepciones JS al buscar: {page.page_errors}"
+
+
+@pytest.mark.parametrize("termino", [INEXISTENTE_NOMBRE, INEXISTENTE_ID])
+def test_la_busqueda_de_algo_inexistente_no_encuentra_nada(page, viewer, termino):
+    """CASO 2. Un nombre o un id que no existe en ninguna parte: cero
+    resultados, mensaje de vacio y ninguna ficha abierta."""
+    login_as(page, viewer, "s9viewer")
+    _abrir_grafo(page, viewer)
+    _buscar(page, termino)
+
+    huella = _huella_de_busqueda(page, termino)
+    assert huella["resultados"] == [], \
+        f"«{termino}» no existe y sin embargo produjo resultados: {huella['resultados']}"
+    assert "Sin coincidencias" in huella["texto_lista"], \
+        f"no hay mensaje de vacio: {huella['texto_lista']!r}"
+    assert huella["seleccion"] == {"nodes": [], "edges": []}, \
+        f"una busqueda vacia dejo algo seleccionado: {huella['seleccion']}"
+    assert "Pincha un nodo" in huella["ficha_texto"], \
+        f"una busqueda vacia abrio la ficha de algo: {huella['ficha_texto'][:200]}"
+    assert page.page_errors == [], f"excepciones JS al buscar: {page.page_errors}"
+
+
+def test_un_nodo_no_autorizado_es_indistinguible_de_uno_inexistente(new_page, viewer):
+    """CASO 3 — el resultado de seguridad que hay que congelar.
+
+    Un `viewer` busca el nombre EXACTO y el id EXACTO de un nodo `secret` que el
+    backend no le ha entregado. Debe obtener exactamente lo mismo que al buscar
+    algo que no existe: ni resultados, ni contador distinto, ni hueco, ni un
+    mensaje diferente. Desde la vista ordinaria, «no autorizado» y «no existe»
+    tienen que ser el mismo hecho observable.
+
+    La prueba NO puede pasar por vacio: primero se comprueba, con un admin, que
+    el nodo EXISTE de verdad y que la misma busqueda SI lo encuentra. Si alguien
+    borrase el nodo del fixture, esta prueba enrojece en vez de aprobar.
+    """
+    # --- Control positivo: para el admin el nodo existe y la busqueda lo halla.
+    admin = new_page()
+    login_as(admin, viewer, "s9admin")
+    del_admin = admin.request.get(viewer.url("/api/graph?limit=300")).json()["nodes"]
+    labels_admin = [n["label"] for n in del_admin]
+    assert SECRETO_NOMBRE in labels_admin, (
+        f"el nodo secreto ya no esta en el fixture ({labels_admin}): la prueba "
+        "aprobaria por vacio, asi que falla a proposito")
+    assert admin.request.get(viewer.url(f"/api/entity/{SECRETO_ID}")).status == 200, \
+        "el id secreto no resuelve ni para el admin: fixture inservible"
+    entregado = [n for n in del_admin if n["label"] == SECRETO_NOMBRE][0]
+    assert entregado.get("entity_id") == SECRETO_ID, (
+        f"el backend no entrega el identificador estable del nodo secreto "
+        f"({entregado.get('entity_id')!r}): el caso «buscar por id» seria vacuo")
+
+    _abrir_grafo(admin, viewer)
+    # Por NOMBRE y por IDENTIFICADOR ESTABLE. El segundo es la mitad que antes
+    # no existia: el id no estaba en el indice, asi que «buscar por id» no
+    # encontraba nada ni siquiera para el admin y la prueba de mas abajo se
+    # cumplia por vacuidad, no por autorizacion.
+    for termino in (SECRETO_NOMBRE, SECRETO_ID):
+        ofrecidos = _buscar(admin, termino)
+        assert any(SECRETO_NOMBRE in r for r in ofrecidos), (
+            f"ni siquiera el admin encuentra el nodo secreto buscando «{termino}» "
+            f"({ofrecidos}): sin control positivo el resto de la prueba "
+            "no demuestra nada")
+
+    # --- El rol sin autorizacion: el backend no le entrega ese nodo.
+    victima = new_page()
+    login_as(victima, viewer, "s9viewer")
+    del_viewer = victima.request.get(viewer.url("/api/graph?limit=300")).json()["nodes"]
+    labels_viewer = [n["label"] for n in del_viewer]
+    assert SECRETO_NOMBRE not in labels_viewer, (
+        "el backend esta entregando el nodo secreto a un viewer: el defecto es "
+        "de autorizacion, no de la busqueda")
+    assert len(labels_viewer) < len(labels_admin), \
+        "el viewer recibe tantos nodos como el admin: no hay nada que ocultar"
+    assert victima.request.get(viewer.url(f"/api/entity/{SECRETO_ID}")).status == 404, \
+        "el id secreto no da 404 al viewer"
+
+    _abrir_grafo(victima, viewer)
+
+    # Cada caso se compara con SU referencia de vacio: un nombre inventado
+    # frente al nombre secreto, y un id inventado frente al id secreto.
+    parejas = ((SECRETO_NOMBRE, INEXISTENTE_NOMBRE), (SECRETO_ID, INEXISTENTE_ID))
+    for secreto, inventado in parejas:
+        _buscar(victima, inventado)
+        referencia = _huella_de_busqueda(victima, inventado)
+        assert referencia["resultados"] == [], "la referencia de vacio no esta vacia"
+
+        _buscar(victima, secreto)
+        huella = _huella_de_busqueda(victima, secreto)
+        assert huella["resultados"] == [], \
+            f"buscar «{secreto}» revela el nodo no autorizado: {huella['resultados']}"
+
+        # Comparacion canal por canal: si algo se distingue, el mensaje dice
+        # CUAL, que es lo que hace util un fallo de este tipo.
+        distintos = {k: (huella[k], referencia[k])
+                     for k in huella if huella[k] != referencia[k]}
+        assert not distintos, (
+            f"buscar «{secreto}» se distingue de buscar «{inventado}».\n"
+            + "\n".join(f"  · {k}: no autorizado={v[0]!r} / inexistente={v[1]!r}"
+                        for k, v in distintos.items()))
+
+    # Y en ninguna parte del DOM aparece el nodo ni su id.
+    contenido = victima.content()
+    assert SECRETO_NOMBRE not in contenido, "el nombre del nodo secreto esta en el DOM"
+    assert SECRETO_ID not in contenido, "el id del nodo secreto esta en el DOM"
+    assert victima.page_errors == [], f"excepciones JS: {victima.page_errors}"
 
 
 def test_desde_la_ficha_lateral_se_llega_a_la_ficha_completa(admin_page, viewer):

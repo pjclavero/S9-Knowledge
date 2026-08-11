@@ -104,8 +104,10 @@ No se ha tocado `viewer/app/**` ni la configuración de CI.
 | Admin abre el panel admin | `test_admin_abre_el_panel_de_admin` | ✅ |
 | Un viewer normal NO puede | `test_viewer_no_puede_abrir_el_panel_de_admin` (×3 rutas) + nav sin enlaces + API 403 | ✅ |
 | Abrir grafo | `test_el_grafo_se_dibuja` | ✅ |
-| Buscar entidad | `test_la_busqueda_del_grafo_filtra_de_verdad`, `test_buscar_seleccionar_y_abrir_el_detalle` | ✅ |
-| Seleccionar | `test_seleccionar_un_nodo_abre_su_ficha_lateral` (click real sobre el canvas) | ✅ |
+| Buscar entidad | `test_la_busqueda_encuentra_centra_y_resalta_un_nodo_visible`, `test_buscar_seleccionar_y_abrir_el_detalle` | ✅ |
+| Buscar algo inexistente | `test_la_busqueda_de_algo_inexistente_no_encuentra_nada` (×2: nombre e id) | ✅ |
+| Buscar un nodo **no autorizado** | `test_un_nodo_no_autorizado_es_indistinguible_de_uno_inexistente` | ✅ |
+| Seleccionar | la búsqueda centra el nodo y abre su ficha (medido por píxeles del canvas) | ✅ |
 | Abrir detalle | `test_desde_la_ficha_lateral_se_llega_a_la_ficha_completa` | ✅ |
 | Sources / Jobs / Reviews | `test_las_secciones_de_reviewer_cargan_para_un_admin`, `test_la_navegacion_lleva_a_todas_sus_secciones` | ✅ |
 | Estado sin datos | `test_estado_sin_datos_en_el_listado_de_entidades`, `test_reviews_sin_fuentes_no_finge_datos` | ✅ |
@@ -249,9 +251,12 @@ aserción. Por eso:
   alguna lo perdiera, su parámetro se pone rojo en el acto. Antes era **un solo
   test** que recorría las ocho acumulando fallos, así que perder un `<h1>` no se
   habría notado.
-- **ACC-02** conserva su `xfail` por página, pero lo acompaña
-  `test_no_aparecen_controles_sin_etiqueta_nuevos`, en verde, que fija la lista
-  exacta de controles defectuosos conocidos y falla si aparece **uno nuevo**.
+- **ACC-02** ya solo conserva su `xfail` en `/entities` (ahora **ACC-02b**): la
+  UX V2 del grafo etiquetó los controles de `/graph`, el `xfail(strict=True)`
+  pasó a XPASS y —según la doctrina del propio fichero— se ha **quitado la
+  marca**, de modo que `test_los_controles_del_grafo_estan_etiquetados` protege
+  el arreglo en verde. Lo acompaña `test_no_aparecen_controles_sin_etiqueta_nuevos`,
+  también en verde, que falla si aparece **uno nuevo**.
 - **ACC-03** ya no barre la página entera: el `xfail` mira solo la columna
   «Fuente» (`[style*="color:#555"]`), y
   `test_no_aparecen_textos_con_mal_contraste_nuevos`, en verde, barre **todo lo
@@ -261,7 +266,8 @@ aserción. Por eso:
 | ID | Problema | Impacto | Dónde |
 |---|---|---|---|
 | **ACC-01** | `/graph` no tiene `<main>` ni **ningún encabezado**. La página del grafo es un `<div>` suelto: sin landmark ni título, es un agujero negro para navegación por encabezados. | Alto | `app/templates/graph.html` |
-| **ACC-02** | Controles etiquetados **solo con `placeholder`**: `#search-input`, `#type-filter`, `#limit-select` en `/graph`; `q` y `entity_type` en `/entities`. El placeholder desaparece al escribir y muchos lectores no lo anuncian como nombre. | Alto | `graph.html`, `entities.html` |
+| **ACC-02** | ~~Controles de `/graph` etiquetados solo con `placeholder`~~. **CORREGIDO** por la UX V2 del grafo: `graph.html` declara `<label class="sr-only">` para sus controles. La prueba ya no lleva `xfail`. | — | `graph.html` |
+| **ACC-02b** | Controles etiquetados **solo con `placeholder`** en `/entities` (`q`, `entity_type`). El placeholder desaparece al escribir y muchos lectores no lo anuncian como nombre. | Alto | `entities.html` |
 | **ACC-03** | Contraste por debajo de AA: `#555` sobre `#14161c` = **2.43:1** (columna «Fuente» de `/entities`, 11 nodos de texto); `#666` = **3.15:1** (metadatos del detalle de usuario); rojo de error `#e5534b` = **4.45:1** (justo por debajo de 4.5). | Alto | `app/static/css/app.css` y estilos en línea |
 | **ACC-04** | Jerarquía de encabezados incoherente: `/`, `/jobs`, `/status`, `/reviews` tienen `<h1>`; `/entities`, `/sources`, `/admin/*` y `/login` empiezan directamente en `<h2>`. | Medio | plantillas |
 | **ACC-05** | No hay enlace «saltar al contenido». Quien navega con teclado atraviesa 8–10 enlaces de la barra en **cada** página. | Medio | `base.html` |
@@ -340,11 +346,13 @@ un defecto.
   cambiado; la cobertura real la da el job dedicado, que sí falla ante cualquier
   `skipped`.
 - El proveedor de grafo es `mock`. Las pruebas de recorrido dependen de
-  `viewer/examples/sample_graph.json`: `test_seleccionar_un_nodo_abre_su_ficha_lateral`
-  usa el término «Kimi» porque aísla un único nodo, y **falla con un mensaje
-  explícito** —no se salta— si algún día deja de aislarlo.
-- Las pruebas de canvas dependen del color de tipo definido en `graph.js`
-  (`Character` = `#6ea8fe`). Si cambia la paleta, hay que actualizar la constante.
+  `viewer/examples/sample_graph.json`: usan «Oni de la Montaña Negra» porque es
+  el único nodo de tipo `Creature` (color propio, localizable en el canvas) y
+  «Culto del Pozo Viejo» / `n_culto_pozo_viejo` porque es el único nodo
+  `visibility: secret`. Las tres pruebas **fallan con un mensaje explícito**
+  —no se saltan— si esos supuestos dejan de cumplirse.
+- Las pruebas de canvas dependen del color de tipo definido en `graph-core.js`
+  (`Creature` = `#e5534b`). Si cambia la paleta, hay que actualizar la constante.
 - Cada módulo levanta su propio `uvicorn` (≈1 s). La suite completa tarda
   ~2 min 40 s; asumible, y evita el acoplamiento entre módulos.
 

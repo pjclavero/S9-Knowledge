@@ -4,9 +4,18 @@
 <main class="page">
   <div class="card">
     <h1>{{ entity.label }}</h1>
+    {#
+      Ni `visibility` ni `knowledge_layer` se pintan aquí, igual que en la
+      ficha lateral del grafo. No son atributos de presentación: describen la
+      frontera de autorización, que se resuelve ANTES de que el contenido
+      llegue a esta plantilla. Si el usuario está leyendo esta ficha es
+      porque puede; etiquetarla con "secreto" no le añade nada y sí sugiere
+      que hay fichas que se le sirven a medias. Una vista diagnóstica
+      protegida para admin podría enseñarlos algún día; una pastilla normal
+      en la ficha de cualquiera, no.
+    #}
     <p><span class="pill">{{ entity.type_label }}</span>
        {% if entity.confidence_label %}<span class="pill">Confianza: {{ entity.confidence_label }}</span>{% endif %}
-       {% if entity.visibility_label %}<span class="pill">{{ entity.visibility_label }}</span>{% endif %}
     </p>
     {% if entity.description %}<p>{{ entity.description }}</p>{% endif %}
 
@@ -23,8 +32,11 @@
       <div class="field-value">{{ entity.source_pages | join(', ') if entity.source_pages else '—' }}</div>
     </div>
     <div class="field">
-      <div class="field-label">Capa de conocimiento / Revisión</div>
-      <div class="field-value">{{ entity.knowledge_layer_label or '—' }} · {{ entity.review_status_label or '—' }}</div>
+      {# El estado de revisión SÍ se queda: dice si el dato está validado o
+         pendiente, que es información de calidad y afecta a cómo fiarse de
+         lo que se lee. La capa de conocimiento se va con la visibilidad. #}
+      <div class="field-label">Estado de revisión</div>
+      <div class="field-value">{{ entity.review_status_label or '—' }}</div>
     </div>
 
     <details>
