@@ -16,6 +16,12 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from schema_source_fixture import (  # noqa: E402
+    declared_auth_db_version,
+    plant_schema_sources,
+)
 
 from verify_release_identity import (  # noqa: E402
     VERDICT_INVALID,
@@ -50,8 +56,12 @@ def _make_release(root: Path, release_id: str = RELEASE_ID, commit: str = COMMIT
     (release / "manifest.json").write_text(json.dumps({
         "release_id": release_id,
         "git_commit": commit,
-        "schema_versions": {"auth_db": 1, "job_store": 1},
+        # La version que DECLARA el codigo de esta release. Antes esto era el
+        # literal `{"auth_db": 1, ...}` copiado del manifiesto real, que llevaba
+        # anyos mintiendo: la fixture heredaba la mentira y por eso nadie la vio.
+        "schema_versions": {"auth_db": declared_auth_db_version(), "job_store": 1},
     }), encoding="utf-8")
+    plant_schema_sources(release)
 
     if copies_venv:
         # venv --copies: el intérprete es un fichero real dentro del venv.
@@ -108,6 +118,26 @@ def _ind(result, name):
         if i["indicator"] == name:
             return i
     raise AssertionError(f"indicador ausente: {name}")
+
+
+def _ind_unico(result, name):
+    """Como `_ind`, pero exige que el indicador aparezca UNA sola vez.
+
+    `_ind` es first-match: colar un homonimo benigno DELANTE del indicador real
+    lo ensombrece y una prueba de enchufe escrita sobre `_ind` sigue verde
+    (observacion N-2 de la revision). `_verdict` recorre TODOS los indicadores,
+    asi que un duplicado no es un detalle de utillaje: es un estado en el que
+    esta funcion deja de hablar del indicador que decide el veredicto.
+    """
+    encontrados = [i for i in result["indicators"] if i["indicator"] == name]
+    if not encontrados:
+        raise AssertionError(f"indicador ausente: {name}")
+    if len(encontrados) > 1:
+        raise AssertionError(
+            f"indicador duplicado: {name} aparece {len(encontrados)} veces; "
+            f"el primero puede ensombrecer al que decide el veredicto"
+        )
+    return encontrados[0]
 
 
 # ---------------------------------------------------------------------------
@@ -340,3 +370,68 @@ def test_base_en_prefijo_del_sistema_sigue_siendo_valida(tmp_path):
     release = _make_release(tmp_path, base_exe="/usr/bin/python3.13")
     r = _classify(tmp_path, _proc(release, exe="/usr/bin/python3.13"))
     assert r["verdict"] == VERDICT_VALID_SYMLINK, r["failed_indicators"]
+
+
+# ---------------------------------------------------------------------------
+# El CABLEADO del indicador de esquema dentro de `classify()`
+#
+# Observacion O-2 de la revision: las pruebas de `_schema_versions_match` y de
+# `_verdict` cubrian las dos piezas por separado, pero NADA fijaba que la pieza
+# estuviera ENCHUFADA en `classify()` ni que lo estuviera como CRITICA. Se podia
+# borrar el `add("schema_versions_match_code", ...)` entero, o degradarlo a
+# `critical=False`, y la bateria seguia verde: una barrera que deja de evaluarse
+# sin que nada se ponga rojo, que es justo el defecto que persigue este carril.
+#
+# Estas cuatro pruebas atacan el CABLEADO, no la funcion.
+# ---------------------------------------------------------------------------
+
+def test_el_indicador_de_esquema_esta_enchufado_y_es_critico(tmp_path):
+    """Existe en la salida de `classify()` y es CRITICO.
+
+    Borrarlo, o degradarlo a `critical=False`, pone esta prueba en rojo por si
+    sola, sin depender de ningun veredicto.
+    """
+    release = _make_release(tmp_path)
+    r = _classify(tmp_path, _proc(release))
+    indicador = _ind_unico(r, "schema_versions_match_code")  # ausente/duplicado -> AssertionError
+    assert indicador["critical"] is True, (
+        "degradado a no critico: podria fallar sin invalidar la release"
+    )
+    assert indicador["ok"] is True, indicador["detail"]
+
+
+def test_un_manifiesto_que_miente_invalida_la_release_entera(tmp_path):
+    """El estado exacto que habia en main: manifiesto `auth_db: 1`, codigo v3.
+
+    No basta con que la funcion devuelva False: el VEREDICTO de la release tiene
+    que hundirse, porque es lo que decide si un despliegue sigue o aborta.
+    """
+    release = _make_release(tmp_path)
+    manifiesto = json.loads((release / "manifest.json").read_text(encoding="utf-8"))
+    manifiesto["schema_versions"] = {"auth_db": 1, "job_store": 1}
+    (release / "manifest.json").write_text(json.dumps(manifiesto), encoding="utf-8")
+
+    r = _classify(tmp_path, _proc(release))
+    assert r["verdict"] == VERDICT_INVALID
+    assert "schema_versions_match_code" in r["failed_indicators"]
+
+
+def test_una_release_sin_los_fuentes_no_se_puede_comparar_y_queda_unknown(tmp_path):
+    """No poder comprobarlo no es aprobarlo: UNKNOWN, nunca VALID."""
+    release = _make_release(tmp_path)
+    (release / "viewer" / "app" / "auth" / "db.py").unlink()
+
+    r = _classify(tmp_path, _proc(release))
+    assert r["verdict"] == VERDICT_UNKNOWN, r["failed_indicators"]
+    assert _ind_unico(r, "schema_versions_match_code")["ok"] is None
+
+
+def test_un_manifiesto_sin_schema_versions_no_pasa_por_valido(tmp_path):
+    """Tercera formulacion: la clave ni siquiera esta en el manifiesto."""
+    release = _make_release(tmp_path)
+    manifiesto = json.loads((release / "manifest.json").read_text(encoding="utf-8"))
+    del manifiesto["schema_versions"]
+    (release / "manifest.json").write_text(json.dumps(manifiesto), encoding="utf-8")
+
+    r = _classify(tmp_path, _proc(release))
+    assert r["verdict"] == VERDICT_UNKNOWN, r["failed_indicators"]

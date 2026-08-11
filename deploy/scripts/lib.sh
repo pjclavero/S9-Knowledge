@@ -438,8 +438,20 @@ create_manifest() {
     local created_at
     created_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
+    # Versiones de esquema: se EXTRAEN del código de la release. Antes eran un
+    # literal `{"auth_db": 1, "job_store": 1}` aquí mismo, y llevaban años
+    # mintiendo (el código iba por SCHEMA_VERSION = 3). Si no se pueden leer,
+    # se aborta: un manifiesto que declara una versión inventada es peor que
+    # un despliegue que no arranca.
+    local schema_block
+    if ! schema_block="$(python3 "$(dirname "${BASH_SOURCE[0]}")/schema_versions.py" "${release_dir}")"; then
+        echo "ERROR: no se pudieron determinar las versiones de esquema de ${release_dir}" >&2
+        return 1
+    fi
+
     python3 - <<PYEOF
 import json
+schema_block = json.loads(r'''${schema_block}''')
 manifest = {
     "release_id": "${release_id}",
     "git_commit": "${git_commit}",
@@ -448,7 +460,8 @@ manifest = {
     "created_by": "deploy.sh",
     "python_version": "${python_version}",
     "dependency_fingerprint": "${dep_hash}",
-    "schema_versions": {"auth_db": 1, "job_store": 1},
+    "schema_versions": schema_block["schema_versions"],
+    "schema_supported_ranges": schema_block["schema_supported_ranges"],
     "compatible_rollback_to": [],
     "files_checksum": "${files_hash}",
     "checksum_algo": "${S9K_CHECKSUM_ALGO}"

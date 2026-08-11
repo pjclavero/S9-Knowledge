@@ -308,7 +308,25 @@ _ID_SAFE = re.compile(r"[^A-Za-z0-9._:-]")
 
 
 def _stable_suffix(*parts: str) -> str:
-    return sha256_hex(":".join(parts))[:16]
+    """Sufijo estable e INEQUÍVOCO a partir de varios campos.
+
+    Antes era ``sha256_hex(":".join(parts))``, con dos defectos reales:
+
+    1. El ":" es un separador que también puede aparecer DENTRO de los campos
+       (`partida:uno`, `pc:ana` son identificadores idiomáticos en este
+       repositorio). ``("a:b", "c")`` y ``("a", "b:c")`` producían el mismo
+       hash: campos distintos, identificador idéntico.
+    2. Ningún llamador incluía el `workspace`, y el almacén de laboratorio es
+       UNO solo y compartido (`lab_store_dir()`). Dos workspaces con el mismo
+       `candidate_id` generaban el mismo `decision_id`, `event_id` y
+       `document_id` en el mismo fichero append-only: la auditoría de una
+       partida quedaba indistinguible de la de otra.
+
+    Se serializa como lista canónica (mismo patrón que
+    `services/v3_glossary_candidates.py`): los límites de campo los pone JSON,
+    no un carácter que los campos pueden contener.
+    """
+    return sha256_hex(_canonical(list(parts)))[:16]
 
 
 def _envelope(candidate: dict[str, Any]) -> dict[str, Any]:
@@ -348,7 +366,10 @@ def build_decision(
         raise ReviewConsoleError(f"acción desconocida: {action!r}")
 
     ts = decided_at or _now_iso()
-    decision_id = "dec_" + _stable_suffix(candidate["candidate_id"], action, ts, reviewer_id)
+    # El workspace ENTRA en el identificador: el almacén es único y compartido.
+    decision_id = "dec_" + _stable_suffix(
+        candidate["workspace"], candidate["candidate_id"], action, ts, reviewer_id
+    )
 
     doc: dict[str, Any] = {
         **_envelope(candidate),
@@ -403,7 +424,9 @@ def build_audit_event(
 ) -> dict[str, Any]:
     """Construye y VALIDA un review-audit-event v1 (no lo persiste)."""
     ts = timestamp or _now_iso()
-    event_id = "evt_" + _stable_suffix(candidate["candidate_id"], event_type, ts, actor_id)
+    event_id = "evt_" + _stable_suffix(
+        candidate["workspace"], candidate["candidate_id"], event_type, ts, actor_id
+    )
     doc: dict[str, Any] = {
         **_envelope(candidate),
         "document_type": "review-audit-event",
