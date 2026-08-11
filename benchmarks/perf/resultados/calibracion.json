@@ -1,0 +1,207 @@
+{
+  "generado": "2026-08-11T20:29:05+0200",
+  "entorno": {
+    "commit": "e9c66dc9a00d0d48cb51d42767ccba1b6e618a38",
+    "rama": "perf/viewer-scale-baseline-v2",
+    "arbol_limpio": false,
+    "python": "3.13.5",
+    "cpu": "8",
+    "modelo_cpu": "Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz",
+    "ram_total": "MemTotal:        9156844 kB",
+    "carga": "3.31 2.36 1.33 6/571 50209",
+    "so": "Linux 6.12.90+deb13.1-amd64",
+    "advertencia": "Máquina de desarrollo compartida, proveedor mock en memoria, cliente en proceso. NO es rendimiento de producción: no hay Neo4j, ni red, ni nginx, ni concurrencia."
+  },
+  "sha_del_instrumento": "7e6e02506c1104e9399e25a9ce19689ce779d1276e338a5d7a799cf3e315f18b",
+  "umbral_por_elemento": 0.5,
+  "pruebas": [
+    {
+      "nombre": "C1 eje PÁGINA: N+1 por elemento devuelto",
+      "superada": true,
+      "verde_antes": {
+        "eje": "pagina",
+        "escenario": "api_entities",
+        "x_pequeno": 10,
+        "x_grande": 100,
+        "llamadas_pequeno": 1,
+        "llamadas_grande": 1,
+        "pendiente": 0.0,
+        "veredicto": "constante"
+      },
+      "rojo_con_violacion": {
+        "eje": "pagina",
+        "escenario": "api_entities",
+        "x_pequeno": 10,
+        "x_grande": 100,
+        "llamadas_pequeno": 11,
+        "llamadas_grande": 101,
+        "pendiente": 1.0,
+        "veredicto": "N+1"
+      },
+      "verde_tras_revertir": {
+        "eje": "pagina",
+        "escenario": "api_entities",
+        "x_pequeno": 10,
+        "x_grande": 100,
+        "llamadas_pequeno": 1,
+        "llamadas_grande": 1,
+        "pendiente": 0.0,
+        "veredicto": "constante"
+      }
+    },
+    {
+      "nombre": "C3 eje GRADO: N+1 por relación del nodo (defecto REAL, hubs)",
+      "superada": true,
+      "grado_nodo_bajo": 4,
+      "grado_hub": 125,
+      "rojo_codigo_real": {
+        "eje": "grado",
+        "escenario": "api_entity_detalle",
+        "x_pequeno": 4,
+        "x_grande": 125,
+        "llamadas_pequeno": 11,
+        "llamadas_grande": 253,
+        "pendiente": 2.0,
+        "veredicto": "N+1"
+      },
+      "verde_control_sin_relaciones": {
+        "eje": "grado",
+        "escenario": "api_entity_detalle",
+        "x_pequeno": 4,
+        "x_grande": 125,
+        "llamadas_pequeno": 3,
+        "llamadas_grande": 3,
+        "pendiente": 0.0,
+        "veredicto": "constante"
+      },
+      "rojo_tras_revertir": {
+        "eje": "grado",
+        "escenario": "api_entity_detalle",
+        "x_pequeno": 4,
+        "x_grande": 125,
+        "llamadas_pequeno": 11,
+        "llamadas_grande": 253,
+        "pendiente": 2.0,
+        "veredicto": "N+1"
+      }
+    },
+    {
+      "nombre": "C5 PRESUPUESTO de llamadas: regresión inyectada rompe el techo",
+      "superada": true,
+      "presupuesto": {
+        "api_entities_p50": {
+          "llamadas_fuente": 1.0
+        }
+      },
+      "verde_antes": [],
+      "rojo_con_regresion": [
+        {
+          "escenario": "api_entities_p50",
+          "magnitud": "llamadas_fuente",
+          "presupuesto": 1.0,
+          "medido": 6.0
+        }
+      ],
+      "verde_tras_revertir": []
+    },
+    {
+      "nombre": "C6 ESTADÍSTICA: efecto real -> 'peor'; ruido puro -> 'indistinguible'",
+      "superada": true,
+      "retardo_inyectado_ms": 5.0,
+      "base": {
+        "n": 40,
+        "mediana_ms": 8.55,
+        "mad_ms": 0.4568,
+        "iqr_ms": 0.7237,
+        "p05_ms": 7.9439,
+        "p95_ms": 11.5739,
+        "min_ms": 7.7713,
+        "max_ms": 12.8367,
+        "media_ms": 8.9065,
+        "dispersion_relativa": 0.0534
+      },
+      "misma_medida_repetida": {
+        "base_mediana_ms": 8.55,
+        "otra_mediana_ms": 8.5361,
+        "efecto_ms": -0.0139,
+        "ruido_ms": 0.8812,
+        "factor_efecto_ruido": 0.02,
+        "veredicto": "indistinguible del ruido"
+      },
+      "con_retardo": {
+        "base_mediana_ms": 8.55,
+        "otra_mediana_ms": 14.1874,
+        "efecto_ms": 5.6374,
+        "ruido_ms": 0.8496,
+        "factor_efecto_ruido": 6.64,
+        "veredicto": "peor"
+      },
+      "tras_revertir": {
+        "base_mediana_ms": 8.55,
+        "otra_mediana_ms": 8.5607,
+        "efecto_ms": 0.0107,
+        "ruido_ms": 0.844,
+        "factor_efecto_ruido": 0.01,
+        "veredicto": "indistinguible del ruido"
+      }
+    },
+    {
+      "nombre": "C2 eje DATASET: N+1 por entidad del grafo",
+      "superada": true,
+      "verde_antes": {
+        "eje": "dataset",
+        "escenario": "api_entities",
+        "x_pequeno": 10,
+        "x_grande": 500,
+        "llamadas_pequeno": 0,
+        "llamadas_grande": 1,
+        "pendiente": 0.002,
+        "veredicto": "constante"
+      },
+      "rojo_con_violacion": {
+        "eje": "dataset",
+        "escenario": "api_entities",
+        "x_pequeno": 10,
+        "x_grande": 500,
+        "llamadas_pequeno": 0,
+        "llamadas_grande": 501,
+        "pendiente": 1.0224,
+        "veredicto": "N+1"
+      },
+      "verde_tras_revertir": {
+        "eje": "dataset",
+        "escenario": "api_entities",
+        "x_pequeno": 10,
+        "x_grande": 500,
+        "llamadas_pequeno": 0,
+        "llamadas_grande": 1,
+        "pendiente": 0.002,
+        "veredicto": "constante"
+      }
+    },
+    {
+      "nombre": "C4 CACHÉ: la huella invalida sola cuando cambian datos o generador",
+      "superada": true,
+      "estados": [
+        "generado",
+        "reutilizado",
+        "regenerado_por_huella",
+        "regenerado_por_huella",
+        "regenerado_sin_huella",
+        "reutilizado"
+      ],
+      "guardia_de_vocabulario_tambien_salta": true,
+      "huella_con_generador_sano": "2da727cf8cf1bbb3cd055810d2e69c5bfec5843730a6195ce5c07d6c5be66b64",
+      "huella_con_generador_roto": "164ba1f28b97187482e229c87ecd1b228ed7bacd7cc46292c99ba9bb267829c6",
+      "el_fichero_cacheado_tenia_el_defecto": true,
+      "la_regla_de_v1_lo_habria_reutilizado": true,
+      "tras_v2_el_defecto_desaparece": true
+    }
+  ],
+  "ceguera_documentada_de_v1": {
+    "nombre": "C1b ceguera del eje DATASET ante el N+1 por página (defecto de v1)",
+    "llamadas_con_defecto_a_pagina_fija": 51,
+    "nota": "Con limit=50 el defecto añade 50 llamadas SEA CUAL SEA el tamaño del grafo: el eje del dataset da pendiente 0 y lo declara 'constante'. Por eso el detector de v1 fallaba su propia calibración."
+  },
+  "instrumento_calibrado": true
+}
