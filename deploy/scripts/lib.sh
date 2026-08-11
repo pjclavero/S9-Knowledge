@@ -424,9 +424,25 @@ create_manifest() {
     local python_version
     python_version="$(python3 --version 2>&1 | awk '{print $2}' || printf 'unknown')"
 
+    # D2 (carril I): esto era el sha256 de `viewer/requirements.txt`, que es el
+    # fichero de RANGOS. Dos despliegues con el mismo fingerprint podian tener
+    # arboles instalados distintos: el campo afirmaba identificar las
+    # dependencias y no lo hacia. Mismo genero que `auth_db: 1`.
+    #
+    # Ahora se calcula sobre lo REALMENTE RESUELTO (`pip freeze` del venv de la
+    # release, que deploy.sh acaba de crear). Y cuando el venv no existe, el
+    # valor NO se disfraza de lo que no es: lleva prefijo `ranges-sha256:` y se
+    # deja constancia del modo en `dependency_fingerprint_source`, para que
+    # ningun consumidor lo confunda con una huella de versiones resueltas.
     local dep_hash="unknown"
-    if [ -f "${release_dir}/viewer/requirements.txt" ]; then
-        dep_hash="sha256:$(sha256sum "${release_dir}/viewer/requirements.txt" | awk '{print $1}')"
+    local dep_source="none"
+    local venv_pip="${release_dir}/viewer/.venv/bin/pip"
+    if [ -x "${venv_pip}" ]; then
+        dep_hash="sha256:$("${venv_pip}" freeze --all 2>/dev/null | LC_ALL=C sort | sha256sum | awk '{print $1}')"
+        dep_source="resolved:pip-freeze"
+    elif [ -f "${release_dir}/viewer/requirements.txt" ]; then
+        dep_hash="ranges-sha256:$(sha256sum "${release_dir}/viewer/requirements.txt" | awk '{print $1}')"
+        dep_source="declared-ranges"
     fi
 
     # Usa la MISMA lista de exclusión que verify_release_checksum.
@@ -460,6 +476,7 @@ manifest = {
     "created_by": "deploy.sh",
     "python_version": "${python_version}",
     "dependency_fingerprint": "${dep_hash}",
+    "dependency_fingerprint_source": "${dep_source}",
     "schema_versions": schema_block["schema_versions"],
     "schema_supported_ranges": schema_block["schema_supported_ranges"],
     "compatible_rollback_to": [],
