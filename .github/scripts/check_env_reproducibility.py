@@ -78,15 +78,23 @@ EXCLUIDOS = {".git", "node_modules", ".venv", "venv", "__pycache__", ".mypy_cach
 # `node-version: '20'` declarado en el workflow, y la version llegaba a
 # imprimirse sin compararla con nada.
 #
-# La version esperada NO se escribe aqui: se DERIVA de `ci.yml` con
-# `declara_re`, de modo que cambiar `node-version` en el workflow cambia
-# tambien lo que este gate exige, sin tocar este fichero.
+# La version esperada NO se escribe aqui: se DERIVA de `ci.yml`, de modo que
+# cambiar `node-version` en el workflow cambia tambien lo que este gate exige,
+# sin tocar este fichero. Y si esa declaracion no se puede leer —expresion
+# `${{ ... }}`, o dos valores distintos— el gate NO degrada a solo-presencia:
+# se pone ROJO. Degradar en silencio era incumplir la propia doctrina del
+# carril, y dejaba pasar en verde un `node` v18 con `20` declarado.
 RUNTIMES = {
     "node": {
         "cmds": ("node",),
         "prueba": ("node", "--version"),
         "provision": ("actions/setup-node",),
-        "declara_re": r"node-version:\s*'?([0-9]+(?:\.[0-9]+)*)",
+        # `campo_re` localiza la DECLARACION, sea cual sea su valor;
+        # `literal_re` dice si ese valor es una version legible. Separarlos es
+        # lo que impide que una declaracion ilegible (`${{ env.NODE_V }}`)
+        # degrade la comprobacion a solo-presencia sin que nada se ponga rojo.
+        "campo_re": r"node-version:\s*([^\n#]+)",
+        "literal_re": r"^[0-9]+(?:\.[0-9]+)*$",
     },
     "chromium": {
         "cmds": (),  # se resuelve via playwright, ver `presente_chromium`
@@ -590,16 +598,42 @@ def presente(runtime: str) -> tuple[bool, str]:
     return False, f"no se encuentra ningun ejecutable de {runtime}"
 
 
-def version_declarada(runtime: str) -> str | None:
-    """Version que `ci.yml` declara para ese runtime. Derivada, no escrita."""
-    patron = RUNTIMES.get(runtime, {}).get("declara_re")
-    if not patron or not CI.exists():
-        return None
-    encontradas = set(re.findall(patron, CI.read_text(encoding="utf-8")))
-    if len(encontradas) != 1:
-        # Ninguna declaracion, o varias distintas: no se puede exigir una sola.
-        return None
-    return encontradas.pop()
+def version_declarada(runtime: str) -> tuple[str, object]:
+    """Que declara `ci.yml` para ese runtime: (estado, detalle).
+
+    Estados: `no-aplica` (el runtime no declara version en el workflow, como
+    chromium, que la fija Playwright), `una`, `ninguna`, `varias`, `ilegible`.
+
+    Por que no basta con «devuelvo la version si la encuentro»: cuando el
+    patron no casaba, se dejaba de comprobar la version y NO pasaba nada. Con
+    `node-version: ${{ env.NODE_V }}` —idioma normal de Actions— o con dos
+    `node-version` distintos, un `node` v18 pasaba en VERDE. Este carril entero
+    se sostiene sobre que la ausencia de dato es un fallo ruidoso y jamas una
+    degradacion silenciosa; la ausencia de una DECLARACION LEGIBLE no es una
+    excepcion. Ademas el mensaje mentia: decia «no declara version» cuando
+    declaraba dos.
+    """
+    conf = RUNTIMES.get(runtime, {})
+    campo = conf.get("campo_re")
+    if not campo:
+        return "no-aplica", None
+    if not CI.exists():
+        return "ninguna", None
+    crudos = [
+        v.strip().strip("'\"")
+        for v in re.findall(campo, CI.read_text(encoding="utf-8"))
+    ]
+    crudos = [v for v in crudos if v]
+    if not crudos:
+        return "ninguna", None
+    literal = re.compile(conf.get("literal_re", r"^.+$"))
+    ilegibles = sorted({v for v in crudos if not literal.match(v)})
+    if ilegibles:
+        return "ilegible", ilegibles
+    distintas = sorted(set(crudos))
+    if len(distintas) > 1:
+        return "varias", distintas
+    return "una", distintas[0]
 
 
 def version_observada(detalle: str) -> str | None:
@@ -610,31 +644,64 @@ def version_observada(detalle: str) -> str | None:
 def check_require(runtimes: list[str]) -> list[str]:
     errores = []
     for rt in runtimes:
-        ok, detalle = presente(rt)
+        # `presencia` es lo OBSERVADO en la maquina y `declaracion` lo que dice
+        # `ci.yml`. Se nombran distinto a proposito: cuando compartian nombre,
+        # la version observada se leia por error de la propia declaracion y la
+        # comparacion se cumplia siempre. Lo cazo la calibracion.
+        ok, presencia = presente(rt)
         if not ok:
             errores.append(
-                f"RUNTIME AUSENTE `{rt}`: {detalle}. Sin el, las pruebas que lo "
+                f"RUNTIME AUSENTE `{rt}`: {presencia}. Sin el, las pruebas que lo "
                 f"necesitan se auto-omiten y el job pasa en VERDE sin haber "
                 f"comprobado nada. Aqui eso es un FALLO, no un skip."
             )
             continue
-        print(f"OK: runtime `{rt}` presente: {detalle}")
+        print(f"OK: runtime `{rt}` presente: {presencia}")
         # Presente no basta: tiene que ser el DECLARADO. Un `node` v18 al
         # frente del PATH con `node-version: '20'` en el workflow es
         # exactamente la misma clase de defecto que un paquete de Python
         # instalado por debajo de su rango, y pasaba en verde.
-        declarada = version_declarada(rt)
-        if declarada is None:
+        estado, declaracion = version_declarada(rt)
+        if estado == "no-aplica":
+            # Decision de diseno EXPLICITA, no una degradacion: chromium no
+            # declara version en el workflow porque la fija Playwright.
             print(
-                f"AVISO: `{rt}` no declara version en ci.yml; solo se puede "
-                f"exigir presencia (para chromium la fija Playwright)"
+                f"OK: `{rt}` no declara version en ci.yml por diseno (la fija "
+                f"Playwright); aqui solo se exige presencia"
             )
             continue
-        observada = version_observada(detalle)
+        if estado == "ninguna":
+            errores.append(
+                f"RUNTIME `{rt}`: `ci.yml` lo aprovisiona pero NO declara su "
+                f"version, asi que no hay contra que comparar y la comprobacion "
+                f"se quedaria en solo-presencia. Declara la version en el "
+                f"workflow; una comprobacion que se apaga sola no es una "
+                f"comprobacion."
+            )
+            continue
+        if estado == "ilegible":
+            errores.append(
+                f"RUNTIME `{rt}`: `ci.yml` declara su version de forma NO "
+                f"literal ({declaracion}) —una expresion, no un numero—, asi que "
+                f"este gate no puede leerla y degradaria a solo-presencia sin "
+                f"que nada se pusiera rojo. Escribe la version literal en el "
+                f"workflow."
+            )
+            continue
+        if estado == "varias":
+            errores.append(
+                f"RUNTIME `{rt}`: `ci.yml` declara VARIAS versiones distintas "
+                f"({declaracion}). No se puede exigir una sola, y distintos jobs "
+                f"estarian ejecutando las pruebas con motores distintos. "
+                f"Unifica la version en el workflow."
+            )
+            continue
+        declarada = str(declaracion)
+        observada = version_observada(presencia)
         if observada is None:
             errores.append(
                 f"RUNTIME `{rt}`: presente pero no se pudo leer su version "
-                f"({detalle!r}); no se puede afirmar que sea la declarada "
+                f"({presencia!r}); no se puede afirmar que sea la declarada "
                 f"(`{declarada}`)."
             )
             continue
@@ -645,7 +712,7 @@ def check_require(runtimes: list[str]) -> list[str]:
             errores.append(
                 f"RUNTIME `{rt}`: DIVERGENCIA de version. `ci.yml` declara "
                 f"`{declarada}` y el ejecutable en el PATH es `{observada}` "
-                f"({detalle}). Un runtime presente pero equivocado ejecuta las "
+                f"({presencia}). Un runtime presente pero equivocado ejecuta las "
                 f"pruebas con un motor que nadie ha declarado: lo declarado "
                 f"tiene que ser lo ejecutado tambien aqui, no solo en pip."
             )

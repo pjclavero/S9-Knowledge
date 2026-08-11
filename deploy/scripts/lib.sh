@@ -460,8 +460,13 @@ create_manifest() {
                           | grep -v '^$' || true)"
             local paquete
             for paquete in ${declarados}; do
+                # OJO con la clase: incluir `-` hacia que `fastapi-extra==1.0`
+                # satisficiera el requisito de `fastapi`, y un venv sin
+                # `fastapi` se etiquetaba `resolved:pip-freeze`. El separador
+                # valido tras el nombre es `=`, `<`, `>`, `!`, `~`, `@` o
+                # espacio; `-` forma parte del NOMBRE del paquete siguiente.
                 if ! printf '%s\n' "${freeze_out}" \
-                     | grep -qiE "^${paquete}([[:space:]=<>!~@-]|$)"; then
+                     | grep -qiE "^${paquete}([[:space:]=<>!~@]|$)"; then
                     freeze_ok=0
                     break
                 fi
