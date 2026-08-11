@@ -1,47 +1,67 @@
 #!/usr/bin/env python3
-"""Comprobaciones de configuracion del propio CI.
+"""Integridad de los gates del propio CI.
 
-Dos fallos silenciosos reales de este repositorio, convertidos en gate:
+Este fichero existe porque las barreras de CI de este repositorio se han
+apagado solas tres veces sin que nada se pusiera rojo. Cada apartado de aqui
+abajo corresponde a un apagado REAL, no a un riesgo imaginado.
 
-1. `on.push.branches` era una lista blanca de prefijos. Una rama cuya familia
-   no estuviera escrita a mano NO disparaba CI al hacer push, y no habia
-   ningun aviso: el carril `test/viewer-browser-e2e-v1` se desarrollo entero
-   sin senal.
-
-   La primera version de este gate comparaba las ramas de `origin` con los
-   patrones del workflow. Detectaba el agujero, pero la unica reparacion que
-   ofrecia era anadir un prefijo mas, asi que el ciclo se repitio tres veces
-   (`test/**`; luego `ops/**` y `dependabot/**`; luego `perf/**`) y a la
-   cuarta habia otras nueve ramas descubiertas. Un gate que solo sabe pedir
-   mantenimiento manual convierte el defecto en rutina.
+1. COBERTURA DE RAMAS. `on.push.branches` era una lista blanca de prefijos.
+   Una rama cuya familia no estuviera escrita a mano NO disparaba CI al hacer
+   push, y no habia ningun aviso: el carril `test/viewer-browser-e2e-v1` se
+   desarrollo entero sin senal. La primera version de este gate comparaba las
+   ramas de `origin` con los patrones del workflow: detectaba el agujero, pero
+   la unica reparacion que ofrecia era anadir un prefijo mas, asi que el ciclo
+   se repitio tres veces y a la cuarta habia otras nueve ramas descubiertas.
+   Un gate que solo sabe pedir mantenimiento manual convierte el defecto en
+   rutina.
 
    Ahora se comprueba la PROPIEDAD, no la lista: que CUALQUIER nombre de rama
    —los que existen hoy en `origin` y ademas una bateria de nombres
-   deliberadamente inventados, de familias que aun no existen— quede cubierto
-   por `on.push.branches`. Solo un patron universal (`**`) satisface eso; una
-   lista blanca, por larga que sea, falla contra los nombres inventados. Es
-   decir: no se puede aprobar el gate disfrazando la lista blanca.
+   deliberadamente inventados (`RAMAS_SONDA`), de familias que aun no
+   existen— quede cubierto. Solo un patron universal (`**`) satisface eso; una
+   lista blanca, por exhaustiva que sea con las ramas de hoy, falla contra los
+   nombres inventados.
 
-   Y la misma familia de fallo una vuelta mas arriba: mirar SOLO
-   `on.push.branches` deja tres vias de escape que no lo tocan. Bajo `on.push`,
-   un `paths-ignore: ['**']` apaga CI en TODAS las ramas, un `branches-ignore`
-   recorta la cobertura universal por detras, y `paths` la acota; con
-   `branches: ['**']` intacto, el gate seguia VERDE en los tres casos. Ademas
-   el gate solo miraba `ci.yml`, asi que `supply-chain.yml` —el unico workflow
-   que audita dependencias— podia volver a una lista blanca sin que nada se
-   pusiera rojo. Ahora se exige la propiedad en AMBOS workflows y la sola
-   presencia de esos campos es un fallo: una barrera que puede dejar de
-   evaluarse sin ponerse roja no es una barrera.
+2. SILENCIADORES. Mirar solo `on.push.branches` deja vias de escape que no lo
+   tocan: `paths-ignore: ['**']` apaga CI en todas las ramas, `branches-ignore`
+   recorta la cobertura universal por detras, y `paths` la acota. Con
+   `branches: ['**']` intacto, el gate seguia VERDE en los tres casos.
 
-2. Un test que se auto-omite cuando falta una herramienta (`shutil.which(...)`
-   + `skipif`) es una prueba que no existe el dia que el runner cambie de
-   imagen, y el job sigue en verde. Si aparece un test de este tipo apoyado en
-   Node, tiene que existir un job que instale Node y lo ejecute con guardia
-   antisalto.
+   La version anterior de esta comprobacion buscaba esos campos con una REGEX
+   DE TEXTO sobre el bloque `on.push`. Un revisor independiente demostro tres
+   bypasses, los tres YAML valido que GitHub interpreta EXACTAMENTE igual que
+   la forma bloqueada:
 
-Sin dependencias externas: el workflow se lee con un parser minimo de las
-pocas formas YAML que aqui se usan, para que el gate funcione en cualquier
-runner sin instalar nada.
+     - clave entrecomillada:      "paths-ignore": ['**']
+     - espacio antes de los dos puntos:  paths-ignore : ['**']
+     - el campo bajo `pull_request`, que la regex no miraba en absoluto
+       (eso apaga el CI de TODOS los PR contra main)
+
+   La regex vigilaba UNA forma de escribir; el YAML admite infinitas. Por eso
+   ahora el fichero se parsea con `yaml.safe_load` y se comprueban las CLAVES
+   DEL MAPA, normalizadas: la comilla, el espacio y el orden dejan de existir
+   como concepto antes de que el gate mire nada. Es la misma idea que `'**'`
+   frente a la lista blanca: cubrir la familia entera por construccion en vez
+   de enumerar los casos conocidos.
+
+3. META-GATES. Un job en verde no prueba nada por si mismo. Dos formas de
+   verde vacio ya vistas en este repositorio:
+
+     - un job que ejecuta 0 tests (un filtro que no casa, un directorio que se
+       renombra, una coleccion que se vacia) y sale con exito;
+     - un test que se auto-omite cuando falta una herramienta (`skipif` sobre
+       `shutil.which("node")`, `importorskip("playwright")`) y el job sigue
+       verde: la prueba no existe el dia que el runner cambie de imagen.
+
+   Ambas se comprueban aqui: todo paso que invoque pytest en un workflow
+   vigilado tiene que llevar guardia anti-cero, y todo test que dependa de una
+   herramienta externa tiene que tener un job que la instale, lo ejecute por
+   nombre y lleve guardia anti-salto.
+
+DEPENDENCIA: PyYAML. Es deliberado. La version anterior presumia de no tener
+dependencias y por eso parseaba con regex, que es justo el defecto que este
+fichero corrige. `pip install pyyaml` en el job es un precio menor que un gate
+que se puede saltar con un espacio.
 """
 from __future__ import annotations
 
@@ -50,6 +70,16 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+try:
+    import yaml
+except ImportError:  # pragma: no cover
+    print(
+        "::error::falta PyYAML y este gate parsea YAML de verdad (no con regex). "
+        "Anade `pip install pyyaml` al job `check-ci-config`. NO se degrada a "
+        "una comprobacion textual: seria volver al defecto que este gate cierra."
+    )
+    sys.exit(1)
 
 REPO = Path(__file__).resolve().parents[2]
 WORKFLOWS = REPO / ".github" / "workflows"
@@ -60,16 +90,17 @@ FRAGMENTO_NODE = REPO / ".github" / "ci-fragments" / "test-graph-js.yml"
 # Todos los workflows cuya politica de disparo se EXIGE universal. No basta con
 # `ci.yml`: `supply-chain.yml` es el unico que audita dependencias, y si vuelve
 # a una lista blanca de prefijos reproduce exactamente el agujero silencioso
-# que este gate existe para cerrar.
+# que este gate existe para cerrar. Si uno DESAPARECE, es fallo: una barrera
+# que puede dejar de existir sin ponerse roja no es una barrera.
 WORKFLOWS_VIGILADOS = (CI, SUPPLY)
 
-# Campos que, bajo `on.push`, pueden APAGAR CI sin tocar `branches`. Son la
-# via de escape de este gate: con `branches: ['**']` intacto —y por tanto el
-# gate en verde— un `paths-ignore: ['**']` deja de ejecutar CI en TODAS las
-# ramas, y un `branches-ignore` recorta la cobertura universal por detras.
-# Igual que el defecto original: la barrera deja de evaluarse y nada se pone
-# rojo. Por eso su sola presencia es un fallo, no un aviso.
+# Campos que pueden APAGAR CI sin tocar `branches`. Se prohiben bajo TODOS los
+# disparadores relevantes, no solo `push`: un `paths-ignore` bajo
+# `pull_request` apaga el CI de todos los PR contra main, que es peor.
 CAMPOS_SILENCIADORES = ("paths", "paths-ignore", "branches-ignore")
+
+# Disparadores cuyo bloque se inspecciona en busca de silenciadores.
+DISPARADORES_VIGILADOS = ("push", "pull_request", "pull_request_target")
 
 # Ramas efimeras de maquina: no se les EXIGE CI. Con la politica universal
 # `**` de todas formas la tienen, y esto solo evita que su ausencia se pueda
@@ -106,55 +137,156 @@ RAMAS_SONDA = (
     "UPPERCASE-Y-Simbolos_.raros/x",
 )
 
+# Herramientas externas de las que dependen tests que se auto-omiten si faltan.
+# Clave: nombre legible. Valores:
+#   deteccion  -> regex que, en un fichero de test, indica que ese test se
+#                 omite solo cuando la herramienta no esta;
+#   instalador -> marcas que, en el texto de un job, prueban que la instala.
+# La forma de la tabla es lo importante: anadir una herramienta nueva es una
+# fila, no un `if` nuevo.
+HERRAMIENTAS = {
+    "Node": {
+        "deteccion": (
+            r"which\(\s*[\"']node[\"']\s*\)",
+            r"which\(\s*[\"']npx?[\"']\s*\)",
+        ),
+        "instalador": ("actions/setup-node",),
+        "remedio": f"Anade el job preparado en {FRAGMENTO_NODE.relative_to(REPO)}",
+    },
+    "Chromium/Playwright": {
+        "deteccion": (
+            r"importorskip\(\s*[\"']playwright",
+            r"which\(\s*[\"'](chromium|google-chrome)[\"']\s*\)",
+        ),
+        "instalador": ("playwright install",),
+        "remedio": (
+            "Anade un job que haga `python -m playwright install --with-deps "
+            "chromium`, ejecute esos tests por nombre y falle si aparece "
+            "`skipped`"
+        ),
+    },
+}
 
-def bloque_push(texto: str, nombre: str) -> str:
-    """Devuelve el cuerpo del bloque `on.push` de un workflow."""
-    m = re.search(r"^  push:\n((?:    .*\n|\n)+)", texto, re.M)
-    if not m:
-        raise SystemExit(f"ERROR: no se encuentra el bloque `on.push` en {nombre}")
-    return m.group(1)
+# Un paso que invoca pytest sin comprobar que ha ejecutado algo es un verde que
+# no prueba nada. La guardia canonica es un `grep` sobre `N passed`.
+#
+# Ojo a la diferencia entre INVOCAR y INSTALAR: `pip install "pytest>=8.2"` no
+# ejecuta ninguna prueba, asi que exigirle guardia seria ruido. Se busca la
+# invocacion real (`python -m pytest ...` o `pytest ...` como comando).
+RE_INVOCA_PYTEST = re.compile(r"(python[0-9.]*\s+-m\s+pytest|(?<![\w./\"'-])pytest\s)")
+RE_INSTALA = re.compile(r"\bpip\s+install\b|\buv\s+pip\b")
+RE_GUARDIA_CERO = re.compile(r"(grep|if|assert)[^\n]*passed", re.I)
+RE_GUARDIA_SALTO = re.compile(r"(grep|if)[^\n]*skipped", re.I)
 
 
-def comprueba_silenciadores(bloque: str, nombre: str) -> list[str]:
-    """Ningun campo de `on.push` puede apagar CI por detras de `branches`."""
+# --------------------------------------------------------------------------
+# Parseo
+# --------------------------------------------------------------------------
+
+def carga(ruta: Path) -> dict:
+    """Parsea un workflow. Un YAML que no parsea es fallo, no ausencia."""
+    try:
+        datos = yaml.safe_load(ruta.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise SystemExit(f"ERROR: {ruta.name} no es YAML valido: {exc}")
+    if not isinstance(datos, dict):
+        raise SystemExit(f"ERROR: {ruta.name} no es un mapa YAML en la raiz")
+    return datos
+
+
+def clave_normalizada(k) -> str:
+    """`"paths-ignore"`, `paths-ignore ` y `paths-ignore` son la MISMA clave.
+
+    Tras `safe_load` las comillas y el espacio antes de los dos puntos ya han
+    desaparecido (son sintaxis, no contenido). Aqui solo queda normalizar
+    espacios de sobra y mayusculas, para que el gate no dependa de como se
+    escriba sino de que se declara.
+    """
+    return str(k).strip().lower()
+
+
+def bloque_on(datos: dict, nombre: str) -> dict:
+    """Devuelve el mapa de disparadores.
+
+    Ojo: en YAML 1.1 la clave `on:` se parsea como el booleano `True`, no como
+    la cadena `"on"`. Se aceptan ambas para no depender del parser.
+    """
+    for clave in (True, "on", "On", "ON"):
+        if clave in datos:
+            bloque = datos[clave]
+            break
+    else:
+        raise SystemExit(f"ERROR: {nombre} no declara `on:`")
+    if isinstance(bloque, str):
+        return {bloque: None}
+    if isinstance(bloque, list):
+        return {str(x): None for x in bloque}
+    if isinstance(bloque, dict):
+        return {clave_normalizada(k): v for k, v in bloque.items()}
+    raise SystemExit(f"ERROR: {nombre}: `on:` tiene una forma inesperada")
+
+
+# --------------------------------------------------------------------------
+# 1 + 2. Politica de disparo
+# --------------------------------------------------------------------------
+
+def comprueba_silenciadores(disparadores: dict, nombre: str) -> list[str]:
+    """Ningun disparador vigilado puede apagar CI por detras de `branches`.
+
+    Se miran las CLAVES DEL MAPA ya parseado, no el texto. Por eso da igual que
+    se escriban entrecomilladas, con espacio antes de los dos puntos, en otro
+    orden o en forma de flujo (`{paths-ignore: ['**']}`): todas colapsan a la
+    misma clave antes de llegar aqui.
+    """
     errores = []
-    for campo in CAMPOS_SILENCIADORES:
-        if re.search(rf"^    {re.escape(campo)}:", bloque, re.M):
-            errores.append(
-                f"{nombre}: `on.push` declara `{campo}`. Ese campo puede APAGAR "
-                f"CI en silencio sin tocar `branches`: con `branches: ['**']` "
-                f"intacto, un `paths-ignore: ['**']` deja de ejecutar CI en "
-                f"todas las ramas y un `branches-ignore` recorta la cobertura "
-                f"universal por detras; en ambos casos la barrera deja de "
-                f"evaluarse y NADA se pone rojo. La politica de disparo tiene "
-                f"que ser `branches: ['**']` y nada mas. Si de verdad hace "
-                f"falta acotar por rutas, hazlo dentro del job (un paso que "
-                f"decida y lo deje escrito), no en el disparador."
-            )
+    for trigger in DISPARADORES_VIGILADOS:
+        cuerpo = disparadores.get(trigger)
+        if not isinstance(cuerpo, dict):
+            continue
+        presentes = {clave_normalizada(k) for k in cuerpo}
+        for campo in CAMPOS_SILENCIADORES:
+            if campo in presentes:
+                errores.append(
+                    f"{nombre}: `on.{trigger}` declara `{campo}`. Ese campo "
+                    f"APAGA CI en silencio sin tocar `branches`: con "
+                    f"`branches: ['**']` intacto, un `paths-ignore: ['**']` "
+                    f"bajo `push` deja de ejecutar CI en todas las ramas, y "
+                    f"bajo `pull_request` deja sin CI a todos los PR contra "
+                    f"main. En ambos casos la barrera deja de evaluarse y NADA "
+                    f"se pone rojo. Si de verdad hace falta acotar por rutas, "
+                    f"hazlo DENTRO del job (un paso que decida y lo deje "
+                    f"escrito), no en el disparador."
+                )
     return errores
 
 
-def patrones_push(texto: str, nombre: str) -> list[str]:
-    """Extrae `on.push.branches`, en forma de lista inline o de guiones."""
-    bloque = bloque_push(texto, nombre)
-    inline = re.search(r"^    branches:\s*\[(.+)\]\s*$", bloque, re.M)
-    if inline:
-        crudo = inline.group(1).split(",")
-    else:
-        lista = re.search(r"^    branches:\s*\n((?:      -.*\n|      #.*\n)+)", bloque, re.M)
-        if not lista:
-            raise SystemExit(f"ERROR: no se encuentra `on.push.branches` en {nombre}")
-        crudo = [
-            linea.split("-", 1)[1]
-            for linea in lista.group(1).splitlines()
-            if linea.strip().startswith("- ")
-        ]
-    patrones = []
-    for pieza in crudo:
-        pieza = pieza.split("#", 1)[0].strip().strip("'\"")
-        if pieza:
-            patrones.append(pieza)
-    return patrones
+def patrones_push(disparadores: dict, nombre: str) -> list[str]:
+    """Extrae `on.push.branches` del YAML ya parseado.
+
+    Sin regex: la lista inline `[ '**' ]`, la lista de guiones y la cadena
+    suelta son la misma estructura despues de `safe_load`.
+    """
+    if "push" not in disparadores:
+        raise SystemExit(
+            f"ERROR: {nombre} no declara `on.push`. Sin disparador de push, "
+            f"una rama puede desarrollarse entera sin senal: es exactamente el "
+            f"agujero que este gate cierra."
+        )
+    cuerpo = disparadores["push"]
+    if not isinstance(cuerpo, dict):
+        raise SystemExit(
+            f"ERROR: {nombre}: `on.push` no declara `branches`; la politica de "
+            f"disparo tiene que estar escrita y ser universal (`- '**'`)"
+        )
+    cuerpo = {clave_normalizada(k): v for k, v in cuerpo.items()}
+    if "branches" not in cuerpo:
+        raise SystemExit(f"ERROR: no se encuentra `on.push.branches` en {nombre}")
+    valor = cuerpo["branches"]
+    if isinstance(valor, str):
+        valor = [valor]
+    if not isinstance(valor, list):
+        raise SystemExit(f"ERROR: {nombre}: `on.push.branches` no es una lista")
+    return [str(p).strip() for p in valor if str(p).strip()]
 
 
 def cubierta(rama: str, patrones: list[str]) -> bool:
@@ -203,13 +335,15 @@ def ramas_remotas() -> list[str]:
     return [r for r in ramas if r and r != "HEAD"]
 
 
-def comprueba_ramas(texto: str, nombre: str) -> list[str]:
+def comprueba_disparo(datos: dict, nombre: str) -> list[str]:
     """La politica debe cubrir CUALQUIER rama, no una lista de las de hoy."""
+    disparadores = bloque_on(datos, nombre)
+
     # 0. Antes que la cobertura: que no haya un campo capaz de apagar CI sin
     #    que `branches` cambie. Si lo hay, `branches` ya no decide nada.
-    silenciadores = comprueba_silenciadores(bloque_push(texto, nombre), nombre)
+    silenciadores = comprueba_silenciadores(disparadores, nombre)
 
-    patrones = patrones_push(texto, nombre)
+    patrones = patrones_push(disparadores, nombre)
     print(f"{nombre}: patrones de `on.push.branches`: {patrones}")
 
     # 1. La propiedad. Se prueba contra nombres inventados, que es lo que
@@ -240,39 +374,170 @@ def comprueba_ramas(texto: str, nombre: str) -> list[str]:
     return errores
 
 
-def comprueba_node(texto: str) -> list[str]:
-    """Todo test que dependa de Node debe tener un job que instale Node."""
-    sospechosos = []
-    for py in REPO.rglob("*/tests/**/test_*.py"):
-        if any(parte in (".git", "node_modules", ".venv") for parte in py.parts):
-            continue
-        try:
-            cuerpo = py.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        if re.search(r"which\(\s*[\"']node[\"']\s*\)", cuerpo):
-            sospechosos.append(py.relative_to(REPO).as_posix())
-    if not sospechosos:
-        return []
+# --------------------------------------------------------------------------
+# 3. META-GATES
+# --------------------------------------------------------------------------
+
+def texto_de_pasos(job: dict) -> str:
+    """Concatena los `run:` de un job. Es lo unico que ejecuta comandos."""
+    if not isinstance(job, dict):
+        return ""
+    trozos = []
+    for paso in job.get("steps") or []:
+        if isinstance(paso, dict):
+            for campo in ("run", "uses", "name"):
+                valor = paso.get(campo)
+                if isinstance(valor, str):
+                    trozos.append(valor)
+    return "\n".join(trozos)
+
+
+def pasos_run(job: dict) -> list[tuple[str, str]]:
+    """(nombre del paso, cuerpo del `run:`) de cada paso que ejecuta comandos."""
+    salida = []
+    if not isinstance(job, dict):
+        return salida
+    for paso in job.get("steps") or []:
+        if isinstance(paso, dict) and isinstance(paso.get("run"), str):
+            salida.append((str(paso.get("name") or "(sin nombre)"), paso["run"]))
+    return salida
+
+
+def comprueba_cero_tests(datos: dict, nombre: str) -> list[str]:
+    """Un job que ejecuta 0 tests y sale en verde no comprueba nada.
+
+    pytest sale con codigo 5 cuando no colecciona nada, pero basta un `-q` con
+    filtro que no casa, un directorio renombrado o un `|| true` para que el
+    paso pase. La unica prueba de que el job ha EJECUTADO algo es que lo
+    afirme: una guardia sobre `N passed`.
+    """
     errores = []
-    hay_setup_node = "actions/setup-node" in texto
-    for ruta in sospechosos:
-        if not hay_setup_node:
-            errores.append(
-                f"{ruta} se auto-omite si falta Node y ningun job de ci.yml usa "
-                f"actions/setup-node: esas pruebas se saltarian en verde. "
-                f"Anade el job preparado en {FRAGMENTO_NODE.relative_to(REPO)}"
+    for job_id, job in (datos.get("jobs") or {}).items():
+        for paso_nombre, cuerpo in pasos_run(job):
+            invoca = any(
+                RE_INVOCA_PYTEST.search(linea) and not RE_INSTALA.search(linea)
+                for linea in cuerpo.splitlines()
             )
-        elif ruta not in texto:
+            if not invoca:
+                continue
+            if RE_GUARDIA_CERO.search(cuerpo):
+                continue
             errores.append(
-                f"{ruta} depende de Node y ningun job de ci.yml lo ejecuta por "
-                f"nombre; sin eso solo corre en jobs sin Node, donde se omite"
+                f"{nombre}: el job `{job_id}`, paso `{paso_nombre}`, invoca "
+                f"pytest SIN guardia anti-cero. Si esa invocacion llega a "
+                f"ejecutar 0 tests (filtro que no casa, directorio renombrado, "
+                f"coleccion vacia) el job sale VERDE sin haber comprobado "
+                f"nada. Captura la salida y anade:\n"
+                f"      if ! grep -qE '[0-9]+ passed' <<<\"$out\"; then\n"
+                f"        echo '::error::no se ejecuto ninguna prueba'; exit 1\n"
+                f"      fi"
             )
     return errores
 
 
+def ficheros_con_skip_critico() -> dict[str, list[str]]:
+    """Tests que se auto-omiten si falta una herramienta -> herramientas."""
+    hallazgos: dict[str, list[str]] = {}
+    raices = [REPO / "viewer" / "tests", REPO / "data-engine", REPO / "contracts",
+              REPO / "tests", REPO / "shared", REPO / "scripts"]
+    vistos = set()
+    for raiz in raices:
+        if not raiz.exists():
+            continue
+        for py in raiz.rglob("*.py"):
+            if any(p in (".git", "node_modules", ".venv", "__pycache__") for p in py.parts):
+                continue
+            rel = py.relative_to(REPO).as_posix()
+            if rel in vistos:
+                continue
+            vistos.add(rel)
+            try:
+                cuerpo = py.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            for herramienta, cfg in HERRAMIENTAS.items():
+                if any(re.search(p, cuerpo) for p in cfg["deteccion"]):
+                    hallazgos.setdefault(rel, []).append(herramienta)
+    return hallazgos
+
+
+def referencias_posibles(rel: str) -> list[str]:
+    """Formas en que un job puede nombrar ese fichero (o su directorio).
+
+    Los jobs hacen `cd viewer` y luego `pytest tests/browser`, asi que hay que
+    aceptar sufijos de la ruta y tambien los directorios que la contienen.
+    """
+    partes = rel.split("/")
+    refs = []
+    for i in range(len(partes)):
+        refs.append("/".join(partes[i:]))
+    # Directorios contenedores, tambien por sufijos.
+    for corte in range(1, len(partes)):
+        dir_partes = partes[:-corte]
+        for i in range(len(dir_partes)):
+            sufijo = "/".join(dir_partes[i:])
+            if sufijo:
+                refs.append(sufijo)
+    return [r for r in dict.fromkeys(refs) if r not in ("tests", "viewer")]
+
+
+def comprueba_skips_criticos(datos: dict, nombre: str) -> list[str]:
+    """Un test que se omite por falta de herramienta es un test que no existe.
+
+    Para cada fichero que se auto-omite se exige un job que, a la vez:
+      (a) instale la herramienta,
+      (b) lo ejecute NOMBRANDOLO (si no, solo corre en jobs sin la herramienta,
+          donde se omite), y
+      (c) falle si la salida contiene `skipped`.
+    Las tres condiciones en el MISMO job: cumplirlas en jobs distintos no
+    ejecuta nada con guardia.
+    """
+    errores = []
+    jobs = datos.get("jobs") or {}
+    textos = {jid: texto_de_pasos(job) for jid, job in jobs.items()}
+
+    for rel, herramientas in sorted(ficheros_con_skip_critico().items()):
+        refs = referencias_posibles(rel)
+        for herramienta in herramientas:
+            cfg = HERRAMIENTAS[herramienta]
+            candidatos = [
+                jid for jid, txt in textos.items()
+                if any(m in txt for m in cfg["instalador"])
+            ]
+            if not candidatos:
+                errores.append(
+                    f"{rel} se auto-omite si falta {herramienta} y NINGUN job de "
+                    f"{nombre} la instala: esas pruebas se saltarian en verde. "
+                    f"{cfg['remedio']}"
+                )
+                continue
+            ejecutan = [jid for jid in candidatos if any(r in textos[jid] for r in refs)]
+            if not ejecutan:
+                errores.append(
+                    f"{rel} depende de {herramienta} y ningun job de {nombre} que "
+                    f"la instale lo ejecuta por nombre; sin eso solo corre en "
+                    f"jobs sin {herramienta}, donde se OMITE en silencio"
+                )
+                continue
+            if not any(RE_GUARDIA_SALTO.search(textos[jid]) for jid in ejecutan):
+                errores.append(
+                    f"{rel} se ejecuta en {ejecutan} con {herramienta} instalada, "
+                    f"pero ningun job de esos falla si la salida dice `skipped`. "
+                    f"El dia que la instalacion se rompa, el test se auto-omite "
+                    f"y el job sigue VERDE. Anade:\n"
+                    f"      if grep -qi skipped <<<\"$out\"; then\n"
+                    f"        echo '::error::pruebas OMITIDAS con la herramienta "
+                    f"disponible'; exit 1\n"
+                    f"      fi"
+                )
+    return errores
+
+
+# --------------------------------------------------------------------------
+
 def main() -> int:
     errores = []
+    parseados = {}
     for ruta in WORKFLOWS_VIGILADOS:
         if not ruta.exists():
             errores.append(
@@ -281,18 +546,24 @@ def main() -> int:
                 f"darse por satisfecha en silencio."
             )
             continue
-        errores += comprueba_ramas(ruta.read_text(encoding="utf-8"), ruta.name)
+        datos = carga(ruta)
+        parseados[ruta.name] = datos
+        errores += comprueba_disparo(datos, ruta.name)
+        errores += comprueba_cero_tests(datos, ruta.name)
 
-    errores += comprueba_node(CI.read_text(encoding="utf-8"))
+    if CI.name in parseados:
+        errores += comprueba_skips_criticos(parseados[CI.name], CI.name)
 
     for e in errores:
         print(f"::error::{e}")
     if errores:
-        print(f"\nFALLO: {len(errores)} problema(s) de configuracion de CI")
+        print(f"\nFALLO: {len(errores)} problema(s) de integridad de gates")
         return 1
     print(
         "OK: ci.yml y supply-chain.yml disparan en toda rama, sin campos que "
-        "puedan apagar CI en silencio, y sin tests que se omitan por falta de Node"
+        "puedan apagar CI en silencio (comprobado sobre el YAML parseado, no "
+        "sobre el texto), sin jobs que puedan ejecutar 0 tests en verde y sin "
+        "tests que se omitan por falta de Node o Chromium"
     )
     return 0
 
