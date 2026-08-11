@@ -152,7 +152,13 @@ def test_10_no_auto_approved():
 def test_11_writes_review_provenance():
     _, props = _build_create_entity(_ent())
     assert props["reviewed_by"] == "manual-cli:ana" and props["reviewed_at"]
-    assert props["review_status"] == "approved" and props["review_action"] == "approve"
+    # Carril J: el item de la CLI de revisión sigue diciendo `approved`, pero lo
+    # que se ESCRIBE en el grafo es el valor canónico `reviewed`. `approved` no
+    # pertenece a `rpg_schema.ALLOWED_REVIEW_STATUS` --el conjunto cerrado que
+    # rige esa propiedad-- y el visor no tenía etiqueta para él: se persistía un
+    # cuarto vocabulario dentro de una propiedad supuestamente cerrada. La
+    # traducción ocurre en la frontera de escritura, no en el dominio.
+    assert props["review_status"] == "reviewed" and props["review_action"] == "approve"
 
 # 12. Falta source_kind rechaza
 def test_12_missing_source_kind_rejected():

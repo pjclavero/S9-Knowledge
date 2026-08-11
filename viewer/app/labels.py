@@ -7,8 +7,28 @@ Este módulo solo lee de ``rpg_schema.py``, nunca lo modifica.
 """
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
+
+# --- Vocabulario canonico de `review_status` -------------------------------
+# Se carga por ruta del contrato compartido. Este modulo NO puede importar
+# `data-engine`, y por eso llevaba una copia manual del vocabulario: dos listas
+# del mismo vocabulario, mantenidas por separado, es como se derivan en
+# silencio. Ahora las etiquetas se DERIVAN del canonico y la exhaustividad es
+# comprobable (ver `test_calidad_de_datos_v2.py`).
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_RS_PATH = _REPO_ROOT / "contracts" / "review-status" / "v1" / "model.py"
+_RS_MODULE = "s9k_review_status_v1_model"
+if _RS_MODULE in sys.modules:  # pragma: no cover - cache entre imports
+    review_status_contract = sys.modules[_RS_MODULE]
+else:  # pragma: no cover - trivial
+    _spec = importlib.util.spec_from_file_location(_RS_MODULE, _RS_PATH)
+    if _spec is None or _spec.loader is None:
+        raise ImportError(f"no se pudo cargar review-status/v1 en {_RS_PATH}")
+    review_status_contract = importlib.util.module_from_spec(_spec)
+    sys.modules[_RS_MODULE] = review_status_contract
+    _spec.loader.exec_module(review_status_contract)
 
 ENTITY_TYPE_LABELS_ES: dict[str, str] = {
     "Character": "Personaje",
@@ -106,13 +126,36 @@ KNOWLEDGE_LAYER_LABELS_ES: dict[str, str] = {
     "test": "Prueba",
 }
 
-REVIEW_STATUS_LABELS_ES: dict[str, str] = {
+#: Traducciones al español. NO es la definición del vocabulario: la definición
+#: vive en `contracts/review-status/v1`. Este mapa se CONSTRUYE recorriendo el
+#: vocabulario canónico, así que un estado nuevo allí revienta aquí en el
+#: import en vez de aparecer sin etiqueta en la interfaz, y un estado retirado
+#: allí desaparece de aquí solo.
+_TRADUCCIONES_REVIEW_STATUS_ES: dict[str, str] = {
     "auto_extracted": "Extraído automáticamente",
     "needs_review": "Necesita revisión",
     "reviewed": "Revisado",
     "rejected": "Rechazado",
     "corrected": "Corregido",
 }
+
+
+def _construir_etiquetas_review_status() -> dict[str, str]:
+    faltan = sorted(
+        review_status_contract.CANONICAL_VALUES - set(_TRADUCCIONES_REVIEW_STATUS_ES)
+    )
+    if faltan:
+        raise RuntimeError(
+            "review-status/v1 declara estados sin traducción al español: "
+            f"{faltan}. Añádelas a _TRADUCCIONES_REVIEW_STATUS_ES."
+        )
+    return {
+        valor: _TRADUCCIONES_REVIEW_STATUS_ES[valor]
+        for valor in sorted(review_status_contract.CANONICAL_VALUES)
+    }
+
+
+REVIEW_STATUS_LABELS_ES: dict[str, str] = _construir_etiquetas_review_status()
 
 
 def entity_type_label(entity_type: str | None) -> str:
@@ -142,6 +185,16 @@ def knowledge_layer_label(layer: str | None) -> str:
 
 
 def review_status_label(status: str | None) -> str:
+    """Etiqueta en español de un `review_status`.
+
+    Un valor fuera del vocabulario canónico NO se muestra tal cual: se marca
+    como no reconocido. Devolver la cadena cruda hacía que un `review_status`
+    corrupto se leyera en la interfaz como si fuera un estado legítimo del
+    sistema, que es la forma que tiene un dato malo de pasar por bueno.
+    """
     if not status:
         return ""
-    return REVIEW_STATUS_LABELS_ES.get(status, status)
+    etiqueta = review_status_contract.etiquetar(status, REVIEW_STATUS_LABELS_ES)
+    if etiqueta is None:
+        return f"no reconocido ({status})"
+    return etiqueta

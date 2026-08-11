@@ -62,6 +62,22 @@ _APP_DIR = Path(__file__).resolve().parents[1]
 if str(_APP_DIR) not in sys.path:
     sys.path.insert(0, str(_APP_DIR))
 
+# --- Vocabulario canonico de `review_status` (contracts/review-status/v1) ---
+import importlib.util  # noqa: E402
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_RS_PATH = _REPO_ROOT / "contracts" / "review-status" / "v1" / "model.py"
+_RS_MODULE = "s9k_review_status_v1_model"
+if _RS_MODULE in sys.modules:  # pragma: no cover - cache entre imports
+    review_status_contract = sys.modules[_RS_MODULE]
+else:  # pragma: no cover - trivial
+    _spec = importlib.util.spec_from_file_location(_RS_MODULE, _RS_PATH)
+    if _spec is None or _spec.loader is None:
+        raise ImportError(f"no se pudo cargar review-status/v1 en {_RS_PATH}")
+    review_status_contract = importlib.util.module_from_spec(_spec)
+    sys.modules[_RS_MODULE] = review_status_contract
+    _spec.loader.exec_module(review_status_contract)
+
 log = logging.getLogger(__name__)
 
 _ENV_GUARD_ABORT_MSG = (
@@ -229,9 +245,38 @@ def _validate_write_provenance(payload) -> list:
         et = e.get("entity_type")
         if et not in _ALLOWED_LABELS:
             errors.append("%s: entity_type '%s' no permitido (allowlist)" % (label, et))
+        # Antes esto era `if rs == "auto_approved"`: una lista de UN valor
+        # prohibido. Enumerar lo prohibido deja pasar todo lo que nadie penso
+        # en prohibir --incluida una cadena arbitraria, que se escribia tal
+        # cual como `review_status` del nodo. Ahora se exige pertenencia al
+        # subconjunto canonico que AFIRMA revision humana: cualquier otra cosa
+        # (ausente, vacia, `auto_approved`, un typo, MAYUSCULAS del contrato de
+        # candidatos) se rechaza por no estar permitida, no por estar vetada.
+        # Antes esto era `if rs == "auto_approved"`: una lista de UN valor
+        # prohibido. Enumerar lo prohibido deja pasar todo lo que nadie penso
+        # en prohibir --incluida una cadena arbitraria, que se escribia tal
+        # cual como `review_status` del nodo. Ahora el valor se ADAPTA al
+        # vocabulario canonico y se exige que el resultado acredite revision
+        # humana: se rechaza por no estar permitido, no por estar vetado.
         rs = str(e.get("review_status", "")).strip().lower()
-        if rs == "auto_approved":
-            errors.append("%s: review_status=auto_approved prohibido para revisión humana" % label)
+        if rs == review_status_contract.LEGACY_MACHINE_APPROVED:
+            errors.append(
+                "%s: review_status=%s prohibido para revisión humana"
+                % (label, review_status_contract.LEGACY_MACHINE_APPROVED)
+            )
+            continue
+        try:
+            canonico = review_status_contract.from_review_manual_status(rs)
+        except review_status_contract.ReviewStatusError as exc:
+            errors.append("%s: review_status invalido (%s)" % (label, exc))
+            continue
+        if canonico.value not in review_status_contract.HUMAN_REVIEWED:
+            errors.append(
+                "%s: review_status=%r no acredita revisión humana "
+                "(canonico: %s; se exige uno de %s)"
+                % (label, rs, canonico.value,
+                   sorted(review_status_contract.HUMAN_REVIEWED))
+            )
     return errors
 
 
@@ -252,7 +297,18 @@ def _build_create_entity(item):
         "entity_type": etype,
         "knowledge_layer": item["knowledge_layer"],
         "visibility": item["visibility"],
-        "review_status": item["review_status"],
+        # ADAPTADOR EN LA FRONTERA DE ESCRITURA. La CLI de revision manual
+        # marca `approved`, que no pertenece al vocabulario canonico de
+        # `review_status` y sin embargo se escribia tal cual en el grafo: la
+        # propiedad supuestamente cerrada por `rpg_schema.ALLOWED_REVIEW_STATUS`
+        # recibia un valor que ese conjunto no contiene, y el visor lo pintaba
+        # como cadena cruda por no tener etiqueta. Aqui se traduce al canonico
+        # (`approved` -> `reviewed`) para que al grafo entre un unico idioma.
+        # Levanta si el valor no es traducible: nunca se escribe un
+        # `review_status` que nadie sepa interpretar.
+        "review_status": review_status_contract.from_review_manual_status(
+            item["review_status"]
+        ).value,
         "reviewed_by": item["reviewed_by"],
         "reviewed_at": item["reviewed_at"],
         "review_action": item["review_action"],
@@ -366,6 +422,11 @@ def _build_merge_relation_query(item):
     review_status = item.get("review_status")
     if not review_status:
         raise ValueError("_build_merge_relation_query: review_status ausente (sin defaults)")
+    # Misma frontera que en `_build_create_entity`: una relación no puede
+    # entrar al grafo con un vocabulario distinto del de un nodo. Antes esta
+    # rama escribía el valor crudo, así que la propiedad `review_status` de una
+    # arista y la de un nodo podían hablar idiomas distintos.
+    review_status = review_status_contract.from_review_manual_status(review_status).value
     cypher = (
         "MATCH (a {canonical_name: $from_name}), (b {canonical_name: $to_name}) "
         "MERGE (a)-[r:%s]->(b) SET r += $props" % rel_type
