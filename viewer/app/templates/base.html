@@ -10,23 +10,17 @@
 <body>
   <header class="topbar">
     <div class="brand">S9 Knowledge · Visor mínimo</div>
+    {#
+      Navegación: se recorre el registro de `app/chassis.py`, no hay enlaces
+      escritos a mano. Cada URL sale de resolver el NOMBRE de la ruta contra las
+      rutas realmente montadas, así que un enlace a una ruta inexistente levanta
+      ChassisContractError en vez de pintar un 404 silencioso. El filtrado por
+      rol lo hace `chassis_nav` con los métodos del propio User.
+    #}
     <nav>
-      <a href="/">Inicio</a>
-      <a href="/entities">Entidades</a>
-      <a href="/graph">Grafo</a>
-      <a href="/jobs">Jobs</a>
-      <a href="/status">Estado</a>
-      {% if auth_user is defined and auth_user %}
-        {% if auth_user.can_see_reviews() %}
-          <a href="/sources">Fuentes</a>
-          <a href="/reviews">Reviews</a>
-          <a href="/v3/review">Revisión V3</a>
-        {% endif %}
-        {% if auth_user.can_access_admin() %}
-          <a href="/admin/users">Admin</a>
-          <a href="/admin/partidas">Partidas</a>
-        {% endif %}
-      {% endif %}
+      {% for item in chassis_nav(auth_user if auth_user is defined else None) %}
+      <a href="{{ item.url | e }}" data-nav="{{ item.route_name | e }}">{{ item.label }}</a>
+      {% endfor %}
     </nav>
     {% if auth_user is defined and auth_user %}
     <div class="topbar-user">
