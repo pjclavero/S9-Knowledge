@@ -1,0 +1,291 @@
+"""Chasis de montaje del visor: contrato único de routers, rutas y navegación.
+
+PROPÓSITO
+---------
+Cuatro funcionalidades futuras (C=Review, B=Operations, F=Sources, G=Entities)
+se van a montar sobre este visor en paralelo. Sin un contrato común cada una
+inventa su prefijo, su nombre de ruta, su guarda y su enlace de menú, y los
+fallos que aparecen son siempre los mismos tres:
+
+  1. un router que se define pero nadie incluye  -> ruta muerta, silenciosa;
+  2. un enlace de menú a una ruta que no existe  -> 404 que nadie ve venir;
+  3. una ruta que se olvida de la autorización   -> fuga.
+
+Este módulo declara el contrato en DATOS (``FEATURE_SLOTS`` y ``NAV``) para que
+los tres fallos sean comprobables por enumeración, no por revisión ocular.
+
+LO QUE ESTE MÓDULO **NO** HACE
+------------------------------
+No define autorización. No hay aquí ningún concepto de permiso nuevo: el campo
+``role`` de cada entrada toma valores del vocabulario que ya existe
+(``app.auth.models.ROLES``: admin > reviewer > viewer) y la decisión se delega
+siempre en los métodos del propio ``User`` (``can_see_reviews``,
+``can_access_admin``) y en las guardas ya escritas
+(``app.auth.dependencies`` / ``app.routers.readonly.html_role_guard``).
+Un chasis que reimplementa la autorización es una segunda autorización, y la
+segunda siempre acaba siendo la permisiva.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Iterable, Iterator, Optional
+
+# Vocabulario de roles: se importa, no se redefine.
+from app.auth.models import ROLES
+
+__all__ = [
+    "FeatureSlot",
+    "NavItem",
+    "FEATURE_SLOTS",
+    "NAV",
+    "ChassisContractError",
+    "iter_mounted_routes",
+    "route_index",
+    "nav_for",
+    "install_nav_globals",
+]
+
+
+class ChassisContractError(RuntimeError):
+    """El chasis está mal montado. Se levanta RUIDOSAMENTE a propósito.
+
+    Un enlace de menú que apunta a una ruta inexistente, o una plantilla que
+    pide un elemento de navegación que no se puede resolver, no se degradan a
+    "no pinto ese enlace": eso es exactamente el fallo silencioso que este
+    módulo existe para impedir.
+    """
+
+
+# ---------------------------------------------------------------------------
+# Contrato de montaje
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class FeatureSlot:
+    """Hueco reservado para una funcionalidad futura.
+
+    Fija TODO lo que un carril necesita saber para montarse sin renegociar
+    nada: qué módulo exporta el router, con qué prefijo se monta, cómo se llama
+    la ruta raíz, quién puede entrar, qué plantilla pinta y qué enlace de menú
+    aparece.
+    """
+
+    key: str            # "C" | "B" | "F" | "G"
+    title: str          # nombre humano de la funcionalidad
+    module: str         # módulo Python que DEBE exportar `router`
+    prefix: str         # prefijo de montaje (sin barra final)
+    route_name: str     # nombre de la ruta raíz del hueco
+    role: str           # rol mínimo: uno de ROLES
+    template: str       # plantilla que pinta la pantalla
+    nav_label: str      # texto del enlace de navegación
+    nav_order: int      # posición en el menú
+
+    def __post_init__(self) -> None:
+        if self.role not in ROLES:
+            raise ChassisContractError(
+                f"slot {self.key}: rol {self.role!r} fuera de ROLES {ROLES}"
+            )
+        if not self.prefix.startswith("/") or self.prefix.endswith("/"):
+            raise ChassisContractError(
+                f"slot {self.key}: prefijo {self.prefix!r} debe empezar por '/' "
+                "y no terminar en '/'"
+            )
+
+
+#: Los cuatro huecos. Se montan YA, vacíos: un hueco declarado pero no montado
+#: es una ruta muerta, y el objetivo del chasis es que no exista ninguna. El
+#: carril dueño de cada hueco sustituye el cuerpo del handler y la plantilla;
+#: NO cambia prefijo, nombre de ruta ni rol sin tocar también este contrato.
+#:
+#: Sobre los prefijos: `/entities`, `/sources` y `/reviews` ya están ocupados
+#: por el visor de solo lectura, y `/sources/panel` quedaría capturado por la
+#: ruta dinámica `/sources/{source_id}`. Por eso los cuatro huecos viven bajo
+#: un espacio de nombres propio `/panel/...`: es libre de colisiones por
+#: construcción y el test `test_slot_prefixes_do_not_collide` lo comprueba.
+FEATURE_SLOTS: tuple[FeatureSlot, ...] = (
+    FeatureSlot(
+        key="C", title="Review",
+        module="app.routers.chassis_review",
+        prefix="/panel/review", route_name="chassis_review",
+        role="reviewer", template="chassis/review.html",
+        nav_label="Panel · Review", nav_order=10,
+    ),
+    FeatureSlot(
+        key="B", title="Operations",
+        module="app.routers.chassis_operations",
+        prefix="/panel/operations", route_name="chassis_operations",
+        role="admin", template="chassis/operations.html",
+        nav_label="Panel · Operaciones", nav_order=11,
+    ),
+    FeatureSlot(
+        key="F", title="Sources",
+        module="app.routers.chassis_sources",
+        prefix="/panel/sources", route_name="chassis_sources",
+        role="reviewer", template="chassis/sources.html",
+        nav_label="Panel · Fuentes", nav_order=12,
+    ),
+    FeatureSlot(
+        key="G", title="Entities",
+        module="app.routers.chassis_entities",
+        prefix="/panel/entities", route_name="chassis_entities",
+        role="viewer", template="chassis/entities.html",
+        nav_label="Panel · Entidades", nav_order=13,
+    ),
+)
+
+
+@dataclass(frozen=True)
+class NavItem:
+    """Entrada del menú. Apunta a un NOMBRE de ruta, nunca a una URL literal.
+
+    Escribir `href="/reviews"` a mano es lo que produce enlaces rotos: nadie se
+    entera cuando la ruta cambia o desaparece. Resolviendo por nombre contra las
+    rutas realmente montadas, un enlace huérfano revienta.
+    """
+
+    label: str
+    route_name: str
+    role: Optional[str]  # None = visible para cualquiera con sesión; si no, rol mínimo
+    order: int
+
+    def __post_init__(self) -> None:
+        if self.role is not None and self.role not in ROLES:
+            raise ChassisContractError(
+                f"nav {self.label!r}: rol {self.role!r} fuera de ROLES {ROLES}"
+            )
+
+
+#: Navegación completa del visor. Fuente ÚNICA: `base.html` la recorre, no
+#: lleva enlaces escritos a mano.
+NAV: tuple[NavItem, ...] = (
+    NavItem("Inicio", "home", None, 0),
+    NavItem("Entidades", "entities_page", None, 1),
+    NavItem("Grafo", "graph_view", None, 2),
+    NavItem("Jobs", "jobs_view", None, 3),
+    NavItem("Estado", "status_view", None, 4),
+    NavItem("Fuentes", "sources_page", "reviewer", 5),
+    NavItem("Reviews", "reviews_view", "reviewer", 6),
+    NavItem("Revisión V3", "queue", "reviewer", 7),
+    NavItem("Admin", "admin_users", "admin", 20),
+    NavItem("Partidas", "admin_partidas", "admin", 21),
+) + tuple(
+    NavItem(s.nav_label, s.route_name, s.role, s.nav_order) for s in FEATURE_SLOTS
+)
+
+
+# ---------------------------------------------------------------------------
+# Enumeración de rutas realmente montadas
+# ---------------------------------------------------------------------------
+
+def _walk(routes: Iterable) -> Iterator:
+    """Aplana el árbol de rutas de la aplicación.
+
+    FastAPI >= 0.116 no deja las rutas incluidas colgando de ``app.routes``:
+    inserta envoltorios ``_IncludedRouter`` cuyas rutas efectivas hay que pedir
+    con ``effective_candidates()``. Consecuencia práctica comprobada: **
+    ``app.url_path_for`` NO encuentra las rutas de un router incluido**. Por eso
+    el chasis resuelve los nombres contra su propio índice y no contra Starlette.
+
+    Se acepta cualquiera de las tres formas (envoltorio moderno, ``.routes``
+    anidado, ruta suelta) para no atarse a una versión concreta.
+    """
+    for route in routes:
+        candidates = getattr(route, "effective_candidates", None)
+        if callable(candidates):
+            yield from _walk(candidates())
+            low = getattr(route, "effective_low_priority_routes", None)
+            if callable(low):
+                yield from _walk(low())
+            continue
+        sub = getattr(route, "routes", None)
+        if sub and not hasattr(route, "endpoint"):
+            yield from _walk(sub)
+            continue
+        yield route
+
+
+def iter_mounted_routes(app) -> Iterator:
+    """Todas las rutas efectivamente montadas, en cualquier nivel de anidamiento."""
+    yield from _walk(app.routes)
+
+
+def route_index(app) -> dict[str, str]:
+    """``{nombre de ruta: path}`` de lo que está montado DE VERDAD.
+
+    Si un nombre aparece dos veces —el caso habitual es la misma pantalla
+    declarada con y sin barra final— gana el path más corto: ambos sirven lo
+    mismo y el canónico para un enlace es el sin barra.
+    """
+    index: dict[str, str] = {}
+    for route in iter_mounted_routes(app):
+        name = getattr(route, "name", None)
+        path = getattr(route, "path", None)
+        if not name or not path:
+            continue
+        previo = index.get(name)
+        if previo is None or len(path) < len(previo):
+            index[name] = path
+    return index
+
+
+# ---------------------------------------------------------------------------
+# Navegación
+# ---------------------------------------------------------------------------
+
+def _user_passes(user, role: Optional[str]) -> bool:
+    """¿Ve este usuario un enlace que exige ``role``?
+
+    Delega en los métodos del propio ``User``: no hay aquí una segunda tabla de
+    rangos. Sin usuario (auth desactivada o anónimo) sólo se muestran los
+    enlaces sin exigencia de rol: la ausencia de identidad no concede nada.
+    """
+    if user is None:
+        return role is None
+    if role is None:
+        return True
+    if role == "admin":
+        return bool(user.can_access_admin())
+    if role == "reviewer":
+        return bool(user.can_see_reviews())
+    return True  # "viewer": basta con estar autenticado
+
+
+def nav_for(app, user) -> list[dict]:
+    """Enlaces visibles para ``user``, ya resueltos a URL.
+
+    Levanta ``ChassisContractError`` si algún enlace apunta a una ruta que no
+    está montada. Es deliberado: preferimos una pantalla rota en el primer test
+    que un menú que se autocensura y esconde el error hasta producción.
+    """
+    index = route_index(app)
+    items: list[dict] = []
+    for item in sorted(NAV, key=lambda n: (n.order, n.label)):
+        if item.route_name not in index:
+            raise ChassisContractError(
+                f"El elemento de navegación {item.label!r} apunta a la ruta "
+                f"{item.route_name!r}, que no está montada. Rutas conocidas: "
+                f"{sorted(index)}"
+            )
+        if _user_passes(user, item.role):
+            items.append({"label": item.label, "url": index[item.route_name],
+                          "route_name": item.route_name})
+    return items
+
+
+#: Nombre del global de Jinja que usa `base.html`.
+NAV_GLOBAL = "chassis_nav"
+
+
+def install_nav_globals(app, envs: Iterable) -> None:
+    """Instala ``chassis_nav`` en cada entorno Jinja recibido.
+
+    Cada router trae su propia instancia de ``Jinja2Templates``, así que un
+    global puesto sólo en el entorno de ``main`` dejaría a la mitad de las
+    pantallas sin menú. El descubrimiento de entornos vive en ``main`` (que es
+    quien conoce el conjunto de routers montados); aquí sólo se inyecta.
+    """
+    def _nav(user=None):
+        return nav_for(app, user)
+
+    for env in envs:
+        env.globals[NAV_GLOBAL] = _nav

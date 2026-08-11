@@ -1,0 +1,42 @@
+{#
+  Plantilla común de un hueco del chasis.
+
+  Contrato de estados. Los tres son EXPLÍCITOS y se marcan con `data-state`
+  para que un test pueda afirmar cuál se pintó:
+
+    data-state="error"  -> hubo un fallo; se muestra el motivo, no una traza.
+    data-state="empty"  -> no hay datos. NO es un error y NO revienta.
+    data-state="ready"  -> hay datos; los pinta el bloque `slot_content`.
+
+  El orden importa: error primero, vacío después. Una base de datos recién
+  creada, o un workspace sin material, entran por `empty` y la pantalla sigue
+  siendo navegable. En otro proyecto de este operador una BD vacía tumbó una
+  pantalla entera; aquí el caso vacío es el camino por defecto, no el olvidado.
+#}
+{% extends "base.html" %}
+{% block title %}{{ slot.title }} · S9 Knowledge{% endblock %}
+{% block body %}
+<main class="container" data-slot="{{ slot.key }}">
+  <h1>{{ slot.title }}</h1>
+
+  {% if error %}
+    <section class="panel panel-error" data-state="error">
+      <h2>No se pudo cargar</h2>
+      <p>{{ error }}</p>
+    </section>
+  {% elif not items %}
+    <section class="panel panel-empty" data-state="empty">
+      <h2>{% block empty_title %}Sin datos{% endblock %}</h2>
+      <p>{% block empty_body %}Esta pantalla aún no tiene contenido que mostrar.{% endblock %}</p>
+    </section>
+  {% else %}
+    <section class="panel" data-state="ready">
+      {% block slot_content %}
+      <ul>
+        {% for item in items %}<li>{{ item }}</li>{% endfor %}
+      </ul>
+      {% endblock %}
+    </section>
+  {% endif %}
+</main>
+{% endblock %}

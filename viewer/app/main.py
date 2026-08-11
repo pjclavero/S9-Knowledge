@@ -30,6 +30,7 @@ from app.auth.models import User
 from app.auth.security import enforce_auth_security
 from app.auth import db as auth_db
 from app.authz.dependencies import get_filtered_provider, get_visibility_scope
+from app.chassis import FEATURE_SLOTS, ChassisContractError, install_nav_globals
 from app.config import get_settings
 from app.deps import get_default_workspace, get_provider
 from app.jobs_client import jobs_db_status, scoped_counts, scoped_job, scoped_jobs
@@ -125,6 +126,57 @@ app.include_router(partida_router.router)
 # Panel de revision v1 (Equipo B): consola de revision sin escritura en Neo4j.
 app.include_router(reviews_console_router.router)
 app.include_router(v3_review_router.router)
+
+
+# ---------------------------------------------------------------------------
+# Chasis de montaje: huecos C/B/F/G declarados en `app/chassis.py`
+# ---------------------------------------------------------------------------
+# Un router definido y no montado es una ruta muerta que no avisa. Aquí el
+# montaje se DERIVA del contrato: si un hueco declarado no se puede importar o
+# no exporta `router`, la aplicación no arranca. Falla al importar, en el acto,
+# no seis semanas después cuando alguien pulsa el enlace del menú.
+def _mount_feature_slots() -> None:
+    import importlib
+
+    for slot in FEATURE_SLOTS:
+        try:
+            module = importlib.import_module(slot.module)
+        except ImportError as exc:  # pragma: no cover - se prueba desmontando
+            raise ChassisContractError(
+                f"Hueco {slot.key} ({slot.title}): el contrato declara el módulo "
+                f"{slot.module!r}, que no se puede importar ({exc})."
+            ) from exc
+        router = getattr(module, "router", None)
+        if router is None:
+            raise ChassisContractError(
+                f"Hueco {slot.key} ({slot.title}): {slot.module} no exporta `router`."
+            )
+        app.include_router(router)
+
+
+_mount_feature_slots()
+
+
+# ---------------------------------------------------------------------------
+# Navegación: un único global de Jinja en TODOS los entornos de plantillas
+# ---------------------------------------------------------------------------
+# Cada router construye su propia instancia de Jinja2Templates. Registrar el
+# global sólo en el entorno de este módulo dejaría media aplicación con la barra
+# de navegación vacía, así que se descubren todos los entornos ya importados.
+def _install_navigation() -> None:
+    import sys
+
+    envs = []
+    for name, module in list(sys.modules.items()):
+        if name != "app" and not name.startswith("app."):
+            continue
+        for attr in vars(module).values() if module else ():
+            if isinstance(attr, Jinja2Templates) and attr.env not in envs:
+                envs.append(attr.env)
+    install_nav_globals(app, envs)
+
+
+_install_navigation()
 
 
 # ---------------------------------------------------------------------------
