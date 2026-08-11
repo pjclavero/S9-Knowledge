@@ -192,13 +192,94 @@ contra una app privada de test.
   corrida concreta que se le pasa (`viewer/tests`, `tests/integration`,
   `tests/e2e`: 1054 pasados, 190 saltados). Con otro subconjunto, otra cobertura.
   190 tests saltados pueden ocultar cobertura real.
-- **No se ha ejecutado sobre la rama del chasis (PR #166)**: el mapa se calcula
-  sobre `cb874fe`, donde `/panel/**` todavía no existe. Reejecutarlo contra esa
-  rama es exactamente para lo que está preparado, y es lo que verificará que el
-  montaje de los huecos no deja routers muertos, enlaces rotos ni rutas sin auth.
+- **Sobre el chasis (PR #166) ya está ejecutado**: ver §5.bis. Lo que ahí NO se
+  cubre: los huecos están vacíos (una pantalla sin funcionalidad), así que se
+  verifica el montaje, no lo que cada carril meta dentro después; y el veredicto
+  vale para `4b2ae5a`, no para lo que se le añada luego sin volver a medir.
 - **Este mapa no se revisa a sí mismo**: la calibración demuestra que el
   instrumento se pone rojo ante nueve defectos concretos; no demuestra que no
   existan géneros de defecto que ninguno de los nueve representa.
+
+## 5.bis Verificación del chasis (PR #166, `feat/chasis-montaje-v1` @ `4b2ae5a`)
+
+Es el paso para el que existe este mapa: **C/B/F/G no se montan hasta que se
+verifique que el chasis no deja routers muertos, enlaces rotos ni rutas sin
+auth**. Veredicto: **APTO**.
+
+### Ajuste necesario del instrumento: la navegación pasó a ser DATOS
+
+Con el chasis, `base.html` ya no lleva enlaces escritos a mano: recorre
+`chassis_nav`, que resuelve **nombres** de ruta contra lo montado. Un mapa que
+sólo leyera `href="..."` literales habría visto una navegación vacía y declarado
+huérfano el visor entero — un falso positivo masivo. El mapa resuelve ahora
+también el contrato (`app.chassis.nav_for` con un usuario de permisos máximos), y
+un `ChassisContractError` **no se traga**: se reporta como enlace ROTO. Añadido
+el caso de calibración **M9** para ese camino.
+
+### Resultado sobre `4b2ae5a`
+
+| medida | `cb874fe` | `4b2ae5a` |
+|---|---|---|
+| definidas / montadas | 59 / 59 | 61 / 67 |
+| enlazadas | 31 | 35 |
+| probadas | 47 | **67 (todas)** |
+| deniegan al anónimo | 57 | 65 (+2 públicas) |
+
+**0 rutas muertas · 0 enlaces rotos · 0 rutas sin auth · 0 rutas no probadas.**
+Ninguna ruta preexistente perdió cobertura, enlace, rol ni denegación.
+
+Los cuatro huecos, medidos uno a uno:
+
+| hueco | montada | enlazada | probada | anónimo | rol contrato | **rol medido** |
+|---|:-:|:-:|:-:|---|---|---|
+| `GET /panel/review` | sí | sí | sí (7) | 302 → `/login` | reviewer | **reviewer** |
+| `GET /panel/operations` | sí | sí | sí (7) | 302 → `/login` | admin | **admin** |
+| `GET /panel/sources` | sí | sí | sí (7) | 302 → `/login` | reviewer | **reviewer** |
+| `GET /panel/entities` | sí | sí | sí (6) | 302 → `/login` | viewer | **viewer** |
+
+Contrato y medida **coinciden en los cuatro**; `viewer` recibe 403 en review,
+sources y operations, y `reviewer` recibe 403 en operations. Ninguno cae en la
+trampa del `RedirectResponse`: los cuatro devuelven la salida de
+`html_role_guard` (`guardian_declarado_pero_no_aplicado: 0`), y el barrido
+anónimo lo confirma en vez de fiarse del código.
+
+### Censo cruzado: dos enumeradores independientes
+
+`iter_effective_routes` (K) y `iter_mounted_routes` (chasis) se contrastaron
+contra la verdad de campo (rutas que sirvieron respuesta en la corrida):
+
+- 67 rutas en el censo de K, 68 en el del chasis. **Ninguna ruta sólo en K.**
+- Única diferencia: el chasis cuenta el `Mount /static` como una ruta más; K lo
+  clasifica aparte como montaje. No es una mentira de nadie: es una diferencia de
+  clasificación. Consecuencia práctica nula, con un matiz: `route_index` del
+  chasis indexa el nombre `static`, así que un `NavItem` que apuntara a `"static"`
+  resolvería a `/static` en vez de reventar. Hoy ninguno lo hace.
+- **0 rutas que sirvieron y falten en cualquiera de los dos censos.**
+
+### Deuda menor, no bloqueante
+
+Cada hueco monta dos rutas (`/panel/review` y `/panel/review/`). La variante con
+barra está montada, probada y autorizada, pero **no enlazada** (`route_index`
+prefiere el path corto). Duplica el censo (8 rutas por 4 pantallas) sin aportar
+nada. Es cosmético; conviene decidirlo antes de que cuatro carriles lo copien.
+
+### Las 5 pantallas huérfanas: el chasis las IGNORA
+
+`NAV` no incluye ninguna de las cinco que señalé en 3.2. Tras el chasis siguen sin
+un solo enlace que lleve a ellas: `GET /admin/health`, `GET /quality`,
+`GET /review-console`, `GET /review-console/source/{source_id}` y
+`GET /v3/review/glossary-candidates`. No las duplica ni las rompe: simplemente no
+las adopta. Como `NAV` es ahora la fuente única de navegación, incorporarlas es
+añadir una línea por pantalla — y mientras no se haga, existen y están protegidas,
+pero son inalcanzables navegando.
+
+### Calibración sobre la propia rama del chasis
+
+Los diez casos se reejecutaron **contra `4b2ae5a`**, no sólo contra la base:
+**10/10 detectados, `reversion_identica: true`**. Incluye M9 (menú de datos que
+apunta a una ruta no montada → ROTO, con el `ChassisContractError` textual) y M7
+(censo: 11 vs 67, sin rutas servidas fuera del censo). Un instrumento que juzga
+una rama debe haberse visto rojo **en esa rama**.
 
 ## 6. Aviso de captura, para el que venga detrás
 
@@ -217,3 +298,6 @@ uno cree. Es la razón por la que el chasis eligió el prefijo `/panel/…`.
 - `scripts/route_map/calibrate.py` — inyección de defectos y tabla de calibración.
 - `artifacts/route-map/route_map.{json,md}` — mapa de `cb874fe`.
 - `artifacts/route-map/calibracion.json` — salidas reales de la calibración.
+- `artifacts/route-map/chasis-4b2ae5a/route_map.{json,md}` — mapa del chasis.
+- `artifacts/route-map/chasis-4b2ae5a/calibracion.json` — calibración sobre la
+  rama del chasis (10/10).

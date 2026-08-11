@@ -54,9 +54,25 @@ def m1_desmontar_router(tree: Path) -> None:
 
 
 def m2_enlace_roto(tree: Path) -> None:
+    # Ancla estable en las dos formas de `base.html` (con enlaces literales y
+    # con navegación por datos): el enlace a la cuenta.
     _patch(tree / "viewer/app/templates/base.html",
-           '<a href="/entities">',
-           '<a href="/ruta-que-no-existe">Fantasma</a>\n      <a href="/entities">')
+           '<a href="/account">',
+           '<a href="/ruta-que-no-existe">Fantasma</a>\n      <a href="/account">')
+
+
+def m9_nav_de_datos_rota(tree: Path) -> None:
+    """Navegación declarada como datos que apunta a una ruta no montada.
+
+    Sólo aplica a árboles con `app/chassis.py`: ahí el menú no lleva enlaces
+    literales, así que el detector de enlaces rotos tiene que mirar el contrato.
+    """
+    p = tree / "viewer/app/chassis.py"
+    if not p.exists():
+        return
+    _patch(p, '    NavItem("Inicio", "home", None, 0),',
+           '    NavItem("Inicio", "home", None, 0),\n'
+           '    NavItem("Fantasma", "ruta_que_no_existe", None, 99),')
 
 
 def m3_sin_autorizacion(tree: Path) -> None:
@@ -115,6 +131,7 @@ MUTATIONS = {
     "M4-ruta-sin-test": m4_ruta_nueva_sin_test,
     "M5-mencion-en-comentario": m5_mencion_en_comentario,
     "M8-rol-degradado": m8_rol_degradado,
+    "M9-nav-de-datos-rota": m9_nav_de_datos_rota,
 }
 
 
@@ -293,6 +310,9 @@ def main(argv=None) -> int:
                 "solo-mencionada" in k for k in d["rutas_nuevas"]) and not d["rutas_nuevas"],
             "M8-rol-degradado": lambda d: d["roles_cambiados"].get("GET /admin/audit")
             == ["admin", "viewer"],
+            "M9-nav-de-datos-rota": lambda d: (
+                any("ruta_que_no_existe" in x for x in d["rotos_nuevos"])
+                if (base / "viewer/app/chassis.py").exists() else True),
         }[name]
         results["casos"][name] = {"delta": delta, "detectado": bool(expect(delta))}
         shutil.rmtree(tree, ignore_errors=True)

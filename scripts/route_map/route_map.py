@@ -398,6 +398,42 @@ def collect_handler_templates(repo: Path) -> dict[str, list[str]]:
     return out
 
 
+def chassis_nav_links(app) -> tuple[list[dict], str | None]:
+    """Navegación declarada como DATOS (`app.chassis.NAV`), si existe.
+
+    Desde el chasis, `base.html` no lleva enlaces escritos a mano: recorre
+    `chassis_nav`, que resuelve NOMBRES de ruta contra lo montado. Un mapa que
+    sólo lea `href="..."` literales vería una navegación vacía y declararía
+    huérfano el visor entero. Se resuelve el contrato con un usuario ficticio
+    con todos los permisos para obtener el conjunto MÁXIMO de enlaces.
+
+    Devuelve (enlaces, error). El error no se traga: un `ChassisContractError`
+    significa que un elemento del menú apunta a una ruta no montada, es decir,
+    un enlace ROTO, y así se reporta.
+    """
+    try:
+        import importlib
+
+        chassis = importlib.import_module("app.chassis")
+    except Exception:
+        return [], None  # rama sin chasis: no es un error
+
+    class _TodoPermitido:
+        def can_access_admin(self):
+            return True
+
+        def can_see_reviews(self):
+            return True
+
+    try:
+        items = chassis.nav_for(app, _TodoPermitido())
+    except Exception as exc:
+        return [], f"{type(exc).__name__}: {exc}"
+    return ([{"from": "app.chassis.NAV", "from_kind": "nav-contrato",
+              "raw": i["route_name"], "url": i["url"], "state": "ok",
+              "method": "GET"} for i in items], None)
+
+
 SCRIPT_SRC = re.compile(r"""<script[^>]+src\s*=\s*["'](/static/[^"']+\.js)["']""", re.I)
 
 
@@ -643,7 +679,10 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
             out.extend(links_of_template(parent, seen))
         return out
 
-    nav_links = links_of_template("base.html")
+    nav_contrato, nav_error = chassis_nav_links(app)
+    nav_links = links_of_template("base.html") + nav_contrato
+    for l in nav_contrato:
+        tpl_links.setdefault("base.html", []).append(l)
     reachable: set[str] = set()
     linked_by: dict[str, list[str]] = {}
     frontier = [(l, "base.html") for l in nav_links]
@@ -665,6 +704,11 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
 
     # --- enlaces rotos ---------------------------------------------------
     broken = []
+    if nav_error:
+        broken.append({"from": "app.chassis.NAV", "from_kind": "nav-contrato",
+                       "raw": nav_error, "url": None, "state": "contrato-roto",
+                       "method": "GET"})
+    links = links + nav_contrato
     for l in links:
         if l["state"] != "ok" or not l["url"]:
             continue
