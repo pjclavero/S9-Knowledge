@@ -42,17 +42,59 @@ def ejecuta_gate() -> tuple[int, str]:
     return p.returncode, (p.stdout + p.stderr)
 
 
+# Ramas REALES de origin capturadas el dia que se escribio esta calibracion.
+# Estan aqui para que el caso «lista blanca exhaustiva» funcione TAMBIEN en un
+# runner de CI, donde `refs/remotes/origin` no existe porque el checkout no
+# trae las ramas. Sin esto, el caso mas importante de la calibracion se
+# saltaria en silencio justo donde mas falta hace, y ausencia de dato no puede
+# convertirse en caso no probado.
+RAMAS_REALES_CONOCIDAS = (
+    "main",
+    "audit/data-contract-health-v1",
+    "audit/viewer-route-contract-map",
+    "chore/ci-perf-branch-trigger",
+    "chore/ci-test-branches-y-node",
+    "cierre/carril-a",
+    "docs/panel-rpg-management-design",
+    "feat/admin-operations-dashboard",
+    "feat/m5b-fog-of-war-design",
+    "feat/m5b0-fog-of-war-contract",
+    "feat/multipartida-m5a-visor",
+    "feat/review-console-v2-readonly",
+    "feat/viewer-graph-ux-v2",
+    "fix/graph-ux-v2-h1h2h4",
+    "fix/test-fixture-secret-reference",
+    "fix/v3-semantic-extractor-e2e",
+    "impl/v3-review-feed-and-glossary",
+    "impl/v3-semantic-shadow-and-factivity",
+    "ops/release-readiness-v1",
+    "ops/v3-release-readiness",
+    "perf/viewer-scale-baseline-v1",
+    "test/v3-final-core-gates",
+    "test/viewer-browser-e2e-v1",
+    "work",
+    "work-a",
+    "work-carril-a",
+)
+
+
 def ramas_de_origin() -> list[str]:
+    """Las ramas que haya HOY en origin, UNIDAS a las conocidas.
+
+    La union es deliberada: en CI la primera fuente esta vacia, y un caso de
+    calibracion que no se ejecuta por falta de datos es exactamente el agujero
+    silencioso que este gate existe para cerrar.
+    """
     p = subprocess.run(
         ["git", "for-each-ref", "--format=%(refname:short)", "refs/remotes/origin"],
         cwd=REPO, capture_output=True, text=True, timeout=60,
     )
-    ramas = []
+    ramas = set(RAMAS_REALES_CONOCIDAS)
     for linea in p.stdout.split():
         nombre = linea[len("origin/"):] if linea.startswith("origin/") else linea
         if nombre and nombre != "HEAD":
-            ramas.append(nombre)
-    return sorted(set(ramas))
+            ramas.add(nombre)
+    return sorted(ramas)
 
 
 # --------------------------------------------------------------------------
@@ -109,8 +151,8 @@ def m_lista_blanca_exhaustiva() -> None:
     lo que existe. Debe seguir en ROJO, porque no cubre lo que no existe aun.
     """
     ramas = ramas_de_origin()
-    if not ramas:
-        raise SystemExit("MUTACION IMPOSIBLE: no hay ramas de origin locales")
+    if not ramas:  # pragma: no cover - RAMAS_REALES_CONOCIDAS nunca esta vacia
+        raise SystemExit("MUTACION IMPOSIBLE: no hay ninguna rama real que listar")
     lineas = "".join(f"      - '{r}'\n" for r in ramas)
     _sustituye(CI, PUSH_CI, f"  push:\n    branches:\n{lineas}")
     print(f"    (lista blanca con {len(ramas)} ramas reales de origin)")
@@ -118,6 +160,55 @@ def m_lista_blanca_exhaustiva() -> None:
 
 def m_borra_workflow() -> None:
     SUPPLY.unlink()
+
+
+# --- Ejecucion condicional: apagar la barrera sin tocar la barrera ---------
+# Ancla: un job de PRUEBAS de verdad. Neutralizarlo con una sola linea es el
+# PoC que un revisor independiente demostro VIVO contra la version anterior.
+ANCLA_JOB = "  test-viewer:\n    name: Viewer Tests\n    runs-on: ubuntu-latest\n"
+ANCLA_PASO = "      - name: Run viewer tests\n"
+
+
+def m_if_false_job() -> None:
+    """`if: false` a nivel de job: no se ejecuta y reporta `skipped`, no `failure`."""
+    _sustituye(CI, ANCLA_JOB,
+               ANCLA_JOB.replace("    runs-on:", "    if: false\n    runs-on:"))
+
+
+def m_if_false_paso() -> None:
+    """Lo mismo un nivel mas abajo: el paso que ejecuta las pruebas se salta."""
+    _sustituye(CI, ANCLA_PASO, ANCLA_PASO + "        if: false\n")
+
+
+def m_continue_on_error_job() -> None:
+    """El job falla y aun asi reporta exito: la barrera no puede bloquear."""
+    _sustituye(CI, ANCLA_JOB,
+               ANCLA_JOB.replace("    runs-on:", "    continue-on-error: true\n    runs-on:"))
+
+
+def m_continue_on_error_paso() -> None:
+    _sustituye(CI, ANCLA_PASO, ANCLA_PASO + "        continue-on-error: true\n")
+
+
+def m_if_disfrazado() -> None:
+    """Control: una condicion que NO es `always()`, escrita como expresion.
+
+    Comprueba que la lista permitida no se pueda ensanchar de tapadillo con
+    algo que «parece» inofensivo.
+    """
+    _sustituye(CI, ANCLA_JOB,
+               ANCLA_JOB.replace("    runs-on:",
+                                 "    if: ${{ github.event_name == 'schedule' }}\n    runs-on:"))
+
+
+def m_always_permitido() -> None:
+    """Control POSITIVO: `always()` es la unica condicion admitida -> VERDE.
+
+    Sin este caso, un gate que rechazara CUALQUIER `if:` pareceria correcto
+    aunque estuviera midiendo otra cosa. Aqui se comprueba que la excepcion
+    declarada existe de verdad y que el gate distingue.
+    """
+    _sustituye(CI, ANCLA_PASO, ANCLA_PASO + "        if: ${{ always() }}\n")
 
 
 def m_job_cero_tests() -> None:
@@ -159,6 +250,12 @@ CASOS = [
     ("politica reducida a `branches: [main]`", m_solo_main, ROJO),
     ("lista blanca EXHAUSTIVA con todas las ramas reales de origin", m_lista_blanca_exhaustiva, ROJO),
     ("workflow vigilado borrado (`supply-chain.yml`)", m_borra_workflow, ROJO),
+    ("`if: false` en un JOB de pruebas", m_if_false_job, ROJO),
+    ("`if: false` en un PASO de pruebas", m_if_false_paso, ROJO),
+    ("`continue-on-error: true` a nivel de JOB", m_continue_on_error_job, ROJO),
+    ("`continue-on-error: true` a nivel de PASO", m_continue_on_error_paso, ROJO),
+    ("`if:` con expresion que no es `always()`", m_if_disfrazado, ROJO),
+    ("control positivo: `if: ${{ always() }}` (unica permitida)", m_always_permitido, VERDE),
     ("job que puede ejecutar 0 tests", m_job_cero_tests, ROJO),
     ("test que se auto-omite por falta de Chromium", m_skip_critico, ROJO),
     ("restaurado", None, VERDE),

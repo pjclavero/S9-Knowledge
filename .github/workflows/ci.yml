@@ -352,6 +352,31 @@ jobs:
       - name: Ninguna rama sin CI, ningun job con 0 tests, ningun skip critico
         run: python3 .github/scripts/check_ci_config.py
 
+  calibracion-de-gates:
+    # Un gate que nunca se ha visto ROJO no es un gate, y una calibracion que
+    # no se ejecuta se pudre igual que cualquier otro codigo muerto: el dia que
+    # alguien afloje `check_ci_config.py`, el unico aviso seria este job.
+    # Introduce cada violacion de VERDAD sobre el arbol de trabajo, comprueba
+    # que el gate se pone rojo, y restaura.
+    name: Calibracion de gates (cada violacion tiene que ponerse ROJA)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Install PyYAML
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: El gate se pone ROJO ante cada violacion y VERDE al restaurar
+        run: python3 .github/scripts/calibra_gate_integrity.py
+
   # Instalado desde .github/ci-fragments/test-graph-js.yml al llegar
   # viewer/tests/test_graph_ux_v2.py con esta rama. Sin este job, ese fichero
   # solo corre en `test-viewer`, que NO tiene Node: las ~38 aserciones de la

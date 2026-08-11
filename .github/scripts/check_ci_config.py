@@ -44,7 +44,21 @@ abajo corresponde a un apagado REAL, no a un riesgo imaginado.
    frente a la lista blanca: cubrir la familia entera por construccion en vez
    de enumerar los casos conocidos.
 
-3. META-GATES. Un job en verde no prueba nada por si mismo. Dos formas de
+3. EJECUCION CONDICIONAL. La misma familia que (2), una vuelta mas: apagar la
+   barrera sin tocar la barrera. Un revisor independiente demostro dos formas
+   VIVAS sobre este mismo `ci.yml`, cada una de UNA linea:
+
+     - `if: false` a nivel de job: el job de pruebas no se ejecuta y reporta
+       `skipped`. No es `failure`, asi que nada se pone rojo, y una proteccion
+       de rama puede dar por satisfecho un check saltado.
+     - `continue-on-error: true`: el job o el paso falla y aun asi reporta
+       exito. La barrera se evalua, falla, y no bloquea nada.
+
+   Se prohiben en ambos niveles (job y paso). Unica condicion admitida:
+   `always()`, la unica que solo puede hacer que se ejecute MAS. Ver
+   `CONDICIONES_PERMITIDAS`.
+
+4. META-GATES. Un job en verde no prueba nada por si mismo. Dos formas de
    verde vacio ya vistas en este repositorio:
 
      - un job que ejecuta 0 tests (un filtro que no casa, un directorio que se
@@ -101,6 +115,22 @@ CAMPOS_SILENCIADORES = ("paths", "paths-ignore", "branches-ignore")
 
 # Disparadores cuyo bloque se inspecciona en busca de silenciadores.
 DISPARADORES_VIGILADOS = ("push", "pull_request", "pull_request_target")
+
+# Condiciones `if:` toleradas en un workflow vigilado. La lista es MINIMA a
+# proposito y la razon es asimetrica:
+#
+#   El comportamiento por defecto de un paso o un job (ejecutarse si lo
+#   anterior fue bien) es el MAXIMO de ejecucion. Cualquier `if:` distinto de
+#   `always()` solo puede hacer que se ejecute MENOS, y un job que no se
+#   ejecuta no reporta `failure`: reporta `skipped`, que a ojos de una
+#   proteccion de rama puede contar como satisfecho. `always()` es la unica
+#   condicion que va en la direccion contraria (ejecutar tambien cuando el
+#   defecto no lo haria), asi que es la unica que no puede apagar nada.
+#
+# Si algun dia hace falta una condicion de verdad, la reparacion NO es
+# relajarla aqui en silencio: es meter la decision DENTRO del `run:`, donde
+# tiene que dejarla escrita y donde un fallo sale en rojo en vez de en gris.
+CONDICIONES_PERMITIDAS = ("always()",)
 
 # Ramas efimeras de maquina: no se les EXIGE CI. Con la politica universal
 # `**` de todas formas la tienen, y esto solo evita que su ausencia se pueda
@@ -435,6 +465,75 @@ def comprueba_cero_tests(datos: dict, nombre: str) -> list[str]:
     return errores
 
 
+def _normaliza_condicion(valor) -> str:
+    """`${{ always() }}`, `always()` y `ALWAYS( )` son la misma condicion."""
+    texto = str(valor).strip()
+    if texto.startswith("${{") and texto.endswith("}}"):
+        texto = texto[3:-2]
+    return "".join(texto.split()).lower()
+
+
+def comprueba_ejecucion_condicional(datos: dict, nombre: str) -> list[str]:
+    """Un job puede apagarse entero con UNA linea, sin tocar el disparador.
+
+    Dos formas, ambas demostradas VIVAS sobre este mismo `ci.yml`:
+
+      - `if: false` a nivel de job: el job no se ejecuta y reporta `skipped`.
+        No es `failure`, asi que nada se pone rojo; y una proteccion de rama
+        puede dar por satisfecho un check saltado.
+      - `continue-on-error: true`: el job (o el paso) puede fallar y aun asi
+        reportar exito. La barrera se evalua, falla, y no bloquea nada.
+
+    Es exactamente la familia de `paths-ignore`: la barrera deja de decidir sin
+    que la barrera cambie. Por eso se tratan igual —presencia = fallo— y no
+    como aviso. Se miran las CLAVES DEL MAPA ya parseado, asi que la comilla,
+    el espacio antes de los dos puntos y el orden vuelven a dar igual.
+    """
+    errores = []
+    permitidas = {_normaliza_condicion(c) for c in CONDICIONES_PERMITIDAS}
+
+    def revisa(claves: dict, donde: str) -> None:
+        if "if" in claves:
+            cond = claves["if"]
+            if _normaliza_condicion(cond) not in permitidas:
+                errores.append(
+                    f"{nombre}: {donde} declara `if: {cond}`. Una condicion "
+                    f"solo puede hacer que se ejecute MENOS: si no se cumple, "
+                    f"no hay `failure`, hay `skipped`, y un check saltado no "
+                    f"pone nada rojo (y una proteccion de rama puede darlo por "
+                    f"satisfecho). `if: false` apaga un job de pruebas entero "
+                    f"con una linea. Unica condicion admitida: "
+                    f"{list(CONDICIONES_PERMITIDAS)}. Si de verdad hace falta "
+                    f"decidir, hazlo DENTRO del `run:`, donde queda escrito y "
+                    f"donde un fallo sale en rojo, no en gris."
+                )
+        if "continue-on-error" in claves:
+            valor = claves["continue-on-error"]
+            if valor is not False:
+                errores.append(
+                    f"{nombre}: {donde} declara `continue-on-error: {valor}`. "
+                    f"Eso convierte un rojo en un verde: la barrera se evalua, "
+                    f"falla, y NO bloquea nada. Una barrera que no puede "
+                    f"bloquear no es una barrera. Quitalo; si un paso puede "
+                    f"fallar sin consecuencias, es que no deberia estar en un "
+                    f"workflow vigilado."
+                )
+
+    for job_id, job in (datos.get("jobs") or {}).items():
+        if not isinstance(job, dict):
+            continue
+        revisa({clave_normalizada(k): v for k, v in job.items()}, f"el job `{job_id}`")
+        for i, paso in enumerate(job.get("steps") or []):
+            if not isinstance(paso, dict):
+                continue
+            etiqueta = str(paso.get("name") or paso.get("uses") or f"#{i}")
+            revisa(
+                {clave_normalizada(k): v for k, v in paso.items()},
+                f"el job `{job_id}`, paso `{etiqueta}`",
+            )
+    return errores
+
+
 def ficheros_con_skip_critico() -> dict[str, list[str]]:
     """Tests que se auto-omiten si falta una herramienta -> herramientas."""
     hallazgos: dict[str, list[str]] = {}
@@ -550,6 +649,7 @@ def main() -> int:
         parseados[ruta.name] = datos
         errores += comprueba_disparo(datos, ruta.name)
         errores += comprueba_cero_tests(datos, ruta.name)
+        errores += comprueba_ejecucion_condicional(datos, ruta.name)
 
     if CI.name in parseados:
         errores += comprueba_skips_criticos(parseados[CI.name], CI.name)
@@ -562,7 +662,8 @@ def main() -> int:
     print(
         "OK: ci.yml y supply-chain.yml disparan en toda rama, sin campos que "
         "puedan apagar CI en silencio (comprobado sobre el YAML parseado, no "
-        "sobre el texto), sin jobs que puedan ejecutar 0 tests en verde y sin "
+        "sobre el texto), sin `if:` ni `continue-on-error` que apaguen o "
+        "desarmen un job, sin jobs que puedan ejecutar 0 tests en verde y sin "
         "tests que se omitan por falta de Node o Chromium"
     )
     return 0
