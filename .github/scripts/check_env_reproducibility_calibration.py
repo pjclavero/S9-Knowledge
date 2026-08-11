@@ -255,13 +255,16 @@ caso() {{
   python3 -c "import json;m=json.load(open('$2/manifest.json'));print('$1', m.get('dependency_fingerprint_source'), m.get('dependency_fingerprint'))"
 }}
 T="$1"
-mkdir -p "$T/a"; caso SIN_NADA "$T/a"
-mkdir -p "$T/b/viewer"; printf 'fastapi>=1,<2\\n' > "$T/b/viewer/requirements.txt"; caso SOLO_RANGOS "$T/b"
-mkdir -p "$T/c/viewer/.venv/bin"; printf 'fastapi>=1,<2\\n' > "$T/c/viewer/requirements.txt"
+caso SIN_NADA "$T/a"
+printf 'fastapi>=1,<2\\n' > "$T/b/viewer/requirements.txt"; caso SOLO_RANGOS "$T/b"
+printf 'fastapi>=1,<2\\n' > "$T/c/viewer/requirements.txt"
+mkdir -p "$T/c/viewer/.venv/bin"
 printf '#!/bin/sh\\nexit 0\\n' > "$T/c/viewer/.venv/bin/pip"; chmod +x "$T/c/viewer/.venv/bin/pip"; caso PIP_VACIO "$T/c"
-mkdir -p "$T/d/viewer/.venv/bin"; printf 'fastapi>=1,<2\\n' > "$T/d/viewer/requirements.txt"
+printf 'fastapi>=1,<2\\n' > "$T/d/viewer/requirements.txt"
+mkdir -p "$T/d/viewer/.venv/bin"
 printf '#!/bin/sh\\necho "otracosa==1.0"\\n' > "$T/d/viewer/.venv/bin/pip"; chmod +x "$T/d/viewer/.venv/bin/pip"; caso PIP_SIN_LO_DECLARADO "$T/d"
-mkdir -p "$T/e/viewer/.venv/bin"; printf 'fastapi>=1,<2\\n' > "$T/e/viewer/requirements.txt"
+printf 'fastapi>=1,<2\\n' > "$T/e/viewer/requirements.txt"
+mkdir -p "$T/e/viewer/.venv/bin"
 printf '#!/bin/sh\\necho "fastapi==0.141.1"\\n' > "$T/e/viewer/.venv/bin/pip"; chmod +x "$T/e/viewer/.venv/bin/pip"; caso VENV_SANO "$T/e"
 """
 
@@ -289,7 +292,19 @@ def calibra_fingerprint(c: "Calibracion") -> None:
     """
     if not LIB_SH.exists():
         return
+    # `create_manifest` ya no acepta un literal de esquema: lee la version del
+    # codigo de la propia release y ABORTA si no esta (carril I). Una release
+    # sintetica sin esos fuentes no es una release, asi que se plantan con la
+    # ayuda que ese mismo carril publico, en vez de duplicar su logica aqui.
+    sys.path.insert(0, str(AQUI.parents[1] / "deploy" / "tests"))
+    try:
+        from schema_source_fixture import plant_schema_sources  # type: ignore
+    except ImportError as exc:  # pragma: no cover
+        c.fallos.append(f"[fingerprint] no se pudo cargar schema_source_fixture: {exc}")
+        return
     with tempfile.TemporaryDirectory() as tmp:
+        for sub in "abcde":
+            plant_schema_sources(Path(tmp) / sub)
         guion = Path(tmp) / "fp.sh"
         guion.write_text(GUION_FINGERPRINT.format(lib=LIB_SH), encoding="utf-8")
         r = subprocess.run(
