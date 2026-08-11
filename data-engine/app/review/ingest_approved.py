@@ -62,21 +62,8 @@ _APP_DIR = Path(__file__).resolve().parents[1]
 if str(_APP_DIR) not in sys.path:
     sys.path.insert(0, str(_APP_DIR))
 
-# --- Vocabulario canonico de `review_status` (contracts/review-status/v1) ---
-import importlib.util  # noqa: E402
-
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_RS_PATH = _REPO_ROOT / "contracts" / "review-status" / "v1" / "model.py"
-_RS_MODULE = "s9k_review_status_v1_model"
-if _RS_MODULE in sys.modules:  # pragma: no cover - cache entre imports
-    review_status_contract = sys.modules[_RS_MODULE]
-else:  # pragma: no cover - trivial
-    _spec = importlib.util.spec_from_file_location(_RS_MODULE, _RS_PATH)
-    if _spec is None or _spec.loader is None:
-        raise ImportError(f"no se pudo cargar review-status/v1 en {_RS_PATH}")
-    review_status_contract = importlib.util.module_from_spec(_spec)
-    sys.modules[_RS_MODULE] = review_status_contract
-    _spec.loader.exec_module(review_status_contract)
+# Modulo frontera UNICO hacia `contracts/review-status/v1` (ver su docstring).
+import review_status_contract
 
 log = logging.getLogger(__name__)
 
@@ -245,13 +232,6 @@ def _validate_write_provenance(payload) -> list:
         et = e.get("entity_type")
         if et not in _ALLOWED_LABELS:
             errors.append("%s: entity_type '%s' no permitido (allowlist)" % (label, et))
-        # Antes esto era `if rs == "auto_approved"`: una lista de UN valor
-        # prohibido. Enumerar lo prohibido deja pasar todo lo que nadie penso
-        # en prohibir --incluida una cadena arbitraria, que se escribia tal
-        # cual como `review_status` del nodo. Ahora se exige pertenencia al
-        # subconjunto canonico que AFIRMA revision humana: cualquier otra cosa
-        # (ausente, vacia, `auto_approved`, un typo, MAYUSCULAS del contrato de
-        # candidatos) se rechaza por no estar permitida, no por estar vetada.
         # Antes esto era `if rs == "auto_approved"`: una lista de UN valor
         # prohibido. Enumerar lo prohibido deja pasar todo lo que nadie penso
         # en prohibir --incluida una cadena arbitraria, que se escribia tal

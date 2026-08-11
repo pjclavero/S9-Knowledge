@@ -12,7 +12,13 @@ proyeccion parcial apaga una barrera en silencio, y su red inversa solo miraba
 dimension del CONTEXTO sin declarar. Sabia decir la leccion y no sabia aplicarla
 a si mismo.
 
-    python3 mutaciones_calidad_datos.py
+    python3 scripts/calibracion/mutaciones_calidad_datos.py
+
+Lo ejecuta el job `Calibracion de gates` de CI, al lado de
+`.github/scripts/calibra_gate_integrity.py`. Vivia en la raiz del repositorio
+--donde hay precedente, `mutaciones.py`-- pero alli NINGUN job lo ejecutaba, y
+un arnes de calibracion que nadie corre se pudre en silencio: la calibracion
+pasa a ser la foto de un dia en vez de una propiedad del arbol.
 
 Cada mutacion revierte siempre lo que toca, aun si pytest falla o se
 interrumpe. Los objetivos van acotados a proposito: lo que se mide es que EXISTE
@@ -22,7 +28,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parent
+RAIZ = Path(__file__).resolve().parents[2]
 V = RAIZ / "viewer"
 D = RAIZ / "data-engine"
 
@@ -166,6 +172,46 @@ MUTACIONES = [
      V, [CAL]),
 ]
 
+#: Mutaciones que tocan VARIOS ficheros a la vez.
+MUTACIONES_COORDINADAS = [
+
+    # R8. El escenario exacto que el revisor uso para demostrar que la
+    # cuarentena NO frenaba: se anade al motor una dimension de bypass total
+    # NUEVA y se mete su nombre en la cuarentena en el mismo commit. Con la
+    # comprobacion anterior --`CUARENTENA - sin_declarar`, que solo caza
+    # entradas rancias-- esto daba 92 passed en verde. Es la calibracion mas
+    # importante del fichero: mide el freno, no la barrera.
+    ("R8 se anade al motor una dimension de bypass total NUEVA y se mete en la "
+     "cuarentena en el mismo commit (el escenario que salia verde)",
+     [
+         (V / "app/policies/models.py",
+          "    simulated: bool = False",
+          "    simulated: bool = False\n    superpoder_nuevo: bool = False"),
+         (V / "app/policies/engine.py",
+          "        # 1. Bypass total de administrador.\n        if ctx.admin_full:",
+          "        # 1. Bypass total de administrador.\n        if ctx.admin_full or ctx.superpoder_nuevo:"),
+         (V / "tests/test_provider_authz_fields_contract.py",
+          '    "character_knowledge",\n})\n\n#: CONGELADO.',
+          '    "character_knowledge",\n    "superpoder_nuevo",\n})\n\n#: CONGELADO.'),
+     ],
+     V, [CONTRATO]),
+
+    # Control: la misma dimension nueva SIN meterla en la cuarentena tiene que
+    # ponerse roja tambien (esa parte ya funcionaba, y debe seguir haciendolo).
+    ("R8-control una dimension de bypass total nueva SIN meterla en la "
+     "cuarentena",
+     [
+         (V / "app/policies/models.py",
+          "    simulated: bool = False",
+          "    simulated: bool = False\n    superpoder_nuevo: bool = False"),
+         (V / "app/policies/engine.py",
+          "        # 1. Bypass total de administrador.\n        if ctx.admin_full:",
+          "        # 1. Bypass total de administrador.\n        if ctx.admin_full or ctx.superpoder_nuevo:"),
+     ],
+     V, [CONTRATO]),
+]
+
+
 #: SUPERVIVIENTES DOCUMENTADOS. Mutaciones que se sabe que NO ponen roja a la
 #: suite indicada, con el motivo. No se ocultan: se declaran, porque un
 #: superviviente sin explicacion es un agujero y un superviviente explicado es
@@ -186,6 +232,21 @@ SUPERVIVIENTES = [
 ]
 
 
+def _normalizadas():
+    """Unifica mutaciones de UN fichero y de VARIOS en una sola forma.
+
+    `(etiqueta, [(fichero, original, mutado), ...], cwd, objetivos)`. Hacen
+    falta las de varios ficheros porque el escenario que descubrio el revisor
+    --anadir una dimension al motor Y meterla en la cuarentena en el mismo
+    commit-- es, por definicion, un cambio coordinado: mutar un solo fichero no
+    lo reproduce.
+    """
+    for etiqueta, fichero, original, mutado, cwd, objetivos in MUTACIONES:
+        yield etiqueta, [(fichero, original, mutado)], cwd, objetivos
+    for etiqueta, ediciones, cwd, objetivos in MUTACIONES_COORDINADAS:
+        yield etiqueta, ediciones, cwd, objetivos
+
+
 def _pytest(cwd, objetivos):
     return subprocess.run(
         [sys.executable, "-m", "pytest", *objetivos, "-q", "--no-header", "-x"],
@@ -199,7 +260,9 @@ def main() -> int:
     print("=" * 78)
 
     base = {}
-    for _, _, _, _, cwd, objetivos in MUTACIONES + [m[:6] for m in SUPERVIVIENTES]:
+    _combis = [(c, o) for _, _, c, o in _normalizadas()]
+    _combis += [(m[4], m[5]) for m in SUPERVIVIENTES]
+    for cwd, objetivos in _combis:
         clave = (str(cwd), tuple(objetivos))
         if clave not in base:
             r = _pytest(cwd, objetivos)
@@ -210,23 +273,35 @@ def main() -> int:
                 return 2
     print(f"\nLinea base VERDE en {len(base)} combinaciones de objetivos.\n")
 
+    _total = sum(1 for _ in _normalizadas())
     fallos = []
-    for etiqueta, fichero, original, mutado, cwd, objetivos in MUTACIONES:
-        texto = fichero.read_text(encoding="utf-8")
-        if original not in texto:
-            print(f"[SALTADA] {etiqueta}\n           patron no encontrado en {fichero}")
-            fallos.append(etiqueta + "  (patron no encontrado)")
-            continue
-        if texto.count(original) != 1:
-            print(f"[SALTADA] {etiqueta}\n           patron ambiguo ({texto.count(original)}x)")
-            fallos.append(etiqueta + "  (patron ambiguo)")
+    for etiqueta, ediciones, cwd, objetivos in _normalizadas():
+        originales = {}
+        problema = None
+        for fichero, original, mutado in ediciones:
+            texto = fichero.read_text(encoding="utf-8")
+            if texto.count(original) != 1:
+                problema = (
+                    f"patron {'ausente' if original not in texto else 'ambiguo'} "
+                    f"en {fichero.name}"
+                )
+                break
+            originales[fichero] = texto
+
+        if problema:
+            print(f"[SALTADA] {etiqueta}\n           {problema}")
+            fallos.append(f"{etiqueta}  ({problema})")
             continue
 
-        fichero.write_text(texto.replace(original, mutado, 1), encoding="utf-8")
         try:
+            for fichero, original, mutado in ediciones:
+                fichero.write_text(
+                    originales[fichero].replace(original, mutado, 1), encoding="utf-8"
+                )
             r = _pytest(cwd, objetivos)
         finally:
-            fichero.write_text(texto, encoding="utf-8")
+            for fichero, texto in originales.items():
+                fichero.write_text(texto, encoding="utf-8")
 
         rojo = r.returncode != 0
         print(f"[{'ROJO  ' if rojo else 'VERDE!'}] {etiqueta}")
@@ -263,11 +338,11 @@ def main() -> int:
 
     print("\n" + "=" * 78)
     if fallos:
-        print(f"CALIBRACION INCOMPLETA: {len(fallos)} de {len(MUTACIONES)} sin medir")
+        print(f"CALIBRACION INCOMPLETA: {len(fallos)} de {_total} sin medir")
         for f in fallos:
             print(f"  - {f}")
         return 1
-    print(f"CALIBRACION COMPLETA: {len(MUTACIONES)}/{len(MUTACIONES)} rojo -> revert -> verde")
+    print(f"CALIBRACION COMPLETA: {_total}/{_total} rojo -> revert -> verde")
     return 0
 
 

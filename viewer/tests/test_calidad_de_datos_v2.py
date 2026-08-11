@@ -258,13 +258,22 @@ def test_todo_valor_canonico_se_normaliza(valor):
 
 @pytest.mark.parametrize(
     "valor",
-    [None, "", "   ", "APPROVED", "approved", "auto_approved", "revisado", 3, True, ["reviewed"]],
+    [
+        None, "", "   ", "APPROVED", "approved", "auto_approved", "revisado",
+        3, True, ["reviewed"],
+        # Estos MIDEN la frase "no hay `lower()` ni `strip()` salvatodo". Sin
+        # ellos la parametrizacion solo tenia `APPROVED`, que no es canonico ni
+        # en minusculas: ningun caso ejercitaba el trato de mayusculas y
+        # espacios. Un canonico DISFRAZADO es el unico dato capaz de distinguir
+        # un comparador estricto de uno indulgente.
+        "REVIEWED", "Reviewed", " reviewed ", "AUTO_EXTRACTED", "\treviewed",
+    ],
 )
 def test_un_valor_fuera_del_vocabulario_canonico_se_rechaza(valor):
     """Fail-closed literal: no hay default, no hay reparacion, no hay `lower()`
-    salvatodo. `approved` esta aqui a proposito: era el valor que la via de
-    revision humana escribia en el grafo y que este conjunto cerrado nunca
-    contuvo."""
+    ni `strip()` salvatodo. `approved` esta aqui a proposito: era el valor que la
+    via de revision humana escribia en el grafo y que este conjunto cerrado
+    nunca contuvo."""
     with pytest.raises(RS.ReviewStatusError):
         RS.normalize(valor)
     assert not RS.is_canonical(valor)
@@ -347,6 +356,32 @@ def test_el_adaptador_de_revision_manual_traduce_la_via_humana():
 
 
 @pytest.mark.parametrize(
+    "adaptador,disfrazado",
+    [
+        ("from_candidate_status", "approved"),        # el contrato usa MAYUSCULAS
+        ("from_candidate_status", " APPROVED "),
+        ("from_pipeline_decision", "AUTO_APPROVE"),
+        ("from_pipeline_decision", " auto_approve "),
+        ("from_review_manual_status", "APPROVED"),
+        ("from_review_manual_status", " approved "),
+        ("from_review_manual_status", "Approved"),
+    ],
+)
+def test_los_TRES_adaptadores_son_igual_de_estrictos(adaptador, disfrazado):
+    """Simetria entre fronteras.
+
+    `from_review_manual_status` hacia `.strip().lower()` mientras los otros dos
+    exigian el valor exacto, y esa asimetria no estaba razonada. Su efecto es
+    que `" Approved "` se acepta por una frontera y se rechaza por las otras:
+    "que idioma habla este dato" pasaba a depender de por donde entro. Ahora las
+    tres son estrictas, y quien deba tolerar formato lo hace antes de llamar, a
+    la vista.
+    """
+    with pytest.raises(RS.ReviewStatusError):
+        getattr(RS, adaptador)(disfrazado)
+
+
+@pytest.mark.parametrize(
     "adaptador",
     ["from_candidate_status", "from_pipeline_decision", "from_review_manual_status"],
 )
@@ -425,3 +460,35 @@ def test_la_validacion_de_procedencia_rechaza_todo_lo_que_no_acredite_revision(e
         f"review_status={estado!r} ({motivo}) NO fue rechazado por la "
         f"validacion de procedencia de escritura"
     )
+
+
+def test_la_rama_de_RELACIONES_tambien_adapta_en_la_frontera():
+    """Testigo de `_build_merge_relation_query`, que no tenia ninguno.
+
+    Esa rama esta HOY INALCANZABLE en produccion: la ingesta controlada corre
+    con `allow_relationships=False` y rechaza cualquier relacion antes de
+    llegar aqui. Pero es codigo de escritura, sigue en el arbol "mantenido para
+    uso futuro", y sin prueba su adaptacion seria una afirmacion sin medir: el
+    dia que se habiliten las relaciones, una arista podria entrar al grafo
+    hablando un idioma distinto del de un nodo y nadie se enteraria.
+    """
+    sys.path.insert(0, str(REPO_ROOT / "data-engine" / "app"))
+    try:
+        from review.ingest_approved import _build_merge_relation_query
+    finally:
+        sys.path.pop(0)
+
+    item = {
+        "relation_type": "KNOWS", "from_entity": "A", "to_entity": "B",
+        "source_id": "s1", "source_kind": "audio", "workspace": "leyenda",
+        "review_status": "approved", "confidence": 0.9, "evidence": "e",
+    }
+    _, params = _build_merge_relation_query(item)
+    assert params["props"]["review_status"] == "reviewed", (
+        "la arista se escribiria con 'approved' mientras un nodo equivalente se "
+        "escribe con 'reviewed': dos idiomas para la misma propiedad"
+    )
+    assert RS.is_canonical(params["props"]["review_status"])
+
+    with pytest.raises(RS.ReviewStatusError):
+        _build_merge_relation_query(dict(item, review_status="auto_approved"))

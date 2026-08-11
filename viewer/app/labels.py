@@ -7,28 +7,13 @@ Este módulo solo lee de ``rpg_schema.py``, nunca lo modifica.
 """
 from __future__ import annotations
 
-import importlib.util
 import sys
 from pathlib import Path
 
-# --- Vocabulario canonico de `review_status` -------------------------------
-# Se carga por ruta del contrato compartido. Este modulo NO puede importar
-# `data-engine`, y por eso llevaba una copia manual del vocabulario: dos listas
-# del mismo vocabulario, mantenidas por separado, es como se derivan en
-# silencio. Ahora las etiquetas se DERIVAN del canonico y la exhaustividad es
-# comprobable (ver `test_calidad_de_datos_v2.py`).
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_RS_PATH = _REPO_ROOT / "contracts" / "review-status" / "v1" / "model.py"
-_RS_MODULE = "s9k_review_status_v1_model"
-if _RS_MODULE in sys.modules:  # pragma: no cover - cache entre imports
-    review_status_contract = sys.modules[_RS_MODULE]
-else:  # pragma: no cover - trivial
-    _spec = importlib.util.spec_from_file_location(_RS_MODULE, _RS_PATH)
-    if _spec is None or _spec.loader is None:
-        raise ImportError(f"no se pudo cargar review-status/v1 en {_RS_PATH}")
-    review_status_contract = importlib.util.module_from_spec(_spec)
-    sys.modules[_RS_MODULE] = review_status_contract
-    _spec.loader.exec_module(review_status_contract)
+# Modulo frontera UNICO hacia `contracts/review-status/v1` (ver su docstring).
+# Las etiquetas se DERIVAN del vocabulario canonico; este modulo no lo declara.
+from app import review_status_contract
+
 
 ENTITY_TYPE_LABELS_ES: dict[str, str] = {
     "Character": "Personaje",

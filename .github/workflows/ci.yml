@@ -377,6 +377,23 @@ jobs:
       - name: El gate se pone ROJO ante cada violacion y VERDE al restaurar
         run: python3 .github/scripts/calibra_gate_integrity.py
 
+      # Carril J. Mismo principio, otra familia de gates: los del modelo de
+      # autorizacion derivado del registro M5b y los del vocabulario canonico
+      # de `review_status`. Vivia en la raiz del repositorio, donde hay
+      # precedente (`mutaciones.py`) pero donde NINGUN job lo ejecutaba: una
+      # calibracion que nadie corre se pudre, y entonces deja de ser una
+      # propiedad del arbol para ser la foto de un dia.
+      - name: Install deps para la calibracion del carril J
+        run: |
+          set -euo pipefail
+          pip install -r data-engine/requirements.lock
+          pip install -r viewer/requirements.txt
+
+      - name: Calibracion de calidad de datos (carril J)
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 scripts/calibracion/mutaciones_calidad_datos.py
+
   # Instalado desde .github/ci-fragments/test-graph-js.yml al llegar
   # viewer/tests/test_graph_ux_v2.py con esta rama. Sin este job, ese fichero
   # solo corre en `test-viewer`, que NO tiene Node: las ~38 aserciones de la

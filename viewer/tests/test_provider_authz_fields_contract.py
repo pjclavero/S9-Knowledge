@@ -96,7 +96,7 @@ DIMENSIONES_DEL_CONTEXTO = tuple(c.name for c in TODOS if not c.in_projection)
 #: policies/**` es zona que este carril no puede modificar, asi que no se pueden
 #: declarar aqui y ahora; se dejan nombradas para que (a) consten, y (b) la red
 #: inversa siga siendo capaz de ponerse roja con CUALQUIER dimension nueva sin
-#: declarar. La cuarentena solo puede ENCOGER: si crece, el test falla.
+#: declarar.
 #:
 #: Las tres son reales y consumidas dentro de una decision de autorizacion:
 #:   admin_full          -- bypass TOTAL (`if ctx.admin_full: return visible`).
@@ -111,6 +111,35 @@ CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO = frozenset({
     "can_view_reference",
     "character_knowledge",
 })
+
+#: CONGELADO. Contenido y TAMANO exactos que se autorizaron al abrir la
+#: cuarentena.
+#:
+#: Existe porque la primera version de este fichero afirmaba que la cuarentena
+#: "solo puede encoger: si crece, el test falla", y era FALSO en el unico caso
+#: que importa. La comprobacion era `resueltas = CUARENTENA - sin_declarar`, que
+#: detecta entradas RANCIAS pero no entradas NUEVAS: bastaba anadir al motor una
+#: dimension de bypass total y meter su nombre en la cuarentena en el mismo
+#: commit para que la suite siguiera verde. El freno era humano, no mecanico,
+#: sobre `admin_full` --y escribir un freno que no frena es exactamente la clase
+#: de defecto que este carril vino a cerrar.
+#:
+#: Ahora la cuarentena se compara contra esta constante congelada en las DOS
+#: direcciones, y ademas contra un tamano escrito con todas las letras. Ampliarla
+#: exige editar tres sitios coordinados que aparecen juntos en el diff, con este
+#: comentario delante: sigue siendo una decision humana --ningun test puede
+#: impedir que un humano edite el test-- pero pasa a ser una decision
+#: EXPLICITA y VISIBLE en la revision, en vez de un efecto colateral silencioso
+#: de tocar el motor.
+#:
+#: Ampliar esta lista NO es un cambio de fontaneria: es admitir una dimension
+#: mas que decide sin cadena declarada. Requiere autorizacion del operador.
+_CUARENTENA_CONGELADA = frozenset({
+    "admin_full",
+    "can_view_reference",
+    "character_knowledge",
+})
+_CUARENTENA_TAMANO_AUTORIZADO = 3
 
 #: Campos que el motor lee de un nodo y NO son autorizacion sino identidad o
 #: estructura del grafo.
@@ -327,14 +356,48 @@ def test_ninguna_dimension_del_contexto_que_el_motor_consulta_queda_sin_declarar
         f"respuesta a 'y si falta'"
     )
 
-    # La cuarentena solo puede encoger. Si una dimension se declara por fin en
-    # el registro, hay que sacarla de aqui en el mismo cambio; si no, la
-    # cuarentena se vuelve un vertedero que nadie vacia.
+    # Entradas RANCIAS: si una dimension se declara por fin en el registro, hay
+    # que sacarla de la cuarentena en el mismo cambio; si no, la cuarentena se
+    # vuelve un vertedero que nadie vacia.
     resueltas = CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO - sin_declarar
     assert not resueltas, (
         f"{sorted(resueltas)} ya estan declaradas en el registro (o el motor "
         f"dejo de consumirlas): quitalas de "
-        f"CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO"
+        f"CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO y de _CUARENTENA_CONGELADA"
+    )
+
+
+def test_la_cuarentena_no_puede_CRECER_sin_una_decision_explicita():
+    """La comprobacion que faltaba, y que hacia falsa la afirmacion anterior.
+
+    `test_ninguna_dimension_...` compara `CUARENTENA - sin_declarar`: eso caza
+    entradas rancias, pero NO entradas nuevas. Anadir al motor una dimension de
+    bypass total y meter su nombre en la cuarentena en el mismo commit dejaba la
+    suite en verde. La afirmacion "la cuarentena solo puede encoger" era, por
+    tanto, falsa justo en el caso que importa, y sobre `admin_full`.
+
+    Aqui la cuarentena se compara contra una constante CONGELADA en las dos
+    direcciones, y contra un tamano escrito aparte. Ningun test puede impedir
+    que un humano edite el test; lo que si puede es exigir que esa edicion sea
+    una decision explicita, coordinada y visible en el diff, en vez de un efecto
+    colateral silencioso de haber tocado el motor.
+    """
+    crecidas = CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO - _CUARENTENA_CONGELADA
+    assert not crecidas, (
+        f"la cuarentena ha CRECIDO con {sorted(crecidas)} sin autorizacion. "
+        f"Anadir una dimension aqui es admitir una dimension mas que decide sin "
+        f"cadena declarada; requiere decision del operador y actualizar tambien "
+        f"_CUARENTENA_CONGELADA y _CUARENTENA_TAMANO_AUTORIZADO."
+    )
+    encogidas = _CUARENTENA_CONGELADA - CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO
+    assert not encogidas, (
+        f"{sorted(encogidas)} salieron de la cuarentena pero siguen en "
+        f"_CUARENTENA_CONGELADA: actualiza las dos a la vez"
+    )
+    assert len(CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO) == _CUARENTENA_TAMANO_AUTORIZADO, (
+        f"la cuarentena tiene {len(CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO)} "
+        f"dimensiones y el tamano autorizado es "
+        f"{_CUARENTENA_TAMANO_AUTORIZADO}"
     )
 
 

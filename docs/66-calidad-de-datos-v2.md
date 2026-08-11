@@ -48,10 +48,58 @@ contexto y el registro declara **6**. Las tres que decidían sin cadena declarad
 | `character_knowledge` | concede conocimiento por ID precomputado | se salta `known_by` por completo |
 
 `viewer/app/policies/**` es zona prohibida para este carril, así que **no se han
-declarado aquí**: quedan en `CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO`, una
-cuarentena que **sólo puede encoger** (el test falla si crece *y* falla si una
-deja de necesitar cuarentena y nadie la saca). Declararlas en el registro es
-trabajo del propietario de `policies/**`.
+declarado aquí**: quedan en `CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO`. Declararlas
+en el registro es trabajo del propietario de `policies/**`; `admin_full` es
+decisión del operador.
+
+### Corrección: la primera versión de este documento afirmaba aquí algo FALSO
+
+Decía que la cuarentena *«sólo puede encoger: el test falla si crece»*. **No era
+cierto en el único caso que importa.** La comprobación era
+`resueltas = CUARENTENA − sin_declarar`, que detecta entradas **rancias** pero
+**no entradas nuevas**: bastaba añadir al motor una dimensión de bypass total y
+meter su nombre en la cuarentena *en el mismo commit* para que la suite siguiera
+en verde. El freno era humano, no mecánico — y escrito precisamente sobre
+`admin_full`.
+
+Es la misma clase de defecto que este carril vino a cerrar: una barrera declarada
+que no barra. Lo encontró la revisión independiente, no yo.
+
+**Corregido de las dos formas a la vez, porque una sola no basta:**
+
+1. **Mecanismo.** La cuarentena se compara contra `_CUARENTENA_CONGELADA` en las
+   **dos direcciones** y contra `_CUARENTENA_TAMANO_AUTORIZADO`, escrito aparte
+   (`test_la_cuarentena_no_puede_CRECER_sin_una_decision_explicita`). Ampliarla
+   exige tres ediciones coordinadas que aparecen juntas en el diff.
+2. **Redacción.** Ningún test puede impedir que un humano edite el test, así que
+   la afirmación ya no dice «es imposible que crezca». Dice lo que el mecanismo
+   hace: **crecer deja de ser un efecto colateral silencioso de tocar el motor y
+   pasa a ser una decisión explícita y visible en la revisión.** Sigue exigiendo
+   autorización del operador.
+
+Calibrado con la mutación **R8**, que reproduce el escenario del revisor
+literalmente —dimensión nueva en `models.py`, consumida en `engine.py`, y metida
+en la cuarentena, todo en el mismo cambio— y ahora se pone **ROJA**. Con la
+comprobación anterior ese mismo cambio daba verde.
+
+### Límite de alcance de la red inversa (no es regresión de este carril)
+
+La red inversa barre **sólo `policies/engine.py` y `policies/models.py`**. Fuera
+de ahí hay código que decide con las mismas dimensiones y que esta red **no
+mira**:
+
+| Fichero | Qué hace |
+|---|---|
+| `viewer/app/authz/scope.py:131` | `bool(self.ctx.admin_full) or self.ctx.role == "admin"` |
+| `viewer/app/authz/filtered_provider.py` | decide con `admin_full` |
+| `viewer/app/main.py:320` | decide con `admin_full` |
+| `viewer/app/jobs_client.py:171` | decide con `admin_full` |
+
+Lo importante de `scope.py:131` no es que esté fuera del barrido, sino lo que
+revela: **`role == "admin"` es una SEGUNDA VÍA a la misma potestad que
+`admin_full`**, en un módulo que la red no inspecciona. Es decir, la cuarentena
+de `admin_full` no cubre todas las formas de obtener ese poder. `authz/**` es
+zona prohibida para este carril, así que queda **declarado, no corregido**.
 
 ---
 
@@ -135,6 +183,26 @@ Ahora se traduce **en la frontera de escritura** (`approved` → `reviewed`), ta
 para nodos como para relaciones, y la traducción levanta si el valor no es
 traducible: nunca se escribe un `review_status` que nadie sepa interpretar.
 
+**Y ahora sí está cerrado también en el visor.** La primera versión lo dejó a
+medias: `review_status_label` protegía la ficha de una entidad, pero
+`quality.html` y `source_detail.html` pintaban la **clave cruda** de los
+contadores agregados, así que un `approved` heredado en el grafo seguía saliendo
+en el panel de calidad como un estado legítimo del sistema — agregado y contado.
+Un contador no es menos dato que una ficha: si el recuento nombra estados que el
+sistema no reconoce, lo que se está midiendo no es lo que se cree.
+`readonly.py` etiqueta ahora esos agregados y las dos plantillas pintan la
+etiqueta.
+
+### Los tres adaptadores son igual de estrictos
+
+`from_review_manual_status` hacía `.strip().lower()` mientras los otros dos
+exigían el valor exacto. La asimetría no estaba razonada y su efecto es que
+`" Approved "` se acepta por una frontera y se rechaza por las otras: *qué idioma
+habla un dato* pasaba a depender de por dónde entró. Además, un `.lower()`
+escondido dentro de un adaptador que decide sobre revisión humana es una
+reparación que adivina. Ahora los tres son estrictos, y quien deba tolerar
+formato lo hace antes de llamar y a la vista.
+
 ### Hallazgo: enumerar lo prohibido en vez de lo permitido
 
 El guardián de la vía humana era `if rs == "auto_approved": error`. **Una lista de
@@ -165,8 +233,11 @@ cambia lo que se exige (mutación J5).
 
 ## 5. Tabla de calibración
 
-`python3 mutaciones_calidad_datos.py` — cada fila: introducir la violación,
-demostrar ROJO, revertir, demostrar VERDE.
+`python3 scripts/calibracion/mutaciones_calidad_datos.py` — cada fila: introducir
+la violación, demostrar ROJO, revertir, demostrar VERDE. **Lo ejecuta el job
+`Calibracion de gates` de CI**: vivía en la raíz, donde hay precedente
+(`mutaciones.py`) pero donde ningún job lo corría, y una calibración que nadie
+ejecuta se pudre hasta ser la foto de un día en vez de una propiedad del árbol.
 
 | ID | Violación introducida | Resultado |
 |---|---|---|
@@ -185,8 +256,17 @@ demostrar ROJO, revertir, demostrar VERDE.
 | J13 | el adaptador de candidatos deja de ser total | ROJO |
 | J14 | la frontera de escritura escribe el idioma ajeno | ROJO |
 | J15b | la vía humana deja de exigir pertenencia al conjunto permitido | ROJO |
+| **R8** | **dimensión de bypass total nueva + metida en la cuarentena en el mismo commit** | **ROJO** |
+| R8-control | la misma dimensión nueva **sin** meterla en la cuarentena | ROJO |
 
-**15/15 rojo → revertir → verde.**
+**17/17 rojo → revertir → verde.**
+
+R8 es la fila que importa de esta segunda ronda: es el escenario exacto con el
+que la revisión demostró que la cuarentena no frenaba, y con la comprobación
+anterior salía **verde**. Es una mutación de **tres ficheros coordinados**
+(`models.py` + `engine.py` + el fichero de la cuarentena), porque un cambio
+coordinado no se reproduce mutando un solo fichero — el arnés tuvo que aprender a
+hacerlo.
 
 ### Lo que la calibración encontró y no habría salido de otro modo
 
@@ -201,6 +281,11 @@ demostrar ROJO, revertir, demostrar VERDE.
   `_validate_write_provenance`. Se escribió el test que faltaba
   (`test_la_validacion_de_procedencia_rechaza_todo_lo_que_no_acredite_revision`),
   y con él la mutación se pone roja (J15b).
+* **R8 no lo encontró mi calibración: lo encontró la revisión independiente.**
+  Yo no había escrito la mutación que medía mi propio freno, y por eso pude
+  afirmar en prosa que frenaba. La lección se aplica a este documento: la parte
+  más peligrosa de un carril de calibración es la afirmación que uno no se ha
+  molestado en intentar romper.
 
 ### Superviviente declarado
 
@@ -223,12 +308,26 @@ porque entonces la explicación habría caducado.
   `can_view_reference` y `character_knowledge`: `policies/**` es zona prohibida
   para este carril. Están en cuarentena declarada y comprobada.
 * **Mutación por cobertura exhaustiva:** no se han mutado todas las líneas de los
-  módulos tocados, sólo las 16 afirmaciones que este carril sostiene.
+  módulos tocados, sólo las 17 afirmaciones que este carril sostiene.
 * **La red inversa es sintáctica** (expresiones regulares sobre el código del
   motor). Una lectura suficientemente indirecta —`getattr(ctx, nombre)`, un
   `node.get(variable)`— se le escaparía. Es el límite conocido del instrumento y
   se hereda del diseño anterior; se ha ampliado (contexto y aristas), no
   resuelto.
+* **La red sólo barre `engine.py` y `models.py`.** Ver §1: `authz/scope.py`,
+  `authz/filtered_provider.py`, `main.py` y `jobs_client.py` deciden con
+  `admin_full` fuera del barrido, y `role == "admin"` es una segunda vía a esa
+  misma potestad. Declarado, no corregido: `authz/**` es zona prohibida.
+* **`rpg_schema._v_review` sigue degradando en silencio.** Usa
+  `_coerce_vocab(..., "auto_extracted")`, así que un `review_status` ilegible que
+  entre por la vía de ingesta principal se convierte en `auto_extracted` en vez
+  de fallar, y `""` acaba en `None`. Es decir: **"un único idioma en el grafo"
+  todavía NO es total.** Este carril ha cerrado la vía de revisión humana y la
+  de relaciones; la vía de ingesta principal sigue con un default permisivo y no
+  se ha tocado porque no formaba parte del encargo. Queda dicho, no arreglado.
+* **La rama de relaciones es hoy inalcanzable** (`allow_relationships=False`).
+  Ahora tiene testigo (`test_la_rama_de_RELACIONES_tambien_adapta_en_la_frontera`)
+  pero nunca se ha ejercitado contra una ingesta real.
 * **Integración real contra Neo4j:** el job `test-neo4j-authz` de CI la cubre; no
   se ha ejecutado localmente.
 
@@ -244,4 +343,22 @@ porque entonces la explicación habría caducado.
 | `data-engine/app/review/ingest_approved.py` | adaptador en la frontera de escritura; guardián por conjunto permitido |
 | `data-engine/app/review/approved_writer.py` | el literal legacy pasa a constante declarada del contrato |
 | `data-engine/app/tests/test_safe_writer.py` | la aserción refleja el valor canónico persistido |
-| `mutaciones_calidad_datos.py` | **nuevo** — arnés de calibración |
+| `contracts/review-status/v1/tests/` | **nuevo** — pruebas propias del contrato, como sus dos hermanos |
+| `viewer/app/review_status_contract.py` | **nuevo** — módulo frontera único del visor |
+| `data-engine/app/review_status_contract.py` | **nuevo** — módulo frontera único del motor |
+| `viewer/app/routers/readonly.py` | etiqueta los contadores agregados de `review_status` |
+| `viewer/app/templates/quality.html`, `source_detail.html` | pintan la etiqueta, no la clave cruda |
+| `scripts/calibracion/mutaciones_calidad_datos.py` | **nuevo** — arnés de calibración, ejecutado por CI |
+| `.github/workflows/ci.yml` | el job `Calibracion de gates` ejecuta también este arnés |
+| `pytest.ini` | añade `contracts/review-status/v1/tests` a `testpaths` |
+
+### Nota sobre los dos módulos frontera
+
+El bloque que carga el contrato por ruta estaba **copiado cuatro veces**, cada
+copia con su propio `parents[N]` — irónico en un carril cuyo encargo era eliminar
+segundas declaraciones. Ahora hay **dos** módulos frontera, no uno, y no por
+descuido: `viewer/` y `data-engine/app/` son dos árboles de `sys.path` distintos
+que no pueden importarse entre sí (ver el docstring del `conftest.py` de la
+raíz). Uno por árbol es el mínimo posible; el precedente es
+`authz/visibility_contract.py`. Comparten el nombre de módulo en `sys.modules`
+a propósito, para que ambos obtengan **el mismo objeto `Enum`**.
