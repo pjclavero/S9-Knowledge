@@ -219,7 +219,14 @@ def test_un_tope_de_sesion_ilegible_no_significa_sin_tope():
         active_character="pc:ana",
         max_visible_session=None,  # ausente/ilegible, NO "sin tope"
     )
-    assert not POLICY.can_view(nodo, ctx_roto).visible
+    # Los mensajes no son decoración: son la RAZON DECLARADA de la mutacion J8
+    # en el arnes de calibracion. Mientras J8 se declaraba por el NOMBRE de este
+    # test, la linea `FAILED ...::test_x` lo llevaba pasara lo que pasara, y una
+    # mutacion que rompiese OTRO assert de aqui se cobraba el rojo de J8.
+    assert not POLICY.can_view(nodo, ctx_roto).visible, (
+        "un tope de sesion AUSENTE/ILEGIBLE (`max_visible_session=None`) ha "
+        "vuelto a significar 'sin tope' y ABRE la barrera (H-B)"
+    )
 
     ctx_no_aplica = ViewerContext(
         role="viewer",
@@ -229,7 +236,10 @@ def test_un_tope_de_sesion_ilegible_no_significa_sin_tope():
         active_character="pc:ana",
         max_visible_session=NO_APLICA,
     )
-    assert not POLICY.can_view(nodo, ctx_no_aplica).visible
+    assert not POLICY.can_view(nodo, ctx_no_aplica).visible, (
+        "`NO_APLICA` (no hay partida activa) ha pasado a comportarse como 'sin "
+        "tope' y abre la barrera: es un estado DECLARADO, no un permiso"
+    )
 
 
 def test_un_contexto_vacio_no_ve_nada():
@@ -613,4 +623,44 @@ def test_la_segunda_via_al_bypass_total_tiene_testigo():
         "la via `role == 'admin'` de `authz/scope.py` ha cambiado de "
         "comportamiento: es una SEGUNDA via a la potestad de bypass total y "
         "debe seguir siendo visible y deliberada, no un efecto colateral"
+    )
+
+
+def test_el_acotado_por_workspace_de_la_consulta_solo_se_levanta_para_admin_full():
+    """`filtered_provider._scope_workspaces()`: `None` = consulta SIN acotar.
+
+    Es el segundo punto de `filtered_provider.py` que decide con `admin_full`
+    (el otro, `workspaces()`, ya estaba medido). En la dirección **ABRIR**
+    --devolver `None` siempre, es decir, consultar sin acotar por workspace para
+    cualquiera-- la suite entera del visor seguía **VERDE (1092 passed)**: nadie
+    miraba esa línea. Lo encontró la revisión independiente; yo había medido un
+    solo punto por fichero y sacado de ahí una conclusión más amplia de lo que
+    sostenía.
+
+    LÍMITE de este testigo, dicho para que nadie le pida lo que no da: fija el
+    ACOTADO, no la ausencia de fuga. Que la consulta salga sin acotar no
+    demuestra que se filtren datos --el filtrado posterior por política podría
+    taparlo--, y este test no lo comprueba. Lo que cierra es que esa línea deje
+    de tener testigo.
+    """
+    from app.authz.filtered_provider import PolicyFilteredProvider
+
+    permitidos = frozenset({"leyenda"})
+    corriente = PolicyFilteredProvider(
+        base=object(),
+        ctx=ViewerContext(role="viewer", allowed_workspaces=permitidos),
+    )
+    assert corriente._scope_workspaces() == permitidos, (
+        "la consulta de un lector corriente ha dejado de acotarse a sus "
+        "workspaces permitidos"
+    )
+
+    admin = PolicyFilteredProvider(
+        base=object(),
+        ctx=ViewerContext(
+            role="viewer", allowed_workspaces=permitidos, admin_full=True
+        ),
+    )
+    assert admin._scope_workspaces() is None, (
+        "`admin_full` ha dejado de levantar el acotado por workspace"
     )

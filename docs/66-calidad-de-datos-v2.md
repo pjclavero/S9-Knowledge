@@ -323,14 +323,15 @@ ejecuta se pudre hasta ser la foto de un día en vez de una propiedad del árbol
 | **J19** | **el detalle operativo deja de leer `admin_full`** | **ROJO, y es cobertura nueva** |
 | **R8** | **dimensión de bypass total nueva + metida en la cuarentena en el mismo commit** | **ROJO** |
 | R8-control | la misma dimensión nueva **sin** meterla en la cuarentena | ROJO |
+| **J20** | **la consulta deja de acotarse por workspace para cualquiera** (`_scope_workspaces`) | **ROJO, y es cobertura nueva** |
 
-**21/21 rojo → revertir → verde.**
+**22/22 rojo → revertir → verde.**
 
 La versión anterior de esta tabla listaba **17** filas y remataba «17/17», cuando
 el arnés, el mensaje de commit y §6 decían **19**: faltaban J16 y J17. Corregido,
 y con las dos mutaciones nuevas del apartado anterior son **21**.
 
-Y ese 21 son **afirmaciones distintas**, no filas: ver más abajo.
+Y ese 22 son **afirmaciones distintas**, no filas: ver más abajo.
 
 #### Corrección en mi contra: J18 no aporta cobertura; J19 sí
 
@@ -382,6 +383,7 @@ hacerlo.
 | J15 | la misma que J15b, mirada desde la suite de **data-engine** | ningún test de data-engine hace llegar `pending`/`deferred`/`rejected` a `_validate_write_provenance`. La cobertura real vive en el visor (J15b). Describe una carencia de esa suite, no del guardián. | media |
 | — | **bypass leído por un alias local**: `_c = ctx` + `if _c.puerta_trasera: return visible`, con el campo nuevo en `models.py` | la red inversa es **sintáctica**: casa `ctx.<nombre>`, no un alias. Medido: **1092 passed, 190 skipped**, VERDE con la puerta trasera puesta | **alta** |
 | — | `authz/scope.py:131` (hasta esta ronda) | ya **no** es superviviente: J18/J19 lo cierran. Se deja la fila para que conste que lo fue y por qué (ver §1) | — |
+| — | `authz/filtered_provider.py:109` (`_scope_workspaces`, dirección ABRIR) | **lo fue**: mutado a `return None` siempre —consulta **sin acotar** por workspace para cualquiera— la suite seguía en **1092 passed**. Cerrado con testigo + **J20**. No demostraba fuga (el filtrado posterior podría taparla), sí que **nadie miraba esa línea** | — (cerrado) |
 
 Sobre J15, dos matices que la versión anterior no daba:
 
@@ -415,7 +417,7 @@ corrida** si uno deja de sobrevivir, porque entonces la explicación ha caducado
   `can_view_reference` y `character_knowledge`: `policies/**` es zona prohibida
   para este carril. Están en cuarentena declarada y comprobada.
 * **Mutación por cobertura exhaustiva:** no se han mutado todas las líneas de los
-  módulos tocados, sólo las 21 afirmaciones que este carril sostiene.
+  módulos tocados, sólo las 22 afirmaciones que este carril sostiene.
 * **La red inversa es sintáctica** (expresiones regulares sobre el código del
   motor), y el límite es **más ancho de lo que este documento decía**. La
   versión anterior lo ilustraba con `getattr(ctx, nombre)`, que se lee como "hay
@@ -435,23 +437,37 @@ corrida** si uno deja de sobrevivir, porque entonces la explicación ha caducado
   medidos por la suite y `scope.py:131` era un superviviente real, cerrado ahora
   con testigo (J18/J19). La falta de **declaración** de los tres sigue abierta:
   `authz/**` es zona prohibida para modificar.
-* **Corrección: los consumidores SÍ están medidos.** La versión anterior decía
-  «no se ha revisado el resto de consumidores (`filtered_provider.py`,
-  `main.py:320`, `jobs_client.py:171`)», y ese límite era **más pesimista que la
-  realidad**. Medido aquí, mutación transitoria + suite completa del visor:
+* **Los PUNTOS medidos son éstos** (y sólo éstos). La versión anterior decía
+  primero «no se ha revisado el resto de consumidores» —más pesimista que la
+  realidad— y luego, corrigiendo de más, «los consumidores **sí** están
+  medidos». **Ninguna de las dos frases era exacta**: yo había mutado *un punto
+  por fichero*, y de ahí no se sigue nada sobre el fichero. Lo medido,
+  transitoriamente y con la suite completa del visor:
 
-  | Consumidor mutado | Resultado |
-  |---|---|
-  | `main.py:320` (deja de eximir a `admin_full`) | **1 failed** |
-  | `filtered_provider.py:50` (`if False`) | **1 failed** |
-  | `jobs_client.py:171` en dirección **ABRIR** (`if True`) | **1 failed** |
-  | `jobs_client.py:171` en dirección **CERRAR** (quita el `or admin_full`) | 1092 passed — **verde** |
+  | Punto mutado | Dirección | Resultado |
+  |---|---|---|
+  | `main.py:320` | deja de eximir a `admin_full` | **1 failed** |
+  | `filtered_provider.py:50` (`workspaces()`) | ABRIR | **1 failed** |
+  | `jobs_client.py:171` | ABRIR (`if True`) | **1 failed** |
+  | `jobs_client.py:171` | CERRAR (quita el `or admin_full`) | 1092 passed — **verde** |
+  | **`filtered_provider.py:109`** (`_scope_workspaces()`) | **ABRIR** (`return None` siempre) | **1092 passed — SUPERVIVIENTE**, cerrado ahora (ver abajo) |
 
-  Es decir: las direcciones que **abren** están las tres medidas; lo único sin
-  testigo es *cerrar de más* en `jobs_client.py:171` (un admin dejaría de ver el
-  detalle), que es fail-closed y no una fuga. Lo que **no** he hecho es una
-  revisión exhaustiva línea a línea de esos módulos: he mutado un punto por
-  fichero.
+  Lo único que queda sin testigo tras esta ronda es *cerrar de más* en
+  `jobs_client.py:171` (un admin dejaría de ver el detalle): es fail-closed, no
+  una fuga. **Sigue sin haber revisión exhaustiva línea a línea** de esos
+  módulos.
+
+* **`filtered_provider.py:109` era un superviviente real, y lo encontró la
+  revisión, no yo.** `_scope_workspaces()` devuelve `None` para decir *consulta
+  **sin acotar** por workspace*; mutado en dirección ABRIR —`None` para
+  cualquiera— la suite entera seguía **VERDE, 1092 passed**. Precisión
+  importante: **eso no demuestra una fuga** (el filtrado posterior por política
+  podría taparla), sólo que **esa línea no la miraba nadie**. Cerrado con
+  testigo desde fuera de la zona prohibida
+  (`test_el_acotado_por_workspace_de_la_consulta_solo_se_levanta_para_admin_full`),
+  calibrado con **J20**; y es cobertura genuinamente nueva: con el testigo
+  deseleccionado, J20 sigue dando **1092 passed**. El testigo fija el
+  **acotado**, no la ausencia de fuga — eso último no está probado.
 * **J17 no añade una afirmación propia distinta de J9.** Su rojo llega por el
   mismo guardián (el fichero ni siquiera colecciona), así que su valor real es
   ejercitar el **encadenado de ediciones** del arnés, no medir un invariante que
@@ -615,10 +631,38 @@ razón declarada`, **rc=0**. Una mutación cobrando un rojo que no se ha ganado 
 justo el defecto que el mecanismo venía a cerrar, un nivel más arriba.
 
 Auditoría de las 21 razones: **4** eran literales del fuente de un test o nombres
-de test (`J5`, `J8`, `J11`, `J16`); `J8` y `J11` se autolimitaban porque con `-x`
-el nombre de un test que no llega a ejecutarse no se imprime, pero `J5` y `J16`
-eran explotables. **En la corrida real ninguna cobraba un rojo ajeno**: la vía
-era **latente**. Se cierra igual.
+de test (`J5`, `J8`, `J11`, `J16`). **En la corrida real ninguna cobraba un rojo
+ajeno**: la vía era **latente**. Se cierra igual.
+
+#### Y quedaba una vía más estrecha: el nombre del test lo lleva la línea `FAILED`
+
+La nota de auditoría anterior decía que `J8` y `J11` «se autolimitaban porque con
+`-x` el nombre no se imprime si falla otro test». **Era impreciso**, y la
+imprecisión tapaba lo que faltaba: eso cubre el fallo de **otro test**, no el de
+**otro assert del mismo test**. La línea `FAILED …::test_x - …` lleva el nombre
+del test **pase lo que pase**.
+
+Demostrado (mutación **N4**): etiquetada `J11`, con `normalize` **todavía
+levantando** —su afirmación declarada **no** se viola— y rompiendo sólo el
+`assert not is_canonical(...)` del mismo test:
+
+| | N4 | Las 21/22 legítimas |
+|---|---|---|
+| antes | `[ROJO] … CALIBRACION COMPLETA: 1/1`, **rc=0** | 21/21 |
+| ahora | `ROJO, PERO NO POR LA RAZON DECLARADA`, **rc=1** | **22/22** |
+
+Arreglo: **ninguna razón se declara ya por el nombre de un test.** `J8` y `J11`
+declaran un fragmento del **mensaje**, que sólo aparece si se ha violado la
+afirmación declarada — y para que `J8` tuviera mensaje propio (antes su fallo era
+un escueto `assert not True`) los dos asserts de
+`test_un_tope_de_sesion_ilegible_no_significa_sin_tope` lo llevan ahora explícito.
+De las cuatro razones que salían del fuente o del nombre no queda ninguna.
+
+**Límite inherente, dicho como límite y no como defecto pendiente:** una mutación
+que escriba la razón ajena **dentro del mensaje de su propia excepción** siempre
+se la cobrará. Es el caso del **autor deshonesto**, y ningún mecanismo de esta
+clase puede defenderse de él: la salida de la ejecución es lo único que hay, y
+quien escribe la mutación escribe también lo que esa salida dice.
 
 Arreglo: `_lineas_de_fallo()` — la razón se busca sólo en el bloque `E …` y en
 las líneas `FAILED` / `ERROR` del resumen, que son las que produce la
@@ -627,8 +671,9 @@ las líneas `FAILED` / `ERROR` del resumen, que son las que produce la
 | | Impostora | Las 21 legítimas |
 |---|---|---|
 | antes | `[ROJO]`, `rc=0` | 21/21 |
-| ahora | `ROJO, PERO NO POR LA RAZON DECLARADA`, `rc=1` | **21/21** (J5 y J16 legítimas siguen rojas por su razón) | Una mutación sin
-razón declarada **detiene** el arnés. El propio cambio encontró algo de paso:
+| ahora | `ROJO, PERO NO POR LA RAZON DECLARADA`, `rc=1` | **21/21** (J5 y J16 legítimas siguen rojas por su razón) |
+
+Una mutación sin razón declarada **detiene** el arnés. El propio cambio encontró algo de paso:
 J16, apuntado al fichero entero con `-x`, se ponía rojo por **otro** test —
 `pytest.raises` deja de atrapar la excepción cuando hay dos clases de error, que
 es justo el "revienta lejos, en el consumidor" que anuncia su docstring—, así que

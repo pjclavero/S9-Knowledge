@@ -213,6 +213,19 @@ MUTACIONES = [
      '        return bool(self.ctx.admin_full) or self.ctx.role == "admin"',
      '        return self.ctx.role == "admin"',
      V, [CAL]),
+
+    # El SEGUNDO punto de `filtered_provider.py` que decide con `admin_full`.
+    # Yo habia medido `:50` (`workspaces()`) y concluido que "los consumidores
+    # SI estan medidos"; la revision independiente midio `:109` en direccion
+    # ABRIR y la suite entera seguia VERDE (1092 passed). Era un superviviente
+    # real: un punto medido por fichero no autoriza a hablar del fichero.
+    ("J20 la consulta deja de acotarse por workspace para CUALQUIERA "
+     "(`_scope_workspaces` devuelve siempre None, que es 'sin acotar')",
+     V / "app/authz/filtered_provider.py",
+     "        if self._ctx.admin_full:\n            return None\n"
+     "        return self._ctx.allowed_workspaces",
+     "        return None",
+     V, [CAL]),
 ]
 
 #: Mutaciones que tocan VARIOS ficheros a la vez.
@@ -316,10 +329,18 @@ RAZONES = {
     "J5": "declara su ausencia como NEUTRA y el motor deniega",
     "J6": "'scope' esta declarado missing=DENY en el registro y el motor deja pasar",
     "J7": "'workspace' esta declarado missing=DENY en el registro y el motor deja pasar",
-    "J8": "test_un_tope_de_sesion_ilegible_no_significa_sin_tope",
+    # J8 y J11 declaraban un NOMBRE DE TEST, y la linea `FAILED ...::test_x`
+    # lo lleva pase lo que pase: cualquier mutacion que rompiese OTRO assert
+    # del mismo test se cobraba su rojo (ver `_lineas_de_fallo`). Ahora
+    # declaran un fragmento del MENSAJE, que solo aparece si se ha violado la
+    # afirmacion declarada.
+    "J8": "ha vuelto a significar 'sin tope' y ABRE la barrera",
     "J9": "RuntimeError: review-status/v1 declara estados sin traducci",
     "J10": "AttributeError: type object 'ReviewStatus' has no attribute 'CORRECTED'",
-    "J11": "test_un_valor_fuera_del_vocabulario_canonico_se_rechaza",
+    # `normalize` deja pasar un valor fuera del vocabulario y el constructor del
+    # Enum es quien acaba levantando: ese mensaje SOLO existe si el guardian de
+    # `normalize` ha dejado de guardar.
+    "J11": "is not a valid ReviewStatus",
     "J12": "assert 'reviewed' == 'auto_extracted'",
     "J13": "el adaptador no traduce ['DEFERRED']",
     "J14": "assert ('approved' == 'reviewed'",
@@ -330,6 +351,7 @@ RAZONES = {
     # `authz/**`, que es zona prohibida para este carril.
     "J18": "concede el detalle operativo a quien NO es admin",
     "J19": "deja de conceder el detalle operativo a `admin_full`",
+    "J20": "ha dejado de acotarse a sus workspaces permitidos",
     "R8": "la cuarentena ha CRECIDO con ['superpoder_nuevo'] sin autorizacion",
     "R8-control": "el motor decide con ['superpoder_nuevo'] y el registro "
                   "ejecutable no las declara",
@@ -354,7 +376,7 @@ RAZONES = {
 #:
 #: Subirlo al anadir mutaciones es deliberado; bajarlo exige justificarlo en la
 #: revision.
-MINIMO_MUTACIONES = 21
+MINIMO_MUTACIONES = 22
 
 
 def _normalizadas():
@@ -415,11 +437,25 @@ def _lineas_de_fallo(salida):
         donde salen las razones declaradas como nombre de test;
       - `!! ... !!` de pytest (interrupciones), para no perder un rojo raro.
 
-    Auditoria de las 21 razones vigentes al hacer este cambio: 4 eran literales
-    del fuente de un test o nombres de test (`J5`, `J8`, `J11`, `J16`); `J8` y
-    `J11` se autolimitaban porque con `-x` el nombre no se imprime si falla otro
-    test, pero `J5` y `J16` eran explotables. Ninguna cobraba un rojo ajeno en
-    la corrida real: la via era LATENTE, y se cierra igual.
+    CORRECCION -- la nota que habia aqui era IMPRECISA, y la imprecision tapaba
+    una via que seguia abierta. Decia que `J8` y `J11` "se autolimitaban porque
+    con `-x` el nombre no se imprime si falla otro test". Eso cubre el fallo de
+    OTRO TEST; no cubre el de OTRO ASSERT DEL MISMO TEST. Demostrado (mutacion
+    N4): etiquetada `J11`, con `normalize` SIGUE LEVANTANDO --su afirmacion
+    declarada no se viola-- y rompiendo solo el `assert not is_canonical(...)`
+    del mismo test, se cobraba el rojo de J11 con rc=0, porque la linea
+    `FAILED ...::test_x` lleva el nombre del test pase lo que pase.
+
+    Por eso NINGUNA razon se declara ya por el nombre de un test: `J8` y `J11`
+    declaran ahora un fragmento del MENSAJE, que solo aparece si se ha violado
+    la afirmacion declarada. De las 4 razones que salian del fuente o del nombre
+    (`J5`, `J8`, `J11`, `J16`) no queda ninguna.
+
+    LIMITE INHERENTE, dicho como limite y no como defecto pendiente: una
+    mutacion que escriba la razon ajena DENTRO del mensaje de su propia
+    excepcion siempre se la cobrara. Es el caso del autor deshonesto, y ningun
+    mecanismo de esta clase puede defenderse de el: la salida de la ejecucion es
+    lo unico que hay, y quien escribe la mutacion escribe tambien lo que dice.
     """
     lineas = []
     for ln in salida.splitlines():
