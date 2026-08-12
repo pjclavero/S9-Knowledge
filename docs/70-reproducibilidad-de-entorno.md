@@ -116,7 +116,7 @@ la doctrina que el PR enuncia: *nada se apaga en silencio*.
 | 5 | Stub de Chromium (0 bytes, `chmod 000`) en la ruta de Playwright | **VERDE**: `(True, ...)` | ROJO | `presente_chromium` exige `X_OK` **y** lanza `--version` |
 | 6 | `zope.interface` satisfecho por `zope-interface` (el `.` era comodín) | **VERDE**: huella `resolved:pip-freeze` mintiendo | ROJO (`unresolved`) | `lib.sh` escapa el nombre antes de interpolarlo |
 
-Las seis, **más cuatro controles añadidos**, están ahora en el arnés de
+Las seis, **más cinco controles añadidos**, están ahora en el arnés de
 calibración: no pueden volver sin ponerse rojas. Los controles extra existen
 porque una mutación que sólo prueba el rojo no distingue un instrumento fino de
 uno que se pone rojo ante todo:
@@ -126,7 +126,9 @@ uno que se pone rojo ante todo:
 - Chromium que arranca y **sí** la dice → verde (control positivo);
 - `zope.interface` satisfecho por `zope.interface` → sigue resolviendo
   (control positivo del escape: romper todos los nombres con punto habría
-  pasado por «arreglo»).
+  pasado por «arreglo»);
+- `node-version: '20.x'` declarado con un `node` v18 en el `PATH` → **rojo**
+  (control negativo: aceptar `20.x` no puede significar dejar de comparar).
 
 ### Lo que leía el gate, y por qué ahora parsea
 
@@ -163,10 +165,46 @@ carril. El solape es el mismo criterio que ya se aplicó con Node: dos gates que
 fallan por el mismo motivo es mejor que cero, y éste sobrevive aunque alguien
 afloje el otro.
 
+### Ablación: qué control es realmente el que sostiene cada rojo
+
+Cada control nuevo se retiró de una copia del árbol para comprobar que **algún
+resultado cambia**. Uno de los cinco **no** pasó la prueba, y conviene dejarlo
+escrito en vez de presentarlo como si hubiera pasado:
+
+| Control retirado | ¿Cambia algo? |
+|---|---|
+| `check_gate_no_apagado` | Sí: 1, 2 y el job borrado dejan de detectarse |
+| `comprueba_neutralizacion` (L) | Sí: los casos `\|\| true` y `\|\| :` de la calibración de L se desvían |
+| `comprueba_jobs_exigidos` (L) | Sí: el caso «job exigido que desaparece» se desvía |
+| `os.access(X_OK)` en `presente_chromium` | **No**: nada cambia |
+| `presente_chromium` entero (vuelta a `os.path.exists`) | Sí: los dos casos de 5 dejan de detectarse |
+| lectura semántica de `ci.yml` (vuelta a regex) | Sí — **pero sólo tras corregir la calibración**, ver abajo |
+
+Es decir: en el superviviente 5 **lo que sostiene el rojo es lanzar el binario**,
+no el `os.access`. El `X_OK` es redundante y se conserva sólo porque convierte
+un `OSError` opaco en un mensaje que dice qué pasa («existe pero no es
+ejecutable»). No se presenta como una barrera: no lo es.
+
+**Y la ablación encontró una calibración decorativa, que es el hallazgo más
+incómodo de esta ronda.** Los casos de 3 y 4 se escribieron primero en modo
+`all`, y `version_declarada` **sólo se ejecuta en modo `runtimes`**: el código
+bajo prueba ni siquiera corría, así que esos dos casos habrían salido verdes
+pasara lo que pasara. Al revertir por ablación la lectura a regex seguían en
+verde, y eso los delató. Ahora viven en `calibra_declaracion_node`, que corre
+el modo correcto con un `node` falso al frente del `PATH`, y llevan además un
+**control negativo** (`20.x` declarado con un `node` v18 presente → sigue
+siendo ROJO). Sin ese control, «aceptar `20.x`» sería indistinguible de «dejar
+de comprobar la versión», que es exactamente el defecto que este carril cerró
+en la ronda anterior.
+
+La lección se aplica a cualquier arnés: un caso de calibración que no ejercita
+el código que dice medir es un verde tan vacío como el que persigue el gate.
+La prueba de ablación es lo único que lo distingue.
+
 ### `.github/scripts/check_env_reproducibility_calibration.py`
 
 La calibración, ejecutada **en cada corrida de CI**. Construye un repositorio
-sintético que sale verde, y para cada una de las **34 reglas** (incluidos los
+sintético que sale verde, y para cada una de las **35 reglas** (incluidos los
 ocho caminos del `dependency_fingerprint`, los seis supervivientes de la
 revisión con sus controles positivos, y el `node` de versión equivocada,
 inyectado como ejecutable falso al frente del `PATH`): introduce la
