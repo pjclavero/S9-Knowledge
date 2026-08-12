@@ -332,6 +332,107 @@ def calibra_version_de_runtime(c: "Calibracion") -> None:
         escribe(ci_path, original)
 
 
+def calibra_declaracion_node(c: "Calibracion") -> None:
+    """S3 y S4: como se LEE la declaracion de version en `ci.yml`.
+
+    Tiene que correr en modo `runtimes`, que es el unico que llama a
+    `version_declarada`. En modo `all` estos casos saldrian verdes pasara lo
+    que pasare —el codigo bajo prueba ni se ejecuta— y la calibracion seria
+    decorativa. Se descubrio precisamente asi: al revertir por ablacion la
+    lectura a una regex de texto, los dos casos seguian en verde.
+
+    Los dos son FALSOS POSITIVOS, no agujeros: el gate se ponia rojo ante
+    workflows legitimos. Fallar cerrado es preferible a fallar abierto, pero un
+    gate que se pone rojo por un comentario acaba desactivado por quien se
+    canse de el, asi que aqui se exige VERDE LIMPIO.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        raiz = Path(tmp) / "repo"
+        falso = Path(tmp) / "bin"
+        falso.mkdir()
+        binario = falso / "node"
+        binario.write_text('#!/bin/sh\necho "v20.11.0"\n', encoding="utf-8")
+        binario.chmod(0o755)
+
+        def prueba(etiqueta: str, mutar, senal_prohibida: str) -> None:
+            shutil.rmtree(raiz, ignore_errors=True)
+            construye(raiz)
+            rc0, out0 = corre(raiz, "runtimes", "--require", "node", path_extra=str(falso))
+            if rc0 != 0:
+                c.fallos.append(f"[{etiqueta}] el escenario BASE no es verde.\n{out0}")
+                return
+            mutar(raiz)
+            rc, out = corre(raiz, "runtimes", "--require", "node", path_extra=str(falso))
+            ok = rc == 0 and senal_prohibida not in out
+            if not ok:
+                c.fallos.append(
+                    f"[{etiqueta}] es un workflow LEGITIMO y el gate lo rechaza "
+                    f"(rc={rc}): falso positivo.\n{out}"
+                )
+            c.filas.append(
+                (
+                    etiqueta,
+                    f"VERDE limpio (rc={rc})" if ok else f"rc={rc} <-- FALSO POSITIVO",
+                    "esperado VERDE",
+                )
+            )
+
+        def m_comentada(r: Path) -> None:
+            # S3: un COMENTARIO no es una declaracion. Leyendo con regex esto
+            # devolvia ('varias', ['18','20']) y ponia el gate rojo por nada.
+            ci = r / ".github" / "workflows" / "ci.yml"
+            escribe(
+                ci,
+                ci.read_text(encoding="utf-8").replace(
+                    "          node-version: '20'\n",
+                    "          node-version: '20'\n          # node-version: 18\n",
+                ),
+            )
+
+        def m_punto_x(r: Path) -> None:
+            # S4: `20.x` es el idioma que documenta `actions/setup-node`, y se
+            # clasificaba `ilegible`.
+            ci = r / ".github" / "workflows" / "ci.yml"
+            escribe(
+                ci,
+                ci.read_text(encoding="utf-8").replace(
+                    "node-version: '20'", "node-version: '20.x'"
+                ),
+            )
+
+        prueba(
+            "S3: `# node-version: 18` COMENTADO (legitimo, no puede dar rojo)",
+            m_comentada, "VARIAS versiones",
+        )
+        prueba(
+            "S4: `node-version: '20.x'` (idioma de setup-node, no es ilegible)",
+            m_punto_x, "NO literal",
+        )
+
+        # Control NEGATIVO: el mismo `20.x` frente a un node que NO es 20 tiene
+        # que seguir siendo ROJO. Sin esto, «aceptar 20.x» seria
+        # indistinguible de «dejar de comprobar la version».
+        shutil.rmtree(raiz, ignore_errors=True)
+        construye(raiz)
+        m_punto_x(raiz)
+        binario.write_text('#!/bin/sh\necho "v18.0.0"\n', encoding="utf-8")
+        binario.chmod(0o755)
+        rc, out = corre(raiz, "runtimes", "--require", "node", path_extra=str(falso))
+        ok = rc != 0 and "DIVERGENCIA de version" in out
+        if not ok:
+            c.fallos.append(
+                f"[S4 control negativo] `20.x` declarado y node v18 en el PATH "
+                f"tiene que ser ROJO (rc={rc}).\n{out}"
+            )
+        c.filas.append(
+            (
+                "S4 (control negativo): `20.x` declarado con node v18 en el PATH",
+                f"ROJO (rc={rc})" if ok else f"rc={rc} <-- NO DETECTA",
+                "esperado ROJO",
+            )
+        )
+
+
 PLAYWRIGHT_FALSO = '''\
 """Playwright de mentira: solo tiene que decir DONDE esta el binario."""
 import os
@@ -679,23 +780,6 @@ def main() -> int:
         # La forma extrema de S1/S2: el job entero desaparece en un merge.
         _en_ci_y_fragmento(raiz, "  check-env-reproducibility:\n", "  otro-nombre:\n")
 
-    def m_node_version_comentada(raiz: Path) -> None:
-        # S3: un COMENTARIO no es una declaracion. Con la lectura por regex
-        # esto devolvia ('varias', ['18','20']) y ponia el gate rojo por nada.
-        # En ci.yml Y en el fragmento: si no, saltaria la comprobacion de
-        # fidelidad de fragmentos y el rojo vendria de otra causa.
-        _en_ci_y_fragmento(
-            raiz,
-            "          node-version: '20'\n",
-            "          node-version: '20'\n          # node-version: 18\n",
-        )
-
-    def m_node_version_punto_x(raiz: Path) -> None:
-        # S4: `20.x` es el idioma que documenta `actions/setup-node`. Se
-        # clasificaba `ilegible` -> ROJO: un falso positivo esperando a quien
-        # escribiera el workflow como manda la accion.
-        _en_ci_y_fragmento(raiz, "node-version: '20'", "node-version: '20.x'")
-
     c.caso(
         "S1: `|| true` tras el gate, en ci.yml Y en el fragmento",
         m_gate_neutralizado,
@@ -711,18 +795,12 @@ def main() -> int:
         m_job_propio_borrado,
         senal="ya no declara el job",
     )
-    c.caso(
-        "S3: `# node-version: 18` COMENTADO (legitimo, no puede dar rojo)",
-        m_node_version_comentada,
-        espera="limpio",
-        ausente="VARIAS versiones",
-    )
-    c.caso(
-        "S4: `node-version: '20.x'` (idioma de setup-node, no es ilegible)",
-        m_node_version_punto_x,
-        espera="limpio",
-        ausente="NO literal",
-    )
+    # S3 y S4 NO se calibran aqui: `version_declarada` solo se ejecuta en el
+    # modo `runtimes`, asi que un caso en modo `all` saldria verde pasara lo
+    # que pasare y no probaria nada. Viven en `calibra_declaracion_node`, que
+    # corre el modo correcto con un `node` falso al frente del PATH. Lo cazo la
+    # prueba de ablacion: al revertir la lectura a regex, estos dos casos
+    # seguian verdes.
 
     c.caso("version declarada != instalada", m_version, senal="DIVERGENCIA")
     c.caso(
@@ -765,6 +843,7 @@ def main() -> int:
     c.caso("test NUEVO que depende de Node sin job propio", m_test_nuevo_con_node, senal="Node".lower())
 
     calibra_version_de_runtime(c)
+    calibra_declaracion_node(c)
     calibra_chromium_ejecutable(c)
     calibra_fingerprint(c)
 
