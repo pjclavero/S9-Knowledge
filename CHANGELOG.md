@@ -4,6 +4,54 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-08-12 (c) — El aviso programado se cumplio, y al cumplirse destapo un fallo real del gate
+
+Al fusionar el #169, `main@0dfa788` se puso ROJO. Una de las dos causas era la
+prevista y documentada; la otra era un **defecto del instrumento** que solo se
+vio porque ocurrio la primera.
+
+- **El desfase, refrescado REMIDIENDO.** `development.main_commit` paso a estar
+  **8** commits por detras (ventana 3) y `Combined Test Suite` lo dijo. Se sube
+  a `0dfa788` y `latest_merged_pr` a **#169**, con el README al dia. **No se ha
+  tocado `max_lag_commits`**: subirlo es el antipatron que este mismo fichero
+  dejo escrito. `latest_ci` se declara **`red`**, porque en `0dfa788` lo esta:
+  escribir `green` seria justo la mentira coherente que el punto 0 existe para
+  matar.
+- **DEFECTO REAL: el rescate del clon superficial era CODIGO MUERTO en CI.**
+  `Deployment scripts validation` (checkout por defecto, `fetch-depth: 1`)
+  acusaba a `main_commit` de **«NO EXISTE en el repositorio»** siendo un
+  ancestro perfectamente real, y de que el PR declarado «no aparece entre los
+  **1** ultimos PR fusionados». Causa medida, reproducida paso a paso: con
+  `fetch-depth: 1`, `actions/checkout` deja creados `main` **y** `origin/main`,
+  asi que `_try_local_main` acierta a la primera y `_resolve_main` **vuelve
+  antes de llegar al `--unshallow`**. El punto 0 se ejecutaba sobre UN commit
+  de historia. **Y ahi estaba el aprobado facil de C15d/C15e/C15f:** las tres
+  parten de que `main` NO es resoluble, que es exactamente lo que CI nunca
+  cumple.
+- **Arreglo:** la profundidad se asegura en `_deepen_if_shallow()`, en el unico
+  sitio por el que pasan todas las comprobaciones, y no como efecto colateral
+  de no encontrar una referencia. Resolver `main` no basta: el punto 0 necesita
+  HISTORIA para responder a la ancestria y al desfase.
+- **Y cuando no se puede completar, el gate dice la VERDAD.** «No lo veo» no es
+  «no existe»: con la historia truncada un ancestro real es indistinguible de
+  uno inventado. Sigue siendo ROJO —fail-closed—, pero con el diagnostico
+  correcto en vez de acusar de mentir a un documento que no miente. La ventana
+  de PR deja de opinar sobre una historia de un commit.
+- **Ademas, un latente:** `_merged_prs` se leia del nombre simbolico `origin/main`,
+  que el `fetch` del rescate puede MOVER bajo los pies; ahora se lee del SHA ya
+  resuelto, para que existencia, ancestria y ventana hablen todas del mismo
+  commit. Se vio en la reproduccion, no razonando.
+- **Filas nuevas C17a/C17b** sobre un clon superficial CON `main` y
+  `origin/main`, que es la forma de verdad. Calibracion: 3 ablaciones dirigidas
+  a este arreglo, **3 rojas**; con `_deepen_if_shallow` neutralizado —el estado
+  exacto de `main@0dfa788`— C17 da **2 rojas**.
+- **Recuento de jobs: sigue siendo 14** (13 en `ci.yml` + 1 en
+  `supply-chain.yml`), medido contra `main@0dfa788`; `main` **no** se quejaba
+  de esta cifra. Se deja como LITERAL y no como cuenta derivada de los
+  workflows: derivarla la haria siempre cierta y C13 dejaria de poder ponerse
+  roja. Queda anotado que el PR #167 anade un job y habra que refrescarla a 15
+  **cuando se fusione**, no antes.
+
 ### 2026-08-12 (b) — Cuatro huecos de cobertura cerrados, y la estrechez que queda queda DICHA
 
 Revision independiente del PR #169. Ninguna cifra del PR resulto falsa; lo que

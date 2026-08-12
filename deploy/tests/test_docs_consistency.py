@@ -737,6 +737,66 @@ def test_c15f_fetch_normal_en_clon_completo(sandbox: Sandbox, tmp_path: Path, mo
     assert sha == sandbox.head, (sha, ref)
 
 
+# --- C17: el clon superficial TAL COMO ES EN CI ---------------------------
+#
+# C15d/C15e/C15f tenían un aprobado fácil que sólo se vio cuando `main` se
+# puso rojo el 2026-08-12: las tres parten de que `main` NO es resoluble, y
+# por eso el rescate se ejecuta. En CI REAL eso es FALSO. `actions/checkout`
+# con `fetch-depth: 1` deja creados `main` **y** `origin/main`, así que
+# `_try_local_main` acierta a la primera, `_resolve_main` vuelve antes de
+# llegar al `--unshallow` y el punto 0 se ejecuta sobre UN commit de historia.
+# Consecuencia medida en `main@0dfa788`: el gate acusó a `main_commit` de «NO
+# EXISTE en el repositorio» siendo un ancestro perfectamente real.
+#
+# Estas dos filas ejercen esa forma —la de verdad— y no la que convenía.
+def _clon_estilo_ci(sandbox: Sandbox, dest: Path) -> Path:
+    """Clon superficial CON `main` y `origin/main`, como lo deja checkout."""
+    subprocess.run(
+        ["git", "clone", "--quiet", "--depth", "1", "--branch", "main",
+         f"file://{sandbox.root}", str(dest)],
+        check=True, capture_output=True,
+    )
+    assert _git(dest, "rev-parse", "--is-shallow-repository") == "true"
+    assert _git(dest, "rev-list", "--count", "HEAD") == "1"
+    return dest
+
+
+# C17a — con la historia truncada pero completable, el gate NO acusa en falso:
+# profundiza y responde lo correcto sobre un ancestro real.
+def test_c17a_clon_superficial_de_ci_no_acusa_en_falso(sandbox: Sandbox, tmp_path: Path, monkeypatch):
+    clone = _clon_estilo_ci(sandbox, tmp_path / "ci")
+    monkeypatch.setattr(sandbox.mod, "REPO", clone)
+    # La premisa que C15d/e/f NO cumplen: aquí `main` SÍ se resuelve solo.
+    assert sandbox.mod._try_local_main()[0] == sandbox.head
+    # `prev` es un ancestro REAL, invisible con un commit de historia.
+    assert sandbox.mod._git("rev-parse", "--verify", "--quiet",
+                            f"{sandbox.prev}^{{commit}}") is None
+
+    findings = sandbox.mod.check_git_authority(
+        {"main_commit": sandbox.prev, "latest_merged_pr": 105, "max_lag_commits": 3}
+    )
+    assert findings == [], findings
+    assert _git(clone, "rev-parse", "--is-shallow-repository") == "false"
+
+
+# C17b — si la historia NO se puede completar, sigue siendo ROJO (fail-closed)
+# pero con el diagnóstico VERDADERO: «no se ha podido comprobar», nunca «no
+# existe». Acusar de mentir a un documento correcto quema el gate.
+def test_c17b_sin_poder_completar_dice_la_verdad(sandbox: Sandbox, tmp_path: Path, monkeypatch):
+    clone = _clon_estilo_ci(sandbox, tmp_path / "ci2")
+    _git(clone, "remote", "remove", "origin")  # ya no hay de dónde traer nada
+    monkeypatch.setattr(sandbox.mod, "REPO", clone)
+
+    findings = sandbox.mod.check_git_authority(
+        {"main_commit": sandbox.prev, "latest_merged_pr": 105, "max_lag_commits": 3}
+    )
+    assert any("NO SE HA PODIDO COMPROBAR" in f for f in findings), findings
+    assert not any("NO EXISTE" in f for f in findings), findings
+    # Y ni una queja sobre la ventana de PR, que sobre un commit de historia
+    # sólo puede decir tonterías.
+    assert not any("ultimos PR fusionados" in f for f in findings), findings
+
+
 # C16 — `development.main_commit` debe ser un SHA COMPLETO de 40 hex. Un SHA
 # abreviado es ambiguo (colisiona antes) y hace indistinguibles dos commits;
 # hasta aquí, quitar esa exigencia del validador no ponía roja ninguna fila.

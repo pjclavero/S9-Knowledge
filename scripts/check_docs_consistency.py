@@ -335,6 +335,29 @@ def _merged_prs(ref: str, limit: int = 60) -> list[int]:
     return prs
 
 
+def _deepen_if_shallow() -> bool:
+    """Completa la historia si el clon es SUPERFICIAL. True si ya es completa.
+
+    El rescate que vivia dentro de `_resolve_main` era CODIGO MUERTO en CI, y
+    lo demostro el rojo de `main@0dfa788` el 2026-08-12: `actions/checkout` con
+    `fetch-depth: 1` deja `main` Y `origin/main` creados, asi que
+    `_try_local_main` acertaba a la primera y `_resolve_main` volvia ANTES de
+    llegar al `--unshallow`. Resultado: el punto 0 se ejecutaba sobre una
+    historia de UN commit y acusaba a `main_commit` de «NO EXISTE en el
+    repositorio» siendo un ancestro perfectamente real.
+
+    Resolver `main` NO basta: el punto 0 necesita HISTORIA para responder a la
+    ancestria y al desfase. Por eso la profundidad se asegura aqui, en el unico
+    sitio por el que pasan todas las comprobaciones, y no como efecto colateral
+    de no encontrar una referencia.
+    """
+    if _git("rev-parse", "--is-shallow-repository") != "true":
+        return True
+    # `--unshallow` completa la historia; si el remoto no lo admite, se dira.
+    _git("fetch", "--quiet", "--unshallow", "origin", "main")
+    return _git("rev-parse", "--is-shallow-repository") != "true"
+
+
 def check_git_authority(development: dict) -> list[str]:
     if os.environ.get(SKIP_GIT_ENV) == "1":
         print(f"AVISO: verificacion contra Git DESACTIVADA por {SKIP_GIT_ENV}=1.")
@@ -350,6 +373,9 @@ def check_git_authority(development: dict) -> list[str]:
             f"exporta {SKIP_GIT_ENV}=1 si aceptas asumirlo a mano"
         ]
 
+    # La historia tiene que ser COMPLETA antes de preguntar nada sobre ella.
+    complete = _deepen_if_shallow()
+
     findings: list[str] = []
     declared = str(development.get("main_commit", "")).strip().lower()
 
@@ -361,7 +387,20 @@ def check_git_authority(development: dict) -> list[str]:
     max_lag = int(development.get("max_lag_commits", 3))
     if declared:
         exists = _git("rev-parse", "--verify", "--quiet", f"{declared}^{{commit}}")
-        if not exists:
+        if not exists and not complete:
+            # «No lo veo» NO es «no existe». Con la historia truncada, un
+            # ancestro real es invisible, y acusar al documento de mentir seria
+            # un diagnostico FALSO. Sigue siendo ROJO —fail-closed: no se ha
+            # podido comprobar— pero dice la verdad sobre lo que ha pasado.
+            findings.append(
+                f"docs/project-status.yaml: development.main_commit "
+                f"{declared[:12]} NO SE HA PODIDO COMPROBAR: el clon es "
+                f"SUPERFICIAL y `--unshallow` no ha completado la historia, "
+                f"asi que un ancestro real seria indistinguible de uno "
+                f"inventado. Ejecuta el gate sobre un clon completo "
+                f"(`fetch-depth: 0`)"
+            )
+        elif not exists:
             findings.append(
                 f"docs/project-status.yaml: development.main_commit "
                 f"{declared[:12]} NO EXISTE en el repositorio"
@@ -393,7 +432,16 @@ def check_git_authority(development: dict) -> list[str]:
                 )
 
     declared_pr = development.get("latest_merged_pr")
-    prs = _merged_prs(ref)
+    # Se lee del SHA ya resuelto, no del nombre simbolico: `_deepen_if_shallow`
+    # acaba de hacer un `fetch`, que puede haber MOVIDO `origin/main` bajo
+    # nuestros pies. Contra `real_sha` las tres preguntas (existencia,
+    # ancestria, ventana de PR) hablan todas del mismo commit.
+    prs = _merged_prs(real_sha) if complete else []
+    if not complete:
+        # Sobre un commit de historia, «no aparece entre los 1 ultimos PR
+        # fusionados» no es un hallazgo: es ruido. El rojo ya lo ha puesto el
+        # bloque de arriba, y con el motivo correcto.
+        print("AVISO: historia truncada; no se comprueba la ventana de PR.")
     if declared_pr is not None and prs:
         declared_pr = int(declared_pr)
         if declared_pr not in prs:
