@@ -412,6 +412,152 @@ def check_git_authority(development: dict) -> list[str]:
     return findings
 
 
+# --- CI: el validador lee los workflows, no solo los documentos ----------
+#
+# Limitacion declarada (RK-20, parte no cerrable aqui): que un job sea CHECK
+# REQUERIDO vive en los ajustes de proteccion de rama de GitHub, no en el
+# repositorio. Este script NO puede leerlo sin red ni credenciales, asi que
+# `ci_checks_required` no se contrasta contra GitHub: se contrasta contra la
+# ARITMETICA declarada en el propio YAML (jobs que corren menos los que el
+# YAML declara no exigidos). Eso mata la cifra inventada, no la mentira
+# deliberada y coherente sobre los ajustes de GitHub. Queda por escrito.
+
+WORKFLOWS = Path(".github") / "workflows"
+
+# "test/** no dispara CI", "las ramas ops/** no disparan CI".
+RX_NO_CI = re.compile(r"\bno\s+(?:dispara|disparan|tiene|tienen)\b[^.\n]{0,40}\bCI\b", re.IGNORECASE)
+# "toda rama dispara CI"
+RX_ALL_CI = re.compile(r"\btoda[s]?\s+(?:las\s+)?ramas?\b[^.\n]{0,30}\bdispara", re.IGNORECASE)
+
+
+def _load_workflows() -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    wf_dir = REPO / WORKFLOWS
+    if not wf_dir.is_dir():
+        return out
+    for path in sorted(wf_dir.glob("*.yml")) + sorted(wf_dir.glob("*.yaml")):
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except yaml.YAMLError:
+            continue
+        if isinstance(data, dict):
+            out[path.name] = data
+    return out
+
+
+def _push_branches(wf: dict) -> list[str]:
+    # PyYAML lee `on:` como el booleano True (YAML 1.1). Se aceptan ambos.
+    trig = wf.get("on", wf.get(True)) or {}
+    if not isinstance(trig, dict):
+        return []
+    push = trig.get("push") or {}
+    if not isinstance(push, dict):
+        return []
+    branches = push.get("branches") or []
+    return [str(b) for b in branches] if isinstance(branches, list) else [str(branches)]
+
+
+def check_ci_claims(workflows: dict[str, dict]) -> list[str]:
+    """Cierra R5: las afirmaciones sobre los DISPARADORES de CI se leen de `ci.yml`.
+
+    Hasta aqui el validador no abria un solo workflow, asi que la frase
+    «`test/**` no dispara CI» —falsa desde `e21f766`, y el defecto exacto que
+    hizo NO CONFORME a `bf03ca7`— pasaba en verde.
+    """
+    findings: list[str] = []
+    ci = workflows.get("ci.yml")
+    if ci is None:
+        return ["falta .github/workflows/ci.yml: no se pueden verificar los disparadores de CI"]
+    branches = _push_branches(ci)
+    universal = "**" in branches
+
+    for rel in DOCS + ["docs/coordination/risk-register.md"]:
+        path = REPO / rel
+        if not path.exists():
+            continue
+        in_historic = False
+        for n, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if ANY_HEADING.match(raw):
+                in_historic = bool(HISTORIC_HEADING.match(raw))
+            if in_historic or IGNORE_MARK in raw:
+                continue
+            text = _strip_accents(raw)
+            if universal and RX_NO_CI.search(text):
+                findings.append(
+                    f"{rel}:{n}: afirma que algo NO dispara CI, pero "
+                    f".github/workflows/ci.yml tiene on.push.branches={branches} "
+                    f"(toda rama dispara CI)"
+                )
+            if not universal and RX_ALL_CI.search(text):
+                findings.append(
+                    f"{rel}:{n}: afirma que toda rama dispara CI, pero "
+                    f".github/workflows/ci.yml limita on.push.branches a {branches}"
+                )
+    return findings
+
+
+def check_ci_job_counts(development: dict, workflows: dict[str, dict]) -> list[str]:
+    """Cierra R7 (la parte verificable): 14/11 se contrastan, no se creen.
+
+    Los numeros de RK-20 vivian en el mismo YAML que este gate exige verificar
+    contra Git, y nada los miraba: ponerlos a 99/99 daba verde.
+    """
+    findings: list[str] = []
+    declared_running = development.get("ci_jobs_running")
+    declared_required = development.get("ci_checks_required")
+    not_required = [str(x) for x in (development.get("ci_running_but_not_required") or [])]
+    if declared_running is None and declared_required is None:
+        return findings
+
+    names: list[str] = []
+    for wf in workflows.values():
+        jobs = wf.get("jobs") or {}
+        if isinstance(jobs, dict):
+            for key, job in jobs.items():
+                names.append(str((job or {}).get("name", key)))
+    if not names:
+        return ["no se ha podido contar ningun job en .github/workflows/"]
+
+    if declared_running is not None and int(declared_running) != len(names):
+        findings.append(
+            f"docs/project-status.yaml: development.ci_jobs_running dice "
+            f"{declared_running}, pero .github/workflows/ define {len(names)} jobs"
+        )
+    normalized = {_strip_accents(x) for x in names}
+    for missing in [x for x in not_required if _strip_accents(x) not in normalized]:
+        findings.append(
+            f"docs/project-status.yaml: ci_running_but_not_required cita el job "
+            f"«{missing}», que no existe en .github/workflows/"
+        )
+    if declared_required is not None and declared_running is not None:
+        expected = int(declared_running) - len(not_required)
+        if int(declared_required) != expected:
+            findings.append(
+                f"docs/project-status.yaml: ci_checks_required dice "
+                f"{declared_required}, pero {declared_running} jobs menos "
+                f"{len(not_required)} declarados no exigidos son {expected}"
+            )
+    return findings
+
+
+def check_workflows_do_not_skip_git(workflows: dict[str, dict]) -> list[str]:
+    """`S9_DOCS_SKIP_GIT` es una valvula MANUAL: en CI seria un verde ciego."""
+    findings: list[str] = []
+    wf_dir = REPO / WORKFLOWS
+    if not wf_dir.is_dir():
+        return findings
+    for path in sorted(wf_dir.iterdir()):
+        if not path.is_file():
+            continue
+        if SKIP_GIT_ENV in path.read_text(encoding="utf-8", errors="replace"):
+            findings.append(
+                f"{WORKFLOWS}/{path.name}: menciona {SKIP_GIT_ENV}. Esa variable "
+                f"desactiva la verificacion contra Git: en un workflow convierte "
+                f"el gate en un verde que no ha comprobado nada"
+            )
+    return findings
+
+
 def check_canonical(production: dict) -> list[str]:
     findings: list[str] = []
     canonical = REPO / "docs" / "archivados" / "02-current-state.md"
@@ -437,12 +583,17 @@ def main() -> int:
     production = status.get("production", status)
     development = status.get("development", {})
 
+    workflows = _load_workflows()
+
     findings: list[str] = []
     for rel in DOCS:
         findings += scan_doc(REPO / rel)
     findings += check_canonical(production)
     findings += check_git_authority(development)
     findings += check_development(development)
+    findings += check_ci_claims(workflows)
+    findings += check_ci_job_counts(development, workflows)
+    findings += check_workflows_do_not_skip_git(workflows)
 
     if findings:
         print("DOCUMENTACION NO COHERENTE — contradicciones detectadas:")
@@ -451,7 +602,14 @@ def main() -> int:
         print(f"\nTotal: {len(findings)} contradiccion(es).")
         return 1
 
-    print("DOCUMENTACION COHERENTE: sin contradicciones conocidas.")
+    if os.environ.get(SKIP_GIT_ENV) == "1":
+        # El titular tiene que decir lo que NO se ha comprobado. «COHERENTE» a
+        # secas tras un aviso es justo el verde que este script existe para no
+        # dar: quien lee la ultima linea de un log se lleva la mentira.
+        print("DOCUMENTACION COHERENTE (SIN VERIFICAR CONTRA GIT): "
+              f"{SKIP_GIT_ENV}=1 desactivo el punto 0.")
+    else:
+        print("DOCUMENTACION COHERENTE: sin contradicciones conocidas.")
     print(f"  produccion:  {production.get('production_tag')} "
           f"({str(production.get('commit'))[:12]}) "
           f"release_id={production.get('production_release_id')}")

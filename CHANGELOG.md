@@ -4,6 +4,38 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-08-12 — El punto 0 pasa a tener pruebas, y el gate deja de creerse a si mismo
+
+- **Las ~300 lineas del punto 0 no tenian ni un test.** La tabla de calibracion
+  vivia en la descripcion del PR, que no se ejecuta. Se lleva a
+  `deploy/tests/test_docs_consistency.py` como **C0-C13** sobre un repositorio
+  Git **sintetico** (historia propia, `origin/main` propio, workflows propios),
+  asi que las filas que dependen de ancestria y desfase son deterministas en
+  cualquier maquina. Calibrado por mutacion del validador: **8 mutaciones, 8
+  rojos**; ninguna sobrevive en verde.
+- **C9 estaba mal en la tabla original**: se ejecutaba tocando solo el YAML, de
+  modo que el verde/rojo lo decidia la comparacion documento-YAML y no la
+  ventana `max_lag_commits` que la fila decia medir. Ahora los documentos se
+  mueven con el YAML (C9) y el otro mecanismo se prueba por separado (C9b).
+- **`S9_DOCS_SKIP_GIT=1` ya no imprime «DOCUMENTACION COHERENTE» a secas.** El
+  titular dice **«COHERENTE (SIN VERIFICAR CONTRA GIT)»**: quien lee la ultima
+  linea de un log no puede llevarse un verde que no se ha comprobado. Y se
+  anade una comprobacion de que esa variable **no aparece en ningun workflow**
+  de `.github/workflows/`: en CI convertiria el gate en un verde ciego.
+- **El validador ya lee `ci.yml`.** Una afirmacion falsa sobre los disparadores
+  de CI —«`test/**` se queda sin CI», el defecto exacto que hizo NO CONFORME a
+  `bf03ca7`— pasaba en verde porque el script no abria un solo workflow. Ahora
+  se contrasta contra `on.push.branches`, en ambos sentidos (C4b y C4c).
+- **Los numeros de RK-20 se verifican.**
+  `ci_jobs_running`/`ci_checks_required`/`ci_running_but_not_required` se
+  contrastan contra los jobs definidos en `.github/workflows/`; ponerlos a
+  99/99 daba verde y ahora enrojece. **Limite declarado:** que un job sea
+  *check requerido* vive en los ajustes de GitHub, no en el repositorio.
+- **RK-19: retirada una fecha inventada.** Decia que `.env.example` se corrigio
+  el 2026-08-09; `git log` demuestra que el primer commit que lo corrige es el
+  de este mismo PR. Una fecha inventada dentro del PR cuya tesis es no fiarse
+  de los documentos.
+
 ### 2026-08-11 — Revisión independiente de la auditoría documental (P0+P1)
 
 - **El gate documental no comprobaba la fuente de verdad.** `check_docs_consistency.py`
