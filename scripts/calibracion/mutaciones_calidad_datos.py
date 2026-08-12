@@ -393,6 +393,44 @@ def _salida(r):
     return _ANSI.sub("", r.stdout + r.stderr)
 
 
+def _lineas_de_fallo(salida):
+    """Solo las lineas donde pytest dice POR QUE ha fallado.
+
+    Buscar la razon declarada en TODA la salida era una via para cobrar un rojo
+    ajeno, y no teorica: pytest vuelca el CODIGO FUENTE del test que falla, asi
+    que los literales de los mensajes de assert aparecen en la salida aunque el
+    assert que los lleva no se haya evaluado.
+
+    El ataque (reproducido): una mutacion etiquetada `J16` que NO viola la
+    afirmacion de J16 --los dos modulos frontera siguen compartiendo el mismo
+    Enum-- y solo vacia `HUMAN_REVIEWED`, de modo que revienta el ULTIMO assert
+    del testigo. El traceback imprime el cuerpo de la funcion, que contiene el
+    mensaje del PRIMER assert (la razon declarada), y el arnes anotaba
+    "[ROJO] ... rojo por la razon declarada" con rc=0.
+
+    Se conservan tres formas de linea, que son las que produce la EJECUCION:
+      - el bloque de fallo (`E   AssertionError: ...`), incluidas sus
+        continuaciones, que pytest tambien prefija con `E`;
+      - el resumen (`FAILED tests/x.py::test_y - ...`, `ERROR ...`), que es de
+        donde salen las razones declaradas como nombre de test;
+      - `!! ... !!` de pytest (interrupciones), para no perder un rojo raro.
+
+    Auditoria de las 21 razones vigentes al hacer este cambio: 4 eran literales
+    del fuente de un test o nombres de test (`J5`, `J8`, `J11`, `J16`); `J8` y
+    `J11` se autolimitaban porque con `-x` el nombre no se imprime si falla otro
+    test, pero `J5` y `J16` eran explotables. Ninguna cobraba un rojo ajeno en
+    la corrida real: la via era LATENTE, y se cierra igual.
+    """
+    lineas = []
+    for ln in salida.splitlines():
+        pelada = ln.strip()
+        if pelada == "E" or pelada.startswith("E "):
+            lineas.append(pelada)
+        elif pelada.startswith(("FAILED ", "ERROR ", "!!")):
+            lineas.append(pelada)
+    return "\n".join(lineas)
+
+
 def _pytest(cwd, objetivos):
     return subprocess.run(
         [sys.executable, "-m", "pytest", *objetivos, "-q", "--no-header", "-x"],
@@ -503,7 +541,7 @@ def main() -> int:
         # tumbaba la coleccion de pytest y se anotaba como ROJO legitimo, con
         # firma indistinguible (`1 error`) de la de J9/J10/J17.
         razon = RAZONES[_codigo(etiqueta)]
-        salida = _salida(r)
+        salida = _lineas_de_fallo(_salida(r))
         rojo = r.returncode != 0 and razon in salida
         rojo_ajeno = r.returncode != 0 and razon not in salida
 

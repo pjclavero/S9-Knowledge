@@ -152,7 +152,12 @@ cuenta. Alcance real: `main.py:590` y `jobs_client.py:134` deciden con ella.
   (en `viewer/tests/`) ejerce las tres direcciones de esa propiedad desde su
   interfaz pública, **sin tocar `authz/**`**, que sigue siendo zona prohibida
   para modificar. Calibrado con dos mutaciones nuevas: **J18** (concede el
-  detalle operativo a cualquiera) y **J19** (deja de leer `admin_full`).
+  detalle operativo a cualquiera) y **J19** (deja de leer `admin_full`). De las
+  dos, la que aporta cobertura es **J19**; J18 es un control cuya dirección ya
+  estaba cazada (§5).
+  Necesario **y suficiente**, verificado: con la mutación M5c
+  (`return bool(self.ctx.admin_full)` — quita la segunda vía y deja el campo) la
+  suite se pone roja con **1 failed, y es sólo el testigo nuevo**.
 * **Falta de declaración en el registro: SIGUE ABIERTA.** Añadir la cadena
   (autoridad → productor → …) exige editar `authz/**` y es trabajo del carril
   autorizado sobre esa zona. Este documento la deja nombrada, no resuelta.
@@ -314,8 +319,8 @@ ejecuta se pudre hasta ser la foto de un día en vez de una propiedad del árbol
 | J15b | la vía humana deja de exigir pertenencia al conjunto permitido | ROJO |
 | J16 | los dos módulos frontera dejan de compartir la entrada de `sys.modules` | ROJO |
 | J17 | quinto valor **+** crédito de revisión humana (dos ediciones, un fichero) | ROJO |
-| **J18** | **el detalle operativo se concede a cualquiera** (2.ª vía al bypass total) | **ROJO** |
-| **J19** | **el detalle operativo deja de leer `admin_full`** | **ROJO** |
+| J18 | el detalle operativo se concede a cualquiera (2.ª vía al bypass total) | ROJO — **pero no aporta cobertura**, ver abajo |
+| **J19** | **el detalle operativo deja de leer `admin_full`** | **ROJO, y es cobertura nueva** |
 | **R8** | **dimensión de bypass total nueva + metida en la cuarentena en el mismo commit** | **ROJO** |
 | R8-control | la misma dimensión nueva **sin** meterla en la cuarentena | ROJO |
 
@@ -326,6 +331,23 @@ el arnés, el mensaje de commit y §6 decían **19**: faltaban J16 y J17. Correg
 y con las dos mutaciones nuevas del apartado anterior son **21**.
 
 Y ese 21 son **afirmaciones distintas**, no filas: ver más abajo.
+
+#### Corrección en mi contra: J18 no aporta cobertura; J19 sí
+
+La versión anterior presentaba J18 y J19 como dos hallazgos equivalentes, ambos
+en negrita. **No lo son**, y se mide deseleccionando el testigo nuevo y mutando
+`scope.py:131` (suite completa del visor):
+
+| Mutación | Sin el testigo nuevo | Veredicto |
+|---|---|---|
+| **J18** `return True` | **2 failed** — `test_reviews_no_entrega_rutas_absolutas_a_un_reviewer` y `test_api_jobs_no_expone_rutas_de_fichero_a_no_admin` | esa dirección **ya estaba cazada**. J18 no defiende nada que no estuviera defendido |
+| **J19** `return self.ctx.role == "admin"` | **1091 passed, 0 failed** | **cobertura nueva** |
+| **M5c** `return bool(self.ctx.admin_full)` (quita la 2.ª vía, deja el campo) | **1091 passed, 0 failed** | **cobertura nueva** |
+
+J18 se queda como **control**, y etiquetado como tal: un control que no cambia
+ningún resultado no es defensa en profundidad. Lo que el testigo cierra de verdad
+es la dirección `admin_full` (J19) y la existencia misma de la segunda vía
+(M5c) — ninguna de las dos tenía nadie que la mirase.
 
 R8 es la fila que importa de esta segunda ronda: es el escenario exacto con el
 que la revisión demostró que la cuarentena no frenaba, y con la comprobación
@@ -413,9 +435,23 @@ corrida** si uno deja de sobrevivir, porque entonces la explicación ha caducado
   medidos por la suite y `scope.py:131` era un superviviente real, cerrado ahora
   con testigo (J18/J19). La falta de **declaración** de los tres sigue abierta:
   `authz/**` es zona prohibida para modificar.
-* **`admin_full` sigue sin testigo de extremo a extremo en este carril.** J18/J19
-  cubren `sees_operational_detail`; no se ha revisado línea a línea el resto de
-  consumidores (`filtered_provider.py`, `main.py:320`, `jobs_client.py:171`).
+* **Corrección: los consumidores SÍ están medidos.** La versión anterior decía
+  «no se ha revisado el resto de consumidores (`filtered_provider.py`,
+  `main.py:320`, `jobs_client.py:171`)», y ese límite era **más pesimista que la
+  realidad**. Medido aquí, mutación transitoria + suite completa del visor:
+
+  | Consumidor mutado | Resultado |
+  |---|---|
+  | `main.py:320` (deja de eximir a `admin_full`) | **1 failed** |
+  | `filtered_provider.py:50` (`if False`) | **1 failed** |
+  | `jobs_client.py:171` en dirección **ABRIR** (`if True`) | **1 failed** |
+  | `jobs_client.py:171` en dirección **CERRAR** (quita el `or admin_full`) | 1092 passed — **verde** |
+
+  Es decir: las direcciones que **abren** están las tres medidas; lo único sin
+  testigo es *cerrar de más* en `jobs_client.py:171` (un admin dejaría de ver el
+  detalle), que es fail-closed y no una fuga. Lo que **no** he hecho es una
+  revisión exhaustiva línea a línea de esos módulos: he mutado un punto por
+  fichero.
 * **J17 no añade una afirmación propia distinta de J9.** Su rojo llega por el
   mismo guardián (el fichero ni siquiera colecciona), así que su valor real es
   ejercitar el **encadenado de ediciones** del arnés, no medir un invariante que
@@ -559,7 +595,39 @@ vez de **identidades** (`workflow` + nombre de job): son **14**, no 28. Meter el
 `run id` en la identidad es contar filas con otro nombre.
 
 Y cada mutación declara ahora **su razón** (`RAZONES`): un fragmento que tiene
-que aparecer en la salida de pytest para que el rojo cuente. Una mutación sin
+que aparecer en las **líneas de fallo** de pytest para que el rojo cuente.
+
+#### El propio mecanismo de razones se podía burlar (vía latente, cerrada)
+
+La primera versión buscaba la razón en **toda** la salida de pytest. Y pytest
+vuelca el **código fuente** del test que falla, así que los literales de los
+mensajes de assert aparecen en la salida **aunque el assert que los lleva no se
+haya evaluado**. La revisión independiente lo explotó:
+
+> una mutación etiquetada `J16` que **no viola la afirmación de J16** —los dos
+> módulos frontera siguen compartiendo el mismo `Enum`— y sólo vacía
+> `HUMAN_REVIEWED`, con lo que revienta el **último** assert del testigo. El
+> traceback imprime el cuerpo de la función, que contiene el mensaje del
+> **primer** assert (la razón declarada).
+
+Reproducido: `[ROJO] J16 IMPOSTORA … CALIBRACION COMPLETA: 1/1 … rojo por la
+razón declarada`, **rc=0**. Una mutación cobrando un rojo que no se ha ganado —
+justo el defecto que el mecanismo venía a cerrar, un nivel más arriba.
+
+Auditoría de las 21 razones: **4** eran literales del fuente de un test o nombres
+de test (`J5`, `J8`, `J11`, `J16`); `J8` y `J11` se autolimitaban porque con `-x`
+el nombre de un test que no llega a ejecutarse no se imprime, pero `J5` y `J16`
+eran explotables. **En la corrida real ninguna cobraba un rojo ajeno**: la vía
+era **latente**. Se cierra igual.
+
+Arreglo: `_lineas_de_fallo()` — la razón se busca sólo en el bloque `E …` y en
+las líneas `FAILED` / `ERROR` del resumen, que son las que produce la
+**ejecución**, nunca el volcado de fuente. Medido en las dos direcciones:
+
+| | Impostora | Las 21 legítimas |
+|---|---|---|
+| antes | `[ROJO]`, `rc=0` | 21/21 |
+| ahora | `ROJO, PERO NO POR LA RAZON DECLARADA`, `rc=1` | **21/21** (J5 y J16 legítimas siguen rojas por su razón) | Una mutación sin
 razón declarada **detiene** el arnés. El propio cambio encontró algo de paso:
 J16, apuntado al fichero entero con `-x`, se ponía rojo por **otro** test —
 `pytest.raises` deja de atrapar la excepción cuando hay dos clases de error, que
