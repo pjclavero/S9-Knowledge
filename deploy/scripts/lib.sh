@@ -458,15 +458,29 @@ create_manifest() {
                               -e 's/[[:space:]]//g' \
                               "${release_dir}/viewer/requirements.txt" \
                           | grep -v '^$' || true)"
-            local paquete
+            local paquete paquete_re
             for paquete in ${declarados}; do
                 # OJO con la clase: incluir `-` hacia que `fastapi-extra==1.0`
                 # satisficiera el requisito de `fastapi`, y un venv sin
                 # `fastapi` se etiquetaba `resolved:pip-freeze`. El separador
                 # valido tras el nombre es `=`, `<`, `>`, `!`, `~`, `@` o
                 # espacio; `-` forma parte del NOMBRE del paquete siguiente.
+                #
+                # Y el NOMBRE se interpola como TEXTO, no como patron. Sin
+                # escapar, el `.` de `zope.interface` era un comodin y
+                # `zope-interface` satisfacia el requisito: la huella se
+                # etiquetaba `resolved:pip-freeze` afirmando identificar unas
+                # dependencias que no eran las declaradas. Es el mismo defecto
+                # que la clase con `-`, por la otra punta.
+                # Se escapa TODO lo que no sea alfanumerico, `_` o `-`: un
+                # nombre PEP 508 solo puede llevar ademas `.`, asi que esto lo
+                # cubre entero sin depender de acertar una lista de
+                # metacaracteres (la primera version de esta linea se equivoco
+                # justo ahi, con una clase mal cerrada que no escapaba nada).
+                paquete_re="$(printf '%s' "${paquete}" \
+                              | sed 's/[^A-Za-z0-9_-]/\\&/g')"
                 if ! printf '%s\n' "${freeze_out}" \
-                     | grep -qiE "^${paquete}([[:space:]=<>!~@]|$)"; then
+                     | grep -qiE "^${paquete_re}([[:space:]=<>!~@]|$)"; then
                     freeze_ok=0
                     break
                 fi

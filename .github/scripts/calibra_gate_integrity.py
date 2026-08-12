@@ -238,7 +238,44 @@ def m_skip_critico() -> None:
     )
 
 
+def m_neutraliza_con_true() -> None:
+    """`comando || true`: el mismo apagado que `continue-on-error`, en el shell.
+
+    Un revisor lo demostro VIVO sobre el gate de reproducibilidad de entorno,
+    aplicandolo a la vez en `ci.yml` y en su fragmento para que ni la
+    comprobacion de fidelidad de fragmentos viera diferencia. Ningun control se
+    entero: el gate corria, fallaba, y el paso salia verde.
+    """
+    _sustituye(
+        CI,
+        "          python3 .github/scripts/check_env_reproducibility.py all --strict-missing",
+        "          python3 .github/scripts/check_env_reproducibility.py all --strict-missing || true",
+    )
+
+
+def m_neutraliza_con_dospuntos() -> None:
+    """La misma familia escrita con el builtin nulo: `|| :`."""
+    # Dentro de un `run: |` (escalar de bloque) a proposito: en un `run:`
+    # EN LINEA, un `|| :` final deja el YAML invalido y el gate se pondria
+    # rojo por no parsear, no por la regla que aqui se calibra. Un caso que
+    # sale rojo por el motivo equivocado no calibra nada.
+    _sustituye(
+        CI,
+        "          python3 .github/scripts/check_env_reproducibility_calibration.py",
+        "          python3 .github/scripts/check_env_reproducibility_calibration.py || :",
+    )
+
+
+def m_borra_job_exigido() -> None:
+    """Un gate desaparece en una resolucion de conflicto y nada se pone rojo."""
+    _sustituye(CI, "  check-env-reproducibility:\n", "  check-env-reproducibility-desactivado:\n")
+
+
 CASOS = [
+    # `estado correcto` es tambien el control positivo de la regla de
+    # `|| true`: el `ci.yml` real contiene comentarios que dicen «Sin
+    # `|| true`: ...». Si el gate mirase el texto en vez del codigo, este
+    # caso saldria ROJO y la calibracion lo cazaria aqui mismo.
     ("estado correcto", None, VERDE),
     ("`paths-ignore` bajo `push`", m_paths_ignore_push, ROJO),
     ("`paths-ignore` bajo `pull_request`", m_paths_ignore_pr, ROJO),
@@ -258,6 +295,9 @@ CASOS = [
     ("control positivo: `if: ${{ always() }}` (unica permitida)", m_always_permitido, VERDE),
     ("job que puede ejecutar 0 tests", m_job_cero_tests, ROJO),
     ("test que se auto-omite por falta de Chromium", m_skip_critico, ROJO),
+    ("`|| true` tras un gate dentro del `run:`", m_neutraliza_con_true, ROJO),
+    ("`|| :` (builtin nulo) tras un gate dentro del `run:`", m_neutraliza_con_dospuntos, ROJO),
+    ("job exigido que desaparece de ci.yml", m_borra_job_exigido, ROJO),
     ("restaurado", None, VERDE),
 ]
 

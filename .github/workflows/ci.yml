@@ -454,6 +454,11 @@ jobs:
           # de degradarse a un skip verde mas abajo.
           set -euo pipefail
           node --version
+          # El gate lee la version DECLARADA parseando `ci.yml`, no con una
+          # regex de texto (un `# node-version: 18` comentado contaba como
+          # declaracion y lo ponia rojo por nada). Por eso necesita PyYAML, y
+          # si falta se pone ROJO en vez de degradar a solo-presencia.
+          pip install pyyaml
           # Y la misma comprobacion por el camino comun a todos los runtimes,
           # que es el que `check-env-reproducibility` exige que exista: la
           # ausencia sale por `::error::`, nunca como skip.

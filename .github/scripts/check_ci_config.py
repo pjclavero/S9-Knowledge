@@ -58,6 +58,20 @@ abajo corresponde a un apagado REAL, no a un riesgo imaginado.
    `always()`, la unica que solo puede hacer que se ejecute MAS. Ver
    `CONDICIONES_PERMITIDAS`.
 
+   3 bis. LA MISMA FAMILIA, DENTRO DEL `run:`. `continue-on-error: true` estaba
+   prohibido, pero `comando || true` hace EXACTAMENTE lo mismo una capa mas
+   abajo: el comando se ejecuta, falla, y el paso sale en verde. Un revisor lo
+   demostro VIVO sobre el gate de reproducibilidad de entorno —anadiendo
+   `|| true` a la vez en `ci.yml` y en su fragmento, para que ni la
+   comprobacion de fidelidad de fragmentos viera diferencia— y NINGUN control
+   se entero. Prohibir `continue-on-error` en el YAML y dejar libre su
+   equivalente en el shell era vigilar la puerta y no la ventana.
+
+   Tambien aqui: un workflow puede perder un JOB entero en una resolucion de
+   conflicto. Los gates listados en `JOBS_EXIGIDOS` tienen que seguir
+   existiendo, por la misma razon por la que `supply-chain.yml` no puede
+   desaparecer en silencio.
+
 4. META-GATES. Un job en verde no prueba nada por si mismo. Dos formas de
    verde vacio ya vistas en este repositorio:
 
@@ -131,6 +145,28 @@ DISPARADORES_VIGILADOS = ("push", "pull_request", "pull_request_target")
 # relajarla aqui en silencio: es meter la decision DENTRO del `run:`, donde
 # tiene que dejarla escrita y donde un fallo sale en rojo en vez de en gris.
 CONDICIONES_PERMITIDAS = ("always()",)
+
+# Formas de neutralizar el codigo de salida de un comando en `sh`. `|| true` es
+# la canonica, `|| :` la misma con el builtin nulo, `|| exit 0` la misma
+# escrita en largo. Todas convierten un rojo en un verde DENTRO del `run:`, que
+# es `continue-on-error` por otra via.
+RE_NEUTRALIZA = re.compile(r"\|\|\s*(true\b|:\s*$|:\s|exit\s+0\b)")
+
+# NO hay lista de excepciones, y no por descuido: se comprobo que los dos
+# workflows vigilados no necesitan ninguna. Una exencion que hoy no hace falta
+# es la rendija por la que manana entra el apagado, y este fichero existe
+# porque eso ya paso tres veces.
+
+# Jobs cuya AUSENCIA nadie mas detectaria. Un gate que puede desaparecer en una
+# resolucion de conflicto sin que nada se ponga rojo no es un gate; el fragmento
+# de restitucion existe justo porque eso ya ha estado a punto de pasar.
+JOBS_EXIGIDOS = {
+    "ci.yml": (
+        "check-ci-config",
+        "calibracion-de-gates",
+        "check-env-reproducibility",
+    ),
+}
 
 # Ramas efimeras de maquina: no se les EXIGE CI. Con la politica universal
 # `**` de todas formas la tienen, y esto solo evita que su ausencia se pueda
@@ -534,6 +570,52 @@ def comprueba_ejecucion_condicional(datos: dict, nombre: str) -> list[str]:
     return errores
 
 
+def comprueba_neutralizacion(datos: dict, nombre: str) -> list[str]:
+    """`comando || true` es `continue-on-error` escrito dentro del `run:`.
+
+    Se mira SOLO el codigo: en estos workflows hay comentarios que dicen «Sin
+    `|| true`: ...», y tomarlos por codigo seria el defecto simetrico —un gate
+    que se pone rojo por un comentario—. Por eso se corta cada linea en el `#`
+    antes de buscar nada, igual que el resto del fichero mira claves parseadas
+    y no texto.
+    """
+    errores = []
+    for job_id, job in (datos.get("jobs") or {}).items():
+        for paso_nombre, cuerpo in pasos_run(job):
+            for linea in cuerpo.splitlines():
+                codigo = linea.split("#", 1)[0]
+                if not codigo.strip() or not RE_NEUTRALIZA.search(codigo):
+                    continue
+                errores.append(
+                    f"{nombre}: el job `{job_id}`, paso `{paso_nombre}`, "
+                    f"neutraliza el codigo de salida de un comando: "
+                    f"`{codigo.strip()}`. Eso convierte un rojo en un verde "
+                    f"exactamente igual que `continue-on-error: true`, solo que "
+                    f"una capa mas abajo: el comando se ejecuta, falla, y el "
+                    f"paso sale en verde. Si el fallo de ese comando de verdad "
+                    f"no importa, capturalo (`out=$(cmd) || rc=$?`) y DECIDE "
+                    f"con el codigo a la vista, para que la decision quede "
+                    f"escrita en vez de desaparecer."
+                )
+    return errores
+
+
+def comprueba_jobs_exigidos(datos: dict, nombre: str) -> list[str]:
+    """Un gate que puede desaparecer sin ponerse rojo no es un gate."""
+    exigidos = JOBS_EXIGIDOS.get(nombre, ())
+    if not exigidos:
+        return []
+    presentes = {clave_normalizada(k) for k in (datos.get("jobs") or {})}
+    return [
+        f"{nombre}: falta el job `{job}`. Es una barrera: si un merge o una "
+        f"resolucion de conflicto se la lleva por delante, deja de evaluarse y "
+        f"NADA se pone rojo. Restituyelo (hay copia canonica en "
+        f".github/ci-fragments/ para los que la tienen)."
+        for job in exigidos
+        if job not in presentes
+    ]
+
+
 def ficheros_con_skip_critico() -> dict[str, list[str]]:
     """Tests que se auto-omiten si falta una herramienta -> herramientas."""
     hallazgos: dict[str, list[str]] = {}
@@ -650,6 +732,8 @@ def main() -> int:
         errores += comprueba_disparo(datos, ruta.name)
         errores += comprueba_cero_tests(datos, ruta.name)
         errores += comprueba_ejecucion_condicional(datos, ruta.name)
+        errores += comprueba_neutralizacion(datos, ruta.name)
+        errores += comprueba_jobs_exigidos(datos, ruta.name)
 
     if CI.name in parseados:
         errores += comprueba_skips_criticos(parseados[CI.name], CI.name)
@@ -663,8 +747,10 @@ def main() -> int:
         "OK: ci.yml y supply-chain.yml disparan en toda rama, sin campos que "
         "puedan apagar CI en silencio (comprobado sobre el YAML parseado, no "
         "sobre el texto), sin `if:` ni `continue-on-error` que apaguen o "
-        "desarmen un job, sin jobs que puedan ejecutar 0 tests en verde y sin "
-        "tests que se omitan por falta de Node o Chromium"
+        "desarmen un job, sin `|| true` que haga lo mismo dentro del `run:`, "
+        "sin que falte ninguno de los jobs exigidos, sin jobs que puedan "
+        "ejecutar 0 tests en verde y sin tests que se omitan por falta de Node "
+        "o Chromium"
     )
     return 0
 

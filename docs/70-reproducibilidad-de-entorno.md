@@ -29,7 +29,8 @@ Cuatro formas de verde que no comprobaba nada, todas vistas en este proyecto:
 
 ### `.github/scripts/check_env_reproducibility.py`
 
-Sin dependencias externas. Dos modos:
+Depende de **PyYAML** allí donde lee `ci.yml` (ver «Lo que leía el gate»
+abajo). Dos modos:
 
 - `all [--strict-missing] [--strict-pinning]` — comprobación estática:
   1. **Versiones**: cada requisito declarado en `viewer/requirements.txt` y
@@ -59,6 +60,14 @@ Sin dependencias externas. Dos modos:
      conflicto se lleve por delante; si ha derivado, quien restituya desde él
      pierde pasos **en silencio**. Ya pasó: el fragmento se escribió antes de
      añadir el paso de calibración.
+
+  6. **Este gate no se puede apagar en silencio.** El job
+     `check-env-reproducibility` tiene que existir, ejecutar `all` y ejecutar
+     su calibración, y ninguna invocación del gate puede llevar la salida
+     neutralizada (`|| true`, `|| :`, `|| exit 0`). Ver «Los seis
+     supervivientes» abajo: la comprobación de fidelidad de fragmentos **no**
+     cubría esto, porque un apagado aplicado a la vez en `ci.yml` y en el
+     fragmento deja los dos idénticos.
 
 - `runtimes --require node,chromium` — comprobación **dinámica**, dentro del
   job: ¿está el runtime aquí y ahora, **y es el declarado**? Chromium se
@@ -90,11 +99,76 @@ Sin dependencias externas. Dos modos:
 La raíz del repositorio es inyectable con `S9K_ENV_REPRO_ROOT`, para poder
 calibrar el gate contra repositorios sintéticos sin romper el real.
 
+## Los seis supervivientes (revisión independiente de este PR)
+
+Un revisor dictaminó **CONFORME CON OBSERVACIONES** y demostró seis mutaciones
+que el carril **no** detectaba. Se reprodujeron una a una en verde antes de
+tocar nada, y cada arreglo se comprobó rojo con la mutación y verde sin ella.
+Los dos primeros son los graves, porque incumplían **dentro de este mismo PR**
+la doctrina que el PR enuncia: *nada se apaga en silencio*.
+
+| # | Mutación | Antes | Ahora | Dónde se cierra |
+|---|---|---|---|---|
+| 1 | `\|\| true` tras la invocación del gate, **a la vez** en `ci.yml` y en el fragmento | **VERDE**: el gate corre, falla, el paso pasa | ROJO por **dos** instrumentos independientes | `check_ci_config.py` (regla genérica) + `check_gate_no_apagado` (regla propia) |
+| 2 | Quitar el paso de calibración, **a la vez** en ambos | **VERDE**: el gate corre sin instrumento calibrado | ROJO | `check_gate_no_apagado` |
+| 3 | `# node-version: 18` dentro de un **comentario** YAML | ROJO falso (`('varias', ['18','20'])`) | VERDE limpio | lectura por `yaml.safe_load`, no por regex |
+| 4 | `node-version: '20.x'`, idioma legítimo de `actions/setup-node` | ROJO falso (`ilegible`) | VERDE: se normaliza a major `20` | `RE_VERSION_LITERAL` |
+| 5 | Stub de Chromium (0 bytes, `chmod 000`) en la ruta de Playwright | **VERDE**: `(True, ...)` | ROJO | `presente_chromium` exige `X_OK` **y** lanza `--version` |
+| 6 | `zope.interface` satisfecho por `zope-interface` (el `.` era comodín) | **VERDE**: huella `resolved:pip-freeze` mintiendo | ROJO (`unresolved`) | `lib.sh` escapa el nombre antes de interpolarlo |
+
+Las seis, **más cuatro controles añadidos**, están ahora en el arnés de
+calibración: no pueden volver sin ponerse rojas. Los controles extra existen
+porque una mutación que sólo prueba el rojo no distingue un instrumento fino de
+uno que se pone rojo ante todo:
+
+- el job del gate **borrado** entero de `ci.yml` (la forma extrema de 1 y 2);
+- Chromium ejecutable **que no dice su versión** → rojo;
+- Chromium que arranca y **sí** la dice → verde (control positivo);
+- `zope.interface` satisfecho por `zope.interface` → sigue resolviendo
+  (control positivo del escape: romper todos los nombres con punto habría
+  pasado por «arreglo»).
+
+### Lo que leía el gate, y por qué ahora parsea
+
+Los supervivientes 3 y 4 tenían la misma causa: `ci.yml` se leía con una
+**regex de texto**, teniendo el parseo YAML del carril L al lado. Un comentario
+no es una declaración, y `'20.x'` es lo que documenta `actions/setup-node`.
+Ninguno de los dos era un agujero —los dos fallaban **cerrados**, en rojo—,
+pero un instrumento que no distingue un comentario de una declaración no está
+midiendo lo que dice medir, y un falso positivo es un gate que alguien acabará
+queriendo apagar. Ahora se leen las **claves del `with:`** del YAML parseado.
+
+Si falta PyYAML, el gate **no** vuelve al texto: se pone rojo pidiendo que se
+instale. Por eso `test-graph-js` hace `pip install pyyaml` antes de invocar
+`runtimes --require node`. `runtimes --require chromium` no lo necesita:
+Chromium no declara versión en el workflow, así que ese camino no llega a
+parsear nada.
+
+### Coordinación con el carril L
+
+La prohibición **genérica** de `|| true` vive en
+`.github/scripts/check_ci_config.py`, que es de otro carril, porque es su sitio
+natural: allí ya se parsea YAML de verdad y ya se prohíbe `continue-on-error`,
+que es exactamente el mismo apagado una capa más arriba. Prohibir el campo YAML
+y dejar libre su equivalente en el shell era vigilar la puerta y no la ventana.
+Se añadieron allí dos reglas y **tres casos a su propia calibración**
+(`calibra_gate_integrity.py`), que pasa **23/23** — incluidos su `estado
+correcto` y su `restaurado` en verde, que es la prueba de que no se rompió nada
+suyo. Nótese que el `ci.yml` real contiene comentarios que dicen «Sin
+`|| true`: …»: la regla mira **código**, no texto, y ese caso verde lo
+demuestra.
+
+`check_gate_no_apagado` **duplica** a propósito la parte que afecta a este
+carril. El solape es el mismo criterio que ya se aplicó con Node: dos gates que
+fallan por el mismo motivo es mejor que cero, y éste sobrevive aunque alguien
+afloje el otro.
+
 ### `.github/scripts/check_env_reproducibility_calibration.py`
 
 La calibración, ejecutada **en cada corrida de CI**. Construye un repositorio
-sintético que sale verde, y para cada una de las **24 reglas** (incluidos los
-seis caminos del `dependency_fingerprint` y el `node` de versión equivocada,
+sintético que sale verde, y para cada una de las **34 reglas** (incluidos los
+ocho caminos del `dependency_fingerprint`, los seis supervivientes de la
+revisión con sus controles positivos, y el `node` de versión equivocada,
 inyectado como ejecutable falso al frente del `PATH`): introduce la
 violación, exige rojo (o el aviso, para las señaladas) con el mensaje
 correcto, revierte y exige verde. Un gate cuyo mecanismo de medida no se
@@ -105,12 +179,19 @@ comprobador: daba por cubierto cualquier test cuya carpeta se llamara `tests`,
 porque comparaba nombres sueltos en el texto de `ci.yml` en vez de prefijos de
 ruta dentro del job que aprovisiona el runtime.
 
+Y volvió a encontrar otro al añadir los supervivientes: la mutación
+`paso runtimes --require retirado` quitaba el comando pero **no su sangría**,
+dejando un `ci.yml` que ni siquiera era YAML válido. Salía roja, sí, pero por
+el motivo equivocado; una mutación que produce un workflow imposible no prueba
+lo que dice probar. Se corrigió, y de paso el gate dejó de reventar con una
+traza ante un `ci.yml` ilegible: ahora es un rojo con mensaje.
+
 ### CI
 
 | Sitio | Qué añade |
 |---|---|
 | job `check-env-reproducibility` | instala lo declarado (lock + requirements, mismo orden que el job combinado), corre la calibración y después `all --strict-missing` |
-| paso en `test-graph-js` | `runtimes --require node` |
+| paso en `test-graph-js` | `pip install pyyaml` y `runtimes --require node` |
 | paso en `test-login-browser` | `runtimes --require chromium`, tras `playwright install` |
 
 El bloque del job tiene copia canónica en
@@ -146,6 +227,21 @@ detalle de higiene:
 - `pytest 8.4.2` frente a `==9.1.1` cambia **cómo se recolecta y cómo se
   salta**, que es exactamente el mecanismo del que dependen los skips
   silenciosos que este carril persigue.
+
+**Por qué el verde de CI no dice nada sobre esto.** El job
+`check-env-reproducibility` empieza instalando lo declarado
+(`requirements.lock` + `requirements.txt`), así que cuando el gate compara
+«declarado contra instalado» las dos cosas coinciden **por construcción**: el
+runner acaba de fabricar esa coincidencia. El gate es honesto —mide lo que
+dice medir— pero su verde certifica **el entorno de CI**, no el de nadie más.
+Las 7 divergencias son reales y sólo se ven donde el entorno no lo fabrica el
+runner: en local, y en cualquier despliegue.
+
+Estas 7 divergencias **no se cierran desde este carril**. Actualizar los
+paquetes cambia el entorno de todo el mundo y es decisión del operador; y
+generar aquí un lock desde este `pip freeze` **congelaría** la divergencia en
+vez de cerrarla (ver D1). El gate debe seguir señalándolas en rojo: son un
+hallazgo, no un fallo del instrumento.
 
 Por tanto: **en CI el gate sale verde; en local, rojo.** Todo resultado local
 del proyecto —de cualquier carril, no sólo de éste— queda degradado en
@@ -237,3 +333,16 @@ obligado a mirar un aviso, y esta deriva es real y viva.
   `RUNTIMES` y sus patrones; el resto se deriva solo.
 - **No comprueba dependencias del sistema** (paquetes apt, versión del kernel)
   ni la coincidencia entre CI y producción.
+- **`set +e` sin comprobar el código de retorno.** La regla nueva caza
+  `|| true`, `|| :` y `|| exit 0`. No caza un `set +e` que luego **no** mire
+  `$rc`: en `ci.yml` los `set +e` que hay sí capturan el código y deciden con
+  él (es el idioma que permite imprimir la salida de pytest antes de fallar),
+  así que prohibirlos rompería jobs correctos. Un `set +e` descuidado sigue
+  siendo un apagado posible y **no está cerrado**.
+- **Neutralización repartida entre líneas.** Se mira línea a línea; un apagado
+  escrito en varias (`cmd \` + continuación, o una función de shell que
+  siempre devuelve 0) no se detecta.
+- **El gate se juzga a sí mismo.** `check_gate_no_apagado` sólo puede hablar si
+  el gate se ejecuta. Que el job desaparezca lo cubre el carril L
+  (`JOBS_EXIGIDOS`), que es un job distinto; pero si alguien apagara **los
+  dos** a la vez, no queda tercer instrumento.
