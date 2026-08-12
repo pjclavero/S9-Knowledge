@@ -808,6 +808,49 @@ def main() -> int:
             "          fi\n",
         )
 
+    def m_gate_por_variable(raiz: Path) -> None:
+        # A4: la ruta llega por una VARIABLE. La indireccion no cambia lo que
+        # se ejecuta, pero evade buscar el literal en la linea negada.
+        _en_ci_y_fragmento(
+            raiz, GATE_RUN,
+            '          G=".github/scripts/check_env_reproducibility.py"\n'
+            '          if ! python3 "$G" all --strict-missing; then\n'
+            "            echo 'gate ignorado'\n"
+            "          fi\n",
+        )
+
+    def m_negacion_en_else(raiz: Path) -> None:
+        # A6: la negacion se desplaza al `else`. Mismo desenlace, sin `!`.
+        _en_ci_y_fragmento(
+            raiz, GATE_RUN,
+            "          if python3 .github/scripts/check_env_reproducibility.py "
+            "all --strict-missing; then\n"
+            "            :\n"
+            "          else\n"
+            "            echo 'gate ignorado'\n"
+            "          fi\n",
+        )
+
+    def m_sin_rama_de_fallo(raiz: Path) -> None:
+        # A6 bis: sin `else`, la rama de fallo esta VACIA y no pasa nada.
+        _en_ci_y_fragmento(
+            raiz, GATE_RUN,
+            "          if python3 .github/scripts/check_env_reproducibility.py "
+            "all --strict-missing; then\n"
+            "            echo 'todo bien'\n"
+            "          fi\n",
+        )
+
+    def m_guardia_en_una_linea(raiz: Path) -> None:
+        # Control POSITIVO: guardia con `exit 1` en UNA linea. Salia ROJA
+        # (falso positivo, fallaba cerrado) porque el bloque se leia saltandose
+        # la propia linea del `if`.
+        _en_ci_y_fragmento(
+            raiz, GATE_RUN,
+            "          if ! python3 .github/scripts/check_env_reproducibility.py "
+            "all --strict-missing; then exit 1; fi\n",
+        )
+
     def m_job_propio_borrado(raiz: Path) -> None:
         # La forma extrema de S1/S2: el job entero desaparece en un merge.
         _en_ci_y_fragmento(raiz, "  check-env-reproducibility:\n", "  otro-nombre:\n")
@@ -830,13 +873,34 @@ def main() -> int:
     c.caso(
         "S7: `if ! GATE; then echo ...; fi` (apagado condicional)",
         m_if_negado_sin_fallo,
-        senal="bajo `if !`",
+        senal="rama de FALLO",
     )
     c.caso(
         "S7 (control positivo): `if ! GATE ...; exit 1; fi` es una GUARDIA",
         m_if_negado_con_exit,
         espera="limpio",
-        ausente="if !",
+        ausente="rama de FALLO",
+    )
+    c.caso(
+        "A4: la ruta del gate llega por una VARIABLE",
+        m_gate_por_variable,
+        senal="rama de FALLO",
+    )
+    c.caso(
+        "A6: negacion desplazada al `else`",
+        m_negacion_en_else,
+        senal="rama de FALLO",
+    )
+    c.caso(
+        "A6 bis: `if GATE; then ...; fi` sin rama de fallo",
+        m_sin_rama_de_fallo,
+        senal="rama de FALLO",
+    )
+    c.caso(
+        "A4/A6 (control positivo): guardia con `exit 1` en UNA linea",
+        m_guardia_en_una_linea,
+        espera="limpio",
+        ausente="rama de FALLO",
     )
     # S3 y S4 NO se calibran aqui: `version_declarada` solo se ejecuta en el
     # modo `runtimes`, asi que un caso en modo `all` saldria verde pasara lo

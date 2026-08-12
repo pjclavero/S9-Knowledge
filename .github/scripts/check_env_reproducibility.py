@@ -629,15 +629,22 @@ INVOCACION_CALIBRACION = "check_env_reproducibility_calibration.py"
 # seria el defecto simetrico.
 RE_NEUTRALIZA = re.compile(r"\|\|\s*(true\b|:\s*$|:\s|exit\s+0\b)")
 
-# La misma neutralizacion escrita como condicional:
-#     if ! python3 .github/scripts/check_env_reproducibility.py all; then ...; fi
-# El gate corre, falla, y el paso sale verde. Es la variante mas alcanzable POR
-# ACCIDENTE, porque no parece un truco sino codigo normal. No se puede prohibir
-# `if !` a secas: las guardias anti-cero de este repo (`if ! grep -q 'N passed';
-# then ... exit 1`) usan ese mismo idioma y son obligatorias. Lo que distingue
-# una guardia de un apagado es el DESENLACE: la guardia acaba en `exit 1`.
-RE_IF_NEGADO = re.compile(r"(?:^|;|&&|\|\||\bthen\b|\bdo\b)\s*if\s+!")
+# La misma neutralizacion escrita como condicional. El gate corre, falla, y el
+# paso sale verde. Es la variante mas alcanzable POR ACCIDENTE, porque no parece
+# un truco sino codigo normal, y admite al menos cuatro escrituras:
+#
+#     if ! GATE; then echo x; fi              rama de fallo = `then`
+#     if GATE; then :; else echo x; fi        rama de fallo = `else`
+#     if GATE; then echo ok; fi               rama de fallo VACIA
+#     G=".../gate.py"; if ! python3 "$G"; ... la ruta llega por variable
+#
+# Por eso el discriminante NO es «lleva `!`» sino «cuando el gate falla, ¿pasa
+# algo?». No se puede prohibir `if !` a secas: las guardias anti-cero de este
+# repo (`if ! grep -q 'N passed'; then ... exit 1`) usan ese idioma y son
+# obligatorias; lo que las distingue de un apagado es el DESENLACE.
+RE_IF = re.compile(r"(?:^|;|&&|\|\||\bthen\b|\bdo\b)\s*if\s")
 RE_BLOQUE_FALLA = re.compile(r"(?:\bexit\s+(?:[1-9]\d*|\$)|\breturn\s+[1-9]\d*|\bfalse\b)")
+RE_ASIGNA = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
 
 
 def lineas_efectivas(cuerpo: str) -> list[str]:
@@ -647,6 +654,55 @@ def lineas_efectivas(cuerpo: str) -> list[str]:
         limpia = linea.split("#", 1)[0]
         if limpia.strip():
             fuera.append(limpia)
+    return fuera
+
+
+def condiciones_sin_desenlace(lineas: list[str], marca: str) -> list[str]:
+    """Condiciones de `if` que ejecutan el gate y cuya rama de FALLO no falla.
+
+    Se mira la forma COMPLETA del `if`, no solo `if !`, porque la negacion se
+    puede desplazar al `else` o desaparecer sin cambiar el efecto; y la ruta se
+    reconoce tambien a traves de una variable, porque la indireccion no cambia
+    lo que se ejecuta.
+    """
+    variables = {
+        m.group(1)
+        for m in (RE_ASIGNA.match(l) for l in lineas)
+        if m and marca in m.group(2)
+    }
+
+    def invoca(texto: str) -> bool:
+        if marca in texto:
+            return True
+        return any(re.search(rf"\$\{{?{re.escape(v)}\}}?", texto) for v in variables)
+
+    fuera = []
+    for i, linea in enumerate(lineas):
+        if not RE_IF.search(linea):
+            continue
+        bloque, profundidad = [], 0
+        for resto in lineas[i:]:
+            bloque.append(resto)
+            profundidad += len(
+                re.findall(r"(?:^|;|&&|\|\||\bthen\b|\bdo\b)\s*if\s", resto)
+            )
+            profundidad -= len(re.findall(r"(?:^|;)\s*fi\b", resto))
+            if profundidad <= 0:
+                break
+        texto = "\n".join(bloque)
+        m_then = re.search(r"\bthen\b", texto)
+        if not m_then:
+            continue
+        condicion = texto[: m_then.start()]
+        if not invoca(condicion):
+            continue
+        resto_txt = re.sub(r"\bfi\b\s*$", "", texto[m_then.end():].rstrip())
+        m_else = re.search(r"(?:^|;|\n)\s*else\b", resto_txt)
+        rama_then = resto_txt[: m_else.start()] if m_else else resto_txt
+        rama_else = resto_txt[m_else.end():] if m_else else ""
+        negado = bool(re.search(r"\bif\s+!", condicion))
+        if not RE_BLOQUE_FALLA.search(rama_then if negado else rama_else):
+            fuera.append(condicion.strip().replace("\n", " "))
     return fuera
 
 
@@ -715,30 +771,18 @@ def check_gate_no_apagado() -> list[str]:
                     f"bloquea nada, que es `continue-on-error` escrito dentro "
                     f"del `run:`. Quita el `|| true`."
                 )
-        # La misma neutralizacion como condicional. Se exige que el bloque
-        # FALLE; una guardia que acaba en `exit 1` es legitima y no se toca.
-        for i, linea in enumerate(lineas):
-            if not (RE_IF_NEGADO.search(linea) and INVOCACION_GATE in linea):
-                continue
-            bloque, profundidad = [], 0
-            for resto in lineas[i:]:
-                bloque.append(resto)
-                profundidad += len(
-                    re.findall(r"(?:^|;|&&|\|\||\bthen\b|\bdo\b)\s*if\s", resto)
-                )
-                profundidad -= len(re.findall(r"(?:^|;)\s*fi\b", resto))
-                if profundidad <= 0 and len(bloque) > 1:
-                    break
-            if not any(RE_BLOQUE_FALLA.search(l) for l in bloque[1:]):
-                errores.append(
-                    f"ci.yml: el job `{job_id}`, paso `{etiqueta}`, ejecuta este "
-                    f"gate bajo `if !` sin fallar si el gate falla: "
-                    f"`{linea.strip()}`. El gate corre, se pone rojo, y el paso "
-                    f"sale VERDE. Es `|| true` escrito como condicional, y la "
-                    f"forma mas facil de colar sin querer porque parece codigo "
-                    f"normal. O el bloque termina en `exit 1`, o invoca el gate "
-                    f"a secas."
-                )
+        # La misma neutralizacion como condicional. Se exige que la rama de
+        # FALLO falle; una guardia que acaba en `exit 1` es legitima.
+        for condicion in condiciones_sin_desenlace(lineas, INVOCACION_GATE):
+            errores.append(
+                f"ci.yml: el job `{job_id}`, paso `{etiqueta}`, ejecuta este "
+                f"gate dentro de un `if` cuya rama de FALLO no falla: "
+                f"`{condicion}`. El gate corre, se pone rojo, y el paso sale "
+                f"VERDE. Es `|| true` escrito como condicional. Da igual donde "
+                f"este la negacion y da igual que la ruta llegue por una "
+                f"variable: cuando el gate falla no pasa nada. O la rama de "
+                f"fallo termina en `exit 1`, o invoca el gate a secas."
+            )
 
     # 2. El paso de calibracion tiene que EXISTIR dentro del job propio.
     propio = jobs[JOB_PROPIO]
