@@ -116,13 +116,34 @@ JSON: `GET /api/status`, `GET /api/workspaces`, `GET /api/entity-types`,
 
 - **Acciones de revisión desde el visor** (aprobar/rechazar en UI): pendiente
   (hoy `/reviews` es de lectura).
-- **Permisos RPG / visibilidad por personaje** aplicados en API/UI: el modelo
-  existe en `data-engine/app/access/`, aún no se aplica en las consultas del visor.
 - El visor **no escribe en Neo4j** (todas las consultas son `MATCH ... RETURN`).
+
+## Permisos RPG y visibilidad por personaje — implementado en `main`
+
+Esta sección decía hasta 2026-08-09 que el modelo «aún no se aplica en las
+consultas del visor». **Es falso desde M5b/M5c** (PRs #147, #150–#153): la
+visibilidad se aplica en el propio visor, no solo en `data-engine`.
+
+- `viewer/app/authz/` — contexto de autorización, `filtered_provider`, ámbito,
+  contrato de visibilidad y simulación.
+- `viewer/app/policies/` — motor fail-closed, registro y migración de
+  visibilidad.
+- `viewer/app/providers/neo4j_provider.py` — las consultas proyectan y filtran
+  por `visibility`, ámbito y `known_by`.
+
+Dos matices que **no** deben perderse al citar esto:
+
+1. **`main` no es producción.** M5b **no está desplegado en VM105**; el visor
+   productivo sigue en RC5.1. Ver `docs/project-status.yaml`.
+2. Sobre el **grafo legacy** de producción la resolución es **NO APPLY**: no se
+   estampó visibilidad, porque `known_by` está ausente en los 199 nodos. Ver
+   [docs/54](../docs/54-migracion-visibilidad-m5b.md).
 
 ## Despliegue en producción
 
 El visor se despliega mediante el utillaje de `deploy/` (releases inmutables +
 `current` + deploy-tools versionados). No se instala a mano en VM105; ver
-[docs/47](../docs/47-reproducible-deployment.md), [docs/50](../docs/50-deploy-state-continuity.md)
-y [docs/02-current-state.md](../docs/02-current-state.md).
+[docs/archivados/47](../docs/archivados/47-reproducible-deployment.md),
+[docs/archivados/50](../docs/archivados/50-deploy-state-continuity.md) y
+[docs/archivados/02-current-state.md](../docs/archivados/02-current-state.md)
+(los tres, **históricos**: describen el utillaje tal como se usó para RC5.1).

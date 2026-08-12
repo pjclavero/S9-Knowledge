@@ -1,5 +1,11 @@
 # 29 · Informe de Preparación — Prioridad 1
 
+> **HISTÓRICO (julio 2026).** Fotografía de la línea RC5.1. Contiene una
+> afirmación corregida en 2026-08-09: la «copia externa a yggdrasil» **no es
+> una copia off-host** (ver la corrección en §Ejecución). El estado vigente de
+> recuperación está en [docs/52](../52-backup-manual-checkpoint.md) y
+> [docs/53](../53-recuperacion-y-credenciales-2026-08.md).
+
 **Fecha de preparación:** 2026-07-13  
 **Fecha de ejecución:** 2026-07-13–14  
 **Dictamen final:** ver sección "Actualización 2026-07-13: Ejecución completada"
@@ -88,9 +94,20 @@ La Prioridad 1 ha sido ejecutada en producción. Este documento conserva el info
 | Backup real de producción | ✅ EJECUTADO | neo4j-20260713-174909/neo4j.dump, 132 KB, SHA256 c3179c01... |
 | Restore real en instancia aislada | ✅ VERIFICADO | 199 nodos, 140 relaciones, 14 labels, 2 índices — idéntico a producción |
 | Rollback por source_id en laboratorio | ✅ VALIDADO | Datos sintéticos; patrón Cypher transaccional demostrado |
-| Copia externa a yggdrasil | ✅ COMPLETADA Y VERIFICADA | 2026-07-14 01:07 UTC, SHA256 coincide, permisos 700 root:root |
+| Copia a yggdrasil (**NO es off-host** — ver corrección abajo) | ✅ COPIADA Y VERIFICADA POR CHECKSUM | 2026-07-14 01:07 UTC, SHA256 coincide, permisos 700 root:root |
 | Script transaccional de rollback con --dry-run | ⏳ PENDIENTE (P1.1) | Las consultas Cypher directas están validadas; orquestación pendiente |
 | Timer systemd para backup periódico | ⏳ PENDIENTE (P1.1) | Diseñado, sin activar |
+
+> **CORRECCIÓN (2026-08-09) — «copia externa» no significa off-host.**
+> `yggdrasil` es el **hipervisor Proxmox que ejecuta VM105**
+> ([docs/v3/17 §Métricas del host](../v3/17-capacidad-y-observabilidad.md)).
+> Copiar de la VM a su propio anfitrión saca el fichero de la VM, pero **no lo
+> saca del chasis**: un fallo del servidor o de su almacenamiento se lleva
+> origen y copia. Lo verificado aquí es la **transferencia y su checksum**, no
+> la existencia de una copia off-host. El P0 de replicación a un soporte
+> independiente **sigue abierto**; ver
+> [docs/52 §Limitaciones](../52-backup-manual-checkpoint.md) y `RK-14` en
+> [risk-register](../coordination/risk-register.md).
 
 **Prioridad 1** queda cerrada operativamente. Ver dictamen completo en [docs/32](32-production-backup-restore-validation.md).
 

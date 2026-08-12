@@ -1,8 +1,24 @@
 # Programa multiagente RC6+ — Coordinación
 
+> ## HISTÓRICO — programa cerrado (julio 2026)
+>
+> **Este directorio ya no coordina trabajo vivo.** Describe el programa
+> multiagente RC6+ sobre la base `main@6d6c21f`. Todas sus ramas de trabajo
+> (`epic/relation-extraction-quality`, `audit/pre-rc6-main-validation`,
+> `feat/dependabot-supply-chain`, `feat/export-import-contract`, …) **han
+> dejado de existir**, y ni siquiera se llegó a crear RC6: la línea del
+> repositorio pasó a V3 con la PR #110.
+>
+> **Aviso de vocabulario, para no leer mal estos ficheros:** los «Carriles
+> A/B/R» y los «Equipos A/B/Q/R» de aquí **no** son los carriles A–E ni los
+> trabajos H/I/J/K del programa de agosto de 2026. Coinciden las letras, no
+> los contenidos.
+>
+> Estado vigente: [`docs/project-status.yaml`](../project-status.yaml).
+> Se conserva sin borrar como registro de cómo se organizó aquel programa.
+
 Este directorio contiene los artefactos de coordinación del programa de desarrollo
-posterior a la integración de RC6. **No** es documentación de estado productivo ni
-histórica: coordina el trabajo paralelo de varios equipos en ramas separadas.
+posterior a la integración de RC6, tal como se escribieron entonces.
 
 ## Principios
 

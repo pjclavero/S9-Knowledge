@@ -37,10 +37,24 @@ activarla o escribir en producción.
 | Acuerdo determinista∧NVIDIA (PRs #134-#135) | **MEDIDO** | Acuerdo activo 27/27 y 1.000 en corpus ampliado; piloto controlado aprobado, con auditoría humana 100%, gateado al despliegue de V3 y a la primera ingesta autorizada. |
 | Multi-partida M0/M2/M3/M4/M5a (PRs #138, #140-#143) | **MERGEADOS** | Contratos, resolutor ciego, writer con ámbito estampado, divergencias locales del lore y selector de partida en el visor. |
 | Multi-partida M1 | **BLOQUEADO** | Mapeo de ingesta Nextcloud→ámbito a la espera de que Nextcloud vuelva a estar disponible. |
-| Multi-partida M5b y M6 | **PENDIENTES** | Sin trabajo iniciado. |
+| Multi-partida **M5b** (PRs #147, #150-#153) | **CERRADO EN `main` — NO DESPLEGADO** | Contrato `knowledge-visibility/v1`, estampado en el writer, migración fail-closed, cierre del defecto permisivo, M5c y cadena de autorización de extremo a extremo, tras siete rondas de revisión adversarial. Sobre el grafo legacy: **NO APPLY** (`docs/54-migracion-visibilidad-m5b.md`). Despliegue en el visor productivo **no autorizado**. |
+| Multi-partida **M6** | **PENDIENTE** | *Housekeeping* del contenido de prueba del grafo. Es **operativo**, no de código: exige aprobación explícita del operador y se ejecuta al desplegar V3. |
+| Carril D — QA y E2E de navegador (PR #154) | **COMPLETADO** | 148 pruebas Playwright en un check requerido; deja **11 defectos de aplicación abiertos** como `xfail(strict=True)` (`docs/60-qa-browser-e2e-visor.md`). Son defectos de código, no de documentación. |
+| Saneamiento de fixtures (PR #157) | **COMPLETADO** | Dos nodos entregables nombraban en texto libre a un nodo `secret`; se corrigió el **dato**, no la barrera, con gate de regresión propio. |
 
 Ninguno de estos programas implica despliegue en VM105: son estado de `main`
 (bloque `development` de `docs/project-status.yaml`), no de producción.
+**Estar mergeado en `main` no es estar desplegado.**
+
+## Recuperación y credenciales
+
+| Frente | Estado | Resultado / siguiente condición |
+|---|---|---|
+| Rotación de la credencial de Neo4j (2026-08-08) | **HECHA Y VERIFICADA** | La nueva autentica, la anterior no; grafo intacto (199/140). Ver `docs/53-recuperacion-y-credenciales-2026-08.md`. |
+| Restore real de VM105 desde `vzdump` (2026-08-08) | **ENSAYADO** | Copia del 2026-08-02 restaurada a VMID de prueba sin red: `zstd` OK, 70 GiB en **8,2 min**, `e2fsck` limpio, arranque en 23 s, `auth.db` íntegro. **No** se validó el contenido semántico del grafo ni la validez funcional de los secretos. |
+| RTO hasta servicio | **SIN MEDIR** | 8,2 min es la fase de restore, no el tiempo hasta volver a dar servicio. |
+| Copia fuera del chasis | **NO EXISTE — P0 abierto** | Las copias viven en el mismo servidor físico que protegen. El hipervisor de la VM **no** es off-host. |
+| Backup automático | **PROPUESTO, SIN ACTIVAR** | `deploy/propuestas/backup-automatico/`; su puerta exige ensayo de fallos destructivos y una segunda ejecución idempotente. |
 
 ## Legacy (v1/v2)
 

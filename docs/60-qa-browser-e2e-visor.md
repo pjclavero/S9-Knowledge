@@ -3,6 +3,19 @@
 Rama: `test/viewer-browser-e2e-v1` (desde `origin/main` @ `d169052`).
 Carril D. **Solo pruebas**: no se ha modificado nada bajo `viewer/app/**`.
 
+> **Integrado en `main`** vía PR #154 (`d496c08`, 2026-08-09). Las 148 pruebas
+> las ejecuta el check **requerido** *Login browser contract (Playwright)*,
+> que corre el directorio `viewer/tests/browser` completo.
+>
+> **Aviso sobre CI y el prefijo `test/**` (histórico — YA RESUELTO).** Las
+> cifras y el razonamiento de abajo se tomaron trabajando en una rama `test/**`
+> cuando ese prefijo **no disparaba** CI en `push`: el carril solo tuvo señal de
+> CI al abrir el PR. Por eso conviene leerlas como medidas en local, no en CI.
+>
+> Eso **ya no describe el repositorio**: desde el PR #160 (`e21f766`, en `main`)
+> `on.push.branches` es `['**']` y toda rama dispara CI el día que nace. `RK-16`
+> está **CERRADO**; ver [risk-register](coordination/risk-register.md).
+
 ---
 
 ## 1. Problema

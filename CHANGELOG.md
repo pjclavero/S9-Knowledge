@@ -4,6 +4,228 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-08-12 (b) — Cuatro huecos de cobertura cerrados, y la estrechez que queda queda DICHA
+
+Revision independiente del PR #169. Ninguna cifra del PR resulto falsa; lo que
+faltaba era **red debajo de cuatro afirmaciones**. Se cierran con el metodo de
+siempre: falso negativo en verde primero, arreglo, **rojo**, reversion, verde.
+
+- **R5 solo cazaba la redaccion historica literal.** El revisor metio seis
+  frases falsas en `README.md` y **las seis pasaron en verde** contra el repo
+  real (`rc=0`, medido): «siguen sin disparar CI», «CI no se dispara en ramas <!-- consistency:ignore -->
+  `ops/**`», «el push a `test/**` no lanza CI», «CI unicamente corre en <!-- consistency:ignore -->
+  `main`», «solo las ramas de la lista blanca disparan CI». `RX_NO_CI` pasa a <!-- consistency:ignore -->
+  cubrir cuatro familias (negacion antes y despues de «CI», negacion por
+  «sin …», y exclusividad «solo/unicamente …») y `RX_ALL_CI` cubre «cada /
+  cualquier / todas las ramas» y «CI en todas las ramas». Las cinco frases
+  negativas enrojecen ahora (**C4d**); la sexta, «cada rama dispara CI», es
+  **cierta** hoy y su cobertura es la direccion simetrica (**C4c3**).
+  **Estrechez que QUEDA, declarada con `xfail(strict=True)` y CUATRO frases
+  concretas (C4e):** «el workflow ignora las ramas …» (no contiene siquiera el
+  token «CI»), «arranca al abrir el PR, nunca en el push» (negacion desplazada
+  al disparador), «es invisible para CI» (metafora) y «hay una lista blanca de
+  prefijos» (describe un mecanismo sin negar nada). Esas cuatro no son
+  enumerables y perseguirlas daria un gate ruidoso. **Las otras tres que se
+  habian declarado incobrables SI lo eran** y se han cubierto en la segunda
+  revision (familia (e) de `RX_NO_CI`): «CI queda excluido en …», «CI se limita
+  a …» —que es la misma exclusividad que ya estaba implementada— y «fuera del
+  alcance de CI». Declararlas incobrables era pereza, no honestidad.
+- **«Ruido cero» estaba mal medido, y el gate mordia nuestro propio texto.**
+  Comprobar que el texto de HOY sigue verde es **suficiencia**, no ausencia de
+  falsos positivos. Medido sobre ocho frases legitimas, **cuatro enrojecian**:
+  «CI se limita a informar: no bloquea el merge» —que es literalmente la tesis
+  de **RK-20b** en prosa—, «el job de CI se limita a 20 minutos», «CI se limita
+  a 14 jobs por PR» y «ese refactor queda fuera del alcance de este PR; CI no
+  cambia», un descargo de alcance frecuentisimo en `CHANGELOG.md` y
+  `ROADMAP.md`, que estan en `DOCS`. Causa: la familia (e) no exigia que el
+  objeto fueran **ramas**. Se ancla a un token de rama (`_BRANCH`), como ya
+  hacia `RX_ALL_CI`. Medido tras el arreglo: **8/8 legitimas en verde, 3/3
+  falsas en rojo**, y las filas de C4d intactas. Nueva fila **C4f** para que
+  los cuatro falsos positivos no puedan volver: quitando el ancla, C4f da
+  exactamente **4 rojas**. Un gate que muerde el texto correcto se desactiva.
+- **El sandbox daba un aprobado facil a `_merged_prs`.** Su historia sintetica
+  era `#101 -> #102`, **monotona creciente**, asi que era incapaz de expresar
+  el caso que la propia funcion declara load-bearing («en `main` real el #160
+  se fusiono ANTES que el #158»): sustituir el orden cronologico por
+  `sorted(reverse=True)` **no ponia roja ni una prueba**. La historia pasa a
+  ser `#101 -> #105 -> #103`: el ultimo fusionado es el #103 y el mayor es el <!-- consistency:ignore -->
+  #105. **C14a** (orden) y **C14b** (extremo a extremo con tolerancia 0)
+  enrojecen con el orden numerico.
+- **`_resolve_main` no tenia ni una prueba**: era la unica funcion del punto 0
+  sin cobertura, y justo la que puso rojo el primer CI de este PR (rescate del
+  clon superficial). C11 la monkeypatcheaba entera, asi que en CI solo
+  enrojecia **por accidente del entorno**. Se anaden **C15a** (prefiere
+  `origin/main` sobre un `main` local parado), **C15b** (cae al `main` local y
+  lo dice en el `ref`) y **C15c** (sin ninguno de los dos y sin remoto:
+  `(None, None)` y gate ROJO, ejecutando la funcion de verdad). **Y el rescate
+  del clon superficial, que era el UNICO superviviente de la primera revision:**
+  borrar entero el bloque `--unshallow` + `fetch` **no ponia roja ni una fila**
+  (medido: la suite anterior seguia en verde con el bloque eliminado), asi que
+  ese camino solo lo mitigaba un accidente del entorno —`Deployment scripts
+  validation` hace checkout superficial—, no la tabla. **C15d** clona el
+  sandbox con `--depth 1` sobre `file://`, le quita `origin/main` y `main`
+  —exactamente lo que ve CI con `fetch-depth: 1`— y exige que `_resolve_main`
+  lo recupere. Con el bloque eliminado, C15d enrojece. **Y una linea por fila,
+  no el bloque como un todo:** cubrirlo entero enmascaraba su redundancia —el
+  revisor midio que neutralizar `--unshallow`, o quitar el `fetch` normal, o
+  quitar la salida por `FETCH_HEAD`, daba **0 rojas cada una**—. Ademas,
+  recuperar el SHA **no exige `--unshallow`**: en un clon superficial el
+  `fetch` normal ya trae `origin/main`, asi que C15d pasaba por un mecanismo
+  distinto del que anunciaba (la misma forma del defecto de C9). `--unshallow`
+  existe para poder calcular **ancestria y desfase**, asi que C15d lo comprueba
+  ahora (`merge-base --is-ancestor`, `rev-list --count`, y que el clon deje de
+  ser superficial); **C15e** ejerce la salida por `FETCH_HEAD` (refspec
+  restringido, que es lo que configura `actions/checkout`) y **C15f** el
+  `fetch` normal en un clon completo sin las dos referencias. Las tres lineas
+  enrojecen ahora por separado.
+- **Quitar la exigencia de SHA de 40 hex no ponia rojo nada.** Nueva fila
+  **C16**: un `main_commit` abreviado enrojece, y se comprueba que la queja es
+  la longitud y no otra (el commit existe y esta en `main`).
+- **C4c acertaba por el motivo equivocado** (observacion menor del revisor):
+  con la clave `on:` de YAML 1.1 rota, `_push_branches` devuelve `[]`,
+  `universal` cae a `False` y la fila pasaba igual; solo C4b enrojecia. Ahora
+  C4c **exige que el hallazgo cite la lista blanca leida**, y se anade
+  **C4c2**, que comprueba el parser contra el `ci.yml` REAL.
+- **Calibracion:** 13 ablaciones dirigidas, **13 rojas**, todas revertidas byte
+  a byte; y con los patrones historicos restaurados enteros, **14 de las 15**
+  filas de R5 caen (la superviviente es justo la redaccion que el patron viejo
+  ya cubria). Suite del fichero: **61 passed, 5 xfailed**.
+- **Pendientes cerrados sin trabajo pendiente:** las observaciones «O5» y «O6»
+  que arrastraba la lista **no existen en este repositorio** — no aparecen en
+  el arbol, ni en el cuerpo o los comentarios del #169, ni en los PR #160-#171;
+  provienen de un encargo externo al repositorio. Se retiran en vez de dejarse
+  abiertas para siempre.
+- **`RK-20` pasa a CERRADO en cuanto a la cifra**, verificado contra GitHub y
+  no contra un documento: la proteccion de `main` devuelve **11 contextos**, y
+  los tres jobs ausentes son **exactamente** los tres de
+  `ci_running_but_not_required`. El riesgo de fondo (esos tres corren pero no
+  bloquean) se separa en **`RK-20b`, ABIERTO**, que depende del operador.
+- **Aviso programado, medido y no estimado:** `development.main_commit` va **2**
+  commits por detras de `origin/main` con la ventana en **3**. **El proximo
+  merge a `main` pondra ese gate rojo**, y ese rojo es lo que el campo existe
+  para decir, no una regresion. Anotado en `docs/project-status.yaml` junto a
+  `max_lag_commits`, con el arreglo (remedir) y el antipatron (subir la
+  ventana para apagar el aviso).
+
+### 2026-08-12 — El punto 0 pasa a tener pruebas, y el gate deja de creerse a si mismo
+
+- **Las ~300 lineas del punto 0 no tenian ni un test.** La tabla de calibracion
+  vivia en la descripcion del PR, que no se ejecuta. Se lleva a
+  `deploy/tests/test_docs_consistency.py` como **C0-C13** sobre un repositorio
+  Git **sintetico** (historia propia, `origin/main` propio, workflows propios),
+  asi que las filas que dependen de ancestria y desfase son deterministas en
+  cualquier maquina. Calibrado por mutacion del validador: **8 mutaciones, 8
+  rojos**; ninguna sobrevive en verde.
+- **C9 estaba mal en la tabla original**: se ejecutaba tocando solo el YAML, de
+  modo que el verde/rojo lo decidia la comparacion documento-YAML y no la
+  ventana `max_lag_commits` que la fila decia medir. Ahora los documentos se
+  mueven con el YAML (C9) y el otro mecanismo se prueba por separado (C9b).
+- **`S9_DOCS_SKIP_GIT=1` ya no imprime «DOCUMENTACION COHERENTE» a secas.** El
+  titular dice **«COHERENTE (SIN VERIFICAR CONTRA GIT)»**: quien lee la ultima
+  linea de un log no puede llevarse un verde que no se ha comprobado. Y se
+  anade una comprobacion de que esa variable **no aparece en ningun workflow**
+  de `.github/workflows/`: en CI convertiria el gate en un verde ciego.
+- **El validador ya lee `ci.yml`.** Una afirmacion falsa sobre los disparadores
+  de CI —«`test/**` se queda sin CI», el defecto exacto que hizo NO CONFORME a
+  `bf03ca7`— pasaba en verde porque el script no abria un solo workflow. Ahora
+  se contrasta contra `on.push.branches`, en ambos sentidos (C4b y C4c).
+- **Los numeros de RK-20 se verifican.**
+  `ci_jobs_running`/`ci_checks_required`/`ci_running_but_not_required` se
+  contrastan contra los jobs definidos en `.github/workflows/`; ponerlos a
+  99/99 daba verde y ahora enrojece. **Limite declarado:** que un job sea
+  *check requerido* vive en los ajustes de GitHub, no en el repositorio.
+- **RK-19: retirada una fecha inventada.** Decia que `.env.example` se corrigio
+  el 2026-08-09; `git log` demuestra que el primer commit que lo corrige es el
+  de este mismo PR. Una fecha inventada dentro del PR cuya tesis es no fiarse
+  de los documentos.
+
+### 2026-08-11 — Revisión independiente de la auditoría documental (P0+P1)
+
+- **El gate documental no comprobaba la fuente de verdad.** `check_docs_consistency.py`
+  medía coherencia entre los documentos y `project-status.yaml`, pero **nunca
+  contrastaba el YAML contra Git**. Calibrado con una contradicción inyectada:
+  poniendo `main_commit: 1111111…` y `latest_merged_pr: 4242` y propagando la
+  mentira a los cinco documentos, el gate contestaba *«DOCUMENTACION
+  COHERENTE»* — describía con toda consistencia un repositorio inexistente.
+  Se añade el **punto 0**: `main_commit` y `latest_merged_pr` se verifican
+  contra `origin/main`. Si `main` no se puede resolver, el gate se pone **rojo**
+  en vez de degradarse a verde en silencio (`S9_DOCS_SKIP_GIT=1` para asumirlo
+  explícitamente).
+- **El propio YAML entregado estaba desfasado y el gate lo daba por bueno:**
+  declaraba `28320bd`/#157 con `origin/main` en `e9c66dc`/#158. Corregido, y
+  ahora esa clase de desfase enrojece.
+- `RK-16` pasa a **CERRADO**: `on.push.branches` es `['**']` desde el PR #160
+  (`e21f766`). La documentación aún lo describía como abierto y «pendiente de
+  merge en `chore/ci-test-branches-y-node`». Corregido en el registro de
+  riesgos, en `docs/60` y en el README. Verificado leyendo `ci.yml`, no un documento.
+- Se registran el **carril A** (Graph UX V2, PR #158) y el cambio de CI como
+  programas cerrados. Los recuentos de casos de docs/61 (65/50/21) se
+  **verificaron por colección real**, no por lectura de la prosa: `def test_`
+  daba 27/20 porque no expande `parametrize`, y un grep de `test(` daba 55 en
+  el fichero JS porque contaba llamadas a `.test()` de expresiones regulares.
+- `RK-15` pasa a **CERRADO**: `Authz integration (Neo4j efímero)` **sí** es hoy
+  check requerido. Leído de la protección de rama con `gh api`, no de un documento.
+- **Nuevo `RK-20`**: se distingue por escrito entre *correr* y *exigirse*. En
+  `main` corren **14** jobs pero solo **11** bloquean un merge; quedan fuera la
+  especificación JS del grafo y los **dos meta-gates del carril L**. Un gate que
+  no se exige no es un gate, es un informe — y resulta especialmente delicado
+  cuando lo que ese gate vigila es, justamente, que los gates puedan ponerse rojos.
+- El recuento de tests de `development` se marca `stale` + `remeasure_pending`
+  en vez de sustituirse por una cifra nueva: la única medida disponible se
+  tomó en un árbol de trabajo compartido y contaminado por ficheros sin
+  versionar de otros carriles. Un número medido en un árbol sucio no es un dato.
+
+### 2026-08-09 — Auditoría documental y sincronización de estado
+
+- `docs/project-status.yaml`: `main_commit` y `latest_merged_pr` corregidos
+  (`fb4a6fe`/#144 → `28320bd`/#157), que llevaban tres días desfasados y
+  arrastraban al README y al ROADMAP.
+- Se introduce una **convención de procedencia** en el bloque `production`:
+  `VERIFIED` (leído en el destino, con fecha) frente a `PENDING_VERIFICATION`
+  (conocido antes, no releído). El estado del healthcheck pasa a
+  `PENDING_VERIFICATION`: la lectura del 2026-08-06 17:02Z (UNHEALTHY) y la de
+  las 19:06Z (recuperado tras el backup manual) describían antes y después de
+  la copia, no una contradicción — pero **nadie ha vuelto a mirarlo desde
+  entonces**, y eso es lo que ahora consta.
+- El recuento de tests de `main` deja de ser un número suelto: `7284` recogidos
+  / `7061` passed / `219` skipped, **con commit, fecha y entorno**, y con la
+  advertencia de que la cifra de CI difiere porque allí sí hay navegador y
+  Neo4j.
+- `ROADMAP.md`: **M5b dejaba de estar «sin trabajo iniciado»** — estaba cerrado
+  desde hacía días (PRs #147, #150-#153). M6 se reetiqueta como lo que es:
+  housekeeping **operativo** con aprobación explícita del operador.
+- `viewer/README.md`: corregida una afirmación **invertida en materia de
+  seguridad** — decía que la visibilidad por personaje «aún no se aplica en las
+  consultas del visor» cuando se aplica desde M5b/M5c.
+- **Nuevo** [`docs/53-recuperacion-y-credenciales-2026-08.md`](docs/53-recuperacion-y-credenciales-2026-08.md):
+  rotación de la credencial de Neo4j y restore real de VM105 desde `vzdump`
+  (ambos del 2026-08-08), con su alcance exacto y sus límites — y con la
+  distinción explícita entre los **8,2 min de la fase de restore** y el **RTO
+  hasta servicio, que sigue sin medir**.
+- Corregido en seis documentos el error de llamar **off-host** a la copia en
+  `yggdrasil`: `yggdrasil` es el hipervisor que ejecuta VM105, así que la copia
+  vive en el mismo chasis. El P0 de replicación fuera del chasis sigue abierto
+  (`RK-14`).
+- Corregida la confusión entre **backup** y **restore verificado**: el «restore
+  real» de julio era el del *dump de Neo4j* en instancia aislada, no la
+  recuperación de la máquina.
+- `docs/coordination/**` marcado **HISTÓRICO** (programa RC6+, ramas
+  inexistentes, RC6 nunca creada), con aviso de que sus «Carriles A/B/R» no son
+  los carriles A-E de agosto. `dependabot-analysis.md` marcado **SUPERSEDED**:
+  su premisa («no existe `.github/dependabot.yml`») dejó de ser cierta.
+- `risk-register.md`: RK-05 **cerrado** con evidencia (el default ya es
+  `127.0.0.1`), y añadidos RK-14 a RK-18 para los riesgos abiertos que estaban
+  descritos de varias formas en varios sitios o directamente sin registrar.
+- `.env.example`: sustituidas las IP internas por marcadores. El repositorio es
+  público y una IP privada publica gratis la topología de la red.
+- `docs/archivados/02-current-state.md` deja de anunciarse como «documento
+  canónico de estado» y de afirmar que el commit desplegado «= `main`».
+- Enlaces internos rotos reparados en `viewer/README.md`,
+  `docs/archivados/02-current-state.md` y `docs/archivados/INDEX.md`.
+- `scripts/check_docs_consistency.py` ampliado: hasta ahora daba «COHERENTE»
+  mientras el README anunciaba un `main` de tres días atrás. Ver la sección
+  siguiente.
+
 ### 2026-08-06 — Sincronización de documentación de estado (desarrollo vs. producción)
 - `docs/project-status.yaml` reestructurado en tres bloques explícitos:
   `development` (estado de `main`), `production` (último estado verificado
@@ -12,7 +234,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
   desactualizada frente a `main`.
 - README.md, ROADMAP.md y CHANGELOG.md actualizados para reflejar el cierre
   del programa multi-partida M0/M2/M3/M4/M5a (PRs #138, #140-#143; M1
-  bloqueado por Nextcloud, M5b/M6 pendientes), que no se había documentado
+  bloqueado por Nextcloud, M5b/M6 pendientes), <!-- consistency:ignore --> que no se había documentado
   fuera del README (PR #139 solo tocó README y la documentación consolidada).
 - Corregido enlace roto en este CHANGELOG a `docs/02-current-state.md`
   (la ruta real es `docs/archivados/02-current-state.md`).
@@ -34,7 +256,12 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
   acceso estampado por workspace efectivo en el visor. PR #144 corrige un
   fallo de CI introducido por #143 (import perezoso en `app.authz`).
 - M1 (mapeo de ingesta Nextcloud→ámbito) sigue bloqueado a que Nextcloud
-  vuelva a estar disponible. M5b y M6 pendientes.
+  vuelva a estar disponible. M5b y M6 pendientes. <!-- consistency:ignore -->
+
+  Un CHANGELOG registra lo que era cierto en su fecha, así que estas líneas se
+  conservan tal cual y quedan exentas del gate de coherencia (M5b se cerró
+  después, el 2026-08-09). Lo que ya no es cierto se corrige en la entrada
+  nueva, no reescribiendo el pasado.
 
 ### 2026-08-05 — Cierre de Puertas 4 y 6, medición del acuerdo determinista∧NVIDIA (PRs #124–#136)
 - **Puerta 4 — cobertura del extractor (PRs #124-#130):** veredicto
@@ -87,7 +314,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
   duplicaba (`invalid refspec`). Nueva función central `resolve_release_commit`
   (un único SHA a stdout, diagnósticos a stderr, rechazo de refs ambiguas /
   multilínea / con `-` inicial, fetch específico y seguro). Prueba E2E con
-  repositorios git reales. Ver [docs/51](docs/51-deploy-forward-ref-regression.md).
+  repositorios git reales. Ver [docs/51](docs/archivados/51-deploy-forward-ref-regression.md).
 - **RC5** (`deploy-v0.3.0-rc5`, `bcc3a59`) — candidata **NO desplegada**: el cutover
   se abortó antes de activarse; se conserva para auditoría.
 - **RC4** (`deploy-v0.3.0-rc4`, `91bdc51`) — login con **submit explícito** (evita el
@@ -267,7 +494,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 - Estado verificado en commit `1fd94b85` (v0.2.5b): 196 recopilados, 155 aprobados, 41 fallidos.
 - Los 41 fallos eran deuda técnica funcional (semántica del grafo, jobs, multimedia, visor).
 - Guard de ingesta 16/16 confirmado en estado histórico.
-- Baseline: [`docs/24-vm105-baseline-and-verification.md`](docs/24-vm105-baseline-and-verification.md).
+- Baseline: [`docs/24-vm105-baseline-and-verification.md`](docs/archivados/24-vm105-baseline-and-verification.md).
 - Estado corregido posteriormente a 220/220 (commit cef9233).
 
 ### Fixed — 2026-07-13 (rama fix/tests-imports-cache-and-ci)
@@ -293,7 +520,7 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 - Commit auditado: `1fd94b85` (v0.2.5b). Estado verificado: Neo4j 199 nodos / 140 relaciones,
   visor HTTP 200 en todos los endpoints, 2 servicios systemd activos, guard de ingesta confirmado.
 - Tests verificados: 196 recopilados, 155 aprobados, 41 fallidos (deuda técnica funcional — semántica del grafo, jobs, multimedia, visor; guard de ingesta 16/16 confirmado).
-- Nuevo informe de baseline: [`docs/24-vm105-baseline-and-verification.md`](docs/24-vm105-baseline-and-verification.md).
+- Nuevo informe de baseline: [`docs/24-vm105-baseline-and-verification.md`](docs/archivados/24-vm105-baseline-and-verification.md).
 - Corrección: `docs/06-viewer-panel.md` — visor marcado como en producción (no "no implementado").
 - Corrección: `docs/05-data-engine.md` — cifra de tests actualizada (196/155 vs histórico 8/8).
 

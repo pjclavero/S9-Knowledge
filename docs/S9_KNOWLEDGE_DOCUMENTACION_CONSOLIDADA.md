@@ -228,8 +228,11 @@ checksum SHA-256, éxito), restore en volumen nuevo (3 nodos antes = 3 después,
 producción **EJECUTADO** (132 KB, SHA256 verificado), restore en instancia
 aislada **VERIFICADO** (199 nodos, 140 relaciones idénticos a producción),
 rollback por `source_id` **VALIDADO** en laboratorio con datos sintéticos,
-copia externa a yggdrasil **COMPLETADA Y VERIFICADA** (2026-07-14, checksums
-coinciden, permisos 700). Pendiente para P1.1: script transaccional de
+copia a yggdrasil **TRANSFERIDA Y VERIFICADA POR CHECKSUM** (2026-07-14,
+permisos 700) — **corrección 2026-08-09: `yggdrasil` es el hipervisor que
+ejecuta VM105, así que esa copia NO es off-host; sigue en el mismo chasis y
+el P0 de replicación externa sigue abierto (ver docs/52 y docs/53)**.
+Pendiente para P1.1: script transaccional de
 rollback con `--dry-run`, timer systemd de backup periódico. Dictamen: **Prioridad
 1 completada** operativamente (dictamen definitivo en docs/32, capítulo 8).
 
@@ -1353,11 +1356,16 @@ exclusivos, actualizar `source_ids` de nodos compartidos, eliminar
 relaciones exclusivas — validado, sin script de orquestación con
 `--dry-run` todavía). Estado final de producción verificado: Neo4j y
 servicios intactos, sin cambios. **Dictamen: Backup real COMPLETADO,
-checksum VERIFICADO, copia externa COMPLETADA Y VERIFICADA, restore real
-aislado COMPLETADO, rollback por fuente VALIDADO EN LABORATORIO — Prioridad
-1 COMPLETADA.** Endurecimiento operativo pendiente (P1.1): automatizar la
-copia externa, script transaccional de rollback con `--dry-run`, timer
-systemd de backup semanal, prueba periódica de restore.
+checksum VERIFICADO, copia al hipervisor COMPLETADA Y VERIFICADA, restore
+del *dump de Neo4j* en instancia aislada COMPLETADO, rollback por fuente
+VALIDADO EN LABORATORIO — Prioridad 1 COMPLETADA.** Endurecimiento operativo
+pendiente (P1.1): automatizar la copia, script transaccional de rollback con
+`--dry-run`, timer systemd de backup semanal, prueba periódica de restore.
+**Corrección 2026-08-09, dos veces: (a) la copia al hipervisor `yggdrasil`
+NO es off-host —misma máquina física—, y el P0 de replicación externa sigue
+abierto; (b) «restore real aislado» era el restore del dump de Neo4j, no la
+recuperación de VM105. El primer restore de la máquina completa se ensayó el
+2026-08-08 (ver docs/53).**
 
 <a id="d46"></a>
 ### 46 · Observabilidad y healthchecks operacionales (Tarea A)

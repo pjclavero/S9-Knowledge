@@ -69,6 +69,16 @@ Estas relaciones modelan cómo un personaje sabe de una entidad. Se almacenan en
 | `INVOLVES`             | involucra a               | Una entidad participa en un evento                        |
 
 > **Nota:** Estas relaciones y sus propiedades ya están soportadas en el schema del pipeline (`rpg_schema.py` 1.4+). La aplicación de las reglas de visibilidad se implementará en el visor y la API (trabajo futuro).
+>
+> **Actualización 2026-08-09.** Ese «trabajo futuro» **está hecho en `main`**:
+> el modelo de visibilidad se aplica en las consultas del visor
+> (`viewer/app/authz/`, `viewer/app/policies/`) desde M5b/M5c
+> (PRs #147, #150–#153). Dos matices: no está **desplegado** en VM105, y sobre
+> el grafo legacy la resolución es **NO APPLY**
+> ([docs/54](../54-migracion-visibilidad-m5b.md)). El diseño vigente es el
+> contrato `knowledge-visibility/v1`
+> ([docs/v3/51](../v3/51-m5b0-knowledge-visibility-contrato.md)), no este
+> documento.
 
 ---
 

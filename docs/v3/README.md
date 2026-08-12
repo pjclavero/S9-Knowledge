@@ -59,7 +59,16 @@ orden de lectura obligatorio.
 | 46 | [46-gate6-cierre-programa.md](46-gate6-cierre-programa.md) | Cierre del programa Puerta 6 (B0→B2, con rework de B2) — veredicto **CONFORME CON RESERVAS** |
 | 47 | [47-acuerdo-det-nvidia.md](47-acuerdo-det-nvidia.md) | Medición en sombra: precisión del subconjunto-acuerdo determinista ∧ NVIDIA |
 | 48 | [48-acuerdo-eval2.md](48-acuerdo-eval2.md) | ACUERDO-2: corpus de evaluación ampliado y re-medición del acuerdo — piloto controlado ratificado |
-| 49 | [49-multipartida-diseno.md](49-multipartida-diseno.md) | Diseño: separación de partidas por ámbitos (multi-partida) — **en obra, no tocar sin coordinar** |
+| 49 | [49-multipartida-diseno.md](49-multipartida-diseno.md) | Diseño: separación de partidas por ámbitos (multi-partida). Sus notas de estado sobre M5b están **superadas**; ver el aviso de vigencia al principio del documento |
+| 51 | [51-m5b0-knowledge-visibility-contrato.md](51-m5b0-knowledge-visibility-contrato.md) | Contrato canónico `knowledge-visibility/v1` (M5b-0): niebla de guerra por conocimiento de personaje |
+
+La ejecución de M5b vive fuera de este directorio, en la serie numerada de
+`docs/`: [54](../54-migracion-visibilidad-m5b.md) (migración y resolución
+NO APPLY), [55](../55-m5c-cierre-ambito-y-serializadores.md) (M5c),
+[56](../56-g1-g2-g3-segundo-dictamen.md) y
+[57](../57-t1-party-t2-revelacion.md) (dictámenes),
+[58](../58-m5b-c-cadena-de-autorizacion.md) (cadena de autorización) y
+[60](../60-qa-browser-e2e-visor.md) (QA de navegador).
 
 Otros documentos no numerados en este directorio:
 
@@ -70,7 +79,12 @@ Otros documentos no numerados en este directorio:
 - [`measurements/`](measurements/) — artefactos de medición asociados a los
   documentos numerados anteriores.
 
-## Estado de programas (2026-08-05)
+## Estado de programas (actualizado 2026-08-09)
+
+> El bloque de abajo se escribió el 2026-08-05 y se ha corregido el 2026-08-09
+> solo donde había afirmaciones falsas. La referencia autoritativa —y la única
+> que hay que mantener al día— es
+> [`docs/project-status.yaml`](../project-status.yaml).
 
 - **Puerta 4 — cobertura del extractor**: CERRADA, veredicto **PARCIAL**
   (docs/v3/42). Cobertura E2E en desarrollo 0.607 (≥0.60, conforme); recall
@@ -89,11 +103,20 @@ Otros documentos no numerados en este directorio:
   ampliado (medición 2 / ACUERDO-2). El operador ratificó un **piloto
   controlado**, gateado al despliegue de V3 y a la primera ingesta
   autorizada; la revisión humana no se reduce durante el piloto.
-- **Programa multi-partida**: EN CURSO. Diseño (docs/v3/49, PR #137) y bloque
-  M0 (contratos: `partida_id` en la tubería, PR #138, `main` `ccf0fe4`)
-  mergeados. M1 (mapeo de ingesta Nextcloud→ámbito) bloqueado a que
-  Nextcloud vuelva y se pueda leer la plantilla de bóvedas. M2 (resolutor,
-  `resolution/cascade.py`) en obra en una rama separada.
+- **Programa multi-partida**: EN CURSO. Mergeados el diseño (docs/v3/49,
+  PR #137), M0 (contratos: `partida_id` en la tubería, PR #138), M2
+  (resolutor ciego, Invariante 1, PR #140), M3 (writer con ámbito estampado,
+  Invariante 2, PR #141), M4 (`local_override_of`, PR #142) y M5a (selector
+  de partida en el visor, PR #143). **M5b CERRADO** (PRs #147, #150-#153):
+  contrato `knowledge-visibility/v1` (docs/v3/51), migración fail-closed,
+  M5c y cadena de autorización de extremo a extremo — **no desplegado**, y
+  sobre el grafo legacy la resolución es **NO APPLY** (docs/54). M1 (mapeo de
+  ingesta Nextcloud→ámbito) sigue bloqueado a que Nextcloud vuelva. **M6**
+  pendiente: housekeeping operativo con aprobación explícita del operador.
+- **Carril D — QA y E2E de navegador**: COMPLETADO (PR #154). 148 pruebas
+  Playwright en un check requerido; **11 defectos de aplicación abiertos**
+  como `xfail(strict=True)` (docs/60). PR #157 saneó dos fixtures que
+  nombraban material restringido en texto entregable.
 - **Dependencias**: aiohttp actualizado a 3.14.3 por CVE-2026-59881/69243/69244
   (PR #128); httpx, argon2-cffi, fastapi, jinja2 y pytest actualizados vía
   Dependabot (PRs #119-#123).

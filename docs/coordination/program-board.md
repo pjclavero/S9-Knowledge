@@ -1,5 +1,10 @@
 # Tablero de ejecución del programa
 
+> **HISTÓRICO (julio 2026) — tablero congelado.** Los estados de abajo son los
+> del programa RC6+, no los de hoy: RC6 nunca se creó y las ramas citadas ya no
+> existen. Ningún `READY`/`IN_PROGRESS` de esta tabla describe trabajo vivo.
+> Estado vigente: [`docs/project-status.yaml`](../project-status.yaml).
+
 Base: `main@6d6c21f`. Estados: READY · BLOCKED · IN_PROGRESS · AUDIT ·
 READY_FOR_PR · READY_FOR_MERGE · REJECTED · DONE.
 

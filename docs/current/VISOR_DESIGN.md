@@ -7,7 +7,11 @@ Documento de diseño. **No implementa el visor**: define qué datos deja el pipe
 en Neo4j y qué vistas podrá construir el visor futuro sobre ellos.
 
 - Fecha: 2026-07-10
-- Estado: modelo de datos preparado (schema 1.4.0). Visor: pendiente.
+- Estado **en el momento de escribirlo (2026-07-10)**: modelo de datos
+  preparado (schema 1.4.0). Visor: pendiente.
+- Estado **hoy**: el visor lleva desplegado en VM105 desde julio de 2026, con
+  login propio, roles y sesiones. «Visor: pendiente» es una frase de julio,
+  no del estado actual. Ver [`docs/project-status.yaml`](../project-status.yaml).
 - Fuente de verdad: Neo4j (`neo4j-knowledge`, bolt 7687), no la interfaz.
 
 ---
