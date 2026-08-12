@@ -351,10 +351,16 @@ def test_c4c3_lista_blanca_contra_varias_redacciones(sandbox: Sandbox, frase: st
     assert sandbox.run() == 1
 
 
-# C4d — las cinco redacciones NEGATIVAS que el revisor metió en README.md el
-# 2026-08-12 y que pasaron LAS CINCO en verde contra el repo real. Ahora
-# enrojecen. (La sexta, «cada rama dispara CI», es CIERTA hoy: su cobertura es
-# la dirección simétrica, C4c3.)
+# C4d — DIEZ redacciones falsas que enrojecen.
+#
+# Las CINCO primeras son las que el revisor metió en `README.md` el 2026-08-12
+# y que pasaron las cinco en verde contra el repo real. (La sexta de su lista,
+# «cada rama dispara CI», es CIERTA hoy: marcarla sería un falso positivo, y su
+# cobertura es la dirección simétrica, C4c3.) Las dos siguientes son variantes
+# de la misma familia. Las TRES últimas venían de C4e y se mueven aquí en la
+# segunda revisión: no eran paráfrasis léxicamente abiertas sino idiomas
+# cerrados —y «se limita a» es la exclusividad que ya estaba implementada—,
+# así que declararlas incobrables era pereza, no honestidad.
 @pytest.mark.parametrize("frase", [
     "Las ramas `ops/**` siguen sin disparar CI.",
     "CI no se dispara en ramas `ops/**`.",
@@ -363,6 +369,9 @@ def test_c4c3_lista_blanca_contra_varias_redacciones(sandbox: Sandbox, frase: st
     "Solo las ramas de la lista blanca disparan CI.",
     "Las ramas `docs/**` no ejecutan CI.",
     "CI no corre en las ramas de documentacion.",
+    "CI queda excluido en las ramas `docs/**`.",
+    "CI se limita a `main` y `feat/**`.",
+    "Las ramas `test/**` estan fuera del alcance de CI.",
 ])
 def test_c4d_redacciones_negativas_falsas_enrojecen(sandbox: Sandbox, frase: str):
     sandbox.write("ROADMAP.md", frase + "\n")
@@ -370,27 +379,30 @@ def test_c4d_redacciones_negativas_falsas_enrojecen(sandbox: Sandbox, frase: str
     assert sandbox.run() == 1
 
 
-# C4e — ESTRECHEZ QUE QUEDA, declarada y no supuesta.
+# C4e — ESTRECHEZ QUE QUEDA, declarada y no supuesta. CUATRO frases.
 #
-# `RX_NO_CI` cubre negación explícita («no …»), negación por «sin …» y
-# exclusividad («solo/únicamente …»). NO cubre las paráfrasis por vocabulario
-# de exclusión, que son léxicamente abiertas: «ignora», «excluido», «fuera del
-# alcance», «invisible para», «se limita a», o la negación desplazada al
-# disparador («arranca al abrir el PR, nunca en el push»). Perseguirlas con
-# regex daría un gate ruidoso; se prefiere dejarlas DICHAS.
+# `RX_NO_CI` cubre negación explícita («no …»), negación por «sin …»,
+# exclusividad («solo/únicamente …», «se limita a») y tres idiomas fijos de
+# exclusión («excluido», «fuera del alcance»). Lo que queda fuera NO es
+# vocabulario que se pueda enumerar:
 #
-# Estas siete frases son FALSAS contra `on.push.branches: ['**']` y el
-# validador NO las detecta. `strict=True`: el día que se cubra alguna, esta
-# prueba se pondrá roja por XPASS y habrá que mover la frase a C4d.
-@pytest.mark.xfail(reason="RX_NO_CI no cubre el vocabulario de exclusión (estrechez declarada)", strict=True)
+#   * «el workflow ignora las ramas `ops/**`» — ni siquiera contiene el token
+#     «CI»: cazarla exigiría razonar sobre el sujeto de la frase;
+#   * «arranca al abrir el PR, nunca en el push» — la negación está desplazada
+#     al disparador, no al hecho de correr;
+#   * «es invisible para CI» — metáfora, y la familia de metáforas es infinita;
+#   * «hay una lista blanca de prefijos de rama» — describe un mecanismo sin
+#     negar nada; sólo es falsa por lo que el `ci.yml` dice HOY.
+#
+# Perseguirlas con regex daría un gate ruidoso, y un gate ruidoso se ignora.
+# `strict=True`: el día que se cubra alguna, esta prueba se pondrá roja por
+# XPASS y habrá que mover la frase a C4d, como se hizo con las otras tres.
+@pytest.mark.xfail(reason="RX_NO_CI no cubre estas cuatro (estrechez declarada, no enumerable)", strict=True)
 @pytest.mark.parametrize("frase", [
     "El workflow ignora las ramas `ops/**`.",
-    "CI queda excluido en las ramas `docs/**`.",
-    "Las ramas `test/**` estan fuera del alcance de CI.",
     "CI arranca al abrir el PR, nunca en el push a la rama.",
     "Hay una lista blanca de prefijos de rama para CI.",
     "El push a `ops/**` es invisible para CI.",
-    "CI se limita a `main` y `feat/**`.",
 ])
 def test_c4e_estrechez_declarada_de_r5(sandbox: Sandbox, frase: str):
     sandbox.write("ROADMAP.md", frase + "\n")
@@ -594,6 +606,37 @@ def test_c15c_resolve_main_sin_nada_es_rojo_de_verdad(sandbox: Sandbox):
     assert sandbox.mod._resolve_main() == (None, None)
     assert any("no se ha podido resolver" in f for f in sandbox.findings())
     assert sandbox.run() == 1
+
+
+# C15d — el RESCATE DEL CLON SUPERFICIAL, que era el único superviviente de la
+# primera revisión: borrar entero el bloque `--unshallow` + `fetch` de
+# `_resolve_main` no ponía roja ni una fila. Es el código que puso rojo el
+# primer CI de este PR, y hasta aquí sólo lo «cubría» un accidente del entorno
+# (`Deployment scripts validation` hace checkout superficial), no la tabla.
+#
+# El clon es de verdad superficial (`--depth 1` sobre `file://`) y se le
+# quitan `origin/main` y `main`: exactamente lo que ve CI con `fetch-depth: 1`.
+# La única salida es traerlo del remoto. Que no se degrade a verde ya lo dice
+# C15c; esta fila dice que el rescate FUNCIONA.
+def test_c15d_rescate_del_clon_superficial(sandbox: Sandbox, tmp_path: Path, monkeypatch):
+    clone = tmp_path / "shallow"
+    subprocess.run(
+        ["git", "clone", "--quiet", "--depth", "1", "--branch", "main",
+         f"file://{sandbox.root}", str(clone)],
+        check=True, capture_output=True,
+    )
+    assert _git(clone, "rev-parse", "--is-shallow-repository") == "true"
+    _git(clone, "checkout", "--quiet", "--detach", "HEAD")
+    _git(clone, "branch", "--quiet", "-D", "main")
+    _git(clone, "update-ref", "-d", "refs/remotes/origin/main")
+
+    monkeypatch.setattr(sandbox.mod, "REPO", clone)
+    # Punto de partida: `main` NO es resoluble con lo que hay en el clon.
+    assert sandbox.mod._try_local_main() == (None, None)
+    # …y aun así `_resolve_main` lo recupera, sin degradarse a verde.
+    sha, ref = sandbox.mod._resolve_main()
+    assert sha == sandbox.head, (sha, ref)
+    assert ref is not None
 
 
 # C16 — `development.main_commit` debe ser un SHA COMPLETO de 40 hex. Un SHA

@@ -20,12 +20,17 @@ siempre: falso negativo en verde primero, arreglo, **rojo**, reversion, verde.
   cualquier / todas las ramas» y «CI en todas las ramas». Las cinco frases
   negativas enrojecen ahora (**C4d**); la sexta, «cada rama dispara CI», es
   **cierta** hoy y su cobertura es la direccion simetrica (**C4c3**).
-  **Estrechez que QUEDA, declarada con `xfail(strict=True)` y siete frases
-  concretas (C4e):** el vocabulario de exclusion —«ignora», «queda excluido»,
-  «fuera del alcance», «invisible para», «se limita a», «arranca al abrir el
-  PR, nunca en el push», «hay una lista blanca»— **no se detecta**. Es
-  lexicamente abierto; perseguirlo con regex daria un gate ruidoso. Lo que no
-  se puede detectar queda dicho, no supuesto.
+  **Estrechez que QUEDA, declarada con `xfail(strict=True)` y CUATRO frases
+  concretas (C4e):** «el workflow ignora las ramas …» (no contiene siquiera el
+  token «CI»), «arranca al abrir el PR, nunca en el push» (negacion desplazada
+  al disparador), «es invisible para CI» (metafora) y «hay una lista blanca de
+  prefijos» (describe un mecanismo sin negar nada). Esas cuatro no son
+  enumerables y perseguirlas daria un gate ruidoso. **Las otras tres que se
+  habian declarado incobrables SI lo eran** y se han cubierto en la segunda
+  revision (familia (e) de `RX_NO_CI`): «CI queda excluido en …», «CI se limita <!-- consistency:ignore -->
+  a …» —que es la misma exclusividad que ya estaba implementada— y «fuera del
+  alcance de CI». Declararlas incobrables era pereza, no honestidad; cuestan
+  tres alternativas y **cero ruido** (el repo real sigue verde tal cual esta).
 - **El sandbox daba un aprobado facil a `_merged_prs`.** Su historia sintetica
   era `#101 -> #102`, **monotona creciente**, asi que era incapaz de expresar
   el caso que la propia funcion declara load-bearing («en `main` real el #160
@@ -40,7 +45,15 @@ siempre: falso negativo en verde primero, arreglo, **rojo**, reversion, verde.
   enrojecia **por accidente del entorno**. Se anaden **C15a** (prefiere
   `origin/main` sobre un `main` local parado), **C15b** (cae al `main` local y
   lo dice en el `ref`) y **C15c** (sin ninguno de los dos y sin remoto:
-  `(None, None)` y gate ROJO, ejecutando la funcion de verdad).
+  `(None, None)` y gate ROJO, ejecutando la funcion de verdad). **Y el rescate
+  del clon superficial, que era el UNICO superviviente de la primera revision:**
+  borrar entero el bloque `--unshallow` + `fetch` **no ponia roja ni una fila**
+  (medido: la suite anterior seguia en verde con el bloque eliminado), asi que
+  ese camino solo lo mitigaba un accidente del entorno —`Deployment scripts
+  validation` hace checkout superficial—, no la tabla. **C15d** clona el
+  sandbox con `--depth 1` sobre `file://`, le quita `origin/main` y `main`
+  —exactamente lo que ve CI con `fetch-depth: 1`— y exige que `_resolve_main`
+  lo recupere. Con el bloque eliminado, C15d enrojece.
 - **Quitar la exigencia de SHA de 40 hex no ponia rojo nada.** Nueva fila
   **C16**: un `main_commit` abreviado enrojece, y se comprueba que la queja es
   la longitud y no otra (el commit existe y esta en `main`).
@@ -49,9 +62,10 @@ siempre: falso negativo en verde primero, arreglo, **rojo**, reversion, verde.
   `universal` cae a `False` y la fila pasaba igual; solo C4b enrojecia. Ahora
   C4c **exige que el hallazgo cite la lista blanca leida**, y se anade
   **C4c2**, que comprueba el parser contra el `ci.yml` REAL.
-- **Calibracion:** 7 ablaciones dirigidas, **7 rojas**, todas revertidas byte a
-  byte; y con los patrones historicos restaurados enteros, **11 de las 12**
-  filas nuevas de R5 caen. Suite del fichero: **47 passed, 8 xfailed**.
+- **Calibracion:** 9 ablaciones dirigidas, **9 rojas**, todas revertidas byte a
+  byte; y con los patrones historicos restaurados enteros, **14 de las 15**
+  filas nuevas de R5 caen (la superviviente es justo la redaccion que el patron
+  viejo ya cubria). Suite del fichero: **51 passed, 5 xfailed**.
 - **Pendientes cerrados sin trabajo pendiente:** las observaciones «O5» y «O6»
   que arrastraba la lista **no existen en este repositorio** — no aparecen en
   el arbol, ni en el cuerpo o los comentarios del #169, ni en los PR #160-#171;

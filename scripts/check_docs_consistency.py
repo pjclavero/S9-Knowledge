@@ -434,9 +434,18 @@ WORKFLOWS = Path(".github") / "workflows"
 #   (b) negacion despues de CI:    "CI ... no se dispara/lanza/corre"
 #   (c) negacion por "sin":        "sin disparar/lanzar/ejecutar ... CI"
 #   (d) exclusividad:              "solo/unicamente ... dispara ... CI"
-# La estrechez que QUEDA (vocabulario de exclusion: «ignora», «excluido»,
-# «fuera del alcance», «se limita a») esta DECLARADA, con sus siete frases
-# concretas, en test_c4e_estrechez_declarada_de_r5.
+#   (e) exclusion de forma FIJA:   "CI (queda) excluido en ...", "CI se limita
+#                                  a ...", "... fuera del alcance de CI"
+# La familia (e) se anadio el 2026-08-12 tras la segunda revision: son tres
+# idiomas CERRADOS, no parafrasis abiertas, y «se limita a» es la misma
+# exclusividad de (d) escrita de otra manera. Cubrirlas cuesta tres
+# alternativas y NO introduce ruido: el repo real sigue verde tal cual esta.
+# La estrechez que QUEDA esta DECLARADA, con sus CUATRO frases concretas, en
+# test_c4e_estrechez_declarada_de_r5: «el workflow ignora …» (no contiene el
+# token CI), «nunca en el push» (negacion desplazada al disparador),
+# «invisible para CI» (metafora) y «hay una lista blanca de prefijos» (describe
+# un mecanismo sin negar nada). Esas cuatro no son enumerables; las tres que si
+# lo eran —«excluido», «se limita a», «fuera del alcance»— se cubren arriba.
 _VERBS = r"(?:dispara|disparan|lanza|lanzan|corre|corren|ejecuta|ejecutan|activa|activan|tiene|tienen)"
 _VERBS_INF = r"(?:disparar|lanzar|ejecutar|correr|activar)"
 _ONLY = r"(?:solo|solamente|unicamente|exclusivamente)"
@@ -445,7 +454,10 @@ RX_NO_CI = re.compile(
     r"|\bCI\b[^.\n]{0,40}\bno\s+(?:se\s+)?" + _VERBS + r"\b"
     r"|\bsin\s+" + _VERBS_INF + r"\b[^.\n]{0,30}\bCI\b"
     r"|\b" + _ONLY + r"\b[^.\n]{0,60}\b" + _VERBS + r"\b[^.\n]{0,20}\bCI\b"
-    r"|\bCI\b[^.\n]{0,40}\b" + _ONLY + r"\b[^.\n]{0,30}(?:\bse\s+)?" + _VERBS + r"\b",
+    r"|\bCI\b[^.\n]{0,40}\b" + _ONLY + r"\b[^.\n]{0,30}(?:\bse\s+)?" + _VERBS + r"\b"
+    r"|\bCI\b[^.\n]{0,25}\bexclui(?:d[oa]s?|r|ye|yen)\b"
+    r"|\bCI\b[^.\n]{0,25}\bse\s+limita\b"
+    r"|\bfuera\s+del\s+alcance\b[^.\n]{0,30}\bCI\b",
     re.IGNORECASE,
 )
 # "toda rama dispara CI", "cada rama dispara CI", "cualquier rama lanza CI",
