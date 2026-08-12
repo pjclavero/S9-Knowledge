@@ -176,6 +176,19 @@ INVOCA_GATE = ".github/scripts/"
 #     if ! python3 "$G" all; then echo x; fi
 RE_ASIGNA = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
 
+# Cuantas negaciones lleva el `if`. NO basta con «esta negado o no»: `! !` es
+# bash valido y VUELVE A INVERTIR la polaridad, asi que
+#
+#     if ! ! GATE; then exit 1; fi
+#
+# tiene todo el aspecto de una guardia —lleva su `exit 1`— y hace lo contrario:
+# con el gate ROJO la rama `then` no se ejecuta y el paso sale en VERDE.
+# Comprobado ejecutandolo en bash, no leyendolo. Es un solo caracter de
+# diferencia respecto de la guardia correcta, asi que la negacion multiple se
+# RECHAZA de plano: no existe una razon legitima para escribirla, y calcular su
+# paridad en silencio seria justo la clase de sutileza que nadie revisa.
+RE_NEGACIONES = re.compile(r"\bif\s+((?:!\s*)+)")
+
 # NO hay lista de excepciones, y no por descuido: se comprobo que los dos
 # workflows vigilados no necesitan ninguna. Una exencion que hoy no hace falta
 # es la rendija por la que manana entra el apagado, y este fichero existe
@@ -692,14 +705,20 @@ def gates_sin_desenlace(cuerpo: str, marca: str = INVOCA_GATE) -> list[str]:
         condicion = texto[: m_then.start()]
         if not _invoca_gate(condicion, marca, variables):
             continue
+        m_neg = RE_NEGACIONES.search(condicion)
+        negaciones = m_neg.group(1).count("!") if m_neg else 0
+        if negaciones > 1:
+            # Polaridad invertida: parece guardia y apaga. Se rechaza sin
+            # mirar las ramas, porque el problema es la condicion misma.
+            hallazgos.append(("doble-negacion", condicion.strip().replace("\n", " ")))
+            continue
         resto = re.sub(r"\bfi\b\s*$", "", texto[m_then.end():].rstrip())
         m_else = re.search(r"(?:^|;|\n)\s*else\b", resto)
         rama_then = resto[: m_else.start()] if m_else else resto
         rama_else = resto[m_else.end():] if m_else else ""
-        negado = bool(re.search(r"\bif\s+!", condicion))
-        rama_fallo = rama_then if negado else rama_else
+        rama_fallo = rama_then if negaciones == 1 else rama_else
         if not RE_BLOQUE_FALLA.search(rama_fallo):
-            hallazgos.append(condicion.strip().replace("\n", " "))
+            hallazgos.append(("sin-desenlace", condicion.strip().replace("\n", " ")))
     return hallazgos
 
 
@@ -707,19 +726,30 @@ def comprueba_if_negado(datos: dict, nombre: str) -> list[str]:
     errores = []
     for job_id, job in (datos.get("jobs") or {}).items():
         for paso_nombre, cuerpo in pasos_run(job):
-            for linea in gates_sin_desenlace(cuerpo):
-                errores.append(
-                    f"{nombre}: el job `{job_id}`, paso `{paso_nombre}`, ejecuta "
-                    f"un gate dentro de un `if` cuya rama de FALLO no falla: "
-                    f"`{linea}`. El gate corre, se pone rojo, y el paso sale en "
-                    f"VERDE: es `|| true` escrito como condicional. Da igual "
-                    f"donde este la negacion (`if !`, un `else`, o ninguna "
-                    f"rama), y da igual que la ruta llegue por una variable: lo "
-                    f"que cuenta es que cuando el gate falla no pasa nada. La "
-                    f"rama de fallo tiene que terminar en `exit 1`; si no, "
-                    f"invoca el gate a secas y deja decidir a su codigo de "
-                    f"salida."
-                )
+            for clase, linea in gates_sin_desenlace(cuerpo):
+                donde = f"{nombre}: el job `{job_id}`, paso `{paso_nombre}`"
+                if clase == "doble-negacion":
+                    errores.append(
+                        f"{donde}, ejecuta un gate con NEGACION MULTIPLE: "
+                        f"`{linea}`. `! !` es bash valido y vuelve a invertir "
+                        f"la polaridad: aunque la rama lleve su `exit 1`, con "
+                        f"el gate ROJO esa rama NO se ejecuta y el paso sale en "
+                        f"VERDE. Tiene el aspecto exacto de una guardia "
+                        f"correcta y hace lo contrario, con un solo caracter de "
+                        f"diferencia. Escribe una sola negacion."
+                    )
+                else:
+                    errores.append(
+                        f"{donde}, ejecuta un gate dentro de un `if` cuya rama "
+                        f"de FALLO no falla: `{linea}`. El gate corre, se pone "
+                        f"rojo, y el paso sale en VERDE: es `|| true` escrito "
+                        f"como condicional. Da igual donde este la negacion "
+                        f"(`if !`, un `else`, o ninguna rama), y da igual que "
+                        f"la ruta llegue por una variable: lo que cuenta es que "
+                        f"cuando el gate falla no pasa nada. La rama de fallo "
+                        f"tiene que terminar en `exit 1`; si no, invoca el gate "
+                        f"a secas y deja decidir a su codigo de salida."
+                    )
     return errores
 
 

@@ -646,6 +646,14 @@ RE_IF = re.compile(r"(?:^|;|&&|\|\||\bthen\b|\bdo\b)\s*if\s")
 RE_BLOQUE_FALLA = re.compile(r"(?:\bexit\s+(?:[1-9]\d*|\$)|\breturn\s+[1-9]\d*|\bfalse\b)")
 RE_ASIGNA = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
 
+# `! !` es bash valido y VUELVE A INVERTIR la polaridad. `if ! ! GATE; then
+# exit 1; fi` tiene el aspecto exacto de una guardia —lleva su `exit 1`— y hace
+# lo contrario: con el gate ROJO la rama `then` no corre y el paso sale VERDE.
+# Comprobado ejecutandolo en bash. Un solo caracter separa la guardia correcta
+# del apagado, asi que la negacion multiple se RECHAZA de plano en vez de
+# calcular su paridad en silencio.
+RE_NEGACIONES = re.compile(r"\bif\s+((?:!\s*)+)")
+
 
 def lineas_efectivas(cuerpo: str) -> list[str]:
     """Lineas de un `run:` que son CODIGO: sin comentarios de shell."""
@@ -696,13 +704,17 @@ def condiciones_sin_desenlace(lineas: list[str], marca: str) -> list[str]:
         condicion = texto[: m_then.start()]
         if not invoca(condicion):
             continue
+        m_neg = RE_NEGACIONES.search(condicion)
+        negaciones = m_neg.group(1).count("!") if m_neg else 0
+        if negaciones > 1:
+            fuera.append(("doble-negacion", condicion.strip().replace("\n", " ")))
+            continue
         resto_txt = re.sub(r"\bfi\b\s*$", "", texto[m_then.end():].rstrip())
         m_else = re.search(r"(?:^|;|\n)\s*else\b", resto_txt)
         rama_then = resto_txt[: m_else.start()] if m_else else resto_txt
         rama_else = resto_txt[m_else.end():] if m_else else ""
-        negado = bool(re.search(r"\bif\s+!", condicion))
-        if not RE_BLOQUE_FALLA.search(rama_then if negado else rama_else):
-            fuera.append(condicion.strip().replace("\n", " "))
+        if not RE_BLOQUE_FALLA.search(rama_then if negaciones == 1 else rama_else):
+            fuera.append(("sin-desenlace", condicion.strip().replace("\n", " ")))
     return fuera
 
 
@@ -773,7 +785,17 @@ def check_gate_no_apagado() -> list[str]:
                 )
         # La misma neutralizacion como condicional. Se exige que la rama de
         # FALLO falle; una guardia que acaba en `exit 1` es legitima.
-        for condicion in condiciones_sin_desenlace(lineas, INVOCACION_GATE):
+        for clase, condicion in condiciones_sin_desenlace(lineas, INVOCACION_GATE):
+            if clase == "doble-negacion":
+                errores.append(
+                    f"ci.yml: el job `{job_id}`, paso `{etiqueta}`, invoca este "
+                    f"gate con NEGACION MULTIPLE: `{condicion}`. `! !` es bash "
+                    f"valido y vuelve a invertir la polaridad: aunque la rama "
+                    f"lleve `exit 1`, con el gate ROJO no se ejecuta y el paso "
+                    f"sale VERDE. Parece una guardia correcta y hace lo "
+                    f"contrario. Escribe una sola negacion."
+                )
+                continue
             errores.append(
                 f"ci.yml: el job `{job_id}`, paso `{etiqueta}`, ejecuta este "
                 f"gate dentro de un `if` cuya rama de FALLO no falla: "

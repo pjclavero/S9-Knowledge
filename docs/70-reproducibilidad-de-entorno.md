@@ -153,8 +153,8 @@ La prohibición **genérica** de `|| true` vive en
 natural: allí ya se parsea YAML de verdad y ya se prohíbe `continue-on-error`,
 que es exactamente el mismo apagado una capa más arriba. Prohibir el campo YAML
 y dejar libre su equivalente en el shell era vigilar la puerta y no la ventana.
-Se añadieron allí dos reglas y **nueve casos a su propia calibración**
-(`calibra_gate_integrity.py`), que pasa **29/29** — incluidos su `estado
+Se añadieron allí dos reglas y **diez casos a su propia calibración**
+(`calibra_gate_integrity.py`), que pasa **30/30** — incluidos su `estado
 correcto` y su `restaurado` en verde, que es la prueba de que no se rompió nada
 suyo. Nótese que el `ci.yml` real contiene comentarios que dicen «Sin
 `|| true`: …»: la regla mira **código**, no texto, y ese caso verde lo
@@ -217,6 +217,7 @@ exige que **esa** rama falle:
 | `G=".../gate.py"` … `if ! python3 "$G"` | `then` | **ROJO** en los 2 |
 | `if ! GATE; then echo …; exit 1; fi` | `then` (falla) | **VERDE** (guardia) |
 | `if ! GATE; then exit 1; fi` *(una línea)* | `then` (falla) | **VERDE** (guardia) |
+| `if ! ! GATE; then exit 1; fi` | *polaridad invertida* | **ROJO** en los 2 (ver abajo) |
 | los 9 `if !` reales de `ci.yml` | — | **VERDE** (0 falsos positivos) |
 
 La penúltima fila era un **falso positivo** en la primera versión: la guardia
@@ -229,10 +230,57 @@ Las seis formas están calibradas en los dos arneses, **dos de ellas como
 controles positivos**: sin ellos, un gate que rechazara cualquier `if !`
 parecería correcto mientras prohíbe el idioma de las guardias obligatorias.
 
-**Límite que queda**: el reconocimiento de la rama de fallo es textual sobre el
-bloque, así que un `if` **anidado** dentro de la rama de fallo puede confundir
-el reparto `then`/`else`. No se ha visto ningún caso real y sigue fallando
-cerrado, pero está sin cerrar.
+### La doble negación (`if ! ! GATE`)
+
+Una segunda revisión encontró que el discriminante anterior tenía **un agujero
+de un solo carácter**, y era el peor de la serie porque desmentía su propia
+premisa:
+
+```yaml
+if ! ! python3 .github/scripts/check_env_reproducibility.py all; then
+  exit 1
+fi
+```
+
+Lleva su `exit 1`, así que la regla lo daba por **guardia legítima**. Pero
+`! !` es bash válido y **vuelve a invertir la polaridad**: con el gate **rojo**
+la rama `then` no se ejecuta y el paso sale en **verde**. Comprobado
+ejecutándolo, no leyéndolo — con un gate que devuelve 1, `if ! G; then exit 1;
+fi` sale `rc=1` y `if ! ! G; then exit 1; fi` sale `rc=0`; y con un gate que
+devuelve 0, exactamente al revés.
+
+La causa estaba en mi código: `bool(re.search(r"\bif\s+!", condicion))` detecta
+**un** `!` y se queda tan ancho. Ahora se **cuentan** las negaciones. **ROJO en
+los dos instrumentos**, calibrado en los dos arneses.
+
+**Qué cierra qué, medido por ablación separada** (porque en el mismo commit se
+solaparon dos arreglos y era fácil atribuirle el mérito al que no era):
+
+| Estado | N4 (`!!`) | `!!!` | `!!` con `else` que sale 1 |
+|---|---|---|---|
+| antes del arreglo | **no señala** ← el agujero | no señala | no señala |
+| sólo **paridad** (`negaciones == 1`) | señala | señala | no señala |
+| sólo **rechazo** (`negaciones > 1`) | señala | señala | señala |
+| **actual** (ambos) | señala | señala | señala |
+
+Lo que de verdad cierra N4 es la **paridad**: contar en vez de mirar si hay un
+`!`. El **rechazo** de la negación múltiple va encima como **política**, y hay
+que decir lo que cuesta: en bash, `!!!GATE` y `!!GATE` con un `else` que sale 1
+**funcionan como guardias** —comprobado ejecutándolos: el paso acaba en rojo— y
+aun así se rechazan. No son falsos positivos por descuido sino una decisión:
+en la guardia de un gate, una negación múltiple está a **un carácter** de
+invertir la polaridad, no aporta nada que no dé una sola, y falla cerrado.
+Ningún uso real del repositorio la tiene.
+
+**Corrección a lo que decía antes esta página.** Aquí figuraba que un `if`
+**anidado** dentro de la rama de fallo quedaba *sin cerrar*. Es falso, y lo
+señaló el revisor **a favor del gate**: medido, sale **ROJO en los dos**
+instrumentos, porque el anidado no aporta ningún `exit` a la rama de fallo. La
+afirmación pesimista era un error mío de documentación, no una limitación real.
+
+Tampoco es superviviente `if ! GATE; then ( exit 1 ); fi`, que sale verde y
+**es correcto**: el subshell devuelve 1, es la última orden del `run:`, y el
+paso se pone rojo igual.
 
 ### Ablación: qué control es realmente el que sostiene cada rojo
 
@@ -250,6 +298,10 @@ escrito en vez de presentarlo como si hubiera pasado:
 | `os.access(X_OK)` en `presente_chromium` | **No**: nada cambia |
 | `presente_chromium` entero (vuelta a `os.path.exists`) | Sí: los dos casos de 5 dejan de detectarse |
 | lectura semántica de `ci.yml` (vuelta a regex) | Sí — **pero sólo tras corregir la calibración**, ver abajo |
+| resolución de la ruta por **variable** | Sí: cae A4, y sólo A4 |
+| criterio de **rama de fallo** (vuelta al de forma) | Sí: caen A6 y A6 bis |
+| **paridad** de negaciones | Sí: vuelve el falso negativo N4 |
+| **rechazo** de negación múltiple | **No** para detectar N4 (lo sostiene la paridad); sí para el mensaje y para la política |
 
 Es decir: en el superviviente 5 **lo que sostiene el rojo es lanzar el binario**,
 no el `os.access`. El `X_OK` es redundante **para el veredicto** y se conserva
@@ -284,7 +336,7 @@ La prueba de ablación es lo único que lo distingue.
 ### `.github/scripts/check_env_reproducibility_calibration.py`
 
 La calibración, ejecutada **en cada corrida de CI**. Construye un repositorio
-sintético que sale verde, y para cada una de las **41 reglas** (incluidos los
+sintético que sale verde, y para cada una de las **42 reglas** (incluidos los
 ocho caminos del `dependency_fingerprint`, los seis supervivientes de la
 revisión con sus controles positivos, y el `node` de versión equivocada,
 inyectado como ejecutable falso al frente del `PATH`): introduce la
@@ -457,14 +509,26 @@ obligado a mirar un aviso, y esta deriva es real y viva.
   él (es el idioma que permite imprimir la salida de pytest antes de fallar),
   así que prohibirlos rompería jobs correctos. Un `set +e` descuidado sigue
   siendo un apagado posible y **no está cerrado**.
-- **Neutralización repartida entre líneas**, en tres formas que quedan
+- **Neutralización repartida entre líneas**, en cuatro formas que quedan
   **declaradas y abiertas**: `set +e` sin mirar `$?`, una función envoltorio
-  (`nofail() { "$@" || return 0; }`) y un `rc=$?` capturado y nunca usado. Las
-  tres exigen escribir algo que *parece* deliberado, y por eso se aceptan como
-  límite. Las que sí están cerradas —el `if` sin rama de fallo en sus cuatro
-  escrituras, incluida la indirección por variable— eran de otra clase: se
-  cuelan **sin querer**. Ese es el criterio con el que se decidió cuál cerrar y
-  cuál declarar, y no «cuál era más fácil».
+  (`nofail() { "$@" || return 0; }`), un `rc=$?` capturado y nunca usado, y
+  —familia distinta, encontrada en la última revisión— el **enmascaramiento por
+  tubería**:
+
+  ```yaml
+  set +o pipefail
+  if ! GATE | tee /dev/null; then exit 1; fi
+  ```
+
+  El `if` evalúa el estado de `tee`, no el del gate, así que el gate rojo pasa
+  en verde. **Con `pipefail` activo el control vuelve a ponerse rojo**, y
+  `pipefail` es lo que ya usan los pasos de estos workflows; el apagado exige
+  **dos** ediciones deliberadas (desactivarlo *y* añadir la tubería). Las
+  cuatro exigen escribir algo que *parece* deliberado, y por eso se aceptan
+  como límite. Las que sí están cerradas —el `if` sin rama de fallo en sus
+  cuatro escrituras, la indirección por variable y la doble negación— eran de
+  otra clase: se cuelan **sin querer**. Ése es el criterio con el que se
+  decidió cuál cerrar y cuál declarar, y no «cuál era más fácil».
 - **`set +e` sin comprobar `$?`** merece una nota aparte, porque es el que más
   se parece a un descuido: no se prohíbe porque los **6** `set +e` reales de
   `ci.yml` **capturan `rc` y deciden con él** (es el idioma que permite imprimir

@@ -149,6 +149,16 @@ def ramas_de_origin() -> list[str]:
 # --------------------------------------------------------------------------
 
 def _sustituye(ruta: Path, viejo: str, nuevo: str) -> None:
+    """Sustituye un ANCLA LITERAL en el fichero indicado.
+
+    OJO al mantenerlo: varias mutaciones se anclan al texto EXACTO de la
+    linea que invoca un gate en `ci.yml`. Si esa invocacion se reescribe
+    —se le cambia un flag, se parte en dos lineas, se renombra el script—,
+    el ancla deja de encontrarse. No es un agujero: `_sustituye` aborta con
+    `MUTACION IMPOSIBLE` y la calibracion entera falla en voz alta, que es
+    justo lo que debe pasar. Pero el arreglo es actualizar el ancla aqui,
+    no relajar la comprobacion.
+    """
     texto = ruta.read_text(encoding="utf-8")
     if viejo not in texto:
         raise SystemExit(f"MUTACION IMPOSIBLE: no se encuentra el ancla en {ruta.name}")
@@ -397,6 +407,22 @@ def m_guardia_en_una_linea() -> None:
     )
 
 
+def m_doble_negacion() -> None:
+    """N4: `if ! ! GATE; then exit 1; fi`.
+
+    Bash valido. `! !` vuelve a invertir la polaridad, asi que con el gate
+    ROJO la rama `then` NO se ejecuta y el paso sale VERDE: tiene el aspecto
+    exacto de una guardia correcta —lleva su `exit 1`— y hace lo contrario.
+    Un solo caracter separa una de otra.
+    """
+    _sustituye(
+        CI, '          python3 .github/scripts/check_env_reproducibility.py all --strict-missing',
+        "          if ! ! python3 .github/scripts/check_env_reproducibility.py all --strict-missing; then\n"
+        "            exit 1\n"
+        "          fi",
+    )
+
+
 CASOS = [
     # `estado correcto` es tambien el control positivo de la regla de
     # `|| true`: el `ci.yml` real contiene comentarios que dicen «Sin
@@ -430,6 +456,7 @@ CASOS = [
     ("A6: negacion desplazada al `else`", m_negacion_en_else, ROJO),
     ("A6 bis: `if GATE; then ...; fi` sin rama de fallo", m_sin_rama_de_fallo, ROJO),
     ("control positivo: guardia con `exit 1` en UNA linea", m_guardia_en_una_linea, VERDE),
+    ("N4: doble negacion `if ! ! GATE` (polaridad invertida)", m_doble_negacion, ROJO),
     ("restaurado", None, VERDE),
 ]
 

@@ -851,6 +851,18 @@ def main() -> int:
             "all --strict-missing; then exit 1; fi\n",
         )
 
+    def m_doble_negacion(raiz: Path) -> None:
+        # N4: `! !` es bash valido y vuelve a invertir la polaridad. Con el
+        # gate ROJO la rama `then` no corre y el paso sale VERDE, pese a
+        # llevar su `exit 1`. Parece una guardia y es un apagado.
+        _en_ci_y_fragmento(
+            raiz, GATE_RUN,
+            "          if ! ! python3 .github/scripts/check_env_reproducibility.py "
+            "all --strict-missing; then\n"
+            "            exit 1\n"
+            "          fi\n",
+        )
+
     def m_job_propio_borrado(raiz: Path) -> None:
         # La forma extrema de S1/S2: el job entero desaparece en un merge.
         _en_ci_y_fragmento(raiz, "  check-env-reproducibility:\n", "  otro-nombre:\n")
@@ -895,6 +907,11 @@ def main() -> int:
         "A6 bis: `if GATE; then ...; fi` sin rama de fallo",
         m_sin_rama_de_fallo,
         senal="rama de FALLO",
+    )
+    c.caso(
+        "N4: doble negacion `if ! ! GATE; then exit 1; fi`",
+        m_doble_negacion,
+        senal="NEGACION MULTIPLE",
     )
     c.caso(
         "A4/A6 (control positivo): guardia con `exit 1` en UNA linea",
