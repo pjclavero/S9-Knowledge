@@ -116,7 +116,7 @@ la doctrina que el PR enuncia: *nada se apaga en silencio*.
 | 5 | Stub de Chromium (0 bytes, `chmod 000`) en la ruta de Playwright | **VERDE**: `(True, ...)` | ROJO | `presente_chromium` exige `X_OK` **y** lanza `--version` |
 | 6 | `zope.interface` satisfecho por `zope-interface` (el `.` era comodín) | **VERDE**: huella `resolved:pip-freeze` mintiendo | ROJO (`unresolved`) | `lib.sh` escapa el nombre antes de interpolarlo |
 
-Las seis, **más cinco controles añadidos**, están ahora en el arnés de
+Las seis, **más siete controles añadidos**, están ahora en el arnés de
 calibración: no pueden volver sin ponerse rojas. Los controles extra existen
 porque una mutación que sólo prueba el rojo no distingue un instrumento fino de
 uno que se pone rojo ante todo:
@@ -153,8 +153,8 @@ La prohibición **genérica** de `|| true` vive en
 natural: allí ya se parsea YAML de verdad y ya se prohíbe `continue-on-error`,
 que es exactamente el mismo apagado una capa más arriba. Prohibir el campo YAML
 y dejar libre su equivalente en el shell era vigilar la puerta y no la ventana.
-Se añadieron allí dos reglas y **tres casos a su propia calibración**
-(`calibra_gate_integrity.py`), que pasa **23/23** — incluidos su `estado
+Se añadieron allí dos reglas y **cinco casos a su propia calibración**
+(`calibra_gate_integrity.py`), que pasa **25/25** — incluidos su `estado
 correcto` y su `restaurado` en verde, que es la prueba de que no se rompió nada
 suyo. Nótese que el `ci.yml` real contiene comentarios que dicen «Sin
 `|| true`: …»: la regla mira **código**, no texto, y ese caso verde lo
@@ -164,6 +164,39 @@ demuestra.
 carril. El solape es el mismo criterio que ya se aplicó con Node: dos gates que
 fallan por el mismo motivo es mejor que cero, y éste sobrevive aunque alguien
 afloje el otro.
+
+### El apagado escrito como condicional (`if ! GATE`)
+
+De las cuatro vías de neutralización repartida, ésta se cerró porque es **la
+única que no hay que buscar a propósito**:
+
+```yaml
+if ! python3 .github/scripts/check_env_reproducibility.py all; then
+  echo 'gate ignorado'
+fi
+```
+
+El gate corre, se pone rojo, y el paso sale **verde**. No parece un truco:
+parece código de shell normal, y por eso es la más alcanzable por accidente.
+Antes de cerrarla se **midió** si prohibir `if !` generaría ruido, en vez de
+suponerlo: `ci.yml` tiene **9 usos de `if !`** y `supply-chain.yml` **ninguno**;
+los 9 son **legítimos** —ocho son las guardias anti-cero
+(`if ! grep -q 'N passed'; then … exit 1`) que el propio carril L **exige**, y
+una es una comprobación de deriva con `git diff --quiet`—. Prohibir el idioma
+habría puesto el gate rojo por cumplir su propia regla.
+
+Lo que separa una guardia de un apagado **no es la sintaxis sino el
+desenlace**: la guardia termina en `exit 1`. Así que sólo se señala cuando lo
+negado es un **gate** (`.github/scripts/…`) **y** el bloque no falla. Medido:
+
+| Forma | Veredicto |
+|---|---|
+| `if ! GATE; then echo …; fi` | **ROJO** en los 2 instrumentos |
+| `if ! GATE; then echo …; exit 1; fi` | **VERDE** (es una guardia) |
+| los 9 `if !` reales de `ci.yml` | **VERDE** (0 falsos positivos) |
+
+Ambos casos están calibrados en los dos arneses, el segundo como **control
+positivo**: sin él, un gate que rechazara todo `if !` parecería correcto.
 
 ### Ablación: qué control es realmente el que sostiene cada rojo
 
@@ -181,9 +214,18 @@ escrito en vez de presentarlo como si hubiera pasado:
 | lectura semántica de `ci.yml` (vuelta a regex) | Sí — **pero sólo tras corregir la calibración**, ver abajo |
 
 Es decir: en el superviviente 5 **lo que sostiene el rojo es lanzar el binario**,
-no el `os.access`. El `X_OK` es redundante y se conserva sólo porque convierte
-un `OSError` opaco en un mensaje que dice qué pasa («existe pero no es
-ejecutable»). No se presenta como una barrera: no lo es.
+no el `os.access`. El `X_OK` es redundante **para el veredicto** y se conserva
+porque convierte un `OSError` opaco en un mensaje que dice qué pasa. No se
+presenta como una barrera: no lo es.
+
+Conviene precisar qué significa «redundante» aquí, porque se prestó a
+confusión: la rama **es alcanzable y su diagnóstico se emite**. Comprobado de
+dos formas —recorriendo el AST del fichero entero en busca de sentencias tras
+un `return` (resultado: **ninguna**) y ejecutando el caso real, que devuelve
+literalmente «`EXISTE pero no es ejecutable (sin permiso X)`»—. Y los dos
+caminos se distinguen: un stub con `chmod 000` da ese mensaje, mientras que un
+ejecutable cuyo intérprete no existe da «`no ARRANCA`». Redundante para
+decidir, no para explicar; por eso se queda.
 
 **Y la ablación encontró una calibración decorativa, que es el hallazgo más
 incómodo de esta ronda.** Los casos de 3 y 4 se escribieron primero en modo
@@ -204,7 +246,7 @@ La prueba de ablación es lo único que lo distingue.
 ### `.github/scripts/check_env_reproducibility_calibration.py`
 
 La calibración, ejecutada **en cada corrida de CI**. Construye un repositorio
-sintético que sale verde, y para cada una de las **35 reglas** (incluidos los
+sintético que sale verde, y para cada una de las **37 reglas** (incluidos los
 ocho caminos del `dependency_fingerprint`, los seis supervivientes de la
 revisión con sus controles positivos, y el `node` de versión equivocada,
 inyectado como ejecutable falso al frente del `PATH`): introduce la
@@ -377,9 +419,11 @@ obligado a mirar un aviso, y esta deriva es real y viva.
   él (es el idioma que permite imprimir la salida de pytest antes de fallar),
   así que prohibirlos rompería jobs correctos. Un `set +e` descuidado sigue
   siendo un apagado posible y **no está cerrado**.
-- **Neutralización repartida entre líneas.** Se mira línea a línea; un apagado
-  escrito en varias (`cmd \` + continuación, o una función de shell que
-  siempre devuelve 0) no se detecta.
+- **Neutralización repartida entre líneas**, en tres formas que quedan
+  **declaradas y abiertas**: `set +e` sin mirar `$?`, una función envoltorio
+  (`nofail() { "$@" || return 0; }`) y un `rc=$?` capturado y nunca usado. Las
+  tres exigen escribir algo que *parece* deliberado, y por eso se aceptan como
+  límite. **La cuarta de esa familia ya no está abierta**: ver abajo.
 - **El gate se juzga a sí mismo.** `check_gate_no_apagado` sólo puede hablar si
   el gate se ejecuta. Que el job desaparezca lo cubre el carril L
   (`JOBS_EXIGIDOS`), que es un job distinto; pero si alguien apagara **los
