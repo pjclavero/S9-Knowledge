@@ -1,6 +1,7 @@
 # 66 — Calidad de datos v2 (carril J)
 
-**Rama:** `audit/data-quality-v2` · **Base:** `main = e9c66dc`
+**Rama:** `audit/data-quality-v2` · **Base:** `main = 8c70226` (rebasada; la
+cabecera anterior seguía declarando `e9c66dc`, que ya no era la base)
 
 Dos decisiones del operador, ya tomadas, implementadas aquí:
 
@@ -116,10 +117,45 @@ ejecutable:
 
 Este tercero refuerza lo que ya decía §1 sobre `scope.py`: la cuarentena de
 `admin_full` documenta que la dimensión no está declarada, pero **no cubre todas
-las formas de obtenerla**, y mutar `engine.py` no las alcanza. `authz/**` es
-zona prohibida para este carril, así que las tres quedan **declaradas, no
-corregidas** — y no se ha añadido ninguna mutación que las mida, porque medirlas
-exigiría tocar código fuera del carril.
+las formas de obtenerla**, y mutar `engine.py` no las alcanza.
+
+### Corrección: «medirlas exigiría tocar código fuera del carril» era FALSO
+
+La versión anterior de este documento cerraba el apartado diciendo que las tres
+quedaban *declaradas, no corregidas*, y que **no se había añadido ninguna
+mutación que las midiera porque medirlas exigiría tocar `authz/**`**, zona
+prohibida.
+
+Eso aplicaba **dos varas**: el arnés de calibración de este mismo carril ya muta
+`viewer/app/policies/**` —prohibida por el mismo criterio— de forma
+**transitoria**, y revierte byte a byte. Con ese método las tres se pueden medir
+sin cambiar nada de forma permanente, y la revisión independiente lo hizo:
+
+| Productor | ¿Está medido hoy? | Evidencia |
+|---|---|---|
+| `authz/context.py:88` | **SÍ** | mutarlo produce **1 fallo** en la suite del visor |
+| `authz/context.py:100` | **SÍ** | mutarlo produce **46 fallos**, incluidos `FUGA:` en `tests/test_autorizacion_e2e_http.py` |
+| `authz/scope.py:131` | **NO — SUPERVIVIENTE REAL** | mutarlo dejaba **VERDES los 1091 tests** del visor |
+
+**`authz/scope.py:131` era un superviviente real, y no puede quedar agrupado
+dentro de una frase que da los tres por inmedibles.** Severidad: es una
+**segunda vía a una potestad de bypass total** (el detalle operativo —rutas de
+fichero del servidor y payloads— que sólo debe ver un administrador), evaluada
+**fuera** del barrido de la red inversa, **sin declarar** en el registro
+ejecutable y, hasta ahora, **sin ningún testigo**. Sobrevive incluso a que el
+campo `admin_full` desaparezca, porque vuelve a evaluar `role == "admin"` por su
+cuenta. Alcance real: `main.py:590` y `jobs_client.py:134` deciden con ella.
+
+**Cerrado a medias, y conviene ser preciso sobre qué mitad:**
+
+* **Falta de testigo: CERRADA.** `test_la_segunda_via_al_bypass_total_tiene_testigo`
+  (en `viewer/tests/`) ejerce las tres direcciones de esa propiedad desde su
+  interfaz pública, **sin tocar `authz/**`**, que sigue siendo zona prohibida
+  para modificar. Calibrado con dos mutaciones nuevas: **J18** (concede el
+  detalle operativo a cualquiera) y **J19** (deja de leer `admin_full`).
+* **Falta de declaración en el registro: SIGUE ABIERTA.** Añadir la cadena
+  (autoridad → productor → …) exige editar `authz/**` y es trabajo del carril
+  autorizado sobre esa zona. Este documento la deja nombrada, no resuelta.
 
 ---
 
@@ -276,10 +312,20 @@ ejecuta se pudre hasta ser la foto de un día en vez de una propiedad del árbol
 | J13 | el adaptador de candidatos deja de ser total | ROJO |
 | J14 | la frontera de escritura escribe el idioma ajeno | ROJO |
 | J15b | la vía humana deja de exigir pertenencia al conjunto permitido | ROJO |
+| J16 | los dos módulos frontera dejan de compartir la entrada de `sys.modules` | ROJO |
+| J17 | quinto valor **+** crédito de revisión humana (dos ediciones, un fichero) | ROJO |
+| **J18** | **el detalle operativo se concede a cualquiera** (2.ª vía al bypass total) | **ROJO** |
+| **J19** | **el detalle operativo deja de leer `admin_full`** | **ROJO** |
 | **R8** | **dimensión de bypass total nueva + metida en la cuarentena en el mismo commit** | **ROJO** |
 | R8-control | la misma dimensión nueva **sin** meterla en la cuarentena | ROJO |
 
-**17/17 rojo → revertir → verde.**
+**21/21 rojo → revertir → verde.**
+
+La versión anterior de esta tabla listaba **17** filas y remataba «17/17», cuando
+el arnés, el mensaje de commit y §6 decían **19**: faltaban J16 y J17. Corregido,
+y con las dos mutaciones nuevas del apartado anterior son **21**.
+
+Y ese 21 son **afirmaciones distintas**, no filas: ver más abajo.
 
 R8 es la fila que importa de esta segunda ronda: es el escenario exacto con el
 que la revisión demostró que la cuarentena no frenaba, y con la comprobación
@@ -307,14 +353,33 @@ hacerlo.
   más peligrosa de un carril de calibración es la afirmación que uno no se ha
   molestado en intentar romper.
 
-### Superviviente declarado
+### Supervivientes declarados
 
-| ID | Mutación | Por qué sobrevive |
-|---|---|---|
-| J15 | la misma que J15b, mirada desde la suite de **data-engine** | ningún test de data-engine hace llegar `pending`/`deferred`/`rejected` a `_validate_write_provenance`. La cobertura real vive en el visor (J15b). Describe una carencia de esa suite, no del guardián. |
+| ID | Mutación | Por qué sobrevive | Severidad |
+|---|---|---|---|
+| J15 | la misma que J15b, mirada desde la suite de **data-engine** | ningún test de data-engine hace llegar `pending`/`deferred`/`rejected` a `_validate_write_provenance`. La cobertura real vive en el visor (J15b). Describe una carencia de esa suite, no del guardián. | media |
+| — | **bypass leído por un alias local**: `_c = ctx` + `if _c.puerta_trasera: return visible`, con el campo nuevo en `models.py` | la red inversa es **sintáctica**: casa `ctx.<nombre>`, no un alias. Medido: **1092 passed, 190 skipped**, VERDE con la puerta trasera puesta | **alta** |
+| — | `authz/scope.py:131` (hasta esta ronda) | ya **no** es superviviente: J18/J19 lo cierran. Se deja la fila para que conste que lo fue y por qué (ver §1) | — |
 
-No se oculta: el arnés lo ejecuta en cada corrida y avisa **si deja de sobrevivir**,
-porque entonces la explicación habría caducado.
+Sobre J15, dos matices que la versión anterior no daba:
+
+* El guardián de `data-engine` queda vigilado **sólo por un test del visor**, que
+  corre en **otro job de CI**. Si ese job se cae o se recorta, el guardián se
+  queda sin testigo sin que la suite de su propio árbol se entere.
+* **La puerta 1 no es redundante.** Medido sobre `_build_create_entity`:
+  `pending` → `needs_review`, `deferred` → `needs_review` y `rejected` →
+  `rejected` **superan la puerta 2 sin excepción alguna** (son traducibles), y
+  sólo caen `auto_approved` y `" Approved "`. Es decir: la puerta 2 caza lo
+  **intraducible** y la puerta 1 caza lo **traducible que no acredita revisión
+  humana**. Ninguna subsume a la otra; las dos hacen falta.
+
+Los supervivientes con severidad alta **no se racionan como benignos**: el alias
+local es *código ordinario*, no una lectura rebuscada, y por eso el límite
+declarado en §6 se ha reescrito (antes ponía como ejemplo `getattr(ctx, nombre)`,
+que sugiere que hace falta ser rebuscado para escaparse; no hace falta).
+
+No se ocultan: el arnés los ejecuta en cada corrida y **ahora pone ROJA la
+corrida** si uno deja de sobrevivir, porque entonces la explicación ha caducado.
 
 ---
 
@@ -328,19 +393,33 @@ porque entonces la explicación habría caducado.
   `can_view_reference` y `character_knowledge`: `policies/**` es zona prohibida
   para este carril. Están en cuarentena declarada y comprobada.
 * **Mutación por cobertura exhaustiva:** no se han mutado todas las líneas de los
-  módulos tocados, sólo las 19 afirmaciones que este carril sostiene.
+  módulos tocados, sólo las 21 afirmaciones que este carril sostiene.
 * **La red inversa es sintáctica** (expresiones regulares sobre el código del
-  motor). Una lectura suficientemente indirecta —`getattr(ctx, nombre)`, un
-  `node.get(variable)`— se le escaparía. Es el límite conocido del instrumento y
-  se hereda del diseño anterior; se ha ampliado (contexto y aristas), no
-  resuelto.
+  motor), y el límite es **más ancho de lo que este documento decía**. La
+  versión anterior lo ilustraba con `getattr(ctx, nombre)`, que se lee como "hay
+  que ser rebuscado para escaparse". No hace falta: **un alias local basta**.
+  Medido —`_c = ctx` seguido de `if _c.puerta_trasera: return visible`, con el
+  campo nuevo declarado en `models.py`— la suite entera del visor sigue VERDE:
+  **1092 passed, 190 skipped**. Un `_c = ctx` es código ordinario, no una
+  lectura indirecta buscada a propósito. La red ve `ctx.<nombre>` y sólo eso: se
+  ha ampliado (contexto y aristas), no resuelto, y **no** detecta un bypass
+  introducido a través de cualquier otro nombre de variable.
 * **La red sólo barre `engine.py` y `models.py`.** Ver §1: `authz/scope.py`,
   `authz/filtered_provider.py`, `main.py` y `jobs_client.py` deciden con
   `admin_full` fuera del barrido, y hay **tres productores** de esa potestad
   —`context.py:100` (rol admin), `scope.py:131` (`role == "admin"` otra vez) y
   `context.py:88` (`S9K_AUTH_ENABLED` falso ⇒ `admin_full=True` para cualquier
-  anónimo)—, ninguno declarado en el registro. Declarado, no corregido:
-  `authz/**` es zona prohibida.
+  anónimo)—, **ninguno declarado en el registro**. De los tres, dos ya estaban
+  medidos por la suite y `scope.py:131` era un superviviente real, cerrado ahora
+  con testigo (J18/J19). La falta de **declaración** de los tres sigue abierta:
+  `authz/**` es zona prohibida para modificar.
+* **`admin_full` sigue sin testigo de extremo a extremo en este carril.** J18/J19
+  cubren `sees_operational_detail`; no se ha revisado línea a línea el resto de
+  consumidores (`filtered_provider.py`, `main.py:320`, `jobs_client.py:171`).
+* **J17 no añade una afirmación propia distinta de J9.** Su rojo llega por el
+  mismo guardián (el fichero ni siquiera colecciona), así que su valor real es
+  ejercitar el **encadenado de ediciones** del arnés, no medir un invariante que
+  J9 no midiera ya. Queda declarado en `RAZONES`.
 * **`rpg_schema._v_review` sigue degradando en silencio.** Usa
   `_coerce_vocab(..., "auto_extracted")`, así que un `review_status` ilegible que
   entre por la vía de ingesta principal se convierte en `auto_extracted` en vez
@@ -388,11 +467,49 @@ a propósito, para que ambos obtengan **el mismo objeto `Enum`**.
 
 Eso último era, hasta ahora, **prosa**: se afirmaba aquí y en el docstring del
 módulo, y nada se ponía rojo si dejaba de ser cierto. Ahora es una medida:
-`test_los_dos_modulos_frontera_exponen_EL_MISMO_objeto_Enum` compara por
-IDENTIDAD (`is`), no por igualdad — `ReviewStatus` hereda de `str`, así que dos
-enums duplicados seguirían comparando `==` iguales y `==` no mediría nada. La
-mutación **J16** cambia `_MODULE_NAME` en el módulo frontera del visor y lo pone
-rojo.
+`test_los_dos_modulos_frontera_exponen_EL_MISMO_objeto_Enum`. La mutación
+**J16** cambia `_MODULE_NAME` en el módulo frontera del visor y lo pone rojo.
+
+#### Corrección: la razón que se daba para usar `is` en vez de `==` era FALSA
+
+Este documento, el docstring del test y el mensaje de commit decían que `==`
+*«sobreviviría a la duplicación y no mediría nada»* porque `ReviewStatus` hereda
+de `str`. **Es falso, y está medido:**
+
+| Comparación | Con dos enums cargados por separado |
+|---|---|
+| `ClaseA == ClaseB` | **False** |
+| `ClaseA is ClaseB` | False |
+| `miembroA == miembroB` | **True** ← lo que sí sobrevive |
+| `miembroA is miembroB` | False |
+
+La herencia de `str` afecta a los **miembros**, no a la clase. El testigo se
+habría puesto rojo igual escrito con `==`. `is` se queda —es la comprobación
+correcta, y en la aserción sobre **miembros** la diferencia entre `is` y `==` sí
+es la diferencia entre medir y no medir—, pero **se corrige la razón escrita, no
+el código**. Una justificación falsa que sostiene un test verde es exactamente el
+patrón que este carril persigue.
+
+#### Corrección: el testigo medía el NOMBRE, no que compartieran objeto
+
+La suite tenía su propio `_cargar_review_status()`, con la ruta y **el nombre de
+módulo en duro**: un **cuarto cargador** del contrato, en el carril cuyo encargo
+era eliminar segundas declaraciones. No era sólo estético — tenía consecuencia
+medible: renombrar `_MODULE_NAME` **en los dos módulos frontera a la vez** (un
+cambio que **preserva** el invariante, porque siguen compartiendo entrada de
+`sys.modules`) salía **ROJO**, porque el testigo comparaba contra un objeto
+cargado bajo el nombre literal.
+
+Medido, antes y después:
+
+| Cambio | Antes (4.º cargador) | Ahora |
+|---|---|---|
+| renombrar `_MODULE_NAME` en **los dos** módulos | 3 failed | **85 passed** (verde: el invariante se mantiene) |
+| renombrar `_MODULE_NAME` en **uno solo** (J16) | rojo | **rojo** (sigue midiendo lo que debe) |
+
+La suite toma ahora el contrato del módulo frontera del visor
+(`from app.review_status_contract import contrato as RS`). Cargadores del
+contrato: **dos**, uno por árbol de `sys.path`, que es el mínimo posible.
 
 ### El arnés se calibra a sí mismo
 
@@ -401,10 +518,9 @@ instrumento se pone verde por no estar midiendo":
 
 * **Pasaba en vacío.** Con `MUTACIONES = []` imprimía `CALIBRACION COMPLETA:
   0/0` y devolvía `rc=0`: vaciar la batería entera era un cambio *verde* en CI.
-  Ahora hay un suelo, `MINIMO_MUTACIONES = 19`, comprobado con un `assert`
-  **antes** de la línea base. Comprobado en las dos direcciones: con el arnés
-  anterior y las listas vacías, `0/0` y `rc=0`; con el actual, `AssertionError`
-  y `rc=1`.
+  Ahora hay un suelo, `MINIMO_MUTACIONES`, comprobado **antes** de la línea
+  base. Comprobado en las dos direcciones: con el arnés anterior y las listas
+  vacías, `0/0` y `rc=0`; con el actual, `rc=1`.
 * **Dos ediciones al mismo fichero se pisaban.** Cada edición se escribía como
   `pristino.replace(...)`, de modo que en una mutación coordinada sobre un solo
   fichero sólo sobrevivía la última. Ahora cada edición parte del estado
@@ -422,3 +538,30 @@ instrumento se pone verde por no estar midiendo":
   la borraba y daba `rc=0` —el arnés lo habría reportado como "esta afirmación
   no está medida"— mientras que el actual da `rc=1`. Es decir: el defecto podía
   **apagar** una mutación sin que nadie se enterase.
+
+Y **cuatro más**, encontrados por la segunda revisión independiente. Ninguno lo
+encontré yo, y los cuatro son del mismo género: el arnés podía terminar en
+`CALIBRACION COMPLETA` sin haber medido. Cada uno está demostrado VERDE antes y
+ROJO después:
+
+| # | Vía de pasar sin medir | Antes (medido) | Ahora (medido) |
+|---|---|---|---|
+| M2 | **repetición**: el suelo contaba *entradas de lista*, no afirmaciones. `MUTACIONES = [J11] * 19` es **la misma mutación 19 veces** | `CALIBRACION COMPLETA: 19/19`, `rc=0` | `1 afirmaciones DISTINTAS ... suelo 21`, `rc=1` |
+| M3 | **rojo por cualquier motivo**: una mutación que sólo rompe la **sintaxis** del fichero (`CORRECTED = ((("corrected"`), sin violar ningún invariante, se anotaba como ROJO legítimo — con firma indistinguible (`1 error`) de la de J9/J10/J17 | `[ROJO] ... CALIBRACION COMPLETA: 1/1`, `rc=0` | `ROJO, PERO NO POR LA RAZON DECLARADA`, `rc=1` |
+| M4 | **explicación caducada**: un superviviente declarado que deja de sobrevivir imprimía `[ROJO (la explicacion ya no vale)]` y seguía con `rc=0` | `CALIBRACION COMPLETA: 1/1`, `rc=0` | `superviviente declarado que YA NO sobrevive`, `rc=1` |
+| M5 | **`python -O`** compila los `assert` a nada, y el suelo desaparecía con él | `python3 -O` + listas vacías → `0/0`, `rc=0` | `raise SystemExit`, `rc=1` (también con `-O`) |
+
+El suelo cuenta ahora **afirmaciones distintas**, con identidad = el conjunto de
+ediciones que introduce la mutación. Es la misma corrección de fondo que hubo que
+hacer al recuento de checks de CI, que estaba **inflado ×2** por contar *filas*
+(4 runs = 2 workflows × `push`/`pull_request`, `run_attempt=1` en los cuatro) en
+vez de **identidades** (`workflow` + nombre de job): son **14**, no 28. Meter el
+`run id` en la identidad es contar filas con otro nombre.
+
+Y cada mutación declara ahora **su razón** (`RAZONES`): un fragmento que tiene
+que aparecer en la salida de pytest para que el rojo cuente. Una mutación sin
+razón declarada **detiene** el arnés. El propio cambio encontró algo de paso:
+J16, apuntado al fichero entero con `-x`, se ponía rojo por **otro** test —
+`pytest.raises` deja de atrapar la excepción cuando hay dos clases de error, que
+es justo el "revienta lejos, en el consumidor" que anuncia su docstring—, así que
+ahora apunta a su testigo concreto.

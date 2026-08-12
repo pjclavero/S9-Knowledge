@@ -24,6 +24,7 @@ Cada mutacion revierte siempre lo que toca, aun si pytest falla o se
 interrumpe. Los objetivos van acotados a proposito: lo que se mide es que EXISTE
 un test concreto que se pone rojo, no que la suite entera se entere.
 """
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -177,6 +178,40 @@ MUTACIONES = [
      V / "app/review_status_contract.py",
      '_MODULE_NAME = "s9k_review_status_v1_model"',
      '_MODULE_NAME = "s9k_review_status_v1_model_visor"',
+     # Objetivo acotado AL TESTIGO. Con el fichero entero y `-x`, el primer
+     # rojo que aparece es otro: `pytest.raises(RS.ReviewStatusError)` deja de
+     # atrapar la excepcion porque hay DOS clases de error --precisamente el
+     # "revienta lejos de aqui, en el consumidor" que anuncia el docstring del
+     # testigo--. Es un rojo legitimo, pero no es la razon declarada de J16, y
+     # el arnes ya no acepta rojos ajenos.
+     V, [CAL + "::test_los_dos_modulos_frontera_exponen_EL_MISMO_objeto_Enum"]),
+
+    # --- 5. La SEGUNDA VIA a la potestad de bypass total (docs/66 §1)
+    #
+    # `authz/scope.py:131` es un productor de la misma potestad que
+    # `admin_full`, en un modulo que la red inversa no barre. La revision
+    # independiente lo midio con el metodo de este mismo arnes --mutar de forma
+    # transitoria y revertir-- y encontro que era un SUPERVIVIENTE REAL: los
+    # 1091 tests del visor seguian VERDES con la linea mutada, mientras que sus
+    # dos hermanos (`context.py:88` y `context.py:100`) SI estan medidos.
+    #
+    # Yo habia declarado que medir los tres productores exigia tocar `authz/**`,
+    # zona prohibida, y por eso no los media. Eran DOS VARAS: este arnes ya muta
+    # `policies/**`, prohibida por el mismo criterio, y revierte. El testigo que
+    # cierra esta via se ha escrito FUERA de la zona prohibida (un test), que es
+    # lo unico que este carril tiene permitido anadir.
+    ("J18 el detalle operativo se concede a CUALQUIERA "
+     "(segunda via a la potestad de bypass total, fuera del barrido)",
+     V / "app/authz/scope.py",
+     '        return bool(self.ctx.admin_full) or self.ctx.role == "admin"',
+     '        return True',
+     V, [CAL]),
+
+    ("J19 el detalle operativo deja de leer `admin_full` "
+     "(la via equivalente sobrevive al campo, y en la direccion contraria)",
+     V / "app/authz/scope.py",
+     '        return bool(self.ctx.admin_full) or self.ctx.role == "admin"',
+     '        return self.ctx.role == "admin"',
      V, [CAL]),
 ]
 
@@ -262,14 +297,64 @@ SUPERVIVIENTES = [
 ]
 
 
-#: SUELO DE MUTACIONES. Sin esto el arnes PASA EN VACIO: si alguien vacia
-#: `MUTACIONES` (o la deja en una sola entrada trivial), `fallos` queda vacio,
-#: `_total` vale 0, se imprime "CALIBRACION COMPLETA: 0/0" y CI da rc=0. Un
-#: instrumento que se pone verde cuando se le quitan todas las mediciones no
-#: mide nada: mide su propio silencio. El numero es el recuento REAL de hoy
-#: (16 mutaciones de un fichero + 3 coordinadas); subirlo cuando se anadan
-#: mutaciones es deliberado, bajarlo exige justificarlo en la revision.
-MINIMO_MUTACIONES = 19
+#: RAZON DECLARADA DE CADA MUTACION. Sin esto el arnes acepta como ROJO
+#: legitimo CUALQUIER rc != 0, y eso no es lo mismo que "el guardian declarado
+#: se ha puesto rojo". Medido: una mutacion que solo rompe la SINTAXIS del
+#: fichero (`CORRECTED = ((("corrected"`) --que no viola ningun invariante de
+#: este carril-- salia [ROJO] y la corrida entera "CALIBRACION COMPLETA", con
+#: firma indistinguible (`1 error`) de la de J9/J10/J17.
+#:
+#: Cada entrada es un fragmento que TIENE que aparecer en la salida de pytest
+#: (sin codigos ANSI) para que el rojo cuente. Toda mutacion debe declarar la
+#: suya: la que no la declare detiene el arnes.
+RAZONES = {
+    "J1": "ha dejado de transportar 'known_from_session_BORRADA'",
+    "J2": "el motor decide con ['max_visible_session'] y el registro ejecutable "
+          "no las declara",
+    "J3": "aplican solo a nodo o solo a relacion",
+    "J4": "el motor consulta ['partida_id'] y el registro ejecutable NO lo declara",
+    "J5": "declara su ausencia como NEUTRA y el motor deniega",
+    "J6": "'scope' esta declarado missing=DENY en el registro y el motor deja pasar",
+    "J7": "'workspace' esta declarado missing=DENY en el registro y el motor deja pasar",
+    "J8": "test_un_tope_de_sesion_ilegible_no_significa_sin_tope",
+    "J9": "RuntimeError: review-status/v1 declara estados sin traducci",
+    "J10": "AttributeError: type object 'ReviewStatus' has no attribute 'CORRECTED'",
+    "J11": "test_un_valor_fuera_del_vocabulario_canonico_se_rechaza",
+    "J12": "assert 'reviewed' == 'auto_extracted'",
+    "J13": "el adaptador no traduce ['DEFERRED']",
+    "J14": "assert ('approved' == 'reviewed'",
+    "J15b": "NO fue rechazado por la validacion de procedencia de escritura",
+    "J16": "exponen DOS clases `ReviewStatus` distintas",
+    # J18/J19: el testigo de `sees_operational_detail`, la SEGUNDA VIA a la
+    # potestad de bypass total (ver docs/66 §1). El testigo vive fuera de
+    # `authz/**`, que es zona prohibida para este carril.
+    "J18": "concede el detalle operativo a quien NO es admin",
+    "J19": "deja de conceder el detalle operativo a `admin_full`",
+    "R8": "la cuarentena ha CRECIDO con ['superpoder_nuevo'] sin autorizacion",
+    "R8-control": "el motor decide con ['superpoder_nuevo'] y el registro "
+                  "ejecutable no las declara",
+    # OJO: J17 comparte razon con J9 a proposito, y eso es un LIMITE, no un
+    # descuido. Su afirmacion propia --un quinto valor que ademas se autoconcede
+    # credito de revision humana-- no llega a evaluarse: el fichero ni siquiera
+    # colecciona, porque el guardian de traducciones de J9 salta antes. J17
+    # existe sobre todo por el encadenado de ediciones (ver su comentario).
+    "J17": "RuntimeError: review-status/v1 declara estados sin traducci",
+}
+
+#: SUELO DE AFIRMACIONES DISTINTAS. Sin esto el arnes PASA EN VACIO: si alguien
+#: vacia `MUTACIONES`, `fallos` queda vacio, se imprime "CALIBRACION COMPLETA:
+#: 0/0" y CI da rc=0. Un instrumento que se pone verde cuando se le quitan todas
+#: las mediciones no mide nada: mide su propio silencio.
+#:
+#: El suelo cuenta AFIRMACIONES DISTINTAS --identidad = el conjunto de ediciones
+#: que introduce la mutacion--, no elementos de lista. Contar entradas era la
+#: misma confusion FILAS/IDENTIDADES que inflaba el recuento de checks de CI:
+#: medido, `MUTACIONES = [J11] * 19` daba "CALIBRACION COMPLETA: 19/19" y rc=0
+#: con UNA sola afirmacion medida diecinueve veces.
+#:
+#: Subirlo al anadir mutaciones es deliberado; bajarlo exige justificarlo en la
+#: revision.
+MINIMO_MUTACIONES = 21
 
 
 def _normalizadas():
@@ -287,6 +372,27 @@ def _normalizadas():
         yield etiqueta, ediciones, cwd, objetivos
 
 
+def _identidad(ediciones):
+    """AFIRMACION distinta: el conjunto de ediciones que introduce la mutacion.
+
+    No la etiqueta (se puede copiar y retocar) ni la posicion en la lista (son
+    filas). Dos entradas con las mismas ediciones miden lo mismo dos veces.
+    """
+    return tuple(sorted((str(f), o, mu) for f, o, mu in ediciones))
+
+
+def _codigo(etiqueta):
+    """`J15b la via humana...` -> `J15b`. Es la clave de `RAZONES`."""
+    return etiqueta.split()[0]
+
+
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _salida(r):
+    return _ANSI.sub("", r.stdout + r.stderr)
+
+
 def _pytest(cwd, objetivos):
     return subprocess.run(
         [sys.executable, "-m", "pytest", *objetivos, "-q", "--no-header", "-x"],
@@ -299,15 +405,38 @@ def main() -> int:
     print("CALIBRACION DEL CARRIL J -- cada afirmacion debe poder ponerse ROJA")
     print("=" * 78)
 
-    _total = sum(1 for _ in _normalizadas())
+    _filas = [(e, ed) for e, ed, _, _ in _normalizadas()]
+    _total = len(_filas)
+    _identidades = {_identidad(ed) for _, ed in _filas}
+
     # Antes de gastar minutos en la linea base: el arnes no puede pasar en
-    # vacio. Ver `MINIMO_MUTACIONES`.
-    assert _total >= MINIMO_MUTACIONES, (
-        f"el arnes declara {_total} mutaciones y el suelo son "
-        f"{MINIMO_MUTACIONES}: vaciar o adelgazar la bateria NO puede salir "
-        f"en verde"
+    # vacio ni por repeticion. Ver `MINIMO_MUTACIONES`.
+    #
+    # `raise SystemExit`, no `assert`: con `python -O` (o `PYTHONOPTIMIZE=1`)
+    # los `assert` se compilan a nada y el suelo desaparecia. Medido: el arnes
+    # anterior con `python3 -O` y las listas vacias imprimia "CALIBRACION
+    # COMPLETA: 0/0" y devolvia rc=0. Hoy el unico invocador es `ci.yml` con
+    # `python3` plano, asi que el riesgo estaba acotado; el arreglo es de una
+    # linea y no depende de que ese invocador no cambie nunca.
+    if len(_identidades) < MINIMO_MUTACIONES:
+        raise SystemExit(
+            f"el arnes declara {_total} filas / {len(_identidades)} afirmaciones "
+            f"DISTINTAS y el suelo son {MINIMO_MUTACIONES}: vaciar la bateria, "
+            f"adelgazarla o rellenarla con copias de la misma mutacion NO puede "
+            f"salir en verde"
+        )
+    _sin_razon = sorted({_codigo(e) for e, _ in _filas} - set(RAZONES))
+    if _sin_razon:
+        raise SystemExit(
+            f"mutaciones sin razon declarada en RAZONES: {_sin_razon}. Sin razon "
+            f"declarada, cualquier rc != 0 pasaria por rojo legitimo"
+        )
+    if _total != len(_identidades):
+        print(f"\n!! {_total} filas para {len(_identidades)} afirmaciones distintas")
+    print(
+        f"\nAfirmaciones distintas: {len(_identidades)} "
+        f"(filas: {_total}; suelo: {MINIMO_MUTACIONES})."
     )
-    print(f"\nMutaciones declaradas: {_total} (suelo: {MINIMO_MUTACIONES}).")
 
     base = {}
     _combis = [(c, o) for _, _, c, o in _normalizadas()]
@@ -368,7 +497,16 @@ def main() -> int:
             for fichero, texto in originales.items():
                 fichero.write_text(texto, encoding="utf-8")
 
-        rojo = r.returncode != 0
+        # Rojo POR LA RAZON DECLARADA, no rojo por cualquier motivo. `rc != 0`
+        # a secas cuenta como medida un fallo que no tiene nada que ver con la
+        # afirmacion: una mutacion que solo rompa la sintaxis del fichero
+        # tumbaba la coleccion de pytest y se anotaba como ROJO legitimo, con
+        # firma indistinguible (`1 error`) de la de J9/J10/J17.
+        razon = RAZONES[_codigo(etiqueta)]
+        salida = _salida(r)
+        rojo = r.returncode != 0 and razon in salida
+        rojo_ajeno = r.returncode != 0 and razon not in salida
+
         print(f"[{'ROJO  ' if rojo else 'VERDE!'}] {etiqueta}")
         if rojo:
             linea = [ln for ln in r.stdout.splitlines() if "FAILED" in ln or " Error" in ln]
@@ -376,6 +514,12 @@ def main() -> int:
                 print(f"           {ln.strip()[:150]}")
             if not linea:
                 print(f"           {r.stdout.strip().splitlines()[-1][:150]}")
+        elif rojo_ajeno:
+            fallos.append(etiqueta + "  (rojo por un motivo AJENO al declarado)")
+            print("           ROJO, PERO NO POR LA RAZON DECLARADA. Esperaba")
+            print(f"           encontrar: {razon[:120]}")
+            for ln in salida.strip().splitlines()[-3:]:
+                print(f"           | {ln.strip()[:140]}")
         else:
             fallos.append(etiqueta)
             print("           NO SE PUSO ROJO: esta afirmacion no esta medida.")
@@ -392,22 +536,38 @@ def main() -> int:
     print("-" * 78)
     for etiqueta, fichero, original, mutado, cwd, objetivos, motivo in SUPERVIVIENTES:
         texto = fichero.read_text(encoding="utf-8")
-        assert texto.count(original) == 1, f"patron ambiguo/ausente en {fichero}"
+        if texto.count(original) != 1:
+            # `raise SystemExit`, no `assert`: ver el comentario del suelo.
+            raise SystemExit(f"patron ambiguo/ausente en {fichero}")
         fichero.write_text(texto.replace(original, mutado, 1), encoding="utf-8")
         try:
             r = _pytest(cwd, objetivos)
         finally:
             fichero.write_text(texto, encoding="utf-8")
-        estado = "ROJO (la explicacion ya no vale)" if r.returncode else "VERDE, como se documenta"
+        if r.returncode:
+            # Y AHORA SE PONE ROJA LA CORRIDA. Antes esto se imprimia y se
+            # seguia con rc=0: un superviviente que deja de sobrevivir es una
+            # explicacion CADUCADA en el arbol, y CI la daba por buena.
+            estado = "ROJO (la explicacion ya no vale)"
+            fallos.append(
+                etiqueta + "  (superviviente declarado que YA NO sobrevive: "
+                "la explicacion ha caducado y hay que reescribirla)"
+            )
+        else:
+            estado = "VERDE, como se documenta"
         print(f"[{estado}] {etiqueta}\n           motivo: {motivo}")
 
     print("\n" + "=" * 78)
     if fallos:
-        print(f"CALIBRACION INCOMPLETA: {len(fallos)} de {_total} sin medir")
+        print(f"CALIBRACION INCOMPLETA: {len(fallos)} problema(s) sobre "
+              f"{_total} filas / {len(_identidades)} afirmaciones distintas")
         for f in fallos:
             print(f"  - {f}")
         return 1
-    print(f"CALIBRACION COMPLETA: {_total}/{_total} rojo -> revert -> verde")
+    print(
+        f"CALIBRACION COMPLETA: {len(_identidades)}/{len(_identidades)} "
+        f"afirmaciones distintas, rojo por la razon declarada -> revert -> verde"
+    )
     return 0
 
 

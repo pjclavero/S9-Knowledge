@@ -25,7 +25,6 @@ comportamiento real de `POLICY.can_view`.
 """
 from __future__ import annotations
 
-import importlib.util
 import sys
 from pathlib import Path
 
@@ -42,21 +41,22 @@ from tests.test_provider_authz_fields_contract import (
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-
-def _cargar_review_status():
-    ruta = REPO_ROOT / "contracts" / "review-status" / "v1" / "model.py"
-    nombre = "s9k_review_status_v1_model"
-    if nombre in sys.modules:
-        return sys.modules[nombre]
-    spec = importlib.util.spec_from_file_location(nombre, ruta)
-    assert spec and spec.loader, f"no se pudo cargar {ruta}"
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[nombre] = mod
-    spec.loader.exec_module(mod)
-    return mod
-
-
-RS = _cargar_review_status()
+#: El contrato se toma por el MODULO FRONTERA del visor, no cargandolo otra vez.
+#:
+#: Aqui habia un `_cargar_review_status()` propio --con la ruta y, sobre todo,
+#: el NOMBRE DE MODULO en duro--, es decir, un CUARTO cargador del contrato en
+#: un carril cuyo encargo era eliminar segundas declaraciones. Lo senalo la
+#: revision independiente y tenia una consecuencia medible: el testigo N3
+#: comparaba contra un objeto cargado bajo un nombre literal, de modo que
+#: renombrar `_MODULE_NAME` en los DOS modulos frontera a la vez --un cambio que
+#: mantiene el invariante, porque siguen compartiendo entrada de `sys.modules`--
+#: salia ROJO. El testigo media el nombre concreto, no que compartan objeto.
+#: Ahora los cargadores del contrato son dos, uno por arbol de `sys.path`, que
+#: es el minimo posible.
+#: Se toma el modulo del contrato TAL CUAL lo cargo la frontera (`.contrato`),
+#: no sus reexportaciones, para no tener que ampliar la superficie publica del
+#: modulo frontera solo por las necesidades de una suite.
+from app.review_status_contract import contrato as RS  # noqa: E402
 
 
 # ===========================================================================
@@ -513,8 +513,20 @@ def test_los_dos_modulos_frontera_exponen_EL_MISMO_objeto_Enum():
     en el consumidor, con un mensaje incomprensible del tipo
     "ReviewStatus.REVIEWED is not ReviewStatus.REVIEWED".
 
-    Por eso el testigo es `is`, no `==`: `==` sobrevive a la duplicacion y no
-    mide nada.
+    CORRECCION -- la razon que este docstring daba antes era FALSA. Decia: "el
+    testigo es `is`, no `==`, porque `==` sobrevive a la duplicacion y no mide
+    nada". No es cierto, y esta medido: con dos enums duplicados,
+    `ClaseA == ClaseB` da **False** (son dos objetos de clase distintos; la
+    herencia de `str` afecta a los MIEMBROS, no a la clase), asi que este
+    testigo se habria puesto rojo igual escrito con `==`. Lo que si sobrevive a
+    la duplicacion es `miembro == miembro`: `ReviewStatus.REVIEWED` de un enum
+    y del otro comparan iguales por el valor `str`.
+
+    `is` se queda porque sigue siendo la comprobacion correcta --lo que hay que
+    afirmar es identidad de objeto, y en la comparacion de MIEMBROS de abajo la
+    diferencia entre `is` y `==` si es la diferencia entre medir y no medir--,
+    pero se corrige la razon escrita, no el codigo. Una justificacion falsa que
+    sostiene un test verde es exactamente el patron que este carril persigue.
     """
     import app.review_status_contract as frontera_visor
 
@@ -536,3 +548,69 @@ def test_los_dos_modulos_frontera_exponen_EL_MISMO_objeto_Enum():
     # consumidor cuando hay dos enums.
     assert frontera_visor.ReviewStatus.REVIEWED is frontera_motor.ReviewStatus.REVIEWED
     assert frontera_visor.HUMAN_REVIEWED == frontera_motor.HUMAN_REVIEWED
+
+
+# ===========================================================================
+# 5. LA SEGUNDA VIA A LA POTESTAD DE BYPASS TOTAL
+# ===========================================================================
+
+def test_la_segunda_via_al_bypass_total_tiene_testigo():
+    """`authz/scope.py:131` decide con la misma potestad que `admin_full`.
+
+    Contexto (docs/66 §1): el motor concede bypass total con `ctx.admin_full`,
+    y la red inversa del contrato solo barre `policies/engine.py` y
+    `policies/models.py`. Fuera de ese barrido hay TRES productores de esa
+    misma potestad, ninguno declarado en el registro ejecutable. Yo afirme que
+    medirlos exigia tocar `authz/**` --zona prohibida para este carril-- y que
+    por eso quedaban "declarados, no medidos".
+
+    Esa afirmacion aplicaba DOS VARAS: el arnes de calibracion ya muta de forma
+    transitoria `viewer/app/policies/**`, prohibida por el mismo criterio, y
+    revierte. Con ese mismo metodo, la revision independiente midio los tres:
+
+      - `authz/context.py:88`  -> MEDIDO (mutarlo da 1 fallo)
+      - `authz/context.py:100` -> MEDIDO (mutarlo da 46 fallos, con `FUGA:`)
+      - `authz/scope.py:131`   -> SUPERVIVIENTE REAL: los 1091 tests del visor
+        seguian VERDES con la linea mutada
+
+    Este test es el testigo que faltaba, y esta escrito FUERA de la zona
+    prohibida: no toca `authz/**`, lo ejerce desde su interfaz publica. Cierra
+    la falta de TESTIGO; NO cierra la falta de DECLARACION en el registro
+    ejecutable, que sigue siendo trabajo del propietario de la zona.
+
+    Calibrado con las mutaciones J18 (concede el detalle a cualquiera) y J19
+    (deja de leer `admin_full`), una por cada direccion.
+    """
+    from app.authz.scope import VisibilityScope
+
+    revisor = ViewerContext(
+        role="reviewer", allowed_workspaces=frozenset({"leyenda"})
+    )
+    assert VisibilityScope(revisor).sees_operational_detail is False, (
+        "`sees_operational_detail` concede el detalle operativo a quien NO es "
+        "admin ni tiene `admin_full`: rutas de fichero y payloads del servidor "
+        "se entregarian a un revisor corriente"
+    )
+
+    # La potestad, por el campo: es la via que el registro NO declara.
+    por_el_campo = ViewerContext(
+        role="reviewer",
+        allowed_workspaces=frozenset({"leyenda"}),
+        admin_full=True,
+    )
+    assert VisibilityScope(por_el_campo).sees_operational_detail is True, (
+        "`sees_operational_detail` deja de conceder el detalle operativo a "
+        "`admin_full`: la potestad de bypass total del motor y la de este "
+        "modulo habrian dejado de ser la misma"
+    )
+
+    # La SEGUNDA via, la que sobrevive aunque el campo desaparezca: `role`
+    # evaluado de nuevo aqui, sin pasar por `admin_full`.
+    por_el_rol = ViewerContext(
+        role="admin", allowed_workspaces=frozenset({"leyenda"}), admin_full=False
+    )
+    assert VisibilityScope(por_el_rol).sees_operational_detail is True, (
+        "la via `role == 'admin'` de `authz/scope.py` ha cambiado de "
+        "comportamiento: es una SEGUNDA via a la potestad de bypass total y "
+        "debe seguir siendo visible y deliberada, no un efecto colateral"
+    )
