@@ -492,3 +492,47 @@ def test_la_rama_de_RELACIONES_tambien_adapta_en_la_frontera():
 
     with pytest.raises(RS.ReviewStatusError):
         _build_merge_relation_query(dict(item, review_status="auto_approved"))
+
+
+def test_los_dos_modulos_frontera_exponen_EL_MISMO_objeto_Enum():
+    """Invariante N3: dos modulos frontera, UN solo `Enum`.
+
+    Hasta ahora esto estaba unicamente en PROSA --el docstring de
+    `viewer/app/review_status_contract.py` y la nota final de
+    `docs/66-calidad-de-datos-v2.md` afirman que ambos comparten la entrada de
+    `sys.modules` y por tanto el mismo objeto de clase-- y una afirmacion en
+    prosa no es una medida: se puede volver falsa sin que nada se ponga rojo.
+
+    Basta con que alguien cambie `_MODULE_NAME` en uno de los dos ficheros (por
+    ejemplo al mover el modulo, o "para evitar colisiones") y el contrato se
+    cargaria DOS veces, produciendo dos clases `ReviewStatus` distintas. Todo
+    seguiria pasando: los valores son iguales y `ReviewStatus` hereda de `str`,
+    asi que las comparaciones por `==` seguirian dando `True`. Lo que se
+    romperia son las comparaciones por IDENTIDAD (`is`, `isinstance`,
+    pertenencia a un `set` de miembros del enum) --y lo harian lejos de aqui,
+    en el consumidor, con un mensaje incomprensible del tipo
+    "ReviewStatus.REVIEWED is not ReviewStatus.REVIEWED".
+
+    Por eso el testigo es `is`, no `==`: `==` sobrevive a la duplicacion y no
+    mide nada.
+    """
+    import app.review_status_contract as frontera_visor
+
+    sys.path.insert(0, str(REPO_ROOT / "data-engine" / "app"))
+    try:
+        import review_status_contract as frontera_motor
+    finally:
+        sys.path.pop(0)
+
+    assert frontera_visor.ReviewStatus is frontera_motor.ReviewStatus, (
+        "el visor y el motor exponen DOS clases `ReviewStatus` distintas: el "
+        "contrato review-status/v1 se ha cargado dos veces. Comprobar que "
+        "`_MODULE_NAME` es identico en los dos modulos frontera"
+    )
+    # Y el mismo objeto que el que carga esta suite por su cuenta.
+    assert frontera_visor.ReviewStatus is RS.ReviewStatus
+
+    # Identidad tambien a nivel de MIEMBRO: es lo que rompe de verdad en el
+    # consumidor cuando hay dos enums.
+    assert frontera_visor.ReviewStatus.REVIEWED is frontera_motor.ReviewStatus.REVIEWED
+    assert frontera_visor.HUMAN_REVIEWED == frontera_motor.HUMAN_REVIEWED

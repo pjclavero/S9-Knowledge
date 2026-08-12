@@ -216,7 +216,24 @@ def _validate_candidate_fields_b2(payload) -> list:
 
 def _validate_write_provenance(payload) -> list:
     """Exige procedencia EXPLÍCITA por entidad nueva. Sin defaults silenciosos.
-    USE_EXISTING y aplazados quedan exentos (no se escriben propiedades nuevas)."""
+    USE_EXISTING y aplazados quedan exentos (no se escriben propiedades nuevas).
+
+    LÍMITE CONOCIDO, y es la razón de que este párrafo exista: pasar esta
+    validación **no garantiza que el ítem sea escribible**. Aquí el
+    `review_status` se normaliza sobre una COPIA local
+    (`str(...).strip().lower()`) y el ítem NO se modifica, así que un valor como
+    `" Approved "` supera esta función --su copia normalizada, `approved`, sí es
+    traducible-- y luego `_build_create_entity` vuelve a leer
+    `item["review_status"]` en crudo, se lo pasa a `from_review_manual_status`
+    y levanta `ReviewStatusError`.
+
+    Ese comportamiento se deja TAL CUAL a propósito: es fail-closed (el ítem
+    acaba rechazado, nunca escrito con un valor que nadie sepa interpretar) y
+    normalizar aquí sería empezar a REPARAR datos de entrada, que es justo lo
+    que el contrato `review-status/v1` prohíbe. Lo que estaba mal era el
+    docstring anterior, que se leía como si esta función fuese la única puerta y
+    su verde una promesa de escritura. No lo es: es la primera de dos puertas, y
+    la segunda es más estricta en la forma exacta de la cadena."""
     errors = []
     for e in payload.get("approved", []):
         if e.get("kind") != "entity" or _is_use_existing(e) or _is_deferred(e):
