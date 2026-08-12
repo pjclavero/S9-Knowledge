@@ -27,10 +27,22 @@ siempre: falso negativo en verde primero, arreglo, **rojo**, reversion, verde.
   prefijos» (describe un mecanismo sin negar nada). Esas cuatro no son
   enumerables y perseguirlas daria un gate ruidoso. **Las otras tres que se
   habian declarado incobrables SI lo eran** y se han cubierto en la segunda
-  revision (familia (e) de `RX_NO_CI`): «CI queda excluido en …», «CI se limita <!-- consistency:ignore -->
+  revision (familia (e) de `RX_NO_CI`): «CI queda excluido en …», «CI se limita
   a …» —que es la misma exclusividad que ya estaba implementada— y «fuera del
-  alcance de CI». Declararlas incobrables era pereza, no honestidad; cuestan
-  tres alternativas y **cero ruido** (el repo real sigue verde tal cual esta).
+  alcance de CI». Declararlas incobrables era pereza, no honestidad.
+- **«Ruido cero» estaba mal medido, y el gate mordia nuestro propio texto.**
+  Comprobar que el texto de HOY sigue verde es **suficiencia**, no ausencia de
+  falsos positivos. Medido sobre ocho frases legitimas, **cuatro enrojecian**:
+  «CI se limita a informar: no bloquea el merge» —que es literalmente la tesis
+  de **RK-20b** en prosa—, «el job de CI se limita a 20 minutos», «CI se limita
+  a 14 jobs por PR» y «ese refactor queda fuera del alcance de este PR; CI no
+  cambia», un descargo de alcance frecuentisimo en `CHANGELOG.md` y
+  `ROADMAP.md`, que estan en `DOCS`. Causa: la familia (e) no exigia que el
+  objeto fueran **ramas**. Se ancla a un token de rama (`_BRANCH`), como ya
+  hacia `RX_ALL_CI`. Medido tras el arreglo: **8/8 legitimas en verde, 3/3
+  falsas en rojo**, y las filas de C4d intactas. Nueva fila **C4f** para que
+  los cuatro falsos positivos no puedan volver: quitando el ancla, C4f da
+  exactamente **4 rojas**. Un gate que muerde el texto correcto se desactiva.
 - **El sandbox daba un aprobado facil a `_merged_prs`.** Su historia sintetica
   era `#101 -> #102`, **monotona creciente**, asi que era incapaz de expresar
   el caso que la propia funcion declara load-bearing («en `main` real el #160
@@ -53,7 +65,19 @@ siempre: falso negativo en verde primero, arreglo, **rojo**, reversion, verde.
   validation` hace checkout superficial—, no la tabla. **C15d** clona el
   sandbox con `--depth 1` sobre `file://`, le quita `origin/main` y `main`
   —exactamente lo que ve CI con `fetch-depth: 1`— y exige que `_resolve_main`
-  lo recupere. Con el bloque eliminado, C15d enrojece.
+  lo recupere. Con el bloque eliminado, C15d enrojece. **Y una linea por fila,
+  no el bloque como un todo:** cubrirlo entero enmascaraba su redundancia —el
+  revisor midio que neutralizar `--unshallow`, o quitar el `fetch` normal, o
+  quitar la salida por `FETCH_HEAD`, daba **0 rojas cada una**—. Ademas,
+  recuperar el SHA **no exige `--unshallow`**: en un clon superficial el
+  `fetch` normal ya trae `origin/main`, asi que C15d pasaba por un mecanismo
+  distinto del que anunciaba (la misma forma del defecto de C9). `--unshallow`
+  existe para poder calcular **ancestria y desfase**, asi que C15d lo comprueba
+  ahora (`merge-base --is-ancestor`, `rev-list --count`, y que el clon deje de
+  ser superficial); **C15e** ejerce la salida por `FETCH_HEAD` (refspec
+  restringido, que es lo que configura `actions/checkout`) y **C15f** el
+  `fetch` normal en un clon completo sin las dos referencias. Las tres lineas
+  enrojecen ahora por separado.
 - **Quitar la exigencia de SHA de 40 hex no ponia rojo nada.** Nueva fila
   **C16**: un `main_commit` abreviado enrojece, y se comprueba que la queja es
   la longitud y no otra (el commit existe y esta en `main`).
@@ -62,10 +86,10 @@ siempre: falso negativo en verde primero, arreglo, **rojo**, reversion, verde.
   `universal` cae a `False` y la fila pasaba igual; solo C4b enrojecia. Ahora
   C4c **exige que el hallazgo cite la lista blanca leida**, y se anade
   **C4c2**, que comprueba el parser contra el `ci.yml` REAL.
-- **Calibracion:** 9 ablaciones dirigidas, **9 rojas**, todas revertidas byte a
-  byte; y con los patrones historicos restaurados enteros, **14 de las 15**
-  filas nuevas de R5 caen (la superviviente es justo la redaccion que el patron
-  viejo ya cubria). Suite del fichero: **51 passed, 5 xfailed**.
+- **Calibracion:** 13 ablaciones dirigidas, **13 rojas**, todas revertidas byte
+  a byte; y con los patrones historicos restaurados enteros, **14 de las 15**
+  filas de R5 caen (la superviviente es justo la redaccion que el patron viejo
+  ya cubria). Suite del fichero: **61 passed, 5 xfailed**.
 - **Pendientes cerrados sin trabajo pendiente:** las observaciones «O5» y «O6»
   que arrastraba la lista **no existen en este repositorio** — no aparecen en
   el arbol, ni en el cuerpo o los comentarios del #169, ni en los PR #160-#171;

@@ -379,6 +379,35 @@ def test_c4d_redacciones_negativas_falsas_enrojecen(sandbox: Sandbox, frase: str
     assert sandbox.run() == 1
 
 
+# C4f — FALSOS POSITIVOS: prosa legítima que NO debe morder.
+#
+# «Ruido cero» estaba mal medido: comprobar que el texto de HOY sigue verde es
+# suficiencia, no ausencia de falsos positivos. En la tercera revisión, cuatro
+# de estas ocho frases enrojecían, porque las alternativas de la familia (e) no
+# exigían que el objeto fueran RAMAS. La primera es literalmente la tesis de
+# `RK-20b` escrita en prosa, y la cuarta es un descargo de alcance
+# frecuentísimo en `CHANGELOG.md` y `ROADMAP.md`, que están en `DOCS`: el gate
+# mordía nuestro propio texto correcto, y un gate así se acaba desactivando.
+#
+# Ahora la familia (e) está anclada a `_BRANCH`. R5 sólo puede juzgar QUÉ RAMAS
+# disparan CI, que es lo único que `on.push.branches` dice; cualquier otra
+# afirmación sobre CI cae fuera de su competencia y debe pasar en verde.
+@pytest.mark.parametrize("frase", [
+    "CI se limita a informar: no bloquea el merge.",
+    "El job de CI se limita a 20 minutos de ejecucion.",
+    "CI se limita a 14 jobs por PR.",
+    "Ese refactor queda fuera del alcance de este PR; CI no cambia.",
+    "El alcance de CI se revisa cada trimestre.",
+    "La cobertura queda fuera del alcance de este bloque.",
+    "CI excluye los ficheros generados del recuento.",
+    "Este PR se limita a documentacion.",
+])
+def test_c4f_prosa_legitima_no_enrojece(sandbox: Sandbox, frase: str):
+    sandbox.write("ROADMAP.md", frase + "\n")
+    assert sandbox.findings() == [], frase
+    assert sandbox.run() == 0
+
+
 # C4e — ESTRECHEZ QUE QUEDA, declarada y no supuesta. CUATRO frases.
 #
 # `RX_NO_CI` cubre negación explícita («no …»), negación por «sin …»,
@@ -618,6 +647,10 @@ def test_c15c_resolve_main_sin_nada_es_rojo_de_verdad(sandbox: Sandbox):
 # quitan `origin/main` y `main`: exactamente lo que ve CI con `fetch-depth: 1`.
 # La única salida es traerlo del remoto. Que no se degrade a verde ya lo dice
 # C15c; esta fila dice que el rescate FUNCIONA.
+#
+# El bloque tiene TRES líneas y cada una tiene ahora su fila, porque cubrirlo
+# «como un todo» enmascaraba su redundancia: `--unshallow` aquí (por la
+# ancestría de abajo), el `fetch` normal en C15f y `FETCH_HEAD` en C15e.
 def test_c15d_rescate_del_clon_superficial(sandbox: Sandbox, tmp_path: Path, monkeypatch):
     clone = tmp_path / "shallow"
     subprocess.run(
@@ -637,6 +670,71 @@ def test_c15d_rescate_del_clon_superficial(sandbox: Sandbox, tmp_path: Path, mon
     sha, ref = sandbox.mod._resolve_main()
     assert sha == sandbox.head, (sha, ref)
     assert ref is not None
+
+    # Y AHORA LO QUE DE VERDAD ATA `--unshallow` A SU RAZÓN DE SER.
+    #
+    # Recuperar el SHA no exige `--unshallow`: en un clon superficial el
+    # `fetch` normal ya trae `origin/main`, así que hasta aquí esta fila
+    # pasaba por un mecanismo DISTINTO del que anunciaba —la misma forma del
+    # defecto que hubo que corregir en C9—. `--unshallow` existe para que el
+    # punto 0 pueda calcular **ancestría** (`merge-base --is-ancestor`) y
+    # **desfase** (`rev-list --count`), que es justo lo que una historia
+    # truncada a un commit no permite. Con la historia completa, el commit
+    # anterior EXISTE y ambas preguntas se pueden responder.
+    assert sandbox.mod._git_rc("merge-base", "--is-ancestor", sandbox.prev, sha) == 0
+    assert sandbox.mod._git("rev-list", "--count", f"{sandbox.prev}..{sha}") == "1"
+    assert _git(clone, "rev-parse", "--is-shallow-repository") == "false"
+
+
+# C15e — la salida por `FETCH_HEAD`, que C15d NO ejerce.
+#
+# En C15d el `fetch` actualiza oportunistamente `refs/remotes/origin/main`
+# porque el clon tiene el refspec por defecto, así que `_try_local_main`
+# vuelve a encontrarlo y la rama de `FETCH_HEAD` queda muerta. `actions/checkout`
+# configura un refspec RESTRINGIDO: ahí el fetch explícito deja el resultado
+# sólo en `FETCH_HEAD`, y esa rama es la única salida. Se reproduce quitando
+# `remote.origin.fetch`.
+def test_c15e_salida_por_fetch_head(sandbox: Sandbox, tmp_path: Path, monkeypatch):
+    clone = tmp_path / "norefspec"
+    subprocess.run(
+        ["git", "clone", "--quiet", "--depth", "1", "--branch", "main",
+         f"file://{sandbox.root}", str(clone)],
+        check=True, capture_output=True,
+    )
+    _git(clone, "checkout", "--quiet", "--detach", "HEAD")
+    _git(clone, "branch", "--quiet", "-D", "main")
+    _git(clone, "update-ref", "-d", "refs/remotes/origin/main")
+    _git(clone, "config", "--unset", "remote.origin.fetch")
+
+    monkeypatch.setattr(sandbox.mod, "REPO", clone)
+    assert sandbox.mod._try_local_main() == (None, None)
+    sha, ref = sandbox.mod._resolve_main()
+    assert sha == sandbox.head, (sha, ref)
+    assert "FETCH_HEAD" in str(ref), ref
+
+
+# C15f — el `fetch` NORMAL, que ni C15d ni C15e ejercen.
+#
+# En un clon superficial, `fetch --unshallow origin main` ya trae la rama, así
+# que el `fetch` de después es redundante y borrarlo no ponía roja ninguna
+# fila. Su caso propio es el clon COMPLETO al que le faltan las dos
+# referencias: ahí la rama de `--unshallow` ni se entra (`is-shallow` es
+# `false`) y el `fetch` normal es la única salida.
+def test_c15f_fetch_normal_en_clon_completo(sandbox: Sandbox, tmp_path: Path, monkeypatch):
+    clone = tmp_path / "completo"
+    subprocess.run(
+        ["git", "clone", "--quiet", "--branch", "main", f"file://{sandbox.root}", str(clone)],
+        check=True, capture_output=True,
+    )
+    assert _git(clone, "rev-parse", "--is-shallow-repository") == "false"
+    _git(clone, "checkout", "--quiet", "--detach", "HEAD")
+    _git(clone, "branch", "--quiet", "-D", "main")
+    _git(clone, "update-ref", "-d", "refs/remotes/origin/main")
+
+    monkeypatch.setattr(sandbox.mod, "REPO", clone)
+    assert sandbox.mod._try_local_main() == (None, None)
+    sha, ref = sandbox.mod._resolve_main()
+    assert sha == sandbox.head, (sha, ref)
 
 
 # C16 — `development.main_commit` debe ser un SHA COMPLETO de 40 hex. Un SHA

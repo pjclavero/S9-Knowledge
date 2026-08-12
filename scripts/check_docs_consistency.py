@@ -438,8 +438,17 @@ WORKFLOWS = Path(".github") / "workflows"
 #                                  a ...", "... fuera del alcance de CI"
 # La familia (e) se anadio el 2026-08-12 tras la segunda revision: son tres
 # idiomas CERRADOS, no parafrasis abiertas, y «se limita a» es la misma
-# exclusividad de (d) escrita de otra manera. Cubrirlas cuesta tres
-# alternativas y NO introduce ruido: el repo real sigue verde tal cual esta.
+# exclusividad de (d) escrita de otra manera.
+#
+# La familia (e) esta ANCLADA A UN TOKEN DE RAMA (`_BRANCH`) porque sin esa
+# ancla producia falsos positivos sobre prosa legitima, medidos en la tercera
+# revision: «CI se limita a informar: no bloquea el merge» —que es literalmente
+# la tesis de RK-20b—, «el job de CI se limita a 20 minutos», «CI se limita a
+# 14 jobs por PR» y «ese refactor queda fuera del alcance de este PR; CI no
+# cambia», un descargo de alcance frecuentisimo en CHANGELOG y ROADMAP, que
+# estan en DOCS. Estas frases NO hablan de que ramas disparan CI, que es lo
+# unico que R5 puede juzgar leyendo `on.push.branches`. Un gate que muerde
+# nuestro propio texto correcto se acaba desactivando.
 # La estrechez que QUEDA esta DECLARADA, con sus CUATRO frases concretas, en
 # test_c4e_estrechez_declarada_de_r5: «el workflow ignora …» (no contiene el
 # token CI), «nunca en el push» (negacion desplazada al disparador),
@@ -449,15 +458,17 @@ WORKFLOWS = Path(".github") / "workflows"
 _VERBS = r"(?:dispara|disparan|lanza|lanzan|corre|corren|ejecuta|ejecutan|activa|activan|tiene|tienen)"
 _VERBS_INF = r"(?:disparar|lanzar|ejecutar|correr|activar)"
 _ONLY = r"(?:solo|solamente|unicamente|exclusivamente)"
+# Token de rama: sin el, la familia (e) juzga frases que no hablan de ramas.
+_BRANCH = r"(?:\bramas?\b|\bbranch(?:es)?\b|\*\*)"
 RX_NO_CI = re.compile(
     r"\bno\s+(?:se\s+)?" + _VERBS + r"\b[^.\n]{0,40}\bCI\b"
     r"|\bCI\b[^.\n]{0,40}\bno\s+(?:se\s+)?" + _VERBS + r"\b"
     r"|\bsin\s+" + _VERBS_INF + r"\b[^.\n]{0,30}\bCI\b"
     r"|\b" + _ONLY + r"\b[^.\n]{0,60}\b" + _VERBS + r"\b[^.\n]{0,20}\bCI\b"
     r"|\bCI\b[^.\n]{0,40}\b" + _ONLY + r"\b[^.\n]{0,30}(?:\bse\s+)?" + _VERBS + r"\b"
-    r"|\bCI\b[^.\n]{0,25}\bexclui(?:d[oa]s?|r|ye|yen)\b"
-    r"|\bCI\b[^.\n]{0,25}\bse\s+limita\b"
-    r"|\bfuera\s+del\s+alcance\b[^.\n]{0,30}\bCI\b",
+    r"|\bCI\b[^.\n]{0,25}\bexclui(?:d[oa]s?|r)\b[^.\n]{0,40}" + _BRANCH
+    + r"|\bCI\b[^.\n]{0,25}\bse\s+limita\b[^.\n]{0,40}" + _BRANCH
+    + r"|" + _BRANCH + r"[^.\n]{0,40}\bfuera\s+del\s+alcance\b[^.\n]{0,30}\bCI\b",
     re.IGNORECASE,
 )
 # "toda rama dispara CI", "cada rama dispara CI", "cualquier rama lanza CI",
