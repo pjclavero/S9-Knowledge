@@ -66,6 +66,15 @@ jobs:
           python3 .github/scripts/check_env_reproducibility.py runtimes --require chromium
           python -m pytest tests/browser
           echo skipped
+  check-env-reproducibility:
+    runs-on: ubuntu-latest
+    steps:
+      - name: calibracion
+        run: |
+          python3 .github/scripts/check_env_reproducibility_calibration.py
+      - name: gate
+        run: |
+          python3 .github/scripts/check_env_reproducibility.py all --strict-missing
 """
 
 TEST_NODE = """\
@@ -129,10 +138,12 @@ def construye(raiz: Path) -> None:
     escribe(raiz / "viewer" / "tests" / "browser" / "test_login.py", TEST_BROWSER)
 
 
-def corre(raiz: Path, *args: str, path_extra: str = "") -> tuple[int, str]:
+def corre(raiz: Path, *args: str, path_extra: str = "", py_extra: str = "") -> tuple[int, str]:
     entorno = dict(os.environ, S9K_ENV_REPRO_ROOT=str(raiz))
     if path_extra:
         entorno["PATH"] = path_extra + os.pathsep + entorno.get("PATH", "")
+    if py_extra:
+        entorno["PYTHONPATH"] = py_extra + os.pathsep + entorno.get("PYTHONPATH", "")
     r = subprocess.run(
         [sys.executable, str(CHECKER), *args],
         capture_output=True, text=True, env=entorno, timeout=300,
@@ -145,8 +156,24 @@ class Calibracion:
         self.fallos: list[str] = []
         self.filas: list[tuple[str, str, str]] = []
 
-    def caso(self, nombre: str, mutar, args=("all",), espera_rojo=True, senal="") -> None:
-        """Verde base -> mutacion -> rojo -> revertir -> verde."""
+    def caso(
+        self, nombre: str, mutar, args=("all",), espera_rojo=True, senal="",
+        espera="", ausente="",
+    ) -> None:
+        """Verde base -> mutacion -> rojo -> revertir -> verde.
+
+        `espera` admite tres veredictos, y el tercero no es decorativo:
+
+          "rojo"   la mutacion es una violacion y tiene que detectarse;
+          "aviso"  se SENALA sin bloquear (verde con `::warning::`);
+          "limpio" la mutacion es LEGITIMA y NO puede producir ni error ni
+                   aviso. Sin este tercer caso, un gate que se pusiera rojo
+                   ante todo pareceria perfecto: los falsos positivos solo se
+                   ven si se calibran a proposito. `ausente` permite ademas
+                   exigir que cierta senal NO aparezca.
+        """
+        if not espera:
+            espera = "rojo" if espera_rojo else "aviso"
         with tempfile.TemporaryDirectory() as tmp:
             raiz = Path(tmp) / "repo"
             construye(raiz)
@@ -162,20 +189,33 @@ class Calibracion:
             mutar(raiz)
             rc1, out1 = corre(raiz, *args)
 
-            if espera_rojo:
+            if espera == "rojo":
                 ok_rc = rc1 != 0
                 etiqueta_rojo = f"ROJO (rc={rc1})" if ok_rc else f"VERDE (rc={rc1}) <-- NO DETECTA"
-            else:
+                queja = "la mutacion NO se detecta"
+            elif espera == "aviso":
                 ok_rc = rc1 == 0 and "::warning::" in out1
                 etiqueta_rojo = (
                     f"VERDE con AVISO (rc={rc1})" if ok_rc else f"sin aviso (rc={rc1}) <-- NO SENALA"
                 )
+                queja = "la mutacion NO se detecta"
+            else:  # "limpio": es legitima, no puede producir ruido
+                ok_rc = rc1 == 0 and "::warning::" not in out1 and "::error::" not in out1
+                etiqueta_rojo = (
+                    f"VERDE limpio (rc={rc1})" if ok_rc else f"rc={rc1} <-- FALSO POSITIVO"
+                )
+                queja = "es LEGITIMA y aun asi produce ruido (falso positivo)"
             if not ok_rc:
-                self.fallos.append(f"[{nombre}] la mutacion NO se detecta.\n{out1}")
+                self.fallos.append(f"[{nombre}] {queja}.\n{out1}")
             if senal and senal not in out1:
                 self.fallos.append(
                     f"[{nombre}] se detecta algo, pero el mensaje no menciona "
                     f"`{senal}`: el gate podria estar fallando por otra causa.\n{out1}"
+                )
+            if ausente and ausente in out1:
+                self.fallos.append(
+                    f"[{nombre}] aparece `{ausente}` y no deberia: el gate esta "
+                    f"senalando algo legitimo.\n{out1}"
                 )
 
             # Revertir de verdad: reescribir no basta, porque una mutacion
@@ -292,6 +332,100 @@ def calibra_version_de_runtime(c: "Calibracion") -> None:
         escribe(ci_path, original)
 
 
+PLAYWRIGHT_FALSO = '''\
+"""Playwright de mentira: solo tiene que decir DONDE esta el binario."""
+import os
+
+
+class _Chromium:
+    executable_path = os.environ["S9K_CAL_CHROMIUM"]
+
+
+class _P:
+    chromium = _Chromium()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def sync_playwright():
+    return _P()
+'''
+
+
+def calibra_chromium_ejecutable(c: "Calibracion") -> None:
+    """S5: un stub inerte en la ruta de Playwright NO puede pasar por Chromium.
+
+    El gate solo miraba `os.path.exists`. Un fichero de 0 bytes con `chmod 000`
+    en la ruta que Playwright anuncia devolvia `(True, ...)` y el runtime se
+    daba por presente. Era ademas una ASIMETRIA con `node`, al que si se le
+    lanza `--version`: el mismo carril exigia mas al runtime facil que al
+    dificil, y justo el dificil es el que ya provoco que 171 pruebas se
+    omitieran en verde.
+
+    Se calibran los tres estados, porque solo el tercero prueba que el
+    instrumento distingue: inerte sin permiso -> ROJO; ejecutable que no dice
+    su version -> ROJO; ejecutable que si la dice -> VERDE.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        raiz = Path(tmp) / "repo"
+        construye(raiz)
+        libs = Path(tmp) / "pylib"
+        (libs / "playwright").mkdir(parents=True)
+        (libs / "playwright" / "__init__.py").write_text("", encoding="utf-8")
+        (libs / "playwright" / "sync_api.py").write_text(PLAYWRIGHT_FALSO, encoding="utf-8")
+        binario = Path(tmp) / "chrome-falso"
+
+        def prueba(etiqueta: str, contenido: bytes, modo: int, espera_rojo: bool) -> None:
+            # El caso anterior pudo dejarlo en `chmod 000`, que impide incluso
+            # reescribirlo: se devuelve el permiso antes de tocar nada.
+            if binario.exists():
+                binario.chmod(0o700)
+            binario.write_bytes(contenido)
+            binario.chmod(modo)
+            entorno_previo = os.environ.get("S9K_CAL_CHROMIUM")
+            os.environ["S9K_CAL_CHROMIUM"] = str(binario)
+            try:
+                rc, out = corre(
+                    raiz, "runtimes", "--require", "chromium", py_extra=str(libs)
+                )
+            finally:
+                if entorno_previo is None:
+                    os.environ.pop("S9K_CAL_CHROMIUM", None)
+                else:
+                    os.environ["S9K_CAL_CHROMIUM"] = entorno_previo
+            ok = (rc != 0) if espera_rojo else (rc == 0)
+            if not ok:
+                c.fallos.append(
+                    f"[{etiqueta}] veredicto inesperado (rc={rc}); se esperaba "
+                    f"{'ROJO' if espera_rojo else 'VERDE'}.\n{out}"
+                )
+            c.filas.append(
+                (
+                    etiqueta,
+                    (f"ROJO (rc={rc})" if rc else f"VERDE (rc={rc})")
+                    + ("" if ok else " <-- INESPERADO"),
+                    "esperado ROJO" if espera_rojo else "esperado VERDE",
+                )
+            )
+
+        prueba(
+            "S5: stub de chromium (0 bytes, chmod 000) en la ruta de Playwright",
+            b"", 0o000, True,
+        )
+        prueba(
+            "S5: chromium ejecutable que NO dice su version",
+            b"#!/bin/sh\nexit 0\n", 0o755, True,
+        )
+        prueba(
+            "S5 (control positivo): chromium que arranca y dice su version",
+            b'#!/bin/sh\necho "Chromium 141.0.7390.54"\n', 0o755, False,
+        )
+
+
 LIB_SH = AQUI.parents[1] / "deploy" / "scripts" / "lib.sh"
 
 GUION_FINGERPRINT = """
@@ -318,6 +452,12 @@ printf '#!/bin/sh\\necho "fastapi==0.141.1"\\n' > "$T/e/viewer/.venv/bin/pip"; c
 printf 'fastapi>=1,<2\\n' > "$T/f/viewer/requirements.txt"
 mkdir -p "$T/f/viewer/.venv/bin"
 printf '#!/bin/sh\\necho "fastapi-extra==1.0"\\n' > "$T/f/viewer/.venv/bin/pip"; chmod +x "$T/f/viewer/.venv/bin/pip"; caso PIP_PREFIJO_COLISION "$T/f"
+printf 'zope.interface>=1\\n' > "$T/g/viewer/requirements.txt"
+mkdir -p "$T/g/viewer/.venv/bin"
+printf '#!/bin/sh\\necho "zope-interface==5.0"\\n' > "$T/g/viewer/.venv/bin/pip"; chmod +x "$T/g/viewer/.venv/bin/pip"; caso PIP_PUNTO_COMODIN "$T/g"
+printf 'zope.interface>=1\\n' > "$T/h/viewer/requirements.txt"
+mkdir -p "$T/h/viewer/.venv/bin"
+printf '#!/bin/sh\\necho "zope.interface==5.0"\\n' > "$T/h/viewer/.venv/bin/pip"; chmod +x "$T/h/viewer/.venv/bin/pip"; caso PIP_PUNTO_LITERAL "$T/h"
 """
 
 # sha256 de la cadena vacia. Es el valor que `pip freeze` vacio producia
@@ -336,6 +476,15 @@ ESPERADO_FINGERPRINT = {
     # `resolved:pip-freeze`: la huella afirmaba identificar unas dependencias
     # que no estaban.
     "PIP_PREFIJO_COLISION": ("unresolved", "unknown"),
+    # S6: el nombre declarado se interpolaba CRUDO en un ERE, asi que el `.` de
+    # `zope.interface` era un comodin y `zope-interface` —otro paquete— lo
+    # satisfacia. La huella se etiquetaba `resolved:pip-freeze` afirmando
+    # identificar unas dependencias que no eran las declaradas.
+    "PIP_PUNTO_COMODIN": ("unresolved", "unknown"),
+    # Control positivo del mismo arreglo: escapar el `.` no puede romper el
+    # caso legitimo. Sin esta fila, un escape que rompiera TODOS los nombres
+    # con punto pasaria por correcto.
+    "PIP_PUNTO_LITERAL": ("resolved:pip-freeze", None),
 }
 
 
@@ -360,7 +509,7 @@ def calibra_fingerprint(c: "Calibracion") -> None:
         c.fallos.append(f"[fingerprint] no se pudo cargar schema_source_fixture: {exc}")
         return
     with tempfile.TemporaryDirectory() as tmp:
-        for sub in "abcdef":
+        for sub in "abcdefgh":
             plant_schema_sources(Path(tmp) / sub)
         guion = Path(tmp) / "fp.sh"
         guion.write_text(GUION_FINGERPRINT.format(lib=LIB_SH), encoding="utf-8")
@@ -436,11 +585,15 @@ def main() -> int:
         ci = (raiz / ".github" / "workflows" / "ci.yml").read_text()
         escribe(
             raiz / ".github" / "workflows" / "ci.yml",
+            # La LINEA entera, con su sangria: quitar solo el comando dejaba
+            # una linea de 10 espacios pegada a la siguiente y el `ci.yml`
+            # resultante ni siquiera era YAML valido. La mutacion tiene que
+            # producir un workflow PLAUSIBLE; si no, no prueba lo que dice.
             ci.replace(
-                "python3 .github/scripts/check_env_reproducibility.py runtimes --require node\n",
+                "          python3 .github/scripts/check_env_reproducibility.py runtimes --require node\n",
                 "",
             ).replace(
-                "python3 .github/scripts/check_env_reproducibility.py runtimes --require chromium\n",
+                "          python3 .github/scripts/check_env_reproducibility.py runtimes --require chromium\n",
                 "",
             ),
         )
@@ -488,6 +641,89 @@ def main() -> int:
             ),
         )
 
+    # --- los SEIS supervivientes que encontro el revisor de este PR --------
+    # Los dos primeros son los que importan: incumplian la doctrina del propio
+    # carril («nada se apaga en silencio») DENTRO del PR que la enuncia, y se
+    # aplicaban a la vez en `ci.yml` y en el fragmento precisamente para que la
+    # comprobacion de fidelidad de fragmentos no viera diferencia.
+    def _en_ci_y_fragmento(raiz: Path, viejo: str, nuevo: str) -> None:
+        for ruta in (
+            raiz / ".github" / "workflows" / "ci.yml",
+            raiz / ".github" / "ci-fragments" / "frag.yml",
+        ):
+            if not ruta.exists():
+                continue
+            texto = ruta.read_text(encoding="utf-8")
+            if viejo in texto:
+                escribe(ruta, texto.replace(viejo, nuevo))
+
+    def m_gate_neutralizado(raiz: Path) -> None:
+        # S1: el gate CORRE, falla, y el paso sale en verde.
+        _en_ci_y_fragmento(
+            raiz,
+            "check_env_reproducibility.py all --strict-missing",
+            "check_env_reproducibility.py all --strict-missing || true",
+        )
+
+    def m_sin_paso_de_calibracion(raiz: Path) -> None:
+        # S2: el gate sigue corriendo, pero sin instrumento calibrado.
+        _en_ci_y_fragmento(
+            raiz,
+            "      - name: calibracion\n"
+            "        run: |\n"
+            "          python3 .github/scripts/check_env_reproducibility_calibration.py\n",
+            "",
+        )
+
+    def m_job_propio_borrado(raiz: Path) -> None:
+        # La forma extrema de S1/S2: el job entero desaparece en un merge.
+        _en_ci_y_fragmento(raiz, "  check-env-reproducibility:\n", "  otro-nombre:\n")
+
+    def m_node_version_comentada(raiz: Path) -> None:
+        # S3: un COMENTARIO no es una declaracion. Con la lectura por regex
+        # esto devolvia ('varias', ['18','20']) y ponia el gate rojo por nada.
+        # En ci.yml Y en el fragmento: si no, saltaria la comprobacion de
+        # fidelidad de fragmentos y el rojo vendria de otra causa.
+        _en_ci_y_fragmento(
+            raiz,
+            "          node-version: '20'\n",
+            "          node-version: '20'\n          # node-version: 18\n",
+        )
+
+    def m_node_version_punto_x(raiz: Path) -> None:
+        # S4: `20.x` es el idioma que documenta `actions/setup-node`. Se
+        # clasificaba `ilegible` -> ROJO: un falso positivo esperando a quien
+        # escribiera el workflow como manda la accion.
+        _en_ci_y_fragmento(raiz, "node-version: '20'", "node-version: '20.x'")
+
+    c.caso(
+        "S1: `|| true` tras el gate, en ci.yml Y en el fragmento",
+        m_gate_neutralizado,
+        senal="NEUTRALIZA",
+    )
+    c.caso(
+        "S2: paso de calibracion retirado, en ci.yml Y en el fragmento",
+        m_sin_paso_de_calibracion,
+        senal="sin instrumento calibrado",
+    )
+    c.caso(
+        "S1/S2 extremo: el job del gate desaparece de ci.yml",
+        m_job_propio_borrado,
+        senal="ya no declara el job",
+    )
+    c.caso(
+        "S3: `# node-version: 18` COMENTADO (legitimo, no puede dar rojo)",
+        m_node_version_comentada,
+        espera="limpio",
+        ausente="VARIAS versiones",
+    )
+    c.caso(
+        "S4: `node-version: '20.x'` (idioma de setup-node, no es ilegible)",
+        m_node_version_punto_x,
+        espera="limpio",
+        ausente="NO literal",
+    )
+
     c.caso("version declarada != instalada", m_version, senal="DIVERGENCIA")
     c.caso(
         "fragmento de CI que ha derivado de ci.yml",
@@ -529,6 +765,7 @@ def main() -> int:
     c.caso("test NUEVO que depende de Node sin job propio", m_test_nuevo_con_node, senal="Node".lower())
 
     calibra_version_de_runtime(c)
+    calibra_chromium_ejecutable(c)
     calibra_fingerprint(c)
 
     print("\n=== CALIBRACION: mutacion -> resultado -> reversion ===")

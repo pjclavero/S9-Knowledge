@@ -32,12 +32,21 @@ verde sin comprobar nada:
      gate en rojo hasta que tenga job: es construccion, no vigilancia.
 
 FRONTERA: este fichero es del carril de reproducibilidad de entorno.
-`.github/scripts/check_ci_config.py` es de otro carril y NO se toca; alli se
-comprueba la politica de disparo de ramas, aqui el entorno. El solape en Node
-es deliberado y barato: dos gates que fallan por el mismo motivo es mejor que
-cero.
+`.github/scripts/check_ci_config.py` es de otro carril; alli se comprueba la
+politica de disparo de ramas, aqui el entorno. El solape en Node es deliberado
+y barato: dos gates que fallan por el mismo motivo es mejor que cero. La
+prohibicion GENERICA de neutralizar un comando con `|| true` vive alli, porque
+alli ya se parsea YAML y ya se prohibe `continue-on-error`, que es el mismo
+defecto por otra via; aqui queda la comprobacion ESPECIFICA de que este gate no
+se apaga a si mismo (apartado 3 quinquies).
 
-Sin dependencias externas: se ejecuta con el Python del runner tal cual.
+DEPENDENCIA: PyYAML, y solo donde hace falta leer `ci.yml` de forma semantica.
+Antes se leia con regex de texto y eso tenia el defecto exacto que este carril
+persigue: un `# node-version: 18` DENTRO de un comentario contaba como una
+segunda declaracion y ponia el gate rojo por nada. Un comentario no es una
+declaracion, y la unica forma de que eso deje de ser una opinion del regex es
+parsear. Si falta PyYAML, esto NO degrada a texto: se pone ROJO diciendo que se
+instale.
 """
 from __future__ import annotations
 
@@ -89,12 +98,11 @@ RUNTIMES = {
         "cmds": ("node",),
         "prueba": ("node", "--version"),
         "provision": ("actions/setup-node",),
-        # `campo_re` localiza la DECLARACION, sea cual sea su valor;
-        # `literal_re` dice si ese valor es una version legible. Separarlos es
-        # lo que impide que una declaracion ilegible (`${{ env.NODE_V }}`)
-        # degrade la comprobacion a solo-presencia sin que nada se ponga rojo.
-        "campo_re": r"node-version:\s*([^\n#]+)",
-        "literal_re": r"^[0-9]+(?:\.[0-9]+)*$",
+        # `campo` es la CLAVE que se busca dentro del `with:` de un paso, sobre
+        # el YAML ya parseado. Antes era una regex de texto y por eso un
+        # `# node-version: 18` comentado contaba como declaracion. Con el mapa
+        # parseado, un comentario ya no existe cuando el gate mira.
+        "campo": "node-version",
     },
     "chromium": {
         "cmds": (),  # se resuelve via playwright, ver `presente_chromium`
@@ -118,9 +126,55 @@ PATRONES_RUNTIME = {
 }
 
 
+# Una version DECLARADA legible. Se admite el idioma propio de
+# `actions/setup-node`, donde `20.x` significa «la ultima 20»: es una
+# declaracion de PRECISION (exige major 20 y no dice nada del minor), no una
+# expresion ilegible. Clasificarla `ilegible` era un falso positivo esperando a
+# quien escribiera el workflow como documenta la accion. `lts/*`, `latest` o
+# `${{ env.X }}` siguen siendo ilegibles: ahi no hay numero contra el que
+# comparar y este gate NO degrada a solo-presencia.
+RE_VERSION_LITERAL = re.compile(r"^(\d+(?:\.\d+)*)((?:\.x)*)$", re.I)
+
+
 # --------------------------------------------------------------------------
 # utilidades
 # --------------------------------------------------------------------------
+class SinParserYaml(Exception):
+    """PyYAML no esta. Es un fallo ruidoso, jamas una degradacion a texto."""
+
+
+class CiIlegible(Exception):
+    """`ci.yml` no es YAML valido: fallo con mensaje, no una traza."""
+
+
+def ci_parseado() -> dict:
+    """`ci.yml` como mapa. Sin regex: un comentario no es una declaracion."""
+    try:
+        import yaml
+    except ImportError as exc:  # pragma: no cover
+        raise SinParserYaml(str(exc)) from exc
+    if not CI.exists():
+        return {}
+    try:
+        datos = yaml.safe_load(CI.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        # Un `ci.yml` que no parsea es un FALLO con mensaje, no una traza. Que
+        # el gate reventase con un stack trace lo dejaba indistinguible de un
+        # gate roto, y a quien lo mira le cuesta lo mismo leer un error claro.
+        raise CiIlegible(str(exc).replace("\n", " ")[:300]) from exc
+    return datos if isinstance(datos, dict) else {}
+
+
+def pasos_de(datos: dict):
+    """(job_id, paso) de todos los pasos declarados en el workflow parseado."""
+    for job_id, job in (datos.get("jobs") or {}).items():
+        if not isinstance(job, dict):
+            continue
+        for paso in job.get("steps") or []:
+            if isinstance(paso, dict):
+                yield job_id, paso
+
+
 def ficheros_py(raiz: Path):
     for py in raiz.rglob("*.py"):
         if any(p in EXCLUIDOS for p in py.parts):
@@ -562,10 +616,138 @@ def check_fragmentos() -> list[str]:
 
 
 # --------------------------------------------------------------------------
+# 3 quinquies. este gate no se puede apagar en silencio
+# --------------------------------------------------------------------------
+JOB_PROPIO = "check-env-reproducibility"
+INVOCACION_GATE = "check_env_reproducibility.py"
+INVOCACION_CALIBRACION = "check_env_reproducibility_calibration.py"
+
+# Formas de neutralizar el codigo de salida de un comando en `sh`. `|| true` es
+# la canonica; `|| :` es la misma con el builtin nulo y `|| exit 0` la misma
+# escrita en largo. Se buscan sobre lineas SIN comentario: en este mismo
+# workflow hay comentarios que dicen «Sin `|| true`: ...» y tomarlos por codigo
+# seria el defecto simetrico.
+RE_NEUTRALIZA = re.compile(r"\|\|\s*(true\b|:\s*$|:\s|exit\s+0\b)")
+
+
+def lineas_efectivas(cuerpo: str) -> list[str]:
+    """Lineas de un `run:` que son CODIGO: sin comentarios de shell."""
+    fuera = []
+    for linea in cuerpo.splitlines():
+        limpia = linea.split("#", 1)[0]
+        if limpia.strip():
+            fuera.append(limpia)
+    return fuera
+
+
+def check_gate_no_apagado() -> list[str]:
+    """Los dos apagados que un revisor demostro VIVOS sobre este mismo PR.
+
+    Ambos se aplicaban a la vez en `ci.yml` y en el fragmento —para que la
+    comprobacion de fidelidad de fragmentos no viera diferencia— y ningun
+    control se enteraba:
+
+      1. `|| true` tras la invocacion del gate: el gate CORRE, falla, y el paso
+         sale en verde. La barrera se evalua y no bloquea nada.
+      2. Quitar el paso de calibracion: el gate corre, pero sin instrumento
+         calibrado. Un gate cuyo mecanismo de medida no se prueba puede pasar
+         meses sin poder ponerse rojo, que es literalmente el defecto que este
+         fichero existe para cerrar.
+
+    La doctrina del carril es «nada se apaga en silencio» y el propio PR la
+    incumplia. La prohibicion GENERICA de `|| true` en cualquier workflow
+    vigilado vive en `check_ci_config.py` (carril L), que ya parsea YAML y ya
+    prohibe `continue-on-error` —el mismo defecto por otra via—. Aqui queda la
+    parte que solo este carril puede afirmar: que SUS pasos existen y que SUS
+    invocaciones no estan neutralizadas. El solape es deliberado, igual que el
+    de Node: dos gates que fallan por el mismo motivo es mejor que cero, y este
+    sobrevive aunque alguien afloje el otro.
+    """
+    errores = []
+    if not CI.exists():
+        return errores
+    try:
+        datos = ci_parseado()
+    except SinParserYaml as exc:
+        return [
+            f"falta PyYAML y esta comprobacion parsea `ci.yml` de verdad ({exc}). "
+            f"NO se degrada a texto: anade `pip install pyyaml` al job "
+            f"`{JOB_PROPIO}`."
+        ]
+    except CiIlegible as exc:
+        return [f"`ci.yml` no es YAML valido ({exc}): un workflow que no parsea no se ejecuta."]
+    jobs = datos.get("jobs") or {}
+    if JOB_PROPIO not in jobs:
+        return [
+            f"`ci.yml` ya no declara el job `{JOB_PROPIO}`. Si el job "
+            f"desaparece, este gate deja de ejecutarse y nada lo dice: una "
+            f"barrera que puede dejar de existir sin ponerse roja no es una "
+            f"barrera. Restitúyelo desde "
+            f".github/ci-fragments/{JOB_PROPIO}.yml."
+        ]
+
+    # 1. Ninguna invocacion de este carril puede llevar su salida neutralizada,
+    #    este donde este el paso.
+    for job_id, paso in pasos_de(datos):
+        cuerpo = paso.get("run")
+        if not isinstance(cuerpo, str):
+            continue
+        etiqueta = str(paso.get("name") or "(sin nombre)")
+        for linea in lineas_efectivas(cuerpo):
+            if INVOCACION_GATE not in linea:
+                continue
+            if RE_NEUTRALIZA.search(linea):
+                errores.append(
+                    f"ci.yml: el job `{job_id}`, paso `{etiqueta}`, NEUTRALIZA "
+                    f"la salida de este gate: `{linea.strip()}`. El gate corre, "
+                    f"falla y el paso sale en VERDE: la barrera se evalua y no "
+                    f"bloquea nada, que es `continue-on-error` escrito dentro "
+                    f"del `run:`. Quita el `|| true`."
+                )
+
+    # 2. El paso de calibracion tiene que EXISTIR dentro del job propio.
+    propio = jobs[JOB_PROPIO]
+    textos = [
+        p.get("run", "")
+        for j, p in pasos_de(datos)
+        if j == JOB_PROPIO and isinstance(p.get("run"), str)
+    ]
+    if not any(INVOCACION_CALIBRACION in t for t in textos):
+        errores.append(
+            f"ci.yml: el job `{JOB_PROPIO}` ya NO ejecuta "
+            f"`{INVOCACION_CALIBRACION}`. El gate seguiria corriendo, pero sin "
+            f"instrumento calibrado: un gate cuyo mecanismo de medida no se "
+            f"prueba puede pasar meses sin poder ponerse rojo y nadie lo "
+            f"notaria. Ese es el defecto que este fichero existe para cerrar, "
+            f"asi que quitar la calibracion es apagar el gate."
+        )
+    if not any(re.search(rf"{re.escape(INVOCACION_GATE)}\s+all", t) for t in textos):
+        errores.append(
+            f"ci.yml: el job `{JOB_PROPIO}` ya NO ejecuta "
+            f"`{INVOCACION_GATE} all`: el job existe y no comprueba el entorno."
+        )
+    if isinstance(propio, dict) and propio.get("continue-on-error") not in (None, False):
+        errores.append(
+            f"ci.yml: el job `{JOB_PROPIO}` declara `continue-on-error`: puede "
+            f"fallar y reportar exito."
+        )
+    return errores
+
+
+# --------------------------------------------------------------------------
 # 4. runtimes externos
 # --------------------------------------------------------------------------
 def presente_chromium() -> tuple[bool, str]:
-    """Chromium DE VERDAD: el binario que Playwright lanzaria."""
+    """Chromium DE VERDAD: el binario que Playwright lanzaria, EJECUTADO.
+
+    `os.path.exists` no basta y era una asimetria con `node`, al que si se le
+    lanza `--version`: un fichero de 0 bytes sin permiso de ejecucion en la
+    ruta que Playwright anuncia pasaba en VERDE. Un binario que no se puede
+    ejecutar es exactamente el caso que este carril persigue —la suite se
+    auto-omite y el job sigue verde—, asi que aqui se exige lo mismo que a
+    cualquier otro runtime: que este, que sea ejecutable y que ARRANQUE
+    diciendo su version.
+    """
     try:
         from playwright.sync_api import sync_playwright
     except Exception as exc:  # noqa: BLE001
@@ -577,7 +759,26 @@ def presente_chromium() -> tuple[bool, str]:
         return False, f"playwright no arranca ({exc})"
     if not ruta or not os.path.exists(ruta):
         return False, f"el binario de chromium no existe en {ruta!r}"
-    return True, ruta
+    if not os.access(ruta, os.X_OK):
+        return False, (
+            f"el binario de chromium en {ruta!r} EXISTE pero no es ejecutable "
+            f"(sin permiso X): Playwright no podria lanzarlo y los tests se "
+            f"auto-omitirian en verde"
+        )
+    try:
+        r = subprocess.run(
+            [ruta, "--version"], capture_output=True, text=True, timeout=60
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return False, f"el binario de chromium en {ruta!r} no ARRANCA: {exc}"
+    salida = (r.stdout.strip() or r.stderr.strip()).strip()
+    if r.returncode != 0 or not re.search(r"\d+\.\d+", salida):
+        return False, (
+            f"el binario de chromium en {ruta!r} arranca pero no dice su "
+            f"version (rc={r.returncode}, salida={salida[:120]!r}): no se puede "
+            f"afirmar que sea un navegador utilizable"
+        )
+    return True, f"{ruta} ({salida})"
 
 
 def presente(runtime: str) -> tuple[bool, str]:
@@ -612,25 +813,51 @@ def version_declarada(runtime: str) -> tuple[str, object]:
     degradacion silenciosa; la ausencia de una DECLARACION LEGIBLE no es una
     excepcion. Ademas el mensaje mentia: decia «no declara version» cuando
     declaraba dos.
+
+    La lectura es SEMANTICA (`yaml.safe_load` y las claves del `with:` de cada
+    paso), no textual. Con regex, un `# node-version: 18` escrito DENTRO de un
+    comentario contaba como una segunda declaracion y devolvia
+    `('varias', ['18','20'])`: el gate se ponia rojo por un comentario. Fallaba
+    cerrado —ruido, no agujero—, pero un instrumento que no distingue un
+    comentario de una declaracion no esta midiendo lo que dice medir. Y si
+    PyYAML falta, se dice ROJO y en voz alta; no se vuelve al texto.
     """
     conf = RUNTIMES.get(runtime, {})
-    campo = conf.get("campo_re")
+    campo = conf.get("campo")
     if not campo:
         return "no-aplica", None
     if not CI.exists():
         return "ninguna", None
-    crudos = [
-        v.strip().strip("'\"")
-        for v in re.findall(campo, CI.read_text(encoding="utf-8"))
-    ]
-    crudos = [v for v in crudos if v]
+    try:
+        datos = ci_parseado()
+    except SinParserYaml as exc:
+        return "sin-parser", str(exc)
+    except CiIlegible as exc:
+        return "ci-roto", str(exc)
+    crudos = []
+    for _job_id, paso in pasos_de(datos):
+        con = paso.get("with")
+        if not isinstance(con, dict):
+            continue
+        for clave, valor in con.items():
+            if str(clave).strip().lower() == campo and valor is not None:
+                texto = str(valor).strip().strip("'\"")
+                if texto:
+                    crudos.append(texto)
     if not crudos:
         return "ninguna", None
-    literal = re.compile(conf.get("literal_re", r"^.+$"))
-    ilegibles = sorted({v for v in crudos if not literal.match(v)})
+    # `20.x` declara major 20 y nada mas: se normaliza a su prefijo numerico,
+    # que es exactamente la precision que despues se exige.
+    normalizadas, ilegibles = set(), set()
+    for v in crudos:
+        m = RE_VERSION_LITERAL.match(v)
+        if m:
+            normalizadas.add(m.group(1))
+        else:
+            ilegibles.add(v)
     if ilegibles:
-        return "ilegible", ilegibles
-    distintas = sorted(set(crudos))
+        return "ilegible", sorted(ilegibles)
+    distintas = sorted(normalizadas)
     if len(distintas) > 1:
         return "varias", distintas
     return "una", distintas[0]
@@ -668,6 +895,22 @@ def check_require(runtimes: list[str]) -> list[str]:
             print(
                 f"OK: `{rt}` no declara version en ci.yml por diseno (la fija "
                 f"Playwright); aqui solo se exige presencia"
+            )
+            continue
+        if estado == "ci-roto":
+            errores.append(
+                f"RUNTIME `{rt}`: `ci.yml` no es YAML valido ({declaracion}), "
+                f"asi que no se puede leer la version declarada. Un workflow "
+                f"que no parsea no se ejecuta: arreglalo."
+            )
+            continue
+        if estado == "sin-parser":
+            errores.append(
+                f"RUNTIME `{rt}`: falta PyYAML y la version declarada en "
+                f"`ci.yml` se lee PARSEANDO, no con regex ({declaracion}). Sin "
+                f"parser la comprobacion degradaria a solo-presencia sin que "
+                f"nada se pusiera rojo, que es justo lo que este carril cierra. "
+                f"Anade `pip install pyyaml` al paso que invoca este gate."
             )
             continue
         if estado == "ninguna":
@@ -930,6 +1173,8 @@ def main() -> int:
         avisos += check_docs_versiones()
         print("=== 3 quater. fragmentos de CI fieles a ci.yml ===")
         errores += check_fragmentos()
+        print("=== 3 quinquies. este gate no se puede apagar en silencio ===")
+        errores += check_gate_no_apagado()
         print("=== 4. puertas de runtime externo (Node, Chromium) ===")
         errores += check_runtime_gates()
 
