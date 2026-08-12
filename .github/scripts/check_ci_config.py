@@ -166,9 +166,15 @@ RE_NEUTRALIZA = re.compile(r"\|\|\s*(true\b|:\s*$|:\s|exit\s+0\b)")
 # Lo que distingue una guardia de un apagado no es la sintaxis sino el DESENLACE:
 # la guardia termina en `exit 1`, el apagado no. Asi que solo se mira el caso en
 # que lo negado es un GATE (`.github/scripts/...`) y el bloque NO falla.
-RE_IF_NEGADO = re.compile(r"(?:^|;|&&|\|\||\bthen\b|\bdo\b)\s*if\s+!")
+RE_IF = re.compile(r"(?:^|;|&&|\|\||\bthen\b|\bdo\b)\s*if\s")
 RE_BLOQUE_FALLA = re.compile(r"(?:\bexit\s+(?:[1-9]\d*|\$)|\breturn\s+[1-9]\d*|\bfalse\b)")
 INVOCA_GATE = ".github/scripts/"
+
+# Una variable que guarda la ruta de un gate ES el gate. Sin esto, la
+# indireccion evade la comprobacion:
+#     G=".github/scripts/un_gate.py"
+#     if ! python3 "$G" all; then echo x; fi
+RE_ASIGNA = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
 
 # NO hay lista de excepciones, y no por descuido: se comprobo que los dos
 # workflows vigilados no necesitan ninguna. Una exencion que hoy no hace falta
@@ -619,34 +625,81 @@ def comprueba_neutralizacion(datos: dict, nombre: str) -> list[str]:
 
 
 def _bloque_if(lineas: list[str], inicio: int) -> list[str]:
-    """Lineas del `if ... fi` que empieza en `inicio` (contando anidamiento)."""
+    """Lineas del `if ... fi` que empieza en `inicio` (contando anidamiento).
+
+    Corta tambien cuando el `if` entero cabe en UNA linea (`if ...; then ...;
+    fi`): antes se seguia leyendo mas alla del `fi` y la guardia de una sola
+    linea se leia como si no tuviera `exit 1`.
+    """
     profundidad = 0
     fuera = []
     for linea in lineas[inicio:]:
         fuera.append(linea)
         profundidad += len(re.findall(r"(?:^|;|&&|\|\||\bthen\b|\bdo\b)\s*if\s", linea))
         profundidad -= len(re.findall(r"(?:^|;)\s*fi\b", linea))
-        if profundidad <= 0 and len(fuera) > 1:
+        if profundidad <= 0:
             break
     return fuera
 
 
-def gates_bajo_if_negado(cuerpo: str) -> list[str]:
-    """`if ! GATE; then ...; fi` cuyo bloque NO termina fallando.
+def variables_de_gate(lineas: list[str], marca: str) -> set[str]:
+    """Variables cuyo valor contiene la ruta de un gate."""
+    return {
+        m.group(1)
+        for m in (RE_ASIGNA.match(l) for l in lineas)
+        if m and marca in m.group(2)
+    }
 
-    Devuelve la linea del `if` por cada apagado encontrado. Un bloque que
-    termina en `exit 1` es una guardia legitima y no se senala: la diferencia
-    entre vigilar y apagar esta en el desenlace, no en la sintaxis.
+
+def _invoca_gate(texto: str, marca: str, variables: set[str]) -> bool:
+    if marca in texto:
+        return True
+    return any(
+        re.search(rf"\$\{{?{re.escape(v)}\}}?", texto) for v in variables
+    )
+
+
+def gates_sin_desenlace(cuerpo: str, marca: str = INVOCA_GATE) -> list[str]:
+    """`if` que ejecuta un gate y cuya rama de FALLO no falla.
+
+    El discriminante es el DESENLACE, no la sintaxis, y se aplica a la forma
+    del `if` completa —no solo a `if !`—, porque la negacion se puede desplazar
+    sin cambiar el efecto:
+
+        if ! GATE; then echo x; fi          -> la rama de fallo es el `then`
+        if GATE; then :; else echo x; fi    -> la rama de fallo es el `else`
+        if GATE; then echo ok; fi           -> la rama de fallo esta VACIA
+
+    Las tres dejan el paso en verde con el gate rojo. Y la ruta del gate se
+    reconoce tambien a traves de una VARIABLE, porque la indireccion no cambia
+    lo que se ejecuta.
+
+    Una rama de fallo que termina en `exit 1` es una guardia legitima: no se
+    toca. Por eso los 9 `if !` reales de `ci.yml` —las guardias anti-cero que
+    este mismo fichero exige— siguen en verde: su condicion ni siquiera invoca
+    un gate.
     """
     lineas = [l.split("#", 1)[0] for l in cuerpo.splitlines()]
+    variables = variables_de_gate(lineas, marca)
     hallazgos = []
     for i, linea in enumerate(lineas):
-        if not (RE_IF_NEGADO.search(linea) and INVOCA_GATE in linea):
+        if not RE_IF.search(linea):
             continue
-        bloque = _bloque_if(lineas, i)
-        # El propio `if` no cuenta como desenlace: se mira el cuerpo.
-        if not any(RE_BLOQUE_FALLA.search(l) for l in bloque[1:]):
-            hallazgos.append(linea.strip())
+        texto = "\n".join(_bloque_if(lineas, i))
+        m_then = re.search(r"\bthen\b", texto)
+        if not m_then:
+            continue
+        condicion = texto[: m_then.start()]
+        if not _invoca_gate(condicion, marca, variables):
+            continue
+        resto = re.sub(r"\bfi\b\s*$", "", texto[m_then.end():].rstrip())
+        m_else = re.search(r"(?:^|;|\n)\s*else\b", resto)
+        rama_then = resto[: m_else.start()] if m_else else resto
+        rama_else = resto[m_else.end():] if m_else else ""
+        negado = bool(re.search(r"\bif\s+!", condicion))
+        rama_fallo = rama_then if negado else rama_else
+        if not RE_BLOQUE_FALLA.search(rama_fallo):
+            hallazgos.append(condicion.strip().replace("\n", " "))
     return hallazgos
 
 
@@ -654,16 +707,18 @@ def comprueba_if_negado(datos: dict, nombre: str) -> list[str]:
     errores = []
     for job_id, job in (datos.get("jobs") or {}).items():
         for paso_nombre, cuerpo in pasos_run(job):
-            for linea in gates_bajo_if_negado(cuerpo):
+            for linea in gates_sin_desenlace(cuerpo):
                 errores.append(
                     f"{nombre}: el job `{job_id}`, paso `{paso_nombre}`, ejecuta "
-                    f"un gate bajo `if !` y NO falla si el gate falla: "
+                    f"un gate dentro de un `if` cuya rama de FALLO no falla: "
                     f"`{linea}`. El gate corre, se pone rojo, y el paso sale en "
-                    f"VERDE: es `|| true` escrito como condicional, y ademas la "
-                    f"forma mas facil de introducir sin querer, porque parece "
-                    f"codigo normal. Si de verdad quieres condicionar, el "
-                    f"bloque tiene que terminar en `exit 1`; si no, invoca el "
-                    f"gate a secas y deja que su codigo de salida decida."
+                    f"VERDE: es `|| true` escrito como condicional. Da igual "
+                    f"donde este la negacion (`if !`, un `else`, o ninguna "
+                    f"rama), y da igual que la ruta llegue por una variable: lo "
+                    f"que cuenta es que cuando el gate falla no pasa nada. La "
+                    f"rama de fallo tiene que terminar en `exit 1`; si no, "
+                    f"invoca el gate a secas y deja decidir a su codigo de "
+                    f"salida."
                 )
     return errores
 

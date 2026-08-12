@@ -11,11 +11,32 @@ Este script introduce cada violacion de verdad —escribe el fichero, ejecuta el
 gate, lee el codigo de retorno, y restaura— y refleja el resultado real. No
 simula: si el gate deja de detectar un caso, aqui sale FALLO.
 
+    ┌───────────────────────────────────────────────────────────────────────┐
+    │  AVISO: ESTE SCRIPT MUTA `ci.yml` REAL, EN EL SITIO.                  │
+    │                                                                       │
+    │  Mientras corre, el `ci.yml` del arbol de trabajo esta ROTO A         │
+    │  PROPOSITO durante unos segundos por caso. Cualquier otra cosa que    │
+    │  lea el repositorio a la vez —otro arnes, otro gate, un `git status`  │
+    │  del que te fies— vera esa mutacion y dara un resultado FALSO.        │
+    │                                                                       │
+    │  NO LO EJECUTES EN PARALELO con nada que lea el repositorio. Ya ha    │
+    │  provocado rojos que no eran reales, y un rojo falso cuesta mas caro  │
+    │  que uno real: enseña a desconfiar del instrumento.                   │
+    │                                                                       │
+    │  Para que el descuido no sea silencioso, el script toma un CERROJO    │
+    │  (`.git/s9k-calibra-gate.lock`) y se niega a arrancar si ya hay otra  │
+    │  copia corriendo. El cerrojo protege de dos escrituras simultaneas;   │
+    │  de un LECTOR concurrente no puede protegerte: eso es cosa tuya.      │
+    │                                                                       │
+    │  Restaura SIEMPRE en `finally`, incluso si lo interrumpes con Ctrl-C. │
+    └───────────────────────────────────────────────────────────────────────┘
+
 Uso:  python3 .github/scripts/calibra_gate_integrity.py
 Sale 0 si TODOS los casos dan el veredicto esperado.
 """
 from __future__ import annotations
 
+import fcntl
 import shutil
 import subprocess
 import sys
@@ -32,6 +53,32 @@ E2E_CONFTEST = REPO / "tests" / "e2e" / "conftest.py"
 TOCABLES = (CI, SUPPLY, E2E_CONFTEST)
 
 VERDE, ROJO = "VERDE", "ROJO"
+
+# Cerrojo: dos copias de este script mutando `ci.yml` a la vez se pisan y
+# producen rojos que no son reales.
+#
+# En un clon normal vive en `.git/` (existe, no se versiona). En un WORKTREE
+# `.git` es un FICHERO, no un directorio, asi que se cae a un temporal del
+# sistema — comprobado, no supuesto—. Ese temporal es compartido por todos los
+# worktrees de la maquina, lo que ademas es lo que se quiere: dos worktrees del
+# mismo repo calibrando a la vez tambien se pisarian.
+CERROJO = (REPO / ".git" / "s9k-calibra-gate.lock") if (REPO / ".git").is_dir() \
+    else Path(tempfile.gettempdir()) / "s9k-calibra-gate.lock"
+
+
+def toma_cerrojo():
+    """Devuelve el descriptor del cerrojo, o aborta si ya lo tiene otro."""
+    fh = open(CERROJO, "w")
+    try:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        fh.close()
+        raise SystemExit(
+            f"ERROR: ya hay otra calibracion corriendo ({CERROJO}).\n"
+            f"Este script MUTA `ci.yml` en el sitio; dos a la vez se pisan y "
+            f"producen rojos falsos. Espera a que termine la otra."
+        )
+    return fh
 
 
 def ejecuta_gate() -> tuple[int, str]:
@@ -301,6 +348,55 @@ def m_if_negado_con_exit() -> None:
     )
 
 
+def m_gate_por_variable() -> None:
+    """A4: la ruta del gate llega por una VARIABLE.
+
+    La indireccion no cambia lo que se ejecuta, pero evade cualquier busqueda
+    del literal `.github/scripts/...` en la linea negada.
+    """
+    _sustituye(
+        CI, '          python3 .github/scripts/check_env_reproducibility.py all --strict-missing',
+        '          G=".github/scripts/check_env_reproducibility.py"\n'
+        '          if ! python3 "$G" all --strict-missing; then\n'
+        "            echo 'gate ignorado'\n"
+        "          fi",
+    )
+
+
+def m_negacion_en_else() -> None:
+    """A6: la negacion se desplaza al `else`. Mismo desenlace, sin `!`."""
+    _sustituye(
+        CI, '          python3 .github/scripts/check_env_reproducibility.py all --strict-missing',
+        "          if python3 .github/scripts/check_env_reproducibility.py all --strict-missing; then\n"
+        "            :\n"
+        "          else\n"
+        "            echo 'gate ignorado'\n"
+        "          fi",
+    )
+
+
+def m_sin_rama_de_fallo() -> None:
+    """A6 bis: `if GATE; then ...; fi` sin `else`: la rama de fallo esta VACIA."""
+    _sustituye(
+        CI, '          python3 .github/scripts/check_env_reproducibility.py all --strict-missing',
+        "          if python3 .github/scripts/check_env_reproducibility.py all --strict-missing; then\n"
+        "            echo 'todo bien'\n"
+        "          fi",
+    )
+
+
+def m_guardia_en_una_linea() -> None:
+    """Control POSITIVO: la guardia con `exit 1` escrita en UNA sola linea.
+
+    Antes salia ROJA (falso positivo, fallaba cerrado) porque el bloque se leia
+    saltandose la propia linea del `if`.
+    """
+    _sustituye(
+        CI, '          python3 .github/scripts/check_env_reproducibility.py all --strict-missing',
+        "          if ! python3 .github/scripts/check_env_reproducibility.py all --strict-missing; then exit 1; fi",
+    )
+
+
 CASOS = [
     # `estado correcto` es tambien el control positivo de la regla de
     # `|| true`: el `ci.yml` real contiene comentarios que dicen «Sin
@@ -330,11 +426,19 @@ CASOS = [
     ("job exigido que desaparece de ci.yml", m_borra_job_exigido, ROJO),
     ("`if ! GATE` sin fallo en el bloque (apagado condicional)", m_if_negado_sin_fallo, ROJO),
     ("control positivo: `if ! GATE` que termina en `exit 1` (guardia)", m_if_negado_con_exit, VERDE),
+    ("A4: gate invocado por VARIABLE (indireccion)", m_gate_por_variable, ROJO),
+    ("A6: negacion desplazada al `else`", m_negacion_en_else, ROJO),
+    ("A6 bis: `if GATE; then ...; fi` sin rama de fallo", m_sin_rama_de_fallo, ROJO),
+    ("control positivo: guardia con `exit 1` en UNA linea", m_guardia_en_una_linea, VERDE),
     ("restaurado", None, VERDE),
 ]
 
 
 def main() -> int:
+    # El cerrojo se toma ANTES de tocar nada y se suelta al salir del proceso.
+    cerrojo = toma_cerrojo()
+    print(f"(cerrojo tomado: {CERROJO}; este script muta `ci.yml` en el sitio, "
+          f"no lo ejecutes en paralelo con nada que lea el repositorio)")
     respaldo = Path(tempfile.mkdtemp(prefix="calibra-gate-"))
     for f in TOCABLES:
         shutil.copy2(f, respaldo / f.name)
@@ -365,9 +469,13 @@ def main() -> int:
                 motivo = "sin errores"
             filas.append((titulo, esperado, rc, obtenido, "OK" if ok else "**DESVIACION**", motivo))
     finally:
+        # Restaurar SIEMPRE, tambien ante Ctrl-C o una excepcion: dejar el
+        # `ci.yml` mutado en el arbol seria peor que no haber calibrado.
         for f in TOCABLES:
             shutil.copy2(respaldo / f.name, f)
         shutil.rmtree(respaldo, ignore_errors=True)
+        fcntl.flock(cerrojo, fcntl.LOCK_UN)
+        cerrojo.close()
 
     print("\n\n===== TABLA DE CALIBRACION =====\n")
     print("| Caso | Esperado | RC | Obtenido | Veredicto | Primer error |")
