@@ -85,21 +85,41 @@ comprobación anterior ese mismo cambio daba verde.
 ### Límite de alcance de la red inversa (no es regresión de este carril)
 
 La red inversa barre **sólo `policies/engine.py` y `policies/models.py`**. Fuera
-de ahí hay código que decide con las mismas dimensiones y que esta red **no
-mira**:
+de ahí hay código que **produce** `admin_full` o que **decide** con él, y que
+esta red **no mira**:
 
-| Fichero | Qué hace |
-|---|---|
-| `viewer/app/authz/scope.py:131` | `bool(self.ctx.admin_full) or self.ctx.role == "admin"` |
-| `viewer/app/authz/filtered_provider.py` | decide con `admin_full` |
-| `viewer/app/main.py:320` | decide con `admin_full` |
-| `viewer/app/jobs_client.py:171` | decide con `admin_full` |
+| Fichero | Qué hace | ¿Produce o consume? |
+|---|---|---|
+| `viewer/app/authz/context.py:88` | `if not auth_enabled and not simulated: return ViewerContext(..., admin_full=True)` | **produce** |
+| `viewer/app/authz/context.py:100` | `if role == "admin" and not simulated: return ViewerContext(..., admin_full=True)` | **produce** |
+| `viewer/app/authz/scope.py:131` | `bool(self.ctx.admin_full) or self.ctx.role == "admin"` | **produce** (vía equivalente, sin pasar por el campo) |
+| `viewer/app/authz/filtered_provider.py` | decide con `admin_full` | consume |
+| `viewer/app/main.py:320` | decide con `admin_full` | consume |
+| `viewer/app/jobs_client.py:171` | decide con `admin_full` | consume |
 
-Lo importante de `scope.py:131` no es que esté fuera del barrido, sino lo que
-revela: **`role == "admin"` es una SEGUNDA VÍA a la misma potestad que
-`admin_full`**, en un módulo que la red no inspecciona. Es decir, la cuarentena
-de `admin_full` no cubre todas las formas de obtener ese poder. `authz/**` es
-zona prohibida para este carril, así que queda **declarado, no corregido**.
+Son **tres productores**, no uno, y ninguno está declarado en el registro
+ejecutable:
+
+1. `context.py:100` — el rol `admin` autenticado. Es el esperado.
+2. `scope.py:131` — `role == "admin"` evaluado **de nuevo**, en un módulo que la
+   red no inspecciona: una SEGUNDA VÍA a la misma potestad que no pasa por el
+   campo `admin_full` y por tanto sobreviviría aunque el campo se quitase.
+3. `context.py:88` — **el tercero, y el que menos se parece a una concesión de
+   privilegio**: cuando `S9K_AUTH_ENABLED` es falso, *cualquier* petición
+   anónima recibe `admin_full=True` con `role="public"`. La bandera llega desde
+   `authz/dependencies.py:107` (`get_auth_settings().S9K_AUTH_ENABLED`). Es
+   decir, **el bypass total del motor de visibilidad se concede por
+   configuración de despliegue**, no por identidad, y el registro ejecutable —
+   que es el sitio donde consta quién produce cada dimensión de autorización —
+   no lo menciona. Un `admin_full` producido por una variable de entorno es
+   exactamente el tipo de autoridad que este carril existe para hacer visible.
+
+Este tercero refuerza lo que ya decía §1 sobre `scope.py`: la cuarentena de
+`admin_full` documenta que la dimensión no está declarada, pero **no cubre todas
+las formas de obtenerla**, y mutar `engine.py` no las alcanza. `authz/**` es
+zona prohibida para este carril, así que las tres quedan **declaradas, no
+corregidas** — y no se ha añadido ninguna mutación que las mida, porque medirlas
+exigiría tocar código fuera del carril.
 
 ---
 
@@ -308,7 +328,7 @@ porque entonces la explicación habría caducado.
   `can_view_reference` y `character_knowledge`: `policies/**` es zona prohibida
   para este carril. Están en cuarentena declarada y comprobada.
 * **Mutación por cobertura exhaustiva:** no se han mutado todas las líneas de los
-  módulos tocados, sólo las 17 afirmaciones que este carril sostiene.
+  módulos tocados, sólo las 19 afirmaciones que este carril sostiene.
 * **La red inversa es sintáctica** (expresiones regulares sobre el código del
   motor). Una lectura suficientemente indirecta —`getattr(ctx, nombre)`, un
   `node.get(variable)`— se le escaparía. Es el límite conocido del instrumento y
@@ -316,8 +336,11 @@ porque entonces la explicación habría caducado.
   resuelto.
 * **La red sólo barre `engine.py` y `models.py`.** Ver §1: `authz/scope.py`,
   `authz/filtered_provider.py`, `main.py` y `jobs_client.py` deciden con
-  `admin_full` fuera del barrido, y `role == "admin"` es una segunda vía a esa
-  misma potestad. Declarado, no corregido: `authz/**` es zona prohibida.
+  `admin_full` fuera del barrido, y hay **tres productores** de esa potestad
+  —`context.py:100` (rol admin), `scope.py:131` (`role == "admin"` otra vez) y
+  `context.py:88` (`S9K_AUTH_ENABLED` falso ⇒ `admin_full=True` para cualquier
+  anónimo)—, ninguno declarado en el registro. Declarado, no corregido:
+  `authz/**` es zona prohibida.
 * **`rpg_schema._v_review` sigue degradando en silencio.** Usa
   `_coerce_vocab(..., "auto_extracted")`, así que un `review_status` ilegible que
   entre por la vía de ingesta principal se convierte en `auto_extracted` en vez
@@ -362,3 +385,40 @@ que no pueden importarse entre sí (ver el docstring del `conftest.py` de la
 raíz). Uno por árbol es el mínimo posible; el precedente es
 `authz/visibility_contract.py`. Comparten el nombre de módulo en `sys.modules`
 a propósito, para que ambos obtengan **el mismo objeto `Enum`**.
+
+Eso último era, hasta ahora, **prosa**: se afirmaba aquí y en el docstring del
+módulo, y nada se ponía rojo si dejaba de ser cierto. Ahora es una medida:
+`test_los_dos_modulos_frontera_exponen_EL_MISMO_objeto_Enum` compara por
+IDENTIDAD (`is`), no por igualdad — `ReviewStatus` hereda de `str`, así que dos
+enums duplicados seguirían comparando `==` iguales y `==` no mediría nada. La
+mutación **J16** cambia `_MODULE_NAME` en el módulo frontera del visor y lo pone
+rojo.
+
+### El arnés se calibra a sí mismo
+
+Dos defectos del propio `mutaciones_calidad_datos.py`, ambos del género "el
+instrumento se pone verde por no estar midiendo":
+
+* **Pasaba en vacío.** Con `MUTACIONES = []` imprimía `CALIBRACION COMPLETA:
+  0/0` y devolvía `rc=0`: vaciar la batería entera era un cambio *verde* en CI.
+  Ahora hay un suelo, `MINIMO_MUTACIONES = 19`, comprobado con un `assert`
+  **antes** de la línea base. Comprobado en las dos direcciones: con el arnés
+  anterior y las listas vacías, `0/0` y `rc=0`; con el actual, `AssertionError`
+  y `rc=1`.
+* **Dos ediciones al mismo fichero se pisaban.** Cada edición se escribía como
+  `pristino.replace(...)`, de modo que en una mutación coordinada sobre un solo
+  fichero sólo sobrevivía la última. Ahora cada edición parte del estado
+  acumulado. La mutación **J17** es justamente ese caso —dos ediciones sobre
+  `contracts/review-status/v1/model.py`—. Medido en las dos direcciones:
+
+  | Algoritmo | Edición 1 (`MACHINE_APPROVED` en el `Enum`) | Resultado de J17 |
+  |---|---|---|
+  | anterior (`replace` sobre el prístino) | **perdida** | rojo por `AttributeError: type object 'ReviewStatus' has no attribute 'MACHINE_APPROVED'` — la mitad que quedó era incoherente |
+  | actual (encadenado) | presente | rojo por la razón declarada: `RuntimeError: review-status/v1 declara estados sin traducción al español: ['auto_approved']` |
+
+  En J17 el defecto producía un rojo **espurio**, no un verde; pero el verde
+  falso es alcanzable y se ha medido aparte: con la edición peligrosa (la de
+  J11, que se sabe roja) seguida de una edición inocua, el algoritmo anterior
+  la borraba y daba `rc=0` —el arnés lo habría reportado como "esta afirmación
+  no está medida"— mientras que el actual da `rc=1`. Es decir: el defecto podía
+  **apagar** una mutación sin que nadie se enterase.

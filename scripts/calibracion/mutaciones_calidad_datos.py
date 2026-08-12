@@ -170,6 +170,14 @@ MUTACIONES = [
      '        if canonico.value not in review_status_contract.HUMAN_REVIEWED:',
      '        if False:',
      V, [CAL]),
+
+    # --- 4. N3: dos modulos frontera, UN solo objeto Enum
+    ("J16 los dos modulos frontera dejan de compartir la entrada de "
+     "`sys.modules` (el contrato se carga DOS veces: dos clases ReviewStatus)",
+     V / "app/review_status_contract.py",
+     '_MODULE_NAME = "s9k_review_status_v1_model"',
+     '_MODULE_NAME = "s9k_review_status_v1_model_visor"',
+     V, [CAL]),
 ]
 
 #: Mutaciones que tocan VARIOS ficheros a la vez.
@@ -209,6 +217,28 @@ MUTACIONES_COORDINADAS = [
           "        # 1. Bypass total de administrador.\n        if ctx.admin_full or ctx.superpoder_nuevo:"),
      ],
      V, [CONTRATO]),
+
+    # J17. DOS ediciones sobre el MISMO fichero. Existe por dos razones: la
+    # afirmacion que mide (un quinto valor que ademas se autoconcede credito de
+    # revision humana no puede pasar) y, sobre todo, porque es el caso que el
+    # arnes NO SABIA EJECUTAR: hasta el arreglo de encadenado, cada edicion se
+    # escribia desde el texto pristino y la segunda BORRABA a la primera, de
+    # modo que aqui solo habria llegado a existir la ampliacion de
+    # `HUMAN_REVIEWED` --que sin el miembro nuevo revienta con un AttributeError
+    # al importar--. El rojo habria sido real y por una razon completamente
+    # distinta de la declarada; con las ediciones al reves, habria sido VERDE.
+    ("J17 se anade un QUINTO valor al vocabulario Y se le concede credito de "
+     "revision humana en el mismo commit (dos ediciones, un solo fichero)",
+     [
+         (RAIZ / "contracts/review-status/v1/model.py",
+          '    CORRECTED = "corrected"',
+          '    CORRECTED = "corrected"\n    MACHINE_APPROVED = "auto_approved"'),
+         (RAIZ / "contracts/review-status/v1/model.py",
+          "    {ReviewStatus.REVIEWED.value, ReviewStatus.CORRECTED.value}",
+          "    {ReviewStatus.REVIEWED.value, ReviewStatus.CORRECTED.value,\n"
+          "     ReviewStatus.MACHINE_APPROVED.value}"),
+     ],
+     V, [CAL]),
 ]
 
 
@@ -230,6 +260,16 @@ SUPERVIVIENTES = [
      "test_calidad_de_datos_v2.py). Se deja declarado porque describe una "
      "carencia de la suite de data-engine, no del guardian."),
 ]
+
+
+#: SUELO DE MUTACIONES. Sin esto el arnes PASA EN VACIO: si alguien vacia
+#: `MUTACIONES` (o la deja en una sola entrada trivial), `fallos` queda vacio,
+#: `_total` vale 0, se imprime "CALIBRACION COMPLETA: 0/0" y CI da rc=0. Un
+#: instrumento que se pone verde cuando se le quitan todas las mediciones no
+#: mide nada: mide su propio silencio. El numero es el recuento REAL de hoy
+#: (16 mutaciones de un fichero + 3 coordinadas); subirlo cuando se anadan
+#: mutaciones es deliberado, bajarlo exige justificarlo en la revision.
+MINIMO_MUTACIONES = 19
 
 
 def _normalizadas():
@@ -259,6 +299,16 @@ def main() -> int:
     print("CALIBRACION DEL CARRIL J -- cada afirmacion debe poder ponerse ROJA")
     print("=" * 78)
 
+    _total = sum(1 for _ in _normalizadas())
+    # Antes de gastar minutos en la linea base: el arnes no puede pasar en
+    # vacio. Ver `MINIMO_MUTACIONES`.
+    assert _total >= MINIMO_MUTACIONES, (
+        f"el arnes declara {_total} mutaciones y el suelo son "
+        f"{MINIMO_MUTACIONES}: vaciar o adelgazar la bateria NO puede salir "
+        f"en verde"
+    )
+    print(f"\nMutaciones declaradas: {_total} (suelo: {MINIMO_MUTACIONES}).")
+
     base = {}
     _combis = [(c, o) for _, _, c, o in _normalizadas()]
     _combis += [(m[4], m[5]) for m in SUPERVIVIENTES]
@@ -273,20 +323,37 @@ def main() -> int:
                 return 2
     print(f"\nLinea base VERDE en {len(base)} combinaciones de objetivos.\n")
 
-    _total = sum(1 for _ in _normalizadas())
     fallos = []
     for etiqueta, ediciones, cwd, objetivos in _normalizadas():
+        # `originales` guarda el texto PRISTINO (para revertir) y `acumulado`
+        # el texto que se va construyendo edicion a edicion. Antes ambas cosas
+        # eran la misma: cada edicion se escribia como
+        # `pristino.replace(...)`, de modo que DOS ediciones sobre el MISMO
+        # fichero se pisaban y solo sobrevivia la ultima. La mutacion
+        # coordinada parecia aplicarse entera y en realidad se aplicaba a
+        # medias: si el resultado salia rojo, lo hacia por una razon distinta
+        # de la declarada, y si salia verde no se sabia si era porque la
+        # afirmacion no esta medida o porque la mutacion nunca llego a existir.
+        # Ahora cada edicion parte del estado acumulado y todas sobreviven.
         originales = {}
+        acumulado = {}
         problema = None
         for fichero, original, mutado in ediciones:
-            texto = fichero.read_text(encoding="utf-8")
+            if fichero not in originales:
+                originales[fichero] = fichero.read_text(encoding="utf-8")
+                acumulado[fichero] = originales[fichero]
+            texto = acumulado[fichero]
             if texto.count(original) != 1:
                 problema = (
                     f"patron {'ausente' if original not in texto else 'ambiguo'} "
                     f"en {fichero.name}"
                 )
                 break
-            originales[fichero] = texto
+            # Encadenado: la siguiente edicion vera esta ya aplicada. Ademas,
+            # el patron de la segunda edicion se busca sobre el texto ya
+            # mutado, que es lo unico que permite encadenar ediciones que
+            # dependen del resultado de la anterior.
+            acumulado[fichero] = texto.replace(original, mutado, 1)
 
         if problema:
             print(f"[SALTADA] {etiqueta}\n           {problema}")
@@ -294,10 +361,8 @@ def main() -> int:
             continue
 
         try:
-            for fichero, original, mutado in ediciones:
-                fichero.write_text(
-                    originales[fichero].replace(original, mutado, 1), encoding="utf-8"
-                )
+            for fichero, texto in acumulado.items():
+                fichero.write_text(texto, encoding="utf-8")
             r = _pytest(cwd, objetivos)
         finally:
             for fichero, texto in originales.items():
