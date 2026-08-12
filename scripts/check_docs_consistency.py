@@ -424,10 +424,37 @@ def check_git_authority(development: dict) -> list[str]:
 
 WORKFLOWS = Path(".github") / "workflows"
 
-# "test/** no dispara CI", "las ramas ops/** no disparan CI".
-RX_NO_CI = re.compile(r"\bno\s+(?:dispara|disparan|tiene|tienen)\b[^.\n]{0,40}\bCI\b", re.IGNORECASE)
-# "toda rama dispara CI"
-RX_ALL_CI = re.compile(r"\btoda[s]?\s+(?:las\s+)?ramas?\b[^.\n]{0,30}\bdispara", re.IGNORECASE)
+# Afirmaciones que NIEGAN o RESTRINGEN el disparo de CI. La primera version de
+# estos patrones solo cazaba la redaccion historica literal ("test/** no dispara
+# CI"): en la revision de 2026-08-12 se comprobo que seis frases igual de falsas
+# —«siguen sin disparar CI», «CI no se dispara en ramas ops/**», «no lanza CI»,
+# «CI unicamente corre en main», «solo las ramas de la lista blanca disparan
+# CI»— pasaban las seis en verde contra el repo real. Se cubren cuatro familias:
+#   (a) negacion antes de CI:      "no (se) dispara/lanza/corre/ejecuta ... CI"
+#   (b) negacion despues de CI:    "CI ... no se dispara/lanza/corre"
+#   (c) negacion por "sin":        "sin disparar/lanzar/ejecutar ... CI"
+#   (d) exclusividad:              "solo/unicamente ... dispara ... CI"
+# La estrechez que QUEDA (vocabulario de exclusion: «ignora», «excluido»,
+# «fuera del alcance», «se limita a») esta DECLARADA, con sus siete frases
+# concretas, en test_c4e_estrechez_declarada_de_r5.
+_VERBS = r"(?:dispara|disparan|lanza|lanzan|corre|corren|ejecuta|ejecutan|activa|activan|tiene|tienen)"
+_VERBS_INF = r"(?:disparar|lanzar|ejecutar|correr|activar)"
+_ONLY = r"(?:solo|solamente|unicamente|exclusivamente)"
+RX_NO_CI = re.compile(
+    r"\bno\s+(?:se\s+)?" + _VERBS + r"\b[^.\n]{0,40}\bCI\b"
+    r"|\bCI\b[^.\n]{0,40}\bno\s+(?:se\s+)?" + _VERBS + r"\b"
+    r"|\bsin\s+" + _VERBS_INF + r"\b[^.\n]{0,30}\bCI\b"
+    r"|\b" + _ONLY + r"\b[^.\n]{0,60}\b" + _VERBS + r"\b[^.\n]{0,20}\bCI\b"
+    r"|\bCI\b[^.\n]{0,40}\b" + _ONLY + r"\b[^.\n]{0,30}(?:\bse\s+)?" + _VERBS + r"\b",
+    re.IGNORECASE,
+)
+# "toda rama dispara CI", "cada rama dispara CI", "cualquier rama lanza CI",
+# "CI en todas las ramas".
+RX_ALL_CI = re.compile(
+    r"\b(?:toda|todas|cada|cualquier)\s+(?:las?\s+)?ramas?\b[^.\n]{0,40}\b" + _VERBS + r"\b"
+    r"|\bCI\b[^.\n]{0,30}\ben\s+(?:toda|todas|cada|cualquier)\s+(?:las?\s+)?ramas?\b",
+    re.IGNORECASE,
+)
 
 
 def _load_workflows() -> dict[str, dict]:

@@ -47,6 +47,16 @@ development:
   # rompería— y un rojo permanente no se lee, se ignora. Lo que el gate exige
   # siempre, sin tolerancia, es que el commit sea REAL y esté en la historia de
   # `main`: eso es lo que mata al SHA inventado. Esto solo acota el desfase.
+  #
+  # AVISO PROGRAMADO (medido el 2026-08-12, no estimado): el desfase de
+  # `main_commit` respecto a `origin/main` es de **2** commits (#164 y #165),
+  # con la ventana en 3. **El próximo merge a `main` pondrá este gate ROJO
+  # automáticamente**, y ese rojo NO es una regresión del validador: es
+  # exactamente lo que este campo existe para decir. El arreglo es de una
+  # línea —remedir `main_commit`/`latest_merged_pr` contra `origin/main` y
+  # actualizar los documentos que los citan—, nunca subir la ventana para
+  # apagar el aviso. Se deja dicho aquí para que a nadie le pille por
+  # sorpresa: `git rev-list --count <main_commit>..origin/main`.
   max_lag_commits: 3
   active_engine: "knowledge_v3"  # mergeado en main desde PR #110 (2026-07-29); sustituye a v1/v2 como línea vigente
   contracts_tag: "v3-contracts-frozen-1.0.0"

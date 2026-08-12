@@ -4,6 +4,71 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-08-12 (b) — Cuatro huecos de cobertura cerrados, y la estrechez que queda queda DICHA
+
+Revision independiente del PR #169. Ninguna cifra del PR resulto falsa; lo que
+faltaba era **red debajo de cuatro afirmaciones**. Se cierran con el metodo de
+siempre: falso negativo en verde primero, arreglo, **rojo**, reversion, verde.
+
+- **R5 solo cazaba la redaccion historica literal.** El revisor metio seis
+  frases falsas en `README.md` y **las seis pasaron en verde** contra el repo
+  real (`rc=0`, medido): «siguen sin disparar CI», «CI no se dispara en ramas <!-- consistency:ignore -->
+  `ops/**`», «el push a `test/**` no lanza CI», «CI unicamente corre en <!-- consistency:ignore -->
+  `main`», «solo las ramas de la lista blanca disparan CI». `RX_NO_CI` pasa a <!-- consistency:ignore -->
+  cubrir cuatro familias (negacion antes y despues de «CI», negacion por
+  «sin …», y exclusividad «solo/unicamente …») y `RX_ALL_CI` cubre «cada /
+  cualquier / todas las ramas» y «CI en todas las ramas». Las cinco frases
+  negativas enrojecen ahora (**C4d**); la sexta, «cada rama dispara CI», es
+  **cierta** hoy y su cobertura es la direccion simetrica (**C4c3**).
+  **Estrechez que QUEDA, declarada con `xfail(strict=True)` y siete frases
+  concretas (C4e):** el vocabulario de exclusion —«ignora», «queda excluido»,
+  «fuera del alcance», «invisible para», «se limita a», «arranca al abrir el
+  PR, nunca en el push», «hay una lista blanca»— **no se detecta**. Es
+  lexicamente abierto; perseguirlo con regex daria un gate ruidoso. Lo que no
+  se puede detectar queda dicho, no supuesto.
+- **El sandbox daba un aprobado facil a `_merged_prs`.** Su historia sintetica
+  era `#101 -> #102`, **monotona creciente**, asi que era incapaz de expresar
+  el caso que la propia funcion declara load-bearing («en `main` real el #160
+  se fusiono ANTES que el #158»): sustituir el orden cronologico por
+  `sorted(reverse=True)` **no ponia roja ni una prueba**. La historia pasa a
+  ser `#101 -> #105 -> #103`: el ultimo fusionado es el #103 y el mayor es el <!-- consistency:ignore -->
+  #105. **C14a** (orden) y **C14b** (extremo a extremo con tolerancia 0)
+  enrojecen con el orden numerico.
+- **`_resolve_main` no tenia ni una prueba**: era la unica funcion del punto 0
+  sin cobertura, y justo la que puso rojo el primer CI de este PR (rescate del
+  clon superficial). C11 la monkeypatcheaba entera, asi que en CI solo
+  enrojecia **por accidente del entorno**. Se anaden **C15a** (prefiere
+  `origin/main` sobre un `main` local parado), **C15b** (cae al `main` local y
+  lo dice en el `ref`) y **C15c** (sin ninguno de los dos y sin remoto:
+  `(None, None)` y gate ROJO, ejecutando la funcion de verdad).
+- **Quitar la exigencia de SHA de 40 hex no ponia rojo nada.** Nueva fila
+  **C16**: un `main_commit` abreviado enrojece, y se comprueba que la queja es
+  la longitud y no otra (el commit existe y esta en `main`).
+- **C4c acertaba por el motivo equivocado** (observacion menor del revisor):
+  con la clave `on:` de YAML 1.1 rota, `_push_branches` devuelve `[]`,
+  `universal` cae a `False` y la fila pasaba igual; solo C4b enrojecia. Ahora
+  C4c **exige que el hallazgo cite la lista blanca leida**, y se anade
+  **C4c2**, que comprueba el parser contra el `ci.yml` REAL.
+- **Calibracion:** 7 ablaciones dirigidas, **7 rojas**, todas revertidas byte a
+  byte; y con los patrones historicos restaurados enteros, **11 de las 12**
+  filas nuevas de R5 caen. Suite del fichero: **47 passed, 8 xfailed**.
+- **Pendientes cerrados sin trabajo pendiente:** las observaciones «O5» y «O6»
+  que arrastraba la lista **no existen en este repositorio** — no aparecen en
+  el arbol, ni en el cuerpo o los comentarios del #169, ni en los PR #160-#171;
+  provienen de un encargo externo al repositorio. Se retiran en vez de dejarse
+  abiertas para siempre.
+- **`RK-20` pasa a CERRADO en cuanto a la cifra**, verificado contra GitHub y
+  no contra un documento: la proteccion de `main` devuelve **11 contextos**, y
+  los tres jobs ausentes son **exactamente** los tres de
+  `ci_running_but_not_required`. El riesgo de fondo (esos tres corren pero no
+  bloquean) se separa en **`RK-20b`, ABIERTO**, que depende del operador.
+- **Aviso programado, medido y no estimado:** `development.main_commit` va **2**
+  commits por detras de `origin/main` con la ventana en **3**. **El proximo
+  merge a `main` pondra ese gate rojo**, y ese rojo es lo que el campo existe
+  para decir, no una regresion. Anotado en `docs/project-status.yaml` junto a
+  `max_lag_commits`, con el arreglo (remedir) y el antipatron (subir la
+  ventana para apagar el aviso).
+
 ### 2026-08-12 — El punto 0 pasa a tener pruebas, y el gate deja de creerse a si mismo
 
 - **Las ~300 lineas del punto 0 no tenian ni un test.** La tabla de calibracion
