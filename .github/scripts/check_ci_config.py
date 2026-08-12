@@ -152,6 +152,24 @@ CONDICIONES_PERMITIDAS = ("always()",)
 # es `continue-on-error` por otra via.
 RE_NEUTRALIZA = re.compile(r"\|\|\s*(true\b|:\s*$|:\s|exit\s+0\b)")
 
+# La misma neutralizacion escrita como condicional, que es la forma MAS
+# alcanzable por accidente porque no parece un truco:
+#
+#     if ! python3 .github/scripts/un_gate.py; then echo "ignorado"; fi
+#
+# El gate corre, falla, y el paso sale en verde. No se puede prohibir `if !` a
+# secas: en `ci.yml` hay 9 usos y los 9 son LEGITIMOS —son las guardias
+# anti-cero (`if ! grep -q 'N passed'; then ... exit 1`) que este mismo fichero
+# EXIGE, mas una comprobacion de deriva con `git diff --quiet`—. Prohibirlas
+# seria ponerse rojo por cumplir la propia regla.
+#
+# Lo que distingue una guardia de un apagado no es la sintaxis sino el DESENLACE:
+# la guardia termina en `exit 1`, el apagado no. Asi que solo se mira el caso en
+# que lo negado es un GATE (`.github/scripts/...`) y el bloque NO falla.
+RE_IF_NEGADO = re.compile(r"(?:^|;|&&|\|\||\bthen\b|\bdo\b)\s*if\s+!")
+RE_BLOQUE_FALLA = re.compile(r"(?:\bexit\s+(?:[1-9]\d*|\$)|\breturn\s+[1-9]\d*|\bfalse\b)")
+INVOCA_GATE = ".github/scripts/"
+
 # NO hay lista de excepciones, y no por descuido: se comprobo que los dos
 # workflows vigilados no necesitan ninguna. Una exencion que hoy no hace falta
 # es la rendija por la que manana entra el apagado, y este fichero existe
@@ -600,6 +618,56 @@ def comprueba_neutralizacion(datos: dict, nombre: str) -> list[str]:
     return errores
 
 
+def _bloque_if(lineas: list[str], inicio: int) -> list[str]:
+    """Lineas del `if ... fi` que empieza en `inicio` (contando anidamiento)."""
+    profundidad = 0
+    fuera = []
+    for linea in lineas[inicio:]:
+        fuera.append(linea)
+        profundidad += len(re.findall(r"(?:^|;|&&|\|\||\bthen\b|\bdo\b)\s*if\s", linea))
+        profundidad -= len(re.findall(r"(?:^|;)\s*fi\b", linea))
+        if profundidad <= 0 and len(fuera) > 1:
+            break
+    return fuera
+
+
+def gates_bajo_if_negado(cuerpo: str) -> list[str]:
+    """`if ! GATE; then ...; fi` cuyo bloque NO termina fallando.
+
+    Devuelve la linea del `if` por cada apagado encontrado. Un bloque que
+    termina en `exit 1` es una guardia legitima y no se senala: la diferencia
+    entre vigilar y apagar esta en el desenlace, no en la sintaxis.
+    """
+    lineas = [l.split("#", 1)[0] for l in cuerpo.splitlines()]
+    hallazgos = []
+    for i, linea in enumerate(lineas):
+        if not (RE_IF_NEGADO.search(linea) and INVOCA_GATE in linea):
+            continue
+        bloque = _bloque_if(lineas, i)
+        # El propio `if` no cuenta como desenlace: se mira el cuerpo.
+        if not any(RE_BLOQUE_FALLA.search(l) for l in bloque[1:]):
+            hallazgos.append(linea.strip())
+    return hallazgos
+
+
+def comprueba_if_negado(datos: dict, nombre: str) -> list[str]:
+    errores = []
+    for job_id, job in (datos.get("jobs") or {}).items():
+        for paso_nombre, cuerpo in pasos_run(job):
+            for linea in gates_bajo_if_negado(cuerpo):
+                errores.append(
+                    f"{nombre}: el job `{job_id}`, paso `{paso_nombre}`, ejecuta "
+                    f"un gate bajo `if !` y NO falla si el gate falla: "
+                    f"`{linea}`. El gate corre, se pone rojo, y el paso sale en "
+                    f"VERDE: es `|| true` escrito como condicional, y ademas la "
+                    f"forma mas facil de introducir sin querer, porque parece "
+                    f"codigo normal. Si de verdad quieres condicionar, el "
+                    f"bloque tiene que terminar en `exit 1`; si no, invoca el "
+                    f"gate a secas y deja que su codigo de salida decida."
+                )
+    return errores
+
+
 def comprueba_jobs_exigidos(datos: dict, nombre: str) -> list[str]:
     """Un gate que puede desaparecer sin ponerse rojo no es un gate."""
     exigidos = JOBS_EXIGIDOS.get(nombre, ())
@@ -733,6 +801,7 @@ def main() -> int:
         errores += comprueba_cero_tests(datos, ruta.name)
         errores += comprueba_ejecucion_condicional(datos, ruta.name)
         errores += comprueba_neutralizacion(datos, ruta.name)
+        errores += comprueba_if_negado(datos, ruta.name)
         errores += comprueba_jobs_exigidos(datos, ruta.name)
 
     if CI.name in parseados:

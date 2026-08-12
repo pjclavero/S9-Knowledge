@@ -271,6 +271,36 @@ def m_borra_job_exigido() -> None:
     _sustituye(CI, "  check-env-reproducibility:\n", "  check-env-reproducibility-desactivado:\n")
 
 
+def m_if_negado_sin_fallo() -> None:
+    """`if ! GATE; then echo ...; fi`: el apagado escrito como condicional.
+
+    Es la variante MAS alcanzable por accidente de toda la familia, porque no
+    parece un truco sino codigo de shell normal.
+    """
+    _sustituye(
+        CI, '          python3 .github/scripts/check_env_reproducibility.py all --strict-missing',
+        "          if ! python3 .github/scripts/check_env_reproducibility.py all --strict-missing; then\n"
+        "            echo 'gate ignorado'\n"
+        "          fi",
+    )
+
+
+def m_if_negado_con_exit() -> None:
+    """Control POSITIVO: el MISMO idioma, pero terminando en `exit 1`.
+
+    Es una GUARDIA, no un apagado, y tiene que salir VERDE. Sin este caso, un
+    gate que rechazara todo `if !` pareceria correcto —y estaria prohibiendo
+    justo el idioma de las guardias anti-cero que este fichero EXIGE—.
+    """
+    _sustituye(
+        CI, '          python3 .github/scripts/check_env_reproducibility.py all --strict-missing',
+        "          if ! python3 .github/scripts/check_env_reproducibility.py all --strict-missing; then\n"
+        "            echo '::error::el entorno no reproduce lo declarado'\n"
+        "            exit 1\n"
+        "          fi",
+    )
+
+
 CASOS = [
     # `estado correcto` es tambien el control positivo de la regla de
     # `|| true`: el `ci.yml` real contiene comentarios que dicen «Sin
@@ -298,6 +328,8 @@ CASOS = [
     ("`|| true` tras un gate dentro del `run:`", m_neutraliza_con_true, ROJO),
     ("`|| :` (builtin nulo) tras un gate dentro del `run:`", m_neutraliza_con_dospuntos, ROJO),
     ("job exigido que desaparece de ci.yml", m_borra_job_exigido, ROJO),
+    ("`if ! GATE` sin fallo en el bloque (apagado condicional)", m_if_negado_sin_fallo, ROJO),
+    ("control positivo: `if ! GATE` que termina en `exit 1` (guardia)", m_if_negado_con_exit, VERDE),
     ("restaurado", None, VERDE),
 ]
 

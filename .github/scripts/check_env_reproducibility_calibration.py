@@ -776,6 +776,38 @@ def main() -> int:
             "",
         )
 
+    GATE_RUN = (
+        "          python3 .github/scripts/check_env_reproducibility.py all "
+        "--strict-missing\n"
+    )
+
+    def m_if_negado_sin_fallo(raiz: Path) -> None:
+        # S7: el apagado escrito como CONDICIONAL. `if ! GATE; then ...; fi`
+        # deja que el gate corra, falle, y el paso salga verde. Es la variante
+        # mas alcanzable por accidente: no parece un truco, parece shell normal.
+        _en_ci_y_fragmento(
+            raiz, GATE_RUN,
+            "          if ! python3 .github/scripts/check_env_reproducibility.py "
+            "all --strict-missing; then\n"
+            "            echo 'gate ignorado'\n"
+            "          fi\n",
+        )
+
+    def m_if_negado_con_exit(raiz: Path) -> None:
+        # Control POSITIVO: el MISMO idioma terminando en `exit 1` es una
+        # GUARDIA, no un apagado. Tiene que salir verde y sin avisos: si no,
+        # el gate estaria midiendo la sintaxis en vez del desenlace, y ademas
+        # prohibiria el idioma de las guardias anti-cero que el carril L exige
+        # (en `ci.yml` hay 9 usos de `if !` y los 9 son de esa clase).
+        _en_ci_y_fragmento(
+            raiz, GATE_RUN,
+            "          if ! python3 .github/scripts/check_env_reproducibility.py "
+            "all --strict-missing; then\n"
+            "            echo '::error::el entorno no reproduce lo declarado'\n"
+            "            exit 1\n"
+            "          fi\n",
+        )
+
     def m_job_propio_borrado(raiz: Path) -> None:
         # La forma extrema de S1/S2: el job entero desaparece en un merge.
         _en_ci_y_fragmento(raiz, "  check-env-reproducibility:\n", "  otro-nombre:\n")
@@ -794,6 +826,17 @@ def main() -> int:
         "S1/S2 extremo: el job del gate desaparece de ci.yml",
         m_job_propio_borrado,
         senal="ya no declara el job",
+    )
+    c.caso(
+        "S7: `if ! GATE; then echo ...; fi` (apagado condicional)",
+        m_if_negado_sin_fallo,
+        senal="bajo `if !`",
+    )
+    c.caso(
+        "S7 (control positivo): `if ! GATE ...; exit 1; fi` es una GUARDIA",
+        m_if_negado_con_exit,
+        espera="limpio",
+        ausente="if !",
     )
     # S3 y S4 NO se calibran aqui: `version_declarada` solo se ejecuta en el
     # modo `runtimes`, asi que un caso en modo `all` saldria verde pasara lo

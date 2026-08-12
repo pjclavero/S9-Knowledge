@@ -629,6 +629,16 @@ INVOCACION_CALIBRACION = "check_env_reproducibility_calibration.py"
 # seria el defecto simetrico.
 RE_NEUTRALIZA = re.compile(r"\|\|\s*(true\b|:\s*$|:\s|exit\s+0\b)")
 
+# La misma neutralizacion escrita como condicional:
+#     if ! python3 .github/scripts/check_env_reproducibility.py all; then ...; fi
+# El gate corre, falla, y el paso sale verde. Es la variante mas alcanzable POR
+# ACCIDENTE, porque no parece un truco sino codigo normal. No se puede prohibir
+# `if !` a secas: las guardias anti-cero de este repo (`if ! grep -q 'N passed';
+# then ... exit 1`) usan ese mismo idioma y son obligatorias. Lo que distingue
+# una guardia de un apagado es el DESENLACE: la guardia acaba en `exit 1`.
+RE_IF_NEGADO = re.compile(r"(?:^|;|&&|\|\||\bthen\b|\bdo\b)\s*if\s+!")
+RE_BLOQUE_FALLA = re.compile(r"(?:\bexit\s+(?:[1-9]\d*|\$)|\breturn\s+[1-9]\d*|\bfalse\b)")
+
 
 def lineas_efectivas(cuerpo: str) -> list[str]:
     """Lineas de un `run:` que son CODIGO: sin comentarios de shell."""
@@ -693,7 +703,8 @@ def check_gate_no_apagado() -> list[str]:
         if not isinstance(cuerpo, str):
             continue
         etiqueta = str(paso.get("name") or "(sin nombre)")
-        for linea in lineas_efectivas(cuerpo):
+        lineas = lineas_efectivas(cuerpo)
+        for linea in lineas:
             if INVOCACION_GATE not in linea:
                 continue
             if RE_NEUTRALIZA.search(linea):
@@ -703,6 +714,30 @@ def check_gate_no_apagado() -> list[str]:
                     f"falla y el paso sale en VERDE: la barrera se evalua y no "
                     f"bloquea nada, que es `continue-on-error` escrito dentro "
                     f"del `run:`. Quita el `|| true`."
+                )
+        # La misma neutralizacion como condicional. Se exige que el bloque
+        # FALLE; una guardia que acaba en `exit 1` es legitima y no se toca.
+        for i, linea in enumerate(lineas):
+            if not (RE_IF_NEGADO.search(linea) and INVOCACION_GATE in linea):
+                continue
+            bloque, profundidad = [], 0
+            for resto in lineas[i:]:
+                bloque.append(resto)
+                profundidad += len(
+                    re.findall(r"(?:^|;|&&|\|\||\bthen\b|\bdo\b)\s*if\s", resto)
+                )
+                profundidad -= len(re.findall(r"(?:^|;)\s*fi\b", resto))
+                if profundidad <= 0 and len(bloque) > 1:
+                    break
+            if not any(RE_BLOQUE_FALLA.search(l) for l in bloque[1:]):
+                errores.append(
+                    f"ci.yml: el job `{job_id}`, paso `{etiqueta}`, ejecuta este "
+                    f"gate bajo `if !` sin fallar si el gate falla: "
+                    f"`{linea.strip()}`. El gate corre, se pone rojo, y el paso "
+                    f"sale VERDE. Es `|| true` escrito como condicional, y la "
+                    f"forma mas facil de colar sin querer porque parece codigo "
+                    f"normal. O el bloque termina en `exit 1`, o invoca el gate "
+                    f"a secas."
                 )
 
     # 2. El paso de calibracion tiene que EXISTIR dentro del job propio.
