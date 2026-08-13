@@ -1,4 +1,4 @@
-# 73 · Inventario y conservación del árbol de trabajo (carril RECONCILIACIÓN)
+# 74 · Inventario y conservación del árbol de trabajo (carril RECONCILIACIÓN)
 
 **Repositorio**: `pjclavero/S9-Knowledge` · **Rama del informe**:
 `docs/inventario-conservacion-2026-08` · **HEAD de medida**: `3f3face`
@@ -28,7 +28,20 @@ Tres reglas más, usadas en todo el documento:
   fichero) y en el reflog. Un fichero cuyo blob ya existe en un commit
   alcanzable no es trabajo en riesgo: es una copia.
 
-Aviso de método: `git rev-parse <rev>:<ruta>` **imprime el argumento literal**
+Dos avisos de método, los dos aprendidos en falsos positivos de esta misma
+medición:
+
+**`git log --all` incluye los propios commits del stash.** Un stash son tres
+commits (`^1` base, `^2` índice, `^3` untracked), y `--all` los recorre. Buscar
+ahí el blob de un fichero del stash "demuestra" siempre que el stash se
+reproduce desde la historia… porque se reproduce **desde sí mismo**. En
+`stash@{0}`, 44 de los 50 ficheros casaban contra `53fe788`, que es exactamente
+`stash@{0}^2`. La medición sólo dice algo cuando se restringe a la historia de
+`origin/main` (`git log origin/main -- <fichero>`); rehecha así, los 50 siguen
+reproduciéndose y el veredicto aguanta, pero por una razón distinta de la que
+parecía.
+
+**`git rev-parse <rev>:<ruta>` imprime el argumento literal**
 cuando la ruta no existe en esa revisión, en vez de fallar en silencio. Usarlo
 sin `--verify -q` produce "difiere" donde en realidad hay "no existe". La
 primera pasada de este inventario cayó en eso y se rehízo entera; las tablas de
@@ -65,10 +78,8 @@ ya superado por `main` — recuperables por reflog mientras nadie ejecute `gc`.
   tienen un blob **idéntico a una versión histórica de `origin/main`**
   (`git log origin/main -- <fichero>`, comparando blob a blob): `328177a`,
   `1553665`, `304024f`, `15ae1d4`, `cb874fe`, `5fe67f5`… Ninguno queda sin
-  coincidencia. *(Cuidado con un falso positivo fácil: `git log --all` incluye
-  los propios commits del stash, y `stash@{0}^2` es `53fe788`. Buscar ahí "prueba"
-  que el stash se reproduce desde sí mismo. La medición de arriba está
-  restringida a la historia de `origin/main`.)*
+  coincidencia. (Medición restringida a `origin/main`: ver el aviso de §0 sobre
+  `git log --all` y `stash@{0}^2`.)
   Los 10 restantes **no están en el stash en absoluto**: son borrados puros
   (`git cat-file -s stash@{0}:<f>` → ausente; en `02b0514` y en `main` existen).
   Entre ellos `docs/66-calidad-de-datos-v2.md`, `contracts/review-status/v1/model.py`
@@ -280,11 +291,11 @@ locales no fusionadas — borrar un worktree **no** borra su rama.
 
 **Conservar barato, decidir después**
 
-3. Antes de retirar los 7 worktrees de §4.3, **etiquetar** sus commits
-   (`git tag archivo/<nombre> <sha>`) para que dejen de depender del reflog. Un
-   tag cuesta 50 bytes; recuperar un commit purgado cuesta no poder.
-   Los dos ya integrados (`a995395`, `d1e9f76`) no necesitan ni eso.
-4. Igual con `33d758f` si se quiere trazabilidad del laboratorio perf v2.0.
+3. Los 7 commits de §4.3 **ya están etiquetados y publicados** (§9). Los
+   worktrees que los sujetaban se pueden retirar sin perderlos.
+4. `33d758f` (laboratorio perf v2.0) **no** se ha etiquetado: es una iteración
+   anterior de una rama publicada cuyo HEAD la supera, y su restauración sería
+   una regresión de CI. Si el operador quiere trazabilidad, un tag más lo fija.
 
 **Se puede retirar, con su razón**
 
@@ -301,13 +312,14 @@ locales no fusionadas — borrar un worktree **no** borra su rama.
 9. Los ~40 worktrees cuyo HEAD **está en `main`** y con el árbol limpio: no
    sujetan nada. Retirarlos es puro espacio en disco.
 
-**Deuda que este inventario destapa, ajena al carril**
+**Deuda que este inventario destapó — corregida aquí (§10)**
 
-10. `main` tiene **dos documentos numerados 72**
-    (`72-autoridad-unica-admin-full.md` y `72-saturacion-del-grafo-diagnostico.md`).
-    La rama `chore/docs-numbering` trae precisamente el test que lo impide.
+10. `main` tenía **dos documentos numerados 72**. **Corregido**: renumerado a
+    `docs/75-autoridad-unica-admin-full.md`, y el gate que lo impide viene en
+    esta misma rama, calibrado contra ese mismo defecto.
 11. `docs/53` está ocupado en `main`; `docs/bovedas-esquema-carpetas` reclama
-    ese mismo número y habría que renumerarla al integrarla.
+    ese mismo número y habría que renumerarla al integrarla. **El gate nuevo la
+    detendrá** si se fusiona sin renumerar, que es exactamente lo que se busca.
 
 **Sin incidencia de seguridad**: se rastrearon `.recovery/` y los ficheros de
 `41f8688` buscando contraseñas, tokens, claves y URLs con secreto. Los únicos
@@ -382,3 +394,72 @@ el chasis:
    criterio de presentación**, no como umbral del motor. El motor no exporta los
    suyos, y el documento lo dice.
 9. **Solo lectura comprobada por enumeración de métodos**, no prometida en prosa.
+
+## 9. Conservación ejecutada: siete etiquetas de rescate
+
+Única acción con efecto de todo el carril, y es **puramente aditiva**: crear una
+referencia donde no había ninguna. No se ha borrado, aplicado ni movido nada.
+
+Los siete commits de §4.3 dependían del reflog (caducidad por defecto 90 días) y
+de un worktree cada uno. Ahora los ancla un tag anotado, **publicado en
+`origin`** — que es lo que los hace sobrevivir de verdad a un `gc` y a la
+retirada de su worktree:
+
+| Etiqueta | Commit | Qué era | Clasificación |
+|---|---|---|---|
+| `rescate/2026-08-13-a995395` | `a995395` | chasis: un anónimo no puede enumerar qué paneles están encendidos | **INTEGRADO** (16/16 idénticos a `main`) |
+| `rescate/2026-08-13-7dddece` | `7dddece` | chasis: contrato medido contra tabla escrita a mano + apagado de paneles | **SUPERSEDIDO** (13/16; difieren `docs/69`, `chassis_slot.py`, `test_chassis_mount_contract.py`) |
+| `rescate/2026-08-13-eeafc81` | `eeafc81` | Carril J: ninguna razón se declara por el nombre de un test | **SUPERSEDIDO** (14/18) |
+| `rescate/2026-08-13-c10be77` | `c10be77` | ops: el discriminante es el DESENLACE, no la forma del `if` | **SUPERSEDIDO** (5/11; el resto vive en `ops/environment-reproducibility-v1`) |
+| `rescate/2026-08-13-7cc4d35` | `7cc4d35` | perf(lab): recalibrar y remedir sobre `e2e8214`, en máquina declarada | **SUPERSEDIDO** (7/13) |
+| `rescate/2026-08-13-06c4565` | `06c4565` | estado verificado contra Git y CI, con calibración ejecutable | **SUPERSEDIDO** (25/31) |
+| `rescate/2026-08-13-7d014f2` | `7d014f2` | diseño BKP-4 del destino off-host (sólo diseño, nada activado) | **SUPERSEDIDO** (`docs/71` posterior en `main`) |
+
+`d1e9f76` no necesita etiqueta: la rama `audit/route-contract-map-v2` ya lo
+contiene, y su contenido es idéntico a `main` (21/21).
+
+Un tag no es una promesa de que el commit valga: **ninguno de los siete aporta
+un fichero ausente de `main`.** Lo que conserva es la posibilidad de que el
+operador decida con la evidencia delante en vez de con un objeto purgado.
+
+## 10. El gate de numeración, y su control negativo
+
+Este inventario destapó que `main` tenía **dos** documentos numerados 72. La
+rama `chore/docs-numbering` contenía desde el 9 de agosto el test que lo impide,
+sin fusionar. Se incorpora aquí, íntegro y sin reescribir: `tests/test_docs_numbering.py`
+más su entrada en `testpaths` de `pytest.ini`.
+
+**Control negativo, ejecutado antes de arreglar nada** — y de la mejor clase
+posible, porque el defecto **ya existía**, no hubo que inventarlo:
+
+```
+$ python3 -m pytest tests/test_docs_numbering.py -q     # con los dos 72 aún presentes
+E   AssertionError: Numeracion de documentos duplicada.
+E       - docs numero 72: 72-autoridad-unica-admin-full.md, 72-saturacion-del-grafo-diagnostico.md
+1 failed, 1 passed
+```
+
+La segunda comprobación (el separador tras el número tiene que ser un guion) no
+tenía defecto real que la pusiera roja, así que se calibró por **mutación
+efímera**: se creó `docs/99_separador_prohibido.md`, el test falló
+(`test_numbered_docs_use_a_hyphen_separator`), y al retirar el fichero volvió a
+verde. Sin ese paso, un `NN_` se colaría por debajo del regex de unicidad y la
+primera comprobación sería decorativa.
+
+**Reparación del defecto.** Se renumeró `docs/72-autoridad-unica-admin-full.md`
+a **`docs/75-…`**, no el otro. La razón se midió, no se eligió por gusto:
+`72-saturacion-del-grafo-diagnostico.md` está citado por su nombre desde tres
+sitios (`docs/measurements/72-saturacion-grafo/README.md` y dos veces en
+`viewer/tests/test_saturacion_grafo_caracterizacion.py`, una de ellas dentro del
+mensaje de un assert), mientras que el de autoridad no tenía **ninguna**
+referencia por nombre de fichero. Sí tenía dos menciones **ambiguas**
+—`docs/72 §8`, sin nombre— en `viewer/tests/test_p0_autoridad_admin_full.py`,
+que se han actualizado a `docs/75 §8`. Esa ambigüedad es, por sí sola, el daño
+que el gate existe para impedir: con dos ficheros 72, «docs/72» no señalaba a
+ninguno.
+
+Números en juego al cerrar: **73** queda para el carril de parcialidad
+(`73-parcialidad-declarada-en-el-visor.md`, ya referenciado desde su código),
+**74** es este documento y **75** el del P0 de autoridad. Tras el cambio, el
+gate queda en verde y `docs/` no tiene ningún número repetido fuera de
+`docs/archivados/`, que está exento a propósito y con el motivo escrito.
