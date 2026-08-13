@@ -72,6 +72,12 @@
          accesibilidad se conformaba con el `aria-live` de `.graph-counters`,
          asi que este mensaje podia quedarse mudo sin que nada fallara. -->
     <p id="graph-status" class="graph-status" role="status" aria-live="polite" aria-atomic="true" hidden></p>
+    <!-- Declaracion de parcialidad. `role="alert"` y no `status`: no es un
+         estado mas de carga, es una advertencia de que lo dibujado NO es el
+         grafo entero y que sacar conclusiones de su forma seria un error.
+         Va aqui arriba, pegado al lienzo, porque un aviso que hay que buscar
+         no es un aviso. -->
+    <p id="graph-partiality" class="graph-partiality" role="alert" aria-live="assertive" aria-atomic="true" hidden></p>
     <div id="graph-canvas" role="application" aria-label="Grafo de conocimiento" tabindex="0"></div>
   </div>
 

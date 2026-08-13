@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.authz.dependencies import get_filtered_provider
 from app.deps import get_default_workspace, get_graph_limit
+from app.graph_view import SIN_TOPE, vista_truncada
 from app.providers.base import GraphProvider
 from app.serializers import serialize_graph
 
@@ -21,5 +22,13 @@ def api_graph(
 ):
     workspace = workspace or get_default_workspace()
     limit = limit or get_graph_limit()
-    nodes, edges = provider.graph(workspace, limit=limit, entity_type=entity_type, q=q)
-    return serialize_graph(workspace, nodes, edges)
+    # Se pide SIN TOPE y se recorta aquí. No es un rodeo: es la única forma de
+    # saber cuánto se ha dejado fuera. El proveedor filtrado ya materializa el
+    # conjunto completo en cada llamada, así que no añade una pasada nueva, y
+    # lo que llega aquí está YA autorizado: los totales publicados cuentan
+    # elementos visibles para QUIEN PREGUNTA, nunca elementos de la base.
+    todos_nodos, todas_relaciones = provider.graph(
+        workspace, limit=SIN_TOPE, entity_type=entity_type, q=q
+    )
+    nodes, edges, view = vista_truncada(todos_nodos, todas_relaciones, limit)
+    return serialize_graph(workspace, nodes, edges, view=view)

@@ -115,9 +115,25 @@ def serialize_edge(edge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def serialize_graph(workspace: str, nodes: list[dict], edges: list[dict]) -> dict[str, Any]:
-    return {
+def serialize_graph(
+    workspace: str,
+    nodes: list[dict],
+    edges: list[dict],
+    view: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Serializa el grafo y, si se le da, la DECLARACIÓN de parcialidad.
+
+    `view` (ver `app.graph_view.vista_truncada`) lleva los contadores de lo
+    mostrado y de lo total AUTORIZADO. Es opcional en la firma porque hay
+    llamadas que no recortan nada, pero `/api/graph` lo pasa SIEMPRE: sin él,
+    el cliente no puede distinguir "esto es todo" de "esto es un trozo", y por
+    diseño el cliente trata su ausencia como vista posiblemente incompleta.
+    """
+    out: dict[str, Any] = {
         "workspace": workspace,
         "nodes": [serialize_node(n) for n in nodes],
         "edges": [serialize_edge(e) for e in edges],
     }
+    if view is not None:
+        out["view"] = view
+    return out

@@ -21,6 +21,7 @@
 
   var canvas = $("graph-canvas");
   var statusBox = $("graph-status");
+  var partialityBox = $("graph-partiality");
   var counterNodes = $("counter-nodes");
   var counterEdges = $("counter-edges");
   var searchInput = $("search-input");
@@ -43,6 +44,10 @@
 
   // --- Estado -------------------------------------------------------------
   var loaded = { nodes: [], edges: [] };   // lo último recibido de la API
+  // Declaración de parcialidad que vino con la última respuesta de
+  // /api/graph. `null` = aún no se ha respondido; una respuesta sin `view`
+  // deja aquí un objeto vacío y el aviso sale igual (fail-closed).
+  var lastView = null;
   var visible = { nodes: [], edges: [] };  // tras aplicar filtros
   var state = core.parseState(window.location.search);
   var network = null;
@@ -139,6 +144,34 @@
     if (kind === "error" || kind === "renderer" || kind === "no_results" || kind === "empty") {
       statusBox.setAttribute("role", "status");
     }
+  }
+
+  /**
+   * Pinta el aviso de vista parcial.
+   *
+   * `lastView` NO se recalcula al expandir vecinos: esas cifras son las que el
+   * servidor conto para la respuesta de /api/graph, y ahi se quedan. Tras
+   * expandir puede haber mas nodos en el lienzo que `nodes_shown`; el aviso
+   * queda entonces conservador (sigue siendo cierto que la vista es parcial) en
+   * vez de inventar un total nuevo, que es justo lo que la regla 3 prohibe. No decide nada por su cuenta: llama a la
+   * lógica pura de `graph-core.js`, que sólo calla cuando el servidor ha dicho
+   * que la respuesta está completa.
+   */
+  function renderPartiality() {
+    if (!partialityBox) return;
+    if (loading || lastErrorStatus !== null || lastView === null) {
+      partialityBox.hidden = true;
+      partialityBox.textContent = "";
+      return;
+    }
+    var msg = core.partialityNotice(lastView);
+    if (!msg) {
+      partialityBox.hidden = true;
+      partialityBox.textContent = "";
+      return;
+    }
+    partialityBox.hidden = false;
+    partialityBox.textContent = msg;
   }
 
   function renderCounters() {
@@ -379,6 +412,7 @@
     drawGraph();
     renderCounters();
     renderStatus();
+    renderPartiality();
   }
 
   // ---------------------------------------------------------------------
@@ -586,7 +620,9 @@
   function loadGraph() {
     loading = true;
     lastErrorStatus = null;
+    lastView = null;
     renderStatus();
+    renderPartiality();
 
     return fetch(apiUrl(), { headers: { accept: "application/json" } })
       .then(function (res) {
@@ -594,12 +630,16 @@
           lastErrorStatus = res.status;
           loaded = { nodes: [], edges: [] };
           visible = { nodes: [], edges: [] };
+          lastView = null;
           throw new Error("http");
         }
         return res.json();
       })
       .then(function (data) {
         loaded = { nodes: data.nodes || [], edges: data.edges || [] };
+        // Sin `|| {}` una respuesta sin `view` dejaria `lastView` a null y el
+        // aviso se callaria: justo el fallo que este carril viene a cerrar.
+        lastView = data.view || {};
         loading = false;
         rebuildFilterUi();
         applyFilters();
@@ -614,6 +654,7 @@
         drawGraph();
         renderCounters();
         renderStatus();
+        renderPartiality();
       });
   }
 

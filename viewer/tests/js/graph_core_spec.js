@@ -450,6 +450,60 @@ test("merge: descarta elementos sin id en vez de romperse", () => {
 });
 
 // ---------------------------------------------------------------------
+// Declaracion de parcialidad de la vista (docs/72)
+// ---------------------------------------------------------------------
+
+const VISTA_COMPLETA = {
+  limit: 300, truncated: false,
+  nodes_shown: 5, nodes_total: 5, edges_shown: 4, edges_total: 4
+};
+const VISTA_TRUNCADA = {
+  limit: 300, truncated: true,
+  nodes_shown: 300, nodes_total: 2000, edges_shown: 171, edges_total: 6000
+};
+
+test("parcialidad: una vista completa no avisa (el aviso no es ruido de fondo)", () => {
+  assert.strictEqual(core.partialityNotice(VISTA_COMPLETA), null);
+});
+
+test("parcialidad: una vista truncada avisa y dice cuanto falta", () => {
+  const aviso = core.partialityNotice(VISTA_TRUNCADA);
+  assert.ok(aviso, "vista truncada sin aviso");
+  assert.ok(aviso.indexOf("300") >= 0 && aviso.indexOf("2000") >= 0);
+  assert.ok(aviso.indexOf("171") >= 0 && aviso.indexOf("6000") >= 0);
+});
+
+test("parcialidad: el aviso no inventa ninguna cifra que no venga del servidor", () => {
+  const aviso = core.partialityNotice(VISTA_TRUNCADA);
+  const cifras = (aviso.match(/[0-9]+/g) || []).map(Number).sort((a, b) => a - b);
+  assert.deepStrictEqual(cifras, [171, 300, 2000, 6000]);
+});
+
+test("parcialidad: sin metadato se avisa (fail-closed, no se supone completa)", () => {
+  assert.strictEqual(core.partialityNotice(undefined), core.PARTIALITY_UNKNOWN);
+  assert.strictEqual(core.partialityNotice(null), core.PARTIALITY_UNKNOWN);
+  assert.strictEqual(core.partialityNotice({}), core.PARTIALITY_UNKNOWN);
+});
+
+test("parcialidad: un metadato roto o incoherente tambien avisa", () => {
+  // contadores que no son numeros
+  assert.strictEqual(
+    core.partialityNotice({ limit: 300, truncated: false, nodes_shown: "5",
+                            nodes_total: 5, edges_shown: 4, edges_total: 4 }),
+    core.PARTIALITY_UNKNOWN);
+  // dice "completa" pero faltan relaciones: mentira detectada
+  assert.strictEqual(
+    core.partialityNotice({ limit: 300, truncated: false, nodes_shown: 300,
+                            nodes_total: 2000, edges_shown: 171, edges_total: 6000 }),
+    core.PARTIALITY_UNKNOWN);
+  // mostrado > total: imposible
+  assert.strictEqual(
+    core.partialityNotice({ limit: 300, truncated: true, nodes_shown: 9,
+                            nodes_total: 5, edges_shown: 0, edges_total: 0 }),
+    core.PARTIALITY_UNKNOWN);
+});
+
+// ---------------------------------------------------------------------
 console.log("");
 console.log(passed + " pasados, " + failures.length + " fallidos");
 if (failures.length) {
