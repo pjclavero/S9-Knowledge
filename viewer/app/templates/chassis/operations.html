@@ -1,3 +1,190 @@
+{#
+  Hueco B — Operations Dashboard, SOLO LECTURA.
+
+  Extiende `chassis/_slot.html`, así que hereda sus tres estados explícitos
+  (`data-state` = error | empty | ready) y la barra de navegación.
+
+  NINGUNA URL ESCRITA A MANO. Todo `action` y todo enlace se resuelve por NOMBRE
+  de ruta con `url_for`. Escribir el prefijo del panel aquí es el fallo nº 2 que
+  el chasis existe para impedir: nadie se entera cuando la ruta cambia.
+
+  NINGÚN BOTÓN DE ACCIÓN. No hay `method="post"`, ni reintentos, ni cancelar, ni
+  relanzar: este panel mira, no toca. El único formulario es un GET de filtros.
+
+  AUSENCIA != CERO: cuando un dato no está disponible se dice, y no se pinta un
+  0 en su lugar.
+#}
 {% extends "chassis/_slot.html" %}
-{% block empty_title %}Sin operaciones registradas{% endblock %}
-{% block empty_body %}Todavía no hay actividad operativa que mostrar.{% endblock %}
+
+{% block empty_title %}Sin trabajos visibles{% endblock %}
+{% block empty_body %}
+  {% if ops is defined and ops and not ops.jobs_available %}
+    La cola de trabajos no está disponible en este despliegue: no se muestra
+    ningún recuento, porque un dato ausente no es un cero.
+  {% else %}
+    No hay trabajos en tu ámbito actual para los filtros aplicados.
+  {% endif %}
+{% endblock %}
+
+{% block body %}
+{#
+  Sin `ops` en el contexto no hay panel que pintar: se delega en la pantalla
+  genérica del hueco (`super()`), que ya sabe pintar error / vacío / listo. No
+  es un adorno: la suite del chasis renderiza esta plantilla FUERA de una
+  petición (`request=None`, `items=["uno"]`) para comprobar sus tres estados, y
+  ahí no existe ni `url_for` ni una fila de verdad.
+#}
+{% if ops is not defined %}{{ super() }}{% else %}
+<main class="container" data-slot="{{ slot.key }}" data-readonly="true">
+  <h1>{{ slot.title }}</h1>
+
+  {% if error %}
+    {# El motivo, sin ruta y sin traza. `error_detail` es sólo el nombre del tipo. #}
+    <section class="panel panel-error" data-state="error">
+      <h2>No se pudo cargar</h2>
+      <p>{{ error }}</p>
+      {% if error_detail %}<p class="muted" data-error-kind>{{ error_detail | e }}</p>{% endif %}
+    </section>
+  {% else %}
+
+    <form method="get" action="{{ url_for('chassis_operations') }}" class="panel" data-role="filtros">
+      <label>Workspace
+        <input type="search" name="workspace" value="{{ (filtros.workspace or '') | e }}">
+      </label>
+      <label>Estado
+        <select name="status">
+          <option value="">Todos</option>
+          {# El desplegable sale del vocabulario del MOTOR. Si no se puede leer,
+             no se ofrece ninguna opción: no se inventan estados. #}
+          {% for estado in (ops.statuses or []) %}
+          <option value="{{ estado | e }}" {% if filtros.status == estado %}selected{% endif %}>{{ estado | e }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Tipo
+        <input type="search" name="job_type" value="{{ (filtros.job_type or '') | e }}">
+      </label>
+      <button type="submit">Filtrar</button>
+    </form>
+
+    <section class="panel" data-role="cola" data-jobs-available="{{ 'true' if ops.jobs_available else 'false' }}">
+      <h2>Cola de trabajos</h2>
+      {% if not ops.jobs_available %}
+        <p data-availability="unavailable">
+          No disponible: este visor no encuentra la cola de trabajos. No es que
+          haya cero trabajos; es que el dato no está.
+        </p>
+      {% else %}
+        {#
+          Contadores calculados DESPUÉS de la autorización (`scoped_counts`
+          filtra por ámbito y sólo entonces cuenta). Un total tomado antes de
+          filtrar revelaría por diferencia lo que la política acaba de ocultar.
+        #}
+        <p data-role="contadores">
+          <span data-count="visible">{{ ops.total_visible }}</span> trabajos visibles ·
+          <span data-count="shown">{{ ops.shown }}</span> en pantalla
+          (techo {{ ops.limit }})
+        </p>
+        <ul data-role="por-estado">
+          {% for c in ops.counts %}
+          <li data-status="{{ (c.status or '') | e }}"
+              data-status-known="{{ 'true' if c.status_known else 'false' }}">
+            {% if c.status %}{{ c.status | e }}{% else %}sin estado{% endif %}
+            {%- if not c.status_known %} (estado no reconocido){% endif %}:
+            <span data-count-status="{{ (c.status or '') | e }}">{{ c.count }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </section>
+
+    {% if not items %}
+      <section class="panel panel-empty" data-state="empty">
+        <h2>{{ self.empty_title() }}</h2>
+        <p>{{ self.empty_body() }}</p>
+      </section>
+    {% else %}
+      <section class="panel" data-state="ready">
+        <table>
+          <thead>
+            <tr><th>Trabajo</th><th>Estado</th><th>Tipo</th><th>Workspace</th>
+                <th>Intentos</th><th>Actualizado</th><th>Incidencia</th></tr>
+          </thead>
+          <tbody>
+          {% for row in items %}
+            <tr data-job-id="{{ (row.job_id or '') | e }}">
+              <td>{{ row.job_id | e if row.job_id else 'no disponible' }}</td>
+              {#
+                FALLO CERRADO: un estado que este visor no puede contrastar con
+                el vocabulario del motor se marca como desconocido y NUNCA se
+                pinta con el aspecto de un estado bueno.
+              #}
+              <td data-status="{{ (row.status or '') | e }}"
+                  data-status-known="{{ 'true' if row.status_known else 'false' }}"
+                  class="{{ 'status-known' if row.status_known else 'status-unknown' }}">
+                {% if row.status %}
+                  {{ row.status | e }}{% if not row.status_known %} (estado no reconocido){% endif %}
+                {% else %}no disponible{% endif %}
+              </td>
+              <td>{{ row.type | e if row.type else 'no disponible' }}</td>
+              <td>{{ row.workspace | e if row.workspace else 'no disponible' }}</td>
+              {# `None` es ausencia declarada, no un 0 inventado. #}
+              <td data-attempts="{{ row.attempts if row.attempts is not none else '' }}">
+                {% if row.attempts is not none %}{{ row.attempts }}{% else %}no disponible{% endif %}
+              </td>
+              <td>{{ row.updated_at | e if row.updated_at else 'no disponible' }}</td>
+              {# La SEÑAL de incidencia, nunca el texto: puede traer rutas del servidor. #}
+              <td data-has-error="{{ 'true' if row.has_error else 'false' }}">
+                {% if row.has_error %}sí{% else %}no{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    {% endif %}
+
+    <section class="panel" data-role="salud"
+             data-health-available="{{ 'true' if (salud and salud.available) else 'false' }}">
+      <h2>Última salud registrada</h2>
+      {% if not salud or not salud.available %}
+        {#
+          NO se ejecuta ningún healthcheck desde aquí: se lee el último informe
+          guardado. Sin informe, el panel lo dice; no dice "todo bien".
+        #}
+        <p data-availability="{{ (salud.reason if salud else 'absent') | e }}">
+          {% if salud and salud.reason == 'unreadable' %}
+            Hay un informe de salud guardado, pero no se ha podido leer. No se
+            deduce nada de su estado.
+          {% else %}
+            No hay ningún informe de salud guardado todavía. Este panel no
+            ejecuta comprobaciones: sólo muestra la última registrada.
+          {% endif %}
+        </p>
+      {% else %}
+        <p data-health-overall="{{ (salud.overall or '') | e }}"
+           data-health-overall-known="{{ 'true' if salud.overall_known else 'false' }}">
+          Estado global:
+          {% if salud.overall %}
+            {{ salud.overall | e }}{% if not salud.overall_known %} (estado no reconocido){% endif %}
+          {% else %}no disponible{% endif %}
+          {% if salud.generated_at %}· registrado {{ salud.generated_at | e }}{% endif %}
+        </p>
+        <ul data-role="componentes">
+          {% for c in salud.components %}
+          <li data-component="{{ (c.component or '') | e }}"
+              data-component-status="{{ (c.status or '') | e }}"
+              data-component-status-known="{{ 'true' if c.status_known else 'false' }}">
+            {{ c.component | e if c.component else 'no disponible' }}:
+            {% if c.status %}
+              {{ c.status | e }}{% if not c.status_known %} (estado no reconocido){% endif %}
+            {% else %}no disponible{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </section>
+  {% endif %}
+</main>
+{% endif %}
+{% endblock %}
