@@ -295,8 +295,14 @@ CASOS: tuple[Caso, ...] = (
         ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
     ),
     Caso(
+        # HONESTIDAD: R12 ya salia ROJO ANTES de este carril, y sigue rojo con
+        # cualquiera de los dos criterios ablacionado. No demuestra nada nuevo:
+        # documenta que FastAPI resuelve los prefijos de `include_router` DENTRO
+        # del `path` de cada `APIRoute` (a diferencia de `Mount`), asi que ese
+        # anidamiento nunca fue un punto ciego. Se conserva como control
+        # NEGATIVO: distingue el caso que si estaba roto del que no.
         "R12", "`include_router` con prefijo dentro de otro router tampoco "
-               "esconde escritura",
+               "esconde escritura (ya cubierto: control negativo)",
         MAIN,
         "\n\n_mount_feature_slots()\n",
         "\n\n_mount_feature_slots()\n\n\n"

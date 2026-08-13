@@ -152,6 +152,63 @@ Starlette y auditar con `_walk` serían dos censos capaces de discrepar—; y (2
 `url_path_for` devuelve la variante con barra final (`/panel/review/`) mientras
 que el canónico para un enlace de menú es el otro.
 
+### Nota técnica: los dos puntos ciegos que tenía el censo
+
+Aplanar no bastaba. `iter_mounted_routes` lo usan **tres** consumidores a la vez
+—el barrido de autorización de arriba, `route_index` y el gate de solo lectura
+del hueco C—, así que un punto ciego del censo era un punto ciego de los tres.
+Un revisor independiente midió dos, y los dos dejaban la suite en **48/48
+VERDE**:
+
+**R9 — el `path` de una sub-app montada es RELATIVO al punto de montaje.**
+`_walk` sí descendía por los `Mount`, pero emitía el path tal cual. Medido:
+
+```
+app.mount("/panel/review/admin", subapp)   # subapp con POST /aprobar
+POST /panel/review/admin/aprobar -> 200, y escribió en disco
+en el censo esa ruta aparecía como: '/aprobar'
+```
+
+El censo la veía **con el nombre equivocado**, así que todo consumidor que
+filtre por `path.startswith(prefijo)` la descartaba. Ahora `_walk` arrastra el
+path de cada `Mount` y emite la **URL efectiva** (`MountedRoute`); el envoltorio
+sólo se construye cuando hay prefijo que componer, de modo que una app sin
+`Mount` produce exactamente el mismo censo que antes.
+
+**R10 — ausencia de `methods` no es ausencia de escritura.**
+`APIWebSocketRoute` **no tiene** atributo `methods` (verificado:
+`hasattr(...) is False`), así que `getattr(r, "methods", set())` devolvía
+`set()`, la intersección con los métodos de escritura salía vacía y un canal de
+escritura perfectamente capaz quedaba invisible **en silencio**. Lo mismo vale
+para un `Mount` opaco (`StaticFiles`), cuya app ASGI el censo no puede enumerar.
+
+El chasis expone ahora `enumerable_methods` (devuelve `None` cuando no se puede
+saber, distinto de "cero métodos") y `write_methods`, que **falla CERRADO**:
+sin métodos enumerables devuelve `(METHODS_NOT_ENUMERABLE,)`, nunca la tupla
+vacía. Es la misma doctrina que `slot_enabled` y el tope tri-estado — la
+ausencia de dato no se interpreta como el valor benigno. El barrido de
+autorización aplica el mismo criterio: una ruta que no puede sondear se declara
+y revienta, y eximirla exige meterla a mano en `ANON_ALLOWED_PATHS`.
+
+¿Es lícito un `Mount` de estáticos bajo el prefijo de un hueco? **No.** El censo
+no puede *demostrar* que una app ASGI montada sea de solo lectura; que
+`StaticFiles` hoy sirva sólo GET/HEAD es una propiedad de la clase que el censo
+no ve y que un cambio de clase invalidaría sin ruido. Se falla cerrado.
+
+Necesidad medida por **ablación** (reversión byte a byte verificada por sha256):
+quitar la composición de prefijo deja colarse R9 y R11 (`Mount` anidado a dos
+niveles); quitar el fallo cerrado por métodos deja colarse R10, R13 (`Mount` de
+estáticos) y R14 (WebSocket ante el barrido de autorización). Ninguno de los dos
+criterios es redundante. En cambio `include_router` con prefijo dentro de otro
+router (R13→R12) **nunca fue** un punto ciego: FastAPI resuelve esos prefijos
+dentro del `path` de cada `APIRoute`; se conserva como control negativo.
+
+Sobre la app real, el censo corregido mide **exactamente las mismas cifras** que
+antes (69 rutas aplanadas, 62 nombres en `route_index`, 3 rutas bajo
+`/panel/review`): hoy el único `Mount` del visor es `/static`, en el primer nivel
+y ya en la lista blanca. El arreglo no destapa hallazgos nuevos en producción;
+cierra el hueco por el que B, F y G iban a copiar el patrón.
+
 ## 4. Regla de las pruebas
 
 Todo lo que sea HTTP se prueba contra `app.main.app`, la aplicación **real**.
