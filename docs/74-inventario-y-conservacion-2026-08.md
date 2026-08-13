@@ -53,7 +53,7 @@ abajo están medidas con `--verify -q` (o con `git cat-file -s`).
 |---|---|---|
 | Stashes | 3 | **Ninguno contiene trabajo único.** Los 3 son reproducibles desde la historia |
 | Worktrees | 52 | 50 con el árbol exactamente en su HEAD; **2 con cambios sin commitear** |
-| Commits en HEAD separado no alcanzables desde ninguna rama | **7** | El worktree es su única sujeción fuerte |
+| Commits huérfanos no alcanzables desde ninguna rama | **8** | El worktree era su única sujeción fuerte; **los 8 quedan etiquetados y publicados** (§9) |
 | Ramas locales no fusionadas en `origin/main` | 32 | 8 de ellas **sin equivalente en el remoto** |
 | Ramas remotas no fusionadas | 23 | Publicadas: no se pierden con una limpieza local |
 | Directorio `.recovery/` en el checkout principal | 16 ficheros | **Superado por `main`**: 14 idénticos, 2 con `main` estrictamente más nuevo |
@@ -176,9 +176,11 @@ borrados; `benchmarks/perf/*`, `docs/67`, `.github/workflows/ci.yml`,
 `.github/scripts/check_ci_config.py`, `tests/e2e/conftest.py` modificados).
 
 Parece trabajo pendiente. **No lo es**: los 11 ficheros del árbol son
-**byte a byte iguales a `33d758f`**, un commit anterior de esa misma rama que
-sigue en el reflog (`perf/viewer-scale-baseline-v2@{1}`) y ya no está en ninguna
-rama. El árbol es la **v2.0** del laboratorio de rendimiento; el HEAD `f515c8b`
+**byte a byte iguales a `33d758f`**, un commit que aparece en el reflog de la
+rama (`perf/viewer-scale-baseline-v2@{1}`) pero que **no está en ninguna rama ni
+es ancestro de ninguna punta**: ni de `f515c8b` (HEAD local) ni de
+`origin/perf/viewer-scale-baseline-v2` (`0a9b774`). Es un huérfano
+irreferenciado, y por eso está etiquetado en §9. El árbol es la **v2.0** del laboratorio de rendimiento; el HEAD `f515c8b`
 es la **v2.1**, que corrige cinco agujeros documentados del propio instrumento
 (umbral inventado de 0.5 llamadas/elemento, huella de caché que no cubría el
 fichero, doble de driver fuera del hash, calibración sin fijar el commit del
@@ -270,9 +272,11 @@ fusionadas: `audit/route-contract-map-v2` (21/21 ficheros idénticos a `main`) y
    mueren con el primer `gc --prune`. Ninguno contiene un fichero ausente de
    `main`, así que la pérdida es de **historia**, no de funcionalidad.
    Coste de conservarlos: un `git tag` por commit.
-3. **El árbol v2.0 de `perf-viewer-scale-v2`**: idéntico a `33d758f`, que hoy
-   sólo vive en el reflog de la rama. Superado por su propio HEAD, y su
-   restauración sería una regresión de CI. Pérdida sin consecuencia.
+3. **El árbol v2.0 de `perf-viewer-scale-v2`**: idéntico a `33d758f`, que era
+   otro huérfano irreferenciado (no ancestro de ninguna punta). Su contenido está
+   superado por la v2.1 publicada y restaurarlo sería una regresión de CI, pero
+   eso decide **si vale la pena**, no **si sobrevive**: por eso también está
+   etiquetado (§9).
 
 **No se perdería nada más.** En particular **no** se pierden: los 3 stashes
 (reproducibles al bit), `.recovery/` (superado por `main`, y además vive en el
@@ -293,9 +297,15 @@ locales no fusionadas — borrar un worktree **no** borra su rama.
 
 3. Los 7 commits de §4.3 **ya están etiquetados y publicados** (§9). Los
    worktrees que los sujetaban se pueden retirar sin perderlos.
-4. `33d758f` (laboratorio perf v2.0) **no** se ha etiquetado: es una iteración
-   anterior de una rama publicada cuyo HEAD la supera, y su restauración sería
-   una regresión de CI. Si el operador quiere trazabilidad, un tag más lo fija.
+4. `33d758f` (laboratorio perf v2.0) **también está etiquetado** (§9). La primera
+   redacción de este informe lo excluyó diciendo que era «una iteración anterior
+   de una rama publicada cuyo HEAD la supera». **Eso era inexacto**, y la
+   corrección importa: su *contenido* sí está superado, pero **no es ancestro de
+   nada** —ni de `f515c8b` ni de `origin/perf/viewer-scale-baseline-v2`
+   (`0a9b774`)— y ninguna rama ni tag lo alcanzaba. Es un huérfano irreferenciado,
+   exactamente de la misma clase que los otros siete. Que su contenido esté
+   superado es un argumento sobre **si vale la pena**, no sobre **si sobrevive**;
+   confundir las dos cosas es lo que lo habría dejado fuera del rescate.
 
 **Se puede retirar, con su razón**
 
@@ -395,13 +405,14 @@ el chasis:
    suyos, y el documento lo dice.
 9. **Solo lectura comprobada por enumeración de métodos**, no prometida en prosa.
 
-## 9. Conservación ejecutada: siete etiquetas de rescate
+## 9. Conservación ejecutada: ocho etiquetas de rescate
 
 Única acción con efecto de todo el carril, y es **puramente aditiva**: crear una
 referencia donde no había ninguna. No se ha borrado, aplicado ni movido nada.
 
-Los siete commits de §4.3 dependían del reflog (caducidad por defecto 90 días) y
-de un worktree cada uno. Ahora los ancla un tag anotado, **publicado en
+Los siete commits de §4.3, **más `33d758f`** (el árbol de §4.2, que resultó ser
+otro huérfano irreferenciado), dependían del reflog (caducidad por defecto 90
+días) y de un worktree cada uno. Ahora los ancla un tag anotado, **publicado en
 `origin`** — que es lo que los hace sobrevivir de verdad a un `gc` y a la
 retirada de su worktree:
 
@@ -414,11 +425,12 @@ retirada de su worktree:
 | `rescate/2026-08-13-7cc4d35` | `7cc4d35` | perf(lab): recalibrar y remedir sobre `e2e8214`, en máquina declarada | **SUPERSEDIDO** (7/13) |
 | `rescate/2026-08-13-06c4565` | `06c4565` | estado verificado contra Git y CI, con calibración ejecutable | **SUPERSEDIDO** (25/31) |
 | `rescate/2026-08-13-7d014f2` | `7d014f2` | diseño BKP-4 del destino off-host (sólo diseño, nada activado) | **SUPERSEDIDO** (`docs/71` posterior en `main`) |
+| `rescate/2026-08-13-33d758f` | `33d758f` | perf(lab) v2.0: detector N+1 de tres ejes y caché con huella | **SUPERSEDIDO** por la v2.1 publicada (8 ficheros de diferencia) |
 
 `d1e9f76` no necesita etiqueta: la rama `audit/route-contract-map-v2` ya lo
 contiene, y su contenido es idéntico a `main` (21/21).
 
-Un tag no es una promesa de que el commit valga: **ninguno de los siete aporta
+Un tag no es una promesa de que el commit valga: **ninguno de los ocho aporta
 un fichero ausente de `main`.** Lo que conserva es la posibilidad de que el
 operador decida con la evidencia delante en vez de con un objeto purgado.
 
@@ -444,7 +456,43 @@ tenía defecto real que la pusiera roja, así que se calibró por **mutación
 efímera**: se creó `docs/99_separador_prohibido.md`, el test falló
 (`test_numbered_docs_use_a_hyphen_separator`), y al retirar el fichero volvió a
 verde. Sin ese paso, un `NN_` se colaría por debajo del regex de unicidad y la
-primera comprobación sería decorativa.
+primera comprobación sería decorativa. **El revisor lo demostró después con un
+duplicado real encubierto** (`docs/72_duplicado_encubierto.md`): la comprobación
+de unicidad lo deja pasar en verde y sólo la del separador lo caza. La puerta
+trasera no era hipotética.
+
+### 10.1 El propio gate pasaba en vacío
+
+Al revisarlo apareció el defecto de siempre, ahora en el instrumento: con `docs/`
+**vacío** daba `2 passed`, y con `docs/` **inexistente** también. `rglob` sobre
+un directorio ausente devuelve lista vacía, sobre el conjunto vacío no hay
+colisión posible, y el gate se quedaba **verde para siempre en silencio** si
+`docs/` se movía o si el `rootdir` de pytest se resolvía a otro sitio. Es el
+mismo modo de fallo que un pytest que colecciona 0 tests y sale con éxito: **no
+distinguía «no hay defecto» de «no he mirado»**.
+
+Corregido con un **suelo de plausibilidad** (`MINIMO_DOCUMENTOS_NUMERADOS = 40`;
+hoy hay 69 numerados fuera de `archivados/`) más una aserción de que `docs/`
+existe, **dentro del recolector compartido**, para que un `docs/` perdido ponga
+rojas **todas** las comprobaciones y no sólo una. Se añade
+`test_el_instrumento_encuentra_documentacion_que_medir` como test propio para
+que el informe de CI nombre esa condición.
+
+De paso se cubre el hueco menor que quedaba: el regex era `\d{2,3}`, que **no ve
+los documentos de un solo dígito**, así que `9-algo.md` y `09-algo.md` podían
+coexistir. Ahora es `\d{1,3}`, y el `(?![-\d])` sigue impidiendo que un prefijo
+de cuatro cifras (una fecha `2026-08-…`) se lea como número de documento.
+
+**Matriz de calibración** (ejecutada redirigiendo `DOCS_ROOT`, sin tocar el
+`docs/` real; las mutaciones se crean y se retiran en el acto):
+
+| Escenario | Esperado | Medido |
+|---|---|---|
+| Árbol real | 3 verdes | **3 verdes** |
+| `docs/` vacío | rojo | **3 de 3 rojas** |
+| `docs/` inexistente | rojo | **3 de 3 rojas** |
+| `9-uno.md` + `09-otro.md` | rojo | **rojo** en la de unicidad |
+| `72_duplicado_encubierto.md` + `72-legitimo.md` | rojo | **rojo** en la del separador |
 
 **Reparación del defecto.** Se renumeró `docs/72-autoridad-unica-admin-full.md`
 a **`docs/75-…`**, no el otro. La razón se midió, no se eligió por gusto:
