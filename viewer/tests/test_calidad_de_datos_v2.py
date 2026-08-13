@@ -1,0 +1,666 @@
+"""Carril J -- calidad de datos v2: derivacion, vocabulario unico, fail-closed.
+
+Tres afirmaciones, y cada una tiene su forma de ponerse ROJA declarada en
+`mutaciones_calidad_datos.py`:
+
+  1. Los campos de autorizacion que este carril comprueba se DERIVAN del
+     registro ejecutable `viewer/app/policies/registry.py`. No hay segunda
+     lista. Quitar o cambiar una dimension alli se propaga, y --lo que no es
+     gratis-- se DETECTA, porque el codigo del motor es un testigo
+     independiente de la derivacion.
+  2. `review_status` tiene UN vocabulario canonico de dominio
+     (`contracts/review-status/v1`) y adaptadores en las fronteras legacy. Un
+     valor fuera del canonico se rechaza.
+  3. Un dato de autorizacion ausente es un FALLO, nunca un permiso. Ni el mas
+     amplio, ni el mas estrecho por accidente: el que el registro DECLARA.
+
+Sobre el punto 1 conviene ser explicito, porque es el defecto que este carril
+venia a corregir en si mismo: derivar una lista de un registro NO es, por si
+solo, una comprobacion. Si la lista se deriva y alguien borra una dimension del
+registro, la lista se acorta y todo sigue verde con menos casos. Una derivacion
+sin testigo independiente convierte un borrado en un silencio. Por eso las
+aserciones de abajo no miran la lista derivada contra si misma: la miran contra
+el codigo del motor, contra el serializador del provider y contra el
+comportamiento real de `POLICY.can_view`.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+
+from app.labels import REVIEW_STATUS_LABELS_ES, review_status_label
+from app.policies.engine import POLICY
+from app.policies.models import NO_APLICA, ViewerContext
+from app.policies.registry import DENY, MINIMO, NEUTRO, TODOS
+from tests.test_provider_authz_fields_contract import (
+    CAMPOS_AUTORIZACION_NODO,
+    DIMENSIONES_DEL_CONTEXTO,
+)
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+#: El contrato se toma por el MODULO FRONTERA del visor, no cargandolo otra vez.
+#:
+#: Aqui habia un `_cargar_review_status()` propio --con la ruta y, sobre todo,
+#: el NOMBRE DE MODULO en duro--, es decir, un CUARTO cargador del contrato en
+#: un carril cuyo encargo era eliminar segundas declaraciones. Lo senalo la
+#: revision independiente y tenia una consecuencia medible: el testigo N3
+#: comparaba contra un objeto cargado bajo un nombre literal, de modo que
+#: renombrar `_MODULE_NAME` en los DOS modulos frontera a la vez --un cambio que
+#: mantiene el invariante, porque siguen compartiendo entrada de `sys.modules`--
+#: salia ROJO. El testigo media el nombre concreto, no que compartan objeto.
+#: Ahora los cargadores del contrato son dos, uno por arbol de `sys.path`, que
+#: es el minimo posible.
+#: Se toma el modulo del contrato TAL CUAL lo cargo la frontera (`.contrato`),
+#: no sus reexportaciones, para no tener que ampliar la superficie publica del
+#: modulo frontera solo por las necesidades de una suite.
+from app.review_status_contract import contrato as RS  # noqa: E402
+
+
+# ===========================================================================
+# 1. DERIVACION: el registro es la unica fuente
+# ===========================================================================
+
+def test_la_lista_de_campos_de_autorizacion_no_se_declara_a_mano():
+    """Meta-prueba: el comprobador no puede tener su propia lista.
+
+    Si alguien vuelve a escribir la tupla a mano, este test lo ve: el fichero
+    del contrato no puede contener literales de nombres de dimension fuera del
+    puñado de excepciones documentadas (valores de ejemplo y estructurales).
+    """
+    fuente = (
+        Path(__file__).resolve().parent / "test_provider_authz_fields_contract.py"
+    ).read_text(encoding="utf-8")
+    codigo = "\n".join(
+        ln for ln in fuente.splitlines()
+        if not ln.lstrip().startswith("#") and not ln.lstrip().startswith("*")
+    )
+    # `known_by` e `is_public`/`session_index` aparecen como VALORES de ejemplo
+    # o dentro de RETIRADAS, no como declaracion de la lista. Los demas nombres
+    # de dimension no deben aparecer en absoluto.
+    permitidos_en_codigo = {"known_by", "is_public", "session_index"}
+    literales = {
+        c.name for c in TODOS
+        if c.name not in permitidos_en_codigo
+        and (f'"{c.name}"' in codigo or f"'{c.name}'" in codigo)
+    }
+    # `admin_full`, `can_view_reference` y `character_knowledge` SI pueden
+    # aparecer: son la cuarentena de dimensiones no declaradas, y por
+    # definicion no salen del registro.
+    literales -= {"admin_full", "can_view_reference", "character_knowledge"}
+    assert not literales, (
+        f"el comprobador vuelve a nombrar dimensiones a mano: {sorted(literales)}. "
+        f"La fuente de verdad es app/policies/registry.py."
+    )
+
+
+def test_la_derivacion_cubre_las_trece_dimensiones_del_registro():
+    """Ninguna dimension declarada puede quedar fuera de las dos categorias."""
+    cubiertas = set(CAMPOS_AUTORIZACION_NODO) | set(DIMENSIONES_DEL_CONTEXTO)
+    declaradas = {c.stored_as or c.name for c in TODOS if c.in_projection}
+    declaradas |= {c.name for c in TODOS if not c.in_projection}
+    assert declaradas == cubiertas, (
+        f"la derivacion no cubre {sorted(declaradas ^ cubiertas)}"
+    )
+    assert len(TODOS) == len(cubiertas)
+
+
+def test_toda_dimension_declara_su_respuesta_a_la_ausencia():
+    """`missing`/`malformed` son obligatorios y de un vocabulario cerrado.
+
+    Una dimension sin respuesta declarada a "y si falta" es la forma exacta de
+    H-B: el dato ilegible degradado a `None`, y `None` leido como "sin tope".
+    """
+    validos = {DENY, MINIMO, NEUTRO}
+    for c in TODOS:
+        assert c.missing in validos, f"{c.name}: missing={c.missing!r} no declarado"
+        assert c.malformed in validos, f"{c.name}: malformed={c.malformed!r}"
+        assert c.producer, f"{c.name}: sin productor declarado"
+        assert c.consumer, f"{c.name}: sin consumidor declarado"
+        assert c.prueba_negativa, f"{c.name}: sin prueba negativa declarada"
+        assert c.prueba_http, f"{c.name}: sin prueba de extremo a extremo declarada"
+
+
+# ===========================================================================
+# 2. AUSENCIA DE DATO != PERMISO
+# ===========================================================================
+
+def _ctx_permisivo() -> ViewerContext:
+    """Contexto lo mas ABIERTO posible sin ser admin.
+
+    A proposito: si un nodo incompleto se deniega incluso con un contexto
+    generoso, la denegacion viene del DATO ausente y no de que el lector no
+    tuviera permisos. Con un contexto pobre, el test pasaria por el motivo
+    equivocado y no mediria nada.
+    """
+    return ViewerContext(
+        role="reviewer",
+        allowed_workspaces=frozenset({"leyenda"}),
+        active_partida="p1",
+        allowed_partida_ids=frozenset({"p1"}),
+        active_character="pc:ana",
+        max_visible_session=999,
+        can_view_secret=True,
+        can_view_future=True,
+        can_view_reference=True,
+    )
+
+
+def _nodo_completo() -> dict:
+    return {
+        "id": "n1",
+        "workspace": "leyenda",
+        "scope": "partida",
+        "partida_id": "p1",
+        "visibility": "player",
+        "known_by": ["pc:ana"],
+        "known_from_session": 1,
+    }
+
+
+def test_el_nodo_de_referencia_es_visible_para_el_contexto_permisivo():
+    """Control POSITIVO. Sin el, los tests de abajo podrian pasar porque el
+    motor deniega SIEMPRE, y un instrumento que siempre dice que no tampoco
+    mide nada."""
+    decision = POLICY.can_view(_nodo_completo(), _ctx_permisivo())
+    assert decision.visible, f"el control positivo no pasa: {decision.reason}"
+
+
+@pytest.mark.parametrize(
+    "campo",
+    [c.name for c in TODOS if c.in_projection and c.missing == DENY],
+)
+def test_un_campo_declarado_DENY_deniega_cuando_falta(campo):
+    """La lista de casos se DERIVA de `missing == DENY` en el registro.
+
+    Cambiar `missing` de `DENY` a `NEUTRO` en el registro cambia lo que este
+    test exige: esa es la propagacion. Y si el motor no respeta la nueva
+    declaracion, la prueba negativa del propio registro se pone roja.
+    """
+    nodo = _nodo_completo()
+    nodo.pop(campo)
+    decision = POLICY.can_view(nodo, _ctx_permisivo())
+    assert not decision.visible, (
+        f"'{campo}' esta declarado missing=DENY en el registro y el motor deja "
+        f"pasar el nodo sin el. La ausencia de un dato de autorizacion se esta "
+        f"tratando como permiso."
+    )
+
+
+@pytest.mark.parametrize(
+    "campo",
+    [c.name for c in TODOS if c.in_projection and c.missing == DENY],
+)
+def test_un_campo_declarado_DENY_deniega_cuando_es_None(campo):
+    """Ausente y `None` deben comportarse igual.
+
+    La clave presente con valor `None` es justo lo que produce la proyeccion
+    del provider cuando Neo4j no tiene la propiedad: si el motor distinguiera
+    los dos casos, la barrera estaria apagada precisamente en el que ocurre de
+    verdad.
+    """
+    nodo = _nodo_completo()
+    nodo[campo] = None
+    decision = POLICY.can_view(nodo, _ctx_permisivo())
+    assert not decision.visible, f"'{campo}'=None se trata como permiso"
+
+
+def test_un_tope_de_sesion_ilegible_no_significa_sin_tope():
+    """H-B, la forma canonica del defecto: dato ilegible que ABRE la barrera."""
+    nodo = _nodo_completo()
+    nodo["known_from_session"] = 5
+    ctx_roto = ViewerContext(
+        role="viewer",
+        allowed_workspaces=frozenset({"leyenda"}),
+        active_partida="p1",
+        allowed_partida_ids=frozenset({"p1"}),
+        active_character="pc:ana",
+        max_visible_session=None,  # ausente/ilegible, NO "sin tope"
+    )
+    # Los mensajes no son decoración: son la RAZON DECLARADA de la mutacion J8
+    # en el arnes de calibracion. Mientras J8 se declaraba por el NOMBRE de este
+    # test, la linea `FAILED ...::test_x` lo llevaba pasara lo que pasara, y una
+    # mutacion que rompiese OTRO assert de aqui se cobraba el rojo de J8.
+    assert not POLICY.can_view(nodo, ctx_roto).visible, (
+        "un tope de sesion AUSENTE/ILEGIBLE (`max_visible_session=None`) ha "
+        "vuelto a significar 'sin tope' y ABRE la barrera (H-B)"
+    )
+
+    ctx_no_aplica = ViewerContext(
+        role="viewer",
+        allowed_workspaces=frozenset({"leyenda"}),
+        active_partida="p1",
+        allowed_partida_ids=frozenset({"p1"}),
+        active_character="pc:ana",
+        max_visible_session=NO_APLICA,
+    )
+    assert not POLICY.can_view(nodo, ctx_no_aplica).visible, (
+        "`NO_APLICA` (no hay partida activa) ha pasado a comportarse como 'sin "
+        "tope' y abre la barrera: es un estado DECLARADO, no un permiso"
+    )
+
+
+def test_un_contexto_vacio_no_ve_nada():
+    """La ausencia total de datos de contexto no puede ser permiso maximo."""
+    decision = POLICY.can_view(_nodo_completo(), ViewerContext())
+    assert not decision.visible, (
+        "un contexto sin ninguna dimension poblada ve contenido: la ausencia "
+        "de dato de autorizacion se esta leyendo como permiso"
+    )
+
+
+# ===========================================================================
+# 3. `review_status`: un unico vocabulario canonico + adaptadores
+# ===========================================================================
+
+def test_el_vocabulario_canonico_no_esta_vacio_y_es_cerrado():
+    assert RS.CANONICAL_VALUES
+    assert RS.HUMAN_REVIEWED <= RS.CANONICAL_VALUES
+    assert RS.LEGACY_MACHINE_APPROVED not in RS.CANONICAL_VALUES
+
+
+@pytest.mark.parametrize("valor", sorted(RS.CANONICAL_VALUES))
+def test_todo_valor_canonico_se_normaliza(valor):
+    assert RS.normalize(valor).value == valor
+
+
+@pytest.mark.parametrize(
+    "valor",
+    [
+        None, "", "   ", "APPROVED", "approved", "auto_approved", "revisado",
+        3, True, ["reviewed"],
+        # Estos MIDEN la frase "no hay `lower()` ni `strip()` salvatodo". Sin
+        # ellos la parametrizacion solo tenia `APPROVED`, que no es canonico ni
+        # en minusculas: ningun caso ejercitaba el trato de mayusculas y
+        # espacios. Un canonico DISFRAZADO es el unico dato capaz de distinguir
+        # un comparador estricto de uno indulgente.
+        "REVIEWED", "Reviewed", " reviewed ", "AUTO_EXTRACTED", "\treviewed",
+    ],
+)
+def test_un_valor_fuera_del_vocabulario_canonico_se_rechaza(valor):
+    """Fail-closed literal: no hay default, no hay reparacion, no hay `lower()`
+    ni `strip()` salvatodo. `approved` esta aqui a proposito: era el valor que la
+    via de revision humana escribia en el grafo y que este conjunto cerrado
+    nunca contuvo."""
+    with pytest.raises(RS.ReviewStatusError):
+        RS.normalize(valor)
+    assert not RS.is_canonical(valor)
+    assert not RS.is_human_reviewed(valor)
+
+
+def test_las_etiquetas_del_visor_se_derivan_del_vocabulario_canonico():
+    """Sin lista paralela: la cobertura es exacta, no 'al menos'."""
+    assert set(REVIEW_STATUS_LABELS_ES) == set(RS.CANONICAL_VALUES)
+
+
+def test_el_conjunto_cerrado_del_motor_es_el_mismo_objeto_canonico():
+    """`rpg_schema.ALLOWED_REVIEW_STATUS` deja de ser una segunda declaracion."""
+    sys.path.insert(0, str(REPO_ROOT / "data-engine" / "app"))
+    try:
+        from schemas.rpg_schema import ALLOWED_REVIEW_STATUS
+    finally:
+        sys.path.pop(0)
+    assert ALLOWED_REVIEW_STATUS == RS.CANONICAL_VALUES
+
+
+def test_una_etiqueta_de_estado_no_canonico_no_se_muestra_como_estado_legitimo():
+    assert review_status_label("approved").startswith("no reconocido")
+    assert review_status_label("reviewed") == "Revisado"
+    assert review_status_label(None) == ""
+
+
+# --- adaptadores de frontera ----------------------------------------------
+
+def test_el_adaptador_del_contrato_de_candidatos_es_TOTAL():
+    """El adaptador debe cubrir el enum COMPLETO de `review-ingest/v1`.
+
+    Se lee del JSON Schema, no de una copia: si el contrato gana un estado y el
+    adaptador no lo traduce, esto se pone rojo aqui en vez de levantar en
+    produccion la primera vez que aparezca ese estado.
+    """
+    import json
+
+    schema = json.loads(
+        (REPO_ROOT / "contracts" / "review-ingest" / "v1" / "_common-v1.schema.json")
+        .read_text(encoding="utf-8")
+    )
+    del_contrato = set(schema["$defs"]["candidate_status"]["enum"])
+    assert del_contrato, "no se pudo leer el enum candidate_status del contrato"
+    assert del_contrato <= RS.candidate_statuses_cubiertos(), (
+        f"el adaptador no traduce {sorted(del_contrato - RS.candidate_statuses_cubiertos())}"
+    )
+
+
+@pytest.mark.parametrize("estado", sorted(RS.candidate_statuses_cubiertos()))
+def test_el_adaptador_de_candidatos_devuelve_siempre_un_valor_canonico(estado):
+    assert RS.from_candidate_status(estado).value in RS.CANONICAL_VALUES
+
+
+def test_el_adaptador_de_candidatos_es_conservador():
+    """`AUTO_APPROVABLE` no es `reviewed`.
+
+    "Podria aprobarse sin humano" y "un humano lo aprobo" son afirmaciones
+    distintas. Traducir la primera a `reviewed` inventaria una revision que no
+    ocurrio, y esa afirmacion se persiste en el grafo.
+    """
+    assert RS.from_candidate_status("AUTO_APPROVABLE").value == "needs_review"
+    assert RS.from_candidate_status("APPROVED").value not in ("auto_extracted",)
+    assert RS.is_human_reviewed(RS.from_candidate_status("APPROVED").value)
+    assert not RS.is_human_reviewed(RS.from_candidate_status("PENDING").value)
+
+
+def test_el_adaptador_del_pipeline_no_convierte_automatico_en_revisado():
+    assert RS.from_pipeline_decision("auto_approve").value == "auto_extracted"
+    assert not RS.is_human_reviewed("auto_extracted")
+    assert RS.from_pipeline_decision("needs_review").value == "needs_review"
+    assert RS.from_pipeline_decision("auto_reject").value == "rejected"
+
+
+def test_el_adaptador_de_revision_manual_traduce_la_via_humana():
+    assert RS.from_review_manual_status("approved").value == "reviewed"
+    assert RS.from_review_manual_status("pending").value == "needs_review"
+    assert RS.is_human_reviewed(RS.from_review_manual_status("approved").value)
+    assert not RS.is_human_reviewed(RS.from_review_manual_status("pending").value)
+
+
+@pytest.mark.parametrize(
+    "adaptador,disfrazado",
+    [
+        ("from_candidate_status", "approved"),        # el contrato usa MAYUSCULAS
+        ("from_candidate_status", " APPROVED "),
+        ("from_pipeline_decision", "AUTO_APPROVE"),
+        ("from_pipeline_decision", " auto_approve "),
+        ("from_review_manual_status", "APPROVED"),
+        ("from_review_manual_status", " approved "),
+        ("from_review_manual_status", "Approved"),
+    ],
+)
+def test_los_TRES_adaptadores_son_igual_de_estrictos(adaptador, disfrazado):
+    """Simetria entre fronteras.
+
+    `from_review_manual_status` hacia `.strip().lower()` mientras los otros dos
+    exigian el valor exacto, y esa asimetria no estaba razonada. Su efecto es
+    que `" Approved "` se acepta por una frontera y se rechaza por las otras:
+    "que idioma habla este dato" pasaba a depender de por donde entro. Ahora las
+    tres son estrictas, y quien deba tolerar formato lo hace antes de llamar, a
+    la vista.
+    """
+    with pytest.raises(RS.ReviewStatusError):
+        getattr(RS, adaptador)(disfrazado)
+
+
+@pytest.mark.parametrize(
+    "adaptador",
+    ["from_candidate_status", "from_pipeline_decision", "from_review_manual_status"],
+)
+@pytest.mark.parametrize("basura", [None, "", "MAGIC", "auto_approved", 7])
+def test_ningun_adaptador_adivina(adaptador, basura):
+    """Un adaptador que devuelve un default ante lo desconocido es peor que no
+    tenerlo: convierte un dato ilegible en un estado del sistema."""
+    if adaptador == "from_review_manual_status" and basura == "auto_approved":
+        pass  # tambien debe levantar: no esta en el vocabulario de esa via
+    with pytest.raises(RS.ReviewStatusError):
+        getattr(RS, adaptador)(basura)
+
+
+def test_la_via_de_escritura_humana_solo_admite_estados_que_acrediten_revision():
+    """La frontera de escritura traduce; no deja pasar el idioma ajeno."""
+    sys.path.insert(0, str(REPO_ROOT / "data-engine" / "app"))
+    try:
+        from review.ingest_approved import _build_create_entity
+    finally:
+        sys.path.pop(0)
+
+    item = {
+        "name": "X", "entity_type": "Character", "source_id": "s1",
+        "source_kind": "audio", "source_document": "s1", "workspace": "leyenda",
+        "knowledge_layer": "transcript", "visibility": "player",
+        "review_status": "approved", "reviewed_by": "manual-cli:ana",
+        "reviewed_at": "2026-01-01T00:00:00Z", "review_action": "approve",
+        "confidence": 0.9, "evidence": "e",
+    }
+    _, props = _build_create_entity(item)
+    assert props["review_status"] == "reviewed"
+    assert RS.is_canonical(props["review_status"])
+
+    item_roto = dict(item, review_status="auto_approved")
+    with pytest.raises(RS.ReviewStatusError):
+        _build_create_entity(item_roto)
+
+
+@pytest.mark.parametrize(
+    "estado,motivo",
+    [
+        ("pending", "traducible pero NO acredita revision humana"),
+        ("deferred", "aplazado: nadie ha decidido todavia"),
+        ("rejected", "decidido, pero en contra"),
+        ("auto_approved", "token legacy del pipeline automatico"),
+        ("MAGIC", "no pertenece a ningun vocabulario"),
+        ("", "ausente"),
+    ],
+)
+def test_la_validacion_de_procedencia_rechaza_todo_lo_que_no_acredite_revision(estado, motivo):
+    """Este test existe porque la CALIBRACION lo exigio.
+
+    La mutacion J15 --neutralizar la comprobacion de pertenencia a
+    `HUMAN_REVIEWED` en `_validate_write_provenance`-- salia VERDE: la suite
+    existente solo ejercitaba `approved` (valido) y `auto_approved` (atrapado
+    por la rama anterior), asi que la comprobacion que de verdad decide sobre
+    `pending`, `deferred` y `rejected` no la medía nadie. Un guardian que nunca
+    se ha visto rojo no guarda nada; estos son los casos que lo ponen rojo.
+    """
+    sys.path.insert(0, str(REPO_ROOT / "data-engine" / "app"))
+    try:
+        from review.ingest_approved import _validate_write_provenance
+    finally:
+        sys.path.pop(0)
+
+    item = {
+        "kind": "entity", "name": "X", "entity_type": "Character",
+        "source_id": "s1", "source_kind": "audio", "source_document": "s1",
+        "workspace": "leyenda", "knowledge_layer": "transcript",
+        "visibility": "player", "review_status": estado,
+        "reviewed_by": "manual-cli:ana", "reviewed_at": "2026-01-01T00:00:00Z",
+        "review_action": "approve", "confidence": 0.9, "evidence": "e",
+    }
+    errores = _validate_write_provenance({"approved": [item]})
+    assert any("review_status" in e for e in errores), (
+        f"review_status={estado!r} ({motivo}) NO fue rechazado por la "
+        f"validacion de procedencia de escritura"
+    )
+
+
+def test_la_rama_de_RELACIONES_tambien_adapta_en_la_frontera():
+    """Testigo de `_build_merge_relation_query`, que no tenia ninguno.
+
+    Esa rama esta HOY INALCANZABLE en produccion: la ingesta controlada corre
+    con `allow_relationships=False` y rechaza cualquier relacion antes de
+    llegar aqui. Pero es codigo de escritura, sigue en el arbol "mantenido para
+    uso futuro", y sin prueba su adaptacion seria una afirmacion sin medir: el
+    dia que se habiliten las relaciones, una arista podria entrar al grafo
+    hablando un idioma distinto del de un nodo y nadie se enteraria.
+    """
+    sys.path.insert(0, str(REPO_ROOT / "data-engine" / "app"))
+    try:
+        from review.ingest_approved import _build_merge_relation_query
+    finally:
+        sys.path.pop(0)
+
+    item = {
+        "relation_type": "KNOWS", "from_entity": "A", "to_entity": "B",
+        "source_id": "s1", "source_kind": "audio", "workspace": "leyenda",
+        "review_status": "approved", "confidence": 0.9, "evidence": "e",
+    }
+    _, params = _build_merge_relation_query(item)
+    assert params["props"]["review_status"] == "reviewed", (
+        "la arista se escribiria con 'approved' mientras un nodo equivalente se "
+        "escribe con 'reviewed': dos idiomas para la misma propiedad"
+    )
+    assert RS.is_canonical(params["props"]["review_status"])
+
+    with pytest.raises(RS.ReviewStatusError):
+        _build_merge_relation_query(dict(item, review_status="auto_approved"))
+
+
+def test_los_dos_modulos_frontera_exponen_EL_MISMO_objeto_Enum():
+    """Invariante N3: dos modulos frontera, UN solo `Enum`.
+
+    Hasta ahora esto estaba unicamente en PROSA --el docstring de
+    `viewer/app/review_status_contract.py` y la nota final de
+    `docs/66-calidad-de-datos-v2.md` afirman que ambos comparten la entrada de
+    `sys.modules` y por tanto el mismo objeto de clase-- y una afirmacion en
+    prosa no es una medida: se puede volver falsa sin que nada se ponga rojo.
+
+    Basta con que alguien cambie `_MODULE_NAME` en uno de los dos ficheros (por
+    ejemplo al mover el modulo, o "para evitar colisiones") y el contrato se
+    cargaria DOS veces, produciendo dos clases `ReviewStatus` distintas. Todo
+    seguiria pasando: los valores son iguales y `ReviewStatus` hereda de `str`,
+    asi que las comparaciones por `==` seguirian dando `True`. Lo que se
+    romperia son las comparaciones por IDENTIDAD (`is`, `isinstance`,
+    pertenencia a un `set` de miembros del enum) --y lo harian lejos de aqui,
+    en el consumidor, con un mensaje incomprensible del tipo
+    "ReviewStatus.REVIEWED is not ReviewStatus.REVIEWED".
+
+    CORRECCION -- la razon que este docstring daba antes era FALSA. Decia: "el
+    testigo es `is`, no `==`, porque `==` sobrevive a la duplicacion y no mide
+    nada". No es cierto, y esta medido: con dos enums duplicados,
+    `ClaseA == ClaseB` da **False** (son dos objetos de clase distintos; la
+    herencia de `str` afecta a los MIEMBROS, no a la clase), asi que este
+    testigo se habria puesto rojo igual escrito con `==`. Lo que si sobrevive a
+    la duplicacion es `miembro == miembro`: `ReviewStatus.REVIEWED` de un enum
+    y del otro comparan iguales por el valor `str`.
+
+    `is` se queda porque sigue siendo la comprobacion correcta --lo que hay que
+    afirmar es identidad de objeto, y en la comparacion de MIEMBROS de abajo la
+    diferencia entre `is` y `==` si es la diferencia entre medir y no medir--,
+    pero se corrige la razon escrita, no el codigo. Una justificacion falsa que
+    sostiene un test verde es exactamente el patron que este carril persigue.
+    """
+    import app.review_status_contract as frontera_visor
+
+    sys.path.insert(0, str(REPO_ROOT / "data-engine" / "app"))
+    try:
+        import review_status_contract as frontera_motor
+    finally:
+        sys.path.pop(0)
+
+    assert frontera_visor.ReviewStatus is frontera_motor.ReviewStatus, (
+        "el visor y el motor exponen DOS clases `ReviewStatus` distintas: el "
+        "contrato review-status/v1 se ha cargado dos veces. Comprobar que "
+        "`_MODULE_NAME` es identico en los dos modulos frontera"
+    )
+    # Y el mismo objeto que el que carga esta suite por su cuenta.
+    assert frontera_visor.ReviewStatus is RS.ReviewStatus
+
+    # Identidad tambien a nivel de MIEMBRO: es lo que rompe de verdad en el
+    # consumidor cuando hay dos enums.
+    assert frontera_visor.ReviewStatus.REVIEWED is frontera_motor.ReviewStatus.REVIEWED
+    assert frontera_visor.HUMAN_REVIEWED == frontera_motor.HUMAN_REVIEWED
+
+
+# ===========================================================================
+# 5. LA SEGUNDA VIA A LA POTESTAD DE BYPASS TOTAL
+# ===========================================================================
+
+def test_la_segunda_via_al_bypass_total_tiene_testigo():
+    """`authz/scope.py:131` decide con la misma potestad que `admin_full`.
+
+    Contexto (docs/66 §1): el motor concede bypass total con `ctx.admin_full`,
+    y la red inversa del contrato solo barre `policies/engine.py` y
+    `policies/models.py`. Fuera de ese barrido hay TRES productores de esa
+    misma potestad, ninguno declarado en el registro ejecutable. Yo afirme que
+    medirlos exigia tocar `authz/**` --zona prohibida para este carril-- y que
+    por eso quedaban "declarados, no medidos".
+
+    Esa afirmacion aplicaba DOS VARAS: el arnes de calibracion ya muta de forma
+    transitoria `viewer/app/policies/**`, prohibida por el mismo criterio, y
+    revierte. Con ese mismo metodo, la revision independiente midio los tres:
+
+      - `authz/context.py:88`  -> MEDIDO (mutarlo da 1 fallo)
+      - `authz/context.py:100` -> MEDIDO (mutarlo da 46 fallos, con `FUGA:`)
+      - `authz/scope.py:131`   -> SUPERVIVIENTE REAL: los 1091 tests del visor
+        seguian VERDES con la linea mutada
+
+    Este test es el testigo que faltaba, y esta escrito FUERA de la zona
+    prohibida: no toca `authz/**`, lo ejerce desde su interfaz publica. Cierra
+    la falta de TESTIGO; NO cierra la falta de DECLARACION en el registro
+    ejecutable, que sigue siendo trabajo del propietario de la zona.
+
+    Calibrado con las mutaciones J18 (concede el detalle a cualquiera) y J19
+    (deja de leer `admin_full`), una por cada direccion.
+    """
+    from app.authz.scope import VisibilityScope
+
+    revisor = ViewerContext(
+        role="reviewer", allowed_workspaces=frozenset({"leyenda"})
+    )
+    assert VisibilityScope(revisor).sees_operational_detail is False, (
+        "`sees_operational_detail` concede el detalle operativo a quien NO es "
+        "admin ni tiene `admin_full`: rutas de fichero y payloads del servidor "
+        "se entregarian a un revisor corriente"
+    )
+
+    # La potestad, por el campo: es la via que el registro NO declara.
+    por_el_campo = ViewerContext(
+        role="reviewer",
+        allowed_workspaces=frozenset({"leyenda"}),
+        admin_full=True,
+    )
+    assert VisibilityScope(por_el_campo).sees_operational_detail is True, (
+        "`sees_operational_detail` deja de conceder el detalle operativo a "
+        "`admin_full`: la potestad de bypass total del motor y la de este "
+        "modulo habrian dejado de ser la misma"
+    )
+
+    # La SEGUNDA via, la que sobrevive aunque el campo desaparezca: `role`
+    # evaluado de nuevo aqui, sin pasar por `admin_full`.
+    por_el_rol = ViewerContext(
+        role="admin", allowed_workspaces=frozenset({"leyenda"}), admin_full=False
+    )
+    assert VisibilityScope(por_el_rol).sees_operational_detail is True, (
+        "la via `role == 'admin'` de `authz/scope.py` ha cambiado de "
+        "comportamiento: es una SEGUNDA via a la potestad de bypass total y "
+        "debe seguir siendo visible y deliberada, no un efecto colateral"
+    )
+
+
+def test_el_acotado_por_workspace_de_la_consulta_solo_se_levanta_para_admin_full():
+    """`filtered_provider._scope_workspaces()`: `None` = consulta SIN acotar.
+
+    Es el segundo punto de `filtered_provider.py` que decide con `admin_full`
+    (el otro, `workspaces()`, ya estaba medido). En la dirección **ABRIR**
+    --devolver `None` siempre, es decir, consultar sin acotar por workspace para
+    cualquiera-- la suite entera del visor seguía **VERDE (1092 passed)**: nadie
+    miraba esa línea. Lo encontró la revisión independiente; yo había medido un
+    solo punto por fichero y sacado de ahí una conclusión más amplia de lo que
+    sostenía.
+
+    LÍMITE de este testigo, dicho para que nadie le pida lo que no da: fija el
+    ACOTADO, no la ausencia de fuga. Que la consulta salga sin acotar no
+    demuestra que se filtren datos --el filtrado posterior por política podría
+    taparlo--, y este test no lo comprueba. Lo que cierra es que esa línea deje
+    de tener testigo.
+    """
+    from app.authz.filtered_provider import PolicyFilteredProvider
+
+    permitidos = frozenset({"leyenda"})
+    corriente = PolicyFilteredProvider(
+        base=object(),
+        ctx=ViewerContext(role="viewer", allowed_workspaces=permitidos),
+    )
+    assert corriente._scope_workspaces() == permitidos, (
+        "la consulta de un lector corriente ha dejado de acotarse a sus "
+        "workspaces permitidos"
+    )
+
+    admin = PolicyFilteredProvider(
+        base=object(),
+        ctx=ViewerContext(
+            role="viewer", allowed_workspaces=permitidos, admin_full=True
+        ),
+    )
+    assert admin._scope_workspaces() is None, (
+        "`admin_full` ha dejado de levantar el acotado por workspace"
+    )

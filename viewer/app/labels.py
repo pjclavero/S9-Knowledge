@@ -10,6 +10,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+# Modulo frontera UNICO hacia `contracts/review-status/v1` (ver su docstring).
+# Las etiquetas se DERIVAN del vocabulario canonico; este modulo no lo declara.
+from app import review_status_contract
+
+
 ENTITY_TYPE_LABELS_ES: dict[str, str] = {
     "Character": "Personaje",
     "Creature": "Criatura",
@@ -106,13 +111,36 @@ KNOWLEDGE_LAYER_LABELS_ES: dict[str, str] = {
     "test": "Prueba",
 }
 
-REVIEW_STATUS_LABELS_ES: dict[str, str] = {
+#: Traducciones al español. NO es la definición del vocabulario: la definición
+#: vive en `contracts/review-status/v1`. Este mapa se CONSTRUYE recorriendo el
+#: vocabulario canónico, así que un estado nuevo allí revienta aquí en el
+#: import en vez de aparecer sin etiqueta en la interfaz, y un estado retirado
+#: allí desaparece de aquí solo.
+_TRADUCCIONES_REVIEW_STATUS_ES: dict[str, str] = {
     "auto_extracted": "Extraído automáticamente",
     "needs_review": "Necesita revisión",
     "reviewed": "Revisado",
     "rejected": "Rechazado",
     "corrected": "Corregido",
 }
+
+
+def _construir_etiquetas_review_status() -> dict[str, str]:
+    faltan = sorted(
+        review_status_contract.CANONICAL_VALUES - set(_TRADUCCIONES_REVIEW_STATUS_ES)
+    )
+    if faltan:
+        raise RuntimeError(
+            "review-status/v1 declara estados sin traducción al español: "
+            f"{faltan}. Añádelas a _TRADUCCIONES_REVIEW_STATUS_ES."
+        )
+    return {
+        valor: _TRADUCCIONES_REVIEW_STATUS_ES[valor]
+        for valor in sorted(review_status_contract.CANONICAL_VALUES)
+    }
+
+
+REVIEW_STATUS_LABELS_ES: dict[str, str] = _construir_etiquetas_review_status()
 
 
 def entity_type_label(entity_type: str | None) -> str:
@@ -142,6 +170,16 @@ def knowledge_layer_label(layer: str | None) -> str:
 
 
 def review_status_label(status: str | None) -> str:
+    """Etiqueta en español de un `review_status`.
+
+    Un valor fuera del vocabulario canónico NO se muestra tal cual: se marca
+    como no reconocido. Devolver la cadena cruda hacía que un `review_status`
+    corrupto se leyera en la interfaz como si fuera un estado legítimo del
+    sistema, que es la forma que tiene un dato malo de pasar por bueno.
+    """
     if not status:
         return ""
-    return REVIEW_STATUS_LABELS_ES.get(status, status)
+    etiqueta = review_status_contract.etiquetar(status, REVIEW_STATUS_LABELS_ES)
+    if etiqueta is None:
+        return f"no reconocido ({status})"
+    return etiqueta

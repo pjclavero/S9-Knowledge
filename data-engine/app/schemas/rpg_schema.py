@@ -1,11 +1,21 @@
 """Schema Pydantic para extracción de entidades RPG narrativas."""
 from __future__ import annotations
 import logging
+import sys
 import unicodedata
+from pathlib import Path
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 
+# Modulo frontera UNICO hacia `contracts/review-status/v1` (ver su docstring).
+# `ALLOWED_REVIEW_STATUS` se DERIVA de alli; ya no se declara en este fichero.
+_APP_DIR = Path(__file__).resolve().parents[1]
+if str(_APP_DIR) not in sys.path:  # pragma: no cover - trivial
+    sys.path.insert(0, str(_APP_DIR))
+import review_status_contract  # noqa: E402
+
 log = logging.getLogger(__name__)
+
 
 SCHEMA_VERSION = "1.5.0"
 
@@ -93,9 +103,10 @@ ALLOWED_VISIBILITY: frozenset[str] = frozenset({
 ALLOWED_KNOWLEDGE_LAYER: frozenset[str] = frozenset({
     "campaign", "book", "transcript", "manual", "inferred", "reviewed", "test",
 })
-ALLOWED_REVIEW_STATUS: frozenset[str] = frozenset({
-    "auto_extracted", "needs_review", "reviewed", "rejected", "corrected",
-})
+#: DERIVADO del vocabulario canonico (`contracts/review-status/v1`). Anadir o
+#: quitar un estado alli se propaga solo hasta aqui; ya no hay una segunda
+#: lista que actualizar y olvidar.
+ALLOWED_REVIEW_STATUS: frozenset[str] = review_status_contract.CANONICAL_VALUES
 # ── Conocimiento por personaje (Fase conocimiento) ────────────────────────────
 ALLOWED_KNOWN_BY_SCOPE: frozenset[str] = frozenset({
     "character", "party", "public", "narrator", "admin_only",

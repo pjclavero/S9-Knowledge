@@ -18,6 +18,13 @@ if str(_APP_DIR) not in sys.path:
     sys.path.insert(0, str(_APP_DIR))
 
 from review.models import Decision
+# Modulo frontera UNICO hacia `contracts/review-status/v1` (ver su docstring).
+# Este writer es el lado LEGACY de la frontera: emite `auto_approved`, que no
+# pertenece al vocabulario de dominio. No se renombra a la ligera --el guardian
+# de `review/ingest_approved.py` depende de que ese payload NO acredite revision
+# humana--, asi que en vez de un literal suelto se cita la constante de frontera
+# declarada en el contrato.
+import review_status_contract
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +59,7 @@ def _build_neo4j_payload(d: Decision) -> dict:
         "source_timestamp_end": c.get("timestamp_end", ""),
         "workspace": c.get("workspace", ""),
         # Metadatos de review (por candidato)
-        "review_status": "auto_approved",
+        "review_status": review_status_contract.LEGACY_MACHINE_APPROVED,
         "knowledge_layer": "transcript",
         "visibility": "player",
         # Resolución
