@@ -14,7 +14,7 @@ Ejecutar desde este directorio:
 | `python3 harness_gsat.py --mode comunidades_barajadas --limit 300` | Misma topología, orden barajado: aísla la alineación |
 | `python3 harness_http.py` | Balance por HTTP real: L5a (auth apagada) y L5b (`reviewer` real) + control |
 | `python3 harness_neo4j.py` | Camino Neo4j con driver de pega que ejecuta la semántica de `LIMIT` |
-| `python3 harness_ablacion.py` | **Ablación** del `LIMIT` del `rel_query` de Neo4j |
+| `python3 harness_ablacion.py` | **Ablación** del `LIMIT` de Neo4j (quita la cláusula) + **control positivo** con cota de 400 |
 | `python3 harness_opciones.py` | Efecto medido de las opciones 0/A/B/C/D |
 | `python3 dump_payload.py && node harness_cliente.js payload_n2000.json` | Capa cliente (`graph-core.js` con Node) |
 
@@ -30,6 +30,13 @@ Si no se fija `S9K_AUTH_ENABLED=true`, el valor por defecto es `False` y el prop
 `build_viewer_context` devuelve `admin_full=True`. Y tampoco basta con sobrescribir
 `get_visibility_context`: `/api/graph` depende de `get_filtered_provider`, que lo llama como
 función normal y no vía `Depends`, así que ese override **se ignora en silencio**.
+
+Y un tercer aviso, de la misma familia: **ablacionar es quitar la cláusula, no subir el
+parámetro**. `harness_ablacion.py` subía `limit` a `10**9` mientras la rama de control ya recibía
+`_ALL` (`10**7`) sobre fixturas de 6.000 aristas: las dos ramas eran incapaces de morder y el
+veredicto `IDENTICO` estaba forzado por aritmética. Por eso el banco lleva ahora un **control
+positivo con una cota de 400** que sí muerde: si esa tabla no lee `DIFIERE`, el banco es ciego y
+no hay que creerse la otra.
 
 **Estos bancos NO los ejecuta CI.** Lo que sí se ejecuta en cada corrida es
 `viewer/tests/test_saturacion_grafo_caracterizacion.py`, que fija el desplome y lleva su propia

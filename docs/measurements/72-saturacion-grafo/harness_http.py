@@ -65,7 +65,7 @@ def _pide(app, ctx=None):
 def _reviewer(**kw):
     from app.policies.models import ViewerContext
     base = dict(role="reviewer", allowed_workspaces=frozenset({"leyenda"}),
-                can_view_reference=True, session_public=True, admin_full=False)
+                can_view_reference=True, admin_full=False)
     base.update(kw)
     return ViewerContext(**base)
 
@@ -97,6 +97,6 @@ if __name__ == "__main__":
     print("### CONTROL de L5b — el mismo espectador SIN can_view_reference.")
     print("### Si la autorizacion se ejerce de verdad, esto tiene que COLAPSAR.")
     app = _app_para(build(2000, 6000, mode="random"))
-    b, nbytes, _ = _pide(app, _reviewer(can_view_reference=False, session_public=False))
+    b, nbytes, _ = _pide(app, _reviewer(can_view_reference=False))
     print(f"n= 2000 -> nodos={len(b['nodes'])} aristas={len(b['edges'])} "
           f"(esperado 0/0; si saliera 300/171 la fila L5b seria un instrumento muerto)")

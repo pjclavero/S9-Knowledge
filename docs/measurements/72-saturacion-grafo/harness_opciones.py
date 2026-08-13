@@ -14,7 +14,7 @@ from app.policies.models import ViewerContext  # noqa: E402
 from app.serializers import serialize_graph  # noqa: E402
 
 CTX = ViewerContext(role="reviewer", allowed_workspaces=frozenset({"leyenda"}),
-                    can_view_reference=True, session_public=True)
+                    can_view_reference=True)
 POL = VisibilityPolicy()
 
 

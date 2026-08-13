@@ -85,9 +85,24 @@ filas (L0, L1, L3 entran/salen, L4, L5a, L5b, L6) sí son salidas directas del c
 **Además**: con `hideIsolated` el propio cliente revela que de los 300 nodos entregados a
 n=2000, **sólo 182 tienen alguna arista**: 118 nodos (39 %) son puntos sueltos.
 
-### Autorización: no pierde nada, y está comprobado que sabría perderlo
+### Autorización: no pierde nada **en la dimensión medida**, y sabría perderlo
 
-Cero pérdida por política **no es** un instrumento apagado: ver §3, control B.
+Cero pérdida por política **no es** un instrumento apagado: ver §3, control B, y el control de
+L5b, que colapsa la respuesta a 0/0.
+
+**Alcance recortado a lo medido, que es menos de lo que la frase sugiere.** La única dimensión de
+política que estas fixturas ejercen es **`can_view_reference`**, más el acotado por workspace.
+Las reglas de partida, `known_by` / `character_knowledge` y `max_visible_session` **no las toca
+ninguna fixtura de este carril**: son todas `visibility: reference`, `scope: juego`, sin
+`partida_id` ni `known_by`. Así que lo establecido es *«la autorización no pierde relaciones por
+la dimensión `reference`»*, **no** *«la autorización no pierde nada»*. Para el diagnóstico basta
+—la pérdida medida es 0 por política y 5.829 por truncado—, pero la diferencia importa: es
+exactamente la clase de sobreafirmación que en este carril ya costó dos averías.
+
+Nota relacionada: `session_public` aparecía en los contextos de los bancos y **el motor no lo lee**
+(`grep session_public app/policies/engine.py` → cero). Se ha quitado; **ninguna cifra cambió**,
+que es la prueba de que era decorativo. Quien colapsa la respuesta en el control de L5b es sólo
+`can_view_reference=False`.
 
 ---
 
@@ -122,14 +137,34 @@ Una cifra no vale hasta que el medidor demuestra que sabe ponerse rojo.
   no ejercida) y L5b (espectador `reviewer` real inyectado), con un control: el mismo espectador
   **sin** `can_view_reference` debe colapsar la respuesta. **Medido: 0 nodos, 0 aristas.**
   Al calibrar ese control salió además un **quinto fallo del banco**: sobrescribir
-  `get_visibility_context` **no surte ningún efecto** sobre `/api/graph`, porque
-  `get_filtered_provider` lo llama como función normal y no vía `Depends`; con ese punto de
-  inyección el control NO colapsaba (seguía dando 300/171) y habría certificado en falso.
+  `get_visibility_context` **no surte ningún efecto**, porque quien lo consume lo llama como
+  función normal y no vía `Depends`; con ese punto de inyección el control NO colapsaba (seguía
+  dando 300/171) y habría certificado en falso.
+  **Alcance real de la quinta, más ancho de lo que primero escribí**: el patrón se repite en
+  `dependencies.py:174`, donde `get_visibility_scope` también llama a `get_visibility_context`
+  como función normal. Es decir, sobrescribir `get_visibility_context` es inerte **no sólo en
+  `/api/graph`, sino en todas las rutas de revisión, glosario y jobs** que cuelgan del ámbito.
+  Comprobado que **hoy nadie lo sobrescribe** —los cinco `dependency_overrides` del árbol apuntan
+  a `get_filtered_provider` o `get_provider`, que sí son `Depends()` reales—: es **un arma
+  cargada, no disparada**. Cualquier test futuro que intente inyectar contexto por ahí quedará
+  verde sin ejercer nada.
+- **Sexta avería, y es la peor de las seis** (la encontró el revisor, en una fila que él mismo
+  había aprobado en la ronda anterior). La tabla de ablación de §4 **no medía**: el banco subía el
+  parámetro en vez de quitar la cláusula, y ambas ramas venían ya sin cota efectiva. Su columna de
+  veredicto **no podía leer `DIFIERE` jamás**. Reparada y dotada de control positivo en §4.
 
-Cinco averías, **todas del instrumento**, ninguna del sistema. Y no afirmo que la lista sea
-exhaustiva: la cuarta apareció después de que yo diera por cerrada la calibración, y la quinta
-sólo apareció porque un control se negó a ponerse rojo. Lo único que puedo sostener es que cada
-fila que afirma «0 pérdidas» tiene detrás un control que **se ha visto ponerse rojo**.
+Seis averías, **todas del instrumento**, ninguna del sistema. Y **no afirmo que la lista sea
+exhaustiva**: cada una de las tres últimas apareció *después* de que yo diera por cerrada la
+calibración.
+
+**Corrección de una frase anterior de esta misma sección.** Escribí que «cada fila que afirma 0
+pérdidas tiene detrás un control que se ha visto ponerse rojo». **Era falsa cuando la escribí**:
+la fila de §4 no tenía ese control y, tal como estaba construido el banco, **no podía tenerlo**.
+Hoy ya lo tiene (control positivo con cota de 400). El enunciado defendible es más estrecho:
+
+> Toda fila que afirma «0 pérdidas» **en el balance de §2** tiene detrás un control que se ha
+> visto ponerse rojo. Y de la política, lo único ejercido de extremo a extremo es
+> **`can_view_reference`** (más el acotado por workspace) — véase §9.
 
 ---
 
@@ -138,19 +173,45 @@ fila que afirma «0 pérdidas» tiene detrás un control que **se ha visto poner
 `neo4j_provider.graph` acota la consulta de relaciones con `LIMIT $limit` **sobre las relaciones**,
 no sobre los nodos. Pero el único camino de producción es
 `PolicyFilteredProvider.graph`, que invoca al base **siempre con `limit=_ALL` (10.000.000)**
-(`filtered_provider.py:101`). Ablacionando ese `LIMIT` (`harness_ablacion.py`):
+(`filtered_provider.py:101`).
 
-| n | camino autorizado, con `LIMIT` | ablacionado | veredicto |
-|---|---|---|---|
-| 300 | (300 nodos, 900 aristas) | (300, 900) | idéntico |
-| 500 | (300, 669) | (300, 669) | idéntico |
-| 1000 | (300, 402) | (300, 402) | idéntico |
-| 2000 | (300, 285) | (300, 285) | idéntico |
+> **Corrección de método (sexta avería, §3).** La primera versión de esta sección presentaba una
+> tabla de ablación cuya columna de veredicto **no podía leer `DIFIERE` jamás**, y por tanto no
+> era una medida: era una tautología con formato de medida. Dos motivos a la vez: el banco
+> **subía el parámetro** (`p["limit"] = 10**9`) en vez de **quitar la cláusula**, y la rama «con
+> `LIMIT`» tampoco tenía cota efectiva porque ya recibía `_ALL`. `10⁷` frente a `10⁹` sobre
+> fixturas de **6.000 aristas como mucho**: ninguna de las dos ramas podía morder.
 
-**Puede desaparecer sin cambiar ningún resultado del camino autorizado: no es una defensa.**
-Que la ablación *sabe* mover la aguja se comprueba en el camino directo (sin política), donde
-sí muerde y de forma dañina: n=300 → **300 aristas con `LIMIT` frente a 900 sin él**, es decir,
-el provider Neo4j llamado directamente satura ya **a 300 entidades** (densidad 1,00 en vez de 3,00).
+Reparado (se **borra la cláusula** del Cypher) y **acompañado de un control positivo** con una cota
+que sí muerde. Columna `cota` = lo que la sesión recibe de verdad:
+
+| n | E | cota recibida | con cláusula | ablacionado | veredicto |
+|---|---|---|---|---|---|
+| 300 | 900 | 10.000.000 | (300, 900) | (300, 900) | idéntico |
+| 500 | 1500 | 10.000.000 | (300, 669) | (300, 669) | idéntico |
+| 1000 | 3000 | 10.000.000 | (300, 402) | (300, 402) | idéntico |
+| 2000 | 6000 | 10.000.000 | (300, 285) | (300, 285) | idéntico |
+
+**Control positivo — la misma maquinaria con una cota de 400, que sí puede morder:**
+
+| n | E | cota recibida | con cláusula | ablacionado | veredicto |
+|---|---|---|---|---|---|
+| 300 | 900 | 400 | (300, **400**) | (300, 900) | **DIFIERE** |
+| 500 | 1500 | 400 | (300, **282**) | (300, 669) | **DIFIERE** |
+| 1000 | 3000 | 400 | (300, **194**) | (300, 402) | **DIFIERE** |
+| 2000 | 6000 | 400 | (300, **165**) | (300, 285) | **DIFIERE** |
+
+Ahora sí puede afirmarse algo: la columna **sabe** leer `DIFIERE`, y aun así lee `idéntico` en el
+camino autorizado. **El `LIMIT` no defiende nada ahí.**
+
+**Pero el fundamento correcto es otro, y conviene decirlo con precisión**: no defiende nada
+**por construcción** —`_ALL` es 10.000.000 y no puede morder por debajo de esa cifra de
+relaciones—, **no «porque la ablación no movió nada»**. La ablación lo confirma; no es lo que lo
+demuestra. La conclusión sobrevivió a la avería; el método con el que la sostuve, no.
+
+Que el `LIMIT` sí muerde donde la cota llega se ve en el camino directo (sin política): n=300 →
+**300 aristas con la cláusula frente a 900 sin ella**, es decir, el provider Neo4j llamado
+directamente satura ya **a 300 entidades** (densidad 1,00 en vez de 3,00).
 
 Consecuencias que quedan en pie:
 
@@ -329,6 +390,12 @@ VERDE**, con `sha256` idéntico antes y después
 - El **test de caracterización** (`viewer/tests/test_saturacion_grafo_caracterizacion.py`) fija el
   desplome en CI, pero lo hace sobre la **misma fixture sintética**: asevera que el defecto sigue
   ahí y que su magnitud no se mueve, no que la magnitud sea la de producción.
+- **La política sólo se ejerció en una dimensión**: `can_view_reference` (más workspace). Reglas de
+  partida, `known_by` y `max_visible_session` **no están cubiertas por ninguna medida de este
+  carril**. Ninguna conclusión de esta nota debe leerse como una afirmación sobre ellas.
+- La exculpación del `LIMIT` de Neo4j (§4) descansa **en la construcción** (`_ALL` = 10.000.000 no
+  puede morder sobre estas fixturas), no en la ablación. La ablación la confirma, con su control
+  positivo; no la demuestra.
 - **El rendimiento en el navegador no se mide en absoluto en este proyecto**; todas las cifras de
   volumen son bytes de carga útil, no comportamiento del cliente. Ninguna afirmación de esta
   nota depende de suponer lo que aguanta el navegador.

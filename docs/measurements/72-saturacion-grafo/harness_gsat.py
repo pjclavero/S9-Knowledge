@@ -77,7 +77,6 @@ def measure(path, limit):
         can_view_reference=True,
         can_view_secret=False,
         can_view_future=False,
-        session_public=True,
         admin_full=False,
     )
     prov = PolicyFilteredProvider(base, ctx, pol)

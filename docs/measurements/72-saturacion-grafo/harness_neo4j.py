@@ -25,14 +25,27 @@ class FakeRel(dict):
 
 
 class FakeSession:
-    def __init__(self, nodes, edges): self.nodes, self.edges = nodes, edges
+    """Sesion de pega.
+
+    La cota se aplica SOLO si la consulta trae la clausula ``LIMIT``. Asi,
+    ablacionar = **quitar la clausula del Cypher**, no subir el parametro.
+    Registra en ``cotas_vistas`` la cota efectiva de cada consulta de
+    relaciones, para poder demostrar si podia morder o no.
+    """
+
+    def __init__(self, nodes, edges, cotas_vistas=None):
+        self.nodes, self.edges = nodes, edges
+        self.cotas_vistas = cotas_vistas if cotas_vistas is not None else []
+
     def __enter__(self): return self
     def __exit__(self, *a): return False
 
     def run(self, query, params=None):
         p = params or {}
-        lim = p.get("limit", 10 ** 9)
+        tiene_clausula = "LIMIT" in query.upper()
+        lim = p.get("limit", 10 ** 9) if tiene_clausula else 10 ** 9
         if "-[r]->" in query:                      # rel_query
+            self.cotas_vistas.append(lim if tiene_clausula else None)
             out = []
             for e in self.edges:                   # LIMIT aplicado a RELACIONES
                 if len(out) >= lim: break
@@ -42,8 +55,12 @@ class FakeSession:
 
 
 class FakeDriver:
-    def __init__(self, nodes, edges): self.nodes, self.edges = nodes, edges
-    def session(self, *a, **k): return FakeSession(self.nodes, self.edges)
+    def __init__(self, nodes, edges):
+        self.nodes, self.edges = nodes, edges
+        self.cotas_vistas = []
+
+    def session(self, *a, **k):
+        return FakeSession(self.nodes, self.edges, self.cotas_vistas)
 
 
 def build(n_nodes, n_edges, seed=7):

@@ -29,7 +29,7 @@ import random
 
 import pytest
 
-from app.authz.filtered_provider import PolicyFilteredProvider
+from app.authz.filtered_provider import _ALL, PolicyFilteredProvider
 from app.policies.models import ViewerContext
 from app.providers.mock_provider import MockGraphProvider
 
@@ -44,12 +44,16 @@ def _viewer() -> ViewerContext:
     Con `admin_full=True` la política ni se evalúa (bypass total) y el test
     mediría otra cosa distinta de la que anuncia. Es la avería que este
     proyecto ya se ha hecho a sí mismo cuatro veces.
+
+    No se pasa `session_public`: **el motor no lo lee** (`grep session_public
+    app/policies/engine.py` → cero). Ponerlo sugeriría que contribuye a lo que
+    aquí se mide, y no contribuye: la única dimensión de política que estas
+    fixturas ejercen es `can_view_reference` (más el workspace).
     """
     return ViewerContext(
         role="reviewer",
         allowed_workspaces=frozenset({"leyenda"}),
         can_view_reference=True,
-        session_public=True,
         admin_full=False,
     )
 
@@ -108,7 +112,10 @@ class _ProviderSinTruncado(PolicyFilteredProvider):
     """
 
     def graph(self, workspace, limit=300, entity_type=None, q=None):
-        nodes, edges = self._base.graph(workspace, limit=10 ** 7,
+        # `_ALL` importado de produccion, no un 10**7 a mano: si produccion
+        # cambiara esa constante, una copia local haria divergir la ablacion
+        # EN SILENCIO y dejaria de ablacionar lo que dice ablacionar.
+        nodes, edges = self._base.graph(workspace, limit=_ALL,
                                         entity_type=entity_type, q=q)
         vnodes = self._policy.filter_nodes(nodes, self._ctx)  # <- sin [:limit]
         vids = {n["id"] for n in vnodes if "id" in n}
