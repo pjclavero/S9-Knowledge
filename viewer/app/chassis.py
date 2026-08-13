@@ -41,6 +41,17 @@ __all__ = [
     "ChassisContractError",
     "iter_mounted_routes",
     "route_index",
+    "MountedRoute",
+    "WRITE_METHODS",
+    "METHODS_NOT_ENUMERABLE",
+    "enumerable_methods",
+    "write_methods",
+    "is_write_capable",
+    "PATH_NOT_RESOLVABLE",
+    "effective_path",
+    "route_path",
+    "path_in_prefix",
+    "route_in_prefix",
     "nav_for",
     "install_nav_globals",
     "FLAG_ENV_TEMPLATE",
@@ -229,7 +240,43 @@ NAV: tuple[NavItem, ...] = (
 # Enumeración de rutas realmente montadas
 # ---------------------------------------------------------------------------
 
-def _walk(routes: Iterable) -> Iterator:
+@dataclass(frozen=True)
+class MountedRoute:
+    """Una ruta interna de un ``Mount``, vista con su URL EFECTIVA.
+
+    Starlette guarda en ``route.path`` de una sub-aplicación montada el camino
+    **relativo al punto de montaje**: una sub-app montada en
+    ``/panel/review/admin`` con un ``POST /aprobar`` aparece en el censo aplanado
+    como ``'/aprobar'``. Cualquier consumidor que filtre por prefijo
+    (``path.startswith(SLOT.prefix)``) la descarta, aunque la URL que sirve de
+    verdad —``/panel/review/admin/aprobar``— sí está dentro del prefijo. Medido:
+    la ruta respondía 200 y escribía en disco con la suite entera en verde.
+
+    Este envoltorio arrastra el prefijo del ``Mount`` y expone el path compuesto,
+    delegando TODO lo demás (``name``, ``methods``, ``endpoint``…) en la ruta
+    real. Sólo se construye cuando hay prefijo que componer, de modo que una app
+    sin ``Mount`` produce exactamente el mismo censo de antes.
+    """
+
+    route: object
+    path: str
+
+    def __getattr__(self, name: str):
+        # `path` y `route` son campos: nunca llegan aquí.
+        return getattr(object.__getattribute__(self, "route"), name)
+
+    def __repr__(self) -> str:  # pragma: no cover - diagnóstico
+        return f"MountedRoute({self.path!r} -> {self.route!r})"
+
+
+def _join(prefix: str, path: str) -> str:
+    """Compone el prefijo de montaje con el path interno de la sub-app."""
+    if not prefix:
+        return path
+    return prefix.rstrip("/") + path
+
+
+def _walk(routes: Iterable, prefix: str = "") -> Iterator:
     """Aplana el árbol de rutas de la aplicación.
 
     FastAPI >= 0.116 no deja las rutas incluidas colgando de ``app.routes``:
@@ -255,23 +302,168 @@ def _walk(routes: Iterable) -> Iterator:
     anidado, ruta suelta) para no atarse a una versión concreta.
     """
     for route in routes:
+        # Un `_EffectiveRouteContext` que envuelve algo que NO es una `APIRoute`
+        # —el caso medido es un `Mount` dentro de un `APIRouter` incluido con
+        # prefijo— trae `path=''`: FastAPI sólo rellena el contexto para las
+        # rutas de API. La ruta de Starlette subyacente SÍ la trae ya compuesta
+        # (`Mount(path='/panel/review/inc/m')`), así que se sustituye por ella y
+        # el descenso normal por `Mount` hace el resto. Sin esto, el censo
+        # emitía un objeto con path vacío: invisible para todo filtro por
+        # prefijo y saltado en silencio por el barrido de autorización, mientras
+        # `POST /panel/review/inc/m/aprobar` respondía 200 y escribía.
+        if not getattr(route, "path", None):
+            real = getattr(route, "starlette_route", None)
+            if real is not None and getattr(real, "path", None):
+                route = real
         candidates = getattr(route, "effective_candidates", None)
         if callable(candidates):
-            yield from _walk(candidates())
+            # Envoltorio de router incluido: NO añade prefijo propio (FastAPI ya
+            # lo resolvió dentro del path de cada APIRoute), sólo lo propaga.
+            yield from _walk(candidates(), prefix)
             low = getattr(route, "effective_low_priority_routes", None)
             if callable(low):
-                yield from _walk(low())
+                yield from _walk(low(), prefix)
             continue
         sub = getattr(route, "routes", None)
         if sub and not hasattr(route, "endpoint"):
-            yield from _walk(sub)
+            # `Mount`: sus rutas internas llevan el path RELATIVO al punto de
+            # montaje. Se arrastra el prefijo para emitir la URL efectiva.
+            # Cuando el montaje no expone `.routes` (una app ASGI opaca, p.ej.
+            # `StaticFiles`) no se desciende y el propio `Mount` se emite como
+            # hoja: sin `methods` enumerables, `write_methods` lo declara capaz
+            # de escribir y el consumidor falla CERRADO.
+            yield from _walk(sub, _join(prefix, str(getattr(route, "path", "") or "")))
+            continue
+        if prefix:
+            yield MountedRoute(route, _join(prefix, str(getattr(route, "path", "") or "")))
             continue
         yield route
 
 
 def iter_mounted_routes(app) -> Iterator:
-    """Todas las rutas efectivamente montadas, en cualquier nivel de anidamiento."""
+    """Todas las rutas efectivamente montadas, en cualquier nivel de anidamiento.
+
+    El ``path`` que se emite es siempre el EFECTIVO (con el prefijo de todos los
+    ``Mount`` que lo contienen ya compuesto), que es el único con el que tiene
+    sentido comparar un prefijo de URL.
+    """
     yield from _walk(app.routes)
+
+
+# ---------------------------------------------------------------------------
+# Métodos de una ruta: la ausencia de dato NO es ausencia de escritura
+# ---------------------------------------------------------------------------
+# Misma doctrina que `slot_enabled` y que el tope tri-estado: un dato que no se
+# puede leer no se interpreta como el valor benigno.
+#
+# El caso medido: `APIWebSocketRoute` **no tiene** atributo `methods`, así que
+# `getattr(r, "methods", set())` devuelve `set()`, la intersección con los
+# métodos de escritura sale vacía y un canal de escritura perfectamente capaz
+# queda invisible EN SILENCIO. Lo mismo vale para un `Mount` opaco.
+
+#: Métodos HTTP que escriben.
+WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+#: Marca que se devuelve en lugar de una lista de métodos cuando la ruta no
+#: permite enumerarlos. No es un método: es la declaración explícita de que aquí
+#: no se sabe, y por eso se cuenta como escritura.
+METHODS_NOT_ENUMERABLE = "<METODOS-NO-ENUMERABLES>"
+
+
+def enumerable_methods(route) -> Optional[frozenset]:
+    """Métodos declarados por la ruta, o ``None`` si NO se pueden enumerar.
+
+    ``None`` y ``frozenset()`` son cosas distintas a propósito: el primero es
+    "no lo sé", el segundo no llega a existir (una ruta que declara cero métodos
+    tampoco es enumerable en ningún sentido útil).
+    """
+    raw = getattr(route, "methods", None)
+    if raw is None:
+        return None
+    try:
+        metodos = frozenset(str(m).upper() for m in raw)
+    except TypeError:
+        return None
+    return metodos or None
+
+
+def write_methods(route) -> tuple:
+    """Superficie de escritura de ``route``. FALLA CERRADO.
+
+    Devuelve los métodos de escritura declarados; si la ruta no permite
+    enumerar métodos devuelve ``(METHODS_NOT_ENUMERABLE,)`` —nunca la tupla
+    vacía—, para que quien filtre por "tiene escritura" la vea y quien imprima
+    el hallazgo lea el motivo.
+    """
+    metodos = enumerable_methods(route)
+    if metodos is None:
+        return (METHODS_NOT_ENUMERABLE,)
+    return tuple(sorted(metodos & WRITE_METHODS))
+
+
+def is_write_capable(route) -> bool:
+    """¿Puede esta ruta escribir, hasta donde el censo puede demostrar?"""
+    return bool(write_methods(route))
+
+
+# ---------------------------------------------------------------------------
+# El `path` también es tri-estado, y el filtro tiene FRONTERA DE SEGMENTO
+# ---------------------------------------------------------------------------
+# Faltaba aplicar al `path` la misma doctrina que a `methods`. Un path que no se
+# puede resolver se trataba como `''`: benigno, fuera de TODO prefijo, y saltado
+# por el barrido de autorización con un `if not path: continue`. El fallo cerrado
+# por métodos no salvaba nada, porque el filtro por path corre ANTES.
+#
+# Y el filtro es de ESPACIO DE URL, así que compara por segmentos: `/panel/review`
+# no contiene a `/panel/reviewXYZ/borrar`. Con `startswith` a secas eso era un
+# FALSO POSITIVO, y B/F/G van a tener prefijos vecinos (`/panel/sources` frente a
+# un hipotético `/panel/sources-legacy`).
+
+#: Marca que se devuelve cuando el path de una ruta no se puede resolver.
+PATH_NOT_RESOLVABLE = "<PATH-NO-RESOLUBLE>"
+
+
+def effective_path(route) -> Optional[str]:
+    """Path efectivo de la ruta, o ``None`` si NO se puede resolver.
+
+    Cadena vacía es ausencia de dato, no "la raíz": ninguna ruta servible tiene
+    path vacío, así que `''` sólo aparece cuando el censo no supo resolverlo.
+    """
+    raw = getattr(route, "path", None)
+    if raw is None:
+        return None
+    texto = str(raw)
+    return texto or None
+
+
+def route_path(route) -> str:
+    """Path para IMPRIMIR en un hallazgo. Nunca miente con una cadena vacía."""
+    path = effective_path(route)
+    return PATH_NOT_RESOLVABLE if path is None else path
+
+
+def path_in_prefix(path: str, prefix: str) -> bool:
+    """¿Está ``path`` dentro del espacio de URL ``prefix``, por SEGMENTOS?
+
+    `/panel/review` contiene a `/panel/review`, `/panel/review/` y
+    `/panel/review/item/{id}`, pero NO a `/panel/reviewXYZ/borrar`.
+    """
+    base = prefix.rstrip("/")
+    return path == base or path.startswith(base + "/")
+
+
+def route_in_prefix(route, prefix: str) -> bool:
+    """¿Cae ``route`` en el espacio de URL ``prefix``? FALLA CERRADO.
+
+    Una ruta cuyo path no se puede resolver se declara DENTRO de cualquier
+    espacio: no saber dónde está una ruta no la pone fuera de tu frontera, la
+    pone en todas. Combinado con ``write_methods`` (que también falla cerrado
+    ante esa misma ruta), el consumidor la reporta en vez de saltársela.
+    """
+    path = effective_path(route)
+    if path is None:
+        return True
+    return path_in_prefix(path, prefix)
 
 
 def route_index(app) -> dict[str, str]:

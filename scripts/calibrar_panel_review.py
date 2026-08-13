@@ -43,6 +43,8 @@ PLANTILLA = VIEWER / "app" / "templates" / "chassis" / "review.html"
 MAIN = VIEWER / "app" / "main.py"
 SUITE = "tests/test_panel_review_console.py"
 FICHERO_SUITE = VIEWER / SUITE
+SUITE_CHASIS = "tests/test_chassis_mount_contract.py"
+CHASSIS = VIEWER / "app" / "chassis.py"
 
 
 @dataclass(frozen=True)
@@ -55,6 +57,9 @@ class Caso:
     #: Tests que DEBEN ponerse rojos. Se nombran uno a uno: "la suite entera se
     #: pone roja" no dice qué comprobación mordió.
     tests: tuple[str, ...]
+    #: Fichero de tests donde viven. Por defecto el del hueco C; los casos del
+    #: censo compartido caen además en el contrato del chasis.
+    suite: str = SUITE
 
 
 CASOS: tuple[Caso, ...] = (
@@ -218,8 +223,8 @@ CASOS: tuple[Caso, ...] = (
         # los routers incluidos en envoltorios `_IncludedRouter`), y entonces
         # R5 saldría verde por no mirar. El suelo tiene que cazarlo, y R5 no.
         FICHERO_SUITE,
-        "        r for r in iter_mounted_routes(app)",
-        "        r for r in app.routes",
+        "for r in iter_mounted_routes(app) if route_in_prefix",
+        "for r in app.routes if route_in_prefix",
         ("test_la_enumeracion_del_espacio_del_panel_no_puede_salir_vacia",),
     ),
     Caso(
@@ -246,6 +251,184 @@ CASOS: tuple[Caso, ...] = (
         "            return False",
         ("test_el_umbral_de_baja_confianza_es_criterio_de_presentacion",),
     ),
+    # -- Puntos ciegos del CENSO COMPARTIDO (carril chasis-censo) ----------
+    # Los seis se inyectan DESDE `main.py`, que es como aparecen de verdad:
+    # otro carril cuelga algo bajo `/panel/review` sin tocar el hueco C. Los
+    # dos primeros salían VERDES antes de este carril.
+    Caso(
+        "R9", "El censo compone el prefijo del `Mount`: una sub-app montada "
+              "bajo el prefijo NO se esconde tras un path relativo",
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "_sub_mutante = FastAPI()\n\n\n"
+        "@_sub_mutante.post(\"/aprobar\")\n"
+        "def _mutante_subapp():\n"
+        "    return {\"ok\": True}\n\n\n"
+        "app.mount(\"/panel/review/admin\", _sub_mutante)\n",
+        ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
+    ),
+    Caso(
+        "R10", "Ausencia de `methods` NO es ausencia de escritura: un WebSocket "
+               "bajo el prefijo se ve",
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "@app.websocket(\"/panel/review/ws\")\n"
+        "async def _mutante_websocket(websocket):\n"
+        "    await websocket.accept()\n",
+        ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
+    ),
+    Caso(
+        "R11", "El prefijo se compone a CUALQUIER profundidad (`Mount` anidado "
+               "a dos niveles)",
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "_n1_mutante = FastAPI()\n"
+        "_n2_mutante = FastAPI()\n\n\n"
+        "@_n2_mutante.post(\"/z\")\n"
+        "def _mutante_anidado():\n"
+        "    return {\"ok\": True}\n\n\n"
+        "_n1_mutante.mount(\"/y\", _n2_mutante)\n"
+        "app.mount(\"/panel/review/x\", _n1_mutante)\n",
+        ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
+    ),
+    Caso(
+        # CONTROL NEGATIVO, Y ACOTADO. Ojo con generalizarlo: `include_router`
+        # anidado no era punto ciego **cuando lo que anida son `APIRoute`s**,
+        # porque FastAPI resuelve esos prefijos dentro del `path` de cada una.
+        # NO vale para un `Mount` dentro de un router incluido: ese caso SI
+        # estaba abierto y es R16. Un control negativo mal generalizado es peor
+        # que ninguno, porque desactiva la sospecha justo donde hacia falta.
+        "R12", "`include_router` con prefijo dentro de otro router no esconde "
+               "escritura SI lo anidado son APIRoutes (control negativo acotado; "
+               "con un `Mount` dentro, ver R16)",
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "from fastapi import APIRouter as _APIRouterMutante\n"
+        "_hijo_mutante = _APIRouterMutante()\n\n\n"
+        "@_hijo_mutante.post(\"/borrar\")\n"
+        "def _mutante_router_anidado():\n"
+        "    return {\"ok\": True}\n\n\n"
+        "_padre_mutante = _APIRouterMutante()\n"
+        "_padre_mutante.include_router(_hijo_mutante, prefix=\"/interno\")\n"
+        "app.include_router(_padre_mutante, prefix=\"/panel/review/anidado\")\n",
+        ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
+    ),
+    Caso(
+        # ¿Debe ser lícito un `Mount` de estáticos bajo el prefijo? NO. Un
+        # `Mount` es una app ASGI opaca: el censo no puede enumerar sus métodos
+        # y por tanto no puede DEMOSTRAR que sea de solo lectura. `StaticFiles`
+        # hoy sirve GET/HEAD, pero eso es una propiedad de la clase que el censo
+        # no ve y que un cambio de clase invalida en silencio. Se declara y se
+        # falla cerrado; eximirlo exige una decisión escrita a mano.
+        "R13", "Un `Mount` opaco (estáticos) bajo el prefijo NO se da por bueno",
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "app.mount(\"/panel/review/activos\", StaticFiles(directory=BASE_DIR / \"static\"),\n"
+        "          name=\"_mutante_estaticos\")\n",
+        ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
+    ),
+    Caso(
+        "R14", "El barrido de AUTORIZACIÓN del chasis tampoco absuelve a una "
+               "ruta sin métodos enumerables",
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "@app.websocket(\"/canal-mutante\")\n"
+        "async def _mutante_websocket_global(websocket):\n"
+        "    await websocket.accept()\n",
+        ("test_no_mounted_route_serves_200_to_anonymous",),
+        SUITE_CHASIS,
+    ),
+    Caso(
+        "R15", "Calibración DEL INSTRUMENTO: si `_walk` deja de componer el "
+               "prefijo, el censo del espacio del panel encoge",
+        # Ablación del criterio 1 sobre el propio helper: sin composición, R9
+        # vuelve a colarse. Se comprueba con el test de composición, no con la
+        # frontera, para que el rojo case con la razón.
+        CHASSIS,
+        "    if not prefix:\n        return path\n    return prefix.rstrip(\"/\") + path",
+        "    return path",
+        ("test_el_censo_compone_el_prefijo_de_los_mount",),
+        SUITE_CHASIS,
+    ),
+    Caso(
+        # La misma clase que R9, por otra via: FastAPI solo rellena el
+        # `_EffectiveRouteContext` para las `APIRoute`. Si envuelve un `Mount`,
+        # llega con `path=''`, el filtro lo descarta y el barrido de
+        # autorizacion lo salta. Medido: 200 y escritura.
+        "R16", "Un `Mount` DENTRO de un `APIRouter` incluido con prefijo tampoco "
+               "esconde escritura (path indeterminable)",
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "from fastapi import APIRouter as _APIRouterMG\n"
+        "_router_mg = _APIRouterMG()\n"
+        "_sub_mg = FastAPI()\n\n\n"
+        "@_sub_mg.post(\"/aprobar\")\n"
+        "def _mutante_mount_en_router_incluido():\n"
+        "    return {\"ok\": True}\n\n\n"
+        "_router_mg.mount(\"/m\", _sub_mg)\n"
+        "app.include_router(_router_mg, prefix=\"/panel/review/inc\")\n",
+        ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
+    ),
+    Caso(
+        "R17", "Capa (a) de M-G: sin resolver la `starlette_route` subyacente, "
+               "el censo vuelve a emitir la ruta con path indeterminable",
+        # Calibracion DEL INSTRUMENTO. Ojo con lo que NO dice: quitar esta capa
+        # NO deja pasar M-G por el gate, porque la capa (b) —el tri-estado del
+        # path— lo atrapa igualmente (medido). Lo que esta capa aporta es
+        # NOMBRAR la ruta con su URL real en vez de reportar un anonimo
+        # "<PATH-NO-RESOLUBLE>". Las dos capas juntas son las necesarias: con
+        # ambas quitadas, M-G vuelve a colarse en VERDE (medido).
+        CHASSIS,
+        "            if real is not None and getattr(real, \"path\", None):\n"
+        "                route = real",
+        "            pass",
+        ("test_un_mount_dentro_de_un_router_incluido_no_pierde_el_path",),
+        SUITE_CHASIS,
+    ),
+    Caso(
+        # FALSO POSITIVO (M-E), no falso negativo: la calibracion tiene que
+        # exigir tambien que el gate NO acuse a quien no es suyo.
+        "R18", "El gate de C no acusa a un vecino de prefijo "
+               "(`/panel/reviewXYZ` no es `/panel/review`)",
+        FICHERO_SUITE,
+        "    return [r for r in iter_mounted_routes(app) if route_in_prefix(r, SLOT.prefix)]",
+        "    return [r for r in iter_mounted_routes(app)\n"
+        "            if str(getattr(r, \"path\", \"\")).startswith(SLOT.prefix)]",
+        ("test_el_gate_no_acusa_a_un_vecino_de_prefijo",),
+    ),
+    Caso(
+        "R19", "Capa (b) de M-G: una ruta con path irresoluble cae DENTRO de "
+               "cualquier prefijo, no fuera de todos",
+        # El suelo que queda si un tipo de ruta futuro vuelve a llegar sin path
+        # resoluble. Hoy no hay ninguna en la app real, asi que se calibra sobre
+        # el helper, que es donde vive la doctrina.
+        CHASSIS,
+        "    path = effective_path(route)\n"
+        "    if path is None:\n"
+        "        return True\n"
+        "    return path_in_prefix(path, prefix)",
+        "    return path_in_prefix(str(getattr(route, \"path\", \"\") or \"\"), prefix)",
+        ("test_una_ruta_con_path_irresoluble_cae_DENTRO_de_cualquier_prefijo",),
+        SUITE_CHASIS,
+    ),
+    Caso(
+        "R20", "El barrido de AUTORIZACION declara las rutas cuyo path no sabe "
+               "resolver en vez de saltarselas",
+        VIEWER / "tests" / "test_chassis_mount_contract.py",
+        "        if path is None:\n"
+        "            # Antes esto era `if not path: continue`",
+        "        if path is None and False:\n"
+        "            # Antes esto era `if not path: continue`",
+        ("test_el_barrido_de_autorizacion_no_se_salta_un_path_irresoluble",),
+        SUITE_CHASIS,
+    ),
 )
 
 
@@ -253,7 +436,7 @@ def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def correr(tests: tuple[str, ...]) -> tuple[bool, list[str], str]:
+def correr(tests: tuple[str, ...], suite: str = SUITE) -> tuple[bool, list[str], str]:
     """Ejecuta EXACTAMENTE esos tests. Cero recolectados = fallo, no éxito.
 
     Devuelve ``(verde, tests_en_rojo, ultima_linea)``. Los nombres en rojo se
@@ -264,7 +447,7 @@ def correr(tests: tuple[str, ...]) -> tuple[bool, list[str], str]:
 
     expr = " or ".join(tests)
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", SUITE, "-k", expr, "-q", "--no-header",
+        [sys.executable, "-m", "pytest", suite, "-k", expr, "-q", "--no-header",
          "-p", "no:cacheprovider", "--tb=no", "-rf", "--color=no"],
         cwd=VIEWER, capture_output=True, text=True,
     )
@@ -284,7 +467,7 @@ def main() -> int:
         antes = sha(caso.fichero)
         original = caso.fichero.read_text(encoding="utf-8")
 
-        base_verde, _, _ = correr(caso.tests)
+        base_verde, _, _ = correr(caso.tests, caso.suite)
 
         if caso.de not in original:
             fallos.append(f"{caso.id}: el ancla de la mutación ya no existe en {caso.fichero.name}")
@@ -296,7 +479,7 @@ def main() -> int:
 
         caso.fichero.write_text(original.replace(caso.de, caso.a), encoding="utf-8")
         try:
-            mutado_verde, rojos, detalle = correr(caso.tests)
+            mutado_verde, rojos, detalle = correr(caso.tests, caso.suite)
         finally:
             caso.fichero.write_text(original, encoding="utf-8")
         despues = sha(caso.fichero)

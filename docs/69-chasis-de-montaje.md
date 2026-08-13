@@ -152,6 +152,115 @@ Starlette y auditar con `_walk` serían dos censos capaces de discrepar—; y (2
 `url_path_for` devuelve la variante con barra final (`/panel/review/`) mientras
 que el canónico para un enlace de menú es el otro.
 
+### Nota técnica: los dos puntos ciegos que tenía el censo
+
+Aplanar no bastaba. `iter_mounted_routes` lo usan **tres** consumidores a la vez
+—el barrido de autorización de arriba, `route_index` y el gate de solo lectura
+del hueco C—, así que un punto ciego del censo era un punto ciego de los tres.
+Un revisor independiente midió dos, y los dos dejaban la suite en **48/48
+VERDE**:
+
+**R9 — el `path` de una sub-app montada es RELATIVO al punto de montaje.**
+`_walk` sí descendía por los `Mount`, pero emitía el path tal cual. Medido:
+
+```
+app.mount("/panel/review/admin", subapp)   # subapp con POST /aprobar
+POST /panel/review/admin/aprobar -> 200, y escribió en disco
+en el censo esa ruta aparecía como: '/aprobar'
+```
+
+El censo la veía **con el nombre equivocado**, así que todo consumidor que
+filtre por `path.startswith(prefijo)` la descartaba. Ahora `_walk` arrastra el
+path de cada `Mount` y emite la **URL efectiva** (`MountedRoute`); el envoltorio
+sólo se construye cuando hay prefijo que componer, de modo que una app sin
+`Mount` produce exactamente el mismo censo que antes.
+
+**R10 — ausencia de `methods` no es ausencia de escritura.**
+`APIWebSocketRoute` **no tiene** atributo `methods` (verificado:
+`hasattr(...) is False`), así que `getattr(r, "methods", set())` devolvía
+`set()`, la intersección con los métodos de escritura salía vacía y un canal de
+escritura perfectamente capaz quedaba invisible **en silencio**. Lo mismo vale
+para un `Mount` opaco (`StaticFiles`), cuya app ASGI el censo no puede enumerar.
+
+El chasis expone ahora `enumerable_methods` (devuelve `None` cuando no se puede
+saber, distinto de "cero métodos") y `write_methods`, que **falla CERRADO**:
+sin métodos enumerables devuelve `(METHODS_NOT_ENUMERABLE,)`, nunca la tupla
+vacía. Es la misma doctrina que `slot_enabled` y el tope tri-estado — la
+ausencia de dato no se interpreta como el valor benigno. El barrido de
+autorización aplica el mismo criterio: una ruta que no puede sondear se declara
+y revienta, y eximirla exige meterla a mano en `ANON_ALLOWED_PATHS`.
+
+¿Es lícito un `Mount` de estáticos bajo el prefijo de un hueco? **No.** El censo
+no puede *demostrar* que una app ASGI montada sea de solo lectura; que
+`StaticFiles` hoy sirva sólo GET/HEAD es una propiedad de la clase que el censo
+no ve y que un cambio de clase invalidaría sin ruido. Se falla cerrado.
+
+Necesidad medida por **ablación** (reversión byte a byte verificada por sha256):
+quitar la composición de prefijo deja colarse R9 y R11 (`Mount` anidado a dos
+niveles); quitar el fallo cerrado por métodos deja colarse R10, R13 (`Mount` de
+estáticos) y R14 (WebSocket ante el barrido de autorización). Ninguno de los dos
+criterios es redundante.
+
+**Cuidado con el control negativo (R12).** `include_router` con prefijo dentro de
+otro router no era punto ciego **cuando lo que anida son `APIRoute`s**: FastAPI
+resuelve esos prefijos dentro del `path` de cada una. **No vale generalizarlo**:
+con un `Mount` dentro sí estaba abierto, y eso es la vía M-G de abajo. Un control
+negativo mal generalizado es peor que ninguno, porque desactiva la sospecha justo
+donde hacía falta.
+
+### Nota técnica: M-G, el `path` también es tri-estado
+
+Misma clase que R9, por otra vía. FastAPI sólo rellena el
+`_EffectiveRouteContext` para las `APIRoute`; si el contexto envuelve un `Mount`
+—`r.mount("/m", sub); app.include_router(r, prefix="/panel/review/inc")`— llega
+con **`path=''`**. Medido:
+
+```
+POST /panel/review/inc/m/aprobar -> 200, y escribió
+el censo lo emitía como _EffectiveRouteContext con path=''
+el filtro de C lo descartaba:  ''.startswith('/panel/review') -> False
+el barrido de autorización lo saltaba: `if not path: continue`
+```
+
+El fallo cerrado por métodos **no salvaba nada**, porque el filtro por path corre
+primero y el path era indeterminable. Era la doctrina `None != frozenset()`
+aplicada a `methods` **pero no a `path`**: un path irresoluble se trataba como
+`''`, benigno y fuera de todo prefijo. Dos capas:
+
+- **(a)** `_walk` sustituye ese contexto por su `starlette_route`, que **sí** trae
+  el path compuesto (`Mount(path='/panel/review/inc/m')`), y el descenso normal
+  por `Mount` hace el resto. Sólo se dispara cuando el path es falsy.
+- **(b)** `effective_path` devuelve `None` cuando no se puede resolver, y
+  `route_in_prefix` declara esa ruta **dentro de cualquier espacio**: no saber
+  dónde está una ruta no la pone fuera de tu frontera, la pone en todas. El
+  barrido de autorización, en vez de `if not path: continue`, la declara y
+  revienta.
+
+Ablación medida, y dice algo preciso: **quitar sólo (a) no deja pasar M-G**
+(la capa (b) lo atrapa igualmente), y **quitar sólo (b) tampoco** (la capa (a) lo
+resuelve). Con **las dos quitadas, M-G vuelve a colarse en VERDE**. Lo que (a)
+aporta por encima de (b) es *nombrar* la ruta con su URL real en vez de reportar
+un anónimo `<PATH-NO-RESOLUBLE>`; lo que (b) aporta es el suelo para cualquier
+tipo de ruta futuro que llegue sin path resoluble.
+
+### Nota técnica: M-E, la frontera es de SEGMENTO
+
+El filtro usaba `startswith` a secas, así que `POST /panel/reviewXYZ/borrar` se
+imputaba al espacio de `/panel/review` sin serlo: un **falso positivo**. Un rojo
+por el motivo equivocado es más peligroso que un verde — entrena a ignorar el
+gate. `path_in_prefix` compara por segmentos (`path == base` o
+`path.startswith(base + "/")`), y se calibra en las dos bandas: R18 exige que el
+gate **no** acuse al vecino, y `test_el_gate_si_reclama_lo_que_es_suyo` exige que
+la frontera no se convierta en un "siempre False" que apague el gate. Importa
+ya: B, F y G van a tener prefijos vecinos.
+
+Sobre la app real, el censo corregido mide **exactamente las mismas cifras** que
+antes (69 rutas aplanadas, 62 nombres en `route_index`, 3 rutas bajo
+`/panel/review`, 1 sin `methods`), con **0 objetos `MountedRoute` emitidos** y
+**0 rutas con path irresoluble**: hoy el único `Mount` del visor es `/static`, en
+el primer nivel y ya en la lista blanca. El arreglo no destapa hallazgos nuevos
+en producción; cierra el hueco por el que B, F y G iban a copiar el patrón.
+
 ## 4. Regla de las pruebas
 
 Todo lo que sea HTTP se prueba contra `app.main.app`, la aplicación **real**.
@@ -233,8 +342,27 @@ uno inferior con el que probar la denegación).
 - **No toca la política de visibilidad de contenido** (`app/policies`,
   `app/authz`, `neo4j_provider`). Un hueco que necesite filtrar material del
   grafo usará `get_filtered_provider`, como el resto del visor.
-- **No cubre WebSockets ni rutas montadas fuera de FastAPI.** El barrido
-  enumera rutas HTTP con métodos GET/POST.
+- **No SONDEA WebSockets ni apps ASGI opacas por HTTP** — no se puede lanzar un
+  `GET` contra un WebSocket. Lo que sí hace desde el arreglo de R10 es
+  **declararlas y fallar cerrado** en vez de darlas por buenas: antes
+  desaparecían del barrido en silencio. Sondearlas de verdad (abrir el canal y
+  comprobar la guarda) sigue pendiente y es trabajo del carril de auditoría de
+  rutas (K).
+- **No arregla el CUARTO censo.** `scripts/route_map/route_map.py:iter_effective_routes`
+  es un enumerador independiente del del chasis, con **tres** huecos medidos:
+  (1) no desciende por los `Mount` —emite una fila opaca—, (2) `r.methods or
+  {"GET"}` es fail-**open**, y (3) `APIWebSocketRoute` no encaja en ninguna de
+  sus ramas, así que **desaparece del censo entero**. Y es justo el instrumento
+  que emite los hallazgos `SIN-AUTH` / `MUERTA` / `HUERFANA`. **Atenuante
+  decisivo: no está cableado en `ci.yml`** — es auditoría bajo demanda, no
+  puerta de merge. Alcance de la anotación: **ese mapa no se puede citar como
+  garantía** hasta que se alinee con `iter_mounted_routes`; el censo del chasis
+  es el que manda.
+- **No cambia `viewer/tests/test_readonly.py`.** Repite el patrón fail-open
+  `getattr(route, "methods", set()) or set()` y enumera el MÓDULO
+  (`readonly.router.routes`), no el espacio de URL. Gravedad **baja y acotada**:
+  las 10 rutas de ese router declaran `methods`, así que el fail-open no se
+  dispara hoy. El riesgo real es que **es un patrón copiable por grep**.
 - **No comprueba el rol correcto de las rutas preexistentes**, sólo que ninguna
   sirve 200 a un anónimo. Afinar rol por rol en todo el visor es trabajo del
   carril de auditoría de rutas (K).
