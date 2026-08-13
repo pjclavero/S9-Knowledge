@@ -462,27 +462,43 @@ def test_c6_yaml_y_docs_mienten_coherentemente(sandbox: Sandbox):
     assert sandbox.run() == 1
 
 
-# C7 — `main_commit` real pero desfasado por encima de la ventana declarada.
-def test_c7_desfase_por_encima_de_la_ventana(sandbox: Sandbox):
+# C7 — DESFASE POR ENCIMA DEL UMBRAL: AVISO, NO ERROR. (Rediseño 2026-08-13.)
+#
+# Antes esto era rojo, y por eso la puerta se AUTO-INVALIDABA en cada merge:
+# con PRs de 10+ commits el refresco caducaba en el momento de fusionarse, y
+# `main` pasó casi toda la sesión del 2026-08-13 en rojo bloqueando a la vez
+# todas las ramas abiertas. `main_commit` documenta el commit SOBRE EL QUE SE
+# MIDIERON las cifras: envejecer no lo vuelve falso. Que se hayan fusionado
+# commits detrás no demuestra ninguna contradicción, sólo demuestra que hubo
+# merges. Lo que sí sería falso —SHA inexistente, no-ancestro, PR ausente,
+# cifras que no cuadran— sigue en rojo, y lo prueba C21c.
+def test_c7_desfase_por_encima_del_umbral_es_aviso_no_error(sandbox: Sandbox, capsys):
     sandbox.patch_dev(main_commit=sandbox.prev, max_lag_commits=0)
     sandbox.write(
         "README.md",
         f"Desarrollo (`main`, commit `{sandbox.prev[:7]}`, último PR mergeado #103).\n",
     )
-    assert any("commits por detras" in f for f in sandbox.findings())
-    assert sandbox.run() == 1
+    assert sandbox.findings() == []
+    assert sandbox.run() == 0
+    out = capsys.readouterr().out
+    # El desfase no desaparece: se anuncia, y además califica el titular.
+    assert "AVISO" in out and "commits por detras" in out, out
+    assert "COHERENTE (DESFASADA" in out, out
 
 
-# C8 — el mismo desfase de 1 commit con tolerancia 0 enrojece por el PR además
-# del commit: el dato del último PR también quedó atrás.
-def test_c8_ultimo_pr_desfasado_con_tolerancia_cero(sandbox: Sandbox):
+# C8 — el mismo reloj para el PR declarado: que hayan entrado PR después no lo
+# vuelve falso. Que ESTÉ en la historia sí es un hecho, y sigue en rojo (C6).
+def test_c8_ultimo_pr_desfasado_es_aviso_no_error(sandbox: Sandbox, capsys):
     sandbox.patch_dev(main_commit=sandbox.prev, latest_merged_pr=105, max_lag_commits=0)
     sandbox.write(
         "README.md",
         f"Desarrollo (`main`, commit `{sandbox.prev[:7]}`, último PR mergeado #105).\n",
     )
-    assert any("se han fusionado" in f for f in sandbox.findings())
-    assert sandbox.run() == 1
+    assert sandbox.findings() == []
+    assert sandbox.run() == 0
+    out = capsys.readouterr().out
+    assert "se han fusionado" in out, out
+    assert "PR fusionados despues del declarado" in out, out
 
 
 # C9 — MISMO desfase, dentro de la tolerancia: verde.
@@ -795,6 +811,170 @@ def test_c17b_sin_poder_completar_dice_la_verdad(sandbox: Sandbox, tmp_path: Pat
     # Y ni una queja sobre la ventana de PR, que sobre un commit de historia
     # sólo puede decir tonterías.
     assert not any("ultimos PR fusionados" in f for f in findings), findings
+
+
+# C18 — `_merged_prs` se lee del SHA RESUELTO, no del nombre simbólico.
+#
+# El arreglo existía sin prueba: revertirlo dejaba 0 filas rojas, porque en el
+# sandbox `origin/main` y el SHA resuelto nunca divergen. Es la misma familia
+# que el orden de `_merged_prs` en la primera revisión — un arreglo que no
+# puede ponerse rojo no es un hallazgo, es una opinión.
+#
+# Aquí divergen de verdad, y por el mecanismo real: `_resolve_main` fija el
+# SHA, y el `fetch --unshallow` del rescate MUEVE `refs/remotes/origin/main`
+# bajo los pies (el remoto ha avanzado por otra rama mientras tanto). Leer del
+# nombre simbólico después de eso responde sobre OTRA historia.
+def test_c18_merged_prs_no_se_lee_del_nombre_simbolico(sandbox: Sandbox, tmp_path: Path, monkeypatch):
+    clone = _clon_estilo_ci(sandbox, tmp_path / "movida")
+    # El remoto avanza por otra línea DESPUÉS de que el clon fijara su ref.
+    _git(sandbox.root, "checkout", "--quiet", "--detach", sandbox.head)
+    _git(sandbox.root, "branch", "--quiet", "-f", "main", sandbox.off_main)
+
+    monkeypatch.setattr(sandbox.mod, "REPO", clone)
+    findings = sandbox.mod.check_git_authority(
+        {"main_commit": sandbox.head, "latest_merged_pr": 103, "max_lag_commits": 3}
+    )
+    # La ref simbólica ha cambiado bajo los pies…
+    assert _git(clone, "rev-parse", "origin/main") == sandbox.off_main
+    # …y aun así el veredicto habla del commit que se resolvió y se validó.
+    assert findings == [], findings
+
+
+# C19a — HISTORIA TRUNCADA: un valor DECLARADO que no se ha podido comprobar se
+# dice en ROJO, no se asume.
+#
+# La fuga medida el 2026-08-13: con la punta como `main_commit`, la existencia
+# y la ancestría son triviales, la ventana de PR se saltaba en silencio, y un
+# `latest_merged_pr` INVENTADO pasaba en VERDE. El mismo defecto que ya se
+# había corregido para `S9_DOCS_SKIP_GIT`, reapareciendo por otra puerta.
+def test_c19a_pr_declarado_sin_poder_comprobarse_es_rojo(sandbox: Sandbox, tmp_path: Path, monkeypatch):
+    clone = _clon_estilo_ci(sandbox, tmp_path / "trunc")
+    _git(clone, "remote", "remove", "origin")
+    monkeypatch.setattr(sandbox.mod, "REPO", clone)
+
+    findings = sandbox.mod.check_git_authority(
+        {"main_commit": sandbox.head, "latest_merged_pr": 4242, "max_lag_commits": 3}
+    )
+    assert any("#4242" in f and "NO SE HA PODIDO COMPROBAR" in f for f in findings), findings
+
+
+# C19b — y si no hay nada declarado que comprobar, el rc puede ser 0, pero EL
+# TITULAR tiene que decir que la historia estaba truncada. Quien lee la última
+# línea de un log no puede llevarse un «COHERENTE» a secas.
+def test_c19b_el_titular_dice_que_la_historia_estaba_truncada(
+    sandbox: Sandbox, tmp_path: Path, monkeypatch, capsys,
+):
+    clone = _clon_estilo_ci(sandbox, tmp_path / "trunc2")
+    _git(clone, "remote", "remove", "origin")
+    # El árbol de trabajo del sandbox (documentos y YAML) sobre el clon.
+    for src in sandbox.root.rglob("*"):
+        if ".git/" in str(src) or not src.is_file():
+            continue
+        dst = clone / src.relative_to(sandbox.root)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes(src.read_bytes())
+
+    data = sandbox.status()
+    data["development"]["main_commit"] = sandbox.head
+    data["development"].pop("latest_merged_pr")  # nada declarado que comprobar
+    (clone / "docs/project-status.yaml").write_text(
+        yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+    (clone / "README.md").write_text(f"# Repo\n\n`main` va por `{sandbox.head[:7]}`.\n",
+                                     encoding="utf-8")
+
+    monkeypatch.setattr(sandbox.mod, "REPO", clone)
+    monkeypatch.setattr(sandbox.mod, "STATUS_YAML", clone / "docs/project-status.yaml")
+    assert sandbox.mod.main() == 0
+    out = capsys.readouterr().out
+    assert "COHERENTE (HISTORIA TRUNCADA)" in out, out
+
+
+# C20 — LIMITACIÓN DECLARADA: `latest_ci` no lo valida NADIE.
+#
+# Es el único campo del bloque `development` que solo vive en el YAML: ningún
+# punto del script lo mira. Declarar `latest_ci: "green"` sobre un commit cuya
+# CI está en rojo pasa en verde, y es exactamente la clase de mentira que el
+# punto 0 existe para matar en `main_commit`.
+#
+# No se cubre porque el ORÁCULO ESTÁ FUERA: el estado de CI de un commit vive
+# en GitHub, y el gate corre sin red ni credenciales. Es la misma limitación
+# que `ci_checks_required` ya tiene declarada. Lo que NO se hace es añadir una
+# comprobación de vocabulario («green|red») para aparentar cobertura: no podría
+# fallar en el caso que importa —una cifra que no puede fallar no comprueba
+# nada—, y dejaría el hueco tapado en vez de dicho.
+#
+# `strict=True`: el día que alguien conecte un oráculo, esta fila se pondrá
+# roja por XPASS y habrá que moverla arriba.
+@pytest.mark.xfail(reason="latest_ci no tiene oraculo offline (limitacion declarada)", strict=True)
+def test_c20_latest_ci_mentiroso_no_lo_detecta_nadie(sandbox: Sandbox):
+    data = sandbox.status()
+    data["development"]["latest_ci"] = "green"  # sobre un commit cuya CI está roja
+    sandbox.set_status(data)
+    assert sandbox.findings() != []
+
+
+# --- C21: envejecer NO es mentir, pero mentir sigue siendo rojo -----------
+#
+# El rediseño del 2026-08-13 sólo vale si la línea entre HECHO y RELOJ está
+# donde se dice. Estas tres filas la fijan en el MISMO escenario desfasado, que
+# es la única forma de demostrar que lo que cambió fue el criterio y no la
+# capacidad de detectar.
+
+# C21a — el escenario LEGÍTIMO de hoy: un merge grande deja el bloque muy por
+# detrás y no hay ninguna contradicción. VERDE. Esto es lo que ponía `main` en
+# rojo y bloqueaba a todos los carriles a la vez.
+def test_c21a_merge_normal_grande_queda_verde(sandbox: Sandbox):
+    # Diez merges detrás del commit documentado, umbral 3.
+    for i in range(10):
+        sandbox.write("relleno.txt", f"commit {i}\n")
+        _git(sandbox.root, "add", "relleno.txt")
+        _git(sandbox.root, "commit", "--quiet", "-m", f"trabajo de otro carril (#{200 + i})")
+    nuevo = _git(sandbox.root, "rev-parse", "HEAD")
+    _git(sandbox.root, "update-ref", "refs/remotes/origin/main", nuevo)
+
+    lag = _git(sandbox.root, "rev-list", "--count", f"{sandbox.head}..{nuevo}")
+    assert lag == "10", lag
+    assert sandbox.findings() == [], sandbox.findings()
+    assert sandbox.run() == 0
+
+
+# C21b — …y ese verde NO es mudo: el titular lo dice. Un desfase que sólo
+# aparece a media página no lo lee nadie; en la última línea, sí. (Es la misma
+# doctrina que ya obligó a calificar `S9_DOCS_SKIP_GIT` y la historia truncada.)
+def test_c21b_el_titular_declara_el_desfase(sandbox: Sandbox, capsys):
+    sandbox.patch_dev(max_lag_commits=0, latest_merged_pr=101)
+    sandbox.write(
+        "README.md",
+        f"Desarrollo (`main`, commit `{sandbox.head[:7]}`, último PR mergeado #101).\n",
+    )
+    assert sandbox.run() == 0
+    out = capsys.readouterr().out
+    assert "COHERENTE (DESFASADA" in out, out
+    assert "COHERENTE: sin contradicciones" not in out, out
+
+
+# C21c — MISMO desfase, pero mintiendo: sigue ROJO, una fila por contradicción.
+# Ninguna de estas la salva el rediseño.
+@pytest.mark.parametrize("caso,parche,esperado", [
+    ("SHA inexistente", {"main_commit": "1" * 40}, "NO EXISTE"),
+    ("SHA fuera de la historia de main", {"main_commit": "OFF_MAIN"}, "no esta en la historia"),
+    ("SHA abreviado", {"main_commit": "SHORT"}, "40 hex"),
+    ("PR que no esta en la historia", {"latest_merged_pr": 4242}, "no aparece entre"),
+    ("contador de jobs inventado", {"ci_jobs_running": 99}, "ci_jobs_running"),
+    ("aritmetica de checks requeridos", {"ci_checks_required": 3}, "ci_checks_required"),
+])
+def test_c21c_con_el_mismo_desfase_la_mentira_sigue_roja(sandbox: Sandbox, caso, parche, esperado):
+    parche = dict(parche)
+    if parche.get("main_commit") == "OFF_MAIN":
+        parche["main_commit"] = sandbox.off_main
+    if parche.get("main_commit") == "SHORT":
+        parche["main_commit"] = sandbox.head[:7]
+    # Umbral 0: el bloque está desfasado y aun así el veredicto lo decide la
+    # contradicción, no el reloj.
+    sandbox.patch_dev(max_lag_commits=0, **parche)
+    findings = sandbox.findings()
+    assert any(esperado in f for f in findings), (caso, findings)
+    assert sandbox.run() == 1, caso
 
 
 # C16 — `development.main_commit` debe ser un SHA COMPLETO de 40 hex. Un SHA

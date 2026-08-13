@@ -244,6 +244,17 @@ def _check_closed_programs(development: dict) -> list[str]:
 # --- Punto 0: la autoridad es GIT, no el YAML ----------------------------
 
 SKIP_GIT_ENV = "S9_DOCS_SKIP_GIT"
+# Se pone a True si el punto 0 ha corrido sobre una historia TRUNCADA que no se
+# ha podido completar. Lo lee `main()` para CALIFICAR EL TITULAR: un verde bajo
+# «DOCUMENTACION COHERENTE» a secas es exactamente la fuga que este fichero
+# existe para no tener (ver el titular de `S9_DOCS_SKIP_GIT`).
+HISTORY_TRUNCATED = False
+# Desfase OBSERVADO (no error) entre `main_commit`/`latest_merged_pr` y la punta
+# de `main`. Lo lee `main()` para CALIFICAR EL TITULAR: el desfase deja de ser
+# rojo, pero no puede volverse invisible. Un dato que solo aparece a media
+# pagina no lo lee nadie; en la ultima linea, si.
+MAIN_COMMIT_LAG = 0
+PR_LAG = 0
 # "Carril A: Graph UX V2 (#158)" (squash) o "Merge pull request #157 from …"
 RX_PR_SQUASH = re.compile(r"\(#(\d+)\)\s*$")
 RX_PR_MERGE = re.compile(r"^Merge pull request #(\d+)\b")
@@ -375,15 +386,52 @@ def check_git_authority(development: dict) -> list[str]:
 
     # La historia tiene que ser COMPLETA antes de preguntar nada sobre ella.
     complete = _deepen_if_shallow()
+    global HISTORY_TRUNCATED, MAIN_COMMIT_LAG, PR_LAG
+    HISTORY_TRUNCATED = not complete
+    MAIN_COMMIT_LAG = PR_LAG = 0  # se recalculan abajo; nunca se heredan
 
     findings: list[str] = []
     declared = str(development.get("main_commit", "")).strip().lower()
 
-    # No se exige IGUALDAD con la punta de `main`. Un gate que se pone rojo en
-    # cuanto alguien fusiona algo estaria rojo en `main` de forma permanente, y
-    # un rojo permanente no se lee: se ignora. Lo que se exige es que el commit
-    # documentado sea REAL y este en la historia de `main` (eso ya mata al SHA
-    # inventado), y que el desfase quepa en la ventana declarada abajo.
+    # QUE ES ERROR Y QUE ES OBSERVACION (rediseñado el 2026-08-13)
+    #
+    # `main_commit` documenta EL COMMIT SOBRE EL QUE SE MIDIERON LAS CIFRAS.
+    # Envejecer no lo vuelve falso: que se hayan fusionado commits detras no
+    # demuestra ninguna contradiccion, solo demuestra que hubo merges.
+    #
+    # La version anterior trataba el desfase como ERROR, y eso hacia la puerta
+    # INSOSTENIBLE POR CONSTRUCCION: cada merge invalidaba el refresco anterior,
+    # con PRs de 10+ commits el refresco caducaba EN EL MOMENTO DE FUSIONARSE, y
+    # `main` paso casi toda la sesion del 2026-08-13 en rojo bloqueando a la vez
+    # TODAS las ramas abiertas. Medido: al fusionar el #168 quedo 9 commits
+    # atras; el carril M lo refresco a `e752dbe` y su propio merge lo desfaso
+    # otra vez. Mantenerlo verde exigia encadenar refrescos manuales a
+    # perpetuidad. Eso no es un gate: es una tarea de mantenimiento que ademas
+    # bloquea a terceros.
+    #
+    # Subir `max_lag_commits` NO es el arreglo —es el antipatron que este mismo
+    # fichero deja escrito, y solo mueve el problema unos merges mas alla—.
+    # El arreglo es distinguir HECHO de RELOJ:
+    #
+    #   ERROR (contradiccion demostrable, sigue ROJO):
+    #     - el SHA no existe                          -> C6
+    #     - el SHA no es ancestro de `main`            -> C10
+    #     - el SHA no es de 40 hex                     -> C16
+    #     - el PR declarado NO esta en la historia     -> C6
+    #     - los contadores no cuadran con los workflows-> C13/C13b/C13c
+    #     - los documentos y el YAML se contradicen    -> C1/C2
+    #     - hay valores declarados que NO se han podido comprobar -> C19a
+    #
+    #   OBSERVACION (cierta pero no contradictoria, AVISO + titular calificado):
+    #     - cuantos commits/PR han entrado desde entonces.
+    #
+    # Lo que queda en rojo sigue siendo lo que este gate existe para cazar: la
+    # calibracion del 2026-08-11 (SHA `1111111…` + `#4242` propagados a los
+    # cinco documentos) sigue enrojeciendo, y de hecho este gate ha cazado tres
+    # veces el CHANGELOG de quien lo escribia.
+    #
+    # `max_lag_commits` deja de ser un umbral de error: es el umbral a partir
+    # del cual el desfase se ANUNCIA. Subirlo ya no compra nada.
     max_lag = int(development.get("max_lag_commits", 3))
     if declared:
         exists = _git("rev-parse", "--verify", "--quiet", f"{declared}^{{commit}}")
@@ -424,11 +472,14 @@ def check_git_authority(development: dict) -> list[str]:
             lag_raw = _git("rev-list", "--count", f"{declared}..{real_sha}")
             lag = int(lag_raw) if lag_raw and lag_raw.isdigit() else 0
             if lag > max_lag:
-                findings.append(
-                    f"docs/project-status.yaml: development.main_commit "
-                    f"{declared[:12]} va {lag} commits por detras de {ref} "
-                    f"({real_sha[:12]}), y el maximo declarado es {max_lag}: "
-                    f"la documentacion describe otro repositorio"
+                # OBSERVACION, no error: el commit es real y esta en `main`.
+                MAIN_COMMIT_LAG = lag
+                print(
+                    f"AVISO: development.main_commit {declared[:12]} va {lag} "
+                    f"commits por detras de {ref} ({real_sha[:12]}), por encima "
+                    f"del umbral de aviso ({max_lag}). Las cifras se midieron "
+                    f"sobre ese commit y siguen siendo coherentes; refrescarlo "
+                    f"es mantenimiento, no una contradiccion."
                 )
 
     declared_pr = development.get("latest_merged_pr")
@@ -439,9 +490,26 @@ def check_git_authority(development: dict) -> list[str]:
     prs = _merged_prs(real_sha) if complete else []
     if not complete:
         # Sobre un commit de historia, «no aparece entre los 1 ultimos PR
-        # fusionados» no es un hallazgo: es ruido. El rojo ya lo ha puesto el
-        # bloque de arriba, y con el motivo correcto.
-        print("AVISO: historia truncada; no se comprueba la ventana de PR.")
+        # fusionados» no es un hallazgo: es ruido, y ese diagnostico falso fue
+        # justo lo que puso rojo `main@0dfa788`.
+        #
+        # Pero SALTARSE la comprobacion en silencio abria una fuga peor, medida
+        # el 2026-08-13: con la punta como `main_commit`, la existencia y la
+        # ancestria son triviales, la ventana de PR no se miraba, y un
+        # `latest_merged_pr: #4242` INVENTADO pasaba en VERDE bajo el titular
+        # «DOCUMENTACION COHERENTE» a secas. Era el mismo defecto que este
+        # script ya habia corregido para `S9_DOCS_SKIP_GIT` reapareciendo por
+        # otra puerta. Si hay un valor DECLARADO que no se ha podido verificar,
+        # se dice en ROJO; no se asume.
+        print("AVISO: historia truncada; la ventana de PR no se ha podido comprobar.")
+        if declared_pr is not None:
+            findings.append(
+                f"docs/project-status.yaml: development.latest_merged_pr "
+                f"(#{declared_pr}) NO SE HA PODIDO COMPROBAR: la historia esta "
+                f"truncada (clon superficial que `--unshallow` no ha "
+                f"completado). Ejecuta el gate sobre un clon completo "
+                f"(`fetch-depth: 0`)"
+            )
     if declared_pr is not None and prs:
         declared_pr = int(declared_pr)
         if declared_pr not in prs:
@@ -451,11 +519,15 @@ def check_git_authority(development: dict) -> list[str]:
                 f"PR fusionados en {ref} (el ultimo es #{prs[0]})"
             )
         elif prs.index(declared_pr) > max_lag:
-            findings.append(
-                f"docs/project-status.yaml: development.latest_merged_pr dice "
-                f"#{declared_pr}, pero desde entonces se han fusionado "
-                f"{prs.index(declared_pr)} PR mas en {ref} (el ultimo es "
-                f"#{prs[0]}), por encima del maximo declarado {max_lag}"
+            # El MISMO reloj, y por tanto la misma observacion: que hayan
+            # entrado PR despues no vuelve falso al que se declara. Que ESTE en
+            # la historia (comprobado arriba) si es un hecho, y sigue en rojo.
+            PR_LAG = prs.index(declared_pr)
+            print(
+                f"AVISO: development.latest_merged_pr #{declared_pr} esta en la "
+                f"historia de {ref}, pero desde entonces se han fusionado "
+                f"{prs.index(declared_pr)} PR mas (el ultimo es #{prs[0]}). "
+                f"Ojo: el ultimo NO es el de numero mayor."
             )
     return findings
 
@@ -469,6 +541,15 @@ def check_git_authority(development: dict) -> list[str]:
 # ARITMETICA declarada en el propio YAML (jobs que corren menos los que el
 # YAML declara no exigidos). Eso mata la cifra inventada, no la mentira
 # deliberada y coherente sobre los ajustes de GitHub. Queda por escrito.
+#
+# Limitacion declarada (2): `development.latest_ci` NO LO VALIDA NADIE. Es el
+# unico campo del bloque que solo vive en el YAML; declararlo "green" sobre un
+# commit con la CI en rojo pasa en verde. El oraculo esta fuera —el estado de
+# CI de un commit vive en GitHub, y este script corre sin red ni credenciales—
+# y no se finge cobertura con una comprobacion de vocabulario que no podria
+# fallar en el caso que importa. Declarado con `xfail(strict=True)` en la fila
+# test_c20_latest_ci_mentiroso_no_lo_detecta_nadie, que gritara por XPASS el
+# dia que alguien conecte ese oraculo.
 
 WORKFLOWS = Path(".github") / "workflows"
 
@@ -706,6 +787,25 @@ def main() -> int:
         # dar: quien lee la ultima linea de un log se lleva la mentira.
         print("DOCUMENTACION COHERENTE (SIN VERIFICAR CONTRA GIT): "
               f"{SKIP_GIT_ENV}=1 desactivo el punto 0.")
+    elif MAIN_COMMIT_LAG or PR_LAG:
+        # El desfase ya no es rojo, pero TIENE que verse en la ultima linea. Un
+        # titular «COHERENTE» a secas sobre un bloque medido 13 commits atras es
+        # la misma clase de fuga que ya se corrigio dos veces en este fichero.
+        partes = []
+        if MAIN_COMMIT_LAG:
+            partes.append(f"main_commit {MAIN_COMMIT_LAG} commits por detras")
+        if PR_LAG:
+            partes.append(f"{PR_LAG} PR fusionados despues del declarado")
+        print(f"DOCUMENTACION COHERENTE (DESFASADA: {'; '.join(partes)}): "
+              "sin contradicciones; las cifras se midieron sobre "
+              "`development.main_commit` y refrescarlo es mantenimiento.")
+    elif HISTORY_TRUNCATED:
+        # La misma regla, por la otra puerta: el punto 0 ha corrido sobre una
+        # historia truncada, asi que parte de lo que dice el YAML NO se ha
+        # podido contrastar. El titular tiene que llevarlo escrito.
+        print("DOCUMENTACION COHERENTE (HISTORIA TRUNCADA): el clon es "
+              "superficial y `--unshallow` no lo ha completado; el punto 0 "
+              "solo ha comprobado lo que cabe en la historia disponible.")
     else:
         print("DOCUMENTACION COHERENTE: sin contradicciones conocidas.")
     print(f"  produccion:  {production.get('production_tag')} "

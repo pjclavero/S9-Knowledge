@@ -86,26 +86,38 @@ development:
     # informe, no una puerta. Añadirlo a los exigidos es decisión del operador.
     - "Reproducibilidad de entorno (declarado == instalado)"
 
-  # Cuántos merges puede ir por detrás este bloque antes de que el gate lo
-  # considere una mentira. NO es cero a propósito: exigir igualdad con la punta
-  # de `main` dejaría el gate en rojo permanente en `main` —cada merge lo
-  # rompería— y un rojo permanente no se lee, se ignora. Lo que el gate exige
-  # siempre, sin tolerancia, es que el commit sea REAL y esté en la historia de
-  # `main`: eso es lo que mata al SHA inventado. Esto solo acota el desfase.
+  # UMBRAL DE AVISO del desfase. NO es un umbral de error (rediseñado el
+  # 2026-08-13): a partir de aquí el gate ANUNCIA cuántos commits han entrado
+  # desde `main_commit`, y califica su titular con `(DESFASADA: …)`, pero NO se
+  # pone rojo.
   #
-  # EL AVISO PROGRAMADO SE CUMPLIÓ. Se anotó el 2026-08-12 con el desfase
-  # medido en 2 y la ventana en 3; al fusionar el #169 el desfase saltó a **8**
-  # y `main` se puso rojo, exactamente como estaba escrito. No fue una
-  # regresión del validador: fue el campo haciendo su trabajo, y el aviso
-  # evitó que se leyera como una avería.
+  # Por qué dejó de ser error: este campo documenta EL COMMIT SOBRE EL QUE SE
+  # MIDIERON las cifras. Envejecer no lo vuelve falso — que se hayan fusionado
+  # commits detrás no demuestra ninguna contradicción, sólo demuestra que hubo
+  # merges. Tratarlo como error hacía la puerta INSOSTENIBLE POR CONSTRUCCIÓN:
+  # cada merge invalidaba el refresco anterior, y con PRs de 10+ commits el
+  # refresco caducaba EN EL MOMENTO DE FUSIONARSE. Medido el 2026-08-13: al
+  # fusionar el #168 quedó 9 commits atrás; el carril M lo refrescó a `e752dbe`
+  # y su propio merge (#167) lo desfasó otra vez. `main` pasó casi toda la
+  # sesión en rojo bloqueando A LA VEZ todas las ramas abiertas, y mantenerlo
+  # verde exigía encadenar refrescos manuales a perpetuidad. Eso no es un gate:
+  # es mantenimiento perpetuo que además bloquea a terceros.
   #
-  # Se arregló como estaba dicho —REMIDIENDO `main_commit`/`latest_merged_pr`
-  # contra `origin/main`—, y NO subiendo `max_lag_commits`, que es el
-  # antipatrón: apagaría el aviso sin arreglar nada.
+  # Subir este número NUNCA fue el arreglo, y ahora además no compra nada.
   #
-  # Sigue vigente para el próximo: `git rev-list --count <main_commit>..origin/main`.
-  # Con la ventana en 3, cualquier commit que refresque este bloque tolera 3
-  # merges antes de volver a ponerse rojo.
+  # LO QUE SIGUE SIENDO ROJO (y está calibrado en C21c, con el bloque
+  # deliberadamente desfasado, para que conste que cambió el criterio y no la
+  # capacidad de detectar):
+  #   - `main_commit` que no existe, que no es ancestro de `main`, o que no es
+  #     un SHA de 40 hex;
+  #   - `latest_merged_pr` que NO está en la historia de `main`;
+  #   - contadores de CI que no cuadran con `.github/workflows/`;
+  #   - documentos y YAML que se contradicen;
+  #   - valores declarados que NO se han podido comprobar (historia truncada).
+  #
+  # Refrescar `main_commit` sigue siendo buena higiene —y el AVISO lo recuerda—,
+  # pero ya no bloquea a nadie:
+  #   git rev-list --count <main_commit>..origin/main
   max_lag_commits: 3
   active_engine: "knowledge_v3"  # mergeado en main desde PR #110 (2026-07-29); sustituye a v1/v2 como línea vigente
   contracts_tag: "v3-contracts-frozen-1.0.0"
