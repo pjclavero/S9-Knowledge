@@ -4,6 +4,36 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-08-13 (c) — Refresco remedido sobre `37accba`, y esta vez el gate acerto de pleno
+
+- **Contradiccion REAL, no el reloj.** `main` estaba rojo con **una sola**
+  contradiccion: el bloque declaraba `latest_merged_pr: #168`, que ya **no
+  aparece** entre los PR fusionados en `origin/main`. Eso no es envejecer: es
+  una **afirmacion falsa sobre el repositorio**, y es exactamente lo que este
+  gate existe para cazar. El rediseño del desfase (#173) aguanto: el desfase de
+  commits no aparecio por ningun lado, ni como error ni disfrazado de otra cosa.
+  Se arregla refrescando el dato, no tocando el gate.
+- **Remedido contra `origin/main`, no contra el worktree:** `main_commit` ->
+  `37accba`, `latest_merged_pr` -> **#178**, determinado por **fecha de
+  fusion**. Y el aviso de la propia linea se cumple otra vez: **el #171 se
+  fusiono DESPUES que el #173** (09:46 frente a 09:33 UTC), asi que el ultimo
+  sigue sin ser el de numero mayor.
+- **`ci_jobs_running`: 15, medido y sin cambio.** Contados los `name:` de
+  `.github/workflows/*.y*ml` sobre `main@37accba`: 14 + 1. Los 11 PR fusionados
+  desde el refresco anterior no añaden ni quitan jobs. Sigue siendo **literal y
+  no derivado**, a proposito: derivarlo lo volveria tautologia y C13 dejaria de
+  poder ponerse roja.
+- **CAMBIO REAL: `ci_checks_required` pasa de 11 a 15.** Medido con `gh api
+  .../branches/main/protection`. El cruce con los workflows no deja ningun job
+  corriendo sin bloquear ni ningun contexto exigido sin job.
+  `ci_running_but_not_required` queda en **lista vacia** (se conserva la clave:
+  es la que hace cuadrar la aritmetica del validador).
+- **`RK-20b` CERRADO.** Era «tres jobs corren pero no bloquean — decision del
+  operador», y el operador la tomo. **Ya no hay ningun job que corra sin ser
+  puerta**, incluidos los dos que existen precisamente para detectar gates que
+  no pueden ponerse rojos. Verificado contra GitHub, no leyendo documentacion.
+- **`max_lag_commits` sin tocar**, como siempre.
+
 ### 2026-08-13 (b) — El desfase deja de ser error: la puerta dejaba de sostenerse sola
 
 - **PROBLEMA DE DISEÑO, no de cifras.** Tratar el desfase de `main_commit` como
