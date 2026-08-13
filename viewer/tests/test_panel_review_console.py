@@ -496,6 +496,12 @@ def rutas_del_espacio_del_panel(app) -> list:
        FastAPI >= 0.116 mete los routers incluidos en envoltorios
        `_IncludedRouter`. Un arnés que enumera 0 elementos habría "demostrado"
        cualquier cosa; por eso hay además un suelo de plausibilidad.
+    3. El `path` que se compara es el EFECTIVO. `iter_mounted_routes` compone el
+       prefijo de cada `Mount`, porque Starlette guarda en las rutas de una
+       sub-app el camino relativo al punto de montaje: una sub-app montada en
+       `/panel/review/admin` con un `POST /aprobar` aparecía en el censo como
+       `'/aprobar'` y este filtro la descartaba. Medido: 200 y escritura en
+       disco con la suite en 48/48 VERDE.
     """
     from app.chassis import iter_mounted_routes
 
@@ -529,11 +535,19 @@ def test_ninguna_ruta_del_espacio_del_panel_acepta_escritura(real_app):
     Se afirma sobre la app real y sobre todo el prefijo, no sobre este módulo.
     Es el patrón que B/F/G heredan: comprobar el propio router deja la puerta
     abierta a que otro carril monte un POST en tu espacio de URL.
+
+    La superficie de escritura se pregunta a `app.chassis.write_methods`, que
+    FALLA CERRADO: una ruta sin `methods` enumerables (un WebSocket, un `Mount`
+    opaco) se declara capaz de escribir en lugar de darse por buena. Con
+    `set(getattr(r, "methods", set()))` escrito a mano, un
+    `@app.websocket("/panel/review/ws")` quedaba invisible en silencio.
     """
+    from app.chassis import write_methods
+
     culpables = [
-        (getattr(r, "path", r), sorted(set(getattr(r, "methods", set())) & METODOS_DE_ESCRITURA))
+        (getattr(r, "path", r), list(write_methods(r)))
         for r in rutas_del_espacio_del_panel(real_app)
-        if set(getattr(r, "methods", set())) & METODOS_DE_ESCRITURA
+        if write_methods(r)
     ]
     assert not culpables, (
         f"Hay escritura montada bajo {SLOT.prefix}: {culpables}. "

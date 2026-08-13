@@ -43,6 +43,8 @@ PLANTILLA = VIEWER / "app" / "templates" / "chassis" / "review.html"
 MAIN = VIEWER / "app" / "main.py"
 SUITE = "tests/test_panel_review_console.py"
 FICHERO_SUITE = VIEWER / SUITE
+SUITE_CHASIS = "tests/test_chassis_mount_contract.py"
+CHASSIS = VIEWER / "app" / "chassis.py"
 
 
 @dataclass(frozen=True)
@@ -55,6 +57,9 @@ class Caso:
     #: Tests que DEBEN ponerse rojos. Se nombran uno a uno: "la suite entera se
     #: pone roja" no dice qué comprobación mordió.
     tests: tuple[str, ...]
+    #: Fichero de tests donde viven. Por defecto el del hueco C; los casos del
+    #: censo compartido caen además en el contrato del chasis.
+    suite: str = SUITE
 
 
 CASOS: tuple[Caso, ...] = (
@@ -246,6 +251,104 @@ CASOS: tuple[Caso, ...] = (
         "            return False",
         ("test_el_umbral_de_baja_confianza_es_criterio_de_presentacion",),
     ),
+    # -- Puntos ciegos del CENSO COMPARTIDO (carril chasis-censo) ----------
+    # Los seis se inyectan DESDE `main.py`, que es como aparecen de verdad:
+    # otro carril cuelga algo bajo `/panel/review` sin tocar el hueco C. Los
+    # dos primeros salían VERDES antes de este carril.
+    Caso(
+        "R9", "El censo compone el prefijo del `Mount`: una sub-app montada "
+              "bajo el prefijo NO se esconde tras un path relativo",
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "_sub_mutante = FastAPI()\n\n\n"
+        "@_sub_mutante.post(\"/aprobar\")\n"
+        "def _mutante_subapp():\n"
+        "    return {\"ok\": True}\n\n\n"
+        "app.mount(\"/panel/review/admin\", _sub_mutante)\n",
+        ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
+    ),
+    Caso(
+        "R10", "Ausencia de `methods` NO es ausencia de escritura: un WebSocket "
+               "bajo el prefijo se ve",
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "@app.websocket(\"/panel/review/ws\")\n"
+        "async def _mutante_websocket(websocket):\n"
+        "    await websocket.accept()\n",
+        ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
+    ),
+    Caso(
+        "R11", "El prefijo se compone a CUALQUIER profundidad (`Mount` anidado "
+               "a dos niveles)",
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "_n1_mutante = FastAPI()\n"
+        "_n2_mutante = FastAPI()\n\n\n"
+        "@_n2_mutante.post(\"/z\")\n"
+        "def _mutante_anidado():\n"
+        "    return {\"ok\": True}\n\n\n"
+        "_n1_mutante.mount(\"/y\", _n2_mutante)\n"
+        "app.mount(\"/panel/review/x\", _n1_mutante)\n",
+        ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
+    ),
+    Caso(
+        "R12", "`include_router` con prefijo dentro de otro router tampoco "
+               "esconde escritura",
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "from fastapi import APIRouter as _APIRouterMutante\n"
+        "_hijo_mutante = _APIRouterMutante()\n\n\n"
+        "@_hijo_mutante.post(\"/borrar\")\n"
+        "def _mutante_router_anidado():\n"
+        "    return {\"ok\": True}\n\n\n"
+        "_padre_mutante = _APIRouterMutante()\n"
+        "_padre_mutante.include_router(_hijo_mutante, prefix=\"/interno\")\n"
+        "app.include_router(_padre_mutante, prefix=\"/panel/review/anidado\")\n",
+        ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
+    ),
+    Caso(
+        # ¿Debe ser lícito un `Mount` de estáticos bajo el prefijo? NO. Un
+        # `Mount` es una app ASGI opaca: el censo no puede enumerar sus métodos
+        # y por tanto no puede DEMOSTRAR que sea de solo lectura. `StaticFiles`
+        # hoy sirve GET/HEAD, pero eso es una propiedad de la clase que el censo
+        # no ve y que un cambio de clase invalida en silencio. Se declara y se
+        # falla cerrado; eximirlo exige una decisión escrita a mano.
+        "R13", "Un `Mount` opaco (estáticos) bajo el prefijo NO se da por bueno",
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "app.mount(\"/panel/review/activos\", StaticFiles(directory=BASE_DIR / \"static\"),\n"
+        "          name=\"_mutante_estaticos\")\n",
+        ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
+    ),
+    Caso(
+        "R14", "El barrido de AUTORIZACIÓN del chasis tampoco absuelve a una "
+               "ruta sin métodos enumerables",
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "@app.websocket(\"/canal-mutante\")\n"
+        "async def _mutante_websocket_global(websocket):\n"
+        "    await websocket.accept()\n",
+        ("test_no_mounted_route_serves_200_to_anonymous",),
+        SUITE_CHASIS,
+    ),
+    Caso(
+        "R15", "Calibración DEL INSTRUMENTO: si `_walk` deja de componer el "
+               "prefijo, el censo del espacio del panel encoge",
+        # Ablación del criterio 1 sobre el propio helper: sin composición, R9
+        # vuelve a colarse. Se comprueba con el test de composición, no con la
+        # frontera, para que el rojo case con la razón.
+        CHASSIS,
+        "    if not prefix:\n        return path\n    return prefix.rstrip(\"/\") + path",
+        "    return path",
+        ("test_el_censo_compone_el_prefijo_de_los_mount",),
+        SUITE_CHASIS,
+    ),
 )
 
 
@@ -253,7 +356,7 @@ def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def correr(tests: tuple[str, ...]) -> tuple[bool, list[str], str]:
+def correr(tests: tuple[str, ...], suite: str = SUITE) -> tuple[bool, list[str], str]:
     """Ejecuta EXACTAMENTE esos tests. Cero recolectados = fallo, no éxito.
 
     Devuelve ``(verde, tests_en_rojo, ultima_linea)``. Los nombres en rojo se
@@ -264,7 +367,7 @@ def correr(tests: tuple[str, ...]) -> tuple[bool, list[str], str]:
 
     expr = " or ".join(tests)
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", SUITE, "-k", expr, "-q", "--no-header",
+        [sys.executable, "-m", "pytest", suite, "-k", expr, "-q", "--no-header",
          "-p", "no:cacheprovider", "--tb=no", "-rf", "--color=no"],
         cwd=VIEWER, capture_output=True, text=True,
     )
@@ -284,7 +387,7 @@ def main() -> int:
         antes = sha(caso.fichero)
         original = caso.fichero.read_text(encoding="utf-8")
 
-        base_verde, _, _ = correr(caso.tests)
+        base_verde, _, _ = correr(caso.tests, caso.suite)
 
         if caso.de not in original:
             fallos.append(f"{caso.id}: el ancla de la mutación ya no existe en {caso.fichero.name}")
@@ -296,7 +399,7 @@ def main() -> int:
 
         caso.fichero.write_text(original.replace(caso.de, caso.a), encoding="utf-8")
         try:
-            mutado_verde, rojos, detalle = correr(caso.tests)
+            mutado_verde, rojos, detalle = correr(caso.tests, caso.suite)
         finally:
             caso.fichero.write_text(original, encoding="utf-8")
         despues = sha(caso.fichero)
