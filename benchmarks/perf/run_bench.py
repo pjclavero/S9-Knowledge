@@ -16,6 +16,8 @@ Por escenario HTTP y por tamaño de grafo:
 
 Además:
   * los tres ejes de N+1 (dataset, página, grado) en cada tamaño;
+  * PRESUPUESTOS absolutos de llamadas, con techos MEDIDOS (en v2.1 el guardia
+    de magnitud existía pero no se invocaba desde aquí: sólo vivía en C5);
   * casos con HUBS (nodos de grado muy alto), que es donde el coste por
     elemento explota;
   * búsqueda de DISCONTINUIDADES entre tamaños consecutivos —10, 50, 100, 101,
@@ -28,6 +30,12 @@ Qué NO mide (declarado, no omitido)
   * Red, TLS, nginx, disco, caché de sistema operativo de producción.
   * Coste del camino de autenticación: se mide con auth desactivada.
   * Consumo de memoria.
+  * EL NAVEGADOR, EN ABSOLUTO. Pese al nombre del carril, los cuatro ficheros
+    .js de viewer/app/static/js/ —``vis-network.min.js`` incluido, que es quien
+    paga el coste de pintar el grafo— no se ejecutan nunca aquí: el cliente es
+    en proceso y no hay DOM. Todo lo medido es SERVIDOR. Este laboratorio sólo
+    VIGILA que esos ficheros no cambien sin invalidar la calibración (C10), y
+    vigilar no es medir.
 Un microbenchmark en una máquina de desarrollo compartida NO es rendimiento
 productivo. Sirve para comparar commits y detectar crecimientos anómalos.
 
@@ -175,11 +183,34 @@ def eje_pagina(cliente, contador) -> list[dict[str, Any]]:
 
 
 def eje_grado(cliente, contador, grafo, ids: list[str]) -> list[dict[str, Any]]:
-    grados = {}
+    """Llamadas Y carga devuelta por grado del nodo.
+
+    Dos cuidados que v2.0 no tenía:
+
+    * los ``ids`` se DEDUPLICAN POR GRADO. El diccionario está indexado por
+      grado, así que dos nodos empatados se pisaban y los 4 nodos pedidos se
+      quedaban en 3 puntos —medido en el baseline: ``[[3,9],[4,11],[9,21]]``
+      para 4 ids—, rozando el mínimo de 3 y cayendo a "insuficiente" con dos
+      empates. Ahora se declara cuántos puntos se perdieron y por qué.
+    * se registra la CARGA (elementos devueltos), sin la cual una serie plana
+      por saturación se firma como "constante".
+    """
+    grados: dict[int, int] = {}
+    carga: dict[int, int] = {}
+    empates: list[dict[str, Any]] = []
     for nid in ids:
         g = sum(1 for e in grafo["edges"] if e["from"] == nid or e["to"] == nid)
+        if g in grados:
+            empates.append({"id": nid, "grado": g, "descartado_por": "grado repetido"})
+            continue
+        resp = cliente.get(f"/api/entities/{nid}")
         grados[g] = arnes.llamadas_de(cliente, contador, f"/api/entities/{nid}")
-    return [detector.dictaminar("grado", "api_entity_detalle", grados).como_dict()]
+        carga[g] = arnes.elementos_en(resp)
+    d = detector.dictaminar("grado", "api_entity_detalle", grados, carga=carga).como_dict()
+    d["carga_por_grado"] = {str(k): v for k, v in sorted(carga.items())}
+    d["ids_pedidos"] = len(ids)
+    d["puntos_perdidos_por_empate_de_grado"] = empates
+    return [d]
 
 
 def eje_dataset(por_tamano: dict[str, dict[str, dict]]) -> list[dict[str, Any]]:
@@ -234,6 +265,79 @@ def medir_cypher(p: Parametros, id_objetivo: str | None = None) -> list[dict[str
 
 
 # ---------------------------------------------------------------------------
+# Presupuestos absolutos (magnitud, no crecimiento)
+# ---------------------------------------------------------------------------
+#
+# En v2.0 `detector.comprobar_presupuestos` sólo se invocaba desde la prueba C5
+# de la calibración: el ÚNICO guardia de magnitud absoluta del laboratorio no
+# vigilaba ninguna medida real. Aquí se conecta al informe.
+#
+# Los dos techos son MEDIDOS, no declarados a ojo:
+#   * coste que no debe depender del TAMAÑO -> techo = coste con el dataset más
+#     pequeño; se contrasta contra todos los demás tamaños;
+#   * coste del detalle de entidad -> techo = coste del hub de MENOR grado; se
+#     contrasta contra los hubs mayores.
+#
+# El informe REGISTRA los incumplimientos; no aborta. `run_bench.py` produce
+# evidencia, y el N+1 por grado es un incumplimiento conocido y declarado, no
+# una sorpresa que deba tumbar la medición.
+
+# El coste de estos escenarios no debe depender del tamaño del grafo. Quedan
+# fuera, declarados: `api_sources` (crece con el corpus, no con el grafo) y los
+# dos detalles de entidad, cuyo coste depende del GRADO del nodo pedido.
+FUERA_DEL_PRESUPUESTO_POR_TAMANO = (
+    "api_sources", "api_entity_detalle", "html_entity_detalle",
+)
+
+
+def presupuestos_por_tamano(por_tamano: dict[str, dict[str, dict]],
+                            tamanos: list[int]) -> dict[str, Any]:
+    base = por_tamano.get(str(tamanos[0]), {})
+    techos = {
+        nombre: {"llamadas_fuente": float(fila["llamadas_fuente"])}
+        for nombre, fila in base.items()
+        if nombre not in FUERA_DEL_PRESUPUESTO_POR_TAMANO
+    }
+    incumplimientos = []
+    for t in tamanos[1:]:
+        medido = {n: {"llamadas_fuente": float(f["llamadas_fuente"])}
+                  for n, f in por_tamano.get(str(t), {}).items() if n in techos}
+        for i in detector.comprobar_presupuestos(medido, techos):
+            incumplimientos.append({"tamano": t, **i.como_dict()})
+    return {
+        "criterio": (f"techo = llamadas medidas con {tamanos[0]} entidades; "
+                     "el coste de estos escenarios no debe depender del tamaño"),
+        "excluidos_y_por_que": {
+            "api_sources": "crece con el número de fuentes del corpus, no con el grafo",
+            "api_entity_detalle": "depende del GRADO del nodo, no del tamaño",
+            "html_entity_detalle": "ídem",
+        },
+        "techos": techos,
+        "incumplimientos": incumplimientos,
+    }
+
+
+def presupuesto_por_grado(hubs: dict[str, dict]) -> dict[str, Any]:
+    filas = sorted(hubs.values(), key=lambda r: r["grado_real"])
+    if len(filas) < 2:
+        return {"criterio": "insuficientes hubs medidos", "incumplimientos": []}
+    menor = filas[0]
+    techos = {"api_entity_detalle": {"llamadas_fuente": float(menor["llamadas_fuente"])}}
+    incumplimientos = []
+    for fila in filas[1:]:
+        medido = {"api_entity_detalle": {"llamadas_fuente": float(fila["llamadas_fuente"])}}
+        for i in detector.comprobar_presupuestos(medido, techos):
+            incumplimientos.append({"grado": fila["grado_real"], **i.como_dict()})
+    return {
+        "criterio": (f"techo = llamadas del hub de menor grado ({menor['grado_real']}); "
+                     "una petición de detalle no debería costar más por tener el nodo "
+                     "más relaciones"),
+        "techos": techos,
+        "incumplimientos": incumplimientos,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Discontinuidades entre tamaños consecutivos
 # ---------------------------------------------------------------------------
 
@@ -250,8 +354,9 @@ def discontinuidades(por_tamano: dict[str, dict[str, dict]], tamanos: list[int])
     aparecían bajo una sola etiqueta y una fila con ``delta_llamadas: 10``
     lucía "indistinguible del ruido", que era falso para las llamadas.
     """
+    series = _series_del_desglose(por_tamano, tamanos)
     salida = []
-    for a, b in zip(tamanos, tamanos[1:]):
+    for idx, (a, b) in enumerate(zip(tamanos, tamanos[1:])):
         fa, fb = por_tamano.get(str(a), {}), por_tamano.get(str(b), {})
         for nombre in fa:
             if nombre not in fb:
@@ -272,10 +377,32 @@ def discontinuidades(por_tamano: dict[str, dict[str, dict]], tamanos: list[int])
                                        f"cambian {lb - la:+d} (determinista, no es ruido)"),
                 "mediana_ms": [ra.mediana_ms, rb.mediana_ms],
                 "desglose_respuesta": [da, db],
-                "saturado": bool(da) and da == db,
+                **detector.analizar_saturacion(
+                    fa[nombre].get("url", ""), series.get(nombre, {}), idx),
                 **comp,
             })
     return salida
+
+
+def _series_del_desglose(
+    por_tamano: dict[str, dict[str, dict]], tamanos: list[int],
+) -> dict[str, dict[str, list[int]]]:
+    """{escenario -> {componente -> [valor en cada tamaño]}}.
+
+    La saturación no se ve en un par de puntos: hace falta la serie entera para
+    distinguir "todavía no ha empezado a crecer" de "dejó de crecer".
+    """
+    series: dict[str, dict[str, list[int]]] = {}
+    for nombre in por_tamano.get(str(tamanos[0]), {}):
+        comps: dict[str, list[int]] = {}
+        for t in tamanos:
+            desglose = por_tamano.get(str(t), {}).get(nombre, {}).get("desglose_respuesta", {})
+            for k, v in desglose.items():
+                comps.setdefault(k, []).append(v)
+        # Sólo componentes presentes en TODOS los tamaños: una serie con
+        # agujeros no permite afirmar ni meseta ni techo.
+        series[nombre] = {k: v for k, v in comps.items() if len(v) == len(tamanos)}
+    return series
 
 
 # ---------------------------------------------------------------------------
@@ -371,8 +498,20 @@ def main() -> int:
         app.dependency_overrides.clear()
 
     grados_medidos = {r["grado_real"]: r["llamadas_fuente"] for r in informe["hubs"].values()}
+    carga_medida = {r["grado_real"]: r["elementos"] for r in informe["hubs"].values()}
     informe["n_mas_1"]["grado_global"] = detector.dictaminar(
-        "grado", "api_entity_detalle", grados_medidos).como_dict()
+        "grado", "api_entity_detalle", grados_medidos, carga=carga_medida).como_dict()
+
+    # El guardia de MAGNITUD absoluta, conectado al informe (en v2.0 sólo vivía
+    # dentro de la calibración C5 y no vigilaba ninguna medida real).
+    informe["presupuestos"] = {
+        "por_tamano": presupuestos_por_tamano(informe["http"], args.sizes),
+        "por_grado": presupuesto_por_grado(informe["hubs"]),
+    }
+    for clave, bloque in informe["presupuestos"].items():
+        for inc in bloque["incumplimientos"]:
+            print(f"  [presupuesto/{clave}] {inc['escenario']}: "
+                  f"{inc['medido']} > {inc['presupuesto']}", flush=True)
 
     print("\n== N+1 detectados ==", flush=True)
     for d in informe["n_mas_1"]["dataset"]:

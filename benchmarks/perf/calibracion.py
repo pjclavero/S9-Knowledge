@@ -36,6 +36,20 @@ Pruebas
                      sanas tres de ellas).
   C8  DRIVER FALSO — el contador de consultas Cypher, contrastado con un contador
                      independiente; saboteado -> rojo.
+  C9a SATURACIÓN   — el criterio de v2.1 (`da == db`) es CIEGO justo en
+                     /api/graph?limit=300 y da FALSOS POSITIVOS en /api/sources;
+                     el criterio nuevo ve uno y deja de inventarse el otro.
+  C9b SATURACIÓN   — ABLACIÓN: las tres cláusulas del criterio son necesarias.
+  C10 HASH SISTEMA — mutar `viewer/app/static/js/graph.js` mueve el hash. Con el
+                     filtro de v2.1 (`.py`/`.html`) no lo movía: 16 ficheros
+                     invisibles, el motor de pintado del grafo entre ellos.
+  C11 N+1 CON TOPE — `min(2*g+3, T)` da serie PLANA; sin la señal de carga el
+                     veredicto era "constante, pendiente 0.0" para un endpoint
+                     que hace T consultas por petición.
+
+Y dentro de C4, la parte (c): el ataque COHERENTE (fichero manipulado *y*
+sidecar recalculado) engaña a `obtener()`, y `verificar_a_fondo` lo caza porque
+el generador es determinista y el sha esperado es calculable.
 
 Nada queda aplicado: todos los parches viven en memoria y se revierten en el
 mismo proceso.
@@ -84,13 +98,31 @@ def sha_del_instrumento() -> str:
     return h.hexdigest()
 
 
+def ficheros_del_sistema_medido() -> list[Path]:
+    """TODO fichero versionable bajo ``viewer/app/**``.
+
+    Defecto de v2.0: la lista se filtraba por ``suffix in (".py", ".html")``.
+    Medido: dejaba fuera 16 ficheros —4 ``.js``, 3 ``.css`` y 9 ``.json``—,
+    entre ellos ``static/js/graph.js``, que es EL MOTOR DE PINTADO DEL GRAFO,
+    es decir el objeto mismo de este carril. Mutar ``graph.js`` no movía el
+    hash y ``run_bench.py`` seguía midiendo con una calibración que decía
+    corresponder a ese sistema. El hash no cubría lo que su nombre promete.
+
+    v2.1 no filtra por extensión: si está bajo ``viewer/app/`` y no es un
+    artefacto de compilación de Python, cuenta.
+    """
+    base = RAIZ / "viewer" / "app"
+    return sorted(
+        p for p in base.rglob("*")
+        if p.is_file()
+        and "__pycache__" not in p.parts
+        and p.suffix not in (".pyc", ".pyo")
+    )
+
+
 def sha_del_sistema_medido() -> str:
     """Hash del árbol del visor. Si cambia el sistema, la calibración caduca."""
-    base = RAIZ / "viewer" / "app"
-    ficheros = sorted(
-        p for p in base.rglob("*")
-        if p.is_file() and p.suffix in (".py", ".html") and "__pycache__" not in p.parts
-    )
+    ficheros = ficheros_del_sistema_medido()
     h = hashlib.sha256()
     for p in ficheros:
         h.update(str(p.relative_to(RAIZ)).encode("utf-8"))
@@ -403,7 +435,31 @@ def c4_cache(tmp: Path) -> dict:
     e_manipulado = cache.obtener(p, raiz)
     contenido_restaurado = e1.ruta.read_text(encoding="utf-8")
 
-    # -- (c) sidecar borrado -------------------------------------------------
+    # -- (c) ATAQUE COHERENTE: fichero manipulado Y sidecar recalculado -------
+    # Límite que le quedaba a v2.1: la huella sólo detecta manipulación
+    # INCOHERENTE. Si el atacante recalcula el sidecar, `obtener()` dice
+    # "reutilizado" y el defecto revive. Aquí se monta el ataque completo, se
+    # comprueba que `obtener()` PICA, y se demuestra que el sha correcto es
+    # CALCULABLE (generador determinista) y `verificar_a_fondo` lo caza.
+    veneno = json.dumps({
+        "workspace": dataset.WORKSPACE,
+        "nodes": [{"id": "p_0000000", "label": "coherente", "visibility": "public"}],
+        "edges": [],
+    }, ensure_ascii=False)
+    e1.ruta.write_text(veneno, encoding="utf-8")
+    sidecar_falsificado = dict(sidecar_antes or {})
+    sidecar_falsificado["sha256_fichero"] = cache.sha_de_fichero(e1.ruta)
+    sidecar_falsificado["bytes"] = e1.ruta.stat().st_size
+    cache._sidecar(e1.ruta).write_text(
+        json.dumps(sidecar_falsificado, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    e_coherente = cache.obtener(p, raiz)          # pica: "reutilizado"
+    forense = cache.verificar_a_fondo(p, raiz)    # no pica: recalcula
+    e1.ruta.write_text(contenido_restaurado, encoding="utf-8")
+    cache.obtener(p, raiz)                        # deja la caché sana otra vez
+    forense_sano = cache.verificar_a_fondo(p, raiz)
+
+    # -- (d) sidecar borrado -------------------------------------------------
     (e1.ruta.with_suffix(e1.ruta.suffix + ".huella.json")).unlink()
     e4 = cache.obtener(p, raiz)
     e5 = cache.obtener(p, raiz)
@@ -421,6 +477,12 @@ def c4_cache(tmp: Path) -> dict:
         and e_manipulado.estado == "regenerado_por_contenido"
         and '"visibility": "public"' not in contenido_restaurado
         and len(json.loads(contenido_restaurado)["nodes"]) == 20
+        # (c) el ataque coherente: obtener() pica, verificar_a_fondo NO
+        and e_coherente.estado == "reutilizado"
+        and forense["integro"] is False
+        and forense["el_sidecar_miente"] is True
+        and forense_sano["integro"] is True
+        and forense_sano["el_sidecar_miente"] is False
         and e4.estado == "regenerado_sin_huella"
         and e5.estado == "reutilizado",
         {
@@ -432,6 +494,20 @@ def c4_cache(tmp: Path) -> dict:
                 "huella_rota": e_malo.huella,
                 "el_fichero_cacheado_tenia_el_defecto": '"visibility": "public"' in contenido_malo,
                 "tras_regenerar_desaparece": '"visibility": "public"' not in contenido_bueno,
+            },
+            "c_ataque_coherente": {
+                "ataque": "truncado a 1 nodo con visibility=public Y sidecar RECALCULADO",
+                "obtener_dice": e_coherente.estado,
+                "obtener_pica": e_coherente.estado == "reutilizado",
+                "verificar_a_fondo_con_el_ataque": forense,
+                "verificar_a_fondo_con_la_cache_sana": forense_sano,
+                "por_que_no_va_en_obtener": (
+                    "recalcular el sha esperado exige REGENERAR el dataset entero, "
+                    "que es exactamente lo que la caché evita. Queda declarado: "
+                    "`obtener()` detecta manipulación incoherente; el ataque "
+                    "coherente se caza con `verificar_a_fondo`, y aquí queda "
+                    "demostrado que es detectable, no una esperanza."
+                ),
             },
             "b_fichero_manipulado": {
                 "ataque": "truncado a 2 nodos con visibility=public, sidecar intacto",
@@ -630,6 +706,298 @@ def c8_driver_falso() -> dict:
 
 
 # ---------------------------------------------------------------------------
+# C9 — SATURACIÓN (cero cobertura en v2.0)
+# ---------------------------------------------------------------------------
+
+TAMANOS_SATURACION = (10, 100, 250, 500)
+
+
+def _saturado_v20(da: dict, db: dict) -> bool:
+    """El criterio de v2.0, tal cual estaba en ``run_bench.discontinuidades``.
+
+    Se conserva AQUÍ, y sólo aquí, como control negativo: es lo que hay que
+    ver fallar para que el criterio nuevo signifique algo.
+    """
+    return bool(da) and da == db
+
+
+def c9_saturacion() -> tuple[dict, dict]:
+    """Mide de VERDAD las series de desglose y contrasta los dos criterios.
+
+    Nada de fixtures: se monta el visor a tres tamaños y se leen los tamaños
+    reales de ``/api/graph?limit=300`` y ``/api/sources``.
+    """
+    urls = {
+        "api_graph_300": "/api/graph?limit=300",
+        "api_sources": "/api/sources",
+    }
+    desgloses: dict[str, list[dict[str, int]]] = {k: [] for k in urls}
+    for n in TAMANOS_SATURACION:
+        cliente, _contador, app, _ = arnes.montar(Parametros(n_entities=n))
+        try:
+            for nombre, url in urls.items():
+                datos = cliente.get(url).json()
+                desgloses[nombre].append({
+                    k: len(datos[k]) for k in arnes.CLAVES_LISTA
+                    if isinstance(datos.get(k), list)
+                })
+        finally:
+            app.dependency_overrides.clear()
+
+    series = {
+        nombre: {k: [d[k] for d in ds] for k in ds[0]}
+        for nombre, ds in desgloses.items()
+    }
+    tramos = list(range(len(TAMANOS_SATURACION) - 1))
+
+    def v21(nombre: str, **ablacion) -> list[bool]:
+        return [detector.analizar_saturacion(urls[nombre], series[nombre], i, **ablacion)["saturado"]
+                for i in tramos]
+
+    def v20(nombre: str) -> list[bool]:
+        return [_saturado_v20(desgloses[nombre][i], desgloses[nombre][i + 1]) for i in tramos]
+
+    graf_v20, graf_v21 = v20("api_graph_300"), v21("api_graph_300")
+    src_v20, src_v21 = v20("api_sources"), v21("api_sources")
+
+    # El tramo donde el visor satura de verdad es el último (250 -> 500).
+    ultimo = detector.analizar_saturacion(urls["api_graph_300"], series["api_graph_300"], tramos[-1])
+    aristas_bajan = any(c["componente"] == "edges" for c in ultimo["componentes_que_decrecen"])
+
+    c9a = _ok(
+        "C9a SATURACIÓN: el criterio de v2.0 es CIEGO en /api/graph?limit=300; el de v2.1 lo ve",
+        # Falso negativo de v2.0 en el tramo real de saturación...
+        graf_v20[-1] is False
+        # ...y falsos positivos de v2.0 en un endpoint que no satura.
+        and any(src_v20)
+        # v2.1: ve la saturación real y deja de inventarse la falsa.
+        and graf_v21[-1] is True
+        and not any(src_v21)
+        # y registra el colapso de aristas, que es la parte grave.
+        and aristas_bajan,
+        {
+            "tamanos": list(TAMANOS_SATURACION),
+            "desglose_api_graph_300": desgloses["api_graph_300"],
+            "desglose_api_sources": desgloses["api_sources"],
+            "api_graph_300": {"criterio_v20": graf_v20, "criterio_v21": graf_v21},
+            "api_sources": {"criterio_v20": src_v20, "criterio_v21": src_v21},
+            "componentes_saturados_en_el_ultimo_tramo": ultimo["componentes_saturados"],
+            "componentes_que_decrecen_en_el_ultimo_tramo": ultimo["componentes_que_decrecen"],
+            "nota": (
+                "v2.0 comparaba diccionarios enteros con `da == db`. En el tramo real "
+                "el desglose pasa de {nodes:250, edges:750} a {nodes:300, edges:550}: "
+                "difieren, luego 'no saturado'. Y en /api/sources, plano en 4 mientras "
+                "aún no ha empezado a crecer, decía 'saturado'."
+            ),
+        },
+    )
+
+    # -- ABLACIONES sobre el MISMO código, cláusula a cláusula -----------------
+    # `exigir_acotado` se ablaciona sobre la serie MEDIDA arriba. Las otras dos
+    # necesitan formas de serie que este dataset no produce, así que se declaran
+    # explícitas: son series SINTÉTICAS, no medidas, y aquí queda dicho.
+    sin_acotado = v21("api_graph_300", exigir_acotado=False)
+
+    def dos_criterios(url: str, serie: dict[str, list[int]], idx: int, **abl):
+        con = detector.analizar_saturacion(url, serie, idx)["saturado"]
+        sin = detector.analizar_saturacion(url, serie, idx, **abl)["saturado"]
+        return con, sin
+
+    # Componente constante desde el primer tamaño: nunca creció, luego no hay
+    # techo que demostrar. Es la forma pura del falso positivo de `api_sources`.
+    serie_constante = {"sources": [4, 4, 4]}
+    con_crec, sin_crec = dos_criterios(
+        "/api/sources", serie_constante, 0, exigir_crecimiento_previo=False)
+
+    # Meseta transitoria muy por debajo de su máximo: pausa, no techo. Es la
+    # forma del falso positivo de `api_graph_300_filtro_tipo` entre 100 y 101.
+    serie_meseta_baja = {"nodes": [2, 13, 13, 63]}
+    con_max, sin_max = dos_criterios(
+        "/api/graph?limit=300&entity_type=Character", serie_meseta_baja, 1,
+        exigir_maximo=False)
+
+    c9b = _ok(
+        "C9b SATURACIÓN: las tres cláusulas del criterio son NECESARIAS (ablación)",
+        # Sin "acotado por el techo", el limit=300 de los NODOS se le achaca a
+        # las ARISTAS (que llegan a 750) y aparece saturación donde no la hay.
+        any(sin_acotado[:-1]) and not any(graf_v21[:-1])
+        # Sin "creció antes", un componente constante pasa por techo.
+        and sin_crec is True and con_crec is False
+        # Sin "en su máximo", una meseta transitoria pasa por techo.
+        and sin_max is True and con_max is False,
+        {
+            "ablacion_exigir_acotado": {
+                "serie": "MEDIDA en esta misma prueba",
+                "api_graph_300_con_clausula": graf_v21,
+                "api_graph_300_sin_clausula": sin_acotado,
+                "por_que": "las aristas llegan a 750 y el limit=300 no las acota",
+            },
+            "ablacion_exigir_crecimiento_previo": {
+                "serie": {"SINTETICA": serie_constante},
+                "con_clausula": con_crec,
+                "sin_clausula": sin_crec,
+                "por_que": "un componente que nunca creció no demuestra ningún techo",
+            },
+            "ablacion_exigir_maximo": {
+                "serie": {"SINTETICA": serie_meseta_baja},
+                "con_clausula": con_max,
+                "sin_clausula": sin_max,
+                "por_que": "meseta en 13 con máximo 63: es una pausa, no un techo",
+            },
+        },
+    )
+    return c9a, c9b
+
+
+# ---------------------------------------------------------------------------
+# C10 — el hash del SISTEMA MEDIDO cubre lo que dice cubrir
+# ---------------------------------------------------------------------------
+
+def c10_hash_del_sistema() -> dict:
+    """Muta ``static/js/graph.js`` en disco y exige que el hash se mueva.
+
+    El fichero se restaura SIEMPRE (bytes originales, verificados) y el hash
+    debe volver exactamente al de partida.
+    """
+    objetivo = RAIZ / "viewer" / "app" / "static" / "js" / "graph.js"
+    ficheros = ficheros_del_sistema_medido()
+    por_extension: dict[str, int] = {}
+    for p in ficheros:
+        por_extension[p.suffix] = por_extension.get(p.suffix, 0) + 1
+
+    # Lo que cubría v2.0, para poder nombrar lo que se le escapaba.
+    fuera_de_v20 = [str(p.relative_to(RAIZ)) for p in ficheros
+                    if p.suffix not in (".py", ".html")]
+
+    antes = sha_del_sistema_medido()
+    original = objetivo.read_bytes()
+    try:
+        objetivo.write_bytes(original + b"\n// mutacion de calibracion\n")
+        mutado = sha_del_sistema_medido()
+    finally:
+        objetivo.write_bytes(original)
+    restaurado = sha_del_sistema_medido()
+
+    return _ok(
+        "C10 HASH DEL SISTEMA: mutar static/js/graph.js invalida la calibración",
+        objetivo.exists()
+        and objetivo.read_bytes() == original
+        and mutado != antes
+        and restaurado == antes
+        and len(fuera_de_v20) > 0,
+        {
+            "fichero_mutado": str(objetivo.relative_to(RAIZ)),
+            "sha_antes": antes[:16],
+            "sha_con_mutacion": mutado[:16],
+            "sha_tras_revertir": restaurado[:16],
+            "el_hash_se_movio": mutado != antes,
+            "ficheros_cubiertos": len(ficheros),
+            "por_extension": por_extension,
+            "invisibles_para_v20": fuera_de_v20,
+            "nota": (
+                "Con el filtro de v2.0 (`suffix in ('.py','.html')`) esta misma "
+                "mutación dejaba el hash INTACTO: graph.js —el motor de pintado "
+                "del grafo, objeto de este carril— no entraba en la huella."
+            ),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# C11 — N+1 CON TOPE: la serie plana que el detector firmaba como "constante"
+# ---------------------------------------------------------------------------
+
+TOPE_INYECTADO = 40
+
+
+def c11_n_mas_1_con_tope(cliente, contador, grafo, ids: list[str]) -> dict:
+    """Inyecta ``min(2*g+3, TOPE)`` y exige que el detector NO diga "constante".
+
+    Es el hueco que quedaba: en cuanto todos los puntos superan el tope, la
+    serie de llamadas es plana, ``pendiente = 0.0`` y v2.0 dictaminaba
+    "constante" para un endpoint que hace TOPE consultas por petición. El tope
+    real de este control es 40, no 300, para que el grafo de calibración
+    (grados 120) tenga puntos por encima sin necesitar hubs gigantes.
+    """
+    from app.providers.mock_provider import MockGraphProvider
+
+    # El defecto sólo se manifiesta cuando TODOS los puntos superan el tope: es
+    # entonces cuando la serie de llamadas se aplana. Con un nodo por debajo,
+    # la serie todavía sube y el detector acierta por accidente.
+    todos = {nid: _grado(grafo, nid) for nid in ids}
+    grados = {nid: g for nid, g in todos.items() if g > TOPE_INYECTADO}
+    if len(grados) < detector.PUNTOS_MINIMOS:
+        return _ok(
+            "C11 N+1 CON TOPE: serie plana por saturación NO se firma como 'constante'",
+            False,
+            {"error": f"hacen falta {detector.PUNTOS_MINIMOS} nodos de grado > "
+                      f"{TOPE_INYECTADO}; hay {len(grados)}", "grados": todos},
+        )
+    ids = list(grados)
+    original = MockGraphProvider.relations_for_entity
+
+    def con_tope(self, eid):
+        sal, ent = original(self, eid)
+        # Recorta la CARGA devuelta: el proveedor deja de crecer al llegar al
+        # tope, exactamente como haría un `limit` en la consulta.
+        return sal[:TOPE_INYECTADO], ent[:max(0, TOPE_INYECTADO - len(sal))]
+
+    def medir():
+        llamadas, carga = {}, {}
+        for nid in ids:
+            g = grados[nid]
+            resp = cliente.get(f"/api/entities/{nid}")
+            llamadas[g] = arnes.llamadas_de(cliente, contador, f"/api/entities/{nid}")
+            carga[g] = arnes.elementos_en(resp)
+        return llamadas, carga
+
+    with parche(MockGraphProvider, "relations_for_entity", con_tope):
+        llamadas, carga = medir()
+        # (a) el detector SIN la señal de carga: es lo que hacía v2.0.
+        sin_señal = detector.dictaminar("grado", "api_entity_detalle", llamadas)
+        # (b) el detector CON la señal de carga: v2.1.
+        con_señal = detector.dictaminar("grado", "api_entity_detalle", llamadas, carga=carga)
+        # (c) el guardia de MAGNITUD, que es el que pone el número encima de la
+        #     mesa aunque el crecimiento sea 0.
+        techo = {"api_entity_detalle": {"llamadas_fuente": 10.0}}
+        medido_alto = {"api_entity_detalle": {"llamadas_fuente": float(max(llamadas.values()))}}
+        rojo_presupuesto = detector.comprobar_presupuestos(medido_alto, techo)
+
+    # -- revertido: el defecto real vuelve a verse como N+1 --------------------
+    llamadas_reales, carga_real = medir()
+    tras_revertir = detector.dictaminar(
+        "grado", "api_entity_detalle", llamadas_reales, carga=carga_real)
+
+    plana = len(set(llamadas.values())) == 1
+
+    return _ok(
+        "C11 N+1 CON TOPE: serie plana por saturación NO se firma como 'constante'",
+        plana
+        and sin_señal.veredicto == "constante" and sin_señal.pendiente == 0.0
+        and con_señal.veredicto == "no concluyente" and con_señal.carga_saturada is True
+        and len(rojo_presupuesto) == 1
+        and tras_revertir.veredicto == "N+1",
+        {
+            "tope_inyectado": TOPE_INYECTADO,
+            "llamadas_con_tope": {str(k): v for k, v in sorted(llamadas.items())},
+            "carga_con_tope": {str(k): v for k, v in sorted(carga.items())},
+            "serie_de_llamadas_es_plana": plana,
+            "v20_sin_señal_de_carga": sin_señal.como_dict(),
+            "v21_con_señal_de_carga": con_señal.como_dict(),
+            "presupuesto_absoluto_rojo": [i.como_dict() for i in rojo_presupuesto],
+            "tras_revertir": tras_revertir.como_dict(),
+            "nota": (
+                "Sin la señal de carga el veredicto es 'constante, pendiente 0.0' "
+                f"para un endpoint que hace {max(llamadas.values())} consultas por "
+                "petición. El crecimiento por sí solo no basta: hace falta también "
+                "un guardia de MAGNITUD, que en v2.0 no se invocaba desde "
+                "run_bench.py."
+            ),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 
 def main() -> int:
     tmp = Path("/tmp/s9k-perf-v2-calibracion")
@@ -647,6 +1015,7 @@ def main() -> int:
         pruebas.append(c1_eje_pagina(cliente_h, contador_h))
         pruebas.append(c7_n_mas_1_parciales(cliente_h, contador_h))
         pruebas.append(c3_eje_grado(cliente_h, contador_h, grafo_hub, ids_grado))
+        pruebas.append(c11_n_mas_1_con_tope(cliente_h, contador_h, grafo_hub, ids_grado))
         pruebas.append(c5_presupuesto(cliente_h, contador_h))
         pruebas.append(c6_estadistica(cliente_h))
     finally:
@@ -657,6 +1026,10 @@ def main() -> int:
     pruebas.append(c1b)
     pruebas.append(c4_cache(tmp))
     pruebas.append(c8_driver_falso())
+    c9a, c9b = c9_saturacion()
+    pruebas.append(c9a)
+    pruebas.append(c9b)
+    pruebas.append(c10_hash_del_sistema())
 
     calibrado = all(p["superada"] for p in pruebas)
     informe = {

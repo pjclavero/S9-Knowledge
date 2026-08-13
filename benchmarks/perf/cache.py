@@ -51,7 +51,18 @@ class Entrada:
 
 
 def _nombre(p: Parametros) -> str:
+    """Un fichero por juego de parámetros DISTINTO.
+
+    Defecto de v2.0: ``workspace`` no entraba en el nombre. Medido: los 18
+    juegos de parámetros del baseline colapsaban en 7 nombres y 6 huellas
+    distintas compartían ``grafo_20.json``. La huella detectaba la colisión y
+    regeneraba, así que las CIFRAS eran correctas —pero la caché no cacheaba:
+    cada acceso reescribía el fichero del vecino. Aquí el nombre distingue
+    todos los parámetros que distinguen al grafo.
+    """
     base = f"grafo_{p.n_entities}"
+    if p.workspace != dataset.WORKSPACE:
+        base += "_w" + _sufijo_estable(p.workspace)
     if p.hubs:
         base += f"_hubs{p.hubs}x{p.grado_hub}"
     if p.seed != dataset.SEMILLA:
@@ -59,6 +70,12 @@ def _nombre(p: Parametros) -> str:
     if p.edges_per_node != dataset.EDGES_PER_NODE:
         base += f"_g{p.edges_per_node}"
     return base + ".json"
+
+
+def _sufijo_estable(texto: str) -> str:
+    """Sufijo corto y seguro para nombre de fichero, sin perder unicidad."""
+    limpio = "".join(c if c.isalnum() else "-" for c in texto)[:24]
+    return f"{limpio}-{hashlib.sha256(texto.encode('utf-8')).hexdigest()[:8]}"
 
 
 def ruta_de(p: Parametros, raiz: Path | None = None) -> Path:
@@ -125,3 +142,46 @@ def obtener(p: Parametros, raiz: Path | None = None) -> Entrada:
         return _escribir(p, ruta, esperada, "regenerado_por_contenido")
 
     return Entrada(ruta, esperada, sidecar["sha256_fichero"], "reutilizado")
+
+
+def sha_esperado(p: Parametros) -> str:
+    """SHA-256 que DEBE tener el fichero, calculado sin fiarse de nadie.
+
+    El generador es determinista, así que el sha correcto no hay que apuntarlo:
+    se calcula. Ver ``verificar_a_fondo``.
+    """
+    data = dataset.generate(
+        p.n_entities, seed=p.seed, workspace=p.workspace,
+        edges_per_node=p.edges_per_node, hubs=p.hubs, grado_hub=p.grado_hub,
+    )
+    return hashlib.sha256(
+        json.dumps(data, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def verificar_a_fondo(p: Parametros, raiz: Path | None = None) -> dict:
+    """Comprobación que NO se fía del sidecar.
+
+    Límite conocido de ``obtener()``: sólo detecta manipulación INCOHERENTE
+    (fichero tocado, sidecar intacto). Un atacante que trunque el fichero **y**
+    recalcule el sidecar deja la entrada en ``reutilizado`` y resucita el
+    defecto. La defensa no es apuntar más hashes: el generador es determinista,
+    luego el sha correcto es CALCULABLE y no hace falta creerse el apuntado.
+
+    Esto cuesta una generación entera, que es justo lo que la caché evita, así
+    que ``obtener()`` NO lo hace en cada acceso — queda declarado aquí y
+    ejercitado por la calibración C4c, que es donde importa demostrar que el
+    ataque coherente es detectable.
+    """
+    ruta = ruta_de(p, raiz)
+    real = sha_de_fichero(ruta) if ruta.exists() else None
+    esperado = sha_esperado(p)
+    sidecar = leer_sidecar(ruta) or {}
+    return {
+        "ruta": str(ruta),
+        "sha_esperado_recalculado": esperado,
+        "sha_real_del_fichero": real,
+        "sha_apuntado_en_el_sidecar": sidecar.get("sha256_fichero"),
+        "integro": real == esperado,
+        "el_sidecar_miente": (
+            sidecar.get("sha256_fichero") == real and real != esperado),
+    }
