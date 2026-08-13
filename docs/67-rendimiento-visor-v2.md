@@ -1,11 +1,21 @@
 # 67 — Rendimiento y escala del visor (v2): arreglar el instrumento antes de medir
 
 **Repositorio**: S9-Knowledge · **Rama**: `perf/viewer-scale-baseline-v2` ·
-**Base medida**: `cb874fe1141e4a17008c362c0aa404a90889128d` (main)
+**Base medida**: `e2e8214` (main) · **artefactos regenerados en v2.1**
 
 Todo lo que sigue se midió sobre datos **sintéticos**, con el proveedor *mock* en
 memoria y el cliente en proceso. Nunca se tocó producción, ni VM105, ni Neo4j,
 ni credencial alguna.
+
+> **Dónde se midió.** Todas las cifras de este documento salen de una única
+> máquina: Debian 13 (Linux 6.12.90), **Intel Xeon E5-2680 v4, 8 vCPU**, 8,7 GiB
+> de RAM, Python 3.13.5, máquina de desarrollo **compartida y con carga ajena**.
+> Los milisegundos no son transportables a otra máquina; los **recuentos de
+> llamadas y los tamaños de respuesta sí**, porque son deterministas. El bloque
+> `entorno` de cada artefacto JSON repite este dato en el propio fichero.
+
+> **Lo que este carril NO mide, pese a su título.** El rendimiento **en el
+> navegador** no se mide en absoluto: ver §6.4.
 
 ---
 
@@ -31,19 +41,74 @@ más de lo que podía demostrar*.
 Un instrumento que nunca se ha visto rojo no mide nada. Y un instrumento cuyo
 **juez** nunca se ha visto rojo, tampoco.
 
+### 0.1 Y de la v2.1 salieron otros cuatro, del mismo tipo
+
+La revisión independiente de v2.1 encontró que el patrón seguía vivo en el
+propio arnés. Se corrigen aquí, cada uno con su prueba C\*:
+
+| Agujero de v2.1 | Cómo se demostró (medido) | Corrección en v2.2 |
+|---|---|---|
+| El **detector de saturación estaba ciego en el endpoint que le da nombre**. `saturado = bool(da) and da == db` comparaba los desgloses ENTEROS | En el tramo real 250→500 el desglose pasa de `{nodes:250, edges:750}` a `{nodes:300, edges:550}`: **difieren**, luego `saturado=False`. Barrido de las 65 filas: `api_graph_300` **no salía saturado ni una vez**, mientras `api_sources` —que no satura, crece 4→10→20— salía `saturado=True` **3 veces**, y `api_entity_detalle` una por coincidencia numérica entre dos grafos distintos | `detector.analizar_saturacion`: saturación **por componente y sobre la serie entera**, con dos criterios —**tocar un techo declarado** que además **acote** a ese componente, o **meseta en su propio máximo** tras haber crecido. Las tres cláusulas están **ablacionadas** en C9b. **Cero pruebas cubrían `saturado` en v2.1; ahora son C9a y C9b** |
+| El detector firmaba **"constante"** un N+1 **con tope** | Inyectado `min(2·g+3, 40)` sobre nodos de grado 125/132/134: llamadas **83 / 83 / 83**, serie plana, veredicto **"constante", pendiente 0.0** — para un endpoint que hacía **83 consultas por petición** | `dictaminar()` acepta la **carga devuelta**; si la respuesta viene recortada y ha dejado de crecer, el veredicto es **"no concluyente"**, no "constante" (C11) |
+| `comprobar_presupuestos` —**el único guardia de magnitud absoluta**— **no se invocaba nunca desde `run_bench.py`**: vivía sólo dentro de la calibración C5 | El informe no tenía ni un campo de presupuesto | Conectado al informe (`presupuestos.por_tamano` y `presupuestos.por_grado`), con **techos medidos**, no inventados |
+| El **hash del sistema medido no cubría lo que su nombre promete**: filtraba por `suffix in (".py", ".html")` | Mutar **`viewer/app/static/js/graph.js`** —el motor de pintado del grafo, o sea el objeto de este carril— dejaba el hash **intacto** en `a505a170f4d1` y `run_bench.py` medía tan tranquilo. Quedaban fuera **16 ficheros**: 4 `.js`, 3 `.css`, 9 `.json` | Sin filtro de extensión: **107 ficheros** bajo `viewer/app/**`. Con la misma mutación el hash pasa de `9ee38c2c2984` a `8d075b5b439550a4` (C10) |
+
 ---
 
 ## 1. El instrumento de v2.1
 
 | Pieza | Qué hace |
 |---|---|
-| `detector.py` | Tres ejes (dataset, página, **grado**). Criterio de **crecimiento**, sin umbral. Exige **≥ 3 puntos** para afirmar una pendiente; con dos dice "insuficiente". Veredictos: `constante` / `N+1` / `no concluyente` / `insuficiente`. |
+| `detector.py` | Tres ejes (dataset, página, **grado**). Criterio de **crecimiento**, sin umbral. Exige **≥ 3 puntos** para afirmar una pendiente; con dos dice "insuficiente". Veredictos: `constante` / `N+1` / `no concluyente` / `insuficiente`. **Detección de saturación por componente** (`analizar_saturacion`) y **presupuestos absolutos** (`comprobar_presupuestos`). |
 | `dataset.py` | Generador determinista con **hubs**. Huella = SHA-256 de (código + parámetros + vocabulario + versión de formato). |
-| `cache.py` | Huella de generador **y** `sha256_fichero`. Cinco estados de invalidación. |
-| `estadistica.py` | Mediana, MAD, IQR, p05/p95 sobre ≥ 5 repeticiones. `comparar()` dice **"indistinguible del ruido"** si el efecto no supera 3 MAD combinados. |
-| `fake_neo4j.py` | Driver doble para contar consultas Cypher sin servidor. **Ahora calibrado (C8) y dentro del hash.** |
-| `calibracion.py` | C0–C8. Sale 1 si algún mecanismo no se pudo poner rojo. **Dentro del hash.** |
-| `run_bench.py` | Puerta doble: hash del **instrumento** y hash del **sistema medido**. **Dentro del hash.** |
+| `cache.py` | Huella de generador **y** `sha256_fichero`. Cinco estados de invalidación. **`verificar_a_fondo()` recalcula el sha esperado** sin fiarse del sidecar. |
+| `estadistica.py` | Mediana, MAD, IQR, p05/p95 sobre ≥ 5 repeticiones. `comparar()` dice **"indistinguible del ruido"** si el efecto no supera 3 MAD combinados, y **"sin dispersión medible"** si el MAD combinado es 0. |
+| `fake_neo4j.py` | Driver doble para contar consultas Cypher sin servidor. **Calibrado (C8) y dentro del hash.** |
+| `calibracion.py` | C0–C11 (**14 pruebas**). Sale 1 si algún mecanismo no se pudo poner rojo. **Dentro del hash.** |
+| `run_bench.py` | Puerta doble: hash del **instrumento** y hash del **sistema medido** (`viewer/app/**` **entero**). **Dentro del hash.** |
+
+### Por qué el criterio de saturación no es "los dos desgloses son iguales"
+
+Porque medido no funciona: en el único tramo donde `/api/graph?limit=300` satura
+de verdad los dos desgloses **no** son iguales —uno de los componentes topa y el
+otro **se desploma**— y el criterio de igualdad respondía "no saturado". Y al
+revés, una planicie inicial (`{sources: 4}` en los dos extremos, antes de que la
+serie empiece a crecer) lo daba por saturado.
+
+La saturación es una propiedad de **cada componente a lo largo de la serie
+entera**. Un componente está saturado en un tramo si:
+
+1. **toca un techo declarado** en la URL (`limit=N`) que además **le acota** —el
+   componente nunca lo supera en toda la serie: sin esta condición, el
+   `limit=300` de los **nodos** se le achacaría a las **aristas**, que llegan a
+   750, y aparecería saturación donde no la hay; o
+2. **mesetea en su propio máximo** habiendo crecido antes y sin bajar nunca —lo
+   que distingue un techo implícito (`/api/search` corta en 50 sin decirlo) de
+   un componente que simplemente aún no ha empezado a moverse.
+
+Un componente que **decrece** no basta por sí solo para declarar saturación —dos
+grafos distintos dan grados distintos, y eso es confusión, no techo— pero si la
+fila ya está saturada por otro componente, se registra como **colapso**. Es el
+caso de las aristas de `/api/graph?limit=300`: ver §5.
+
+Las tres cláusulas están ablacionadas una a una en **C9b**, sobre el mismo código
+que corre en producción del laboratorio, no sobre una copia.
+
+### Por qué "plano" no es lo mismo que "sano"
+
+Un endpoint con tope produce una serie de llamadas **plana** en cuanto los puntos
+superan el tope. El criterio de crecimiento, solo, firma eso como
+**"constante", pendiente 0.0** — y así se declara sano un endpoint que hace
+decenas o cientos de consultas por petición. Hacen falta **dos** guardias:
+
+* el de **crecimiento**, que ahora recibe también la **carga devuelta** y
+  responde "no concluyente" cuando la respuesta viene recortada y ha dejado de
+  crecer (C11);
+* el de **magnitud absoluta** (`comprobar_presupuestos`), que en v2.1 existía
+  pero **no se invocaba desde `run_bench.py`**. Ahora se invoca, con techos
+  **medidos**: el coste con el dataset más pequeño para los escenarios cuyo
+  coste no debe depender del tamaño, y el coste del hub de menor grado para la
+  ficha de entidad.
 
 ### Por qué "crecimiento" y no "umbral"
 
@@ -59,11 +124,18 @@ cambia de un grafo generado a otro. Declararla sana sería repetir el error de v
 
 ---
 
-## 2. Tabla de calibración (salidas reales, 10/10)
+## 2. Tabla de calibración (salidas reales, **14/14**)
 
 `benchmarks/perf/resultados/calibracion.json` ·
-instrumento `d6c012ea5ddc` · sistema medido `487ff8e007e5` ·
-Python 3.13.5, Xeon E5-2680 v4, 8 vCPU.
+instrumento `0a6fa39c6050` · sistema medido `9ee38c2c2984` ·
+Python 3.13.5, Xeon E5-2680 v4, 8 vCPU, Debian 13.
+
+> **Los artefactos de este documento se regeneraron por completo.** Al rebasar
+> sobre `main`, tres ficheros de `viewer/app/**` cambiaron y la puerta hizo
+> exactamente lo que debía: `run_bench.py` se negó a medir
+> (`487ff8e0 != a505a170`). Los hashes de v2.1 (`d6c012ea5ddc` / `487ff8e007e5`)
+> ya no valen y no se conservan como si valieran: `calibracion.json` y
+> `baseline_v2.json` están **recalibrados y remedidos** sobre `main = e2e8214`.
 
 | # | Afirmación | Violación introducida | Estado con violación | Tras revertir | ¿Superada? |
 |---|---|---|---|---|---|
@@ -77,6 +149,10 @@ Python 3.13.5, Xeon E5-2680 v4, 8 vCPU.
 | **C6** | La estadística distingue efecto de ruido | retardo real de **5 ms** | factor efecto/ruido **> 3** → **"peor"** | factor ~0.01 → **"indistinguible del ruido"** | **SÍ** |
 | **C7** | Se ven los **N+1 parciales** | 1 consulta cada **2**, **3**, **5** y **√n** elementos | pendientes **0.50 / 0.3333 / 0.20 / 0.0778** → las **cuatro** salen **N+1** (puntos 6/26/51, 5/18/35, 3/11/21, …) | sin defecto: 1/1/1, **constante** | **SÍ** |
 | **C8** | El contador de consultas Cypher mide de verdad | driver saboteado para registrar una de cada dos | driver **11** frente a contador independiente **23** → **discrepancia detectada** | 23 = 23; control directo: 3 `run` cuentan **3** | **SÍ** |
+| **C9a** | El detector de saturación **ve** la saturación real y **deja de inventarse** la falsa | *ninguna: se contrastan los dos criterios sobre datos medidos a n = 10/100/250/500* | criterio de v2.1 sobre `api_graph_300`: **`[false, false, false]`** — ciego en el tramo real (`{nodes:250, edges:750}` → `{nodes:300, edges:550}`); y `api_sources` **`[true, false, false]`**, falso positivo | criterio de v2.2: `api_graph_300` **`[false, false, true]`**, con el **colapso de aristas 750 → 550** registrado, y `api_sources` **`[false, false, false]`** | **SÍ** |
+| **C9b** | Las **tres** cláusulas del criterio son necesarias | se ablaciona cada una **sobre el mismo código** | sin *acotado*: `[true, true, true]` (el `limit=300` de los nodos se achaca a las aristas, que llegan a 750). Sin *creció antes*: una serie constante `[4,4,4]` pasa a saturada. Sin *en su máximo*: la meseta `[2,13,13,63]` pasa a saturada | con las tres: `false` en los tres casos | **SÍ** |
+| **C10** | El hash del sistema medido cubre **todo** `viewer/app/**` | se muta **`static/js/graph.js`** en disco | el hash pasa de `9ee38c2c2984` a `8d075b5b4395`. *(Con el filtro de v2.1 la misma mutación lo dejaba clavado en `a505a170f4d1`: **no se movía**.)* | fichero restaurado byte a byte, hash de vuelta en `9ee38c2c2984` | **SÍ** |
+| **C11** | Una serie plana **por saturación** no se firma como "constante" | `min(2·g+3, 40)` sobre grados 125/132/134 | llamadas **83 / 83 / 83** (plana). Sin señal de carga: **"constante", pendiente 0.0**. Con señal de carga: **"no concluyente"**. Presupuesto absoluto: **83.0 > 10.0**, incumplido | quitado el tope: **N+1**, pendiente 2.0 | **SÍ** |
 
 ### Sabotajes verificados contra la puerta
 
@@ -87,6 +163,8 @@ Además de C0–C8, se comprobó a mano que la puerta reacciona:
 | `_ok()` neutralizado (`condicion = True`) | **C0 falla**, `instrumento_calibrado: false`, C1–C8 pasan vacuamente como se esperaba |
 | `fake_neo4j.py` modificado para contar la mitad | `run_bench` **se niega**: "La calibración corresponde a otra versión del arnés (d6c012ea5ddc != 9d7f49ae5861)" |
 | Una línea añadida a `viewer/app/serializers.py` | `run_bench` **se niega**: "La calibración se hizo sobre otro estado de viewer/app/** (487ff8e007e5 != 795cdbda9b84)" |
+| **Rebase real sobre `main`** (3 ficheros de `viewer/app/**` llegados de `main`) | `run_bench` **se negó**: "La calibración se hizo sobre otro estado de viewer/app/** (`487ff8e0` != `a505a170`)". No es un sabotaje de laboratorio: es la puerta funcionando en el caso que la justifica |
+| **`viewer/app/static/js/graph.js` mutado** | v2.1: hash **`a505a170f4d1` → `a505a170f4d1`**, no se movía, `run_bench` medía. v2.2: **`9ee38c2c2984` → `8d075b5b4395`**, `run_bench` se niega |
 
 ---
 
@@ -97,21 +175,36 @@ calentamiento. Formato: **mediana ± MAD (ms) / llamadas a la fuente**.
 
 | escenario | n=10 | n=50 | n=100 | n=101 | n=250 | n=500 |
 |---|---|---|---|---|---|---|
-| api_status | 4.0±0.06 / 4 | 4.6±0.08 / 4 | 5.0±0.08 / 4 | 5.3±0.06 / 4 | 6.0±0.09 / 4 | 7.4±0.08 / 4 |
-| api_entity_types | 4.2±0.12 / 1 | 4.6±0.07 / 1 | 4.8±0.07 / 1 | 5.2±0.08 / 1 | 5.5±0.12 / 1 | 6.1±0.11 / 1 |
-| api_graph_300 *(satura, §5)* | 6.0±0.08 / 1 | 13.2±0.52 / 1 | 21.7±0.67 / 1 | 22.4±0.53 / 1 | 47.0±0.80 / 1 | 44.5±0.74 / 1 |
-| api_graph_300_filtro_tipo | 4.5±0.08 / 1 | 5.4±0.30 / 1 | 6.1±0.12 / 1 | 6.3±0.12 / 1 | 8.2±0.13 / 1 | 10.9±0.12 / 1 |
-| api_search | 5.1±0.08 / 1 | 8.2±0.26 / 1 | 8.3±0.09 / 1 | 8.5±0.15 / 1 | 9.4±0.36 / 1 | 9.6±0.09 / 1 |
-| api_entities_p50 | 5.4±0.07 / 1 | 8.6±0.22 / 1 | 8.6±0.12 / 1 | 8.9±0.13 / 1 | 9.4±0.20 / 1 | 9.7±0.10 / 1 |
-| api_entities_ultima_pag | 5.4±0.08 / 1 | 8.6±0.34 / 1 | 8.6±0.15 / 1 | 9.1±0.24 / 1 | 9.3±0.15 / 1 | 9.8±0.14 / 1 |
-| api_entity_detalle | 5.0±0.11 / 11 | 5.9±0.26 / 19 | 5.7±0.12 / 11 | 6.5±0.09 / 21 | 6.5±0.20 / 11 | 6.7±0.07 / 11 |
-| api_sources | 4.5±0.10 / 1 | 4.9±0.11 / 1 | 5.2±0.11 / 1 | 5.4±0.09 / 1 | 6.0±0.10 / 1 | 6.6±0.12 / 1 |
-| api_quality | 4.7±0.08 / 1 | 5.3±0.15 / 1 | 5.7±0.08 / 1 | 5.9±0.08 / 1 | 7.1±0.09 / 1 | 8.6±0.13 / 1 |
-| html_entities | 5.2±0.08 / 2 | 6.0±0.15 / 2 | 6.4±0.14 / 2 | 6.8±0.20 / 2 | 7.3±0.10 / 2 | 8.1±0.23 / 2 |
-| html_graph | 3.3±0.07 / 0 | 3.5±0.07 / 0 | 3.8±0.09 / 0 | 4.1±0.07 / 0 | 4.5±0.13 / 0 | 4.6±0.10 / 0 |
-| html_entity_detalle | 4.8±0.09 / 11 | 5.3±0.08 / 19 | 5.4±0.08 / 11 | 5.8±0.15 / 21 | 6.1±0.12 / 11 | 6.5±0.08 / 11 |
+| api_status | 4.0±0.08 / 4 | 4.5±0.09 / 4 | 5.1±0.24 / 4 | 5.1±0.09 / 4 | 6.1±0.14 / 4 | 7.4±0.20 / 4 |
+| api_entity_types | 4.0±0.05 / 1 | 4.4±0.08 / 1 | 5.2±0.43 / 1 | 4.9±0.06 / 1 | 5.6±0.23 / 1 | 5.9±0.08 / 1 |
+| api_graph_300 *(satura, §5)* | 5.9±0.10 / 1 | 12.8±0.20 / 1 | 22.0±0.45 / 1 | 22.2±0.60 / 1 | 48.8±0.98 / 1 | 46.4±0.51 / 1 |
+| api_graph_300_filtro_tipo | 4.4±0.06 / 1 | 5.1±0.07 / 1 | 5.9±0.11 / 1 | 6.3±0.28 / 1 | 8.3±0.23 / 1 | 11.4±0.28 / 1 |
+| api_search *(satura en 50)* | 4.9±0.06 / 1 | 7.9±0.14 / 1 | 8.2±0.08 / 1 | 9.5±0.45 / 1 | 9.1±0.13 / 1 | 9.8±0.40 / 1 |
+| api_entities_p50 | 5.4±0.13 / 1 | 8.3±0.09 / 1 | 8.7±0.20 / 1 | 8.7±0.09 / 1 | 9.8±0.36 / 1 | 9.9±0.27 / 1 |
+| api_entities_ultima_pag | 5.4±0.09 / 1 | 8.3±0.09 / 1 | 8.8±0.21 / 1 | 8.8±0.13 / 1 | 9.3±0.12 / 1 | 10.2±0.38 / 1 |
+| api_entity_detalle | 5.0±0.10 / 11 | 5.6±0.08 / 19 | 5.6±0.08 / 11 | 7.6±1.04 / 21 | 6.2±0.12 / 11 | 6.9±0.38 / 11 |
+| api_sources | 4.7±0.21 / 1 | 4.7±0.10 / 1 | 5.2±0.07 / 1 | 5.5±0.23 / 1 | 5.9±0.09 / 1 | 6.5±0.10 / 1 |
+| api_quality | 4.6±0.08 / 1 | 5.1±0.09 / 1 | 5.6±0.11 / 1 | 5.9±0.08 / 1 | 6.9±0.12 / 1 | 8.6±0.10 / 1 |
+| html_entities | 5.1±0.16 / 2 | 6.1±0.21 / 2 | 6.4±0.12 / 2 | 6.6±0.10 / 2 | 7.3±0.23 / 2 | 8.1±0.22 / 2 |
+| html_graph | 3.3±0.14 / 0 | 3.4±0.09 / 0 | 3.7±0.07 / 0 | 4.1±0.07 / 0 | 4.4±0.12 / 0 | 5.2±0.61 / 0 |
+| html_entity_detalle | 4.7±0.11 / 11 | 5.2±0.10 / 19 | 5.5±0.19 / 11 | 6.4±0.43 / 21 | 6.0±0.12 / 11 | 6.8±0.20 / 11 |
 
 Dispersión relativa (MAD/mediana) entre el 1 % y el 5 %.
+
+### Presupuestos absolutos (el guardia que en v2.1 no se invocaba)
+
+Dos techos, los dos **medidos**, no elegidos a ojo:
+
+| presupuesto | techo | incumplimientos |
+|---|---|---|
+| **por tamaño** — el coste de estos escenarios no debe depender del tamaño del grafo; techo = llamadas medidas con **n = 10** | 1–4 llamadas según escenario | **ninguno** |
+| **por grado** — una ficha no debería costar más por tener el nodo más relaciones; techo = llamadas del hub de **menor grado (3) = 9** | 9.0 | **3**: grado 33 → **69.0**, grado 125 → **253.0**, grado 406 → **815.0** |
+
+Quedan **fuera del presupuesto por tamaño, y se declara por qué**: `api_sources`
+(crece con el número de fuentes del corpus, no con el grafo) y los dos escenarios
+de ficha de entidad (su coste depende del **grado**, no del tamaño). El informe
+**registra** los incumplimientos; no aborta la medición, porque el N+1 por grado
+es un hallazgo conocido y declarado, no una sorpresa que deba tumbar la tabla.
 
 ### Veredictos del eje DATASET
 
@@ -145,26 +238,38 @@ calibrar** y así se marca.
 Mismo grafo (250 entidades), variando el **grado** del nodo pedido en
 `/api/entities/{id}`:
 
-| grado del nodo | llamadas a la fuente | mediana ± MAD | bytes |
-|---|---|---|---|
-| 3 | 9 | 6.45 ± 0.10 ms | 5 364 |
-| 33 | 69 | 10.33 ± 0.49 ms | 48 177 |
-| 125 | 253 | 19.19 ± 0.19 ms | 179 836 |
-| **406** | **815** | **50.14 ± 1.22 ms** | 583 167 |
+| grado del nodo | llamadas a la fuente | **2·grado+3** | ¿coincide? | mediana ± MAD | bytes |
+|---|---|---|---|---|---|
+| 3 | 9 | 9 | **sí** | 6.48 ± 0.08 ms | 5 364 |
+| 33 | 69 | 69 | **sí** | 10.08 ± 0.36 ms | 48 177 |
+| 125 | 253 | 253 | **sí** | 20.52 ± 0.53 ms | 179 836 |
+| **406** | **815** | 815 | **sí** | **51.31 ± 0.58 ms** | 583 167 |
+| **812** | **1 627** | 1 627 | **sí** | *(medida aparte)* | — |
 
 Pendiente **2.0 llamadas por relación**, constante y **sin tope**: el endpoint
 resuelve la entidad del otro extremo de cada arista, entrante y saliente, una a
-una. La revisión independiente forzó grado **1505 → 3013 llamadas** y derivó la
-fórmula exacta:
+una. La fórmula es exacta en los **cinco** puntos medidos:
 
 > **llamadas = 2 · grado + 3**
 
-que también explica al dígito el escalón de §5 (grado 4 → 11, grado 9 → 21).
+y también explica al dígito el escalón de §5 (grado 4 → 11, grado 9 → 21). El
+punto de grado **812 → 1 627 llamadas** se midió expresamente para comprobar que
+**no aparece ningún tope** al subir: no lo hay.
 
 En un grafo de lore real, los nodos de grado alto son precisamente los que más
 se consultan. **Este es el hallazgo de rendimiento.** No se arregla en esta
 rama: el arreglo vive en `viewer/app/routers/readonly.py` y en la cadena de
-autorización, zona de otros carriles.
+autorización, zona de otros carriles. Queda para **decisión del operador**.
+
+### Nota de método: el eje del grado pierde puntos por empate
+
+`eje_grado` indexa las medidas **por grado**, así que dos nodos con el mismo
+grado se pisan. Medido en este baseline: de los **4 ids** pedidos en cada uno de
+los 4 grafos de hub salen **3 puntos**, uno perdido por empate en los cuatro
+casos. Como el detector exige **3 puntos** como mínimo, un empate más habría
+degradado el veredicto a "insuficiente" sin que nadie se enterara. Ahora los
+puntos perdidos se **deduplican explícitamente y se declaran** en el informe
+(`puntos_perdidos_por_empate_de_grado`), en vez de desaparecer en silencio.
 
 ---
 
@@ -185,22 +290,55 @@ autorización, zona de otros carriles.
 
 | n | nodos devueltos | aristas | bytes | mediana |
 |---|---|---|---|---|
-| 10 | 10 | 30 | 22 140 | 6.0 ms |
-| 50 | 50 | 150 | 110 044 | 13.2 ms |
-| 100 | 100 | 300 | 219 835 | 21.7 ms |
-| 101 | 101 | 303 | 222 333 | 22.4 ms |
-| 250 | 250 | 750 | 550 187 | 47.0 ms |
-| **500** | **300 (tope)** | **550** | **523 136** | **44.5 ms** |
+| 10 | 10 | 30 | 22 140 | 5.9 ms |
+| 50 | 50 | 150 | 110 044 | 12.8 ms |
+| 100 | 100 | 300 | 219 835 | 22.0 ms |
+| 101 | 101 | 303 | 222 333 | 22.2 ms |
+| 250 | 250 | 750 | 550 187 | 48.8 ms |
+| **500** | **300 (tope)** | **550** | **523 136** | **46.4 ms** |
 
 El `limit=300` **satura sobre los nodos**: a n=500 la respuesta trae 300 nodos y
 sólo 550 aristas (las que caen entre nodos seleccionados), es **más pequeña** que
 la de n=250, y la latencia sigue al *payload*. **La serie de este escenario sólo
 es interpretable como curva de escala hasta n ≈ 300**; de ahí en adelante ya no
-compara la misma carga. El informe JSON marca cada tramo con `saturado: true`
-cuando el desglose de la respuesta no cambia entre dos tamaños.
+compara la misma carga.
+
+El informe JSON marca ese tramo con `saturado: true` y nombra el componente
+culpable en `componentes_saturados` (`nodes`, *toca el techo declarado
+limit=300*) y el que se desploma en `componentes_que_decrecen` (`edges`,
+750 → 550). **En v2.1 esa frase era falsa como afirmación**: el criterio era
+"el desglose no cambia entre dos tamaños" y, como aquí el desglose **sí** cambia
+(uno topa, el otro cae), este escenario **no salía marcado ni una sola vez**.
+Ver §0.1.
 
 Esto no era un artefacto de medida — era una propiedad del endpoint, y v2.0 la
 presentó como una serie continua (6.0 → 13.3 → 21.7 → 47.5 → 45.0). Corregido.
+
+### Y es **peor** de lo que decía la v2.1: el visor no enseña un grafo recortado, enseña polvo
+
+`limit=300` no recorta el grafo a un subgrafo de 300 nodos con sus aristas: se
+queda con 300 nodos y **sólo sobreviven las aristas cuyos dos extremos están
+entre esos 300**. Como el muestreo no es local, la probabilidad de que ambos
+extremos caigan dentro **se desploma** al crecer el grafo. Medido, en esta misma
+máquina, hasta n = 2000:
+
+| n | aristas que **existen** | nodos devueltos | aristas devueltas | aristas por nodo | **% de aristas** |
+|---|---|---|---|---|---|
+| 250 | 750 | 250 | 750 | 3.00 | **100.0 %** |
+| 500 | 1 500 | 300 *(tope)* | 550 | 1.83 | **36.7 %** |
+| 1 000 | 3 000 | 300 *(tope)* | 275 | 0.92 | **9.2 %** |
+| 2 000 | 6 000 | 300 *(tope)* | **151** | **0.50** | **2.5 %** |
+
+La densidad cae de **3,0 a 0,5 aristas por nodo**. Con 2 000 entidades, la
+pantalla del grafo recibe 300 nodos y **151 de las 6 000 aristas**: la mitad de
+los nodos no tiene ni una sola conexión visible.
+
+> **El visor no muestra un grafo recortado: muestra polvo desconectado.**
+
+Esto es un asunto de **producto**, no de milisegundos, y no se arregla en esta
+rama. Queda para **decisión del operador**. El arreglo natural —muestreo por
+vecindad, o `limit` sobre aristas y no sobre nodos— vive en el proveedor y en
+`viewer/app/routers/`, fuera del alcance de este carril.
 
 ---
 
@@ -215,11 +353,39 @@ presentó como una serie continua (6.0 → 13.3 → 21.7 → 47.5 → 45.0). Cor
 * **El camino de autenticación**: se mide con `S9K_AUTH_ENABLED=false`, el caso
   más barato de política. El coste con un lector no-admin y partida activa no se
   midió.
-* **Memoria**, **tamaños > 500 entidades** y **el navegador**.
+* **Memoria** y **tamaños > 500 entidades** en la tabla principal (§5 sí llega a
+  2 000, pero sólo para el desglose de `/api/graph`, no para latencias).
 * **Datos reales**: todo es sintético y determinista.
 
 Máquina de desarrollo **compartida**. Por eso todo va con mediana y MAD, y por
-eso el informe dice "indistinguible del ruido" cuando lo es.
+eso el informe dice "indistinguible del ruido" cuando lo es. Y cuando el MAD
+combinado es **0**, ya no dice "peor" ni "mejor": dice **"sin dispersión
+medible"** y no afirma nada. *(Es una corrección **latente**: en este baseline el
+MAD combinado mínimo es **0.1322 ms** y hay **0 filas** con ruido 0. Se cierra
+antes de que deje de serlo, porque con umbral 0 la regla se invertía y una
+diferencia de 0,0005 ms se declaraba "peor" con `factor = inf`.)*
+
+### 6.4 El rendimiento **en el navegador** no se mide. En absoluto.
+
+Hay que decirlo con todas las letras porque el carril se llama *rendimiento del
+visor* y podría entenderse lo contrario:
+
+* **Todo lo medido aquí es servidor.** Mediana, MAD, llamadas a la fuente,
+  consultas Cypher, bytes de respuesta: todo se toma con un cliente **en
+  proceso**, antes de que exista un navegador.
+* **Los 4 ficheros `.js` de `viewer/app/static/js/` nunca se ejecutan** durante
+  la medición — incluido **`vendor/vis-network.min.js`**, que es quien realmente
+  paga el coste de pintar el grafo, y **`graph.js`**, que lo orquesta.
+* No hay, por tanto, ni una cifra sobre: tiempo de *layout* de la red, FPS al
+  arrastrar, memoria del navegador, coste de *parsear* los 550 KB de JSON,
+  tiempo hasta el primer pintado, ni el comportamiento con 300 nodos y 151
+  aristas del caso de §5.
+* Lo único que este carril hace con esos ficheros, desde v2.2, es **vigilar que
+  no cambien sin invalidar la calibración** (C10). Vigilar no es medir.
+
+**Medir el navegador exige otro instrumento** (navegador sin cabeza,
+*trazas* de rendimiento, presupuestos de *frame*) y es un carril distinto. Aquí
+queda **declarado como no medido**, que es lo que corresponde.
 
 ---
 
@@ -227,14 +393,19 @@ eso el informe dice "indistinguible del ruido" cuando lo es.
 
 **Defectos reales del visor, confirmados con instrumento calibrado**
 
-1. **N+1 por grado en la ficha de entidad** — `llamadas = 2·grado + 3`, sin
-   tope, verificado hasta grado 1505 (3013 llamadas). *Alta en cuanto haya hubs.*
-   No se arregla aquí (zona de otros carriles).
+1. **N+1 por grado en la ficha de entidad** — `llamadas = 2·grado + 3`, exacto en
+   los **5 puntos medidos** y **sin tope**: grado **812 → 1 627 llamadas**.
+   *Alta en cuanto haya hubs.* Rompe además el presupuesto absoluto por grado
+   (9 → 69 → 253 → 815). No se arregla aquí (zona de otros carriles).
+   **→ decisión del operador.**
 2. **`quality_metrics` emite 13 consultas Cypher** por pantalla. Constante, pero
    es el absoluto más alto. *Baja-media.*
-3. **`/api/graph?limit=300` satura sobre nodos**: a partir de ~300 entidades la
-   respuesta deja de representar el grafo y trae menos aristas de las que hay.
-   Es un asunto de **producto**, no sólo de rendimiento. *Media.*
+3. **`/api/graph?limit=300` satura sobre nodos, y es peor de lo declarado en
+   v2.1**: no devuelve un grafo recortado sino **polvo desconectado**. Medido:
+   n=500 → 550 de 1 500 aristas (36,7 %); n=1000 → 275 de 3 000 (9,2 %);
+   n=2000 → **151 de 6 000 (2,5 %)**, con la densidad cayendo de **3,0 a 0,5
+   aristas por nodo**. Asunto de **producto**, no sólo de rendimiento. *Media.*
+   **→ decisión del operador.**
 
 **Defectos del instrumento, corregidos aquí**
 
@@ -248,6 +419,25 @@ eso el informe dice "indistinguible del ruido" cuando lo es.
 9. Puerta sin anclaje al sistema medido (v2.0) → `sha_del_sistema_medido`.
 10. C2 verde por un cero fantasma (v2.0) → clientes secuenciales y comprobación
     explícita de que ningún contador base vale 0.
+11. **Detector de saturación ciego en el endpoint que le da nombre** (v2.1) →
+    criterio por componente sobre la serie entera, con las 3 cláusulas
+    ablacionadas (C9a, C9b). *Cero pruebas lo cubrían antes.*
+12. **"Constante, pendiente 0.0" para un N+1 con tope** (v2.1) → señal de carga
+    en `dictaminar()` (C11).
+13. **`comprobar_presupuestos` nunca invocado desde `run_bench.py`** (v2.1) →
+    conectado al informe con techos medidos.
+14. **El hash del sistema medido no cubría `.js`/`.css`/`.json`** (v2.1) —
+    16 ficheros invisibles, entre ellos `graph.js` → hash sobre los **107**
+    ficheros de `viewer/app/**` (C10).
+15. **`comparar()` se invertía con MAD = 0** (v2.1) → veredicto "sin dispersión
+    medible". *Latente: 0 filas afectadas en este baseline.*
+16. **`_nombre()` de la caché omitía el `workspace`** (v2.1): dos parámetros
+    distintos, un mismo `grafo_20.json`. La huella lo detectaba y regeneraba
+    —las cifras eran correctas— pero **la caché no cacheaba**. Medido tras el
+    arreglo: los 19 usos del laboratorio → **11 juegos de parámetros distintos →
+    11 nombres distintos, 0 colisiones**.
+17. **El eje del grado perdía puntos por empate** (v2.1): 4 ids → 3 puntos, en
+    los 4 grafos de hub. Ahora se deduplica y se declara (§4).
 
 **Sin evidencia (no afirmado)**
 
@@ -263,3 +453,15 @@ eso el informe dice "indistinguible del ruido" cuando lo es.
     laboratorio hace que `run_bench.py` se niegue a medir hasta recalibrar.
     Meterla en CI toca ficheros compartidos con los carriles L y M.
 14. El coste de la política con un lector no-admin sigue sin medirse.
+15. **El rendimiento en el navegador no se mide** (§6.4). Es la limitación más
+    grande de este carril y no se cierra aquí: exige otro instrumento.
+16. **La huella de la caché sólo detecta manipulación incoherente.** Si alguien
+    trunca `grafo_N.json` **y recalcula el sidecar**, `obtener()` responde
+    `reutilizado` y el defecto revive. Como el generador es **determinista**, el
+    sha correcto es **calculable** y no hace falta creerse el apuntado:
+    `cache.verificar_a_fondo()` lo hace y **C4c demuestra que caza el ataque
+    coherente** (`el_sidecar_miente: true`). No se hace en cada `obtener()` con
+    razón declarada: recalcularlo exige **regenerar el dataset entero**, que es
+    justo lo que la caché evita.
+17. **El número de FILAS del driver doble sigue sin calibrar** (sólo el recuento
+    de consultas lo está, C8).
