@@ -191,7 +191,7 @@ def test_el_LIMITE_del_detector_esta_donde_se_declara_que_esta():
     """Fija el límite en vez de dejarlo escrito sólo en prosa.
 
     El detector NO sigue alias del constructor (`_VC = ViewerContext`). Está
-    declarado en `_fabrica_un_contexto` y en docs/72 §8, con su cifra. Este test
+    declarado en `_fabrica_un_contexto` y en docs/75 §8, con su cifra. Este test
     lo ANCLA: si alguien lo cierra --siguiendo asignaciones dentro del módulo--
     se pondrá rojo y obligará a borrar la declaración del límite, en vez de
     dejar una limitación documentada que ya no existe. Una limitación
@@ -204,7 +204,7 @@ def test_el_LIMITE_del_detector_esta_donde_se_declara_que_esta():
     assert not detectado, (
         "el detector AHORA sí sigue alias del constructor: es una mejora, pero "
         "hay que retirar el límite declarado en `_fabrica_un_contexto` y en "
-        "docs/72 §8, que ha dejado de ser cierto"
+        "docs/75 §8, que ha dejado de ser cierto"
     )
 
 
