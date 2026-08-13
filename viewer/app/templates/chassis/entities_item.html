@@ -1,0 +1,86 @@
+{#
+  Hueco G — ficha de UNA entidad, SOLO LECTURA.
+
+  Mismas reglas que la lista: ninguna URL escrita a mano (todo por `url_for`),
+  ningún formulario que no sea de consulta, ningún botón de acción. Lo que se
+  pinta aquí ya ha pasado por `PolicyFilteredProvider`: las relaciones que
+  llegan tienen los dos extremos visibles, así que esta plantilla no vuelve a
+  decidir nada sobre visibilidad.
+#}
+{% extends "chassis/_slot.html" %}
+
+{% block body %}
+{% if entity is not defined %}{{ super() }}{% else %}
+<main class="container" data-slot="{{ slot.key }}" data-readonly="true">
+  <h1>{{ slot.title }}</h1>
+
+  {% if error %}
+    <section class="panel panel-error" data-state="error">
+      <h2>No se pudo cargar</h2>
+      <p>{{ error }}</p>
+      {% if error_detail %}<p class="muted" data-error-kind>{{ error_detail | e }}</p>{% endif %}
+    </section>
+  {% else %}
+    <p><a href="{{ url_for('chassis_entities') }}">Volver al listado</a></p>
+
+    <section class="panel" data-state="ready" data-entity-id="{{ entity.id | e }}">
+      <h2 data-field="label">{{ entity.label | e }}</h2>
+      <dl>
+        <dt>Tipo</dt><dd data-entity-type="{{ entity.type | e }}">{{ entity.type_label | e }}</dd>
+        <dt>Descripción</dt>
+        <dd data-field="description">{{ entity.description | e if entity.description else 'no disponible' }}</dd>
+        <dt>Confianza</dt>
+        <dd data-confidence="{{ entity.confidence if entity.confidence is not none else '' }}">
+          {% if entity.confidence is not none %}{{ '%.2f' % entity.confidence }}{% else %}no disponible{% endif %}
+        </dd>
+        {# Fallo cerrado: un estado fuera del vocabulario canónico se marca. #}
+        <dt>Estado de revisión</dt>
+        <dd data-review-status="{{ entity.review_status | e }}">
+          {{ entity.review_status_label | e if entity.review_status_label else 'no disponible' }}
+        </dd>
+        <dt>Visibilidad</dt>
+        <dd data-visibility="{{ entity.visibility | e }}">
+          {{ entity.visibility_label | e if entity.visibility_label else 'no disponible' }}
+        </dd>
+        <dt>Fuente</dt>
+        <dd>{{ entity.source_document | e if entity.source_document else 'no disponible' }}</dd>
+      </dl>
+    </section>
+
+    <section class="panel" data-role="relaciones">
+      <h3>Relaciones salientes ({{ outgoing | length }})</h3>
+      {% if not outgoing %}
+        <p data-state="empty">Sin relaciones salientes visibles.</p>
+      {% else %}
+      <ul>
+        {% for e in outgoing %}
+        <li data-relation="{{ e.type | e }}">
+          {{ e.label | e }} →
+          {% if e.other_entity %}
+            <a href="{{ url_for('chassis_entities_item', entity_id=e.other_entity.id) }}">{{ e.other_entity.label | e }}</a>
+          {% else %}no disponible{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <h3>Relaciones entrantes ({{ incoming | length }})</h3>
+      {% if not incoming %}
+        <p data-state="empty">Sin relaciones entrantes visibles.</p>
+      {% else %}
+      <ul>
+        {% for e in incoming %}
+        <li data-relation="{{ e.type | e }}">
+          {% if e.other_entity %}
+            <a href="{{ url_for('chassis_entities_item', entity_id=e.other_entity.id) }}">{{ e.other_entity.label | e }}</a>
+          {% else %}no disponible{% endif %}
+          → {{ e.label | e }}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+  {% endif %}
+</main>
+{% endif %}
+{% endblock %}

@@ -655,8 +655,75 @@ def test_slot_context_keys_are_the_contract(slot):
 # 5. Estado vacío y estado de error explícitos
 # ---------------------------------------------------------------------------
 
+@pytest.fixture
+def _sin_datos_de_grafo(real_app):
+    """Establece la premisa «sin datos» en vez de darla por supuesta.
+
+    Este test decía «sin datos» y NO lo montaba: se apoyaba en que los cuatro
+    huecos estaban vacíos, que es una propiedad accidental del chasis recién
+    puesto y no de la pantalla. El proveedor por defecto del banco es
+    `MockGraphProvider` sobre `examples/sample_graph.json`, así que en cuanto un
+    carril montó su funcionalidad encima (hueco G, docs/77) la pantalla pasó a
+    pintar 9 filas y el estado `ready` — comportamiento CORRECTO que el test
+    leía como fallo. Un test cuya premisa nunca se comprueba mide otra cosa que
+    la que dice.
+
+    La premisa se monta ahora sustituyendo el proveedor BASE por uno vacío. La
+    afirmación no se toca ni se debilita: sigue exigiendo `empty` y prohibiendo
+    `error`, sólo que ahora sobre el caso que nombra. Vale para los cuatro
+    huecos: los que no leen del grafo no se enteran.
+    """
+    import app.deps as deps
+    from app.providers.base import GraphProvider
+
+    class _ProveedorVacio(GraphProvider):
+        name = "vacio"
+
+        def is_connected(self):
+            return True
+
+        def workspaces(self):
+            return []
+
+        def counts(self, workspace=None):
+            return 0, 0
+
+        def entity_types(self, workspace):
+            return []
+
+        def search(self, workspace, q, limit=50):
+            return []
+
+        def graph(self, workspace, limit=300, entity_type=None, q=None):
+            return [], []
+
+        def entity(self, entity_id, *, workspaces=None):
+            return None
+
+        def relations_for_entity(self, entity_id):
+            return [], []
+
+        def list_entities(self, workspace, **kwargs):
+            return [], 0
+
+        def list_sources(self, workspace):
+            return []
+
+        def source_detail(self, workspace, source_id):
+            return None
+
+        def quality_metrics(self, workspace=None):
+            return {}
+
+    real_app.dependency_overrides[deps.get_provider] = lambda: _ProveedorVacio()
+    yield
+    real_app.dependency_overrides.pop(deps.get_provider, None)
+
+
 @pytest.mark.parametrize("slot", FEATURE_SLOTS, ids=lambda s: s.key)
-def test_slot_renders_empty_state_instead_of_exploding(real_app, auth_on, slot):
+def test_slot_renders_empty_state_instead_of_exploding(
+    real_app, auth_on, _sin_datos_de_grafo, slot
+):
     """Sin datos, la pantalla se pinta. No revienta ni devuelve 500."""
     cookie = _login_cookie(auth_on, f"empty_{slot.key.lower()}", slot.role)
     r = _client(real_app, cookie).get(slot.prefix, headers={"accept": "text/html"})

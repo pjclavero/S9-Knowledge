@@ -1,3 +1,143 @@
+{#
+  Hueco G — Entities, SOLO LECTURA.
+
+  Extiende `chassis/_slot.html`, así que hereda sus tres estados explícitos
+  (`data-state` = error | empty | ready).
+
+  NINGUNA URL ESCRITA A MANO. Todo enlace y todo `action` se resuelve por
+  NOMBRE de ruta con `url_for`. Escribir el prefijo del hueco aquí es el fallo
+  nº 2 que el chasis existe para impedir: nadie se entera cuando la ruta cambia.
+
+  NINGÚN FORMULARIO DE ESCRITURA. El único `<form>` es `method="get"` (los
+  filtros). No hay botones de editar, fusionar, renombrar ni borrar, porque no
+  hay ninguna ruta detrás que pudiera atenderlos.
+#}
 {% extends "chassis/_slot.html" %}
-{% block empty_title %}Sin entidades{% endblock %}
-{% block empty_body %}No hay entidades visibles en tu ámbito actual.{% endblock %}
+
+{% block empty_title %}Sin entidades visibles{% endblock %}
+{% block empty_body %}
+  No hay entidades en tu ámbito actual para los filtros aplicados.
+{% endblock %}
+
+{% block body %}
+{#
+  Sin `listado` en el contexto no hay panel que pintar: se delega en la
+  pantalla genérica del hueco (`super()`), que ya sabe pintar error / vacío /
+  listo. No es un adorno: la suite del chasis renderiza esta plantilla FUERA de
+  una petición (`request=None`, `items=["uno"]`) para comprobar sus tres
+  estados, y ahí no existe ni `url_for` ni una fila de verdad.
+#}
+{% if listado is not defined %}{{ super() }}{% else %}
+<main class="container" data-slot="{{ slot.key }}" data-readonly="true">
+  <h1>{{ slot.title }}</h1>
+
+  {% if error %}
+    {#
+      El motivo, sin ruta y sin traza. `error_detail` es sólo el nombre del
+      tipo. Y NINGÚN contador: una pantalla que no pudo leer no publica cifras,
+      porque ausencia no es cero.
+    #}
+    <section class="panel panel-error" data-state="error">
+      <h2>No se pudo cargar</h2>
+      <p>{{ error }}</p>
+      {% if error_detail %}<p class="muted" data-error-kind>{{ error_detail | e }}</p>{% endif %}
+    </section>
+  {% else %}
+
+    <form method="get" action="{{ url_for('chassis_entities') }}" class="panel" data-role="filtros">
+      <label>Buscar <input type="search" name="q" value="{{ q | e }}"></label>
+      <label>Tipo
+        <select name="entity_type">
+          <option value="">Todos</option>
+          {% for t in tipos %}
+          <option value="{{ t.entity_type | e }}" {% if t.entity_type == entity_type %}selected{% endif %}>
+            {{ t.entity_type | e }} ({{ t.count }})
+          </option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Orden
+        <select name="sort">
+          {% for name in ('canonical_name', 'entity_type', 'confidence', 'review_status', 'created_at') %}
+          <option value="{{ name }}" {% if sort == name %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Sentido
+        <select name="order">
+          {% for name in ('asc', 'desc') %}
+          <option value="{{ name }}" {% if order == name %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Por página <input type="number" name="limit" min="1" value="{{ listado.limit }}"></label>
+      <button type="submit">Filtrar</button>
+    </form>
+
+    {#
+      CONTADORES DESPUÉS DE LA AUTORIZACIÓN, y del conjunto AUTORIZADO.
+      Los dos salen del proveedor FILTRADO (`PolicyFilteredProvider`), que
+      aplica la política sobre el conjunto entero y sólo entonces pagina: son
+      "cuántas entidades autorizadas hay", nunca "cuántas hay en la base". Por
+      eso barrer el tamaño de página no mueve el total (docs/73).
+    #}
+    <section class="panel" data-role="contadores">
+      <span data-count="visible">{{ listado.autorizadas }}</span> visibles ·
+      <span data-count="filtered">{{ listado.total }}</span> tras filtros ·
+      <span data-count="shown">{{ listado.mostradas }}</span> en esta página
+    </section>
+
+    {% if not items %}
+      <section class="panel panel-empty" data-state="empty">
+        <h2>{{ self.empty_title() }}</h2>
+        <p>{{ self.empty_body() }}</p>
+      </section>
+    {% else %}
+      <section class="panel" data-state="ready">
+        <table>
+          <thead>
+            <tr><th>Entidad</th><th>Tipo</th><th>Confianza</th>
+                <th>Estado de revisión</th><th>Visibilidad</th><th>Fuente</th></tr>
+          </thead>
+          <tbody>
+          {% for row in items %}
+            <tr data-entity-id="{{ row.id | e }}">
+              <td><a href="{{ url_for('chassis_entities_item', entity_id=row.id) }}">{{ row.label | e }}</a></td>
+              <td data-entity-type="{{ row.type | e }}">{{ row.type_label | e }}</td>
+              {# `None` es ausencia declarada, no un 0 inventado. #}
+              <td data-confidence="{{ row.confidence if row.confidence is not none else '' }}">
+                {% if row.confidence is not none %}{{ '%.2f' % row.confidence }}{% else %}no disponible{% endif %}
+              </td>
+              {#
+                FALLO CERRADO: un estado que el vocabulario canónico no contiene
+                NO se pinta con el aspecto de un estado legítimo. Lo decide
+                `review_status_label` en `app/labels.py`, contra el contrato
+                `review-status/v1`; aquí no hay una segunda lista.
+              #}
+              <td data-review-status="{{ row.review_status | e }}">
+                {{ row.review_status_label | e if row.review_status_label else 'no disponible' }}
+              </td>
+              <td data-visibility="{{ row.visibility | e }}">
+                {{ row.visibility_label | e if row.visibility_label else 'no disponible' }}
+              </td>
+              <td>{{ row.source_document | e if row.source_document else 'no disponible' }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+
+        <nav data-role="paginacion">
+          ({{ listado.primera }}–{{ listado.ultima }} de {{ listado.total }})
+          {% if listado.has_previous %}
+          <a href="{{ url_for('chassis_entities') }}?offset={{ [listado.offset - listado.limit, 0] | max }}&limit={{ listado.limit }}&q={{ q | urlencode }}&sort={{ sort | urlencode }}&order={{ order | urlencode }}">Anterior</a>
+          {% endif %}
+          {% if listado.has_next %}
+          <a href="{{ url_for('chassis_entities') }}?offset={{ listado.offset + listado.limit }}&limit={{ listado.limit }}&q={{ q | urlencode }}&sort={{ sort | urlencode }}&order={{ order | urlencode }}">Siguiente</a>
+          {% endif %}
+        </nav>
+      </section>
+    {% endif %}
+  {% endif %}
+</main>
+{% endif %}
+{% endblock %}
