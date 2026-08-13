@@ -200,18 +200,25 @@ MUTACIONES = [
     # `policies/**`, prohibida por el mismo criterio, y revierte. El testigo que
     # cierra esta via se ha escrito FUERA de la zona prohibida (un test), que es
     # lo unico que este carril tiene permitido anadir.
+    # P0-AUTH ha ELIMINADO la via lateral `or self.ctx.role == "admin"`: el rol
+    # es ENTRADA del constructor de contexto y ya no se reevalua aqui. Estas dos
+    # mutaciones apuntaban a ese texto exacto y dejaron de aplicarse -- y el
+    # arnes lo dijo ("patron ausente"), que es exactamente lo que tiene que
+    # hacer: "no se pudo mutar" NO es "no hay defecto". Se reapuntan a la forma
+    # nueva; el punto de decision es el mismo y las dos direcciones se siguen
+    # cubriendo.
     ("J18 el detalle operativo se concede a CUALQUIERA "
-     "(segunda via a la potestad de bypass total, fuera del barrido)",
+     "(la potestad de bypass total, fuera del barrido del motor)",
      V / "app/authz/scope.py",
-     '        return bool(self.ctx.admin_full) or self.ctx.role == "admin"',
+     '        return bool(self.ctx.admin_full)',
      '        return True',
      V, [CAL]),
 
     ("J19 el detalle operativo deja de leer `admin_full` "
-     "(la via equivalente sobrevive al campo, y en la direccion contraria)",
+     "(direccion contraria: la potestad deja de concederse a quien la tiene)",
      V / "app/authz/scope.py",
-     '        return bool(self.ctx.admin_full) or self.ctx.role == "admin"',
-     '        return self.ctx.role == "admin"',
+     '        return bool(self.ctx.admin_full)',
+     '        return False',
      V, [CAL]),
 
     # El SEGUNDO punto de `filtered_provider.py` que decide con `admin_full`.
@@ -246,9 +253,14 @@ MUTACIONES_COORDINADAS = [
          (V / "app/policies/engine.py",
           "        # 1. Bypass total de administrador.\n        if ctx.admin_full:",
           "        # 1. Bypass total de administrador.\n        if ctx.admin_full or ctx.superpoder_nuevo:"),
+         # P0-AUTH ELIMINO la cuarentena (no la congelo): ya no queda ninguna
+         # lista de exentas donde apuntar el nombre. El escenario equivalente
+         # hoy --y el que tiene que seguir ROJO-- es REABRIR esa lista en el
+         # mismo commit que introduce el bypass.
          (V / "tests/test_provider_authz_fields_contract.py",
-          '    "character_knowledge",\n})\n\n#: CONGELADO.',
-          '    "character_knowledge",\n    "superpoder_nuevo",\n})\n\n#: CONGELADO.'),
+          "def test_ninguna_dimension_del_contexto_que_el_motor_consulta_queda_sin_declarar_AST():",
+          'CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO = frozenset({"superpoder_nuevo"})\n\n\n'
+          "def test_ninguna_dimension_del_contexto_que_el_motor_consulta_queda_sin_declarar_AST():"),
      ],
      V, [CONTRATO]),
 
@@ -352,7 +364,17 @@ RAZONES = {
     "J18": "concede el detalle operativo a quien NO es admin",
     "J19": "deja de conceder el detalle operativo a `admin_full`",
     "J20": "ha dejado de acotarse a sus workspaces permitidos",
-    "R8": "la cuarentena ha CRECIDO con ['superpoder_nuevo'] sin autorizacion",
+    # R8 cambia de razon, y a MEJOR. Antes el rojo tenia que venir de "la
+    # cuarentena ha CRECIDO", porque la red inversa exceptuaba esa lista y sin
+    # ese freno la dimension pasaba. P0-AUTH elimino la lista, asi que reabrirla
+    # ya no exceptua NADA: la propia red inversa se pone roja igual que si no se
+    # hubiera reabierto. Es decir, R8 y R8-control convergen en la misma razon
+    # justamente porque el atajo dejo de existir, que era el objetivo. Siguen
+    # siendo afirmaciones distintas (la identidad es el conjunto de ediciones).
+    # El guardian dedicado a que la lista no reaparezca se calibra aparte, en
+    # `mutaciones_p0_auth.py` (M6).
+    "R8": "el motor decide con ['superpoder_nuevo'] y el registro "
+          "ejecutable no las declara",
     "R8-control": "el motor decide con ['superpoder_nuevo'] y el registro "
                   "ejecutable no las declara",
     # OJO: J17 comparte razon con J9 a proposito, y eso es un LIMITE, no un

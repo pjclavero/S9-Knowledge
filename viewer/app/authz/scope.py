@@ -23,6 +23,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Iterable, Mapping, Optional, Sequence, TypeVar
 
+from app.authz.context import build_internal_context
 from app.policies.engine import POLICY, VisibilityPolicy
 from app.policies.models import PLAYER, ViewerContext
 
@@ -127,10 +128,25 @@ class VisibilityScope:
 
         Un revisor necesita saber QUÉ hay en cola de su ámbito, no dónde vive el
         fichero en el disco del servidor.
+
+        P0-AUTH: aquí vivía ``or self.ctx.role == "admin"``, una SEGUNDA vía a
+        la misma potestad de bypass total, evaluada de nuevo fuera del
+        constructor de contexto. Que el rol conceda es correcto; que lo conceda
+        DOS VECES, en dos sitios, no lo es: el día que se revoque el bypass en
+        el constructor, esta línea lo seguiría concediendo, y la revocación
+        habría quedado incompleta sin que nada se pusiera rojo. El rol es
+        ENTRADA del constructor; el resultado del constructor es ``admin_full``,
+        y esa es la única forma de la potestad que se lee aguas abajo.
         """
-        return bool(self.ctx.admin_full) or self.ctx.role == "admin"
+        return bool(self.ctx.admin_full)
 
 
 #: Ámbito sin restricciones, para llamadores internos/programáticos (CLI, tests
 #: de servicio) que no representan a un usuario del visor.
-UNRESTRICTED = VisibilityScope(ViewerContext(role="admin", admin_full=True))
+#:
+#: P0-AUTH: era `VisibilityScope(ViewerContext(role="admin", admin_full=True))`,
+#: es decir un contexto de potestad total FABRICADO A MANO, esquivando el
+#: productor. Ahora se pide al productor, como cualquier otro.
+UNRESTRICTED = VisibilityScope(
+    build_internal_context(motivo="llamador interno sin usuario (CLI/servicios)")
+)

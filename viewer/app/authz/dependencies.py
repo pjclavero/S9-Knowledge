@@ -7,8 +7,14 @@ Exponen:
                                 proviene del GraphProvider (revisión, jobs).
 
 Se apoya en el provider base (``app.deps.get_provider``) y en la identidad ya
-inyectada por el middleware de auth en ``request.state.user``. Con auth
-desactivada el contexto es ``admin_full`` (visor abierto heredado).
+inyectada por el middleware de auth en ``request.state.user``.
+
+Con auth DESACTIVADA el contexto es ANÓNIMO: mínimo privilegio. Esta línea decía
+lo contrario --"el contexto es ``admin_full`` (visor abierto heredado)"-- y
+siguió diciéndolo después de que P0-AUTH cerrase esa vía, que es la peor clase
+de comentario obsoleto: describe una concesión de autoridad, en el módulo que
+construye el contexto, y quien lo leyera montaría su banco de medida sobre una
+premisa falsa. Sin autenticación no hay principal, luego no hay autoridad.
 
 La partida activa de la sesión se RE-VERIFICA en cada petición contra
 ``partida_access`` (M5a): revocar el acceso surte efecto en la siguiente

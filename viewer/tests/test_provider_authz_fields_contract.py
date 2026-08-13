@@ -47,17 +47,18 @@ ya no declara, las redes inversas del final de este fichero se ponen rojas.
 """
 from __future__ import annotations
 
-import dataclasses
-import inspect
-import re
+import ast
+from pathlib import Path
 
 import pytest
 
-from app.policies import engine as engine_mod
-from app.policies import models as models_mod
-from app.policies.models import ViewerContext
 from app.policies.registry import RETIRADAS, TODOS
 from app.providers.neo4j_provider import _node_to_dict, _rel_to_dict
+from tests.authz_lecturas import (
+    campos_de_dato_consumidos,
+    campos_del_contexto,
+    dimensiones_de_contexto_consumidas,
+)
 
 
 def _proyectados(destino: str) -> tuple[str, ...]:
@@ -90,75 +91,36 @@ CAMPOS_AUTORIZACION_RELACION = _proyectados("relationship")
 #: motor (no el de almacenamiento).
 DIMENSIONES_DEL_CONTEXTO = tuple(c.name for c in TODOS if not c.in_projection)
 
-#: Dimensiones del contexto que el motor CONSUME y el registro NO declara.
+#: LA CUARENTENA SE HA CERRADO (P0-AUTH). Aqui vivian
+#: `CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO`, `_CUARENTENA_CONGELADA` y
+#: `_CUARENTENA_TAMANO_AUTORIZADO`: tres dimensiones que el motor consumia
+#: --`admin_full` (bypass TOTAL), `can_view_reference` y `character_knowledge`--
+#: nombradas en un fichero de test en vez de declaradas en el registro. Nombrar
+#: no es declarar.
 #:
-#: Esta cuarentena es un hallazgo de este carril, no un permiso. `viewer/app/
-#: policies/**` es zona que este carril no puede modificar, asi que no se pueden
-#: declarar aqui y ahora; se dejan nombradas para que (a) consten, y (b) la red
-#: inversa siga siendo capaz de ponerse roja con CUALQUIER dimension nueva sin
-#: declarar.
+#: Las tres estan ahora en `app/policies/registry.py` con su cadena completa
+#: (autoridad, productor, semantica de ausencia y de valor invalido, revocacion,
+#: consumidores, prueba negativa y prueba HTTP), asi que la lista de exentas es
+#: VACIA y ya no existe como constante.
 #:
-#: Las tres son reales y consumidas dentro de una decision de autorizacion:
-#:   admin_full          -- bypass TOTAL (`if ctx.admin_full: return visible`).
-#:                          La dimension con mas poder del sistema no tiene
-#:                          cadena declarada: ni autoridad, ni productor, ni
-#:                          respuesta a "y si falta".
-#:   can_view_reference  -- unica llave del nivel `reference`.
-#:   character_knowledge -- concede conocimiento por ID precomputado, saltandose
-#:                          `known_by`.
-CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO = frozenset({
-    "admin_full",
-    "can_view_reference",
-    "character_knowledge",
-})
-
-#: CONGELADO. Contenido y TAMANO exactos que se autorizaron al abrir la
-#: cuarentena.
-#:
-#: Existe porque la primera version de este fichero afirmaba que la cuarentena
-#: "solo puede encoger: si crece, el test falla", y era FALSO en el unico caso
-#: que importa. La comprobacion era `resueltas = CUARENTENA - sin_declarar`, que
-#: detecta entradas RANCIAS pero no entradas NUEVAS: bastaba anadir al motor una
-#: dimension de bypass total y meter su nombre en la cuarentena en el mismo
-#: commit para que la suite siguiera verde. El freno era humano, no mecanico,
-#: sobre `admin_full` --y escribir un freno que no frena es exactamente la clase
-#: de defecto que este carril vino a cerrar.
-#:
-#: Ahora la cuarentena se compara contra esta constante congelada en las DOS
-#: direcciones, y ademas contra un tamano escrito con todas las letras. Ampliarla
-#: exige editar tres sitios coordinados que aparecen juntos en el diff, con este
-#: comentario delante: sigue siendo una decision humana --ningun test puede
-#: impedir que un humano edite el test-- pero pasa a ser una decision
-#: EXPLICITA y VISIBLE en la revision, en vez de un efecto colateral silencioso
-#: de tocar el motor.
-#:
-#: Ampliar esta lista NO es un cambio de fontaneria: es admitir una dimension
-#: mas que decide sin cadena declarada. Requiere autorizacion del operador.
-_CUARENTENA_CONGELADA = frozenset({
-    "admin_full",
-    "can_view_reference",
-    "character_knowledge",
-})
-_CUARENTENA_TAMANO_AUTORIZADO = 3
+#: No se ha sustituido por un conjunto congelado de tamano cero: se ha
+#: ELIMINADO. Un conjunto congelado seguiria siendo un sitio donde escribir un
+#: nombre para que la suite deje de mirarlo, y la leccion de este carril es que
+#: ese sitio se usa: un revisor anadio un bypass nuevo y su nombre a la
+#: cuarentena en el MISMO commit y la suite paso verde, 92 passed. Sin lista de
+#: exentas, la unica salida de una dimension nueva es declararla.
 
 #: Campos que el motor lee de un nodo y NO son autorizacion sino identidad o
 #: estructura del grafo.
 _ESTRUCTURALES = frozenset({"type", "name", "label", "id", "from", "to"})
 
 
-def _fuente_de_politica() -> str:
-    """Codigo de los dos modulos de politica, SIN comentarios.
-
-    Sin comentarios a proposito: una mencion en prosa no es un consumo. La red
-    anterior barria el fichero entero y se conformaba con que el nombre
-    apareciera en cualquier sitio.
-    """
-    lineas = []
-    for mod in (engine_mod, models_mod):
-        for ln in inspect.getsource(mod).splitlines():
-            if not ln.lstrip().startswith("#"):
-                lineas.append(ln)
-    return "\n".join(lineas)
+# `_fuente_de_politica()` vivia aqui: leia los dos modulos de politica como
+# TEXTO, sin comentarios, para que las redes inversas buscaran en el con
+# expresiones regulares. Al pasar esas redes a AST (`tests/authz_lecturas.py`)
+# se quedo sin un solo llamador y se retira. Un helper muerto en un fichero de
+# redes de seguridad no es inocuo: invita a escribir la proxima comprobacion
+# sobre texto, que es justo el metodo que dejaba pasar los alias locales.
 
 
 class _NodoFalso:
@@ -316,9 +278,7 @@ def test_ningun_campo_de_nodo_que_el_motor_consulta_queda_fuera_del_registro():
     contenia viva una reincidencia. Ahora barre los dos modulos enteros y
     tambien las lecturas sobre aristas (`edge.get`), que antes no miraba.
     """
-    fuente = _fuente_de_politica()
-    leidos = set(re.findall(r'(?:node|edge|rel)\.get\(\s*["\']([a-z_]+)["\']', fuente))
-    leidos -= _ESTRUCTURALES
+    leidos = campos_de_dato_consumidos(excluir=_ESTRUCTURALES)
     faltan = leidos - set(CAMPOS_AUTORIZACION_NODO)
     assert not faltan, (
         f"el motor consulta {sorted(faltan)} y el registro ejecutable NO lo "
@@ -329,75 +289,103 @@ def test_ningun_campo_de_nodo_que_el_motor_consulta_queda_fuera_del_registro():
     )
 
 
-def test_ninguna_dimension_del_contexto_que_el_motor_consulta_queda_sin_declarar():
-    """El agujero que la red anterior NO miraba: el CONTEXTO.
+def test_ninguna_dimension_del_contexto_que_el_motor_consulta_queda_sin_declarar_AST():
+    """La red del CONTEXTO, ahora leyendo el ARBOL y sin lista de exentas.
 
-    La red inversa original buscaba `node.get("...")` y nada mas. El motor toma
-    la mitad de sus decisiones leyendo ATRIBUTOS del contexto (`ctx.admin_full`,
-    `ctx.can_view_secret`, ...), asi que era estructuralmente incapaz de ver
-    ninguna dimension de contexto sin declarar. Y ese era exactamente el fallo
-    que el docstring del registro pone como H-A: una dimension con columna,
-    lector y pruebas, y ningun escritor, que la primera red no habria detectado
-    "porque solo miraba campos de nodo".
+    Dos cambios respecto de la version anterior, y los dos por defectos medidos:
 
-    Las dimensiones se derivan de los campos del propio `ViewerContext`, no de
-    una lista: un campo nuevo entra en el barrido el dia que se anade.
+      * se lee AST en vez de la expresion regular `(?:ctx|self)\\.campo`, que
+        solo veia el bypass si la variable se llamaba `ctx` o `self`. Medido:
+        `_c = ctx; if _c.puerta_trasera: return _ALLOW` pasaba VERDE con los
+        1161 tests del visor. Ahora cuenta el acceso a un atributo cuyo nombre
+        sea un campo de `ViewerContext`, venga del objeto que venga.
+      * desaparece la cuarentena. La comprobacion antigua exceptuaba una lista
+        de nombres, y anadir un nombre a esa lista era literalmente la forma de
+        apagar esta red desde el mismo commit que introducia el bypass.
+
+    Los LIMITES del instrumento estan escritos en `tests/authz_lecturas.py`, con
+    lo que ve y lo que no. No se finge cobertura de lo que no ve.
     """
-    fuente = _fuente_de_politica()
-    campos_ctx = {f.name for f in dataclasses.fields(ViewerContext)}
-    consumidas = {c for c in campos_ctx if re.search(rf"(?:ctx|self)\.{c}\b", fuente)}
-    assert consumidas, "el barrido de dimensiones de contexto no encuentra ninguna"
+    consumidas = dimensiones_de_contexto_consumidas()
+    assert consumidas, "el barrido AST de dimensiones de contexto no encuentra ninguna"
 
     sin_declarar = consumidas - set(DIMENSIONES_DEL_CONTEXTO)
-    nuevas = sin_declarar - CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO
-    assert not nuevas, (
-        f"el motor decide con {sorted(nuevas)} y el registro ejecutable no las "
-        f"declara: sin cadena declarada no hay autoridad, ni productor, ni "
-        f"respuesta a 'y si falta'"
-    )
-
-    # Entradas RANCIAS: si una dimension se declara por fin en el registro, hay
-    # que sacarla de la cuarentena en el mismo cambio; si no, la cuarentena se
-    # vuelve un vertedero que nadie vacia.
-    resueltas = CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO - sin_declarar
-    assert not resueltas, (
-        f"{sorted(resueltas)} ya estan declaradas en el registro (o el motor "
-        f"dejo de consumirlas): quitalas de "
-        f"CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO y de _CUARENTENA_CONGELADA"
+    assert not sin_declarar, (
+        f"el motor decide con {sorted(sin_declarar)} y el registro ejecutable "
+        f"no las declara: sin cadena declarada no hay autoridad, ni productor, "
+        f"ni respuesta a 'y si falta'. NO hay lista de exentas donde apuntarlas: "
+        f"declaralas en app/policies/registry.py o deja de consumirlas."
     )
 
 
-def test_la_cuarentena_no_puede_CRECER_sin_una_decision_explicita():
-    """La comprobacion que faltaba, y que hacia falsa la afirmacion anterior.
+def test_el_barrido_AST_ve_los_alias_locales_que_la_version_sintactica_no_veia():
+    """CALIBRACION del instrumento, ejercida sobre codigo real y no sobre fe.
 
-    `test_ninguna_dimension_...` compara `CUARENTENA - sin_declarar`: eso caza
-    entradas rancias, pero NO entradas nuevas. Anadir al motor una dimension de
-    bypass total y meter su nombre en la cuarentena en el mismo commit dejaba la
-    suite en verde. La afirmacion "la cuarentena solo puede encoger" era, por
-    tanto, falsa justo en el caso que importa, y sobre `admin_full`.
+    Este test es el que impide que la mejora anterior sea una afirmacion. Se
+    compila el patron de evasion medido --un alias local de una linea-- y se
+    comprueba que:
 
-    Aqui la cuarentena se compara contra una constante CONGELADA en las dos
-    direcciones, y contra un tamano escrito aparte. Ningun test puede impedir
-    que un humano edite el test; lo que si puede es exigir que esa edicion sea
-    una decision explicita, coordinada y visible en el diff, en vez de un efecto
-    colateral silencioso de haber tocado el motor.
+      a) la deteccion SINTACTICA antigua no lo ve (falso negativo reproducido),
+      b) la deteccion por AST si lo ve.
+
+    Sin (a) este test podria pasar por la razon equivocada: si el patron fuese
+    detectable tambien por la regex, no demostraria ninguna mejora.
     """
-    crecidas = CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO - _CUARENTENA_CONGELADA
-    assert not crecidas, (
-        f"la cuarentena ha CRECIDO con {sorted(crecidas)} sin autorizacion. "
-        f"Anadir una dimension aqui es admitir una dimension mas que decide sin "
-        f"cadena declarada; requiere decision del operador y actualizar tambien "
-        f"_CUARENTENA_CONGELADA y _CUARENTENA_TAMANO_AUTORIZADO."
+    import re
+
+    fuente_mutada = (
+        "def can_view(self, node, ctx):\n"
+        "    _c = ctx\n"
+        "    if _c.admin_full:\n"
+        "        return _ALLOW\n"
     )
-    encogidas = _CUARENTENA_CONGELADA - CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO
-    assert not encogidas, (
-        f"{sorted(encogidas)} salieron de la cuarentena pero siguen en "
-        f"_CUARENTENA_CONGELADA: actualiza las dos a la vez"
+    # (a) la red antigua: solo `ctx.` o `self.`
+    assert not re.search(r"(?:ctx|self)\.admin_full\b", fuente_mutada), (
+        "el patron de evasion elegido SI lo veia la red sintactica: este test "
+        "estaria pasando por la razon equivocada"
     )
-    assert len(CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO) == _CUARENTENA_TAMANO_AUTORIZADO, (
-        f"la cuarentena tiene {len(CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO)} "
-        f"dimensiones y el tamano autorizado es "
-        f"{_CUARENTENA_TAMANO_AUTORIZADO}"
+    # (b) la red nueva: el arbol, con el nombre de variable que sea
+    campos = campos_del_contexto()
+    vistos = {
+        n.attr for n in ast.walk(ast.parse(fuente_mutada))
+        if isinstance(n, ast.Attribute) and n.attr in campos
+    }
+    assert "admin_full" in vistos, (
+        "el barrido AST no ve un consumo de contexto a traves de un alias "
+        "local: la red inversa vuelve a depender del nombre de la variable"
+    )
+
+
+def test_no_reaparece_ninguna_lista_de_EXENTAS_en_esta_red():
+    """Que la salida de emergencia no se reabra en silencio.
+
+    La cuarentena no fallo por estar mal calculada: fallo por EXISTIR. Mientras
+    haya en este fichero un conjunto de nombres que la red inversa exceptua,
+    introducir un bypass y apuntarlo ahi es un cambio de una linea que deja la
+    suite verde -- y ya ocurrio, sobre `admin_full`, con 92 passed.
+
+    Este test no puede impedir que un humano lo borre; ningun test puede. Lo que
+    hace es que reabrir la salida deje de ser un efecto colateral y pase a ser
+    un cambio explicito y visible en el diff, junto a este texto.
+
+    Se calibra contra su propio falso negativo: si el patron no detectase un
+    nombre de constante de exencion, el assert de abajo pasaria siempre.
+    """
+    import re
+
+    fuente = Path(__file__).read_text(encoding="utf-8")
+    codigo = "\n".join(
+        ln for ln in fuente.splitlines()
+        if not ln.lstrip().startswith("#") and not ln.lstrip().startswith('"')
+    )
+    patron = r"^\s*[A-Z_]*(?:CUARENTENA|EXENT|SIN_DECLARAR|PERMITID|IGNORAD)[A-Z_]*\s*(?::[^=]+)?="
+    # Calibracion: el patron reconoce la forma que se quiere impedir.
+    assert re.search(patron, "CONTEXTO_SIN_DECLARAR_EN_EL_REGISTRO = frozenset()", re.M)
+    reaparecidas = re.findall(patron, codigo, re.M)
+    assert not reaparecidas, (
+        f"ha vuelto una lista de dimensiones exentas de la red inversa: "
+        f"{reaparecidas}. Una dimension nueva se declara en "
+        f"app/policies/registry.py; no se apunta en una lista que apaga la red."
     )
 
 
@@ -409,16 +397,17 @@ def test_las_dimensiones_retiradas_no_vuelven_por_la_puerta_de_atras():
     comprueba que efectivamente no han vuelto, ni al motor ni a la proyeccion
     declarada.
     """
-    fuente = _fuente_de_politica()
+    # P0-AUTH: por AST, igual que las demas redes. Con la expresion regular,
+    # resucitar `party` bajo un alias local pasaba desapercibido.
+    del_dato = campos_de_dato_consumidos()
+    del_contexto = dimensiones_de_contexto_consumidas()
     proyectadas = set(CAMPOS_AUTORIZACION_NODO) | set(CAMPOS_AUTORIZACION_RELACION)
     for nombre, motivo in RETIRADAS.items():
         assert nombre not in proyectadas, (
             f"'{nombre}' esta declarada como RETIRADA y ha vuelto a la "
             f"proyeccion de autorizacion. Motivo de la retirada: {motivo}"
         )
-        vuelto = re.search(
-            rf'(?:node|edge|rel)\.get\(\s*["\']{nombre}["\']', fuente
-        ) or re.search(rf"(?:ctx|self)\.{nombre}\b", fuente)
+        vuelto = nombre in del_dato or nombre in del_contexto
         assert not vuelto, (
             f"el motor ha vuelto a consultar '{nombre}', retirada por: {motivo}"
         )

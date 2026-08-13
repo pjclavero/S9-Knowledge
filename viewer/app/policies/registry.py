@@ -394,6 +394,112 @@ CAMPOS_DEL_CONTEXTO: tuple[PolicyField, ...] = (
         in_projection=False,
         applies_to=frozenset(),
     ),
+    # -----------------------------------------------------------------------
+    # P0-AUTH. Las tres dimensiones que el motor consumia y el registro NO
+    # declaraba. Estuvieron en una "cuarentena" dentro de un fichero de test:
+    # nombradas, no declaradas. Nombrar no es declarar, igual que mencionar no
+    # es probar (H6-1) y tener columna no es tener escritor (H-A).
+    # -----------------------------------------------------------------------
+    PolicyField(
+        name="admin_full",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_una_dimension_de_contexto_ausente_nunca_amplia_lo_visible[admin_full]"
+        ),
+        prueba_http=(
+            "tests/test_p0_autoridad_admin_full_http.py::test_retirar_el_rol_admin_retira_admin_full_en_la_siguiente_peticion"
+        ),
+        authority="servidor (rol `admin` del principal AUTENTICADO, releido en cada peticion)",
+        producer="viewer/app/authz/context.py (build_viewer_context / build_internal_context)",
+        storage="derivado del rol en auth.db; no persistido como dato de contenido",
+        consumer=(
+            "policies/engine.py (can_view regla 1, partida_in_scope) + "
+            "authz/scope.py (sees_operational_detail, allows_workspace) + "
+            "authz/filtered_provider.py (workspaces, _scope_workspaces)"
+        ),
+        missing=MINIMO,
+        malformed=MINIMO,
+        revocation="inmediata: el rol se relee de auth.db en cada peticion (no queda congelado en la sesion)",
+        in_projection=False,
+        applies_to=frozenset(),
+        notes=(
+            "NO es una dimension mas: es el BYPASS TOTAL. Se salta workspace, "
+            "aislamiento entre partidas, nivel de visibilidad, `known_by` y el "
+            "tope de sesion, y en `_scope_workspaces()` quita ademas el acotado "
+            "en el propio Cypher (no solo el filtro posterior). Lo unico que NO "
+            "salta es una `visibility` invalida y `deny`, que es TERMINAL: la "
+            "regla 0 del motor va deliberadamente ANTES del bypass, porque un "
+            "bypass puede saltarse reglas de permiso pero no convertir un estado "
+            "terminal en permiso ni un dato invalido en valido. "
+            "AUTORIDAD UNICA: `role == 'admin'` es ENTRADA del constructor y "
+            "nunca se vuelve a evaluar aguas abajo. Se cerraron dos vias "
+            "laterales que concedian esta misma potestad sin pasar por aqui: "
+            "`authz/scope.py` la reevaluaba por rol, y `S9K_AUTH_ENABLED=false` "
+            "la concedia por si mismo --un flag de despliegue como autoridad de "
+            "facto sobre la dimension mas potente del sistema--. Sin "
+            "autenticacion no hay principal, luego minimo privilegio: contexto "
+            "anonimo. Ausente/invalido = False = sin potestad, que es el minimo "
+            "por construccion (una dimension booleana de CONCESION no puede "
+            "fallar abierta si su valor por defecto es no conceder)."
+        ),
+    ),
+    PolicyField(
+        name="can_view_reference",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_una_dimension_de_contexto_ausente_nunca_amplia_lo_visible[can_view_reference]"
+        ),
+        prueba_http=(
+            "tests/test_p0_autoridad_admin_full_http.py::test_el_material_de_referencia_exige_can_view_reference_por_HTTP"
+        ),
+        authority="servidor (rol)",
+        producer="viewer/app/authz/context.py",
+        storage="derivado del rol, no persistido como dato de contenido",
+        consumer="policies/engine.py (regla 3, nivel `reference`)",
+        missing=MINIMO,
+        malformed=MINIMO,
+        revocation="inmediata (cambio de rol)",
+        in_projection=False,
+        applies_to=frozenset(),
+        notes=(
+            "UNICA llave del nivel `reference` (material de reglas/manual). La "
+            "concede el constructor a `viewer` y `reviewer`; el anonimo no la "
+            "recibe. Simetrica de `can_view_secret`, que si estaba declarada: "
+            "estaban una al lado de la otra en el mismo `if` del motor y solo "
+            "una tenia cadena."
+        ),
+    ),
+    PolicyField(
+        name="character_knowledge",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_una_dimension_de_contexto_ausente_nunca_amplia_lo_visible[character_knowledge]"
+        ),
+        prueba_http=(
+            "tests/test_p0_autoridad_admin_full_http.py::test_character_knowledge_no_la_puebla_la_cadena_de_peticion"
+        ),
+        authority="servidor (concesion de conocimiento precomputada)",
+        producer="viewer/app/authz/context.py (context_for_simulated_character)",
+        storage="derivado en memoria por peticion; NO persistido",
+        consumer="policies/models.py (ViewerContext.knows) -> engine.py regla 3",
+        missing=MINIMO,
+        malformed=MINIMO,
+        revocation="inmediata: se recalcula en cada peticion (no hay estado que retirar)",
+        in_projection=False,
+        applies_to=frozenset(),
+        notes=(
+            "Concede conocimiento por ID de nodo precomputado, SALTANDOSE "
+            "`known_by`. Salta la regla de NIVEL igual que `active_character`, "
+            "pero nunca el workspace, ni el ambito, ni el tope de sesion. "
+            "LIMITE MEDIDO Y DECLARADO, no una garantia: la cadena de peticion "
+            "(`authz/dependencies.py`) NO la puebla, asi que hoy llega SIEMPRE "
+            "vacia en produccion y el unico productor que la rellena es "
+            "`context_for_simulated_character`, que ninguna ruta invoca todavia. "
+            "Es decir: dimension viva en el motor e inerte en la cadena, que es "
+            "la forma de H-A. Se declara asi --con su prueba HTTP midiendo "
+            "justo esa inercia-- en vez de retirarla, porque el modo "
+            "'ver como personaje' la necesita; el dia que se conecte un "
+            "productor, esa prueba se pone roja y obliga a declarar autoridad y "
+            "revocacion ANTES de estrenarla."
+        ),
+    ),
 )
 
 

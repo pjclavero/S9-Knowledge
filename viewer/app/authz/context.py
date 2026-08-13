@@ -9,10 +9,27 @@ Mapa rol -> capacidades (slice inicial; ampliable con datos reales de personaje)
               narrator ni futuro; acotado a su party y a lo que su personaje sabe.
   anonymous : no ve contenido protegido; sólo lo público de sesiones publicadas.
 
-IMPORTANTE compatibilidad: con S9K_AUTH_ENABLED=false el visor es público
-(comportamiento heredado). En ese caso se devuelve un contexto `admin_full`
-para no alterar el visor abierto existente; la aplicación real de la política
-se activa cuando la autenticación está encendida.
+AUTORIDAD ÚNICA (P0-AUTH). Este módulo es el ÚNICO productor de
+``ViewerContext``. La cadena entera de la dimensión más potente del sistema es:
+
+    principal autenticado -> build_viewer_context() -> admin_full -> consumidores
+
+y no hay ninguna otra. En particular:
+
+  * ``role == "admin"`` es ENTRADA de este constructor, nunca una vía lateral
+    evaluada de nuevo aguas abajo. `authz/scope.py` tenía
+    ``bool(ctx.admin_full) or ctx.role == "admin"``: una segunda potestad de
+    bypass total que sobrevivía aunque el campo desapareciera.
+  * ``S9K_AUTH_ENABLED=false`` YA NO concede ``admin_full``. Desactivar la
+    autenticación significa que no hay principal, y sin principal no hay
+    autoridad: se aplica MÍNIMO PRIVILEGIO (contexto anónimo), no acceso total.
+    Un flag de despliegue no puede ser autoridad de facto sobre la dimensión
+    que se salta workspace, aislamiento entre partidas, nivel de visibilidad,
+    ``known_by`` y el tope de sesión. No se sustituye por un "modo dev": un
+    interruptor nuevo sería la misma autoridad lateral con otro nombre.
+  * los llamadores internos sin usuario (CLI, servicios) NO fabrican el
+    contexto a mano: pasan por :func:`build_internal_context`, que es parte de
+    este mismo productor y exige declarar un motivo.
 """
 from __future__ import annotations
 
@@ -79,15 +96,14 @@ def build_viewer_context(
         active_partida = None
     partidas = frozenset({active_partida}) if active_partida else frozenset()
 
-    # Visor abierto (auth desactivada): comportamiento heredado = todo visible.
-    # La simulación "ver como personaje" NUNCA usa este atajo.
+    # Auth desactivada: NO hay principal, luego no hay autoridad. Antes se
+    # devolvía aquí un contexto `admin_full=True` --un flag de despliegue
+    # concediendo la potestad más alta del sistema-- y ese era el tercer camino
+    # a la misma potestad, sin declarar en ninguna parte. Ahora se degrada a
+    # mínimo privilegio: cualquier rol que llegue se ignora, porque sin
+    # autenticación un rol no está verificado por nadie.
     if not auth_enabled and not simulated:
-        return ViewerContext(
-            role="public",
-            allowed_workspaces=workspaces,
-            admin_full=True,
-            session_public=True,
-        )
+        role = "anonymous"
 
     role = (role or "anonymous").lower()
 
@@ -155,6 +171,32 @@ def build_viewer_context(
         character_knowledge=frozenset(),
         session_public=True,
         simulated=simulated,
+    )
+
+
+def build_internal_context(*, motivo: str) -> ViewerContext:
+    """Contexto de un llamador INTERNO sin usuario (CLI, servicios, tests de servicio).
+
+    Existe para que ese caso deje de ser un ``ViewerContext(role="admin",
+    admin_full=True)`` escrito a mano fuera del productor --que es una CUARTA
+    vía a la potestad de bypass total, con la ventaja añadida de no aparecer en
+    ninguna búsqueda de "quién concede admin"--. Aquí la vía es la misma que la
+    del administrador autenticado: se entra por el constructor.
+
+    ``motivo`` es obligatorio y no puede estar en blanco. No hace la llamada más
+    segura; hace que en el punto de uso quede escrito POR QUÉ un camino sin
+    usuario recibe la potestad máxima, que es lo que se podía revisar y no se
+    podía antes.
+    """
+    if not isinstance(motivo, str) or not motivo.strip():
+        raise ValueError(
+            "build_internal_context exige un motivo declarado: un contexto sin "
+            "usuario con potestad total no puede pedirse sin decir para qué"
+        )
+    return build_viewer_context(
+        role="admin",
+        auth_enabled=True,
+        default_workspace="",
     )
 
 
