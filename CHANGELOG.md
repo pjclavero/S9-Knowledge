@@ -4,6 +4,46 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-08-13 (b) — El desfase deja de ser error: la puerta dejaba de sostenerse sola
+
+- **PROBLEMA DE DISEÑO, no de cifras.** Tratar el desfase de `main_commit` como
+  ERROR hacia la puerta **insostenible por construccion**: cada merge invalidaba
+  el refresco anterior, y con PRs de 10+ commits el refresco **caducaba en el
+  momento de fusionarse**. Secuencia medida: al fusionar el #168 el bloque quedo
+  9 commits atras; el carril M lo refresco a `e752dbe` y **su propio merge
+  (#167) lo desfaso otra vez**. `main` paso casi toda la sesion en rojo,
+  bloqueando **a la vez** todas las ramas abiertas, y mantenerlo verde exigia
+  encadenar refrescos manuales a perpetuidad. Eso no es un gate: es
+  mantenimiento perpetuo que ademas bloquea a terceros.
+- **La linea correcta es HECHO vs RELOJ.** `main_commit` documenta **el commit
+  sobre el que se midieron las cifras**. Envejecer no lo vuelve falso: que se
+  hayan fusionado commits detras no demuestra ninguna contradiccion, solo
+  demuestra que hubo merges. El desfase pasa a **AVISO**, y `max_lag_commits`
+  pasa a ser umbral de aviso, no de error. **No se ha subido**: subirlo era el
+  antipatron y ahora ademas no compra nada.
+- **Lo que sigue siendo ROJO** (calibrado en **C21c**, con el bloque
+  deliberadamente desfasado, para que conste que cambio el criterio y no la
+  capacidad de detectar): SHA inexistente, SHA que no es ancestro, SHA que no es
+  de 40 hex, `latest_merged_pr` ausente de la historia, contadores que no cuadran
+  con los workflows, documentos que contradicen al YAML, y valores declarados que
+  no se han podido comprobar. La calibracion del 2026-08-11 (`1111111…` + `#4242`
+  propagados a los cinco documentos) sigue enrojeciendo.
+- **El verde no es mudo.** El titular se califica: **`COHERENTE (DESFASADA:
+  main_commit N commits por detras)`**. Un desfase que solo aparece a media
+  pagina no lo lee nadie; en la ultima linea, si. Es la misma doctrina que ya
+  obligo a calificar `S9_DOCS_SKIP_GIT` y la historia truncada — dos fugas que
+  este mismo fichero ya tuvo.
+- **Y el mismo reloj para el PR**: que hayan entrado PR despues del declarado es
+  AVISO; que el declarado **no este** en la historia sigue siendo ROJO. El aviso
+  recuerda ademas que **el ultimo NO es el de numero mayor** (el #168 entro
+  despues que el #172).
+- **Calibracion:** 3 ablaciones dirigidas. Con el desfase devuelto a ERROR, el
+  **escenario legitimo se pone rojo** —el falso rojo de hoy, reproducido— y
+  **C21c sigue pasando igual**, que es la demostracion de que las
+  contradicciones nunca dependieron del reloj. Sin calificar el titular, C21b
+  roja; sin anunciar el desfase, C7 roja. Las 19 ablaciones anteriores siguen
+  rojas. Suite: **74 passed, 6 xfailed** en el fichero.
+
 ### 2026-08-13 — El titular deja de mentir con la historia truncada, y el ultimo arreglo sin prueba pasa a tenerla
 
 - **FUGA CERRADA: el titular no se calificaba con la historia truncada.** Era

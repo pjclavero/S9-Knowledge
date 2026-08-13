@@ -462,27 +462,43 @@ def test_c6_yaml_y_docs_mienten_coherentemente(sandbox: Sandbox):
     assert sandbox.run() == 1
 
 
-# C7 — `main_commit` real pero desfasado por encima de la ventana declarada.
-def test_c7_desfase_por_encima_de_la_ventana(sandbox: Sandbox):
+# C7 — DESFASE POR ENCIMA DEL UMBRAL: AVISO, NO ERROR. (Rediseño 2026-08-13.)
+#
+# Antes esto era rojo, y por eso la puerta se AUTO-INVALIDABA en cada merge:
+# con PRs de 10+ commits el refresco caducaba en el momento de fusionarse, y
+# `main` pasó casi toda la sesión del 2026-08-13 en rojo bloqueando a la vez
+# todas las ramas abiertas. `main_commit` documenta el commit SOBRE EL QUE SE
+# MIDIERON las cifras: envejecer no lo vuelve falso. Que se hayan fusionado
+# commits detrás no demuestra ninguna contradicción, sólo demuestra que hubo
+# merges. Lo que sí sería falso —SHA inexistente, no-ancestro, PR ausente,
+# cifras que no cuadran— sigue en rojo, y lo prueba C21c.
+def test_c7_desfase_por_encima_del_umbral_es_aviso_no_error(sandbox: Sandbox, capsys):
     sandbox.patch_dev(main_commit=sandbox.prev, max_lag_commits=0)
     sandbox.write(
         "README.md",
         f"Desarrollo (`main`, commit `{sandbox.prev[:7]}`, último PR mergeado #103).\n",
     )
-    assert any("commits por detras" in f for f in sandbox.findings())
-    assert sandbox.run() == 1
+    assert sandbox.findings() == []
+    assert sandbox.run() == 0
+    out = capsys.readouterr().out
+    # El desfase no desaparece: se anuncia, y además califica el titular.
+    assert "AVISO" in out and "commits por detras" in out, out
+    assert "COHERENTE (DESFASADA" in out, out
 
 
-# C8 — el mismo desfase de 1 commit con tolerancia 0 enrojece por el PR además
-# del commit: el dato del último PR también quedó atrás.
-def test_c8_ultimo_pr_desfasado_con_tolerancia_cero(sandbox: Sandbox):
+# C8 — el mismo reloj para el PR declarado: que hayan entrado PR después no lo
+# vuelve falso. Que ESTÉ en la historia sí es un hecho, y sigue en rojo (C6).
+def test_c8_ultimo_pr_desfasado_es_aviso_no_error(sandbox: Sandbox, capsys):
     sandbox.patch_dev(main_commit=sandbox.prev, latest_merged_pr=105, max_lag_commits=0)
     sandbox.write(
         "README.md",
         f"Desarrollo (`main`, commit `{sandbox.prev[:7]}`, último PR mergeado #105).\n",
     )
-    assert any("se han fusionado" in f for f in sandbox.findings())
-    assert sandbox.run() == 1
+    assert sandbox.findings() == []
+    assert sandbox.run() == 0
+    out = capsys.readouterr().out
+    assert "se han fusionado" in out, out
+    assert "PR fusionados despues del declarado" in out, out
 
 
 # C9 — MISMO desfase, dentro de la tolerancia: verde.
@@ -895,6 +911,70 @@ def test_c20_latest_ci_mentiroso_no_lo_detecta_nadie(sandbox: Sandbox):
     data["development"]["latest_ci"] = "green"  # sobre un commit cuya CI está roja
     sandbox.set_status(data)
     assert sandbox.findings() != []
+
+
+# --- C21: envejecer NO es mentir, pero mentir sigue siendo rojo -----------
+#
+# El rediseño del 2026-08-13 sólo vale si la línea entre HECHO y RELOJ está
+# donde se dice. Estas tres filas la fijan en el MISMO escenario desfasado, que
+# es la única forma de demostrar que lo que cambió fue el criterio y no la
+# capacidad de detectar.
+
+# C21a — el escenario LEGÍTIMO de hoy: un merge grande deja el bloque muy por
+# detrás y no hay ninguna contradicción. VERDE. Esto es lo que ponía `main` en
+# rojo y bloqueaba a todos los carriles a la vez.
+def test_c21a_merge_normal_grande_queda_verde(sandbox: Sandbox):
+    # Diez merges detrás del commit documentado, umbral 3.
+    for i in range(10):
+        sandbox.write("relleno.txt", f"commit {i}\n")
+        _git(sandbox.root, "add", "relleno.txt")
+        _git(sandbox.root, "commit", "--quiet", "-m", f"trabajo de otro carril (#{200 + i})")
+    nuevo = _git(sandbox.root, "rev-parse", "HEAD")
+    _git(sandbox.root, "update-ref", "refs/remotes/origin/main", nuevo)
+
+    lag = _git(sandbox.root, "rev-list", "--count", f"{sandbox.head}..{nuevo}")
+    assert lag == "10", lag
+    assert sandbox.findings() == [], sandbox.findings()
+    assert sandbox.run() == 0
+
+
+# C21b — …y ese verde NO es mudo: el titular lo dice. Un desfase que sólo
+# aparece a media página no lo lee nadie; en la última línea, sí. (Es la misma
+# doctrina que ya obligó a calificar `S9_DOCS_SKIP_GIT` y la historia truncada.)
+def test_c21b_el_titular_declara_el_desfase(sandbox: Sandbox, capsys):
+    sandbox.patch_dev(max_lag_commits=0, latest_merged_pr=101)
+    sandbox.write(
+        "README.md",
+        f"Desarrollo (`main`, commit `{sandbox.head[:7]}`, último PR mergeado #101).\n",
+    )
+    assert sandbox.run() == 0
+    out = capsys.readouterr().out
+    assert "COHERENTE (DESFASADA" in out, out
+    assert "COHERENTE: sin contradicciones" not in out, out
+
+
+# C21c — MISMO desfase, pero mintiendo: sigue ROJO, una fila por contradicción.
+# Ninguna de estas la salva el rediseño.
+@pytest.mark.parametrize("caso,parche,esperado", [
+    ("SHA inexistente", {"main_commit": "1" * 40}, "NO EXISTE"),
+    ("SHA fuera de la historia de main", {"main_commit": "OFF_MAIN"}, "no esta en la historia"),
+    ("SHA abreviado", {"main_commit": "SHORT"}, "40 hex"),
+    ("PR que no esta en la historia", {"latest_merged_pr": 4242}, "no aparece entre"),
+    ("contador de jobs inventado", {"ci_jobs_running": 99}, "ci_jobs_running"),
+    ("aritmetica de checks requeridos", {"ci_checks_required": 3}, "ci_checks_required"),
+])
+def test_c21c_con_el_mismo_desfase_la_mentira_sigue_roja(sandbox: Sandbox, caso, parche, esperado):
+    parche = dict(parche)
+    if parche.get("main_commit") == "OFF_MAIN":
+        parche["main_commit"] = sandbox.off_main
+    if parche.get("main_commit") == "SHORT":
+        parche["main_commit"] = sandbox.head[:7]
+    # Umbral 0: el bloque está desfasado y aun así el veredicto lo decide la
+    # contradicción, no el reloj.
+    sandbox.patch_dev(max_lag_commits=0, **parche)
+    findings = sandbox.findings()
+    assert any(esperado in f for f in findings), (caso, findings)
+    assert sandbox.run() == 1, caso
 
 
 # C16 — `development.main_commit` debe ser un SHA COMPLETO de 40 hex. Un SHA
