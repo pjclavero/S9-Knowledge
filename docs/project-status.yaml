@@ -27,15 +27,29 @@
 
 development:
   # Lo que hay en `main` ahora mismo. NO implica que esté desplegado.
-  main_commit: "cb874fe1141e4a17008c362c0aa404a90889128d"
-  latest_merged_pr: 163  # ojo: el #158 se fusionó DESPUÉS que el #160 — el último NO es el de número mayor
-  latest_ci: "green"  # CI en cb874fe: 14/14 jobs conclusion=success, más Supply Chain Security (leído con `gh run view`, 2026-08-11)
+  main_commit: "0dfa788be3bf75f5bca7a829cbda208721d3bacb"
+  latest_merged_pr: 169  # ojo: el #158 se fusionó DESPUÉS que el #160 — el último NO es el de número mayor
+  # CI en 0dfa788: ROJO, medido con `gh run view 31581877578`, no supuesto.
+  # Fallan `Combined Test Suite` (desfase 8 > 3, el aviso programado que este
+  # commit refresca) y `Deployment scripts validation` (diagnóstico FALSO por
+  # clon superficial, corregido en esta misma rama). Se declara rojo porque lo
+  # está: poner "green" aquí sería la mentira coherente que el punto 0 existe
+  # para matar. La rama que refresca estas cifras es la que lo devuelve a verde.
+  latest_ci: "red"
 
   # Cuántos jobs CORREN frente a cuántos BLOQUEAN un merge. La diferencia se
   # escribe a propósito: un job que corre pero no se exige no impide fusionar
   # en rojo. Es un informe, no una puerta. Ver RK-20.
+  # MEDIDO contra `main@0dfa788` el 2026-08-12: 13 jobs en `ci.yml` + 1 en
+  # `supply-chain.yml` = 14. Se deja el LITERAL a propósito, no una cuenta
+  # derivada de los workflows: derivarla la haría siempre cierta y la fila C13
+  # («ponerlo a 99 enrojece») dejaría de poder ponerse roja. Una cifra que no
+  # puede fallar no comprueba nada.
+  # PENDIENTE CONOCIDO: el PR #167 (carril M) añade un job; en cuanto se
+  # fusione esto pasará a 15 y habrá que refrescarlo. No se escribe 15 hoy
+  # porque hoy es falso y dejaría `main` rojo igual.
   ci_jobs_running: 14
-  ci_checks_required: 11   # leído de la protección de rama con `gh api`, no de un documento
+  ci_checks_required: 11   # leído de la protección de rama con `gh api` el 2026-08-12, no de un documento
   ci_running_but_not_required:
     - "Especificacion JS del grafo (Node obligatorio)"
     - "Integridad de gates (cobertura de ramas, 0 tests, skips criticos)"
@@ -48,15 +62,19 @@ development:
   # siempre, sin tolerancia, es que el commit sea REAL y esté en la historia de
   # `main`: eso es lo que mata al SHA inventado. Esto solo acota el desfase.
   #
-  # AVISO PROGRAMADO (medido el 2026-08-12, no estimado): el desfase de
-  # `main_commit` respecto a `origin/main` es de **2** commits (#164 y #165),
-  # con la ventana en 3. **El próximo merge a `main` pondrá este gate ROJO
-  # automáticamente**, y ese rojo NO es una regresión del validador: es
-  # exactamente lo que este campo existe para decir. El arreglo es de una
-  # línea —remedir `main_commit`/`latest_merged_pr` contra `origin/main` y
-  # actualizar los documentos que los citan—, nunca subir la ventana para
-  # apagar el aviso. Se deja dicho aquí para que a nadie le pille por
-  # sorpresa: `git rev-list --count <main_commit>..origin/main`.
+  # EL AVISO PROGRAMADO SE CUMPLIÓ. Se anotó el 2026-08-12 con el desfase
+  # medido en 2 y la ventana en 3; al fusionar el #169 el desfase saltó a **8**
+  # y `main` se puso rojo, exactamente como estaba escrito. No fue una
+  # regresión del validador: fue el campo haciendo su trabajo, y el aviso
+  # evitó que se leyera como una avería.
+  #
+  # Se arregló como estaba dicho —REMIDIENDO `main_commit`/`latest_merged_pr`
+  # contra `origin/main`—, y NO subiendo `max_lag_commits`, que es el
+  # antipatrón: apagaría el aviso sin arreglar nada.
+  #
+  # Sigue vigente para el próximo: `git rev-list --count <main_commit>..origin/main`.
+  # Con la ventana en 3, cualquier commit que refresque este bloque tolera 3
+  # merges antes de volver a ponerse rojo.
   max_lag_commits: 3
   active_engine: "knowledge_v3"  # mergeado en main desde PR #110 (2026-07-29); sustituye a v1/v2 como línea vigente
   contracts_tag: "v3-contracts-frozen-1.0.0"

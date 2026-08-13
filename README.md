@@ -18,7 +18,7 @@ merge de V3 (PR #110), `main` y VM105 van desacoplados.
 > **«Está en `main`» no significa «está desplegado».** Todo lo que sigue bajo
 > *Desarrollo* describe el repositorio. Nada de ello corre hoy en VM105.
 
-> **Desarrollo (`main`, commit `cb874fe`, último PR mergeado #163):** motor
+> **Desarrollo (`main`, commit `0dfa788`, último PR mergeado #169):** motor
 > vigente `knowledge_v3`. Puerta 4 (cobertura del extractor) cerrada
 > **PARCIAL**; Puerta 6 (factividad composicional) cerrada **CONFORME CON
 > RESERVAS**; medición del acuerdo determinista∧NVIDIA completada con
