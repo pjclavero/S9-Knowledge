@@ -797,6 +797,106 @@ def test_c17b_sin_poder_completar_dice_la_verdad(sandbox: Sandbox, tmp_path: Pat
     assert not any("ultimos PR fusionados" in f for f in findings), findings
 
 
+# C18 — `_merged_prs` se lee del SHA RESUELTO, no del nombre simbólico.
+#
+# El arreglo existía sin prueba: revertirlo dejaba 0 filas rojas, porque en el
+# sandbox `origin/main` y el SHA resuelto nunca divergen. Es la misma familia
+# que el orden de `_merged_prs` en la primera revisión — un arreglo que no
+# puede ponerse rojo no es un hallazgo, es una opinión.
+#
+# Aquí divergen de verdad, y por el mecanismo real: `_resolve_main` fija el
+# SHA, y el `fetch --unshallow` del rescate MUEVE `refs/remotes/origin/main`
+# bajo los pies (el remoto ha avanzado por otra rama mientras tanto). Leer del
+# nombre simbólico después de eso responde sobre OTRA historia.
+def test_c18_merged_prs_no_se_lee_del_nombre_simbolico(sandbox: Sandbox, tmp_path: Path, monkeypatch):
+    clone = _clon_estilo_ci(sandbox, tmp_path / "movida")
+    # El remoto avanza por otra línea DESPUÉS de que el clon fijara su ref.
+    _git(sandbox.root, "checkout", "--quiet", "--detach", sandbox.head)
+    _git(sandbox.root, "branch", "--quiet", "-f", "main", sandbox.off_main)
+
+    monkeypatch.setattr(sandbox.mod, "REPO", clone)
+    findings = sandbox.mod.check_git_authority(
+        {"main_commit": sandbox.head, "latest_merged_pr": 103, "max_lag_commits": 3}
+    )
+    # La ref simbólica ha cambiado bajo los pies…
+    assert _git(clone, "rev-parse", "origin/main") == sandbox.off_main
+    # …y aun así el veredicto habla del commit que se resolvió y se validó.
+    assert findings == [], findings
+
+
+# C19a — HISTORIA TRUNCADA: un valor DECLARADO que no se ha podido comprobar se
+# dice en ROJO, no se asume.
+#
+# La fuga medida el 2026-08-13: con la punta como `main_commit`, la existencia
+# y la ancestría son triviales, la ventana de PR se saltaba en silencio, y un
+# `latest_merged_pr` INVENTADO pasaba en VERDE. El mismo defecto que ya se
+# había corregido para `S9_DOCS_SKIP_GIT`, reapareciendo por otra puerta.
+def test_c19a_pr_declarado_sin_poder_comprobarse_es_rojo(sandbox: Sandbox, tmp_path: Path, monkeypatch):
+    clone = _clon_estilo_ci(sandbox, tmp_path / "trunc")
+    _git(clone, "remote", "remove", "origin")
+    monkeypatch.setattr(sandbox.mod, "REPO", clone)
+
+    findings = sandbox.mod.check_git_authority(
+        {"main_commit": sandbox.head, "latest_merged_pr": 4242, "max_lag_commits": 3}
+    )
+    assert any("#4242" in f and "NO SE HA PODIDO COMPROBAR" in f for f in findings), findings
+
+
+# C19b — y si no hay nada declarado que comprobar, el rc puede ser 0, pero EL
+# TITULAR tiene que decir que la historia estaba truncada. Quien lee la última
+# línea de un log no puede llevarse un «COHERENTE» a secas.
+def test_c19b_el_titular_dice_que_la_historia_estaba_truncada(
+    sandbox: Sandbox, tmp_path: Path, monkeypatch, capsys,
+):
+    clone = _clon_estilo_ci(sandbox, tmp_path / "trunc2")
+    _git(clone, "remote", "remove", "origin")
+    # El árbol de trabajo del sandbox (documentos y YAML) sobre el clon.
+    for src in sandbox.root.rglob("*"):
+        if ".git/" in str(src) or not src.is_file():
+            continue
+        dst = clone / src.relative_to(sandbox.root)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes(src.read_bytes())
+
+    data = sandbox.status()
+    data["development"]["main_commit"] = sandbox.head
+    data["development"].pop("latest_merged_pr")  # nada declarado que comprobar
+    (clone / "docs/project-status.yaml").write_text(
+        yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+    (clone / "README.md").write_text(f"# Repo\n\n`main` va por `{sandbox.head[:7]}`.\n",
+                                     encoding="utf-8")
+
+    monkeypatch.setattr(sandbox.mod, "REPO", clone)
+    monkeypatch.setattr(sandbox.mod, "STATUS_YAML", clone / "docs/project-status.yaml")
+    assert sandbox.mod.main() == 0
+    out = capsys.readouterr().out
+    assert "COHERENTE (HISTORIA TRUNCADA)" in out, out
+
+
+# C20 — LIMITACIÓN DECLARADA: `latest_ci` no lo valida NADIE.
+#
+# Es el único campo del bloque `development` que solo vive en el YAML: ningún
+# punto del script lo mira. Declarar `latest_ci: "green"` sobre un commit cuya
+# CI está en rojo pasa en verde, y es exactamente la clase de mentira que el
+# punto 0 existe para matar en `main_commit`.
+#
+# No se cubre porque el ORÁCULO ESTÁ FUERA: el estado de CI de un commit vive
+# en GitHub, y el gate corre sin red ni credenciales. Es la misma limitación
+# que `ci_checks_required` ya tiene declarada. Lo que NO se hace es añadir una
+# comprobación de vocabulario («green|red») para aparentar cobertura: no podría
+# fallar en el caso que importa —una cifra que no puede fallar no comprueba
+# nada—, y dejaría el hueco tapado en vez de dicho.
+#
+# `strict=True`: el día que alguien conecte un oráculo, esta fila se pondrá
+# roja por XPASS y habrá que moverla arriba.
+@pytest.mark.xfail(reason="latest_ci no tiene oraculo offline (limitacion declarada)", strict=True)
+def test_c20_latest_ci_mentiroso_no_lo_detecta_nadie(sandbox: Sandbox):
+    data = sandbox.status()
+    data["development"]["latest_ci"] = "green"  # sobre un commit cuya CI está roja
+    sandbox.set_status(data)
+    assert sandbox.findings() != []
+
+
 # C16 — `development.main_commit` debe ser un SHA COMPLETO de 40 hex. Un SHA
 # abreviado es ambiguo (colisiona antes) y hace indistinguibles dos commits;
 # hasta aquí, quitar esa exigencia del validador no ponía roja ninguna fila.

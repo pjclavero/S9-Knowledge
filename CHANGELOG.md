@@ -4,6 +4,38 @@ Formato basado en Keep a Changelog. Fechas en ISO-8601.
 
 ## [Unreleased]
 
+### 2026-08-13 — El titular deja de mentir con la historia truncada, y el ultimo arreglo sin prueba pasa a tenerla
+
+- **FUGA CERRADA: el titular no se calificaba con la historia truncada.** Era
+  el defecto que este script ya habia corregido para `S9_DOCS_SKIP_GIT`
+  reapareciendo **por otra puerta**. Escenario medido y reproducido: clon
+  superficial + `--unshallow` imposible + `main_commit` = la punta ⇒ la
+  existencia y la ancestria son triviales, la ventana de PR se saltaba en
+  silencio, y un `latest_merged_pr: #4242` **INVENTADO pasaba en VERDE
+  (`rc=0`)** bajo «DOCUMENTACION COHERENTE» a secas, con un `AVISO:` perdido
+  media pagina mas arriba. Ahora: si hay un valor **declarado** que no se ha
+  podido comprobar, es **ROJO**; y si no hay nada que comprobar, el titular
+  dice **`COHERENTE (HISTORIA TRUNCADA)`**. Quien lee la ultima linea de un log
+  ya no se lleva un verde que no ha comprobado lo que dice.
+- **El «latente de regalo» pasa a tener falsador.** `_merged_prs(real_sha)` en
+  vez de `_merged_prs(ref)` era un arreglo legitimo **pero sin prueba**:
+  revertirlo dejaba 0 filas rojas, porque en el sandbox el nombre simbolico y
+  el SHA nunca divergian. Era la misma familia que el orden de `_merged_prs` en
+  la primera revision. **C18** los hace divergir por el mecanismo real —el
+  `fetch --unshallow` del rescate moviendo `refs/remotes/origin/main` bajo los
+  pies mientras el remoto avanza por otra linea—, y revertir el arreglo la pone
+  roja. Un arreglo presentado como hallazgo tiene que poder ponerse rojo.
+- **`latest_ci`: limitacion DECLARADA, no tapada.** Es el unico campo de
+  `development` que **no valida nadie**: declararlo `green` sobre un commit con
+  la CI en rojo pasa en verde. No se cubre porque el **oraculo esta fuera**
+  (vive en GitHub; el gate corre sin red ni credenciales), y **no** se anade
+  una comprobacion de vocabulario para aparentar cobertura: no podria fallar en
+  el caso que importa. Queda dicho en el script y en la fila **C20**
+  (`xfail(strict=True)`), que gritara por XPASS el dia que haya oraculo.
+- **Calibracion:** 3 ablaciones dirigidas, **3 rojas** (fuga del #4242, titular
+  sin calificar, `_merged_prs` por nombre simbolico), revertidas byte a byte.
+  Suite del fichero: **66 passed, 6 xfailed**.
+
 ### 2026-08-12 (c) — El aviso programado se cumplio, y al cumplirse destapo un fallo real del gate
 
 Al fusionar el #169, `main@0dfa788` se puso ROJO. Una de las dos causas era la

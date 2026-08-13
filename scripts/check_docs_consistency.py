@@ -244,6 +244,11 @@ def _check_closed_programs(development: dict) -> list[str]:
 # --- Punto 0: la autoridad es GIT, no el YAML ----------------------------
 
 SKIP_GIT_ENV = "S9_DOCS_SKIP_GIT"
+# Se pone a True si el punto 0 ha corrido sobre una historia TRUNCADA que no se
+# ha podido completar. Lo lee `main()` para CALIFICAR EL TITULAR: un verde bajo
+# «DOCUMENTACION COHERENTE» a secas es exactamente la fuga que este fichero
+# existe para no tener (ver el titular de `S9_DOCS_SKIP_GIT`).
+HISTORY_TRUNCATED = False
 # "Carril A: Graph UX V2 (#158)" (squash) o "Merge pull request #157 from …"
 RX_PR_SQUASH = re.compile(r"\(#(\d+)\)\s*$")
 RX_PR_MERGE = re.compile(r"^Merge pull request #(\d+)\b")
@@ -375,6 +380,8 @@ def check_git_authority(development: dict) -> list[str]:
 
     # La historia tiene que ser COMPLETA antes de preguntar nada sobre ella.
     complete = _deepen_if_shallow()
+    global HISTORY_TRUNCATED
+    HISTORY_TRUNCATED = not complete
 
     findings: list[str] = []
     declared = str(development.get("main_commit", "")).strip().lower()
@@ -439,9 +446,26 @@ def check_git_authority(development: dict) -> list[str]:
     prs = _merged_prs(real_sha) if complete else []
     if not complete:
         # Sobre un commit de historia, «no aparece entre los 1 ultimos PR
-        # fusionados» no es un hallazgo: es ruido. El rojo ya lo ha puesto el
-        # bloque de arriba, y con el motivo correcto.
-        print("AVISO: historia truncada; no se comprueba la ventana de PR.")
+        # fusionados» no es un hallazgo: es ruido, y ese diagnostico falso fue
+        # justo lo que puso rojo `main@0dfa788`.
+        #
+        # Pero SALTARSE la comprobacion en silencio abria una fuga peor, medida
+        # el 2026-08-13: con la punta como `main_commit`, la existencia y la
+        # ancestria son triviales, la ventana de PR no se miraba, y un
+        # `latest_merged_pr: #4242` INVENTADO pasaba en VERDE bajo el titular
+        # «DOCUMENTACION COHERENTE» a secas. Era el mismo defecto que este
+        # script ya habia corregido para `S9_DOCS_SKIP_GIT` reapareciendo por
+        # otra puerta. Si hay un valor DECLARADO que no se ha podido verificar,
+        # se dice en ROJO; no se asume.
+        print("AVISO: historia truncada; la ventana de PR no se ha podido comprobar.")
+        if declared_pr is not None:
+            findings.append(
+                f"docs/project-status.yaml: development.latest_merged_pr "
+                f"(#{declared_pr}) NO SE HA PODIDO COMPROBAR: la historia esta "
+                f"truncada (clon superficial que `--unshallow` no ha "
+                f"completado). Ejecuta el gate sobre un clon completo "
+                f"(`fetch-depth: 0`)"
+            )
     if declared_pr is not None and prs:
         declared_pr = int(declared_pr)
         if declared_pr not in prs:
@@ -469,6 +493,15 @@ def check_git_authority(development: dict) -> list[str]:
 # ARITMETICA declarada en el propio YAML (jobs que corren menos los que el
 # YAML declara no exigidos). Eso mata la cifra inventada, no la mentira
 # deliberada y coherente sobre los ajustes de GitHub. Queda por escrito.
+#
+# Limitacion declarada (2): `development.latest_ci` NO LO VALIDA NADIE. Es el
+# unico campo del bloque que solo vive en el YAML; declararlo "green" sobre un
+# commit con la CI en rojo pasa en verde. El oraculo esta fuera —el estado de
+# CI de un commit vive en GitHub, y este script corre sin red ni credenciales—
+# y no se finge cobertura con una comprobacion de vocabulario que no podria
+# fallar en el caso que importa. Declarado con `xfail(strict=True)` en la fila
+# test_c20_latest_ci_mentiroso_no_lo_detecta_nadie, que gritara por XPASS el
+# dia que alguien conecte ese oraculo.
 
 WORKFLOWS = Path(".github") / "workflows"
 
@@ -706,6 +739,13 @@ def main() -> int:
         # dar: quien lee la ultima linea de un log se lleva la mentira.
         print("DOCUMENTACION COHERENTE (SIN VERIFICAR CONTRA GIT): "
               f"{SKIP_GIT_ENV}=1 desactivo el punto 0.")
+    elif HISTORY_TRUNCATED:
+        # La misma regla, por la otra puerta: el punto 0 ha corrido sobre una
+        # historia truncada, asi que parte de lo que dice el YAML NO se ha
+        # podido contrastar. El titular tiene que llevarlo escrito.
+        print("DOCUMENTACION COHERENTE (HISTORIA TRUNCADA): el clon es "
+              "superficial y `--unshallow` no lo ha completado; el punto 0 "
+              "solo ha comprobado lo que cabe en la historia disponible.")
     else:
         print("DOCUMENTACION COHERENTE: sin contradicciones conocidas.")
     print(f"  produccion:  {production.get('production_tag')} "
