@@ -541,6 +541,33 @@
       },
       "detectado": true
     },
+    "M15-guardian-estatico-falso-positivo": {
+      "delta": {
+        "authz_cambiados": {},
+        "autorizadas": 0,
+        "capturadas_nuevas": [],
+        "contradicciones_nuevas": [
+          "POST /admin/partidas/{access_id}/revoke"
+        ],
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 0,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [],
+        "roles_cambiados": {
+          "POST /admin/partidas/{access_id}/revoke": [
+            "admin",
+            "viewer"
+          ]
+        },
+        "roles_no_evaluables_nuevos": [],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [],
+        "sin_auth_nuevas": []
+      },
+      "detectado": true
+    },
     "M2-enlace-roto": {
       "delta": {
         "authz_cambiados": {},

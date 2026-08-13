@@ -10,7 +10,8 @@ en lo que este mapa mide (mismas 59 rutas, mismos recuentos).
 > calibrados los tres defectos que encontró la revisión —Q1 (barrido ciego en los
 > `POST` por el muro del CSRF), Q2 (404 de recurso inexistente contado como
 > denegación) y Q3 (falsas rutas capturadas al compartirse el objeto `Route`)—.
-> Ver §3.0, §4.1, §4.2 y §6.1. La calibración pasa de 12 a **15 casos**.
+> Ver §3.0, §4.1, §4.2 y §6.1. La calibración pasa de 12 a **16 casos** (los tres del dictamen más un
+> superviviente propio, §4.3).
 
 ## 1. Qué arregla respecto al mapa anterior
 
@@ -136,7 +137,7 @@ control de acceso; (b) un 404 sin guardián estático se marca
 y **ninguno de los dos cuenta como denegación**; (c) el cruce de las dos señales
 («deniega al anónimo» + «servida a un rol» + sin guardián) es un hallazgo propio,
 `contradiccion_deniega_y_sirve`. Los tres defectos están calibrados: casos
-**M12, M13 y M14** de §4.
+**M12, M13, M14** (y **M15**, superviviente propio) de §4.
 
 El detalle ruta por ruta —incluido el **rol mínimo medido** de cada una— está en
 `artifacts/route-map/route_map.md` y `route_map.json`.
@@ -247,9 +248,11 @@ exactamente lo mismo.
 | M12 | `GET /fuga/{item_id}` **sin guardián**, 404 con el id de la sonda (Q2) | `denegada-404-ambigua` + `contradiccion_deniega_y_sirve`, y **`autorizadas` +0** pese a `montadas` +1 | sí |
 | M13 | se quita `Depends(require_authenticated_user)` de `POST /partida/select` (Q1) | el veredicto deja de ser `denegada` y **`autorizadas` −1** | sí |
 | M14 | el mismo router incluido dos veces (`prefix="/dup"`) (Q3) | **0 capturadas nuevas** y las 10 rutas del segundo prefijo **medidas de verdad** | sí |
+| M15 | se quita el guardián de `POST /admin/partidas/{access_id}/revoke`, donde el detector estático da un **falso positivo** | `contradiccion_deniega_y_sirve` con motivo `indistinguible-del-acceso` | sí |
 
-`reversion_identica: true` — tras las quince mutaciones, el árbol limpio devuelve
-el mismo mapa. Salida completa en `artifacts/route-map/calibracion.json`.
+`reversion_identica: true` — tras las dieciséis mutaciones, el árbol limpio
+devuelve el mismo mapa. Salida completa en
+`artifacts/route-map/calibracion.json`.
 
 ### 4.1 M12, M13 y M14: rojo demostrado, no prometido
 
@@ -278,6 +281,7 @@ por separado, uno a uno, y se reejecutó su caso:
 |---|---|---|
 | cubo `denegada-404-ambigua` | M12 | **rojo** (`detectado: false`) |
 | hallazgo `contradiccion_deniega_y_sirve` | M12 | **rojo** (`detectado: false`) |
+| señal dinámica `indistinguible-del-acceso` | M15 | **rojo** (`detectado: false`) |
 | resolvedor indexado por `(id(route), path)` | M14 | **rojo** (`detectado: false`) |
 | emisión del token CSRF válido | M13 | sigue verde |
 | cubo `denegacion-no-atribuible` | M13 | sigue verde |
@@ -293,6 +297,48 @@ dos defensas independientes.
 La emisión del CSRF tiene además un efecto propio medible que ninguna ablación
 disimula: los **13** veredictos de rol en `POST` pasan de `no-concluyente-csrf` a
 un rol medido (§3.1). Sin ella, 13 de 59 rutas quedan sin medida de rol.
+
+### 4.3 Superviviente propio del arreglo de Q2 (M15)
+
+Arreglado Q2, barrí a mano las cuatro familias de `POST` que el revisor señalaba
+como afectadas, retirando el guardián de cada una y mirando qué decía el
+instrumento. Siete de las ocho salieron rojas. **Una sobrevivió**:
+
+| ruta mutada | veredicto del instrumento ya arreglado |
+|---|---|
+| `POST /admin/users/new`, `…/{user_id}` | `inconcluyente` (422), `autorizadas` −1 |
+| `POST /admin/users/{user_id}/unlock`, `…/revoke-sessions` | `inconcluyente` (`AttributeError`), `autorizadas` −1 |
+| `POST /account/change-password` | `inconcluyente` (`AttributeError`), `autorizadas` −1 |
+| `POST /partida/select` | `inconcluyente` (`AttributeError`), `autorizadas` −1 |
+| **`POST /admin/partidas/{access_id}/revoke`** | **`denegada` (404), `autorizadas` 57 → 57: SUPERVIVIENTE** |
+
+Causa: el detector **estático** de guardián da ahí un **falso positivo**. Casa
+por nombre (`GUARD_NAME_RE` incluye `_access$`) con `revoke_partida_access`, que
+es una operación de datos, no un guardián. Como el cubo `denegada-404-ambigua`
+sólo se aplica a rutas *sin* guardián estático, ese falso positivo bendecía el
+404 del `access_id` inventado. Q2 arreglado, pero con un flanco abierto por la
+heurística de nombres, que es justo el género de señal del que desconfía §1.
+
+Arreglo: el cruce de contradicción deja de depender sólo de la señal estática y
+gana una **puramente dinámica** — si el anónimo recibe **exactamente el mismo
+estado** que los tres roles y aun así hay un rol dado por servido, la identidad
+no ha cambiado nada y la denegación no está demostrada. Con eso la ruta mutada
+sale con motivo `indistinguible-del-acceso`. Calibrado como **M15** y con su
+ablación en §4.2. Rutas cerradas a todo el mundo (`/docs`, `/redoc`,
+`/openapi.json`: 404 para anónimo y para los tres roles) no entran, porque ahí no
+hay ningún rol dado por servido; verificado: el hallazgo vale **0** en la base.
+
+Nota de método: la primera versión de este apartado se habría podido escribir
+diciendo que el arreglo de Q2 «cierra el género». No lo cierra. Lo que hay es un
+género con al menos un superviviente encontrado, arreglado y calibrado, y ninguna
+garantía de que no queden más. Los dos casos que NO pude barrer se declaran
+abajo.
+
+**Barrido incompleto (declarado):** de las 13 rutas `POST`, mutar
+`POST /v3/review/decide` rompe la importación de la app (FastAPI rechaza el
+tipo de retorno del handler sin la dependencia), así que ese caso **no está
+medido**; y `POST /login`, `POST /logout` y las de `/review-console` no se
+barrieron. El barrido cubre 8 de 13.
 
 Sobre la **aserción de M7**: `len(censo_efectivo) > len(app.routes)` se cumple
 sola y no prueba nada. La que carga el peso es doble y es la que se evalúa: el
@@ -366,10 +412,11 @@ contra una app privada de test.
   describe el código, no el despliegue», pero conviene tenerlo presente: para una
   ruta así, hay que ejecutar el mapa una vez por configuración.
 - **Este mapa no se revisa a sí mismo**: la calibración demuestra que el
-  instrumento se pone rojo ante quince defectos concretos; no demuestra que no
-  existan géneros de defecto que ninguno de los quince representa. La prueba está
-  a la vista: **cinco de esos quince (M10, M11, M12, M13, M14) existen porque una
-  revisión externa encontró lo que yo no había pensado en inyectar**, y las tres
+  instrumento se pone rojo ante dieciséis defectos concretos; no demuestra que no
+  existan géneros de defecto que ninguno de los dieciséis representa. La prueba está
+  a la vista: **cinco de esos dieciséis (M10, M11, M12, M13, M14) existen porque una
+  revisión externa encontró lo que yo no había pensado en inyectar**, y un sexto
+  (M15) porque al arreglar Q2 fui a buscar supervivientes y encontré uno, y las tres
   últimas atacaban directamente la afirmación central del carril («0 rutas sin
   auth», «57 deniegan»). El ritmo al que las revisiones siguen encontrando
   géneros nuevos es el dato honesto sobre la madurez de este instrumento.
@@ -457,11 +504,11 @@ pero son inalcanzables navegando.
 
 ### Calibración sobre la propia rama del chasis
 
-Los quince casos se reejecutaron **contra `4b2ae5a`**, no sólo contra la base:
-**15/15 detectados, `reversion_identica: true`**. Incluye M9 (menú de datos que
+Los dieciséis casos se reejecutaron **contra `4b2ae5a`**, no sólo contra la base:
+**16/16 detectados, `reversion_identica: true`**. Incluye M9 (menú de datos que
 apunta a una ruta no montada → ROTO, con el `ChassisContractError` textual), M7
 (censo: 11 vs 67, sin rutas servidas fuera del censo) y los tres casos nuevos
-M12/M13/M14. Un instrumento que juzga una rama debe haberse visto rojo **en esa
+M12/M13/M14/M15. Un instrumento que juzga una rama debe haberse visto rojo **en esa
 rama**.
 
 ### Remedición tras el arreglo de Q1/Q2/Q3
@@ -555,10 +602,10 @@ rutas sin un solo aviso.
 - `artifacts/route-map/calibracion.json` — salidas reales de la calibración.
 - `artifacts/route-map/chasis-4b2ae5a/route_map.{json,md}` — mapa del chasis.
 - `artifacts/route-map/chasis-4b2ae5a/calibracion.json` — calibración sobre la
-  rama del chasis (15/15).
+  rama del chasis (16/16).
 - `artifacts/route-map/diferencial-n3-n1-instrumento-{viejo,nuevo}.json` — el
   mismo árbol mutado (ruta capturada sin guardián + guardián con señuelo) visto
   por el instrumento `9afd737` y por el actual: el rojo previo de M10 y M11.
 - `artifacts/route-map/diferencial-q1q2q3-instrumento-{viejo,nuevo}.json` — las
-  mutaciones M12/M13/M14 vistas por el instrumento `0b287f9` (los tres falsos
+  mutaciones M12/M13/M14 (y M15 en el nuevo) vistas por el instrumento `0b287f9` (los tres falsos
   negativos, con sus deltas) y por el actual: el rojo previo de Q1, Q2 y Q3.

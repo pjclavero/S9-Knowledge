@@ -875,6 +875,36 @@ def classify_probe(key: str, res: dict | None, path: str = "",
     return "inconcluyente", str(st)
 
 
+def _motivo_contradiccion(r: dict) -> str:
+    """Por qué esta fila se contradice a sí misma, o cadena vacía si no lo hace.
+
+    Condición común: el barrido dice «deniega al anónimo» Y a la vez que hay un
+    rol al que la ruta SÍ le responde. Eso solo es contradictorio si además falta
+    lo que sostendría la denegación:
+
+    - `sin-guardian-estatico`: la ruta no declara guardián alguno.
+    - `indistinguible-del-acceso`: el anónimo recibe EXACTAMENTE el mismo estado
+      que los tres roles. Señal puramente dinámica, sin heurística de nombres:
+      si la identidad no cambia nada, no se ha demostrado ninguna denegación.
+      Rutas cerradas a todos (`/docs` con 404 para todo el mundo) no entran,
+      porque ahí no hay ningún rol servido.
+    """
+    if r["key"] in PUBLIC_BY_DESIGN:
+        return ""
+    if not r["authz_probe"].startswith("deneg"):
+        return ""
+    if r["rol_minimo_observado"] not in ROLES:
+        return ""
+    motivos = []
+    if not r["authz_static"]:
+        motivos.append("sin-guardian-estatico")
+    estados = list((r.get("status_por_rol") or {}).values())
+    anon = r.get("status_anonimo")
+    if anon is not None and estados and all(e == anon for e in estados):
+        motivos.append("indistinguible-del-acceso")
+    return "+".join(motivos)
+
+
 # --------------------------------------------------------------------------
 # 5) ensamblado del mapa
 # --------------------------------------------------------------------------
@@ -1009,6 +1039,7 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
             "scoping_deps": r["scoping_deps"],
             "authz_probe": verdict, "authz_probe_detail": detail,
             "csrf_enviado": bool((probe.get(k) or {}).get("csrf_enviado")),
+            "status_anonimo": (probe.get(k) or {}).get("status"),
             "capturada_por": captor,
             "rol_minimo_observado": roles["rol_minimo"],
             "status_por_rol": roles["por_rol"],
@@ -1045,15 +1076,15 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
             r for r in rows if r["authz_probe"] == "denegacion-no-atribuible"
         ],
         # Contradicción interna entre las dos señales del barrido: la fila dice
-        # a la vez «deniega al anónimo» y «servida a un rol», sin guardián que
-        # sostenga ninguna de las dos. Es el patrón de la ruta abierta que sube
-        # el contador de rutas que deniegan.
+        # a la vez «deniega al anónimo» y «servida a un rol». Es el patrón de la
+        # ruta abierta que sube el contador de rutas que deniegan. Dispara por
+        # dos motivos independientes (ver `_motivo_contradiccion`), uno estático
+        # y otro puramente dinámico, porque el estático tiene falsos negativos
+        # demostrados: `revoke_partida_access` casa con el patrón de nombres de
+        # guardián sin serlo, y bendecía el 404 de una ruta ya sin guardián.
         "contradiccion_deniega_y_sirve": [
-            r for r in rows
-            if r["authz_probe"].startswith("deneg")
-            and r["rol_minimo_observado"] in ROLES
-            and not r["authz_static"]
-            and r["key"] not in PUBLIC_BY_DESIGN
+            dict(r, motivo_contradiccion=_motivo_contradiccion(r))
+            for r in rows if _motivo_contradiccion(r)
         ],
     }
     denegadas = [r for r in rows if r["authz_probe"] == "denegada"]

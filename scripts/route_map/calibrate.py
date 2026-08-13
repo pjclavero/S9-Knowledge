@@ -17,6 +17,7 @@ Defectos inyectados:
   M12 ruta con {param} y sin guardián, 404 al azar  -> NO sube "deniegan" (Q2)
   M13 POST sin guardián tras el muro del CSRF       -> el veredicto se mueve (Q1)
   M14 mismo router incluido dos veces               -> NO se declaran capturadas (Q3)
+  M15 guardián retirado donde la estática da falso positivo -> contradicción
 
 Uso:
     python3 scripts/route_map/calibrate.py --base <arbol_limpio> \
@@ -222,6 +223,29 @@ def m14_router_incluido_dos_veces(tree: Path) -> None:
            'app.include_router(readonly_router.router, prefix="/dup")  # MUTACION M14')
 
 
+def m15_guardian_falso_positivo(tree: Path) -> None:
+    """Retira el guardián de `POST /admin/partidas/{access_id}/revoke`.
+
+    Superviviente encontrado al barrer las cuatro familias de `POST` que el
+    revisor señalaba: aquí el detector ESTÁTICO da un falso positivo
+    (`revoke_partida_access` casa con el patrón de nombres de guardián por
+    terminar en `_access`, sin serlo), así que el 404 del `access_id` inventado
+    quedaba bendecido como denegación legítima y `autorizadas` no se movía. Lo
+    caza la señal dinámica: el anónimo recibe exactamente el mismo estado que
+    los tres roles, luego la identidad no cambia nada.
+    """
+    p = tree / "viewer/app/routers/admin.py"
+    text = p.read_text(encoding="utf-8")
+    i = text.index("async def admin_partidas_revoke(")
+    j = text.index("):", i)
+    seg = text[i:j]
+    nuevo = seg.replace("admin: User = Depends(require_admin)",
+                        "admin=None  # MUTACION M15: sin guardián")
+    if nuevo == seg:
+        raise SystemExit("ancla M15 no encontrada")
+    p.write_text(text[:i] + nuevo + text[j:], encoding="utf-8")
+
+
 MUTATIONS = {
     "M0-control": m0_control,
     "M1-router-desmontado": m1_desmontar_router,
@@ -236,6 +260,7 @@ MUTATIONS = {
     "M12-fuga-404-sin-guardian": m12_fuga_404_sin_guardian,
     "M13-post-sin-guardian-csrf-ciego": m13_post_sin_guardian,
     "M14-router-incluido-dos-veces": m14_router_incluido_dos_veces,
+    "M15-guardian-estatico-falso-positivo": m15_guardian_falso_positivo,
 }
 
 
@@ -491,6 +516,11 @@ def main(argv=None) -> int:
                 and all(v[1] not in ("CAPTURADA", "sin-sonda", "inconcluyente")
                         for k, v in d["authz_cambiados"].items()
                         if k.startswith("GET /dup/"))),
+            # Superviviente propio: el detector estático de guardián tiene
+            # falsos positivos por nombre, y bendecía el 404. Lo tiene que cazar
+            # la señal DINÁMICA, no la estática.
+            "M15-guardian-estatico-falso-positivo": lambda d: (
+                "POST /admin/partidas/{access_id}/revoke" in d["contradicciones_nuevas"]),
             "M9-nav-de-datos-rota": lambda d: (
                 any("ruta_que_no_existe" in x for x in d["rotos_nuevos"])
                 if (base / "viewer/app/chassis.py").exists() else True),
