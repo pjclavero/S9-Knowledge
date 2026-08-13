@@ -29,7 +29,12 @@ PRODUCTOR = "app/authz/context.py"
 
 
 def _fabrica_un_contexto(nodo: ast.AST, campos: frozenset[str]) -> bool:
-    """¿Esta llamada produce un `ViewerContext`? Las TRES formas conocidas.
+    """¿Esta llamada produce un `ViewerContext`? Las CUATRO formas que cubre.
+
+    Cuatro, no tres: `ast.Name`, `ast.Attribute`, `replace(campo=...)` y
+    `replace(**desempaquetado)`. La cuenta importa porque este docstring decia
+    "las TRES formas conocidas" cuando ya cubria mas, y una red que se describe
+    mal a si misma es una red que nadie puede auditar leyendola.
 
     La primera version solo miraba `ast.Name` --`ViewerContext(...)` a secas-- y
     la revision independiente la abrio por dos sitios, las dos con la suite en
@@ -52,8 +57,32 @@ def _fabrica_un_contexto(nodo: ast.AST, campos: frozenset[str]) -> bool:
     no puede conceder nada**, y aqui la red estaba concediendo "no hay otro
     productor" a cambio de que la llamada se escribiera de UNA forma concreta.
 
-    `replace(...)` se cuenta solo si alguno de sus kwargs es un campo de
+    LIMITE DECLARADO Y MEDIDO -- **el detector no sigue ALIAS del constructor**:
+
+        _VC = ViewerContext
+        UNRESTRICTED = VisibilityScope(_VC(role="admin", admin_full=True))
+
+    pasa en VERDE (medido: 1222 passed, con `UNRESTRICTED.ctx.admin_full is
+    True`), en este fichero o en cualquier otro. Lo mismo con
+    `from app.policies.models import ViewerContext as VC`. Es un limite REAL de
+    un detector sintactico: cerrarlo exige seguir asignaciones dentro del
+    modulo. Y duele reconocerlo, porque el alias local es justo la forma que
+    este carril declaro "el caso accidental, y es el que se cierra" al endurecer
+    la OTRA red AST (`authz_lecturas.py`, M9): alli se cerro, aqui no. Dejarlo
+    abierto es legitimo; callarlo no lo seria.
+
+    `replace(...)` se cuenta si alguno de sus kwargs es un campo de
     `ViewerContext`: `"a".replace("x", "y")` va por posicion y no entra.
+
+    S1 (segunda ronda de revision): tambien cuenta si hay **DESEMPAQUETADO**
+    (`replace(ctx, **{"admin_full": True})`). En el AST ese keyword tiene
+    `arg is None`, y mi primera version lo DESCARTABA con `if k.arg` -- un
+    descuido de una linea que apagaba el detector entero, medido en VERDE (1220
+    passed) y con `UNRESTRICTED.ctx.admin_full is True` de verdad. No se puede
+    saber que hay dentro de un diccionario desempaquetado, asi que se cuenta:
+    **sobre-contar solo obliga a declarar de mas**, que es la misma asimetria
+    deliberada de `authz_lecturas.py`. El coste real es cero, porque un
+    `replace(**kwargs)` legitimo sobre otra cosa se declara una vez y ya.
     """
     if not isinstance(nodo, ast.Call):
         return False
@@ -66,7 +95,7 @@ def _fabrica_un_contexto(nodo: ast.AST, campos: frozenset[str]) -> bool:
     # Forma 3: `replace(ctx, campo=...)` / `dataclasses.replace(ctx, campo=...)`.
     nombre = f.id if isinstance(f, ast.Name) else getattr(f, "attr", None)
     if nombre == "replace":
-        return any(k.arg in campos for k in nodo.keywords if k.arg)
+        return any(k.arg is None or k.arg in campos for k in nodo.keywords)
     return False
 
 
@@ -121,6 +150,10 @@ def test_el_constructor_de_contexto_es_el_unico_productor():
      'UNRESTRICTED = replace(ctx_de_viewer, admin_full=True)'),
     ("R7 bis dataclasses.replace",
      'UNRESTRICTED = dataclasses.replace(ctx_de_viewer, admin_full=True)'),
+    ("S1 replace con DESEMPAQUETADO de diccionario",
+     'UNRESTRICTED = replace(ctx_de_viewer, **{"admin_full": True})'),
+    ("S1 bis desempaquetado de una variable",
+     'UNRESTRICTED = dataclasses.replace(ctx_de_viewer, **potestad)'),
 ])
 def test_el_detector_ve_las_TRES_formas_de_fabricar_un_contexto(etiqueta, fuente):
     """CALIBRACION del detector, sobre las evasiones REALES que se midieron.
@@ -151,6 +184,27 @@ def test_el_detector_no_cuenta_lo_que_no_fabrica_un_contexto(fuente):
     arbol = ast.parse(fuente)
     assert not any(_fabrica_un_contexto(n, campos) for n in ast.walk(arbol)), (
         f"falso positivo del detector sobre: {fuente}"
+    )
+
+
+def test_el_LIMITE_del_detector_esta_donde_se_declara_que_esta():
+    """Fija el límite en vez de dejarlo escrito sólo en prosa.
+
+    El detector NO sigue alias del constructor (`_VC = ViewerContext`). Está
+    declarado en `_fabrica_un_contexto` y en docs/72 §8, con su cifra. Este test
+    lo ANCLA: si alguien lo cierra --siguiendo asignaciones dentro del módulo--
+    se pondrá rojo y obligará a borrar la declaración del límite, en vez de
+    dejar una limitación documentada que ya no existe. Una limitación
+    documentada de más envejece igual de mal que una garantía de más: las dos
+    hacen que el documento deje de describir el código.
+    """
+    campos = frozenset(f.name for f in dataclasses.fields(ViewerContext))
+    alias = ast.parse('_VC = ViewerContext\nx = _VC(role="admin", admin_full=True)')
+    detectado = any(_fabrica_un_contexto(n, campos) for n in ast.walk(alias))
+    assert not detectado, (
+        "el detector AHORA sí sigue alias del constructor: es una mejora, pero "
+        "hay que retirar el límite declarado en `_fabrica_un_contexto` y en "
+        "docs/72 §8, que ha dejado de ser cierto"
     )
 
 

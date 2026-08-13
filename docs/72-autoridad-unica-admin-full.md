@@ -182,7 +182,7 @@ tests en las dos fases, y una fase que no recoja nada se declara ERROR. Una
 mutación cuyo patrón no aparezca en el fichero también es ERROR: *"no se pudo
 mutar" no es "no hay defecto"*.
 
-### Resultado medido (suite del visor: 1220 tests, verde de partida y tras revertir)
+### Resultado medido (suite del visor: 1220 tests al medirlas, verde de partida y tras revertir; hoy 1222 con los casos de S1)
 
 | # | mutación | ablación | completo | test(s) rojo(s) |
 |---|---|---|---|---|
@@ -238,12 +238,33 @@ puede conceder nada*, y el detector estaba concediendo "no hay otro productor" a
 cambio de que la llamada se escribiera de **una** forma concreta. Exactamente el
 mismo error que la red inversa que sólo veía `ctx.foo` y no `_c.foo`.
 
-Arreglado en `_fabrica_un_contexto()`: cuenta `ast.Name`, `ast.Attribute` y
-`replace(...)` cuyos kwargs sean campos de `ViewerContext` (`"a".replace(x, y)`
-va por posición y no entra). Calibrado en las dos direcciones: cinco formas que
-**deben** detectarse y cuatro que **no** deben producir falso positivo — porque
-un detector que marcase cualquier `.replace()` del repositorio sería imposible de
-satisfacer y acabaría desactivado.
+Y una **tercera**, encontrada en la segunda ronda de revisión al pedir
+expresamente más evasiones:
+
+| | evasión | medido |
+|---|---|---|
+| **S1** | `replace(ctx_de_viewer, **{"admin_full": True})` | **VERDE (1220)**, `admin_full is True` |
+
+S1 era **un descuido de una línea en mi propio arreglo**: `any(k.arg in campos
+for k in nodo.keywords if k.arg)` descarta el keyword del desempaquetado, cuyo
+`arg` es `None`. Desempaquetar un diccionario apagaba el detector entero.
+Cerrado contando **cualquier** `replace(...)` que traiga `**`: no se puede saber
+qué hay dentro, y sobre-contar sólo obliga a declarar de más — la misma
+asimetría deliberada de `authz_lecturas.py`. Coste real medido: **cero falsos
+positivos**, porque los 13 `replace(` de `viewer/app` son `str`/`datetime`/`os`
+con argumentos posicionales o kwargs que no son campos del contexto.
+
+Arreglado en `_fabrica_un_contexto()`: cuenta `ast.Name`, `ast.Attribute`,
+`replace(campo=...)` y `replace(**desempaquetado)` — **cuatro formas**, no tres
+como decía este documento y el propio docstring. Calibrado en las dos
+direcciones: **siete** formas que deben detectarse y cuatro que **no** deben
+producir falso positivo, porque un detector que marcase cualquier `.replace()`
+del repositorio sería imposible de satisfacer y acabaría desactivado.
+
+El detector es `ast.walk` sobre `APP.rglob("*.py")`, así que es **independiente
+del fichero por construcción**; la revisión lo confirmó además **por medida**,
+reproduciendo R8 y R7 en `filtered_provider.py` —otro fichero— y obteniendo rojo
+**del detector**, no de un testigo de comportamiento.
 
 ### Defectos del propio arnés, encontrados calibrándolo
 
@@ -258,6 +279,20 @@ satisfacer y acabaría desactivado.
    cometido por el arnés que persigue exactamente eso;
 3. corregido con una comprobación mecánica: si la ablación no recoge **menos**
    tests que la corrida completa, no ha ablacionado nada y se declara ERROR.
+4. **un rojo por la razón equivocada, que casi cierra un hallazgo en falso.** Al
+   reproducir R7 lo coloqué primero en `sees_operational_detail` en vez de en
+   `UNRESTRICTED`. Salió **ROJO** — y por un momento pareció que el hallazgo del
+   revisor ya estaba cubierto. No lo estaba: lo que se puso rojo fue el
+   **testigo de comportamiento** (`test_la_segunda_via_al_bypass_total_tiene_testigo`),
+   porque esa colocación sí cambia lo que ve un usuario; el **detector** seguía
+   sin ver nada. Al moverlo a `UNRESTRICTED`, donde la fabricación del contexto
+   no altera ningún comportamiento observado, reapareció el VERDE.
+
+   Es la misma familia que todo lo demás de este carril: **un rojo no es
+   evidencia de que la barrera que crees estar probando funcione**, igual que un
+   verde no es evidencia de que no haya defecto. Hay que mirar *cuál* se pone
+   rojo. Un rojo por el motivo equivocado es más peligroso que un verde, porque
+   el verde invita a seguir buscando y el rojo invita a parar.
 
 ---
 
@@ -281,6 +316,30 @@ satisfacer y acabaría desactivado.
 Ninguna bloquea; todas son ciertas y quedan escritas para que nadie las
 redescubra creyendo que eran desconocidas.
 
+- **EL DETECTOR NO SIGUE ALIAS DEL CONSTRUCTOR** (S2/S5, segunda ronda). Esto
+  pasa en **VERDE**, con `UNRESTRICTED.ctx.admin_full is True` comprobado por
+  control positivo:
+
+  ```python
+  _VC = ViewerContext
+  UNRESTRICTED = VisibilityScope(_VC(role="admin", admin_full=True))
+  ```
+
+  **Medido: 1222 passed**, en `authz/scope.py` (S2) y también en
+  `filtered_provider.py` (S5) — es independiente del fichero, como el propio
+  detector. `from app.policies.models import ViewerContext as VC` tiene el mismo
+  efecto. Es decir: **renombrar el constructor reabre la cuarta autoridad
+  lateral en cualquier fichero.**
+
+  Y conviene decir lo incómodo con todas las letras: el alias local es
+  exactamente la forma que este carril declaró *"el caso accidental, y es el que
+  se cierra"* al endurecer la **otra** red AST (`authz_lecturas.py`, M9). Allí se
+  cerró; **aquí no**. Cerrarlo exigiría seguir asignaciones dentro del módulo, y
+  se ha decidido dejarlo: es un límite real de un detector sintáctico. Dejarlo
+  abierto es legítimo, callarlo no lo sería. Está anclado en
+  `test_el_LIMITE_del_detector_esta_donde_se_declara_que_esta`, que se pondrá
+  rojo el día que se cierre, para que esta declaración no sobreviva al hecho que
+  describe.
 - **El campo `prueba_http` concede por el nombre.** Sólo se comprueba que la
   función **exista** y que el fichero **mencione** `TestClient`. Repuntarla a un
   test irrelevante deja todo verde. En un carril cuyo lema es *un nombre no puede
