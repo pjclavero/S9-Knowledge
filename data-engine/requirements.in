@@ -9,6 +9,11 @@ markdownify
 python-dotenv
 tenacity
 PyYAML
+# D5 (carril I): el `.lock` fijaba `pytest` y `pytest-asyncio` sin que el `.in`
+# los declarase, asi que el lock NO era reconstruible desde su fuente y nada lo
+# comprobaba. Son dependencias de desarrollo/CI reales del motor: se declaran.
+pytest
+pytest-asyncio
 # Validacion de los contratos review/ingest v1 (contracts/review-ingest/v1);
 # el motor consume el validador publicado, que valida con JSON Schema.
 jsonschema>=4.26.0,<5.0

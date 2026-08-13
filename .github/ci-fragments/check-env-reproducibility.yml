@@ -1,0 +1,61 @@
+# FRAGMENTO, no es un workflow. Vive fuera de `.github/workflows/` a proposito:
+# alli GitHub intentaria ejecutarlo y fallaria al parsearlo.
+#
+# Este job SI esta ya instalado en `.github/workflows/ci.yml`. La copia existe
+# porque varios carriles editan `ci.yml` a la vez: si una resolucion de
+# conflicto se lleva el bloque por delante, este fichero es la version
+# canonica que hay que volver a pegar (al nivel de los demas jobs, dos
+# espacios de indentacion).
+#
+# Ademas de este job, la reproducibilidad de entorno anade dos pasos DENTRO de
+# jobs existentes, que tambien hay que restituir si un merge los pierde:
+#
+#   * `test-graph-js`, tras `node --version`:
+#         python3 .github/scripts/check_env_reproducibility.py runtimes --require node
+#   * `test-login-browser`, tras `playwright install --with-deps chromium`:
+#         python3 .github/scripts/check_env_reproducibility.py runtimes --require chromium
+#
+# `check-env-reproducibility` FALLA si esos pasos no estan, asi que la perdida
+# no puede pasar desapercibida.
+
+  check-env-reproducibility:
+    name: Reproducibilidad de entorno (declarado == instalado)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Install declared dependencies
+        run: |
+          # Exactamente lo que instalan los jobs de test, en el mismo orden que
+          # el job combinado: lo que se audita es EL entorno de CI, no otro.
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r data-engine/requirements.lock
+          pip install -r viewer/requirements.txt
+
+      - name: El gate se calibra a si mismo (violacion -> rojo -> reversion)
+        run: |
+          # Un gate cuyo mecanismo de medida no se prueba puede pasar meses sin
+          # poder ponerse rojo y nadie lo notaria. Esto inyecta cada violacion
+          # sobre repositorios sinteticos y exige el rojo, antes de creerse el
+          # verde del paso siguiente.
+          set -euo pipefail
+          python3 .github/scripts/check_env_reproducibility_calibration.py
+
+      - name: Lo declarado tiene que ser lo instalado
+        run: |
+          # --strict-missing: aqui las dependencias YA estan instaladas, asi que
+          # una declarada y ausente es un fallo, no un aviso.
+          set -euo pipefail
+          python3 .github/scripts/check_env_reproducibility.py all --strict-missing
+
+  # Instalado desde .github/ci-fragments/test-graph-js.yml al llegar
+  # viewer/tests/test_graph_ux_v2.py con esta rama. Sin este job, ese fichero
+  # solo corre en `test-viewer`, que NO tiene Node: las ~38 aserciones de la
+  # especificacion JS se omitian en silencio y el job requerido pasaba igual.
+  # `check-ci-config` falla si alguien lo quita.

@@ -424,9 +424,79 @@ create_manifest() {
     local python_version
     python_version="$(python3 --version 2>&1 | awk '{print $2}' || printf 'unknown')"
 
+    # D2 (carril I): esto era el sha256 de `viewer/requirements.txt`, que es el
+    # fichero de RANGOS. Dos despliegues con el mismo fingerprint podian tener
+    # arboles instalados distintos: el campo afirmaba identificar las
+    # dependencias y no lo hacia. Mismo genero que `auth_db: 1`.
+    #
+    # Ahora se calcula sobre lo REALMENTE RESUELTO (`pip freeze` del venv de la
+    # release, que deploy.sh acaba de crear). Y cuando el venv no existe, el
+    # valor NO se disfraza de lo que no es: lleva prefijo `ranges-sha256:` y se
+    # deja constancia del modo en `dependency_fingerprint_source`, para que
+    # ningun consumidor lo confunda con una huella de versiones resueltas.
     local dep_hash="unknown"
-    if [ -f "${release_dir}/viewer/requirements.txt" ]; then
-        dep_hash="sha256:$(sha256sum "${release_dir}/viewer/requirements.txt" | awk '{print $1}')"
+    local dep_source="none"
+    #
+    # Y `pip freeze` tiene que producir ALGO: un pip que sale 0 sin salida daba
+    # el sha256 de la cadena vacia (e3b0c442...) etiquetado como resuelto, que
+    # es el mismo defecto que D2 venia a cerrar —un campo que afirma
+    # identificar dependencias resueltas sin identificar ninguna— y ademas dos
+    # despliegues rotos compartirian huella y se leerian como «mismas
+    # dependencias». Se exige salida no vacia y que contenga los paquetes
+    # declarados; si no, el modo es `unresolved` y NO se disfraza de resuelto.
+    local venv_pip="${release_dir}/viewer/.venv/bin/pip"
+    local freeze_out=""
+    if [ -x "${venv_pip}" ]; then
+        freeze_out="$("${venv_pip}" freeze --all 2>/dev/null | LC_ALL=C sort || true)"
+    fi
+    local freeze_ok=0
+    local declarados=""
+    if [ -n "${freeze_out}" ]; then
+        freeze_ok=1
+        if [ -f "${release_dir}/viewer/requirements.txt" ]; then
+            declarados="$(sed -e 's/#.*//' -e 's/[][<>=!~,;].*//' \
+                              -e 's/[[:space:]]//g' \
+                              "${release_dir}/viewer/requirements.txt" \
+                          | grep -v '^$' || true)"
+            local paquete paquete_re
+            for paquete in ${declarados}; do
+                # OJO con la clase: incluir `-` hacia que `fastapi-extra==1.0`
+                # satisficiera el requisito de `fastapi`, y un venv sin
+                # `fastapi` se etiquetaba `resolved:pip-freeze`. El separador
+                # valido tras el nombre es `=`, `<`, `>`, `!`, `~`, `@` o
+                # espacio; `-` forma parte del NOMBRE del paquete siguiente.
+                #
+                # Y el NOMBRE se interpola como TEXTO, no como patron. Sin
+                # escapar, el `.` de `zope.interface` era un comodin y
+                # `zope-interface` satisfacia el requisito: la huella se
+                # etiquetaba `resolved:pip-freeze` afirmando identificar unas
+                # dependencias que no eran las declaradas. Es el mismo defecto
+                # que la clase con `-`, por la otra punta.
+                # Se escapa TODO lo que no sea alfanumerico, `_` o `-`: un
+                # nombre PEP 508 solo puede llevar ademas `.`, asi que esto lo
+                # cubre entero sin depender de acertar una lista de
+                # metacaracteres (la primera version de esta linea se equivoco
+                # justo ahi, con una clase mal cerrada que no escapaba nada).
+                paquete_re="$(printf '%s' "${paquete}" \
+                              | sed 's/[^A-Za-z0-9_-]/\\&/g')"
+                if ! printf '%s\n' "${freeze_out}" \
+                     | grep -qiE "^${paquete_re}([[:space:]=<>!~@]|$)"; then
+                    freeze_ok=0
+                    break
+                fi
+            done
+        fi
+    fi
+    if [ "${freeze_ok}" -eq 1 ]; then
+        dep_hash="sha256:$(printf '%s\n' "${freeze_out}" | sha256sum | awk '{print $1}')"
+        dep_source="resolved:pip-freeze"
+    elif [ -x "${venv_pip}" ]; then
+        dep_hash="unknown"
+        dep_source="unresolved"
+        printf 'AVISO: pip freeze del venv no identifica las dependencias declaradas; dependency_fingerprint=unknown\n' >&2
+    elif [ -f "${release_dir}/viewer/requirements.txt" ]; then
+        dep_hash="ranges-sha256:$(sha256sum "${release_dir}/viewer/requirements.txt" | awk '{print $1}')"
+        dep_source="declared-ranges"
     fi
 
     # Usa la MISMA lista de exclusión que verify_release_checksum.
@@ -460,6 +530,7 @@ manifest = {
     "created_by": "deploy.sh",
     "python_version": "${python_version}",
     "dependency_fingerprint": "${dep_hash}",
+    "dependency_fingerprint_source": "${dep_source}",
     "schema_versions": schema_block["schema_versions"],
     "schema_supported_ranges": schema_block["schema_supported_ranges"],
     "compatible_rollback_to": [],

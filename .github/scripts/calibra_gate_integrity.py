@@ -11,11 +11,32 @@ Este script introduce cada violacion de verdad —escribe el fichero, ejecuta el
 gate, lee el codigo de retorno, y restaura— y refleja el resultado real. No
 simula: si el gate deja de detectar un caso, aqui sale FALLO.
 
+    ┌───────────────────────────────────────────────────────────────────────┐
+    │  AVISO: ESTE SCRIPT MUTA `ci.yml` REAL, EN EL SITIO.                  │
+    │                                                                       │
+    │  Mientras corre, el `ci.yml` del arbol de trabajo esta ROTO A         │
+    │  PROPOSITO durante unos segundos por caso. Cualquier otra cosa que    │
+    │  lea el repositorio a la vez —otro arnes, otro gate, un `git status`  │
+    │  del que te fies— vera esa mutacion y dara un resultado FALSO.        │
+    │                                                                       │
+    │  NO LO EJECUTES EN PARALELO con nada que lea el repositorio. Ya ha    │
+    │  provocado rojos que no eran reales, y un rojo falso cuesta mas caro  │
+    │  que uno real: enseña a desconfiar del instrumento.                   │
+    │                                                                       │
+    │  Para que el descuido no sea silencioso, el script toma un CERROJO    │
+    │  (`.git/s9k-calibra-gate.lock`) y se niega a arrancar si ya hay otra  │
+    │  copia corriendo. El cerrojo protege de dos escrituras simultaneas;   │
+    │  de un LECTOR concurrente no puede protegerte: eso es cosa tuya.      │
+    │                                                                       │
+    │  Restaura SIEMPRE en `finally`, incluso si lo interrumpes con Ctrl-C. │
+    └───────────────────────────────────────────────────────────────────────┘
+
 Uso:  python3 .github/scripts/calibra_gate_integrity.py
 Sale 0 si TODOS los casos dan el veredicto esperado.
 """
 from __future__ import annotations
 
+import fcntl
 import shutil
 import subprocess
 import sys
@@ -32,6 +53,32 @@ E2E_CONFTEST = REPO / "tests" / "e2e" / "conftest.py"
 TOCABLES = (CI, SUPPLY, E2E_CONFTEST)
 
 VERDE, ROJO = "VERDE", "ROJO"
+
+# Cerrojo: dos copias de este script mutando `ci.yml` a la vez se pisan y
+# producen rojos que no son reales.
+#
+# En un clon normal vive en `.git/` (existe, no se versiona). En un WORKTREE
+# `.git` es un FICHERO, no un directorio, asi que se cae a un temporal del
+# sistema — comprobado, no supuesto—. Ese temporal es compartido por todos los
+# worktrees de la maquina, lo que ademas es lo que se quiere: dos worktrees del
+# mismo repo calibrando a la vez tambien se pisarian.
+CERROJO = (REPO / ".git" / "s9k-calibra-gate.lock") if (REPO / ".git").is_dir() \
+    else Path(tempfile.gettempdir()) / "s9k-calibra-gate.lock"
+
+
+def toma_cerrojo():
+    """Devuelve el descriptor del cerrojo, o aborta si ya lo tiene otro."""
+    fh = open(CERROJO, "w")
+    try:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        fh.close()
+        raise SystemExit(
+            f"ERROR: ya hay otra calibracion corriendo ({CERROJO}).\n"
+            f"Este script MUTA `ci.yml` en el sitio; dos a la vez se pisan y "
+            f"producen rojos falsos. Espera a que termine la otra."
+        )
+    return fh
 
 
 def ejecuta_gate() -> tuple[int, str]:
@@ -102,6 +149,16 @@ def ramas_de_origin() -> list[str]:
 # --------------------------------------------------------------------------
 
 def _sustituye(ruta: Path, viejo: str, nuevo: str) -> None:
+    """Sustituye un ANCLA LITERAL en el fichero indicado.
+
+    OJO al mantenerlo: varias mutaciones se anclan al texto EXACTO de la
+    linea que invoca un gate en `ci.yml`. Si esa invocacion se reescribe
+    —se le cambia un flag, se parte en dos lineas, se renombra el script—,
+    el ancla deja de encontrarse. No es un agujero: `_sustituye` aborta con
+    `MUTACION IMPOSIBLE` y la calibracion entera falla en voz alta, que es
+    justo lo que debe pasar. Pero el arreglo es actualizar el ancla aqui,
+    no relajar la comprobacion.
+    """
     texto = ruta.read_text(encoding="utf-8")
     if viejo not in texto:
         raise SystemExit(f"MUTACION IMPOSIBLE: no se encuentra el ancla en {ruta.name}")
@@ -238,7 +295,139 @@ def m_skip_critico() -> None:
     )
 
 
+def m_neutraliza_con_true() -> None:
+    """`comando || true`: el mismo apagado que `continue-on-error`, en el shell.
+
+    Un revisor lo demostro VIVO sobre el gate de reproducibilidad de entorno,
+    aplicandolo a la vez en `ci.yml` y en su fragmento para que ni la
+    comprobacion de fidelidad de fragmentos viera diferencia. Ningun control se
+    entero: el gate corria, fallaba, y el paso salia verde.
+    """
+    _sustituye(
+        CI,
+        "          python3 .github/scripts/check_env_reproducibility.py all --strict-missing",
+        "          python3 .github/scripts/check_env_reproducibility.py all --strict-missing || true",
+    )
+
+
+def m_neutraliza_con_dospuntos() -> None:
+    """La misma familia escrita con el builtin nulo: `|| :`."""
+    # Dentro de un `run: |` (escalar de bloque) a proposito: en un `run:`
+    # EN LINEA, un `|| :` final deja el YAML invalido y el gate se pondria
+    # rojo por no parsear, no por la regla que aqui se calibra. Un caso que
+    # sale rojo por el motivo equivocado no calibra nada.
+    _sustituye(
+        CI,
+        "          python3 .github/scripts/check_env_reproducibility_calibration.py",
+        "          python3 .github/scripts/check_env_reproducibility_calibration.py || :",
+    )
+
+
+def m_borra_job_exigido() -> None:
+    """Un gate desaparece en una resolucion de conflicto y nada se pone rojo."""
+    _sustituye(CI, "  check-env-reproducibility:\n", "  check-env-reproducibility-desactivado:\n")
+
+
+def m_if_negado_sin_fallo() -> None:
+    """`if ! GATE; then echo ...; fi`: el apagado escrito como condicional.
+
+    Es la variante MAS alcanzable por accidente de toda la familia, porque no
+    parece un truco sino codigo de shell normal.
+    """
+    _sustituye(
+        CI, '          python3 .github/scripts/check_env_reproducibility.py all --strict-missing',
+        "          if ! python3 .github/scripts/check_env_reproducibility.py all --strict-missing; then\n"
+        "            echo 'gate ignorado'\n"
+        "          fi",
+    )
+
+
+def m_if_negado_con_exit() -> None:
+    """Control POSITIVO: el MISMO idioma, pero terminando en `exit 1`.
+
+    Es una GUARDIA, no un apagado, y tiene que salir VERDE. Sin este caso, un
+    gate que rechazara todo `if !` pareceria correcto —y estaria prohibiendo
+    justo el idioma de las guardias anti-cero que este fichero EXIGE—.
+    """
+    _sustituye(
+        CI, '          python3 .github/scripts/check_env_reproducibility.py all --strict-missing',
+        "          if ! python3 .github/scripts/check_env_reproducibility.py all --strict-missing; then\n"
+        "            echo '::error::el entorno no reproduce lo declarado'\n"
+        "            exit 1\n"
+        "          fi",
+    )
+
+
+def m_gate_por_variable() -> None:
+    """A4: la ruta del gate llega por una VARIABLE.
+
+    La indireccion no cambia lo que se ejecuta, pero evade cualquier busqueda
+    del literal `.github/scripts/...` en la linea negada.
+    """
+    _sustituye(
+        CI, '          python3 .github/scripts/check_env_reproducibility.py all --strict-missing',
+        '          G=".github/scripts/check_env_reproducibility.py"\n'
+        '          if ! python3 "$G" all --strict-missing; then\n'
+        "            echo 'gate ignorado'\n"
+        "          fi",
+    )
+
+
+def m_negacion_en_else() -> None:
+    """A6: la negacion se desplaza al `else`. Mismo desenlace, sin `!`."""
+    _sustituye(
+        CI, '          python3 .github/scripts/check_env_reproducibility.py all --strict-missing',
+        "          if python3 .github/scripts/check_env_reproducibility.py all --strict-missing; then\n"
+        "            :\n"
+        "          else\n"
+        "            echo 'gate ignorado'\n"
+        "          fi",
+    )
+
+
+def m_sin_rama_de_fallo() -> None:
+    """A6 bis: `if GATE; then ...; fi` sin `else`: la rama de fallo esta VACIA."""
+    _sustituye(
+        CI, '          python3 .github/scripts/check_env_reproducibility.py all --strict-missing',
+        "          if python3 .github/scripts/check_env_reproducibility.py all --strict-missing; then\n"
+        "            echo 'todo bien'\n"
+        "          fi",
+    )
+
+
+def m_guardia_en_una_linea() -> None:
+    """Control POSITIVO: la guardia con `exit 1` escrita en UNA sola linea.
+
+    Antes salia ROJA (falso positivo, fallaba cerrado) porque el bloque se leia
+    saltandose la propia linea del `if`.
+    """
+    _sustituye(
+        CI, '          python3 .github/scripts/check_env_reproducibility.py all --strict-missing',
+        "          if ! python3 .github/scripts/check_env_reproducibility.py all --strict-missing; then exit 1; fi",
+    )
+
+
+def m_doble_negacion() -> None:
+    """N4: `if ! ! GATE; then exit 1; fi`.
+
+    Bash valido. `! !` vuelve a invertir la polaridad, asi que con el gate
+    ROJO la rama `then` NO se ejecuta y el paso sale VERDE: tiene el aspecto
+    exacto de una guardia correcta —lleva su `exit 1`— y hace lo contrario.
+    Un solo caracter separa una de otra.
+    """
+    _sustituye(
+        CI, '          python3 .github/scripts/check_env_reproducibility.py all --strict-missing',
+        "          if ! ! python3 .github/scripts/check_env_reproducibility.py all --strict-missing; then\n"
+        "            exit 1\n"
+        "          fi",
+    )
+
+
 CASOS = [
+    # `estado correcto` es tambien el control positivo de la regla de
+    # `|| true`: el `ci.yml` real contiene comentarios que dicen «Sin
+    # `|| true`: ...». Si el gate mirase el texto en vez del codigo, este
+    # caso saldria ROJO y la calibracion lo cazaria aqui mismo.
     ("estado correcto", None, VERDE),
     ("`paths-ignore` bajo `push`", m_paths_ignore_push, ROJO),
     ("`paths-ignore` bajo `pull_request`", m_paths_ignore_pr, ROJO),
@@ -258,11 +447,25 @@ CASOS = [
     ("control positivo: `if: ${{ always() }}` (unica permitida)", m_always_permitido, VERDE),
     ("job que puede ejecutar 0 tests", m_job_cero_tests, ROJO),
     ("test que se auto-omite por falta de Chromium", m_skip_critico, ROJO),
+    ("`|| true` tras un gate dentro del `run:`", m_neutraliza_con_true, ROJO),
+    ("`|| :` (builtin nulo) tras un gate dentro del `run:`", m_neutraliza_con_dospuntos, ROJO),
+    ("job exigido que desaparece de ci.yml", m_borra_job_exigido, ROJO),
+    ("`if ! GATE` sin fallo en el bloque (apagado condicional)", m_if_negado_sin_fallo, ROJO),
+    ("control positivo: `if ! GATE` que termina en `exit 1` (guardia)", m_if_negado_con_exit, VERDE),
+    ("A4: gate invocado por VARIABLE (indireccion)", m_gate_por_variable, ROJO),
+    ("A6: negacion desplazada al `else`", m_negacion_en_else, ROJO),
+    ("A6 bis: `if GATE; then ...; fi` sin rama de fallo", m_sin_rama_de_fallo, ROJO),
+    ("control positivo: guardia con `exit 1` en UNA linea", m_guardia_en_una_linea, VERDE),
+    ("N4: doble negacion `if ! ! GATE` (polaridad invertida)", m_doble_negacion, ROJO),
     ("restaurado", None, VERDE),
 ]
 
 
 def main() -> int:
+    # El cerrojo se toma ANTES de tocar nada y se suelta al salir del proceso.
+    cerrojo = toma_cerrojo()
+    print(f"(cerrojo tomado: {CERROJO}; este script muta `ci.yml` en el sitio, "
+          f"no lo ejecutes en paralelo con nada que lea el repositorio)")
     respaldo = Path(tempfile.mkdtemp(prefix="calibra-gate-"))
     for f in TOCABLES:
         shutil.copy2(f, respaldo / f.name)
@@ -293,9 +496,13 @@ def main() -> int:
                 motivo = "sin errores"
             filas.append((titulo, esperado, rc, obtenido, "OK" if ok else "**DESVIACION**", motivo))
     finally:
+        # Restaurar SIEMPRE, tambien ante Ctrl-C o una excepcion: dejar el
+        # `ci.yml` mutado en el arbol seria peor que no haber calibrado.
         for f in TOCABLES:
             shutil.copy2(respaldo / f.name, f)
         shutil.rmtree(respaldo, ignore_errors=True)
+        fcntl.flock(cerrojo, fcntl.LOCK_UN)
+        cerrojo.close()
 
     print("\n\n===== TABLA DE CALIBRACION =====\n")
     print("| Caso | Esperado | RC | Obtenido | Veredicto | Primer error |")

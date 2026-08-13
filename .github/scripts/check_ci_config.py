@@ -58,6 +58,20 @@ abajo corresponde a un apagado REAL, no a un riesgo imaginado.
    `always()`, la unica que solo puede hacer que se ejecute MAS. Ver
    `CONDICIONES_PERMITIDAS`.
 
+   3 bis. LA MISMA FAMILIA, DENTRO DEL `run:`. `continue-on-error: true` estaba
+   prohibido, pero `comando || true` hace EXACTAMENTE lo mismo una capa mas
+   abajo: el comando se ejecuta, falla, y el paso sale en verde. Un revisor lo
+   demostro VIVO sobre el gate de reproducibilidad de entorno —anadiendo
+   `|| true` a la vez en `ci.yml` y en su fragmento, para que ni la
+   comprobacion de fidelidad de fragmentos viera diferencia— y NINGUN control
+   se entero. Prohibir `continue-on-error` en el YAML y dejar libre su
+   equivalente en el shell era vigilar la puerta y no la ventana.
+
+   Tambien aqui: un workflow puede perder un JOB entero en una resolucion de
+   conflicto. Los gates listados en `JOBS_EXIGIDOS` tienen que seguir
+   existiendo, por la misma razon por la que `supply-chain.yml` no puede
+   desaparecer en silencio.
+
 4. META-GATES. Un job en verde no prueba nada por si mismo. Dos formas de
    verde vacio ya vistas en este repositorio:
 
@@ -131,6 +145,65 @@ DISPARADORES_VIGILADOS = ("push", "pull_request", "pull_request_target")
 # relajarla aqui en silencio: es meter la decision DENTRO del `run:`, donde
 # tiene que dejarla escrita y donde un fallo sale en rojo en vez de en gris.
 CONDICIONES_PERMITIDAS = ("always()",)
+
+# Formas de neutralizar el codigo de salida de un comando en `sh`. `|| true` es
+# la canonica, `|| :` la misma con el builtin nulo, `|| exit 0` la misma
+# escrita en largo. Todas convierten un rojo en un verde DENTRO del `run:`, que
+# es `continue-on-error` por otra via.
+RE_NEUTRALIZA = re.compile(r"\|\|\s*(true\b|:\s*$|:\s|exit\s+0\b)")
+
+# La misma neutralizacion escrita como condicional, que es la forma MAS
+# alcanzable por accidente porque no parece un truco:
+#
+#     if ! python3 .github/scripts/un_gate.py; then echo "ignorado"; fi
+#
+# El gate corre, falla, y el paso sale en verde. No se puede prohibir `if !` a
+# secas: en `ci.yml` hay 9 usos y los 9 son LEGITIMOS —son las guardias
+# anti-cero (`if ! grep -q 'N passed'; then ... exit 1`) que este mismo fichero
+# EXIGE, mas una comprobacion de deriva con `git diff --quiet`—. Prohibirlas
+# seria ponerse rojo por cumplir la propia regla.
+#
+# Lo que distingue una guardia de un apagado no es la sintaxis sino el DESENLACE:
+# la guardia termina en `exit 1`, el apagado no. Asi que solo se mira el caso en
+# que lo negado es un GATE (`.github/scripts/...`) y el bloque NO falla.
+RE_IF = re.compile(r"(?:^|;|&&|\|\||\bthen\b|\bdo\b)\s*if\s")
+RE_BLOQUE_FALLA = re.compile(r"(?:\bexit\s+(?:[1-9]\d*|\$)|\breturn\s+[1-9]\d*|\bfalse\b)")
+INVOCA_GATE = ".github/scripts/"
+
+# Una variable que guarda la ruta de un gate ES el gate. Sin esto, la
+# indireccion evade la comprobacion:
+#     G=".github/scripts/un_gate.py"
+#     if ! python3 "$G" all; then echo x; fi
+RE_ASIGNA = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
+
+# Cuantas negaciones lleva el `if`. NO basta con «esta negado o no»: `! !` es
+# bash valido y VUELVE A INVERTIR la polaridad, asi que
+#
+#     if ! ! GATE; then exit 1; fi
+#
+# tiene todo el aspecto de una guardia —lleva su `exit 1`— y hace lo contrario:
+# con el gate ROJO la rama `then` no se ejecuta y el paso sale en VERDE.
+# Comprobado ejecutandolo en bash, no leyendolo. Es un solo caracter de
+# diferencia respecto de la guardia correcta, asi que la negacion multiple se
+# RECHAZA de plano: no existe una razon legitima para escribirla, y calcular su
+# paridad en silencio seria justo la clase de sutileza que nadie revisa.
+RE_NEGACIONES = re.compile(r"\bif\s+((?:!\s*)+)")
+
+# NO hay lista de excepciones, y no por descuido: se comprobo que los dos
+# workflows vigilados no necesitan ninguna. Una exencion que hoy no hace falta
+# es la rendija por la que manana entra el apagado, y este fichero existe
+# porque eso ya paso tres veces.
+
+# Jobs cuya AUSENCIA nadie mas detectaria. Un gate que puede desaparecer en una
+# resolucion de conflicto sin que nada se ponga rojo no es un gate; el fragmento
+# de restitucion existe justo porque eso ya ha estado a punto de pasar.
+JOBS_EXIGIDOS = {
+    "ci.yml": (
+        "check-ci-config",
+        "calibracion-de-gates",
+        "check-env-reproducibility",
+    ),
+}
 
 # Ramas efimeras de maquina: no se les EXIGE CI. Con la politica universal
 # `**` de todas formas la tienen, y esto solo evita que su ausencia se pueda
@@ -534,6 +607,168 @@ def comprueba_ejecucion_condicional(datos: dict, nombre: str) -> list[str]:
     return errores
 
 
+def comprueba_neutralizacion(datos: dict, nombre: str) -> list[str]:
+    """`comando || true` es `continue-on-error` escrito dentro del `run:`.
+
+    Se mira SOLO el codigo: en estos workflows hay comentarios que dicen «Sin
+    `|| true`: ...», y tomarlos por codigo seria el defecto simetrico —un gate
+    que se pone rojo por un comentario—. Por eso se corta cada linea en el `#`
+    antes de buscar nada, igual que el resto del fichero mira claves parseadas
+    y no texto.
+    """
+    errores = []
+    for job_id, job in (datos.get("jobs") or {}).items():
+        for paso_nombre, cuerpo in pasos_run(job):
+            for linea in cuerpo.splitlines():
+                codigo = linea.split("#", 1)[0]
+                if not codigo.strip() or not RE_NEUTRALIZA.search(codigo):
+                    continue
+                errores.append(
+                    f"{nombre}: el job `{job_id}`, paso `{paso_nombre}`, "
+                    f"neutraliza el codigo de salida de un comando: "
+                    f"`{codigo.strip()}`. Eso convierte un rojo en un verde "
+                    f"exactamente igual que `continue-on-error: true`, solo que "
+                    f"una capa mas abajo: el comando se ejecuta, falla, y el "
+                    f"paso sale en verde. Si el fallo de ese comando de verdad "
+                    f"no importa, capturalo (`out=$(cmd) || rc=$?`) y DECIDE "
+                    f"con el codigo a la vista, para que la decision quede "
+                    f"escrita en vez de desaparecer."
+                )
+    return errores
+
+
+def _bloque_if(lineas: list[str], inicio: int) -> list[str]:
+    """Lineas del `if ... fi` que empieza en `inicio` (contando anidamiento).
+
+    Corta tambien cuando el `if` entero cabe en UNA linea (`if ...; then ...;
+    fi`): antes se seguia leyendo mas alla del `fi` y la guardia de una sola
+    linea se leia como si no tuviera `exit 1`.
+    """
+    profundidad = 0
+    fuera = []
+    for linea in lineas[inicio:]:
+        fuera.append(linea)
+        profundidad += len(re.findall(r"(?:^|;|&&|\|\||\bthen\b|\bdo\b)\s*if\s", linea))
+        profundidad -= len(re.findall(r"(?:^|;)\s*fi\b", linea))
+        if profundidad <= 0:
+            break
+    return fuera
+
+
+def variables_de_gate(lineas: list[str], marca: str) -> set[str]:
+    """Variables cuyo valor contiene la ruta de un gate."""
+    return {
+        m.group(1)
+        for m in (RE_ASIGNA.match(l) for l in lineas)
+        if m and marca in m.group(2)
+    }
+
+
+def _invoca_gate(texto: str, marca: str, variables: set[str]) -> bool:
+    if marca in texto:
+        return True
+    return any(
+        re.search(rf"\$\{{?{re.escape(v)}\}}?", texto) for v in variables
+    )
+
+
+def gates_sin_desenlace(cuerpo: str, marca: str = INVOCA_GATE) -> list[str]:
+    """`if` que ejecuta un gate y cuya rama de FALLO no falla.
+
+    El discriminante es el DESENLACE, no la sintaxis, y se aplica a la forma
+    del `if` completa —no solo a `if !`—, porque la negacion se puede desplazar
+    sin cambiar el efecto:
+
+        if ! GATE; then echo x; fi          -> la rama de fallo es el `then`
+        if GATE; then :; else echo x; fi    -> la rama de fallo es el `else`
+        if GATE; then echo ok; fi           -> la rama de fallo esta VACIA
+
+    Las tres dejan el paso en verde con el gate rojo. Y la ruta del gate se
+    reconoce tambien a traves de una VARIABLE, porque la indireccion no cambia
+    lo que se ejecuta.
+
+    Una rama de fallo que termina en `exit 1` es una guardia legitima: no se
+    toca. Por eso los 9 `if !` reales de `ci.yml` —las guardias anti-cero que
+    este mismo fichero exige— siguen en verde: su condicion ni siquiera invoca
+    un gate.
+    """
+    lineas = [l.split("#", 1)[0] for l in cuerpo.splitlines()]
+    variables = variables_de_gate(lineas, marca)
+    hallazgos = []
+    for i, linea in enumerate(lineas):
+        if not RE_IF.search(linea):
+            continue
+        texto = "\n".join(_bloque_if(lineas, i))
+        m_then = re.search(r"\bthen\b", texto)
+        if not m_then:
+            continue
+        condicion = texto[: m_then.start()]
+        if not _invoca_gate(condicion, marca, variables):
+            continue
+        m_neg = RE_NEGACIONES.search(condicion)
+        negaciones = m_neg.group(1).count("!") if m_neg else 0
+        if negaciones > 1:
+            # Polaridad invertida: parece guardia y apaga. Se rechaza sin
+            # mirar las ramas, porque el problema es la condicion misma.
+            hallazgos.append(("doble-negacion", condicion.strip().replace("\n", " ")))
+            continue
+        resto = re.sub(r"\bfi\b\s*$", "", texto[m_then.end():].rstrip())
+        m_else = re.search(r"(?:^|;|\n)\s*else\b", resto)
+        rama_then = resto[: m_else.start()] if m_else else resto
+        rama_else = resto[m_else.end():] if m_else else ""
+        rama_fallo = rama_then if negaciones == 1 else rama_else
+        if not RE_BLOQUE_FALLA.search(rama_fallo):
+            hallazgos.append(("sin-desenlace", condicion.strip().replace("\n", " ")))
+    return hallazgos
+
+
+def comprueba_if_negado(datos: dict, nombre: str) -> list[str]:
+    errores = []
+    for job_id, job in (datos.get("jobs") or {}).items():
+        for paso_nombre, cuerpo in pasos_run(job):
+            for clase, linea in gates_sin_desenlace(cuerpo):
+                donde = f"{nombre}: el job `{job_id}`, paso `{paso_nombre}`"
+                if clase == "doble-negacion":
+                    errores.append(
+                        f"{donde}, ejecuta un gate con NEGACION MULTIPLE: "
+                        f"`{linea}`. `! !` es bash valido y vuelve a invertir "
+                        f"la polaridad: aunque la rama lleve su `exit 1`, con "
+                        f"el gate ROJO esa rama NO se ejecuta y el paso sale en "
+                        f"VERDE. Tiene el aspecto exacto de una guardia "
+                        f"correcta y hace lo contrario, con un solo caracter de "
+                        f"diferencia. Escribe una sola negacion."
+                    )
+                else:
+                    errores.append(
+                        f"{donde}, ejecuta un gate dentro de un `if` cuya rama "
+                        f"de FALLO no falla: `{linea}`. El gate corre, se pone "
+                        f"rojo, y el paso sale en VERDE: es `|| true` escrito "
+                        f"como condicional. Da igual donde este la negacion "
+                        f"(`if !`, un `else`, o ninguna rama), y da igual que "
+                        f"la ruta llegue por una variable: lo que cuenta es que "
+                        f"cuando el gate falla no pasa nada. La rama de fallo "
+                        f"tiene que terminar en `exit 1`; si no, invoca el gate "
+                        f"a secas y deja decidir a su codigo de salida."
+                    )
+    return errores
+
+
+def comprueba_jobs_exigidos(datos: dict, nombre: str) -> list[str]:
+    """Un gate que puede desaparecer sin ponerse rojo no es un gate."""
+    exigidos = JOBS_EXIGIDOS.get(nombre, ())
+    if not exigidos:
+        return []
+    presentes = {clave_normalizada(k) for k in (datos.get("jobs") or {})}
+    return [
+        f"{nombre}: falta el job `{job}`. Es una barrera: si un merge o una "
+        f"resolucion de conflicto se la lleva por delante, deja de evaluarse y "
+        f"NADA se pone rojo. Restituyelo (hay copia canonica en "
+        f".github/ci-fragments/ para los que la tienen)."
+        for job in exigidos
+        if job not in presentes
+    ]
+
+
 def ficheros_con_skip_critico() -> dict[str, list[str]]:
     """Tests que se auto-omiten si falta una herramienta -> herramientas."""
     hallazgos: dict[str, list[str]] = {}
@@ -650,6 +885,9 @@ def main() -> int:
         errores += comprueba_disparo(datos, ruta.name)
         errores += comprueba_cero_tests(datos, ruta.name)
         errores += comprueba_ejecucion_condicional(datos, ruta.name)
+        errores += comprueba_neutralizacion(datos, ruta.name)
+        errores += comprueba_if_negado(datos, ruta.name)
+        errores += comprueba_jobs_exigidos(datos, ruta.name)
 
     if CI.name in parseados:
         errores += comprueba_skips_criticos(parseados[CI.name], CI.name)
@@ -663,8 +901,10 @@ def main() -> int:
         "OK: ci.yml y supply-chain.yml disparan en toda rama, sin campos que "
         "puedan apagar CI en silencio (comprobado sobre el YAML parseado, no "
         "sobre el texto), sin `if:` ni `continue-on-error` que apaguen o "
-        "desarmen un job, sin jobs que puedan ejecutar 0 tests en verde y sin "
-        "tests que se omitan por falta de Node o Chromium"
+        "desarmen un job, sin `|| true` que haga lo mismo dentro del `run:`, "
+        "sin que falte ninguno de los jobs exigidos, sin jobs que puedan "
+        "ejecutar 0 tests en verde y sin tests que se omitan por falta de Node "
+        "o Chromium"
     )
     return 0
 
