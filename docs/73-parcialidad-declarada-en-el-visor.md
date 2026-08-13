@@ -132,12 +132,28 @@ control negativo pegado y no dependa de que alguien repita el experimento a mano
 `truncated` a `len(mostrados) < len(nodes)` —olvidando «faltan relaciones»— dejaba **toda la suite
 en verde**: media afirmación de cabecera estaba cobrada sin control. Ya no:
 `test_truncado_por_relaciones_aunque_quepan_todos_los_nodos` ejerce el caso directo sobre
-`vista_truncada` (3/3 nodos, 1/2 relaciones, una colgante) y `test_calibracion_quitar_la_segunda_clausula_de_truncated_pone_el_gate_ROJO` es su mutante. Verificado además con la mutación **real
+`vista_truncada` (3/3 nodos, 1/2 relaciones, una colgante) y `test_calibracion_quitar_la_segunda_clausula_de_truncated_pone_el_gate_ROJO` es su mutante. **Qué
+calibra cada uno, con precisión**: el mutante parchea el nombre `vista_truncada` en el global del
+módulo de test, no `app.graph_view.vista_truncada`, así que demuestra que **el helper de aserción
+sabe ponerse rojo**, no que la línea fuente esté guardada; **quien guarda la línea fuente es el caso
+directo**, que se pone rojo contra el árbol mutado. División de trabajo deliberada: uno prueba el
+instrumento, el otro el sistema. Verificado además con la mutación **real
 sobre el árbol**: verde → ROJO (2 casos) → revertir → verde (1247 pasados).
 
 **Esa rama es INALCANZABLE desde el router de hoy, y aun así está cubierta.** Con `SIN_TOPE` las
 relaciones se computan sobre TODOS los nodos visibles: si los nodos caben, caben todas, así que no
-hay relación colgante posible por esa vía (`test_la_rama_de_relaciones_es_INALCANZABLE_desde_el_router_de_hoy` lo fija). No es un defecto de seguridad ni de producto hoy; es una **garantía de una
+hay relación colgante posible por esa vía.
+
+`test_la_rama_de_relaciones_es_INALCANZABLE_desde_el_router_de_hoy` **vigila esa condición**, y hubo
+que arreglarlo para que lo hiciera: su primera versión usaba sólo fixturas de 50 y 200 nodos con
+`limit=300` —donde el tope del router **nunca muerde**— y seguía VERDE con el router mutado a
+`limit=limit`. Un test que dice vigilar algo y no reacciona cuando eso cambia es, otra vez, un
+instrumento que no puede fallar. Ahora lleva un bloque con **`limit < n_nodes`** que va por el
+**router de verdad** (`TestClient` + `dependency_overrides` sobre `get_filtered_provider`, que sí se
+inyecta por `Depends`), no por la reimplementación local `_respuesta` —incapaz por construcción de
+ver un cambio en el router, que fue exactamente el fallo—. Bajo esa mutación `nodes_total` cae de
+2000 a 300 y el test se pone **ROJO**; revertido, verde (1247). El cambio de router lo caza además
+`test_api_graph_http_declara_la_vista`, rojo bajo la misma mutación. No es un defecto de seguridad ni de producto hoy; es una **garantía de una
 función pública (`__all__`)**, y la norma del proyecto no permite cobrarla sin un control capaz de
 ponerse rojo. Si algún día el router dejara de pedir sin tope, la cláusula pasaría de inalcanzable
 a imprescindible y el control ya estaría puesto.

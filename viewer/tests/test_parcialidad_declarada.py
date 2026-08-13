@@ -50,6 +50,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.authz.dependencies import get_filtered_provider
 from app.authz.filtered_provider import PolicyFilteredProvider
 from app.graph_view import SIN_TOPE, vista_truncada
 from app.main import app
@@ -219,8 +220,17 @@ def test_truncado_por_relaciones_aunque_quepan_todos_los_nodos():
 def test_calibracion_quitar_la_segunda_clausula_de_truncated_pone_el_gate_ROJO():
     """MUTACIÓN 8 (la que faltaba): `truncated` reducido a mirar sólo los nodos.
 
-    Se ejerce sobre la MISMA función, monkey-patcheada en el módulo, para que la
-    mutación sea la de verdad y no una reimplementación que se pareciera.
+    QUÉ CALIBRA ESTE TEST, exactamente: parchea el nombre `vista_truncada` en el
+    global de ESTE módulo de test, no `app.graph_view.vista_truncada`. Es decir,
+    demuestra que **el helper de aserción sabe ponerse rojo**, no que la línea
+    fuente esté guardada.
+
+    **Quien guarda la línea fuente es el caso directo** de arriba
+    (`test_truncado_por_relaciones_aunque_quepan_todos_los_nodos`): con la
+    segunda cláusula suprimida en `viewer/app/graph_view.py`, ese caso se pone
+    ROJO contra el árbol mutado (comprobado; verde → rojo → revertir → verde).
+    División de trabajo deliberada: uno prueba el instrumento, el otro el
+    sistema.
     """
     import app.graph_view as gv
 
@@ -246,14 +256,20 @@ def test_calibracion_quitar_la_segunda_clausula_de_truncated_pone_el_gate_ROJO()
 
 
 def test_la_rama_de_relaciones_es_INALCANZABLE_desde_el_router_de_hoy(tmp_path):
-    """Y queda escrito por qué el caso anterior es una garantía de la función,
-    no un defecto de producto: con `SIN_TOPE` las relaciones se computan sobre
-    TODOS los nodos visibles, así que si los nodos caben, caben todas. No hay
-    relación colgante posible por esta vía.
+    """Por qué el caso anterior es una garantía de la función y no un defecto de
+    producto: con `SIN_TOPE` las relaciones se computan sobre TODOS los nodos
+    visibles, así que si los nodos caben, caben todas. No hay relación colgante
+    posible por esta vía.
 
-    Si algún día el router dejara de pedir sin tope, esta afirmación caería — y
-    entonces la segunda cláusula pasaría de inalcanzable a imprescindible.
+    Y este test **vigila esa condición de verdad**. La primera versión no lo
+    hacía: usaba sólo fixturas de 50 y 200 nodos con `limit=300`, donde el tope
+    del router nunca muerde, así que seguía VERDE con el router mutado a
+    `limit=limit` — un test que decía vigilar algo y no reaccionaba cuando eso
+    cambiaba. El bloque con `limit < n_nodes` es el que muerde: si el router
+    dejara de pedir sin tope, `nodes_total` pasaría de 2000 a 300 (contaría el
+    recorte en vez del conjunto visible) y esto se pone ROJO.
     """
+    # (a) el invariante: si caben los nodos, caben todas las relaciones.
     for n_nodes in (50, 200):
         path, n_edges = _fixture(tmp_path, n_nodes)
         payload = _respuesta(path, limit=300)  # limit > n_nodes: caben todos
@@ -263,6 +279,35 @@ def test_la_rama_de_relaciones_es_INALCANZABLE_desde_el_router_de_hoy(tmp_path):
             "'colgante' ha dejado de ser inalcanzable desde el router"
         )
         assert payload["view"]["truncated"] is False
+
+    # (b) la condición que lo sostiene, donde el tope SÍ muerde. Va por el
+    # ROUTER DE VERDAD (`TestClient` + `dependency_overrides`), no por
+    # `_respuesta`, que es una reimplementación local y por tanto no puede ver
+    # un cambio en el router: ése fue justo el fallo de la primera versión.
+    # `get_filtered_provider` SÍ se inyecta por `Depends` (a diferencia de
+    # `get_visibility_context`), así que sobrescribirlo no es inerte — y que
+    # `nodes_total` valga 2000 lo demuestra: el grafo de ejemplo no los tiene.
+    n_nodes = 2000
+    path, n_edges = _fixture(tmp_path, n_nodes)
+    app.dependency_overrides[get_filtered_provider] = lambda: PolicyFilteredProvider(
+        MockGraphProvider(path), _viewer()
+    )
+    try:
+        r = client.get("/api/graph", params={"workspace": "leyenda", "limit": 300})
+        assert r.status_code == 200
+        view = r.json()["view"]
+    finally:
+        app.dependency_overrides.pop(get_filtered_provider, None)
+
+    assert view["nodes_total"] == n_nodes, (
+        f"nodes_total = {view['nodes_total']} en vez de {n_nodes}: el router ha "
+        f"dejado de pedir SIN TOPE y está contando su propio recorte. Con eso, "
+        f"la garantía 'si caben los nodos caben todas las relaciones' deja de "
+        f"sostenerse y la segunda cláusula de `truncated` pasa de inalcanzable "
+        f"a imprescindible."
+    )
+    assert view["edges_total"] == n_edges
+    assert view["nodes_shown"] == 300 and view["truncated"] is True
 
 
 def test_el_criterio_de_id_es_el_mismo_que_el_del_proveedor():
