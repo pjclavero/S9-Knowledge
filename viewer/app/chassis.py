@@ -43,6 +43,11 @@ __all__ = [
     "route_index",
     "nav_for",
     "install_nav_globals",
+    "FLAG_ENV_TEMPLATE",
+    "FLAG_ON_VALUES",
+    "slot_flag_env",
+    "slot_enabled",
+    "enabled_slots",
 ]
 
 
@@ -134,6 +139,53 @@ FEATURE_SLOTS: tuple[FeatureSlot, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Interruptor por hueco: un panel a medio construir se apaga
+# ---------------------------------------------------------------------------
+# Los cuatro huecos se montan siempre (un router declarado y no montado es la
+# ruta muerta que este chasis existe para impedir), pero servir su pantalla
+# depende de un interruptor por hueco. Sin él no habría forma de apagar un
+# panel a medio construir salvo desmontarlo, que es justo lo que rompe el
+# contrato de montaje.
+#
+# CIERRA CERRADO, sin excepciones: el panel se sirve si y sólo si su variable
+# de entorno vale exactamente uno de `FLAG_ON_VALUES`. Ausente, vacía, "false",
+# "quizas" o cualquier otra cosa -> panel NO accesible. La ausencia de dato
+# nunca es permiso máximo, y un valor que no se entiende es un dato ausente.
+# El valor por defecto (todos apagados) es el correcto para producción: hoy los
+# cuatro huecos sirven una pantalla vacía.
+
+#: Únicos valores que ENCIENDEN un hueco (comparados en minúsculas, sin espacios).
+FLAG_ON_VALUES = frozenset({"true", "1"})
+
+#: Plantilla del nombre de la variable de entorno de cada hueco.
+FLAG_ENV_TEMPLATE = "S9K_PANEL_{key}_ENABLED"
+
+
+def slot_flag_env(slot: "FeatureSlot") -> str:
+    """Nombre de la variable de entorno que enciende ``slot``."""
+    return FLAG_ENV_TEMPLATE.format(key=slot.key.upper())
+
+
+def slot_enabled(slot: "FeatureSlot", env: Optional[dict] = None) -> bool:
+    """¿Está encendido este hueco? Fallo cerrado ante ausencia o valor raro.
+
+    Se lee del entorno en CADA llamada a propósito: un flag cacheado al importar
+    convierte "apagar el panel" en "reiniciar el proceso y esperar".
+    """
+    import os
+
+    raw = (env if env is not None else os.environ).get(slot_flag_env(slot))
+    if raw is None:
+        return False
+    return raw.strip().lower() in FLAG_ON_VALUES
+
+
+def enabled_slots(env: Optional[dict] = None) -> tuple["FeatureSlot", ...]:
+    """Los huecos encendidos ahora mismo."""
+    return tuple(s for s in FEATURE_SLOTS if slot_enabled(s, env))
+
+
 @dataclass(frozen=True)
 class NavItem:
     """Entrada del menú. Apunta a un NOMBRE de ruta, nunca a una URL literal.
@@ -182,9 +234,22 @@ def _walk(routes: Iterable) -> Iterator:
 
     FastAPI >= 0.116 no deja las rutas incluidas colgando de ``app.routes``:
     inserta envoltorios ``_IncludedRouter`` cuyas rutas efectivas hay que pedir
-    con ``effective_candidates()``. Consecuencia práctica comprobada: **
-    ``app.url_path_for`` NO encuentra las rutas de un router incluido**. Por eso
-    el chasis resuelve los nombres contra su propio índice y no contra Starlette.
+    con ``effective_candidates()``. Por eso ``len(app.routes)`` (27) no es el
+    censo real de rutas (68): sin aplanar, una ruta puede esconderse de
+    cualquier barrido que recorra sólo el primer nivel — y el barrido de
+    autorización es uno de ellos.
+
+    CORRECCIÓN (medido en FastAPI 0.139.0 / Starlette 1.3.1): ``url_path_for``
+    **sí** resuelve las rutas de un router incluido —
+    ``app.url_path_for("chassis_review")`` devuelve ``/panel/review/`` y
+    ``app.url_path_for("entities_page")`` devuelve ``/entities``—. Una versión
+    anterior de este docstring afirmaba lo contrario; era falso. El índice
+    propio se mantiene por otras dos razones, éstas sí comprobadas: (1) es el
+    MISMO censo aplanado que usa el barrido de autorización, así que una ruta no
+    puede estar en un censo y faltar en el otro —resolver la navegación con
+    Starlette y auditar con ``_walk`` serían dos censos capaces de discrepar—; y
+    (2) ``url_path_for`` devuelve la variante con barra final
+    (``/panel/review/``), mientras que el canónico para un enlace es el otro.
 
     Se acepta cualquiera de las tres formas (envoltorio moderno, ``.routes``
     anidado, ruta suelta) para no atarse a una versión concreta.
@@ -258,8 +323,15 @@ def nav_for(app, user) -> list[dict]:
     que un menú que se autocensura y esconde el error hasta producción.
     """
     index = route_index(app)
+    # Huecos apagados: su ruta está montada pero devuelve 404. Enlazarla sería
+    # un enlace roto, así que el menú no la pinta. Ojo: ésta es la ÚNICA
+    # omisión permitida, y sólo para un hueco declarado y explícitamente
+    # apagado; cualquier otro enlace sin ruta sigue reventando.
+    apagados = {s.route_name for s in FEATURE_SLOTS if not slot_enabled(s)}
     items: list[dict] = []
     for item in sorted(NAV, key=lambda n: (n.order, n.label)):
+        if item.route_name in apagados:
+            continue
         if item.route_name not in index:
             raise ChassisContractError(
                 f"El elemento de navegación {item.label!r} apunta a la ruta "

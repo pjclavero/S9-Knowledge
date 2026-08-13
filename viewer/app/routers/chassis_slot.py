@@ -13,14 +13,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+# Las guardas ya existen y ya están probadas. Reutilizarlas es el punto: un
+# chasis con su propia guarda sería una segunda autorización.
+from app.auth.dependencies import require_admin
 from app.auth.models import User
-from app.chassis import FeatureSlot
-# La guarda de rol ya existe y ya está probada. Reutilizarla es el punto:
-# un chasis con su propia guarda sería una segunda autorización.
+from app.chassis import FeatureSlot, slot_enabled, slot_flag_env
 from app.routers.readonly import html_role_guard
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -48,17 +49,43 @@ def slot_context(
     }
 
 
+def slot_guard(slot: FeatureSlot):
+    """Guarda de un hueco. Siempre una guarda YA EXISTENTE, nunca una nueva.
+
+    Un hueco `admin` usa ``require_admin``, la misma que `/admin/users` y
+    `/admin/partidas`. Con ``html_role_guard`` el panel de administración
+    quedaba por DEBAJO de sus pares: esa guarda es no-op cuando
+    ``S9K_AUTH_ENABLED`` está ausente, así que servía 200 a un anónimo mientras
+    el resto del área de administración devolvía 302 a /login. Medido, no
+    supuesto. Los huecos por debajo de `admin` conservan ``html_role_guard``,
+    que es la postura de sus pares (`/sources`, `/reviews`).
+    """
+    if slot.role == "admin":
+        return require_admin
+    return html_role_guard(slot.role)
+
+
 def build_slot_router(slot: FeatureSlot) -> APIRouter:
-    """Router montable para un hueco: una pantalla, vacía y autorizada."""
+    """Router montable para un hueco: una pantalla, vacía, apagable y autorizada."""
     router = APIRouter(prefix=slot.prefix, tags=[f"chassis-{slot.key.lower()}"])
 
     @router.get("", response_class=HTMLResponse, name=slot.route_name)
     @router.get("/", response_class=HTMLResponse, name=slot.route_name)
-    def slot_screen(request: Request, user=Depends(html_role_guard(slot.role))):
-        # `html_role_guard` devuelve la redirección a /login para el anónimo y
-        # levanta 403 si el rol no llega. Aquí sólo hay que respetar su salida.
+    def slot_screen(request: Request, user=Depends(slot_guard(slot))):
+        # La guarda devuelve la redirección a /login para el anónimo y levanta
+        # 403 si el rol no llega. `Depends` NO deniega por sí solo: devolver su
+        # salida es parte de la denegación.
         if isinstance(user, RedirectResponse):
             return user
+        # Interruptor del hueco: se comprueba DESPUÉS de autorizar, para no
+        # revelar a un anónimo qué paneles existen. Ausente o con valor raro,
+        # el panel no está: 404, igual que una ruta que no existiera.
+        if not slot_enabled(slot):
+            raise HTTPException(
+                status_code=404,
+                detail=(f"El panel {slot.title} está apagado "
+                        f"({slot_flag_env(slot)})"),
+            )
         return templates.TemplateResponse(
             request, slot.template, slot_context(slot, user, items=[], error=None)
         )

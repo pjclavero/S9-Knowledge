@@ -15,7 +15,8 @@ Piezas:
 | `viewer/app/templates/chassis/_slot.html` | Estados explícitos: `error`, `empty`, `ready` |
 | `viewer/app/main.py` | Montaje derivado del contrato + instalación de la navegación |
 | `viewer/app/templates/base.html` | Menú recorrido desde el registro, sin enlaces a mano |
-| `viewer/tests/test_chassis_mount_contract.py` | Las pruebas del contrato, contra la app real |
+| `viewer/tests/test_chassis_mount_contract.py` | Las pruebas del contrato, contra la app real, más la copia a mano del contrato publicado |
+| `viewer/.env.example` | Los cuatro interruptores `S9K_PANEL_<KEY>_ENABLED`, apagados por defecto |
 
 ## 1. Contrato de montaje
 
@@ -39,17 +40,78 @@ libre de colisiones por construcción y comprobado en
 `test_slot_prefixes_do_not_collide`.
 
 Sobre los roles: el campo `role` toma valores de `app.auth.models.ROLES`
-(`admin > reviewer > viewer`) y la decisión la ejecuta
-`app.routers.readonly.html_role_guard`, que ya existía. **El chasis no define
-ningún concepto de permiso nuevo**; el filtrado del menú delega en los métodos
-del propio `User` (`can_access_admin`, `can_see_reviews`).
+(`admin > reviewer > viewer`) y la decisión la ejecutan guardas **que ya
+existían**: `app.auth.dependencies.require_admin` para los huecos `admin` y
+`app.routers.readonly.html_role_guard` para los demás (ver §1 bis). **El chasis
+no define ningún concepto de permiso nuevo**; el filtrado del menú delega en los
+métodos del propio `User` (`can_access_admin`, `can_see_reviews`).
+
+Este contrato está duplicado a mano en la propia suite
+(`CONTRATO_PUBLICADO` en `test_chassis_mount_contract.py`) y se compara contra
+`FEATURE_SLOTS`. La duplicación es deliberada: sin ella los tests leían
+`slot.role` y `slot.prefix` del mismo dato que afirmaban —autorreferencia— y
+cambiar el rol de B a `viewer`, el de G a `admin` o el prefijo de C a
+`/panel/revision` pasaba **en verde** (medido: 40/2 skipped, 42 y 41 passed).
+Cambiar el contrato debe costar tocar tres sitios: el dato, la tabla y este
+documento.
+
+### 1 bis. Guarda de cada hueco y por qué B es distinto
+
+`chassis_slot.slot_guard(slot)` elige guarda **existente** según el rol
+declarado:
+
+| Rol del hueco | Guarda | Postura con `S9K_AUTH_ENABLED` ausente |
+| --- | --- | --- |
+| `admin` (B) | `app.auth.dependencies.require_admin` | 302 a `/login`, igual que `/admin/users` y `/admin/partidas` |
+| `reviewer`, `viewer` (C, F, G) | `app.routers.readonly.html_role_guard` | no-op (comportamiento público), igual que `/sources` y `/reviews` |
+
+Motivo, medido: con auth desactivada `html_role_guard` es no-op, así que el
+hueco B —el panel de **administración**— devolvía **200 a un anónimo** mientras
+sus pares del área de administración devolvían **302**. No era vocabulario de
+autorización nuevo, pero sí una degradación respecto a sus pares. Cada hueco
+queda ahora a la altura de las pantallas equivalentes que ya existen; la
+comparación la hace `test_admin_slot_denies_anonymous_with_auth_disabled`
+contra los pares reales, no contra una constante escrita en el test.
+
+Recordatorio para quien monte encima: `Depends(guarda)` **no deniega por sí
+solo**. Devuelve un `RedirectResponse` que el handler tiene que devolver. Si el
+carril reescribe el handler y se come ese `return`, el anónimo entra.
+
+### 1 ter. Interruptor por hueco: apagar un panel a medio construir
+
+Cada hueco tiene su variable de entorno, `S9K_PANEL_<KEY>_ENABLED`
+(`S9K_PANEL_C_ENABLED`, `…_B_…`, `…_F_…`, `…_G_…`).
+
+- **Falla cerrado**: el panel se sirve si y sólo si el valor es exactamente
+  `true` o `1` (`FLAG_ON_VALUES`, sin distinguir mayúsculas ni espacios).
+  Ausente, vacío, `false`, `yes`, `0`, `quizas` → **404**. La ausencia de dato
+  nunca es permiso máximo, y un valor que no se entiende es un dato ausente.
+- **Por defecto los cuatro están apagados.** Es la postura correcta hoy: los
+  huecos sirven una pantalla vacía.
+- **El hueco sigue MONTADO aunque esté apagado.** Desmontarlo lo devolvería al
+  fallo que este chasis existe para impedir (ruta muerta, censo que miente). Lo
+  que se apaga es el servicio de la pantalla, no el montaje.
+- **El interruptor se evalúa DESPUÉS de la guarda**: encender un panel no es
+  autorizar a nadie, y un flag jamás puede ser una puerta lateral
+  (`test_flag_does_not_bypass_authorization`).
+- **Un panel apagado desaparece del menú**, porque enlazar un 404 es el enlace
+  roto de siempre. Es la **única** omisión que `nav_for` admite —hueco declarado
+  y explícitamente apagado—; cualquier otro enlace sin ruta sigue levantando
+  `ChassisContractError`.
+- El valor se lee del entorno en **cada petición**: apagar un panel no exige
+  reiniciar el proceso.
+
+Plantilla de despliegue: `viewer/.env.example`.
 
 ## 2. Cómo monta un carril su funcionalidad
 
 1. Sustituye el cuerpo del handler de su módulo `chassis_<feature>.py` (o
    reemplaza el módulo entero, conservando `router`).
 2. Mantiene prefijo, nombre de ruta, rol y plantilla. Cambiarlos exige cambiar
-   también `FEATURE_SLOTS`, y el test lo obliga.
+   también `FEATURE_SLOTS`, la tabla `CONTRATO_PUBLICADO` de la suite y este
+   documento; los tests lo obligan.
+2 bis. Enciende su panel con `S9K_PANEL_<KEY>_ENABLED=true` cuando esté listo
+   para que alguien lo vea. Mientras tanto queda montado y apagado (404).
 3. Pasa a la plantilla, como mínimo, las claves de `SLOT_CONTEXT_KEYS`:
    `auth_user`, `slot`, `items`, `error`. **`auth_user` no es negociable**:
    `base.html` pinta la barra superior con ese nombre exacto.
@@ -65,16 +127,30 @@ del propio `User` (`can_access_admin`, `can_see_reviews`).
 | Toda ruta montada pasa por autorización; sin contexto se deniega | Barrido de **todas** las rutas montadas con auth activada y sin sesión: ninguna puede devolver 200. La excepción es una lista **blanca** (`/login`, `/logout`, `/static`, `/favicon.ico`) | `test_no_mounted_route_serves_200_to_anonymous`, `test_slot_denies_anonymous`, `test_slot_denies_insufficient_role` |
 | Estados vacío y de error explícitos | `_slot.html` evalúa `error` → `empty` → `ready`; el caso sin datos es el camino por defecto, no el olvidado | `test_slot_renders_empty_state_instead_of_exploding`, `test_slot_template_has_an_error_state` |
 
-### Nota técnica: `app.url_path_for` no sirve aquí
+### Nota técnica: por qué el chasis aplana el censo él mismo
 
 Con FastAPI 0.139 las rutas incluidas no cuelgan de `app.routes`: se insertan
 envoltorios `_IncludedRouter` cuyas rutas efectivas hay que pedir con
-`effective_candidates()`. Consecuencia comprobada en este repo:
-`app.url_path_for("entities_page")` levanta `NoMatchFound` aunque `/entities`
-esté montado y sirviendo. Por eso el chasis enumera las rutas él mismo
-(`iter_mounted_routes`) y resuelve contra su propio índice. Esa misma
-enumeración es la que usa el barrido de autorización, así que una ruta que se
-esconda de una se esconde de la otra: no hay dos censos que puedan discrepar.
+`effective_candidates()`. Medido: `len(app.routes)` = **27** frente a **68**
+rutas reales. Sin aplanar, una ruta puede esconderse de cualquier barrido que
+recorra sólo el primer nivel, y el barrido de autorización es uno de ellos —la
+ablación lo demuestra: sin aplanar se cuela una ruta sin guarda—.
+
+**Corrección de una afirmación anterior.** Este documento y el docstring de
+`_walk` decían que `app.url_path_for` no encuentra las rutas de un router
+incluido. **Es falso**, y se ha medido en FastAPI 0.139.0 / Starlette 1.3.1:
+
+```
+app.url_path_for("chassis_review") -> /panel/review/
+app.url_path_for("entities_page")  -> /entities
+```
+
+El índice propio se conserva por dos razones que sí se sostienen: (1) es el
+**mismo** censo aplanado que usa el barrido de autorización, así que una ruta no
+puede aparecer en un censo y faltar en el otro —resolver la navegación con
+Starlette y auditar con `_walk` serían dos censos capaces de discrepar—; y (2)
+`url_path_for` devuelve la variante con barra final (`/panel/review/`) mientras
+que el canónico para un enlace de menú es el otro.
 
 ## 4. Regla de las pruebas
 
@@ -100,7 +176,33 @@ revirtiendo y comprobando el verde. Salidas reales sobre
 | 4 | `slot_context`: `auth_user` → `admin` | 8 failed, 32 passed | `test_slot_renders_topbar_identity[C]` — «el nombre del usuario no aparece; la plantilla no recibió `auth_user`» |
 | 5 | `_slot.html`: `{{ items[0].nombre }}` incondicional | 8 failed | `test_slot_allows_declared_role[C]` — 500; `jinja2.UndefinedError: list object has no element 0` |
 
-Tras revertir cada una: **41 passed, 1 skipped** (el skip es
+### 5 bis. Segunda ronda: lo que la primera NO medía
+
+Un revisor independiente encontró que la suite anterior pasaba **en verde** con
+el rol y el prefijo del contrato cambiados, y que los interruptores por hueco
+sencillamente no existían. Mutaciones y resultado **después** del arreglo (suite
+completa: **67 passed, 1 skipped**):
+
+| # | Mutación | Antes | Ahora | Prueba que se pone roja |
+| --- | --- | --- | --- | --- |
+| 6 | rol de B: `admin` → `viewer` | 40 passed, 2 skipped (**verde**) | **2 failed** | `test_feature_slots_match_the_published_contract`; `test_published_role_is_the_minimum_not_a_wider_one[B]` — «el contrato publica 'admin' como mínimo, pero 'reviewer' entra» |
+| 7 | rol de G: `viewer` → `admin` | 42 passed (**verde**) | **3 failed** | `test_published_prefix_and_role_are_served_as_such[G]` — «el rol publicado 'viewer' recibe 403 en /panel/entities» |
+| 8 | prefijo de C: `/panel/review` → `/panel/revision` | 41 passed, 1 skipped (**verde**) | **3 failed** | `test_published_prefix_and_role_are_served_as_such[C]` — «el contrato publica '/panel/review' para 'chassis_review'» |
+| 9 | rol de F: `reviewer` → `viewer` | — | **2 failed** | `test_published_role_is_the_minimum_not_a_wider_one[F]` |
+| 10 | prefijo de B: `/panel/operations` → `/panel/ops` | — | **3 failed** | `test_published_prefix_and_role_are_served_as_such[B]` |
+| 11 | nombre de ruta de C: `chassis_review` → `chassis_revision` | — | **2 failed** | `test_feature_slots_match_the_published_contract` |
+| 12 | `slot_enabled`: flag ausente → encendido | — | **5 failed** | `test_slot_is_off_when_flag_is_absent[C/B/F/G]`, `test_disabled_slot_is_not_linked_in_the_nav` |
+| 13 | `slot_enabled`: cualquier valor no vacío enciende | — | **5 failed** | `test_slot_is_off_when_flag_is_garbage[quizas/false/TRUE-ish/0/yes]` |
+| 14 | handler sin comprobar el interruptor | — | **10 failed** | las nueve anteriores + `[]` (valor vacío) |
+| 15 | hueco `admin` con `html_role_guard` (la guarda débil) | — | **1 failed** | `test_admin_slot_denies_anonymous_with_auth_disabled` — «con auth desactivada responde 200 a un anónimo; sus pares responden [302, 302]» |
+
+**Superviviente declarado**: mover la comprobación del interruptor por delante
+de la guarda no pone nada rojo. No es un defecto: con el panel apagado nadie lo
+recibe, y lo único que cambia es qué denegación ve un anónimo (404 en vez de
+302). El orden actual —guarda primero— se mantiene porque no revela a un
+anónimo qué paneles existen.
+
+Tras revertir cada una de las cinco primeras: **41 passed, 1 skipped** (el skip es
 `test_slot_denies_insufficient_role[G]`: `viewer` es el rol más bajo, no existe
 uno inferior con el que probar la denegación).
 
