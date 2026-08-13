@@ -12,8 +12,13 @@ mecánica (nunca por grep de menciones):
               pytest (sonda `route_map.pytest_route_probe`), no que su nombre
               aparezca en un fichero de test.
   authorized  con auth activada, una petición ANÓNIMA real recibe denegación
-              (401/403/404/redirección a /login), más la detección estática del
-              guardián (dependencias del Dependant + llamadas en el cuerpo).
+              (401/redirección a /login, o 403/404 con guardián declarado), más
+              la detección estática del guardián (dependencias del Dependant +
+              llamadas en el cuerpo). En los métodos con cuerpo se emite un token
+              CSRF VÁLIDO para que quien deniegue sea el guardián y no la capa
+              CSRF. Un 404 o un 403 en una ruta SIN guardián estático no cuentan
+              como denegación: son `denegada-404-ambigua` y
+              `denegacion-no-atribuible`.
   consumed    alguien la usa: plantillas, JS estático, tests o código.
 
 Hallazgos que emite:
@@ -22,6 +27,13 @@ Hallazgos que emite:
   SIN-AUTH      ruta que responde 2xx a una petición anónima con auth activada.
   HUERFANA      montada pero no alcanzable desde la navegación.
   NO-PROBADA    montada pero nunca ejercitada contra la app real.
+  404-AMBIGUO   404 con el id fabricado por la sonda y sin guardián declarado:
+                la denegación NO está demostrada (una ruta abierta de par en par
+                subía si no el contador de rutas que deniegan).
+  NO-ATRIBUIBLE 403 sin guardián declarado: lo dijo otra capa (CSRF), no el
+                control de acceso.
+  CONTRADICCION la fila dice a la vez «deniega al anónimo» y «servida a un rol»,
+                sin guardián que sostenga ninguna de las dos.
 
 Uso:
     python3 scripts/route_map/route_map.py --repo . \
@@ -562,14 +574,38 @@ def run_probe(repo: Path) -> dict[str, dict]:
 ROLES = ("viewer", "reviewer", "admin")
 
 
-def _fresh_token(db_path: str, role: str) -> str:
-    """Sesión NUEVA para el rol pedido.
+def _csrf_para(session_id: int, session_hash: str, secret: str) -> str:
+    """Token CSRF que el visor aceptaría para esa sesión (o para el anónimo).
+
+    Reproduce EXACTAMENTE la derivación del middleware
+    (`app.auth.middleware`: `csrf_raw = HMAC(secret, "csrf:<id>:<hash[:8]>")`)
+    y de `app.auth.csrf.get_csrf_token_for_session`. No modifica la app: sólo
+    calcula lo que la propia app calcularía. Para el anónimo, `request.state`
+    queda con `session = None` y `csrf_raw = ""`, y los handlers validan contra
+    `session.id if session else 0`, así que el token anónimo es derivable.
+    """
+    import hashlib
+    import hmac
+
+    from app.auth.csrf import get_csrf_token_for_session
+
+    raw = ""
+    if session_hash:
+        raw = hmac.new(secret.encode(),
+                       f"csrf:{session_id}:{session_hash[:8]}".encode(),
+                       hashlib.sha256).hexdigest()
+    return get_csrf_token_for_session(session_id, raw, secret=secret)
+
+
+def _fresh_token(db_path: str, role: str) -> tuple[str, str]:
+    """Sesión NUEVA para el rol pedido: `(cookie de sesión, token CSRF válido)`.
 
     Se emite una por petición a propósito: el barrido incluye rutas que revocan
     sesiones o modifican usuarios, y una sesión reutilizada podría quedar
     invalidada a media pasada y producir denegaciones falsas.
     """
     from app.auth import db as auth_db
+    from app.auth.config import get_auth_settings
     from app.auth.passwords import hash_password
     from app.auth.sessions import create_session
 
@@ -580,8 +616,9 @@ def _fresh_token(db_path: str, role: str) -> str:
                 conn, f"probe_{role}", f"Sonda {role}",
                 hash_password("Probe-" + "z" * 20), role=role,
             )
-        token, _sess = create_session(conn, user)
-    return token
+        token, sess = create_session(conn, user)
+    secret = get_auth_settings().S9K_CSRF_SECRET
+    return token, _csrf_para(sess.id, getattr(sess, "session_hash", "") or "", secret)
 
 
 def _install_resolver(app) -> list:
@@ -592,22 +629,50 @@ def _install_resolver(app) -> list:
     ruta capturada el resultado de autorización del handler que la ensombrece:
     una ruta sin guardián parecería denegar correctamente. La lista devuelta
     recibe el path del handler REALMENTE ejecutado en cada petición.
+
+    El índice es `(id(route), path)`, NO el objeto `Route`. Un mismo objeto
+    `Route` sirve varios paths efectivos cuando su router se incluye más de una
+    vez (`include_router(r)` + `include_router(r, prefix="/dup")`). Etiquetarlo
+    con el primer path visto hacía que todos los demás se declarasen CAPTURADOS
+    —y por tanto `no-evaluable-capturada`— aunque respondan de verdad: su
+    autorización dejaba de medirse EN SILENCIO. El envoltorio se instala una
+    sola vez por objeto y resuelve en tiempo de petición cuál de los paths
+    registrados casa con la URL entrante.
     """
+    from starlette.routing import compile_path
+
     registro: list[str] = []
+    # id(route) -> [(regex compilada, path efectivo), ...]
+    candidatos: dict[int, list] = {}
+    instalados: set[tuple[int, str]] = set()
 
     def _wrap(route, path):
-        if getattr(route, "_s9k_resolver", False):
+        clave = (id(route), path)
+        if clave in instalados:
             return
         handle = getattr(route, "handle", None)
         if handle is None:
             return
+        rx, _, _ = compile_path(path)
+        primera_vez = id(route) not in candidatos
+        lista = candidatos.setdefault(id(route), [])
+        lista.append((rx, path))
+        instalados.add(clave)
+        if not primera_vez:
+            # El envoltorio ya instalado consulta `lista`, que acaba de crecer.
+            return
 
-        async def _handle(scope, receive, send, _orig=handle, _path=path):
-            registro.append(_path)
+        async def _handle(scope, receive, send, _orig=handle, _cands=lista):
+            url = scope.get("path", "") or ""
+            elegido = None
+            for rx2, p2 in _cands:
+                if rx2.fullmatch(url):
+                    elegido = p2
+                    break
+            registro.append(elegido if elegido is not None else _cands[0][1])
             await _orig(scope, receive, send)
 
         route.handle = _handle
-        route._s9k_resolver = True
 
     for path, _m, _d, _e, handler_route, kind in iter_effective_routes(app):
         if kind == "route":
@@ -635,29 +700,63 @@ def probe_main(repo: Path, out_path: Path) -> None:
     with TestClient(app, follow_redirects=False) as client:
         routes = [r for r in collect_mounted(app) if r["method"] != "MOUNT"]
 
-        def _hit(r, cookies):
+        secret = get_auth_settings().S9K_CSRF_SECRET
+        csrf_anonimo = _csrf_para(0, "", secret)
+
+        def _cuerpo(r, csrf):
+            """Cuerpo de la petición con un token CSRF VÁLIDO en su campo.
+
+            Sin esto el barrido es CIEGO en los POST: la comprobación CSRF
+            responde 403 antes de que hable el guardián, y ese 403 no distingue
+            «no autorizado» de «falta el token». Emitiéndolo, quien decide es el
+            control de acceso, que es lo que se está midiendo.
+            """
+            campos = r.get("body_fields") or []
+            if not campos:
+                return None, False
+            data = {}
+            enviado = False
+            for f in campos:
+                if "csrf" in f.lower():
+                    data[f] = csrf
+                    enviado = True
+                else:
+                    data[f] = "probe"
+            return data, enviado
+
+        def _hit(r, cookies, csrf):
             url = _concrete_url(r["path"])
             registro.clear()
-            resp = client.request(r["method"], url, cookies=cookies)
-            # 422 = la validación del cuerpo se evaluó antes del guardián. Se
-            # reintenta rellenando los campos declarados para que la petición
-            # llegue de verdad al control de acceso.
-            if resp.status_code == 422 and r.get("body_fields"):
-                resp = client.request(r["method"], url, cookies=cookies,
-                                      data={f: "probe" for f in r["body_fields"]})
+            data, lleva_csrf = _cuerpo(r, csrf)
+            # En los métodos con cuerpo se manda desde el primer intento: si el
+            # campo CSRF tiene valor por defecto (`Form("")`) no hay 422 que
+            # provoque el reintento, y la petición moriría en el CSRF.
+            con_cuerpo = data is not None and r["method"] not in ("GET", "HEAD", "OPTIONS")
+            if con_cuerpo:
+                resp = client.request(r["method"], url, cookies=cookies, data=data)
+            else:
+                resp = client.request(r["method"], url, cookies=cookies)
+                # 422 = la validación del cuerpo se evaluó antes del guardián. Se
+                # reintenta rellenando los campos declarados para que la petición
+                # llegue de verdad al control de acceso.
+                if resp.status_code == 422 and data is not None:
+                    resp = client.request(r["method"], url, cookies=cookies, data=data)
+                    con_cuerpo = True
+            csrf_enviado = bool(lleva_csrf and con_cuerpo)
             return {"status": resp.status_code, "location": resp.headers.get("location", ""),
-                    "resolvio_a": registro[-1] if registro else None}
+                    "resolvio_a": registro[-1] if registro else None,
+                    "csrf_enviado": bool(csrf_enviado)}
 
         for r in routes:
             try:
-                res = _hit(r, None)
+                res = _hit(r, None, csrf_anonimo)
             except Exception as exc:  # pragma: no cover
                 res = {"status": None, "error": repr(exc)[:300]}
             res["por_rol"] = {}
             for role in ROLES:
                 try:
-                    token = _fresh_token(db_path, role)
-                    res["por_rol"][role] = _hit(r, {cookie_name: token})
+                    token, csrf = _fresh_token(db_path, role)
+                    res["por_rol"][role] = _hit(r, {cookie_name: token}, csrf)
                 except Exception as exc:  # pragma: no cover
                     res["por_rol"][role] = {"status": None, "error": repr(exc)[:300]}
             results[r["key"]] = res
@@ -692,8 +791,16 @@ def role_verdict(key: str, res: dict | None, has_params: bool = False,
         if not isinstance(r, dict):
             continue
         per[role] = r.get("status")
-    if key.startswith("POST "):
-        return {"rol_minimo": "no-concluyente-csrf", "por_rol": per}
+    if key.split(" ", 1)[0] not in ("GET", "HEAD"):
+        # Sólo es concluyente si la sonda emitió un token CSRF VÁLIDO en TODAS
+        # las peticiones por rol: si no, el 403 puede venir del CSRF y no del
+        # control de rol, y decir «rol X» sería inventarlo.
+        todos_con_csrf = all(
+            isinstance(r, dict) and r.get("csrf_enviado")
+            for r in res["por_rol"].values()
+        )
+        if not todos_con_csrf:
+            return {"rol_minimo": "no-concluyente-csrf", "por_rol": per}
     for role in ROLES:
         r = res["por_rol"].get(role) or {}
         st = r.get("status")
@@ -716,8 +823,26 @@ def capturada_por(path: str, res: dict | None) -> str | None:
     return None
 
 
-def classify_probe(key: str, res: dict | None, path: str = "") -> tuple[str, str]:
-    """(veredicto, detalle) de la sonda anónima."""
+#: Veredictos que NO son «esta ruta deniega»: la petición no fue servida, pero
+#: la denegación no es atribuible al control de acceso.
+DENEGACIONES_NO_ATRIBUIBLES = ("denegada-404-ambigua", "denegacion-no-atribuible")
+
+
+def classify_probe(key: str, res: dict | None, path: str = "",
+                   static_guard: bool = False) -> tuple[str, str]:
+    """(veredicto, detalle) de la sonda anónima.
+
+    Una respuesta que no sirve contenido NO es prueba de autorización por sí
+    sola. Se separan los dos casos en que el «no» no lo dice el guardián:
+
+    - **404 sin guardián estático**: en una ruta con `{param}` el 404 lo produce
+      el identificador inventado por la sonda (recurso inexistente), no el
+      control de acceso. Si además la ruta no declara guardián alguno, contarlo
+      como denegación hace que una ruta abierta de par en par SUBA el contador
+      de rutas que deniegan. Se marca `denegada-404-ambigua`.
+    - **403 sin guardián estático**: típicamente el CSRF, que responde antes que
+      el guardián. Se marca `denegacion-no-atribuible`.
+    """
     captor = capturada_por(path or key.split(" ", 1)[-1], res)
     if captor:
         # No se le puede atribuir el resultado del handler que la ensombrece:
@@ -731,6 +856,14 @@ def classify_probe(key: str, res: dict | None, path: str = "") -> tuple[str, str
     loc = res.get("location", "") or ""
     if st is None:
         return "inconcluyente", res.get("error", "")
+    if st == 404 and not static_guard:
+        return ("denegada-404-ambigua",
+                "404 con id de sonda y sin guardián estático: recurso inexistente, "
+                "no denegación demostrada")
+    if st == 403 and not static_guard:
+        return ("denegacion-no-atribuible",
+                "403 sin guardián estático (CSRF u otra capa previa), no atribuible "
+                "al control de acceso")
     if st in (401, 403, 404):
         return "denegada", str(st)
     if st in (301, 302, 303, 307, 308):
@@ -855,12 +988,13 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
     rows = []
     for r in sorted(mounted_routes, key=lambda x: (x["path"], x["method"])):
         k = r["key"]
-        verdict, detail = classify_probe(k, probe.get(k), r["path"])
+        static_guard = bool(r["deps"] or r["body_guards"])
+        verdict, detail = classify_probe(k, probe.get(k), r["path"],
+                                         static_guard=static_guard)
         roles = role_verdict(k, probe.get(k), has_params="{" in r["path"],
                              path=r["path"])
         captor = capturada_por(r["path"], probe.get(k))
         t = tested.get(k)
-        static_guard = bool(r["deps"] or r["body_guards"])
         rows.append({
             "key": k, "method": r["method"], "path": r["path"], "kind": r["kind"],
             "endpoint": r["endpoint"], "module": r.get("module", ""),
@@ -874,6 +1008,7 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
             "authz_deps": r["deps"], "authz_body_guards": r["body_guards"],
             "scoping_deps": r["scoping_deps"],
             "authz_probe": verdict, "authz_probe_detail": detail,
+            "csrf_enviado": bool((probe.get(k) or {}).get("csrf_enviado")),
             "capturada_por": captor,
             "rol_minimo_observado": roles["rol_minimo"],
             "status_por_rol": roles["por_rol"],
@@ -902,7 +1037,26 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
         ],
         "rutas_huerfanas": [r for r in rows if not r["linked"]],
         "sondas_inconcluyentes": [r for r in rows if r["authz_probe"] == "inconcluyente"],
+        # La sonda no fue servida, pero el «no» no lo dijo el control de acceso.
+        "rutas_denegacion_404_ambigua": [
+            r for r in rows if r["authz_probe"] == "denegada-404-ambigua"
+        ],
+        "rutas_denegacion_no_atribuible": [
+            r for r in rows if r["authz_probe"] == "denegacion-no-atribuible"
+        ],
+        # Contradicción interna entre las dos señales del barrido: la fila dice
+        # a la vez «deniega al anónimo» y «servida a un rol», sin guardián que
+        # sostenga ninguna de las dos. Es el patrón de la ruta abierta que sube
+        # el contador de rutas que deniegan.
+        "contradiccion_deniega_y_sirve": [
+            r for r in rows
+            if r["authz_probe"].startswith("deneg")
+            and r["rol_minimo_observado"] in ROLES
+            and not r["authz_static"]
+            and r["key"] not in PUBLIC_BY_DESIGN
+        ],
     }
+    denegadas = [r for r in rows if r["authz_probe"] == "denegada"]
     return {
         "repo": str(repo),
         "head": head_label or _head(repo),
@@ -910,8 +1064,19 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
             "definidas": len(defined), "montadas": len(rows),
             "enlazadas": sum(r["linked"] for r in rows),
             "probadas": sum(r["tested"] for r in rows),
-            "autorizadas": sum(r["authz_probe"] == "denegada" for r in rows),
+            "autorizadas": len(denegadas),
             "consumidas": sum(r["consumed"] for r in rows),
+        },
+        # Desglose del titular: de qué se compone el «deniegan», y qué queda
+        # fuera por no ser atribuible al control de acceso.
+        "desglose_denegaciones": {
+            "denegadas_atribuibles": len(denegadas),
+            "de_ellas_con_guardian_estatico": sum(r["authz_static"] for r in denegadas),
+            "de_ellas_metodos_con_cuerpo": sum(
+                r["method"] not in ("GET", "HEAD") for r in denegadas),
+            "de_ellas_con_csrf_valido_emitido": sum(r["csrf_enviado"] for r in denegadas),
+            "denegacion_404_ambigua": len(findings["rutas_denegacion_404_ambigua"]),
+            "denegacion_no_atribuible": len(findings["rutas_denegacion_no_atribuible"]),
         },
         "tested_source": str(tested_path) if tested_path else None,
         "tested_meta": tested_meta,
@@ -945,6 +1110,32 @@ def _head(repo: Path) -> str:
 # 6) informe markdown
 # --------------------------------------------------------------------------
 
+def _desglose_titular(m: dict) -> str:
+    """Recorta el titular: de qué se compone el «deniegan», y qué queda fuera.
+
+    El número suelto invita a leerlo como «57 rutas autorizan bien». No es eso:
+    hay que decir cuántas de esas denegaciones son de métodos con cuerpo (donde
+    el CSRF podría hablar antes que el guardián, y por eso la sonda emite un
+    token válido) y cuántas rutas quedaron FUERA del recuento por no ser su
+    denegación atribuible al control de acceso.
+    """
+    d = m.get("desglose_denegaciones") or {}
+    if not d:
+        return ""
+    partes = [
+        f"de ellas {d.get('de_ellas_con_guardian_estatico', 0)} con guardián estático",
+        f"{d.get('de_ellas_metodos_con_cuerpo', 0)} de métodos con cuerpo "
+        f"(sondeados con token CSRF válido: {d.get('de_ellas_con_csrf_valido_emitido', 0)})",
+    ]
+    fuera = []
+    if d.get("denegacion_404_ambigua"):
+        fuera.append(f"{d['denegacion_404_ambigua']} con 404 ambiguo (sin guardián)")
+    if d.get("denegacion_no_atribuible"):
+        fuera.append(f"{d['denegacion_no_atribuible']} con 403 no atribuible")
+    cola = f"; FUERA del recuento: {', '.join(fuera)}" if fuera else "; 0 fuera del recuento"
+    return " — " + "; ".join(partes) + cola
+
+
 def render_md(m: dict) -> str:
     c = m["counts"]
     L = [f"# Mapa de rutas v2 — {m['head'][:12]}", "",
@@ -952,7 +1143,8 @@ def render_md(m: dict) -> str:
          f"- montadas en `app.main.app`: **{c['montadas']}**",
          f"- enlazadas desde navegación: **{c['enlazadas']}**",
          f"- probadas de verdad (sonda pytest): **{c['probadas']}**",
-         f"- deniegan petición anónima con auth ON: **{c['autorizadas']}**",
+         f"- deniegan petición anónima con auth ON: **{c['autorizadas']}**"
+         + _desglose_titular(m),
          f"- consumidas: **{c['consumidas']}**", "",
          "| ruta | def | mnt | link | test | authz anónimo | rol mínimo medido | guardián estático | consum |",
          "|---|:-:|:-:|:-:|:-:|---|---|---|:-:|"]

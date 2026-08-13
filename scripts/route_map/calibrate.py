@@ -14,6 +14,9 @@ Defectos inyectados:
   M4  ruta nueva sin test                           -> NO PROBADA
   M5  ruta MENCIONADA en un comentario, inexistente -> NO cuenta como cubierta
   M6  test que ejercita una app PRIVADA de test     -> NO cuenta como probada
+  M12 ruta con {param} y sin guardián, 404 al azar  -> NO sube "deniegan" (Q2)
+  M13 POST sin guardián tras el muro del CSRF       -> el veredicto se mueve (Q1)
+  M14 mismo router incluido dos veces               -> NO se declaran capturadas (Q3)
 
 Uso:
     python3 scripts/route_map/calibrate.py --base <arbol_limpio> \
@@ -162,6 +165,63 @@ def ruta_con_senuelo(request: Request, user=Depends(html_guard)):
 ''', encoding="utf-8")
 
 
+def m12_fuga_404_sin_guardian(tree: Path) -> None:
+    """Ruta con `{param}`, SIN guardián alguno, que devuelve 404 con un id
+    inexistente y el secreto con uno válido.
+
+    Es el defecto Q2 del revisor. La sonda usa el id fabricado `probe`, recibe
+    404 y —antes del arreglo— lo contaba como DENEGACIÓN: una ruta abierta de
+    par en par SUBÍA el contador de rutas que deniegan (57 -> 58) mientras
+    `rutas_sin_auth` seguía vacío. Afecta a toda ruta con parámetro, o sea a la
+    mayoría de la API.
+    """
+    p = tree / "viewer/app/routers/readonly.py"
+    p.write_text(p.read_text(encoding="utf-8") + '''
+
+# MUTACION M12: ruta con parámetro y SIN guardián alguno
+@router.get("/fuga/{item_id}")
+def fuga_sin_guardian(request: Request, item_id: str):
+    if item_id != "42":
+        raise HTTPException(status_code=404, detail="no existe")
+    return {"secreto": "servido a cualquiera sin autorización"}
+''', encoding="utf-8")
+
+
+def m13_post_sin_guardian(tree: Path) -> None:
+    """Retira el guardián de `POST /partida/select` (defecto Q1 del revisor).
+
+    Antes del arreglo el barrido anónimo era CIEGO en los 13 POST: el CSRF
+    respondía 403 antes que el guardián, así que quitar el `Depends` no movía
+    nada (`autorizadas` seguía en 57 y `rutas_sin_auth` vacío). Emitiendo un
+    token CSRF válido, quien decide es el control de acceso, y su ausencia deja
+    de poder disfrazarse de denegación.
+    """
+    p = tree / "viewer/app/routers/partida.py"
+    text = p.read_text(encoding="utf-8")
+    anchor = "    user: User = Depends(require_authenticated_user),\n"
+    if anchor not in text:
+        raise SystemExit("ancla M13 no encontrada")
+    # Sin anotación de tipo a propósito: con `user: User = None` FastAPI lo
+    # convertiría en un campo de cuerpo y el 422 taparía la mutación.
+    p.write_text(text.replace(anchor, "    user=None,  # MUTACION M13: sin guardián\n", 1),
+                 encoding="utf-8")
+
+
+def m14_router_incluido_dos_veces(tree: Path) -> None:
+    """Un mismo router incluido dos veces (defecto Q3 del revisor).
+
+    Los dos includes comparten los MISMOS objetos `Route`. Etiquetar el objeto
+    con el primer path visto hacía que las 10 rutas del segundo prefijo se
+    declarasen CAPTURADAS y `no-evaluable-capturada` aunque respondan de verdad
+    (comprobado: 200 con TestClient): su autorización dejaba de medirse EN
+    SILENCIO. El resolvedor indexado por `(id(route), path)` las mide.
+    """
+    _patch(tree / "viewer/app/main.py",
+           "app.include_router(readonly_router.router)",
+           "app.include_router(readonly_router.router)\n"
+           'app.include_router(readonly_router.router, prefix="/dup")  # MUTACION M14')
+
+
 MUTATIONS = {
     "M0-control": m0_control,
     "M1-router-desmontado": m1_desmontar_router,
@@ -173,13 +233,18 @@ MUTATIONS = {
     "M9-nav-de-datos-rota": m9_nav_de_datos_rota,
     "M10-ruta-capturada": m10_ruta_capturada,
     "M11-senuelo-isinstance": m11_senuelo_isinstance,
+    "M12-fuga-404-sin-guardian": m12_fuga_404_sin_guardian,
+    "M13-post-sin-guardian-csrf-ciego": m13_post_sin_guardian,
+    "M14-router-incluido-dos-veces": m14_router_incluido_dos_veces,
 }
 
 
 # --------------------------------------------------------------------------
 
 def run_map(tree: Path, tested: Path | None) -> dict:
-    out = tree / "_map.json"
+    # Fuera del árbol: con `--base .` el árbol es el propio repo y un `_map.json`
+    # suelto acabaría en `git status` (y, con `git add .`, en un commit).
+    out = Path(tempfile.mkdtemp(prefix="s9k-cal-map-")) / "_map.json"
     cmd = [sys.executable, str(tree / "scripts/route_map/route_map.py"),
            "--repo", str(tree), "--out", str(out), "--head-label", "calibracion"]
     if tested:
@@ -194,6 +259,13 @@ def summarize(m: dict) -> dict:
     f = m["findings"]
     return {
         "montadas": m["counts"]["montadas"],
+        "autorizadas": m["counts"]["autorizadas"],
+        "authz": {r["key"]: r["authz_probe"] for r in m["routes"]},
+        "denegacion_404_ambigua": [r["key"] for r in
+                                   f.get("rutas_denegacion_404_ambigua", [])],
+        "denegacion_no_atribuible": [r["key"] for r in
+                                     f.get("rutas_denegacion_no_atribuible", [])],
+        "contradiccion": [r["key"] for r in f.get("contradiccion_deniega_y_sirve", [])],
         "muertas": [d["key"] for d in f["rutas_muertas"]],
         "rotos": [f"{b['raw']} @ {b['from']}" for b in f["enlaces_rotos"]],
         "sin_auth": [r["key"] for r in f["rutas_sin_auth"]],
@@ -314,7 +386,10 @@ def main(argv=None) -> int:
     ap.add_argument("--base", required=True)
     ap.add_argument("--tested", default=None)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--only", default=None,
+                    help="lista separada por comas de casos a ejecutar (subcadena)")
     a = ap.parse_args(argv)
+    solo = [s.strip() for s in a.only.split(",")] if a.only else None
     base = Path(a.base).resolve()
     tested = Path(a.tested).resolve() if a.tested else None
 
@@ -322,12 +397,25 @@ def main(argv=None) -> int:
     results = {"baseline": baseline, "casos": {}}
 
     for name, fn in MUTATIONS.items():
+        if solo and not any(s in name for s in solo):
+            continue
         tree = Path(tempfile.mkdtemp(prefix=f"s9k-cal-{name}-"))
         shutil.copytree(base, tree, dirs_exist_ok=True)
         fn(tree)
         s = summarize(run_map(tree, tested))
         delta = {
             "montadas": s["montadas"] - baseline["montadas"],
+            "autorizadas": s["autorizadas"] - baseline["autorizadas"],
+            "denegacion_404_ambigua_nuevas": sorted(
+                set(s["denegacion_404_ambigua"]) - set(baseline["denegacion_404_ambigua"])),
+            "denegacion_no_atribuible_nuevas": sorted(
+                set(s["denegacion_no_atribuible"])
+                - set(baseline["denegacion_no_atribuible"])),
+            "contradicciones_nuevas": sorted(
+                set(s["contradiccion"]) - set(baseline["contradiccion"])),
+            "authz_cambiados": {k: [baseline["authz"].get(k), v]
+                                for k, v in s["authz"].items()
+                                if baseline["authz"].get(k) != v},
             "muertas_nuevas": sorted(set(s["muertas"]) - set(baseline["muertas"])),
             "rotos_nuevos": sorted(set(s["rotos"]) - set(baseline["rotos"])),
             "sin_auth_nuevas": sorted(set(s["sin_auth"]) - set(baseline["sin_auth"])),
@@ -347,8 +435,12 @@ def main(argv=None) -> int:
                                              d["sin_auth_nuevas"], d["no_probadas_nuevas"],
                                              d["rutas_nuevas"], d["roles_cambiados"],
                                              d["guardian_no_aplicado_nuevos"],
-                                             d["capturadas_nuevas"]])
-            and d["montadas"] == 0,
+                                             d["capturadas_nuevas"],
+                                             d["authz_cambiados"],
+                                             d["contradicciones_nuevas"],
+                                             d["denegacion_404_ambigua_nuevas"],
+                                             d["denegacion_no_atribuible_nuevas"]])
+            and d["montadas"] == 0 and d["autorizadas"] == 0,
             "M1-router-desmontado": lambda d: len(d["muertas_nuevas"]) > 0 and d["montadas"] < 0,
             "M2-enlace-roto": lambda d: any("/ruta-que-no-existe" in x for x in d["rotos_nuevos"]),
             "M3-ruta-sin-auth": lambda d: "GET /entities" in d["sin_auth_nuevas"],
@@ -372,6 +464,33 @@ def main(argv=None) -> int:
             "M11-senuelo-isinstance": lambda d: (
                 "GET /ruta-con-senuelo" in d["guardian_no_aplicado_nuevos"]
                 and "GET /ruta-con-senuelo" in d["sin_auth_nuevas"]),
+            # Q2: una ruta abierta no puede SUBIR el contador de denegaciones.
+            # No basta con que aparezca: debe caer en el cubo ambiguo, cruzarse
+            # con el rol observado y dejar `autorizadas` intacto.
+            "M12-fuga-404-sin-guardian": lambda d: (
+                "GET /fuga/{item_id}" in d["denegacion_404_ambigua_nuevas"]
+                and "GET /fuga/{item_id}" in d["contradicciones_nuevas"]
+                and d["montadas"] == 1 and d["autorizadas"] == 0),
+            # Q1: retirar el guardián de un POST tiene que MOVER algo. Antes del
+            # arreglo el 403 del CSRF lo tapaba y el veredicto seguía siendo
+            # "denegada".
+            "M13-post-sin-guardian-csrf-ciego": lambda d: (
+                d["authz_cambiados"].get("POST /partida/select", [None, None])[0]
+                == "denegada"
+                and d["authz_cambiados"].get("POST /partida/select", [None, None])[1]
+                != "denegada"
+                and d["autorizadas"] < 0),
+            # Q3: el segundo montaje del mismo router NO está capturado. Aquí lo
+            # que se exige es la AUSENCIA de un falso positivo que además
+            # silenciaba la medición de autorización de 10 rutas vivas.
+            "M14-router-incluido-dos-veces": lambda d: (
+                d["montadas"] == 10
+                and len([k for k in d["rutas_nuevas"] if k.startswith("GET /dup/")]) == 10
+                and not d["capturadas_nuevas"]
+                and not d["roles_no_evaluables_nuevos"]
+                and all(v[1] not in ("CAPTURADA", "sin-sonda", "inconcluyente")
+                        for k, v in d["authz_cambiados"].items()
+                        if k.startswith("GET /dup/"))),
             "M9-nav-de-datos-rota": lambda d: (
                 any("ruta_que_no_existe" in x for x in d["rotos_nuevos"])
                 if (base / "viewer/app/chassis.py").exists() else True),
@@ -379,8 +498,10 @@ def main(argv=None) -> int:
         results["casos"][name] = {"delta": delta, "detectado": bool(expect(delta))}
         shutil.rmtree(tree, ignore_errors=True)
 
-    results["casos"]["M6-app-privada-de-test"] = m6_app_privada(base)
-    results["casos"]["M7-censo-de-rutas"] = m7_enumerador(base, tested)
+    if not solo or any("M6" in s for s in solo):
+        results["casos"]["M6-app-privada-de-test"] = m6_app_privada(base)
+    if not solo or any("M7" in s for s in solo):
+        results["casos"]["M7-censo-de-rutas"] = m7_enumerador(base, tested)
 
     # Reversión: el árbol base, intacto, debe volver a dar exactamente lo mismo.
     revert = summarize(run_map(base, tested))

@@ -1,7 +1,16 @@
 # Mapa de rutas v2 — contrato mecánico de las rutas del visor
 
 Repo: `S9-Knowledge` · rama `audit/route-contract-map-v2` · base auditada `cb874fe`
-(carril L ya dentro de main). Reconstruido entero, no parcheado.
+(carril L ya dentro de main), rama rebasada después sobre `8c70226`. Reconstruido
+entero, no parcheado. Los artefactos de `artifacts/route-map/` llevan el HEAD con
+el que se generaron; el árbol de la app no ha cambiado entre `cb874fe` y ese HEAD
+en lo que este mapa mide (mismas 59 rutas, mismos recuentos).
+
+> **Estado**: tras un dictamen *conforme con observaciones*, están corregidos y
+> calibrados los tres defectos que encontró la revisión —Q1 (barrido ciego en los
+> `POST` por el muro del CSRF), Q2 (404 de recurso inexistente contado como
+> denegación) y Q3 (falsas rutas capturadas al compartirse el objeto `Route`)—.
+> Ver §3.0, §4.1, §4.2 y §6.1. La calibración pasa de 12 a **15 casos**.
 
 ## 1. Qué arregla respecto al mapa anterior
 
@@ -86,6 +95,49 @@ denegaciones falsas). No toca producción, ni Neo4j, ni la auth DB del repo.
 **Hallazgos duros: 0 rutas MUERTAS, 0 enlaces ROTOS, 0 rutas SIN AUTH.**
 Ninguna ruta sirve 2xx a un anónimo salvo el formulario de login.
 
+### 3.0 El titular «57 deniegan», recortado
+
+El número suelto invita a leerlo como «57 rutas autorizan bien», y no es eso lo
+que se ha medido. Desglose real (`desglose_denegaciones` en el JSON, y en la
+primera línea del `.md`):
+
+| tramo | valor |
+|---|---|
+| denegaciones **atribuibles** al control de acceso | **57** |
+| de ellas, con guardián estático declarado | 56 (la excepción es `POST /logout`) |
+| de ellas, de métodos con cuerpo (`POST`) | 12 + `POST /login`, pública por diseño |
+| …sondeadas con un **token CSRF válido**, para que hable el guardián y no el CSRF | 12 de 12 |
+| denegaciones **no atribuibles** dejadas FUERA del recuento | 0 |
+| 404 ambiguos (ruta con `{param}` y sin guardián) dejados FUERA | 0 |
+
+Las dos últimas filas son cero **en esta base**, y ése es el punto: son cubos que
+existen y se llenan cuando hay motivo. Una revisión independiente demostró que
+antes no existían y que su ausencia falseaba el titular en dos géneros distintos:
+
+- **Q2 — el 404 gratis.** Una ruta `GET /fuga/{item_id}` **sin guardián alguno**,
+  que devuelve el secreto con un id válido, respondía 404 al id fabricado por la
+  sonda (`probe`) y se contaba como DENEGACIÓN. Medido sobre el árbol mutado con
+  el instrumento anterior: `montadas` 59→60 y **`autorizadas` 57→58**, con
+  `rutas_sin_auth = []`. Una ruta abierta de par en par **subía** el contador de
+  rutas que deniegan. Afecta a toda ruta con `{param}`, o sea a la mayoría de la
+  API. Además la misma fila decía a la vez `authz_probe: denegada` y
+  `rol_minimo_observado: viewer`, y nada levantaba hallazgo.
+- **Q1 — el muro del CSRF.** El barrido anónimo era **ciego** en los 13 `POST`:
+  la comprobación CSRF respondía 403 antes que el guardián, así que un 403 de
+  CSRF era indistinguible de un 401 de autorización. Medido: retirando
+  `Depends(require_authenticated_user)` de `POST /partida/select`, el instrumento
+  anterior seguía diciendo `autorizadas = 57` y `rutas_sin_auth = []`. La única
+  señal era una lista **estática** y no calibrada.
+
+Ahora: (a) el barrido **emite un token CSRF válido** —derivado con la misma
+fórmula que el propio visor, sin tocar la app— para que quien decida sea el
+control de acceso; (b) un 404 sin guardián estático se marca
+`denegada-404-ambigua` y un 403 sin guardián estático `denegacion-no-atribuible`,
+y **ninguno de los dos cuenta como denegación**; (c) el cruce de las dos señales
+(«deniega al anónimo» + «servida a un rol» + sin guardián) es un hallazgo propio,
+`contradiccion_deniega_y_sirve`. Los tres defectos están calibrados: casos
+**M12, M13 y M14** de §4.
+
 El detalle ruta por ruta —incluido el **rol mínimo medido** de cada una— está en
 `artifacts/route-map/route_map.md` y `route_map.json`.
 
@@ -104,11 +156,24 @@ mínimo que obtiene respuesta servida. Resumen:
 - **nadie**: `/docs`, `/redoc`, `/openapi.json` (404 para todos mientras
   `S9K_AUTH_EXPOSE_DOCS=false`).
 
-En los `POST` el veredicto de rol se declara **no concluyente**: la protección
-CSRF responde antes que el control de rol, así que un 403 no distingue «rol
-insuficiente» de «falta el token CSRF». Se prefiere decir que no se sabe a
-inventarlo. Lo que sí queda medido en `POST` es que ningún rol —ni el anónimo—
-obtiene 2xx.
+En los `POST` el veredicto de rol **ya no se declara no concluyente**. Antes sí,
+y con razón: la comprobación CSRF respondía antes que el control de rol, así que
+un 403 no distinguía «rol insuficiente» de «falta el token CSRF». La solución no
+fue relajar la app —el instrumento se adapta a la app, nunca al revés— sino
+**calcular el token que la propia app aceptaría** (`_csrf_para`, misma derivación
+HMAC que `app.auth.middleware` y `app.auth.csrf`) y enviarlo. Con el CSRF
+satisfecho, quien responde es el guardián, y los 13 `POST` pasan de
+`no-concluyente-csrf` a un rol medido:
+
+- **admin**: `/admin/users/**`, `/admin/partidas/**`, `/partida/select`.
+- **reviewer**: `/review-console/source/{source_id}/decide`, `/v3/review/decide`,
+  `/v3/review/undo`.
+- **viewer**: `/account/change-password`.
+- **ninguno sirve**: `POST /logout` (302 a `/login` para todos), `POST /login`.
+
+El veredicto sólo se concluye si la sonda emitió un token válido en **las tres**
+peticiones por rol; si no, vuelve a `no-concluyente-csrf`. Sigue midiéndose,
+además, que ningún rol —ni el anónimo— obtiene 2xx.
 
 ### 3.2 Deudas señaladas (no son agujeros, pero conviene verlas)
 
@@ -179,9 +244,55 @@ exactamente lo mismo.
 | M9 | `NavItem` a una ruta no montada (navegación por datos) | ROTO con el `ChassisContractError` textual | sí |
 | M10 | `/sources/panel` declarada **tras** `/sources/{source_id}` y **sin guardián** | `CAPTURADA` por `/sources/{source_id}` + rol `no-evaluable-capturada` | sí |
 | M11 | guardián pasivo no devuelto, con `isinstance(datos, list)` **señuelo** | `guardian_declarado_pero_no_aplicado` + SIN-AUTH: `GET /ruta-con-senuelo` | sí |
+| M12 | `GET /fuga/{item_id}` **sin guardián**, 404 con el id de la sonda (Q2) | `denegada-404-ambigua` + `contradiccion_deniega_y_sirve`, y **`autorizadas` +0** pese a `montadas` +1 | sí |
+| M13 | se quita `Depends(require_authenticated_user)` de `POST /partida/select` (Q1) | el veredicto deja de ser `denegada` y **`autorizadas` −1** | sí |
+| M14 | el mismo router incluido dos veces (`prefix="/dup"`) (Q3) | **0 capturadas nuevas** y las 10 rutas del segundo prefijo **medidas de verdad** | sí |
 
-`reversion_identica: true` — tras las doce mutaciones, el árbol limpio devuelve
+`reversion_identica: true` — tras las quince mutaciones, el árbol limpio devuelve
 el mismo mapa. Salida completa en `artifacts/route-map/calibracion.json`.
+
+### 4.1 M12, M13 y M14: rojo demostrado, no prometido
+
+Los tres son defectos que encontró una revisión independiente, cada uno con su
+mutación y sus cifras. Se reprodujeron **primero** contra el instrumento anterior
+(`0b287f9`) para enseñar el falso negativo, y sólo después se arregló:
+
+| caso | instrumento `0b287f9` | instrumento actual |
+|---|---|---|
+| M12 (404 sin guardián) | `detectado: false` · `autorizadas` **+1** · `denegacion_404_ambigua: []` · `contradicciones: []` | `detectado: true` · `autorizadas` **+0** · la ruta en los dos hallazgos |
+| M13 (POST sin guardián) | `detectado: false` · `autorizadas` **±0** · veredicto sigue `denegada` (403 del CSRF) | `detectado: true` · `autorizadas` **−1** · veredicto `inconcluyente`, con el `AttributeError` real del handler sin usuario |
+| M14 (router dos veces) | `detectado: false` · **10 capturadas falsas**, 10 rutas con rol `no-evaluable-capturada` | `detectado: true` · 0 capturadas · las 10 medidas (401 / 302 a `/login`, roles `viewer`/`reviewer`) |
+
+Los dos ficheros están en `artifacts/route-map/diferencial-q1q2q3-instrumento-{viejo,nuevo}.json`.
+
+Que las 10 rutas de M14 respondían **de verdad** (y no estaban capturadas) se
+comprobó aparte con `TestClient` y auth desactivada: `GET /dup/entities` → **200**,
+`GET /dup/api/entities` → **200**, igual que sus originales.
+
+### 4.2 Ablación: ¿carga cada control su resultado?
+
+Un control que nunca cambia ningún resultado no es defensa. Se quitó cada control
+por separado, uno a uno, y se reejecutó su caso:
+
+| control retirado | caso | resultado |
+|---|---|---|
+| cubo `denegada-404-ambigua` | M12 | **rojo** (`detectado: false`) |
+| hallazgo `contradiccion_deniega_y_sirve` | M12 | **rojo** (`detectado: false`) |
+| resolvedor indexado por `(id(route), path)` | M14 | **rojo** (`detectado: false`) |
+| emisión del token CSRF válido | M13 | sigue verde |
+| cubo `denegacion-no-atribuible` | M13 | sigue verde |
+| **ambos a la vez** | M13 | **rojo** (`detectado: false`) |
+
+Dicho sin adornos: para M12 y M14 cada control es **individualmente necesario**.
+Para M13 los dos controles son **redundantes entre sí y necesarios en conjunto**:
+sin el CSRF válido, el 403 del CSRF cae en el cubo «no atribuible» y la mutación
+se ve igual; sin el cubo, el CSRF válido deja pasar la petición hasta el fallo
+real del handler. Cada uno tapa el hueco del otro. No se anuncia como si fueran
+dos defensas independientes.
+
+La emisión del CSRF tiene además un efecto propio medible que ninguna ablación
+disimula: los **13** veredictos de rol en `POST` pasan de `no-concluyente-csrf` a
+un rol medido (§3.1). Sin ella, 13 de 59 rutas quedan sin medida de rol.
 
 Sobre la **aserción de M7**: `len(censo_efectivo) > len(app.routes)` se cumple
 sola y no prueba nada. La que carga el peso es doble y es la que se evalúa: el
@@ -206,7 +317,28 @@ contra una app privada de test.
   URLs construidas dinámicamente más allá del caso `"/prefijo/" + variable`, ni
   consumidores externos al repo (nginx, otro servicio, un cliente humano). Una
   ruta marcada `consumed: false` puede tener consumidores reales fuera de vista.
-- **Rol en `POST`: no medido**, por lo dicho en 3.1 (CSRF responde antes).
+- **Rol en `POST`: ya medido**, pero con una condición que conviene enunciar. La
+  sonda calcula el token CSRF **reproduciendo la derivación del visor**. Si esa
+  derivación cambia y el cálculo deja de coincidir, el barrido volvería a
+  estrellarse contra el CSRF; lo que evita que eso pase en silencio es que
+  `csrf_enviado` se registra por petición y el veredicto vuelve a
+  `no-concluyente-csrf` si falta en alguna. Es una copia de una fórmula ajena, y
+  como tal se puede desincronizar: M13 es lo que la mantiene honesta.
+- **El barrido de `POST` ahora EJECUTA los handlers** (antes morían en el CSRF).
+  Se ejecutan contra la auth DB **efímera** del subproceso y con provider `mock`,
+  nunca contra nada persistente, y con una sesión nueva por petición. Aun así es
+  un cambio de naturaleza del instrumento: pasa de mirar a tocar. Verificado que
+  el resultado es **estable**: tres corridas seguidas dan un JSON idéntico.
+- **Un 404 sin guardián estático no se cuenta como denegación, pero tampoco se
+  declara agujero.** Queda en `denegada-404-ambigua`: es una ruta cuya
+  autorización el instrumento **no sabe** medir con un id inventado. Para
+  resolverlo haría falta un recurso existente por ruta, que el mapa no fabrica.
+  El cruce con el rol observado (`contradiccion_deniega_y_sirve`) es lo que
+  impide que ese «no sé» pase por un «sí».
+- **El cubo ambiguo se decide con una señal ESTÁTICA** (¿declara guardián?), que
+  es justo el tipo de señal que §1 desconfía. Se usa sólo para *no* dar por buena
+  una denegación, nunca para darla por buena: el error posible es marcar como
+  ambigua una ruta que sí denegaba, no al revés.
 - **Nada de esto se probó contra producción ni contra Neo4j**: provider `mock`,
   auth DB efímera, sin red. El mapa describe el código, no el despliegue: no
   cubre reglas de nginx, redirecciones del proxy ni rutas servidas fuera de la
@@ -234,10 +366,13 @@ contra una app privada de test.
   describe el código, no el despliegue», pero conviene tenerlo presente: para una
   ruta así, hay que ejecutar el mapa una vez por configuración.
 - **Este mapa no se revisa a sí mismo**: la calibración demuestra que el
-  instrumento se pone rojo ante doce defectos concretos; no demuestra que no
-  existan géneros de defecto que ninguno de los doce representa. La prueba está
-  a la vista: dos de esos doce (M10, M11) existen porque una revisión externa
-  encontró lo que yo no había pensado en inyectar.
+  instrumento se pone rojo ante quince defectos concretos; no demuestra que no
+  existan géneros de defecto que ninguno de los quince representa. La prueba está
+  a la vista: **cinco de esos quince (M10, M11, M12, M13, M14) existen porque una
+  revisión externa encontró lo que yo no había pensado en inyectar**, y las tres
+  últimas atacaban directamente la afirmación central del carril («0 rutas sin
+  auth», «57 deniegan»). El ritmo al que las revisiones siguen encontrando
+  géneros nuevos es el dato honesto sobre la madurez de este instrumento.
 
 ## 5.bis Verificación del chasis (PR #166, `feat/chasis-montaje-v1` @ `4b2ae5a`)
 
@@ -322,11 +457,34 @@ pero son inalcanzables navegando.
 
 ### Calibración sobre la propia rama del chasis
 
-Los diez casos se reejecutaron **contra `4b2ae5a`**, no sólo contra la base:
-**10/10 detectados, `reversion_identica: true`**. Incluye M9 (menú de datos que
-apunta a una ruta no montada → ROTO, con el `ChassisContractError` textual) y M7
-(censo: 11 vs 67, sin rutas servidas fuera del censo). Un instrumento que juzga
-una rama debe haberse visto rojo **en esa rama**.
+Los quince casos se reejecutaron **contra `4b2ae5a`**, no sólo contra la base:
+**15/15 detectados, `reversion_identica: true`**. Incluye M9 (menú de datos que
+apunta a una ruta no montada → ROTO, con el `ChassisContractError` textual), M7
+(censo: 11 vs 67, sin rutas servidas fuera del censo) y los tres casos nuevos
+M12/M13/M14. Un instrumento que juzga una rama debe haberse visto rojo **en esa
+rama**.
+
+### Remedición tras el arreglo de Q1/Q2/Q3
+
+El dictamen **APTO** del chasis se emitió con el instrumento anterior, que
+arrastraba los tres defectos. Se ha vuelto a medir `4b2ae5a` entero con el
+instrumento corregido para comprobar que el dictamen no dependía de ellos:
+
+- Mismas 67 claves de ruta, mismos recuentos: 61 definidas / 67 montadas / 35
+  enlazadas / 67 probadas / **65 deniegan** / 67 consumidas.
+- **0 muertas · 0 enlaces rotos · 0 sin auth · 0 capturadas · 0 no probadas**, y
+  además **0 en `denegada-404-ambigua`, 0 en `denegacion-no-atribuible` y 0
+  contradicciones**.
+- Los **cuatro huecos `/panel/**` no están afectados** por Q1 ni por Q2: son
+  `GET`, sin `{param}`, con guardián declarado, y deniegan con 302 a `/login`.
+  Su rol medido sigue siendo el mismo (reviewer / admin / reviewer / viewer).
+- Única diferencia en las 67 filas: los **13 `POST`** pasan de
+  `rol_minimo_observado: no-concluyente-csrf` a un rol medido. Es información
+  añadida, no un cambio de veredicto.
+
+**El dictamen APTO se mantiene sin cambios.** Los artefactos de
+`artifacts/route-map/chasis-4b2ae5a/` están regenerados con el instrumento
+corregido.
 
 ## 6. Rutas CAPTURADAS: detector, no aviso en prosa
 
@@ -366,6 +524,27 @@ guardián):
 Calibrado en el caso **M10**, que no se conforma con «lo ve»: exige que lo
 **distinga** de una ruta que legítimamente deniega a todos.
 
+### 6.1 El detector se equivocaba al revés: falsas capturadas (Q3)
+
+El mismo detector tenía su propio fallo, y del género *fail-quiet*: etiquetaba el
+objeto `Route` **compartido** con el primer path efectivo que veía
+(`route._s9k_resolver` cortaba el segundo envoltorio). Si un router se incluye dos
+veces —`include_router(r)` y `include_router(r, prefix="/dup")`—, ambos montajes
+comparten los mismos objetos `Route`, así que **10 rutas vivas se declaraban
+CAPTURADAS** y `no-evaluable-capturada` mientras respondían 200 de verdad
+(comprobado con `TestClient`). Su autorización dejaba de medirse **en silencio**,
+que es exactamente el fallo que §6 venía a cerrar, con el signo cambiado.
+
+El resolvedor se indexa ahora por **`(id(route), path)`**: se instala un único
+envoltorio por objeto `Route`, que guarda todos los paths registrados para él y
+en cada petición elige el que casa con la URL entrante. Calibrado en **M14**, que
+exige la ausencia del falso positivo Y que las 10 rutas queden medidas de verdad.
+
+Este repo no incluye hoy ningún router dos veces, así que el defecto no falseaba
+la medición de `cb874fe`. Lo que falseaba era la **garantía**: cualquier rama que
+introdujera un doble montaje habría perdido la medida de autorización de esas
+rutas sin un solo aviso.
+
 ## 7. Ficheros
 
 - `scripts/route_map/route_map.py` — censo, mapa, sondas e informe.
@@ -376,7 +555,10 @@ Calibrado en el caso **M10**, que no se conforma con «lo ve»: exige que lo
 - `artifacts/route-map/calibracion.json` — salidas reales de la calibración.
 - `artifacts/route-map/chasis-4b2ae5a/route_map.{json,md}` — mapa del chasis.
 - `artifacts/route-map/chasis-4b2ae5a/calibracion.json` — calibración sobre la
-  rama del chasis (12/12).
+  rama del chasis (15/15).
 - `artifacts/route-map/diferencial-n3-n1-instrumento-{viejo,nuevo}.json` — el
   mismo árbol mutado (ruta capturada sin guardián + guardián con señuelo) visto
   por el instrumento `9afd737` y por el actual: el rojo previo de M10 y M11.
+- `artifacts/route-map/diferencial-q1q2q3-instrumento-{viejo,nuevo}.json` — las
+  mutaciones M12/M13/M14 vistas por el instrumento `0b287f9` (los tres falsos
+  negativos, con sus deltas) y por el actual: el rojo previo de Q1, Q2 y Q3.

@@ -7,10 +7,21 @@
     "montadas": 67,
     "probadas": 67
   },
+  "desglose_denegaciones": {
+    "de_ellas_con_csrf_valido_emitido": 12,
+    "de_ellas_con_guardian_estatico": 64,
+    "de_ellas_metodos_con_cuerpo": 12,
+    "denegacion_404_ambigua": 0,
+    "denegacion_no_atribuible": 0,
+    "denegadas_atribuibles": 65
+  },
   "findings": {
+    "contradiccion_deniega_y_sirve": [],
     "enlaces_rotos": [],
     "guardian_declarado_pero_no_aplicado": [],
     "rutas_capturadas": [],
+    "rutas_denegacion_404_ambigua": [],
+    "rutas_denegacion_no_atribuible": [],
     "rutas_huerfanas": [
       {
         "authz_body_guards": [],
@@ -26,6 +37,7 @@
         "consumers": [
           "tests:1 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "admin_health_panel",
         "guardian_pasivo_no_aplicado": false,
@@ -66,6 +78,7 @@
           "template:auth/admin/users.html",
           "tests:1 peticiones"
         ],
+        "csrf_enviado": true,
         "defined": true,
         "endpoint": "admin_users_new_submit",
         "guardian_pasivo_no_aplicado": false,
@@ -77,7 +90,7 @@
         "module": "app.routers.admin",
         "mounted": true,
         "path": "/admin/users/new",
-        "rol_minimo_observado": "no-concluyente-csrf",
+        "rol_minimo_observado": "admin",
         "scoping_deps": [],
         "source": "viewer/app/routers/admin.py:100",
         "status_por_rol": {
@@ -106,6 +119,7 @@
           "template:auth/admin/users.html",
           "tests:1 peticiones"
         ],
+        "csrf_enviado": true,
         "defined": true,
         "endpoint": "admin_user_update",
         "guardian_pasivo_no_aplicado": false,
@@ -117,7 +131,7 @@
         "module": "app.routers.admin",
         "mounted": true,
         "path": "/admin/users/{user_id}",
-        "rol_minimo_observado": "no-concluyente-csrf",
+        "rol_minimo_observado": "admin",
         "scoping_deps": [],
         "source": "viewer/app/routers/admin.py:195",
         "status_por_rol": {
@@ -144,6 +158,7 @@
         "consumers": [
           "tests:4 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_admin_health",
         "guardian_pasivo_no_aplicado": false,
@@ -184,6 +199,7 @@
         "consumers": [
           "tests:84 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_entities",
         "guardian_pasivo_no_aplicado": false,
@@ -227,6 +243,7 @@
         "consumers": [
           "tests:5 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_entity_types",
         "guardian_pasivo_no_aplicado": false,
@@ -269,6 +286,7 @@
         "consumers": [
           "tests:7 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_entity",
         "guardian_pasivo_no_aplicado": false,
@@ -312,6 +330,7 @@
         "consumers": [
           "tests:9 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_jobs",
         "guardian_pasivo_no_aplicado": false,
@@ -353,6 +372,7 @@
         "consumers": [
           "tests:5 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_jobs_counts",
         "guardian_pasivo_no_aplicado": false,
@@ -394,6 +414,7 @@
         "consumers": [
           "tests:5 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_job_detail",
         "guardian_pasivo_no_aplicado": false,
@@ -435,6 +456,7 @@
         "consumers": [
           "tests:4 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_quality",
         "guardian_pasivo_no_aplicado": false,
@@ -477,6 +499,7 @@
         "consumers": [
           "tests:9 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_search",
         "guardian_pasivo_no_aplicado": false,
@@ -519,6 +542,7 @@
         "consumers": [
           "tests:3 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_sources",
         "guardian_pasivo_no_aplicado": false,
@@ -561,6 +585,7 @@
         "consumers": [
           "tests:2 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_source_detail",
         "guardian_pasivo_no_aplicado": false,
@@ -603,6 +628,7 @@
         "consumers": [
           "tests:12 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_status",
         "guardian_pasivo_no_aplicado": false,
@@ -645,6 +671,7 @@
         "consumers": [
           "tests:7 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_workspaces",
         "guardian_pasivo_no_aplicado": false,
@@ -687,6 +714,7 @@
         "consumers": [
           "tests:5 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "_swagger",
         "guardian_pasivo_no_aplicado": false,
@@ -728,6 +756,7 @@
           "template:auth/login.html",
           "tests:12 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "login_page",
         "guardian_pasivo_no_aplicado": false,
@@ -766,6 +795,7 @@
           "template:auth/login.html",
           "tests:11 peticiones"
         ],
+        "csrf_enviado": true,
         "defined": true,
         "endpoint": "login_submit",
         "guardian_pasivo_no_aplicado": false,
@@ -777,13 +807,13 @@
         "module": "app.routers.auth",
         "mounted": true,
         "path": "/login",
-        "rol_minimo_observado": "no-concluyente-csrf",
+        "rol_minimo_observado": "ninguno-sirve",
         "scoping_deps": [],
         "source": "viewer/app/routers/auth.py:123",
         "status_por_rol": {
-          "admin": 400,
-          "reviewer": 400,
-          "viewer": 400
+          "admin": 403,
+          "reviewer": 403,
+          "viewer": 403
         },
         "tested": true,
         "tested_hits": 11,
@@ -808,6 +838,7 @@
         "consumers": [
           "tests:2 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "_openapi",
         "guardian_pasivo_no_aplicado": false,
@@ -848,6 +879,7 @@
         "consumers": [
           "tests:1 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "slot_screen",
         "guardian_pasivo_no_aplicado": false,
@@ -888,6 +920,7 @@
         "consumers": [
           "tests:1 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "slot_screen",
         "guardian_pasivo_no_aplicado": false,
@@ -928,6 +961,7 @@
         "consumers": [
           "tests:1 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "slot_screen",
         "guardian_pasivo_no_aplicado": false,
@@ -968,6 +1002,7 @@
         "consumers": [
           "tests:1 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "slot_screen",
         "guardian_pasivo_no_aplicado": false,
@@ -1008,6 +1043,7 @@
         "consumers": [
           "tests:3 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "quality_page",
         "guardian_pasivo_no_aplicado": false,
@@ -1050,6 +1086,7 @@
         "consumers": [
           "tests:2 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "_redoc",
         "guardian_pasivo_no_aplicado": false,
@@ -1089,6 +1126,7 @@
           "template:reviews_console_source.html",
           "tests:8 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "inbox",
         "guardian_pasivo_no_aplicado": false,
@@ -1130,6 +1168,7 @@
         "consumers": [
           "tests:1 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "inbox",
         "guardian_pasivo_no_aplicado": false,
@@ -1171,6 +1210,7 @@
           "template:reviews_console.html",
           "tests:9 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "source_detail",
         "guardian_pasivo_no_aplicado": false,
@@ -1214,6 +1254,7 @@
           "template:reviews_console_source.html",
           "tests:8 peticiones"
         ],
+        "csrf_enviado": true,
         "defined": true,
         "endpoint": "decide",
         "guardian_pasivo_no_aplicado": false,
@@ -1225,14 +1266,14 @@
         "module": "app.routers.reviews_console",
         "mounted": true,
         "path": "/review-console/source/{source_id}/decide",
-        "rol_minimo_observado": "no-concluyente-csrf",
+        "rol_minimo_observado": "reviewer",
         "scoping_deps": [
           "app.authz.dependencies.get_visibility_scope"
         ],
         "source": "viewer/app/routers/reviews_console.py:126",
         "status_por_rol": {
-          "admin": 403,
-          "reviewer": 403,
+          "admin": 400,
+          "reviewer": 400,
           "viewer": 403
         },
         "tested": true,
@@ -1256,6 +1297,7 @@
         "consumers": [
           "tests:1 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "queue",
         "guardian_pasivo_no_aplicado": false,
@@ -1298,6 +1340,7 @@
           "template:v3_glossary_candidates.html",
           "tests:1 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "glossary_candidates",
         "guardian_pasivo_no_aplicado": false,
@@ -1345,6 +1388,7 @@
           "template:error.html",
           "tests:10 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "home",
         "guardian_pasivo_no_aplicado": false,
@@ -1395,6 +1439,7 @@
           "template:base.html",
           "tests:1 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "account_page",
         "guardian_pasivo_no_aplicado": false,
@@ -1443,6 +1488,7 @@
           "template:auth/change_password.html",
           "tests:10 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "change_password_page",
         "guardian_pasivo_no_aplicado": false,
@@ -1475,6 +1521,52 @@
       {
         "authz_body_guards": [],
         "authz_deps": [
+          "app.auth.dependencies.require_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "template-js:auth/change_password.html",
+          "template:auth/account.html",
+          "template:auth/change_password.html",
+          "tests:10 peticiones"
+        ],
+        "csrf_enviado": true,
+        "defined": true,
+        "endpoint": "change_password_submit",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "POST /account/change-password",
+        "kind": "html",
+        "linked": true,
+        "linked_by": [
+          "auth/change_password.html:/account/change-password"
+        ],
+        "method": "POST",
+        "module": "app.routers.auth",
+        "mounted": true,
+        "path": "/account/change-password",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [],
+        "source": "viewer/app/routers/auth.py:334",
+        "status_por_rol": {
+          "admin": 400,
+          "reviewer": 400,
+          "viewer": 400
+        },
+        "tested": true,
+        "tested_hits": 10,
+        "tested_statuses": [
+          302,
+          400,
+          403
+        ]
+      },
+      {
+        "authz_body_guards": [],
+        "authz_deps": [
           "app.auth.dependencies.require_api_authenticated_user"
         ],
         "authz_probe": "denegada",
@@ -1485,6 +1577,7 @@
         "consumers": [
           "tests:84 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_entities",
         "guardian_pasivo_no_aplicado": false,
@@ -1529,6 +1622,7 @@
           "js:static/js/graph.js",
           "tests:17 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_entity_detail",
         "guardian_pasivo_no_aplicado": false,
@@ -1574,6 +1668,7 @@
         "consumers": [
           "tests:5 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_entity_types",
         "guardian_pasivo_no_aplicado": false,
@@ -1616,6 +1711,7 @@
         "consumers": [
           "tests:7 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_entity",
         "guardian_pasivo_no_aplicado": false,
@@ -1660,6 +1756,7 @@
           "js:static/js/graph.js",
           "tests:13 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_graph",
         "guardian_pasivo_no_aplicado": false,
@@ -1704,6 +1801,7 @@
         "consumers": [
           "tests:9 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_jobs",
         "guardian_pasivo_no_aplicado": false,
@@ -1745,6 +1843,7 @@
         "consumers": [
           "tests:5 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_jobs_counts",
         "guardian_pasivo_no_aplicado": false,
@@ -1786,6 +1885,7 @@
         "consumers": [
           "tests:5 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_job_detail",
         "guardian_pasivo_no_aplicado": false,
@@ -1827,6 +1927,7 @@
         "consumers": [
           "tests:9 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_search",
         "guardian_pasivo_no_aplicado": false,
@@ -1869,6 +1970,7 @@
         "consumers": [
           "tests:12 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_status",
         "guardian_pasivo_no_aplicado": false,
@@ -1911,6 +2013,7 @@
         "consumers": [
           "tests:7 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "api_workspaces",
         "guardian_pasivo_no_aplicado": false,
@@ -1957,6 +2060,7 @@
           "template:entity_detail.html",
           "tests:32 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "entities_page",
         "guardian_pasivo_no_aplicado": false,
@@ -2008,6 +2112,7 @@
           "template:entity_detail.html",
           "tests:4 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "entity_detail_page",
         "guardian_pasivo_no_aplicado": false,
@@ -2056,6 +2161,7 @@
           "template:entity.html",
           "tests:3 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "entity_view",
         "guardian_pasivo_no_aplicado": false,
@@ -2104,6 +2210,7 @@
           "template:index.html",
           "tests:24 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "graph_view",
         "guardian_pasivo_no_aplicado": false,
@@ -2153,6 +2260,7 @@
           "template:jobs.html",
           "tests:7 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "jobs_view",
         "guardian_pasivo_no_aplicado": false,
@@ -2200,6 +2308,7 @@
           "template:jobs.html",
           "tests:2 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "job_detail_view",
         "guardian_pasivo_no_aplicado": false,
@@ -2244,6 +2353,7 @@
           "nav-contrato:app.chassis.NAV",
           "tests:6 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "slot_screen",
         "guardian_pasivo_no_aplicado": false,
@@ -2292,6 +2402,7 @@
         "consumers": [
           "tests:1 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "slot_screen",
         "guardian_pasivo_no_aplicado": false,
@@ -2332,6 +2443,7 @@
           "template:index.html",
           "tests:4 peticiones"
         ],
+        "csrf_enviado": false,
         "defined": true,
         "endpoint": "status_view",
         "guardian_pasivo_no_aplicado": false,
@@ -2386,6 +2498,7 @@
           "template:base.html",
           "tests:2 peticiones"
         ],
+        "csrf_enviado": true,
         "defined": true,
         "endpoint": "logout",
         "guardian_pasivo_no_aplicado": false,
@@ -2404,13 +2517,13 @@
         "module": "app.routers.auth",
         "mounted": true,
         "path": "/logout",
-        "rol_minimo_observado": "no-concluyente-csrf",
+        "rol_minimo_observado": "ninguno-sirve",
         "scoping_deps": [],
         "source": "viewer/app/routers/auth.py:252",
         "status_por_rol": {
-          "admin": 403,
-          "reviewer": 403,
-          "viewer": 403
+          "admin": 302,
+          "reviewer": 302,
+          "viewer": 302
         },
         "tested": true,
         "tested_hits": 2,
@@ -2421,9 +2534,9 @@
     ],
     "sondas_inconcluyentes": []
   },
-  "head": "4b2ae5a58301ea0e8e42237e8beec526ba142122",
+  "head": "4b2ae5a58301",
   "probe_error": null,
-  "repo": "/tmp/s9k-chasis",
+  "repo": "/tmp/chasis",
   "routes": [
     {
       "authz_body_guards": [
@@ -2441,6 +2554,7 @@
         "template:error.html",
         "tests:10 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "home",
       "guardian_pasivo_no_aplicado": false,
@@ -2491,6 +2605,7 @@
         "template:base.html",
         "tests:1 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "account_page",
       "guardian_pasivo_no_aplicado": false,
@@ -2539,6 +2654,7 @@
         "template:auth/change_password.html",
         "tests:10 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "change_password_page",
       "guardian_pasivo_no_aplicado": false,
@@ -2584,6 +2700,7 @@
         "template:auth/change_password.html",
         "tests:10 peticiones"
       ],
+      "csrf_enviado": true,
       "defined": true,
       "endpoint": "change_password_submit",
       "guardian_pasivo_no_aplicado": false,
@@ -2597,7 +2714,7 @@
       "module": "app.routers.auth",
       "mounted": true,
       "path": "/account/change-password",
-      "rol_minimo_observado": "no-concluyente-csrf",
+      "rol_minimo_observado": "viewer",
       "scoping_deps": [],
       "source": "viewer/app/routers/auth.py:334",
       "status_por_rol": {
@@ -2629,6 +2746,7 @@
         "template:auth/admin/users.html",
         "tests:2 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "admin_audit",
       "guardian_pasivo_no_aplicado": false,
@@ -2672,6 +2790,7 @@
       "consumers": [
         "tests:1 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "admin_health_panel",
       "guardian_pasivo_no_aplicado": false,
@@ -2715,6 +2834,7 @@
         "template:auth/admin/users.html",
         "tests:13 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "admin_partidas",
       "guardian_pasivo_no_aplicado": false,
@@ -2767,6 +2887,7 @@
         "template:auth/admin/partidas.html",
         "tests:10 peticiones"
       ],
+      "csrf_enviado": true,
       "defined": true,
       "endpoint": "admin_partidas_grant",
       "guardian_pasivo_no_aplicado": false,
@@ -2780,7 +2901,7 @@
       "module": "app.routers.admin",
       "mounted": true,
       "path": "/admin/partidas/grant",
-      "rol_minimo_observado": "no-concluyente-csrf",
+      "rol_minimo_observado": "admin",
       "scoping_deps": [],
       "source": "viewer/app/routers/admin.py:421",
       "status_por_rol": {
@@ -2814,6 +2935,7 @@
         "template:auth/admin/partidas.html",
         "tests:2 peticiones"
       ],
+      "csrf_enviado": true,
       "defined": true,
       "endpoint": "admin_partidas_revoke",
       "guardian_pasivo_no_aplicado": false,
@@ -2827,11 +2949,11 @@
       "module": "app.routers.admin",
       "mounted": true,
       "path": "/admin/partidas/{access_id}/revoke",
-      "rol_minimo_observado": "no-concluyente-csrf",
+      "rol_minimo_observado": "admin",
       "scoping_deps": [],
       "source": "viewer/app/routers/admin.py:482",
       "status_por_rol": {
-        "admin": 403,
+        "admin": 404,
         "reviewer": 403,
         "viewer": 403
       },
@@ -2858,6 +2980,7 @@
         "template:auth/admin/user_detail.html",
         "tests:5 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "admin_users",
       "guardian_pasivo_no_aplicado": false,
@@ -2907,6 +3030,7 @@
         "template:auth/admin/users.html",
         "tests:1 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "admin_users_new",
       "guardian_pasivo_no_aplicado": false,
@@ -2949,6 +3073,7 @@
         "template:auth/admin/users.html",
         "tests:1 peticiones"
       ],
+      "csrf_enviado": true,
       "defined": true,
       "endpoint": "admin_users_new_submit",
       "guardian_pasivo_no_aplicado": false,
@@ -2960,7 +3085,7 @@
       "module": "app.routers.admin",
       "mounted": true,
       "path": "/admin/users/new",
-      "rol_minimo_observado": "no-concluyente-csrf",
+      "rol_minimo_observado": "admin",
       "scoping_deps": [],
       "source": "viewer/app/routers/admin.py:100",
       "status_por_rol": {
@@ -2989,6 +3114,7 @@
         "template:auth/admin/users.html",
         "tests:1 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "admin_user_detail",
       "guardian_pasivo_no_aplicado": false,
@@ -3032,6 +3158,7 @@
         "template:auth/admin/users.html",
         "tests:1 peticiones"
       ],
+      "csrf_enviado": true,
       "defined": true,
       "endpoint": "admin_user_update",
       "guardian_pasivo_no_aplicado": false,
@@ -3043,7 +3170,7 @@
       "module": "app.routers.admin",
       "mounted": true,
       "path": "/admin/users/{user_id}",
-      "rol_minimo_observado": "no-concluyente-csrf",
+      "rol_minimo_observado": "admin",
       "scoping_deps": [],
       "source": "viewer/app/routers/admin.py:195",
       "status_por_rol": {
@@ -3072,6 +3199,7 @@
         "template:auth/admin/user_detail.html",
         "tests:1 peticiones"
       ],
+      "csrf_enviado": true,
       "defined": true,
       "endpoint": "admin_revoke_sessions",
       "guardian_pasivo_no_aplicado": false,
@@ -3085,11 +3213,11 @@
       "module": "app.routers.admin",
       "mounted": true,
       "path": "/admin/users/{user_id}/revoke-sessions",
-      "rol_minimo_observado": "no-concluyente-csrf",
+      "rol_minimo_observado": "admin",
       "scoping_deps": [],
       "source": "viewer/app/routers/admin.py:294",
       "status_por_rol": {
-        "admin": 403,
+        "admin": 302,
         "reviewer": 403,
         "viewer": 403
       },
@@ -3115,6 +3243,7 @@
         "template:auth/admin/users.html",
         "tests:1 peticiones"
       ],
+      "csrf_enviado": true,
       "defined": true,
       "endpoint": "admin_user_unlock",
       "guardian_pasivo_no_aplicado": false,
@@ -3129,11 +3258,11 @@
       "module": "app.routers.admin",
       "mounted": true,
       "path": "/admin/users/{user_id}/unlock",
-      "rol_minimo_observado": "no-concluyente-csrf",
+      "rol_minimo_observado": "admin",
       "scoping_deps": [],
       "source": "viewer/app/routers/admin.py:263",
       "status_por_rol": {
-        "admin": 403,
+        "admin": 302,
         "reviewer": 403,
         "viewer": 403
       },
@@ -3156,6 +3285,7 @@
       "consumers": [
         "tests:4 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_admin_health",
       "guardian_pasivo_no_aplicado": false,
@@ -3196,6 +3326,7 @@
       "consumers": [
         "tests:84 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_entities",
       "guardian_pasivo_no_aplicado": false,
@@ -3240,6 +3371,7 @@
         "js:static/js/graph.js",
         "tests:17 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_entity_detail",
       "guardian_pasivo_no_aplicado": false,
@@ -3285,6 +3417,7 @@
       "consumers": [
         "tests:5 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_entity_types",
       "guardian_pasivo_no_aplicado": false,
@@ -3327,6 +3460,7 @@
       "consumers": [
         "tests:7 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_entity",
       "guardian_pasivo_no_aplicado": false,
@@ -3371,6 +3505,7 @@
         "js:static/js/graph.js",
         "tests:13 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_graph",
       "guardian_pasivo_no_aplicado": false,
@@ -3415,6 +3550,7 @@
       "consumers": [
         "tests:9 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_jobs",
       "guardian_pasivo_no_aplicado": false,
@@ -3456,6 +3592,7 @@
       "consumers": [
         "tests:5 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_jobs_counts",
       "guardian_pasivo_no_aplicado": false,
@@ -3497,6 +3634,7 @@
       "consumers": [
         "tests:5 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_job_detail",
       "guardian_pasivo_no_aplicado": false,
@@ -3538,6 +3676,7 @@
       "consumers": [
         "tests:4 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_quality",
       "guardian_pasivo_no_aplicado": false,
@@ -3580,6 +3719,7 @@
       "consumers": [
         "tests:9 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_search",
       "guardian_pasivo_no_aplicado": false,
@@ -3622,6 +3762,7 @@
       "consumers": [
         "tests:3 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_sources",
       "guardian_pasivo_no_aplicado": false,
@@ -3664,6 +3805,7 @@
       "consumers": [
         "tests:2 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_source_detail",
       "guardian_pasivo_no_aplicado": false,
@@ -3706,6 +3848,7 @@
       "consumers": [
         "tests:12 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_status",
       "guardian_pasivo_no_aplicado": false,
@@ -3748,6 +3891,7 @@
       "consumers": [
         "tests:7 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "api_workspaces",
       "guardian_pasivo_no_aplicado": false,
@@ -3790,6 +3934,7 @@
       "consumers": [
         "tests:5 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "_swagger",
       "guardian_pasivo_no_aplicado": false,
@@ -3835,6 +3980,7 @@
         "template:entity_detail.html",
         "tests:32 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "entities_page",
       "guardian_pasivo_no_aplicado": false,
@@ -3886,6 +4032,7 @@
         "template:entity_detail.html",
         "tests:4 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "entity_detail_page",
       "guardian_pasivo_no_aplicado": false,
@@ -3934,6 +4081,7 @@
         "template:entity.html",
         "tests:3 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "entity_view",
       "guardian_pasivo_no_aplicado": false,
@@ -3982,6 +4130,7 @@
         "template:index.html",
         "tests:24 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "graph_view",
       "guardian_pasivo_no_aplicado": false,
@@ -4031,6 +4180,7 @@
         "template:jobs.html",
         "tests:7 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "jobs_view",
       "guardian_pasivo_no_aplicado": false,
@@ -4078,6 +4228,7 @@
         "template:jobs.html",
         "tests:2 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "job_detail_view",
       "guardian_pasivo_no_aplicado": false,
@@ -4119,6 +4270,7 @@
         "template:auth/login.html",
         "tests:12 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "login_page",
       "guardian_pasivo_no_aplicado": false,
@@ -4157,6 +4309,7 @@
         "template:auth/login.html",
         "tests:11 peticiones"
       ],
+      "csrf_enviado": true,
       "defined": true,
       "endpoint": "login_submit",
       "guardian_pasivo_no_aplicado": false,
@@ -4168,13 +4321,13 @@
       "module": "app.routers.auth",
       "mounted": true,
       "path": "/login",
-      "rol_minimo_observado": "no-concluyente-csrf",
+      "rol_minimo_observado": "ninguno-sirve",
       "scoping_deps": [],
       "source": "viewer/app/routers/auth.py:123",
       "status_por_rol": {
-        "admin": 400,
-        "reviewer": 400,
-        "viewer": 400
+        "admin": 403,
+        "reviewer": 403,
+        "viewer": 403
       },
       "tested": true,
       "tested_hits": 11,
@@ -4201,6 +4354,7 @@
         "template:base.html",
         "tests:2 peticiones"
       ],
+      "csrf_enviado": true,
       "defined": true,
       "endpoint": "logout",
       "guardian_pasivo_no_aplicado": false,
@@ -4219,13 +4373,13 @@
       "module": "app.routers.auth",
       "mounted": true,
       "path": "/logout",
-      "rol_minimo_observado": "no-concluyente-csrf",
+      "rol_minimo_observado": "ninguno-sirve",
       "scoping_deps": [],
       "source": "viewer/app/routers/auth.py:252",
       "status_por_rol": {
-        "admin": 403,
-        "reviewer": 403,
-        "viewer": 403
+        "admin": 302,
+        "reviewer": 302,
+        "viewer": 302
       },
       "tested": true,
       "tested_hits": 2,
@@ -4246,6 +4400,7 @@
       "consumers": [
         "tests:2 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "_openapi",
       "guardian_pasivo_no_aplicado": false,
@@ -4287,6 +4442,7 @@
         "nav-contrato:app.chassis.NAV",
         "tests:6 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "slot_screen",
       "guardian_pasivo_no_aplicado": false,
@@ -4335,6 +4491,7 @@
       "consumers": [
         "tests:1 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "slot_screen",
       "guardian_pasivo_no_aplicado": false,
@@ -4376,6 +4533,7 @@
         "nav-contrato:app.chassis.NAV",
         "tests:7 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "slot_screen",
       "guardian_pasivo_no_aplicado": false,
@@ -4425,6 +4583,7 @@
       "consumers": [
         "tests:1 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "slot_screen",
       "guardian_pasivo_no_aplicado": false,
@@ -4466,6 +4625,7 @@
         "nav-contrato:app.chassis.NAV",
         "tests:7 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "slot_screen",
       "guardian_pasivo_no_aplicado": false,
@@ -4515,6 +4675,7 @@
       "consumers": [
         "tests:1 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "slot_screen",
       "guardian_pasivo_no_aplicado": false,
@@ -4556,6 +4717,7 @@
         "nav-contrato:app.chassis.NAV",
         "tests:7 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "slot_screen",
       "guardian_pasivo_no_aplicado": false,
@@ -4605,6 +4767,7 @@
       "consumers": [
         "tests:1 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "slot_screen",
       "guardian_pasivo_no_aplicado": false,
@@ -4645,6 +4808,7 @@
         "template:base.html",
         "tests:32 peticiones"
       ],
+      "csrf_enviado": true,
       "defined": true,
       "endpoint": "select_partida",
       "guardian_pasivo_no_aplicado": false,
@@ -4663,11 +4827,11 @@
       "module": "app.routers.partida",
       "mounted": true,
       "path": "/partida/select",
-      "rol_minimo_observado": "no-concluyente-csrf",
+      "rol_minimo_observado": "admin",
       "scoping_deps": [],
       "source": "viewer/app/routers/partida.py:43",
       "status_por_rol": {
-        "admin": 403,
+        "admin": 400,
         "reviewer": 403,
         "viewer": 403
       },
@@ -4696,6 +4860,7 @@
       "consumers": [
         "tests:3 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "quality_page",
       "guardian_pasivo_no_aplicado": false,
@@ -4738,6 +4903,7 @@
       "consumers": [
         "tests:2 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "_redoc",
       "guardian_pasivo_no_aplicado": false,
@@ -4777,6 +4943,7 @@
         "template:reviews_console_source.html",
         "tests:8 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "inbox",
       "guardian_pasivo_no_aplicado": false,
@@ -4818,6 +4985,7 @@
       "consumers": [
         "tests:1 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "inbox",
       "guardian_pasivo_no_aplicado": false,
@@ -4859,6 +5027,7 @@
         "template:reviews_console.html",
         "tests:9 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "source_detail",
       "guardian_pasivo_no_aplicado": false,
@@ -4902,6 +5071,7 @@
         "template:reviews_console_source.html",
         "tests:8 peticiones"
       ],
+      "csrf_enviado": true,
       "defined": true,
       "endpoint": "decide",
       "guardian_pasivo_no_aplicado": false,
@@ -4913,14 +5083,14 @@
       "module": "app.routers.reviews_console",
       "mounted": true,
       "path": "/review-console/source/{source_id}/decide",
-      "rol_minimo_observado": "no-concluyente-csrf",
+      "rol_minimo_observado": "reviewer",
       "scoping_deps": [
         "app.authz.dependencies.get_visibility_scope"
       ],
       "source": "viewer/app/routers/reviews_console.py:126",
       "status_por_rol": {
-        "admin": 403,
-        "reviewer": 403,
+        "admin": 400,
+        "reviewer": 400,
         "viewer": 403
       },
       "tested": true,
@@ -4946,6 +5116,7 @@
         "template:reviews_detail.html",
         "tests:9 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "reviews_view",
       "guardian_pasivo_no_aplicado": false,
@@ -4994,6 +5165,7 @@
         "template:reviews.html",
         "tests:10 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "reviews_detail_view",
       "guardian_pasivo_no_aplicado": false,
@@ -5040,6 +5212,7 @@
         "template:source_detail.html",
         "tests:6 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "sources_page",
       "guardian_pasivo_no_aplicado": false,
@@ -5093,6 +5266,7 @@
         "template:sources.html",
         "tests:2 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "source_detail_page",
       "guardian_pasivo_no_aplicado": false,
@@ -5139,6 +5313,7 @@
         "template:index.html",
         "tests:4 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "status_view",
       "guardian_pasivo_no_aplicado": false,
@@ -5191,6 +5366,7 @@
         "template:v3_review.html",
         "tests:26 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "queue",
       "guardian_pasivo_no_aplicado": false,
@@ -5241,6 +5417,7 @@
       "consumers": [
         "tests:1 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "queue",
       "guardian_pasivo_no_aplicado": false,
@@ -5283,6 +5460,7 @@
         "template:v3_review.html",
         "tests:22 peticiones"
       ],
+      "csrf_enviado": true,
       "defined": true,
       "endpoint": "decide",
       "guardian_pasivo_no_aplicado": false,
@@ -5296,14 +5474,14 @@
       "module": "app.routers.v3_review",
       "mounted": true,
       "path": "/v3/review/decide",
-      "rol_minimo_observado": "no-concluyente-csrf",
+      "rol_minimo_observado": "reviewer",
       "scoping_deps": [
         "app.authz.dependencies.get_visibility_scope"
       ],
       "source": "viewer/app/routers/v3_review.py:131",
       "status_por_rol": {
-        "admin": 403,
-        "reviewer": 403,
+        "admin": 400,
+        "reviewer": 400,
         "viewer": 403
       },
       "tested": true,
@@ -5331,6 +5509,7 @@
         "template:v3_glossary_candidates.html",
         "tests:1 peticiones"
       ],
+      "csrf_enviado": false,
       "defined": true,
       "endpoint": "glossary_candidates",
       "guardian_pasivo_no_aplicado": false,
@@ -5373,6 +5552,7 @@
         "template:v3_review.html",
         "tests:1 peticiones"
       ],
+      "csrf_enviado": true,
       "defined": true,
       "endpoint": "undo",
       "guardian_pasivo_no_aplicado": false,
@@ -5386,14 +5566,14 @@
       "module": "app.routers.v3_review",
       "mounted": true,
       "path": "/v3/review/undo",
-      "rol_minimo_observado": "no-concluyente-csrf",
+      "rol_minimo_observado": "reviewer",
       "scoping_deps": [
         "app.authz.dependencies.get_visibility_scope"
       ],
       "source": "viewer/app/routers/v3_review.py:206",
       "status_por_rol": {
-        "admin": 403,
-        "reviewer": 403,
+        "admin": 400,
+        "reviewer": 400,
         "viewer": 403
       },
       "tested": true,
@@ -5407,5 +5587,5 @@
     "apps_instrumented": 1,
     "exitstatus": 0
   },
-  "tested_source": "/tmp/s9k-work/tested_chasis.json"
+  "tested_source": "/tmp/chasis_tested.json"
 }

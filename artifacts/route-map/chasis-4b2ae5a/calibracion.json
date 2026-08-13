@@ -1,5 +1,75 @@
 {
   "baseline": {
+    "authz": {
+      "GET /": "denegada",
+      "GET /account": "denegada",
+      "GET /account/change-password": "denegada",
+      "GET /admin/audit": "denegada",
+      "GET /admin/health": "denegada",
+      "GET /admin/partidas": "denegada",
+      "GET /admin/users": "denegada",
+      "GET /admin/users/new": "denegada",
+      "GET /admin/users/{user_id}": "denegada",
+      "GET /api/admin/health": "denegada",
+      "GET /api/entities": "denegada",
+      "GET /api/entities/{entity_id}": "denegada",
+      "GET /api/entity-types": "denegada",
+      "GET /api/entity/{entity_id}": "denegada",
+      "GET /api/graph": "denegada",
+      "GET /api/jobs": "denegada",
+      "GET /api/jobs/counts": "denegada",
+      "GET /api/jobs/{job_id}": "denegada",
+      "GET /api/quality": "denegada",
+      "GET /api/search": "denegada",
+      "GET /api/sources": "denegada",
+      "GET /api/sources/{source_id}": "denegada",
+      "GET /api/status": "denegada",
+      "GET /api/workspaces": "denegada",
+      "GET /docs": "denegada",
+      "GET /entities": "denegada",
+      "GET /entities/{entity_id}": "denegada",
+      "GET /entity/{entity_id}": "denegada",
+      "GET /graph": "denegada",
+      "GET /jobs": "denegada",
+      "GET /jobs/{job_id}": "denegada",
+      "GET /login": "publica-por-diseno",
+      "GET /openapi.json": "denegada",
+      "GET /panel/entities": "denegada",
+      "GET /panel/entities/": "denegada",
+      "GET /panel/operations": "denegada",
+      "GET /panel/operations/": "denegada",
+      "GET /panel/review": "denegada",
+      "GET /panel/review/": "denegada",
+      "GET /panel/sources": "denegada",
+      "GET /panel/sources/": "denegada",
+      "GET /quality": "denegada",
+      "GET /redoc": "denegada",
+      "GET /review-console": "denegada",
+      "GET /review-console/": "denegada",
+      "GET /review-console/source/{source_id}": "denegada",
+      "GET /reviews": "denegada",
+      "GET /reviews/{source_id}": "denegada",
+      "GET /sources": "denegada",
+      "GET /sources/{source_id}": "denegada",
+      "GET /status": "denegada",
+      "GET /v3/review": "denegada",
+      "GET /v3/review/": "denegada",
+      "GET /v3/review/glossary-candidates": "denegada",
+      "POST /account/change-password": "denegada",
+      "POST /admin/partidas/grant": "denegada",
+      "POST /admin/partidas/{access_id}/revoke": "denegada",
+      "POST /admin/users/new": "denegada",
+      "POST /admin/users/{user_id}": "denegada",
+      "POST /admin/users/{user_id}/revoke-sessions": "denegada",
+      "POST /admin/users/{user_id}/unlock": "denegada",
+      "POST /login": "publica-por-diseno",
+      "POST /logout": "denegada",
+      "POST /partida/select": "denegada",
+      "POST /review-console/source/{source_id}/decide": "denegada",
+      "POST /v3/review/decide": "denegada",
+      "POST /v3/review/undo": "denegada"
+    },
+    "autorizadas": 65,
     "capturadas": [],
     "claves": [
       "GET /",
@@ -70,6 +140,9 @@
       "GET /v3/review/glossary-candidates",
       "POST /v3/review/undo"
     ],
+    "contradiccion": [],
+    "denegacion_404_ambigua": [],
+    "denegacion_no_atribuible": [],
     "guardian_no_aplicado": [],
     "montadas": 67,
     "muertas": [],
@@ -129,19 +202,19 @@
       "GET /v3/review": "reviewer",
       "GET /v3/review/": "reviewer",
       "GET /v3/review/glossary-candidates": "reviewer",
-      "POST /account/change-password": "no-concluyente-csrf",
-      "POST /admin/partidas/grant": "no-concluyente-csrf",
-      "POST /admin/partidas/{access_id}/revoke": "no-concluyente-csrf",
-      "POST /admin/users/new": "no-concluyente-csrf",
-      "POST /admin/users/{user_id}": "no-concluyente-csrf",
-      "POST /admin/users/{user_id}/revoke-sessions": "no-concluyente-csrf",
-      "POST /admin/users/{user_id}/unlock": "no-concluyente-csrf",
-      "POST /login": "no-concluyente-csrf",
-      "POST /logout": "no-concluyente-csrf",
-      "POST /partida/select": "no-concluyente-csrf",
-      "POST /review-console/source/{source_id}/decide": "no-concluyente-csrf",
-      "POST /v3/review/decide": "no-concluyente-csrf",
-      "POST /v3/review/undo": "no-concluyente-csrf"
+      "POST /account/change-password": "viewer",
+      "POST /admin/partidas/grant": "admin",
+      "POST /admin/partidas/{access_id}/revoke": "admin",
+      "POST /admin/users/new": "admin",
+      "POST /admin/users/{user_id}": "admin",
+      "POST /admin/users/{user_id}/revoke-sessions": "admin",
+      "POST /admin/users/{user_id}/unlock": "admin",
+      "POST /login": "ninguno-sirve",
+      "POST /logout": "ninguno-sirve",
+      "POST /partida/select": "admin",
+      "POST /review-console/source/{source_id}/decide": "reviewer",
+      "POST /v3/review/decide": "reviewer",
+      "POST /v3/review/undo": "reviewer"
     },
     "roles_no_evaluables": [],
     "rotos": [],
@@ -150,7 +223,12 @@
   "casos": {
     "M0-control": {
       "delta": {
+        "authz_cambiados": {},
+        "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contradicciones_nuevas": [],
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
@@ -165,7 +243,12 @@
     },
     "M1-router-desmontado": {
       "delta": {
+        "authz_cambiados": {},
+        "autorizadas": -10,
         "capturadas_nuevas": [],
+        "contradicciones_nuevas": [],
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": -10,
         "muertas_nuevas": [
@@ -181,7 +264,12 @@
           "GET /sources/{source_id}"
         ],
         "no_probadas_nuevas": [],
-        "roles_cambiados": {},
+        "roles_cambiados": {
+          "POST /account/change-password": [
+            "viewer",
+            "no-concluyente-csrf"
+          ]
+        },
         "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [
           "/api/entities/ @ static/js/graph.js",
@@ -202,9 +290,19 @@
     },
     "M10-ruta-capturada": {
       "delta": {
+        "authz_cambiados": {
+          "GET /sources/panel": [
+            null,
+            "CAPTURADA"
+          ]
+        },
+        "autorizadas": 0,
         "capturadas_nuevas": [
           "GET /sources/panel <- /sources/{source_id}"
         ],
+        "contradicciones_nuevas": [],
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 1,
         "muertas_nuevas": [],
@@ -230,7 +328,17 @@
     },
     "M11-senuelo-isinstance": {
       "delta": {
+        "authz_cambiados": {
+          "GET /ruta-con-senuelo": [
+            null,
+            "SIN-AUTH"
+          ]
+        },
+        "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contradicciones_nuevas": [],
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
         "guardian_no_aplicado_nuevos": [
           "GET /ruta-con-senuelo"
         ],
@@ -256,9 +364,206 @@
       },
       "detectado": true
     },
+    "M12-fuga-404-sin-guardian": {
+      "delta": {
+        "authz_cambiados": {
+          "GET /fuga/{item_id}": [
+            null,
+            "denegada-404-ambigua"
+          ]
+        },
+        "autorizadas": 0,
+        "capturadas_nuevas": [],
+        "contradicciones_nuevas": [
+          "GET /fuga/{item_id}"
+        ],
+        "denegacion_404_ambigua_nuevas": [
+          "GET /fuga/{item_id}"
+        ],
+        "denegacion_no_atribuible_nuevas": [],
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 1,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [
+          "GET /fuga/{item_id}"
+        ],
+        "roles_cambiados": {
+          "GET /fuga/{item_id}": [
+            null,
+            "viewer"
+          ]
+        },
+        "roles_no_evaluables_nuevos": [],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [
+          "GET /fuga/{item_id}"
+        ],
+        "sin_auth_nuevas": []
+      },
+      "detectado": true
+    },
+    "M13-post-sin-guardian-csrf-ciego": {
+      "delta": {
+        "authz_cambiados": {
+          "POST /partida/select": [
+            "denegada",
+            "inconcluyente"
+          ]
+        },
+        "autorizadas": -1,
+        "capturadas_nuevas": [],
+        "contradicciones_nuevas": [],
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 0,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [],
+        "roles_cambiados": {
+          "POST /partida/select": [
+            "admin",
+            "no-concluyente-csrf"
+          ]
+        },
+        "roles_no_evaluables_nuevos": [],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [],
+        "sin_auth_nuevas": []
+      },
+      "detectado": true
+    },
+    "M14-router-incluido-dos-veces": {
+      "delta": {
+        "authz_cambiados": {
+          "GET /dup/api/entities": [
+            null,
+            "denegada"
+          ],
+          "GET /dup/api/entities/{entity_id}": [
+            null,
+            "denegada"
+          ],
+          "GET /dup/api/quality": [
+            null,
+            "denegada"
+          ],
+          "GET /dup/api/sources": [
+            null,
+            "denegada"
+          ],
+          "GET /dup/api/sources/{source_id}": [
+            null,
+            "denegada"
+          ],
+          "GET /dup/entities": [
+            null,
+            "denegada"
+          ],
+          "GET /dup/entities/{entity_id}": [
+            null,
+            "denegada"
+          ],
+          "GET /dup/quality": [
+            null,
+            "denegada"
+          ],
+          "GET /dup/sources": [
+            null,
+            "denegada"
+          ],
+          "GET /dup/sources/{source_id}": [
+            null,
+            "denegada"
+          ]
+        },
+        "autorizadas": 10,
+        "capturadas_nuevas": [],
+        "contradicciones_nuevas": [],
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 10,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [
+          "GET /dup/api/entities",
+          "GET /dup/api/entities/{entity_id}",
+          "GET /dup/api/quality",
+          "GET /dup/api/sources",
+          "GET /dup/api/sources/{source_id}",
+          "GET /dup/entities",
+          "GET /dup/entities/{entity_id}",
+          "GET /dup/quality",
+          "GET /dup/sources",
+          "GET /dup/sources/{source_id}"
+        ],
+        "roles_cambiados": {
+          "GET /dup/api/entities": [
+            null,
+            "viewer"
+          ],
+          "GET /dup/api/entities/{entity_id}": [
+            null,
+            "viewer"
+          ],
+          "GET /dup/api/quality": [
+            null,
+            "reviewer"
+          ],
+          "GET /dup/api/sources": [
+            null,
+            "reviewer"
+          ],
+          "GET /dup/api/sources/{source_id}": [
+            null,
+            "reviewer"
+          ],
+          "GET /dup/entities": [
+            null,
+            "viewer"
+          ],
+          "GET /dup/entities/{entity_id}": [
+            null,
+            "viewer"
+          ],
+          "GET /dup/quality": [
+            null,
+            "reviewer"
+          ],
+          "GET /dup/sources": [
+            null,
+            "reviewer"
+          ],
+          "GET /dup/sources/{source_id}": [
+            null,
+            "reviewer"
+          ]
+        },
+        "roles_no_evaluables_nuevos": [],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [
+          "GET /dup/api/entities",
+          "GET /dup/api/entities/{entity_id}",
+          "GET /dup/api/quality",
+          "GET /dup/api/sources",
+          "GET /dup/api/sources/{source_id}",
+          "GET /dup/entities",
+          "GET /dup/entities/{entity_id}",
+          "GET /dup/quality",
+          "GET /dup/sources",
+          "GET /dup/sources/{source_id}"
+        ],
+        "sin_auth_nuevas": []
+      },
+      "detectado": true
+    },
     "M2-enlace-roto": {
       "delta": {
+        "authz_cambiados": {},
+        "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contradicciones_nuevas": [],
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
@@ -275,7 +580,17 @@
     },
     "M3-ruta-sin-auth": {
       "delta": {
+        "authz_cambiados": {
+          "GET /entities": [
+            "denegada",
+            "SIN-AUTH"
+          ]
+        },
+        "autorizadas": -1,
         "capturadas_nuevas": [],
+        "contradicciones_nuevas": [],
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
@@ -292,7 +607,17 @@
     },
     "M4-ruta-sin-test": {
       "delta": {
+        "authz_cambiados": {
+          "GET /ruta-nueva-sin-test": [
+            null,
+            "SIN-AUTH"
+          ]
+        },
+        "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contradicciones_nuevas": [],
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
         "guardian_no_aplicado_nuevos": [
           "GET /ruta-nueva-sin-test"
         ],
@@ -320,7 +645,12 @@
     },
     "M5-mencion-en-comentario": {
       "delta": {
+        "authz_cambiados": {},
+        "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contradicciones_nuevas": [],
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
@@ -464,7 +794,12 @@
     },
     "M8-rol-degradado": {
       "delta": {
+        "authz_cambiados": {},
+        "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contradicciones_nuevas": [],
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
@@ -484,12 +819,22 @@
     },
     "M9-nav-de-datos-rota": {
       "delta": {
+        "authz_cambiados": {},
+        "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contradicciones_nuevas": [],
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
         "no_probadas_nuevas": [],
-        "roles_cambiados": {},
+        "roles_cambiados": {
+          "POST /account/change-password": [
+            "viewer",
+            "no-concluyente-csrf"
+          ]
+        },
         "roles_no_evaluables_nuevos": [],
         "rotos_nuevos": [
           "ChassisContractError: El elemento de navegación 'Fantasma' apunta a la ruta 'ruta_que_no_existe', que no está montada. Rutas conocidas: ['_openapi', '_redoc', '_swagger', 'account_page', 'admin_audit', 'admin_health_panel', 'admin_partidas', 'admin_partidas_grant', 'admin_partidas_revoke', 'admin_revoke_sessions', 'admin_user_detail', 'admin_user_unlock', 'admin_user_update', 'admin_users', 'admin_users_new', 'admin_users_new_submit', 'api_admin_health', 'api_entities', 'api_entity', 'api_entity_detail', 'api_entity_types', 'api_graph', 'api_job_detail', 'api_jobs', 'api_jobs_counts', 'api_quality', 'api_search', 'api_source_detail', 'api_sources', 'api_status', 'api_workspaces', 'change_password_page', 'change_password_submit', 'chassis_entities', 'chassis_operations', 'chassis_review', 'chassis_sources', 'decide', 'entities_page', 'entity_detail_page', 'entity_view', 'glossary_candidates', 'graph_view', 'home', 'inbox', 'job_detail_view', 'jobs_view', 'login_page', 'login_submit', 'logout', 'quality_page', 'queue', 'reviews_detail_view', 'reviews_view', 'select_partida', 'source_detail', 'source_detail_page', 'sources_page', 'static', 'status_view', 'undo'] @ app.chassis.NAV"
