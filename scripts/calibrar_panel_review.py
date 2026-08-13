@@ -40,7 +40,9 @@ VIEWER = RAIZ / "viewer"
 ROUTER = VIEWER / "app" / "routers" / "chassis_review.py"
 SERVICIO = VIEWER / "app" / "services" / "review_console_v2.py"
 PLANTILLA = VIEWER / "app" / "templates" / "chassis" / "review.html"
+MAIN = VIEWER / "app" / "main.py"
 SUITE = "tests/test_panel_review_console.py"
+FICHERO_SUITE = VIEWER / SUITE
 
 
 @dataclass(frozen=True)
@@ -193,6 +195,56 @@ CASOS: tuple[Caso, ...] = (
         "# Segunda tabla de rangos, exactamente el defecto que la garantía prohíbe.\n"
         "_RANK = {\"admin\": 3, \"reviewer\": 2, \"viewer\": 1}",
         ("test_el_panel_no_declara_vocabulario_propio_de_autorizacion",),
+    ),
+    # -- Añadidos tras la revisión independiente ---------------------------
+    Caso(
+        "R5", "La frontera de solo lectura es del ESPACIO DE URL, no del módulo",
+        # El defecto se inyecta DESDE FUERA del carril, que es como aparecería
+        # de verdad: otro carril monta escritura bajo `/panel/review` sin tocar
+        # `chassis_review.py`. Antes de este caso, la suite entera salía
+        # 45/45 VERDE mientras la ruta respondía 200 sin autenticar.
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "@app.post(\"/panel/review/aprobar\")\n"
+        "def _mutante_de_escritura_externo():\n"
+        "    return {\"ok\": True}\n",
+        ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
+    ),
+    Caso(
+        "R6", "La enumeración del espacio del panel no puede quedarse vacía",
+        # Calibración DEL INSTRUMENTO, no del sistema. Un barrido de primer
+        # nivel sobre `app.routes` ve CERO rutas de este prefijo (FastAPI mete
+        # los routers incluidos en envoltorios `_IncludedRouter`), y entonces
+        # R5 saldría verde por no mirar. El suelo tiene que cazarlo, y R5 no.
+        FICHERO_SUITE,
+        "        r for r in iter_mounted_routes(app)",
+        "        r for r in app.routes",
+        ("test_la_enumeracion_del_espacio_del_panel_no_puede_salir_vacia",),
+    ),
+    Caso(
+        "R7", "Pieza 4: orden por prioridad de revisión",
+        SERVICIO,
+        "_DECISION_PRIORITY = {\n"
+        "    \"REVIEW\": 0,\n"
+        "    \"ABSTAIN\": 1,\n"
+        "    \"REJECT_INVALID\": 2,\n"
+        "}",
+        "_DECISION_PRIORITY = {\n"
+        "    \"REVIEW\": 2,\n"
+        "    \"ABSTAIN\": 1,\n"
+        "    \"REJECT_INVALID\": 0,\n"
+        "}",
+        ("test_los_vecinos_siguen_el_orden_filtrado",),
+    ),
+    Caso(
+        "R8", "Pieza 8: el umbral de baja confianza es el criterio que APLICA",
+        SERVICIO,
+        "        if confidence is None or confidence >= spec.low_confidence_threshold:\n"
+        "            return False",
+        "        if confidence is None:\n"
+        "            return False",
+        ("test_el_umbral_de_baja_confianza_es_criterio_de_presentacion",),
     ),
 )
 

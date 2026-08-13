@@ -55,12 +55,12 @@ tres puntos, todos declarados y todos calibrados:
 | 1 | Primero filtrar, después paginar | Conservada intacta (`build_view` → `apply_filters` → `sort_rows` → `paginate`); contadores del conjunto filtrado | `test_los_contadores_son_del_conjunto_filtrado_no_de_la_pagina`, `test_paginar_no_filtra_nunca` · mutante **M4** |
 | 2 | Acuerdo sólo con las dos partes | Conservada y **endurecida**: además de existir, las dos partes tienen que ser estados reconocidos | `test_sin_sombra_no_hay_acuerdo`, `test_un_acuerdo_entre_estados_desconocidos_no_es_acuerdo` · mutantes **M7**, **M5** |
 | 3 | `not_available` es ausencia | Conservada, y comprobada además **en la pantalla renderizada**, no sólo en la proyección | `test_not_available_es_ausencia_no_un_valor`, `test_not_available_no_se_pinta_en_la_pantalla` · mutante **M6** |
-| 4 | Orden por prioridad (`REVIEW` > `ABSTAIN` > `REJECT_INVALID`) | Conservada | `test_los_vecinos_siguen_el_orden_filtrado` (afirma el orden servido por HTTP: `bajo, alto, abstiene`) |
+| 4 | Orden por prioridad (`REVIEW` > `ABSTAIN` > `REJECT_INVALID`) | Conservada | `test_los_vecinos_siguen_el_orden_filtrado` (afirma el orden servido por HTTP: `bajo, alto, abstiene`) · mutante **R7** |
 | 5 | Vecinos anterior/siguiente en el orden filtrado, con posición y total | Conservada; la ficha se resuelve contra el conjunto filtrado ENTERO, no contra la página | `test_los_vecinos_siguen_el_orden_filtrado`, `test_la_ficha_no_se_limita_a_la_primera_pagina` · mutante **M11** |
 | 6 | 404 indistinguible (inexistente / fuera de ámbito / excluido por filtro) | Conservada; se compara **código y cuerpo**, no sólo el código | `test_fuera_de_ambito_inexistente_y_filtrado_dan_el_mismo_404`, `test_un_workspace_fuera_de_ambito_es_404_como_uno_inexistente` · mutante **M8** |
 | 7 | Paquete ilegible → 503 sin volcar rutas ni trazas | Conservada y **endurecida**: el detalle es `type(exc).__name__`, nunca `str(exc)` (que puede traer la ruta del fichero) | `test_paquete_ilegible_da_503_sin_filtrar_rutas` · mutante **M9** |
-| 8 | `DEFAULT_LOW_CONFIDENCE = 0.6` es criterio de PRESENTACIÓN | Conservada. El test **mide el paquete exportado** y exige que no traiga ninguna clave de umbral; si el motor empezara a exportarlos, se pone rojo | `test_el_umbral_de_baja_confianza_es_criterio_de_presentacion` |
-| 9 | Solo lectura por enumeración de métodos | Conservada; se enumera `panel.router.routes` | `test_el_panel_no_monta_ningun_metodo_de_escritura` · mutante **M10** |
+| 8 | `DEFAULT_LOW_CONFIDENCE = 0.6` es criterio de PRESENTACIÓN | Conservada. El test **mide el paquete exportado** y exige que no traiga ninguna clave de umbral; si el motor empezara a exportarlos, se pone rojo | `test_el_umbral_de_baja_confianza_es_criterio_de_presentacion` · mutante **R8** |
+| 9 | Solo lectura por enumeración de métodos | Conservada y **corregida tras la revisión**: la enumeración es del ESPACIO DE URL de la app, no del módulo (§4bis) | `test_ninguna_ruta_del_espacio_del_panel_acepta_escritura`, `test_la_enumeracion_del_espacio_del_panel_no_puede_salir_vacia`, `test_el_panel_no_monta_ningun_metodo_de_escritura` · mutantes **R5**, **R6**, **M10** |
 
 ## 3. La autorización actual, y el test que impide volver atrás
 
@@ -76,12 +76,32 @@ ni en los contadores, ni por ID, y `ctx.admin_full` es `False`.
 **Una consola vacía en ese contexto es el comportamiento correcto.** No es una
 pantalla que arreglar.
 
-Matiz medido, y que conviene no confundir: el corpus de revisión se acota con
-`scope.partida_only()` (lo hace `ReviewService`, no este router), así que la
-barrera aplicable es la de **partida**, no la de workspace. Una propuesta **sin
-`partida_id`** es capa juego compartida y **sí** se le entrega al anónimo. Por
-eso el test usa material con partida: es donde está la diferencia entre el
-comportamiento viejo y el nuevo.
+### «Consola vacía es correcto» es CONTINGENTE, no absoluto
+
+Es el punto que un lector puede entender al revés, así que va con la medida
+delante. El corpus de revisión se acota con `scope.partida_only()` (lo hace
+`ReviewService`, no este router), de modo que la barrera aplicable es la de
+**partida**, no la de workspace. Una propuesta **sin `partida_id`** no es
+material de una partida ajena: es **capa juego compartida**, lore, y se
+entrega.
+
+Medido con `S9K_AUTH_ENABLED` desactivado, ámbito producido por
+`build_viewer_context` (`admin_full=False`), en
+`test_sin_auth_la_capa_juego_SI_es_visible_y_eso_tambien_es_la_politica`:
+
+| Propuesta | ¿En la lista? | Contador `visible` | Ficha por ID |
+|---|---|---|---|
+| `con-partida` (`partida_id="partida-A"`) | **no** | no cuenta | **404** |
+| `capa-juego` (sin `partida_id`) | **sí** | cuenta | **200**, con el texto del episodio |
+| | | total **1** de 2 | |
+
+Es decir: con auth desactivada un anónimo **sí puede ver lore**. Eso **no es
+una vía reabierta por este carril** —es la política heredada aplicada de forma
+consistente, y el mutante **M3** lo confirma: sustituir el ámbito de la
+petición por `UNRESTRICTED` pone rojo el test de al lado—, pero **la frase
+"la consola sale vacía" no puede leerse como una garantía de que el anónimo no
+ve nada**. Sale vacía para el material que tiene partida, que es donde está la
+diferencia entre el comportamiento viejo y el nuevo.
 
 El router además no declara vocabulario propio de autorización, y eso se
 comprueba **sobre el AST** —no leyendo el fichero—: sin `admin_full`, sin tabla
@@ -112,19 +132,57 @@ más peligroso que un verde— y (d) reversión idéntica por hash.
 | M11 | `neighbours` devuelve la primera fila sea cual sea el id | `test_la_ficha_es_la_de_la_fila_que_se_abrio`, `test_los_vecinos_siguen_el_orden_filtrado` | idéntica |
 | M12 | La plantilla escribe `action="/panel/review"` a mano | `test_las_plantillas_no_llevan_urls_escritas_a_mano` | idéntica |
 | M13 | Se reintroduce un `_RANK` local en el router | `test_el_panel_no_declara_vocabulario_propio_de_autorizacion` | idéntica |
+| **R5** | **`@app.post("/panel/review/aprobar")` montado desde `viewer/app/main.py`**, fuera de este carril | `test_ninguna_ruta_del_espacio_del_panel_acepta_escritura` | idéntica |
+| **R6** | La enumeración recorre `app.routes` sin aplanar (ve **0** rutas del prefijo) | `test_la_enumeracion_del_espacio_del_panel_no_puede_salir_vacia` | idéntica |
+| **R7** | Se invierte `_DECISION_PRIORITY` (pieza 4) | `test_los_vecinos_siguen_el_orden_filtrado` | idéntica |
+| **R8** | El filtro de baja confianza deja de aplicar el umbral (pieza 8) | `test_el_umbral_de_baja_confianza_es_criterio_de_presentacion` | idéntica |
 
-**13/13**, verdes sin mutar, rojas con el defecto, reversión idéntica por hash.
+**17/17**, verdes sin mutar, rojas con el defecto, reversión idéntica por hash.
+
+## 4bis. S1 — la frontera de solo lectura era del MÓDULO, no del ESPACIO DE URL
+
+Hallazgo de la revisión independiente, y el más importante de este carril
+porque **B/F/G iban a heredar el patrón**.
+
+La primera versión de la garantía enumeraba `panel.router.routes`. Eso hace
+dura la frontera **dentro de este fichero** y **no** en `/panel/review/**`. El
+revisor montó `@app.post("/panel/review/aprobar")` **desde `viewer/app/main.py`**
+—fuera de este módulo, que es como aparecería de verdad: otro carril colgando
+una ruta en el espacio de URL ajeno— y midió **45/45 VERDE** mientras la ruta
+respondía **200 sin autenticar y escribía en disco**. Nadie la veía.
+
+**Corregido.** La comprobación recorre ahora las rutas **de la app** cuyo
+`path` empieza por `SLOT.prefix`, y lo hace **recursivamente** con el mismo
+`iter_mounted_routes` que usa el barrido de autorización del chasis. Los dos
+detalles importan:
+
+- **Recorrer la app, no el router**: es lo que convierte «este módulo no
+  escribe» en «nadie escribe en este espacio de URL».
+- **Recorrer recursivamente**: un barrido de primer nivel sobre `app.routes`
+  devuelve **cero** rutas de este prefijo, porque FastAPI >= 0.116 mete los
+  routers incluidos en envoltorios `_IncludedRouter`. El primer intento del
+  revisor cayó justo ahí: **un arnés vacío que habría "demostrado" cualquier
+  cosa**. Por eso la corrección trae además un **suelo de plausibilidad**
+  (`test_la_enumeracion_del_espacio_del_panel_no_puede_salir_vacia`), que exige
+  ver al menos 3 rutas y, nombradas, las dos que este carril declara.
+
+Los dos mutantes correspondientes (**R5**, **R6**) están en la tabla de arriba:
+antes de la corrección R5 pasaba en VERDE; ahora se pone ROJA, y R6 caza el
+modo de fallo del propio instrumento. **Éste es el patrón que B, F y G deben
+copiar**: comprobar el propio router deja la puerta abierta.
 
 ### Supervivientes y ablaciones, sin racionalizar
 
-- **M10 sobrevive a la mitad de su defensa.** El mutante monta
-  `POST /panel/review/aprobar` y **sólo** lo caza la enumeración de rutas;
-  `test_los_metodos_de_escritura_son_rechazados_por_http`, que pide
-  `POST /panel/review`, **sigue verde** porque esa URL concreta sigue dando
-  405. Es exactamente la pieza 9 de `docs/74`: la solo-lectura se comprueba por
-  enumeración, no por sondeo de una URL. El test por HTTP se conserva porque
-  cubre otra cosa (que la ruta raíz no acepte escritura ni siquiera con el
-  panel encendido), pero **no puede cobrarse como la defensa de la frontera**.
+- **`test_los_metodos_de_escritura_son_rechazados_por_http` NO puede cobrarse
+  como defensa.** Sondea **sólo** el prefijo raíz (`POST /panel/review` → 405).
+  Medido: con un POST colgado en cualquier subruta —de este módulo (M10) o de
+  otro (R5)— **sigue verde**. Es redundancia inofensiva, no garantía; se
+  conserva porque cubre que la ruta raíz no acepte escritura ni con el panel
+  encendido, y así está anotado en el propio test.
+- **`test_el_panel_no_monta_ningun_metodo_de_escritura` es redundante por
+  construcción** con la enumeración del espacio de URL. Se conserva porque
+  **localiza** el fallo: dice que el POST lo puso *este* fichero y no otro.
+  Ablación honesta: quitarlo no dejaría ningún defecto sin cazar.
 - **El control de colapso del arnés es un test, no una nota al pie.**
   `test_la_sustitucion_de_ambito_muerde` exige que quitar la sustitución de
   `get_visibility_scope` **cambie** el resultado. Sin él, todas las pruebas de
@@ -146,11 +204,20 @@ más peligroso que un verde— y (d) reversión idéntica por hash.
 
 | Medida | Resultado |
 |---|---|
-| `viewer` completo (`python3 -m pytest tests -q` desde `viewer/`) | **1291 passed, 191 skipped** |
+| `viewer` completo (`python3 -m pytest tests -q` desde `viewer/`) | **1295 passed, 191 skipped** |
 | `tests/test_docs_numbering.py` + `deploy/tests` | **255 passed, 1 skipped, 6 xfailed** |
 | `viewer/tests/test_chassis_mount_contract.py` | **68 passed, 1 skipped** (el contrato publicado sigue intacto) |
-| `viewer/tests/test_panel_review_console.py` | **45 passed** |
-| `scripts/calibrar_panel_review.py` | **13/13 calibradas** |
+| `viewer/tests/test_panel_review_console.py` | **48 passed** |
+| `scripts/calibrar_panel_review.py` | **17/17 calibradas** |
+
+**Corrección de una cifra declarada.** La primera versión de este documento
+decía `1291 passed`; el revisor midió `1292` sobre árbol limpio. Tenía razón y
+la causa es mía: medí la suite completa **antes** de añadir el test 45 del
+panel (`test_el_umbral_de_baja_confianza_…`) y no la volví a correr. Cifra
+declarada sobre un árbol que ya no era el entregado — el fallo exacto que este
+proyecto persigue. Las cifras de arriba están remedidas sobre el árbol actual,
+que además incorpora los tres tests nuevos de la revisión (48 en el panel,
+1295 en total: 1292 + 3).
 
 ## 6. Estado del interruptor
 
@@ -173,7 +240,10 @@ indistinguible de una ruta inexistente — y el menú no pinta el enlace.
    regenerar con un instrumento averiado produce una cifra peor que ninguna.
    Es deuda separada de este carril.
 3. **Los «invariantes M5/M9 del motor de revisión» no existen con ese nombre en
-   el árbol.** Se buscó (`grep` sobre `viewer/`, `data-engine/`, `docs/`,
+   el árbol. CONFIRMADO Y CERRADO** por la revisión independiente, con búsqueda
+   propia suya: en este árbol `M5`/`M9` son identificadores de mutantes de
+   calibración de otros gates (`docs/65`, `docs/66`, `docs/68`, `docs/75`) y la
+   nomenclatura de fases M0–M5 de multipartida. No hay nada más que hacer aquí. Se buscó (`grep` sobre `viewer/`, `data-engine/`, `docs/`,
    `shared/`): en este repositorio `M5`/`M9` son **identificadores de mutantes
    de calibración** de otros gates —`docs/68` (M5: una ruta sólo mencionada en
    un comentario no crea nada; M9: un `NavItem` a una ruta no montada revienta)

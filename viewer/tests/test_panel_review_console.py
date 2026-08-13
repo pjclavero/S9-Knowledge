@@ -409,6 +409,45 @@ def test_sin_auth_no_reaparece_el_comportamiento_permisivo(
     assert ficha.status_code == 404
 
 
+def test_sin_auth_la_capa_juego_SI_es_visible_y_eso_tambien_es_la_politica(
+    real_app, panel_on, with_service, with_scope
+):
+    """El matiz que un lector puede entender al revés, medido y fijado.
+
+    "Con auth desactivada la consola sale vacía" es CONTINGENTE, no absoluto:
+    depende de que el material tenga partida. La barrera que aplica al corpus
+    de revisión es la de PARTIDA (`ReviewService` acota con
+    `scope.partida_only()`), y una propuesta SIN `partida_id` es capa juego
+    compartida — lore, no material de una partida ajena—, así que se entrega:
+    aparece en la lista, cuenta en los contadores y su ficha responde 200 con
+    el texto del episodio.
+
+    Eso NO es una vía reabierta por este carril: es la política heredada
+    aplicada de forma consistente, y el mutante M3 lo confirma (usar
+    `UNRESTRICTED` en vez del ámbito de la petición pone rojo el test de al
+    lado). Se escribe aquí para que nadie lea "la consola sale vacía" como una
+    garantía de que el anónimo no ve nada.
+    """
+    with_service([
+        make_proposal("con-partida", partida_id="partida-A"),
+        make_proposal("capa-juego"),
+    ])
+    ambito = anon_scope()
+    assert ambito.ctx.admin_full is False
+    with_scope(ambito)
+    cliente = client(real_app)
+
+    lista = cliente.get(SLOT.prefix)
+    ids = _ids_de_la_lista(lista.text)
+    assert ids == ["capa-juego"], ids
+    assert '<span data-count="visible">1</span>' in lista.text
+
+    assert cliente.get(f"{SLOT.prefix}/item/con-partida").status_code == 404
+    ficha = cliente.get(f"{SLOT.prefix}/item/capa-juego")
+    assert ficha.status_code == 200
+    assert LITERAL in ficha.text
+
+
 def test_el_panel_no_declara_vocabulario_propio_de_autorizacion():
     """Ni una segunda tabla de rangos, ni un `admin_full` local, ni un `role ==`.
 
@@ -436,17 +475,90 @@ def test_el_panel_no_declara_vocabulario_propio_de_autorizacion():
 # 4. SOLO LECTURA: frontera dura, comprobada por enumeración
 # ===========================================================================
 
+METODOS_DE_ESCRITURA = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def rutas_del_espacio_del_panel(app) -> list:
+    """Todas las rutas de la APP bajo `/panel/review`, a cualquier profundidad.
+
+    Dos decisiones, ambas por un defecto real:
+
+    1. Se recorre **la app**, no `panel.router.routes`. La frontera de solo
+       lectura es del ESPACIO DE URL, no del módulo: un
+       `@app.post("/panel/review/aprobar")` escrito desde `app/main.py` —o
+       desde cualquier otro carril— cuelga escritura en este prefijo sin tocar
+       este fichero, y una enumeración del propio router lo daría por bueno.
+       Medido: con esa ruta añadida desde fuera, la suite entera salía
+       **45/45 verde** mientras la ruta respondía 200 sin autenticar.
+    2. Se recorre **recursivamente**, con el mismo `iter_mounted_routes` que
+       usa el barrido de autorización del chasis. Un barrido de primer nivel
+       sobre `app.routes` devuelve **cero** rutas de este prefijo, porque
+       FastAPI >= 0.116 mete los routers incluidos en envoltorios
+       `_IncludedRouter`. Un arnés que enumera 0 elementos habría "demostrado"
+       cualquier cosa; por eso hay además un suelo de plausibilidad.
+    """
+    from app.chassis import iter_mounted_routes
+
+    return [
+        r for r in iter_mounted_routes(app)
+        if str(getattr(r, "path", "")).startswith(SLOT.prefix)
+    ]
+
+
+def test_la_enumeracion_del_espacio_del_panel_no_puede_salir_vacia(real_app):
+    """Suelo de plausibilidad: 0 rutas no es "no hay defecto", es "no he mirado".
+
+    Si un cambio de FastAPI vuelve a esconder las rutas incluidas, este test
+    cae ANTES que el de la frontera, y con el motivo correcto escrito.
+    """
+    rutas = rutas_del_espacio_del_panel(real_app)
+    caminos = {getattr(r, "path", "") for r in rutas}
+    assert len(rutas) >= 3, (
+        f"La enumeración de {SLOT.prefix} sólo ve {len(rutas)} rutas ({caminos}): "
+        "el barrido no está aplanando los routers incluidos"
+    )
+    # Las que este carril declara, nombradas: el suelo no se satisface con
+    # cualquier ruta que pase por ahí.
+    assert SLOT.prefix in caminos
+    assert f"{SLOT.prefix}/item/{{proposal_id}}" in caminos
+
+
+def test_ninguna_ruta_del_espacio_del_panel_acepta_escritura(real_app):
+    """LA frontera: nadie cuelga escritura bajo `/panel/review`, venga de donde venga.
+
+    Se afirma sobre la app real y sobre todo el prefijo, no sobre este módulo.
+    Es el patrón que B/F/G heredan: comprobar el propio router deja la puerta
+    abierta a que otro carril monte un POST en tu espacio de URL.
+    """
+    culpables = [
+        (getattr(r, "path", r), sorted(set(getattr(r, "methods", set())) & METODOS_DE_ESCRITURA))
+        for r in rutas_del_espacio_del_panel(real_app)
+        if set(getattr(r, "methods", set())) & METODOS_DE_ESCRITURA
+    ]
+    assert not culpables, (
+        f"Hay escritura montada bajo {SLOT.prefix}: {culpables}. "
+        "Este panel es de solo lectura y su espacio de URL también."
+    )
+
+
 def test_el_panel_no_monta_ningun_metodo_de_escritura(real_app):
-    """Enumeración de métodos, no una promesa en prosa."""
-    prohibidos = {"POST", "PUT", "PATCH", "DELETE"}
+    """El MÓDULO tampoco, comprobado aparte del espacio de URL.
+
+    Redundante con el test anterior por construcción, y se conserva porque
+    localiza el fallo: dice que el POST lo puso ESTE fichero, no otro.
+    """
     for ruta in panel.router.routes:
-        assert not (set(getattr(ruta, "methods", set())) & prohibidos), (
+        assert not (set(getattr(ruta, "methods", set())) & METODOS_DE_ESCRITURA), (
             f"{getattr(ruta, 'path', ruta)} monta métodos de escritura"
         )
 
 
 @pytest.mark.parametrize("metodo", ["post", "put", "patch", "delete"])
-def test_los_metodos_de_escritura_son_rechazados_por_http(
+def test_los_metodos_de_escritura_son_rechazados_por_http(  # noqa: D401
+    # NO ES UNA GARANTÍA: sondea SÓLO el prefijo raíz. Un POST colgado en
+    # cualquier subruta lo deja verde (medido). Se conserva como redundancia
+    # inofensiva; la defensa es la enumeración del espacio de URL.
+
     real_app, panel_on, with_service, with_scope, metodo
 ):
     with_service([make_proposal("p1")])
