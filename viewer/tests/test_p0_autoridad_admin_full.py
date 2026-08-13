@@ -135,6 +135,46 @@ def test_desactivar_la_autenticacion_no_concede_potestad():
         )
 
 
+def test_el_valor_POR_DEFECTO_de_S9K_AUTH_ENABLED_no_concede_nada():
+    """El caso que mas dano hizo, y que no era hipotetico.
+
+    `AuthSettings.S9K_AUTH_ENABLED` vale **False por defecto**
+    (`app/auth/config.py`). Combinado con el bypass que habia en el constructor,
+    eso significaba que TODO proceso que no fijara la variable --un test, un
+    banco de medida, un script, un despliegue recien montado-- corria con la
+    potestad de bypass total puesta. Y ocurrio: el carril de saturacion
+    descubrio que dos de sus bancos estaban midiendo con `admin_full` sin
+    saberlo, es decir, midiendo el sistema sin ninguna barrera activa y
+    creyendo que median el sistema.
+
+    Que la barrera este apagada por defecto es una decision de despliegue
+    discutible; que apagarla CONCEDA LA POTESTAD MAXIMA no lo es. Aqui se fija
+    lo segundo: sin fijar la variable, minimo privilegio.
+    """
+    from app.auth.config import AuthSettings
+    from app.authz.context import build_viewer_context
+
+    por_defecto = AuthSettings(_env_file=None).S9K_AUTH_ENABLED
+    assert por_defecto is False, (
+        "ha cambiado el valor por defecto de S9K_AUTH_ENABLED; este test "
+        "documenta el efecto de ese valor y hay que revisarlo"
+    )
+
+    ctx = build_viewer_context(
+        role=None, auth_enabled=por_defecto, default_workspace="ws"
+    )
+    assert not ctx.admin_full, (
+        "quien no fija S9K_AUTH_ENABLED vuelve a medir --o a servir-- con el "
+        "bypass total puesto"
+    )
+    assert ctx.role == "anonymous"
+    assert not ctx.can_view_secret and not ctx.can_view_reference
+    assert not ctx.allowed_partida_ids
+    assert ctx.max_visible_session == 0, (
+        "sin autenticacion el tope de sesion deja de ser el minimo"
+    )
+
+
 def test_el_rol_admin_autenticado_SI_concede_potestad():
     """Ablacion inversa: la degradacion de arriba no puede ser un apagon."""
     from app.authz.context import build_viewer_context

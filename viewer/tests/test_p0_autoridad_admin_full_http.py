@@ -80,7 +80,15 @@ class _ProveedorFalso:
         return [WS, OTRO_WS]
 
     def graph(self, workspace=None, **kw):
-        return list(NODOS), []
+        # HONRA el workspace pedido, como haria el Cypher real. La primera
+        # version lo ignoraba y devolvia el grafo entero: entonces un lector que
+        # pedia un workspace ajeno recibia igualmente los nodos del suyo, la
+        # prueba de colapso salia roja y el defecto estaba en el DOBLE, no en el
+        # sistema. Un banco que no imita la unica parte que importa mide su
+        # propio andamiaje.
+        if workspace is None:
+            return list(NODOS), []
+        return [n for n in NODOS if n.get("workspace") == workspace], []
 
     def list_entities(self, workspace, **kw):
         return list(NODOS), len(NODOS)
@@ -192,6 +200,57 @@ def test_el_admin_autenticado_recibe_la_potestad_total_por_HTTP(entorno):
         "el admin autenticado NO recibe la potestad total: faltan "
         f"{sorted({'secreto_ajeno', 'manual', 'otro_ws'} - ids)}"
     )
+
+
+# --- 1b. EL INSTRUMENTO MUERDE: el control tiene que poder COLAPSAR ----------
+
+def test_el_control_de_autorizacion_COLAPSA_en_api_graph(entorno):
+    """Comprobacion del INSTRUMENTO, no del sistema. Va primero a proposito.
+
+    Motivo, medido en otro carril y aplicable palabra por palabra aqui:
+    `get_filtered_provider` llama a `get_visibility_context(request)` como
+    FUNCION NORMAL, no via `Depends`. Sobrescribir `get_visibility_context` con
+    `app.dependency_overrides` no surte NINGUN efecto sobre `/api/graph`: alli
+    un banco creyo estar midiendo con la autorizacion puesta y seguia recibiendo
+    300 nodos / 171 aristas. Una cifra cierta por no mirar.
+
+    Estas pruebas NO usan ese punto de inyeccion --sustituyen el proveedor BASE
+    y atraviesan la cadena real con cookie de sesion-- pero eso hay que
+    DEMOSTRARLO, no afirmarlo. La forma de demostrarlo es exigir que el control
+    colapse: si al cambiar el principal el resultado no cambia, el instrumento
+    no esta conectado a nada.
+
+    Aqui se mide sobre `/api/graph` justo porque es la ruta donde el defecto se
+    manifesto: admin ve el grafo entero; un anonimo sin workspace permitido lo
+    ve colapsar a CERO.
+    """
+    db_path, auth_db, app = entorno
+    _, token = _usuario(auth_db, db_path, role="admin", usuario="jefa")
+
+    r = _cliente(app, token).get(
+        "/api/graph", params={"workspace": WS}, headers={"accept": "application/json"}
+    )
+    assert r.status_code == 200, r.text
+    nodos_admin = len(r.json()["nodes"])
+    assert nodos_admin > 0, (
+        "ni siquiera el admin recibe nodos: el banco no esta midiendo nada y "
+        "cualquier 'no hay fuga' de abajo seria cierto por vacuidad"
+    )
+
+    # Mismo endpoint, mismo grafo, principal sin potestad: tiene que COLAPSAR.
+    _, token_sin = _usuario(auth_db, db_path, role="viewer", usuario="ana")
+    r2 = _cliente(app, token_sin).get(
+        "/api/graph", params={"workspace": OTRO_WS},
+        headers={"accept": "application/json"},
+    )
+    if r2.status_code == 200:
+        assert len(r2.json()["nodes"]) == 0, (
+            "FUGA: un `viewer` recibe nodos de un workspace que no tiene "
+            "permitido. Y si esto no colapsa, tampoco colapsaria una fuga real: "
+            "el instrumento no estaria conectado."
+        )
+    else:
+        assert r2.status_code == 404, r2.status_code
 
 
 # --- 2. REVOCACION: retirar el rol retira la potestad ------------------------
