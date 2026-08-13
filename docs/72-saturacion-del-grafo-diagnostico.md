@@ -9,8 +9,13 @@ selección (ver §6). No se toca `viewer/app/**`, ni `benchmarks/perf/**`, ni `.
 
 ## 1. Resumen
 
-El desplome de aristas **no está en la consulta Cypher, ni en el provider, ni en la autorización,
-ni en la serialización, ni en el cliente**. Está en un único punto:
+En el camino de producción (el único que atraviesa `/api/graph`), el desplome de aristas **no está
+en la consulta Cypher, ni en el provider, ni en la autorización, ni en la serialización, ni en el
+cliente**. Está en un único punto:
+
+(La consulta Cypher *sí* tiene un defecto propio —acota las relaciones en vez de los nodos— pero
+está **inerte** en el camino autorizado y no contribuye a esta pérdida; se demuestra por ablación
+en §4.)
 
 > **Causa raíz: `/api/graph` devuelve el SUBGRAFO INDUCIDO sobre los primeros `limit` nodos
 > en orden de almacenamiento.** Los nodos se recortan primero y las aristas se recogen sólo
