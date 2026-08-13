@@ -965,11 +965,27 @@ def test_un_contador_no_aparece_antes_de_autorizar(real_app, auth_on, panel_on, 
 
     Publicar contadores antes de la guarda convertiría el panel en un
     enumerador para quien ni siquiera se ha identificado.
+
+    SUELO AUTOCUMPLIDO, evitado a propósito: la mitad negativa de esta prueba
+    —«un 302 no trae contadores»— es cierta por construcción, porque una
+    redirección no tiene cuerpo. Sola, pasaría con el panel desmontado, con la
+    plantilla vacía o con los contadores borrados del producto. Por eso lleva
+    pegado el control POSITIVO: la MISMA petición, con un principal válido, sí
+    tiene que traer cifras. Lo que se afirma entonces no es «no hay cuerpo»,
+    sino que la diferencia la pone la autorización.
     """
     con_proveedor()
-    r = client(real_app).get(SLOT.prefix)
-    assert r.status_code == 302
-    assert "data-count" not in r.text
+    anonimo = client(real_app).get(SLOT.prefix)
+    assert anonimo.status_code == 302
+    assert "data-count" not in anonimo.text
+
+    cookie = login_cookie(auth_on, "g_contador_control", "viewer")
+    autorizado = client(real_app, cookie).get(SLOT.prefix)
+    assert autorizado.status_code == 200
+    assert contadores(autorizado.text), (
+        "el control positivo no ve contadores: la mitad negativa de esta prueba "
+        "se estaría cumpliendo sola"
+    )
 
 
 # ===========================================================================

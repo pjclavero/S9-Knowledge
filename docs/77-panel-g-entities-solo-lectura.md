@@ -266,9 +266,21 @@ más peligroso que un verde— y (d) reversión idéntica por hash.
 | G15 | Se reintroduce un `_RANK` local en el router | router | `test_el_panel_no_declara_vocabulario_propio_de_autorizacion` | idéntica |
 | G16 | La plantilla ofrece un botón «Fusionar seleccionadas» | plantilla | `test_las_plantillas_no_ofrecen_ninguna_accion_de_escritura` | idéntica |
 | G17 | Se quita la premisa «sin datos» del contrato del chasis (§7) | suite chasis | `test_slot_renders_empty_state_instead_of_exploding` (4 param.) | idéntica |
+| **G18** | Se borran los contadores del producto (calibración del **control positivo**, no de una garantía) | plantilla | `test_un_contador_no_aparece_antes_de_autorizar`, `test_los_contadores_son_del_conjunto_autorizado`, `test_barrer_el_tope_de_pagina_no_mueve_el_total`, `test_un_panel_vacio_para_un_anonimo_es_correcto`, `test_sin_auth_no_reaparece_el_comportamiento_permisivo` | idéntica |
 
-**17/17**, verdes sin mutar, rojas con el defecto, reversión idéntica por hash,
+**18/18**, verdes sin mutar, rojas con el defecto, reversión idéntica por hash,
 y **ningún rojo fuera de los tests declarados**.
+
+### Un suelo autocumplido, encontrado y cerrado
+
+`test_un_contador_no_aparece_antes_de_autorizar` tenía una mitad **cierta por
+construcción**: un 302 no tiene cuerpo, así que «un anónimo no recibe
+contadores» se cumple sola, y la prueba habría pasado con los contadores
+borrados del producto, con la plantilla vacía o con el panel desmontado. Se le
+ha pegado el **control positivo** —la MISMA petición, con un principal válido,
+tiene que traer cifras—, de modo que lo que se afirma no es «no hay cuerpo»
+sino que **la diferencia la pone la autorización**. El mutante **G18** existe
+para calibrar ese control: borra los contadores y exige que la prueba se entere.
 
 ### Supervivientes y ablaciones, sin racionalizar
 

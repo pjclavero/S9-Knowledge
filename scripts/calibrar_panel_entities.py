@@ -232,6 +232,28 @@ CASOS: tuple[Caso, ...] = (
         ("test_las_plantillas_no_ofrecen_ninguna_accion_de_escritura",),
     ),
     Caso(
+        # CALIBRACIÓN DEL CONTROL POSITIVO, no de una garantía del producto.
+        # `test_un_contador_no_aparece_antes_de_autorizar` tiene una mitad que
+        # es cierta por construcción —un 302 no tiene cuerpo, luego no tiene
+        # contadores— y pasaría con los contadores borrados del producto. Este
+        # caso los borra y exige que la prueba se entere: si no se pone roja,
+        # ese suelo se estaba cumpliendo solo.
+        "G18", "El control positivo de los contadores MUERDE "
+               "(la mitad negativa no se cumple sola)",
+        PLANTILLA,
+        "    <section class=\"panel\" data-role=\"contadores\">\n"
+        "      <span data-count=\"visible\">{{ listado.autorizadas }}</span> visibles ·\n"
+        "      <span data-count=\"filtered\">{{ listado.total }}</span> tras filtros ·\n"
+        "      <span data-count=\"shown\">{{ listado.mostradas }}</span> en esta página\n"
+        "    </section>",
+        "    <section class=\"panel\" data-role=\"contadores\"></section>",
+        ("test_un_contador_no_aparece_antes_de_autorizar",
+         "test_los_contadores_son_del_conjunto_autorizado",
+         "test_barrer_el_tope_de_pagina_no_mueve_el_total",
+         "test_un_panel_vacio_para_un_anonimo_es_correcto",
+         "test_sin_auth_no_reaparece_el_comportamiento_permisivo"),
+    ),
+    Caso(
         # El test compartido del chasis decía «sin datos» y no lo montaba: se
         # apoyaba en que los cuatro huecos estaban vacíos. Con la premisa puesta
         # de verdad, quitarla vuelve a hacerlo depender del azar.
