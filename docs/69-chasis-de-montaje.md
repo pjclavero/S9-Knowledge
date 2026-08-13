@@ -196,11 +196,29 @@ completa: **67 passed, 1 skipped**):
 | 14 | handler sin comprobar el interruptor | — | **10 failed** | las nueve anteriores + `[]` (valor vacío) |
 | 15 | hueco `admin` con `html_role_guard` (la guarda débil) | — | **1 failed** | `test_admin_slot_denies_anonymous_with_auth_disabled` — «con auth desactivada responde 200 a un anónimo; sus pares responden [302, 302]» |
 
-**Superviviente declarado**: mover la comprobación del interruptor por delante
-de la guarda no pone nada rojo. No es un defecto: con el panel apagado nadie lo
-recibe, y lo único que cambia es qué denegación ve un anónimo (404 en vez de
-302). El orden actual —guarda primero— se mantiene porque no revela a un
-anónimo qué paneles existen.
+**El superviviente, ya sin serlo.** Mover la comprobación del interruptor por
+delante de la guarda no ponía nada rojo, y esta nota decía que "no es un
+defecto". La afirmación era correcta en lo importante —con el panel apagado
+nadie lo recibe— pero **no estaba medida**, y le faltaba la cifra: bajo esa
+mutación, con C encendido y B/F/G apagados, un anónimo obtiene
+
+```
+/panel/review 302 · /panel/operations 404 · /panel/sources 404 · /panel/entities 404
+```
+
+es decir, **enumera qué paneles están encendidos** sin identificarse. Con el
+orden actual los cuatro responden `302`, variante con barra final incluida.
+
+Ya no es prosa: `test_disabled_slots_are_not_enumerable_by_an_anonymous` afirma
+que un anónimo recibe el **mismo** estado para un panel encendido y uno apagado
+—indistinguibilidad, no un código escrito a mano— y la mutación del orden pone
+esa prueba en **ROJO** (mutación 16). Un carril futuro que reordene esas dos
+líneas se entera.
+
+| # | Mutación | Resultado | Prueba que se pone roja |
+| --- | --- | --- | --- |
+| 16 | interruptor comprobado ANTES de la guarda | **1 failed** (antes de esta prueba: verde) | `test_disabled_slots_are_not_enumerable_by_an_anonymous` — «Un anónimo distingue paneles encendidos de apagados y puede enumerarlos: {C: 302, B: 404, F: 404, G: 404}» |
+| 17 | el 404 vuelve a nombrar `S9K_PANEL_<KEY>_ENABLED` | **4 failed** | `test_slot_is_off_when_flag_is_absent[C/B/F/G]` |
 
 Tras revertir cada una de las cinco primeras: **41 passed, 1 skipped** (el skip es
 `test_slot_denies_insufficient_role[G]`: `viewer` es el rol más bajo, no existe
@@ -220,4 +238,18 @@ uno inferior con el que probar la denegación).
 - **No comprueba el rol correcto de las rutas preexistentes**, sólo que ninguna
   sirve 200 a un anónimo. Afinar rol por rol en todo el visor es trabajo del
   carril de auditoría de rutas (K).
+- **No oculta los ocho `paths` `/panel/*` de `openapi.json`.** Un panel apagado
+  sigue apareciendo en el esquema, porque el hueco sigue montado y el esquema se
+  construye del montaje, no del entorno. Decisión consciente y no un descuido:
+  (1) con auth activada, `/openapi.json` devuelve 404 salvo
+  `S9K_AUTH_EXPOSE_DOCS=true`, y aun entonces sólo lo ve un `admin` (con auth
+  desactivada el visor entero es público, que es otro asunto); (2) los cuatro
+  prefijos ya son públicos en
+  este mismo documento; y (3) esconderlos del esquema en función del entorno
+  reintroduciría exactamente el problema del chasis —un censo que no coincide
+  con el montaje—. Lo que sí está medido es que apagado ⇒ **404**, y que un
+  anónimo no distingue encendido de apagado.
+- **El cuerpo del 404 no nombra la variable de entorno del hueco.** No es un
+  secreto (está aquí y en `.env.example`), pero una respuesta de error no es el
+  sitio donde publicarlo; lo afirma `test_slot_is_off_when_flag_is_absent`.
 - **No despliega nada.** Sin cambios en producción, VM105, Neo4j ni backups.
