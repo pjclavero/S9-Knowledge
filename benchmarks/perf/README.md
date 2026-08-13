@@ -18,8 +18,8 @@ son dos hashes:
   juez (`calibracion.py`), el guion de medida (`run_bench.py`) y el doble de
   driver (`fake_neo4j.py`)**. Si el hash sólo cubre lo medido, se puede
   neutralizar al juez y la puerta sigue contenta.
-* **`sha_del_sistema_medido`** — el árbol `viewer/app/**` **entero**: 107
-  ficheros, sin filtrar por extensión. Una calibración vieja no avala cifras de
+* **`sha_del_sistema_medido`** — el árbol `viewer/app/**` **entero**, sin
+  filtrar por extensión (119 ficheros hoy). Una calibración vieja no avala cifras de
   un sistema que ya es otro. En v2.1 el filtro era `suffix in (".py", ".html")`
   y dejaba fuera 16 ficheros, entre ellos `static/js/graph.js` —el motor de
   pintado del grafo—: mutarlo **no movía el hash** (C10).

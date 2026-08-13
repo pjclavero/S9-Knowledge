@@ -1,7 +1,7 @@
 # 67 — Rendimiento y escala del visor (v2): arreglar el instrumento antes de medir
 
 **Repositorio**: S9-Knowledge · **Rama**: `perf/viewer-scale-baseline-v2` ·
-**Base medida**: `dda9822` (main) · **artefactos recalibrados y remedidos en v2.2**
+**Base medida**: `0979b8a` (main) · **artefactos recalibrados y remedidos en v2.2**
 
 Todo lo que sigue se midió sobre datos **sintéticos**, con el proveedor *mock* en
 memoria y el cliente en proceso. Nunca se tocó producción, ni VM105, ni Neo4j,
@@ -51,7 +51,7 @@ propio arnés. Se corrigen aquí, cada uno con su prueba C\*:
 | El **detector de saturación estaba ciego en el endpoint que le da nombre**. `saturado = bool(da) and da == db` comparaba los desgloses ENTEROS | En el tramo real 250→500 el desglose pasa de `{nodes:250, edges:750}` a `{nodes:300, edges:550}`: **difieren**, luego `saturado=False`. Barrido de las 65 filas: `api_graph_300` **no salía saturado ni una vez**, mientras `api_sources` —que no satura, crece 4→10→20— salía `saturado=True` **3 veces**, y `api_entity_detalle` una por coincidencia numérica entre dos grafos distintos | `detector.analizar_saturacion`: saturación **por componente y sobre la serie entera**, con dos criterios —**tocar un techo declarado** que además **acote** a ese componente, o **meseta en su propio máximo** tras haber crecido. Las tres cláusulas están **ablacionadas** en C9b. **Cero pruebas cubrían `saturado` en v2.1; ahora son C9a y C9b** |
 | El detector firmaba **"constante"** un N+1 **con tope** | Inyectado `min(2·g+3, 40)` sobre nodos de grado 125/132/134: llamadas **83 / 83 / 83**, serie plana, veredicto **"constante", pendiente 0.0** — para un endpoint que hacía **83 consultas por petición** | `dictaminar()` acepta la **carga devuelta**; si la respuesta viene recortada y ha dejado de crecer, el veredicto es **"no concluyente"**, no "constante" (C11) |
 | `comprobar_presupuestos` —**el único guardia de magnitud absoluta**— **no se invocaba nunca desde `run_bench.py`**: vivía sólo dentro de la calibración C5 | El informe no tenía ni un campo de presupuesto | Conectado al informe (`presupuestos.por_tamano` y `presupuestos.por_grado`), con **techos medidos**, no inventados |
-| El **hash del sistema medido no cubría lo que su nombre promete**: filtraba por `suffix in (".py", ".html")` | Mutar **`viewer/app/static/js/graph.js`** —el motor de pintado del grafo, o sea el objeto de este carril— dejaba el hash **intacto** en `a505a170f4d1` y `run_bench.py` medía tan tranquilo. Quedaban fuera **16 ficheros**: 4 `.js`, 3 `.css`, 9 `.json` | Sin filtro de extensión: **107 ficheros** bajo `viewer/app/**`. Con la misma mutación el hash pasa de `9ee38c2c2984` a `8d075b5b4395` (C10) |
+| El **hash del sistema medido no cubría lo que su nombre promete**: filtraba por `suffix in (".py", ".html")` | Mutar **`viewer/app/static/js/graph.js`** —el motor de pintado del grafo, o sea el objeto de este carril— dejaba el hash **intacto** en `a505a170f4d1` y `run_bench.py` medía tan tranquilo. Quedaban fuera **16 ficheros**: 4 `.js`, 3 `.css`, 9 `.json` | Sin filtro de extensión: **todo** `viewer/app/**` (**119 ficheros** hoy; eran 107 cuando se corrigió). Con la misma mutación el hash se mueve — verificado en cada base (C10) |
 
 ---
 
@@ -161,7 +161,7 @@ cambia de un grafo generado a otro. Declararla sana sería repetir el error de v
 ## 2. Tabla de calibración (salidas reales, **15/15**)
 
 `benchmarks/perf/resultados/calibracion.json` ·
-instrumento `2d3255e6ddf1` · sistema medido `d0fe380d5d98` ·
+instrumento `2d3255e6ddf1` · sistema medido `23a5b1cafd33` ·
 Python 3.13.5, Xeon E5-2680 v4, 8 vCPU, Debian 13.
 
 > **Los artefactos de este documento se regeneraron por completo, dos veces, y
@@ -183,8 +183,24 @@ Python 3.13.5, Xeon E5-2680 v4, 8 vCPU, Debian 13.
 > quedado avaladas por un instrumento que decía corresponder a otro sistema.
 >
 > `calibracion.json` y `baseline_v2.json` están **recalibrados y remedidos**
-> sobre `main = dda9822`: **15/15**, instrumento `2d3255e6ddf1`, sistema
-> `d0fe380d5d98`, con el árbol limpio.
+> sobre `main = 0979b8a`: **15/15**, instrumento `2d3255e6ddf1`, sistema
+> `23a5b1cafd33`, con el árbol limpio.
+>
+> 3. Al rebasar sobre `0979b8a` —que trae el **chasis**— `main` aportó **13
+>    ficheros de `viewer/app/**`** (`chassis.py`, 5 `routers/chassis_*.py`, 5
+>    plantillas nuevas, y sendas modificaciones de `main.py` y
+>    `templates/base.html`), y `run_bench.py` **se negó por tercera vez**
+>    (`d0fe380d5d98 != 23a5b1cafd33`). El sistema medido pasó de **107 a 119
+>    ficheros**.
+>
+> Y por tercera vez la puerta tenía razón, esta vez de forma exactamente
+> atribuible: **las 18 filas HTML crecieron 147 bytes clavados**, en los seis
+> tamaños, mientras los endpoints JSON no se movieron ni un byte. La firma
+> —constante e idéntica en todas las filas HTML, indiferente al tamaño del
+> grafo— señala a `templates/base.html`, que el chasis reescribió para generar
+> la navegación desde el registro en vez de a mano, añadiendo un atributo
+> `data-nav` por enlace. **Ningún conteo determinista cambió**: ni una llamada
+> a la fuente, ni un desglose de respuesta, ni un byte en los hubs.
 >
 > *(Al rebasar de `695035f` a `dda9822` la puerta **no** rehusó, y con razón:
 > `main` no tocó ni un fichero de `viewer/app/**`, así que
@@ -212,7 +228,7 @@ Python 3.13.5, Xeon E5-2680 v4, 8 vCPU, Debian 13.
 | **C9a** | El detector de saturación **ve** la saturación real y **deja de inventarse** la falsa | *ninguna: se contrastan los dos criterios sobre datos medidos a n = 10/100/250/500* | criterio de v2.1 sobre `api_graph_300`: **`[false, false, false]`** — ciego en el tramo real (`{nodes:250, edges:750}` → `{nodes:300, edges:550}`); y `api_sources` **`[true, false, false]`**, falso positivo | criterio de v2.2: `api_graph_300` **`[false, false, true]`**, con el **colapso de aristas 750 → 550** registrado, y `api_sources` **`[false, false, false]`** | **SÍ** |
 | **C9b** | Las **tres** cláusulas del criterio son necesarias | se ablaciona cada una **sobre el mismo código** | sin *acotado*: `[true, true, true]` (el `limit=300` de los nodos se achaca a las aristas, que llegan a 750). Sin *creció antes*: una serie constante `[4,4,4]` pasa a saturada. Sin *en su máximo*: la meseta `[2,13,13,63]` pasa a saturada | con las tres: `false` en los tres casos | **SÍ** |
 | **C9c** | La **precondición** del criterio: la ventana de medida empieza por debajo de todos los topes implícitos | *ninguna: se contrasta la misma serie en dos ventanas, y la precondición contra `run_bench.TAMANOS`* | ventana `[50,50,50,50]` (empieza **encima** del tope): **no se marca** — el superviviente. Puesta roja de dos formas: si se deja de marcar el caso ciego, falla; si la ventana sube a `[100,250,500]`, falla | ventana `[10,50,50,50]`: **se marca**; el caso ciego sale como `componentes_no_evaluables`; mínimo real **10** < tope implícito más bajo **50** | **SÍ** |
-| **C10** | El hash del sistema medido cubre **todo** `viewer/app/**` | se muta **`static/js/graph.js`** en disco | el hash pasa de `9ee38c2c2984` a `8d075b5b4395`. *(Con el filtro de v2.1 la misma mutación lo dejaba clavado en `a505a170f4d1`: **no se movía**.)* | fichero restaurado byte a byte, hash de vuelta en `9ee38c2c2984` | **SÍ** |
+| **C10** | El hash del sistema medido cubre **todo** `viewer/app/**` (**119 ficheros**) | se muta **`static/js/graph.js`** en disco | el hash pasa de `23a5b1cafd33` a `e2e1489ef2cb`. *(Con el filtro de v2.1 la misma mutación lo dejaba clavado: **no se movía**. Medido en esta misma base: `832f9a30f644` → `832f9a30f644`.)* | fichero restaurado byte a byte, hash de vuelta en `23a5b1cafd33` | **SÍ** |
 | **C11** | Una serie plana **por saturación** no se firma como "constante" | `min(2·g+3, 40)` sobre grados 125/132/134 | llamadas **83 / 83 / 83** (plana). Sin señal de carga: **"constante", pendiente 0.0**. Con señal de carga: **"no concluyente"**. Presupuesto absoluto: **83.0 > 10.0**, incumplido | quitado el tope: **N+1**, pendiente 2.0 | **SÍ** |
 
 ### Sabotajes verificados contra la puerta
@@ -225,7 +241,7 @@ Además de C0–C8, se comprobó a mano que la puerta reacciona:
 | `fake_neo4j.py` modificado para contar la mitad | `run_bench` **se niega**: "La calibración corresponde a otra versión del arnés (d6c012ea5ddc != 9d7f49ae5861)" |
 | Una línea añadida a `viewer/app/serializers.py` | `run_bench` **se niega**: "La calibración se hizo sobre otro estado de viewer/app/** (487ff8e007e5 != 795cdbda9b84)" |
 | **Rebase real sobre `main`** (3 ficheros de `viewer/app/**` llegados de `main`) | `run_bench` **se negó**: "La calibración se hizo sobre otro estado de viewer/app/** (`487ff8e0` != `a505a170`)". No es un sabotaje de laboratorio: es la puerta funcionando en el caso que la justifica |
-| **`viewer/app/static/js/graph.js` mutado** | v2.1: hash **`a505a170f4d1` → `a505a170f4d1`**, no se movía, `run_bench` medía. v2.2: **`9ee38c2c2984` → `8d075b5b4395`**, `run_bench` se niega |
+| **`viewer/app/static/js/graph.js` mutado** | v2.1 (filtro `.py`/`.html`): hash **`832f9a30f644` → `832f9a30f644`**, no se movía, `run_bench` medía. v2.2: **`23a5b1cafd33` → `e2e1489ef2cb`**, `run_bench` se niega. *(Comprobado de nuevo sobre cada base rebasada.)* |
 
 ---
 
@@ -236,19 +252,19 @@ calentamiento. Formato: **mediana ± MAD (ms) / llamadas a la fuente**.
 
 | escenario | n=10 | n=50 | n=100 | n=101 | n=250 | n=500 |
 |---|---|---|---|---|---|---|
-| api_status | 4.0±0.12 / 4 | 4.4±0.08 / 4 | 5.0±0.10 / 4 | 5.2±0.12 / 4 | 6.1±0.12 / 4 | 7.2±0.20 / 4 |
-| api_entity_types | 4.0±0.10 / 1 | 4.5±0.06 / 1 | 4.8±0.07 / 1 | 5.0±0.10 / 1 | 5.5±0.15 / 1 | 6.0±0.15 / 1 |
-| api_graph_300 *(satura, §5)* | 6.0±0.08 / 1 | 12.9±0.10 / 1 | 21.5±0.40 / 1 | 22.5±0.61 / 1 | 46.6±0.68 / 1 | 46.4±1.14 / 1 |
-| api_graph_300_filtro_tipo | 4.5±0.21 / 1 | 5.2±0.07 / 1 | 6.0±0.12 / 1 | 6.4±0.20 / 1 | 8.1±0.12 / 1 | 10.9±0.20 / 1 |
-| api_search *(satura en 50)* | 4.9±0.10 / 1 | 7.9±0.12 / 1 | 8.4±0.17 / 1 | 8.8±0.16 / 1 | 9.0±0.14 / 1 | 9.7±0.10 / 1 |
-| api_entities_p50 | 5.4±0.07 / 1 | 8.3±0.09 / 1 | 8.8±0.11 / 1 | 9.1±0.18 / 1 | 9.3±0.09 / 1 | 9.8±0.14 / 1 |
-| api_entities_ultima_pag | 5.4±0.06 / 1 | 8.4±0.07 / 1 | 9.0±0.25 / 1 | 9.0±0.09 / 1 | 9.5±0.13 / 1 | 9.9±0.15 / 1 |
-| api_entity_detalle | 5.0±0.12 / 11 | 5.8±0.07 / 19 | 5.5±0.11 / 11 | 6.5±0.10 / 21 | 6.2±0.10 / 11 | 6.6±0.10 / 11 |
-| api_sources | 4.5±0.07 / 1 | 4.8±0.06 / 1 | 5.0±0.06 / 1 | 5.4±0.09 / 1 | 5.9±0.12 / 1 | 6.5±0.13 / 1 |
-| api_quality | 4.7±0.12 / 1 | 5.1±0.07 / 1 | 5.5±0.05 / 1 | 5.9±0.10 / 1 | 7.0±0.12 / 1 | 8.6±0.08 / 1 |
-| html_entities | 5.1±0.09 / 2 | 6.2±0.13 / 2 | 6.3±0.14 / 2 | 6.8±0.24 / 2 | 7.3±0.10 / 2 | 8.0±0.14 / 2 |
-| html_graph | 3.2±0.08 / 0 | 3.5±0.06 / 0 | 3.7±0.06 / 0 | 4.1±0.11 / 0 | 4.4±0.11 / 0 | 4.7±0.08 / 0 |
-| html_entity_detalle | 4.8±0.10 / 11 | 5.3±0.11 / 19 | 5.5±0.21 / 11 | 5.9±0.11 / 21 | 6.1±0.07 / 11 | 6.6±0.13 / 11 |
+| api_status | 4.1±0.11 / 4 | 4.5±0.07 / 4 | 4.9±0.06 / 4 | 5.4±0.10 / 4 | 6.2±0.12 / 4 | 7.4±0.13 / 4 |
+| api_entity_types | 4.2±0.07 / 1 | 4.6±0.06 / 1 | 4.8±0.09 / 1 | 5.1±0.14 / 1 | 5.6±0.11 / 1 | 6.1±0.11 / 1 |
+| api_graph_300 *(satura, §5)* | 6.1±0.11 / 1 | 13.2±0.16 / 1 | 22.8±0.48 / 1 | 23.2±0.25 / 1 | 50.7±0.66 / 1 | 47.4±1.01 / 1 |
+| api_graph_300_filtro_tipo | 4.5±0.09 / 1 | 5.3±0.08 / 1 | 6.1±0.11 / 1 | 6.4±0.13 / 1 | 8.4±0.21 / 1 | 14.0±1.03 / 1 |
+| api_search *(satura en 50)* | 5.0±0.08 / 1 | 8.0±0.11 / 1 | 8.5±0.12 / 1 | 8.8±0.14 / 1 | 9.2±0.10 / 1 | 9.9±0.16 / 1 |
+| api_entities_p50 | 5.5±0.08 / 1 | 8.5±0.12 / 1 | 8.9±0.12 / 1 | 9.2±0.14 / 1 | 9.5±0.14 / 1 | 10.0±0.12 / 1 |
+| api_entities_ultima_pag | 5.5±0.09 / 1 | 8.6±0.21 / 1 | 8.9±0.18 / 1 | 9.2±0.20 / 1 | 9.7±0.13 / 1 | 10.0±0.14 / 1 |
+| api_entity_detalle | 5.1±0.10 / 11 | 5.8±0.10 / 19 | 5.8±0.05 / 11 | 6.7±0.08 / 21 | 6.4±0.12 / 11 | 6.9±0.12 / 11 |
+| api_sources | 4.5±0.09 / 1 | 4.9±0.07 / 1 | 5.3±0.12 / 1 | 5.6±0.13 / 1 | 6.0±0.09 / 1 | 6.6±0.08 / 1 |
+| api_quality | 4.6±0.07 / 1 | 5.1±0.10 / 1 | 5.8±0.13 / 1 | 6.1±0.13 / 1 | 7.1±0.15 / 1 | 8.8±0.09 / 1 |
+| html_entities | 5.3±0.09 / 2 | 6.4±0.18 / 2 | 6.9±0.14 / 2 | 7.1±0.15 / 2 | 7.7±0.20 / 2 | 8.5±0.28 / 2 |
+| html_graph | 3.5±0.11 / 0 | 3.8±0.11 / 0 | 3.9±0.09 / 0 | 4.4±0.11 / 0 | 4.7±0.08 / 0 | 5.0±0.16 / 0 |
+| html_entity_detalle | 5.0±0.12 / 11 | 5.4±0.08 / 19 | 5.7±0.12 / 11 | 6.2±0.13 / 21 | 6.4±0.13 / 11 | 6.9±0.15 / 11 |
 
 Dispersión relativa (MAD/mediana) entre el 1 % y el 5 %.
 
@@ -301,10 +317,10 @@ Mismo grafo (250 entidades), variando el **grado** del nodo pedido en
 
 | grado del nodo | llamadas a la fuente | **2·grado+3** | ¿coincide? | mediana ± MAD | bytes |
 |---|---|---|---|---|---|
-| 3 | 9 | 9 | **sí** | 6.60 ± 0.09 ms | 5 396 |
-| 33 | 69 | 69 | **sí** | 9.89 ± 0.19 ms | 48 481 |
-| 125 | 253 | 253 | **sí** | 19.97 ± 0.53 ms | 180 924 |
-| **406** | **815** | 815 | **sí** | **50.67 ± 0.93 ms** | 586 319 |
+| 3 | 9 | 9 | **sí** | 6.71 ± 0.10 ms | 5 396 |
+| 33 | 69 | 69 | **sí** | 10.03 ± 0.13 ms | 48 481 |
+| 125 | 253 | 253 | **sí** | 20.52 ± 0.38 ms | 180 924 |
+| **406** | **815** | 815 | **sí** | **51.88 ± 1.21 ms** | 586 319 |
 | **812** | **1 627** | 1 627 | **sí** | *(medida aparte)* | — |
 
 Pendiente **2.0 llamadas por relación**, constante y **sin tope**: el endpoint
@@ -350,22 +366,32 @@ puntos perdidos se **deduplican explícitamente y se declaran** en el informe
 
 * **Los veredictos de LATENCIA de este tramo NO son reproducibles, y hay que
   decirlo.** El mismo código, los mismos datos y las mismas 30 repeticiones
-  dieron tres respuestas distintas en tres tandas de esta misma máquina:
+  dieron cuatro respuestas distintas en cuatro tandas de esta misma máquina
+  (factor efecto/ruido; el corte para declarar algo es **3**):
 
-  | escenario | ¿cambia de trabajo? | tanda 1 | tanda 2 | tanda 3 |
-  |---|---|---|---|---|
-  | `api_entity_detalle` | sí (+10 llamadas) | 2.04 *ruido* | 3.52 **peor** | 4.87 **peor** |
-  | `html_entity_detalle` | sí (+10 llamadas) | 1.58 *ruido* | 2.65 *ruido* | 1.25 *ruido* |
-  | `api_sources` | **no** (0 llamadas) | 1.47 *ruido* | 1.34 *ruido* | 3.01 **peor** |
-  | `api_quality` | **no** (0 llamadas) | 1.17 *ruido* | 1.76 *ruido* | 3.01 **peor** |
+  | escenario | ¿cambia de trabajo? | tanda 1 | tanda 2 | tanda 3 | tanda 4 |
+  |---|---|---|---|---|---|
+  | `api_entity_detalle` | sí (+10 llamadas) | 2.04 *ruido* | 3.52 **peor** | 4.87 **peor** | 6.85 **peor** |
+  | `html_entity_detalle` | sí (+10 llamadas) | 1.58 *ruido* | 2.65 *ruido* | 1.25 *ruido* | 1.99 *ruido* |
+  | `api_sources` | **no** (0 llamadas) | 1.47 *ruido* | 1.34 *ruido* | **3.01 peor** | 0.97 *ruido* |
+  | `api_quality` | **no** (0 llamadas) | 1.17 *ruido* | 1.76 *ruido* | **3.01 peor** | 1.21 *ruido* |
+  | `api_status` | **no** (0 llamadas) | 1.89 *ruido* | 1.19 *ruido* | 1.18 *ruido* | **3.00 peor** |
 
-  Dos escenarios que **no hacen ni una consulta más** salen "peor" en la última
-  tanda, a **3.01**, un pelo por encima del corte de 3. Y dos escenarios que
-  hacen exactamente **las mismas 10 consultas de más** salen uno a 4.87 y el
-  otro a 1.25. La conclusión honesta no es "hay una regresión en 100 → 101": es
-  que **el corte de 3 MAD sobre efectos de décimas de milisegundo, en una máquina
-  de desarrollo compartida, produce veredictos inestables**. Cerca del umbral, la
-  etiqueta la decide el jitter, no el sistema.
+  Léase con cuidado, porque es concluyente: **tres escenarios distintos que no
+  hacen ni una consulta de más se han turnado para cruzar la línea**, y ninguno
+  repite. `api_sources` y `api_quality` salieron "peor" a 3.01 en la tanda 3 y
+  volvieron al ruido en la 4; `api_status` no se había movido en tres tandas y en
+  la cuarta marca **3.00**, clavado en el corte. Mientras tanto, dos escenarios
+  que hacen **exactamente las mismas 10 consultas de más** salen uno a **6.85** y
+  el otro a **1.99**.
+
+  La conclusión honesta no es "hay una regresión en 100 → 101": es que **el corte
+  de 3 MAD sobre efectos de décimas de milisegundo, en una máquina de desarrollo
+  compartida, produce veredictos inestables**. Cerca del umbral, la etiqueta la
+  decide el jitter, no el sistema. Que la fila de `api_entity_detalle` crezca
+  tanda tras tanda (2.04 → 3.52 → 4.87 → 6.85) tampoco es una regresión del
+  visor: es carga ajena de la máquina, y se nota más justo en el escenario que
+  más trabajo hace.
 
 * **Qué se sostiene, entonces.** Que **no hay evidencia de ningún umbral en 100**:
   ningún escenario cambia de trabajo por cruzar la centena. Lo que sí cambia
@@ -377,12 +403,12 @@ puntos perdidos se **deduplican explícitamente y se declaran** en el informe
 
 | n | nodos devueltos | aristas | bytes | mediana |
 |---|---|---|---|---|
-| 10 | 10 | 30 | 22 140 | 6.0 ms |
-| 50 | 50 | 150 | 110 044 | 12.9 ms |
-| 100 | 100 | 300 | 219 835 | 21.5 ms |
-| 101 | 101 | 303 | 222 333 | 22.5 ms |
-| 250 | 250 | 750 | 550 187 | 46.6 ms |
-| **500** | **300 (tope)** | **550** | **523 136** | **46.4 ms** |
+| 10 | 10 | 30 | 22 140 | 6.1 ms |
+| 50 | 50 | 150 | 110 044 | 13.2 ms |
+| 100 | 100 | 300 | 219 835 | 22.8 ms |
+| 101 | 101 | 303 | 222 333 | 23.2 ms |
+| 250 | 250 | 750 | 550 187 | 50.7 ms |
+| **500** | **300 (tope)** | **550** | **523 136** | **47.4 ms** |
 
 El `limit=300` **satura sobre los nodos**: a n=500 la respuesta trae 300 nodos y
 sólo 550 aristas (las que caen entre nodos seleccionados), es **más pequeña** que
@@ -448,7 +474,7 @@ Máquina de desarrollo **compartida**. Por eso todo va con mediana y MAD, y por
 eso el informe dice "indistinguible del ruido" cuando lo es. Y cuando el MAD
 combinado es **0**, ya no dice "peor" ni "mejor": dice **"sin dispersión
 medible"** y no afirma nada. *(Es una corrección **latente**: en este baseline el
-MAD combinado mínimo es **0.1160 ms** y hay **0 filas** con ruido 0. Se cierra
+MAD combinado mínimo es **0.1268 ms** y hay **0 filas** con ruido 0. Se cierra
 antes de que deje de serlo, porque con umbral 0 la regla se invertía y una
 diferencia de 0,0005 ms se declaraba "peor" con `factor = inf`.)*
 
@@ -514,8 +540,8 @@ queda **declarado como no medido**, que es lo que corresponde.
 13. **`comprobar_presupuestos` nunca invocado desde `run_bench.py`** (v2.1) →
     conectado al informe con techos medidos.
 14. **El hash del sistema medido no cubría `.js`/`.css`/`.json`** (v2.1) —
-    16 ficheros invisibles, entre ellos `graph.js` → hash sobre los **107**
-    ficheros de `viewer/app/**` (C10).
+    16 ficheros invisibles, entre ellos `graph.js` → hash sobre **todos** los
+    ficheros de `viewer/app/**` (**119** hoy; 107 cuando se corrigió) (C10).
 15. **`comparar()` se invertía con MAD = 0** (v2.1) → veredicto "sin dispersión
     medible". *Latente: 0 filas afectadas en este baseline.*
 16. **`_nombre()` de la caché omitía el `workspace`** (v2.1): dos parámetros
