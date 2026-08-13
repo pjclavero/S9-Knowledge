@@ -1,18 +1,18 @@
 {
-  "generado": "2026-08-11T22:59:14+0200",
+  "generado": "2026-08-13T09:43:00+0200",
   "entorno": {
-    "commit": "",
-    "rama": "",
+    "commit": "5fc4029be56473e7c5dd038f3f0e07df22f3d61d",
+    "rama": "HEAD",
     "arbol_limpio": true,
     "python": "3.13.5",
     "cpu": "8",
     "modelo_cpu": "Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz",
     "ram_total": "MemTotal:        9156844 kB",
-    "carga": "3.05 0.83 0.33 10/457 660394",
+    "carga": "0.44 1.44 2.11 2/610 997193",
     "so": "Linux 6.12.90+deb13.1-amd64",
     "advertencia": "Máquina de desarrollo compartida, proveedor mock en memoria, cliente en proceso. NO es rendimiento de producción: no hay Neo4j, ni red, ni nginx, ni concurrencia."
   },
-  "sha_del_instrumento": "d6c012ea5ddc3fb9fb3f9426ce4feed7c40569d07eee71141efdaa4ae6ccf5c1",
+  "sha_del_instrumento": "679b1d8464e78b3f47834a1594470d970dfb8a77ded1bd2567fbce1efee17ef7",
   "modulos_cubiertos_por_el_hash": [
     "arnes.py",
     "cache.py",
@@ -24,7 +24,7 @@
     "instrumentation.py",
     "run_bench.py"
   ],
-  "sha_del_sistema_medido": "487ff8e007e55579e6888048db40fc3d65cb03bf463230ed4239da626462482c",
+  "sha_del_sistema_medido": "9ee38c2c298468212a9ceee421ed989c0d60384db1c99f6c28b82b0704ff24d5",
   "criterio_del_detector": {
     "regla": "crecimiento total > 0 y monótono => N+1; plano => constante; no monótono => no concluyente",
     "crecimiento_minimo": 2,
@@ -63,7 +63,8 @@
         "pendiente": 0.0,
         "forma": "plana",
         "veredicto": "constante",
-        "motivo": "la serie es plana: no crece nada"
+        "motivo": "la serie es plana: no crece nada",
+        "carga_saturada": false
       },
       "rojo_con_violacion": {
         "eje": "pagina",
@@ -87,7 +88,8 @@
         "pendiente": 1.0,
         "forma": "lineal o peor",
         "veredicto": "N+1",
-        "motivo": "crece 90 llamadas de forma no decreciente (lineal o peor)"
+        "motivo": "crece 90 llamadas de forma no decreciente (lineal o peor)",
+        "carga_saturada": false
       },
       "verde_tras_revertir": {
         "eje": "pagina",
@@ -111,7 +113,8 @@
         "pendiente": 0.0,
         "forma": "plana",
         "veredicto": "constante",
-        "motivo": "la serie es plana: no crece nada"
+        "motivo": "la serie es plana: no crece nada",
+        "carga_saturada": false
       }
     },
     {
@@ -140,7 +143,8 @@
           "pendiente": 0.5,
           "forma": "sublineal / parcial",
           "veredicto": "N+1",
-          "motivo": "crece 45 llamadas de forma no decreciente (sublineal / parcial)"
+          "motivo": "crece 45 llamadas de forma no decreciente (sublineal / parcial)",
+          "carga_saturada": false
         },
         "1_de_cada_3": {
           "eje": "pagina",
@@ -164,7 +168,8 @@
           "pendiente": 0.3333,
           "forma": "sublineal / parcial",
           "veredicto": "N+1",
-          "motivo": "crece 30 llamadas de forma no decreciente (sublineal / parcial)"
+          "motivo": "crece 30 llamadas de forma no decreciente (sublineal / parcial)",
+          "carga_saturada": false
         },
         "1_de_cada_5": {
           "eje": "pagina",
@@ -188,7 +193,8 @@
           "pendiente": 0.2,
           "forma": "sublineal / parcial",
           "veredicto": "N+1",
-          "motivo": "crece 18 llamadas de forma no decreciente (sublineal / parcial)"
+          "motivo": "crece 18 llamadas de forma no decreciente (sublineal / parcial)",
+          "carga_saturada": false
         },
         "sqrt": {
           "eje": "pagina",
@@ -212,7 +218,8 @@
           "pendiente": 0.0778,
           "forma": "sublineal / parcial",
           "veredicto": "N+1",
-          "motivo": "crece 7 llamadas de forma no decreciente (sublineal / parcial)"
+          "motivo": "crece 7 llamadas de forma no decreciente (sublineal / parcial)",
+          "carga_saturada": false
         }
       },
       "control_sin_defecto": {
@@ -237,7 +244,8 @@
         "pendiente": 0.0,
         "forma": "plana",
         "veredicto": "constante",
-        "motivo": "la serie es plana: no crece nada"
+        "motivo": "la serie es plana: no crece nada",
+        "carga_saturada": false
       },
       "pendientes": {
         "1_de_cada_2": 0.5,
@@ -282,7 +290,8 @@
         "pendiente": 2.0,
         "forma": "lineal o peor",
         "veredicto": "N+1",
-        "motivo": "crece 260 llamadas de forma no decreciente (lineal o peor)"
+        "motivo": "crece 260 llamadas de forma no decreciente (lineal o peor)",
+        "carga_saturada": false
       },
       "verde_control_sin_relaciones": {
         "eje": "grado",
@@ -310,7 +319,8 @@
         "pendiente": 0.0,
         "forma": "plana",
         "veredicto": "constante",
-        "motivo": "la serie es plana: no crece nada"
+        "motivo": "la serie es plana: no crece nada",
+        "carga_saturada": false
       },
       "rojo_tras_revertir": {
         "eje": "grado",
@@ -338,8 +348,109 @@
         "pendiente": 2.0,
         "forma": "lineal o peor",
         "veredicto": "N+1",
-        "motivo": "crece 260 llamadas de forma no decreciente (lineal o peor)"
+        "motivo": "crece 260 llamadas de forma no decreciente (lineal o peor)",
+        "carga_saturada": false
       }
+    },
+    {
+      "nombre": "C11 N+1 CON TOPE: serie plana por saturación NO se firma como 'constante'",
+      "superada": true,
+      "tope_inyectado": 40,
+      "llamadas_con_tope": {
+        "125": 83,
+        "132": 83,
+        "134": 83
+      },
+      "carga_con_tope": {
+        "125": 40,
+        "132": 40,
+        "134": 40
+      },
+      "serie_de_llamadas_es_plana": true,
+      "v20_sin_señal_de_carga": {
+        "eje": "grado",
+        "escenario": "api_entity_detalle",
+        "puntos": [
+          [
+            125,
+            83
+          ],
+          [
+            132,
+            83
+          ],
+          [
+            134,
+            83
+          ]
+        ],
+        "crecimiento_total": 0,
+        "monotona_no_decreciente": true,
+        "pendiente": 0.0,
+        "forma": "plana",
+        "veredicto": "constante",
+        "motivo": "la serie es plana: no crece nada",
+        "carga_saturada": false
+      },
+      "v21_con_señal_de_carga": {
+        "eje": "grado",
+        "escenario": "api_entity_detalle",
+        "puntos": [
+          [
+            125,
+            83
+          ],
+          [
+            132,
+            83
+          ],
+          [
+            134,
+            83
+          ]
+        ],
+        "crecimiento_total": 0,
+        "monotona_no_decreciente": true,
+        "pendiente": 0.0,
+        "forma": "plana",
+        "veredicto": "no concluyente",
+        "motivo": "la serie de llamadas es plana, pero la CARGA DEVUELTA está saturada (tocó su máximo y dejó de crecer): el tope tapa el crecimiento y declarar 'constante' firmaría como sano un coste recortado",
+        "carga_saturada": true
+      },
+      "presupuesto_absoluto_rojo": [
+        {
+          "escenario": "api_entity_detalle",
+          "magnitud": "llamadas_fuente",
+          "presupuesto": 10.0,
+          "medido": 83.0
+        }
+      ],
+      "tras_revertir": {
+        "eje": "grado",
+        "escenario": "api_entity_detalle",
+        "puntos": [
+          [
+            125,
+            253
+          ],
+          [
+            132,
+            267
+          ],
+          [
+            134,
+            271
+          ]
+        ],
+        "crecimiento_total": 18,
+        "monotona_no_decreciente": true,
+        "pendiente": 2.0,
+        "forma": "lineal o peor",
+        "veredicto": "N+1",
+        "motivo": "crece 18 llamadas de forma no decreciente (lineal o peor)",
+        "carga_saturada": false
+      },
+      "nota": "Sin la señal de carga el veredicto es 'constante, pendiente 0.0' para un endpoint que hace 83 consultas por petición. El crecimiento por sí solo no basta: hace falta también un guardia de MAGNITUD, que en v2.0 no se invocaba desde run_bench.py."
     },
     {
       "nombre": "C5 PRESUPUESTO de llamadas: regresión inyectada rompe el techo",
@@ -366,38 +477,38 @@
       "retardo_inyectado_ms": 5.0,
       "base": {
         "n": 40,
-        "mediana_ms": 7.985,
-        "mad_ms": 0.1891,
-        "iqr_ms": 0.6088,
-        "p05_ms": 7.713,
-        "p95_ms": 11.4707,
-        "min_ms": 7.3553,
-        "max_ms": 13.9561,
-        "media_ms": 8.6036,
-        "dispersion_relativa": 0.0237
+        "mediana_ms": 8.1474,
+        "mad_ms": 0.1711,
+        "iqr_ms": 0.3406,
+        "p05_ms": 7.8833,
+        "p95_ms": 9.0431,
+        "min_ms": 7.8245,
+        "max_ms": 10.0555,
+        "media_ms": 8.2425,
+        "dispersion_relativa": 0.021
       },
       "misma_medida_repetida": {
-        "base_mediana_ms": 7.985,
-        "otra_mediana_ms": 8.0793,
-        "efecto_ms": 0.0943,
-        "ruido_ms": 0.2982,
-        "factor_efecto_ruido": 0.32,
+        "base_mediana_ms": 8.1474,
+        "otra_mediana_ms": 8.2114,
+        "efecto_ms": 0.064,
+        "ruido_ms": 0.3806,
+        "factor_efecto_ruido": 0.17,
         "veredicto": "indistinguible del ruido"
       },
       "con_retardo": {
-        "base_mediana_ms": 7.985,
-        "otra_mediana_ms": 13.8966,
-        "efecto_ms": 5.9116,
-        "ruido_ms": 0.666,
-        "factor_efecto_ruido": 8.88,
+        "base_mediana_ms": 8.1474,
+        "otra_mediana_ms": 13.5882,
+        "efecto_ms": 5.4408,
+        "ruido_ms": 0.394,
+        "factor_efecto_ruido": 13.81,
         "veredicto": "peor"
       },
       "tras_revertir": {
-        "base_mediana_ms": 7.985,
-        "otra_mediana_ms": 8.0468,
-        "efecto_ms": 0.0618,
-        "ruido_ms": 0.2755,
-        "factor_efecto_ruido": 0.22,
+        "base_mediana_ms": 8.1474,
+        "otra_mediana_ms": 8.2408,
+        "efecto_ms": 0.0934,
+        "ruido_ms": 0.4523,
+        "factor_efecto_ruido": 0.21,
         "veredicto": "indistinguible del ruido"
       }
     },
@@ -431,7 +542,8 @@
         "pendiente": 0.0,
         "forma": "plana",
         "veredicto": "constante",
-        "motivo": "la serie es plana: no crece nada"
+        "motivo": "la serie es plana: no crece nada",
+        "carga_saturada": false
       },
       "rojo_con_violacion": {
         "eje": "dataset",
@@ -455,7 +567,8 @@
         "pendiente": 1.0,
         "forma": "lineal o peor",
         "veredicto": "N+1",
-        "motivo": "crece 400 llamadas de forma no decreciente (lineal o peor)"
+        "motivo": "crece 400 llamadas de forma no decreciente (lineal o peor)",
+        "carga_saturada": false
       }
     },
     {
@@ -488,7 +601,8 @@
         "pendiente": 0.0,
         "forma": "plana",
         "veredicto": "constante",
-        "motivo": "la serie es plana: no crece nada"
+        "motivo": "la serie es plana: no crece nada",
+        "carga_saturada": false
       },
       "nota": "Mismo defecto, mismo `limit=50`, tres tamaños de grafo: el mismo número de llamadas siempre. El eje del dataset da pendiente 0.0 y dice 'constante'; el eje de página dice 'N+1'. Por eso el detector de v1 fallaba su propia calibración."
     },
@@ -510,6 +624,28 @@
         "huella_rota": "164ba1f28b97187482e229c87ecd1b228ed7bacd7cc46292c99ba9bb267829c6",
         "el_fichero_cacheado_tenia_el_defecto": true,
         "tras_regenerar_desaparece": true
+      },
+      "c_ataque_coherente": {
+        "ataque": "truncado a 1 nodo con visibility=public Y sidecar RECALCULADO",
+        "obtener_dice": "reutilizado",
+        "obtener_pica": true,
+        "verificar_a_fondo_con_el_ataque": {
+          "ruta": "/tmp/s9k-perf-v2-calibracion/cache_calibracion/grafo_20.json",
+          "sha_esperado_recalculado": "f77a4f9f7e7a9762c51ab0ffed2539c0ef59c68518fc6cf421860129f1807e92",
+          "sha_real_del_fichero": "caef707470151ec4951eccba6814ef9b13798b14e5082ea52822187abda049b5",
+          "sha_apuntado_en_el_sidecar": "caef707470151ec4951eccba6814ef9b13798b14e5082ea52822187abda049b5",
+          "integro": false,
+          "el_sidecar_miente": true
+        },
+        "verificar_a_fondo_con_la_cache_sana": {
+          "ruta": "/tmp/s9k-perf-v2-calibracion/cache_calibracion/grafo_20.json",
+          "sha_esperado_recalculado": "f77a4f9f7e7a9762c51ab0ffed2539c0ef59c68518fc6cf421860129f1807e92",
+          "sha_real_del_fichero": "f77a4f9f7e7a9762c51ab0ffed2539c0ef59c68518fc6cf421860129f1807e92",
+          "sha_apuntado_en_el_sidecar": "f77a4f9f7e7a9762c51ab0ffed2539c0ef59c68518fc6cf421860129f1807e92",
+          "integro": true,
+          "el_sidecar_miente": false
+        },
+        "por_que_no_va_en_obtener": "recalcular el sha esperado exige REGENERAR el dataset entero, que es exactamente lo que la caché evita. Queda declarado: `obtener()` detecta manipulación incoherente; el ataque coherente se caza con `verificar_a_fondo`, y aquí queda demostrado que es detectable, no una esperanza."
       },
       "b_fichero_manipulado": {
         "ataque": "truncado a 2 nodos con visibility=public, sidecar intacto",
@@ -542,6 +678,176 @@
         "independiente": 23
       },
       "limite_que_sigue_en_pie": "Este control calibra el RECUENTO de consultas. El número de FILAS que devuelve el doble sigue siendo plausible y no exacto: el doble no ejecuta Cypher."
+    },
+    {
+      "nombre": "C9a SATURACIÓN: el criterio anterior es CIEGO en /api/graph?limit=300; el nuevo lo ve",
+      "superada": true,
+      "tamanos": [
+        10,
+        100,
+        250,
+        500
+      ],
+      "desglose_api_graph_300": [
+        {
+          "nodes": 10,
+          "edges": 30
+        },
+        {
+          "nodes": 100,
+          "edges": 300
+        },
+        {
+          "nodes": 250,
+          "edges": 750
+        },
+        {
+          "nodes": 300,
+          "edges": 550
+        }
+      ],
+      "desglose_api_sources": [
+        {
+          "sources": 4
+        },
+        {
+          "sources": 4
+        },
+        {
+          "sources": 10
+        },
+        {
+          "sources": 20
+        }
+      ],
+      "api_graph_300": {
+        "criterio_v20": [
+          false,
+          false,
+          false
+        ],
+        "criterio_v21": [
+          false,
+          false,
+          true
+        ]
+      },
+      "api_sources": {
+        "criterio_v20": [
+          true,
+          false,
+          false
+        ],
+        "criterio_v21": [
+          false,
+          false,
+          false
+        ]
+      },
+      "componentes_saturados_en_el_ultimo_tramo": [
+        {
+          "componente": "nodes",
+          "valores": [
+            250,
+            300
+          ],
+          "techo_declarado": 300,
+          "motivo": "toca el techo declarado limit=300"
+        }
+      ],
+      "componentes_que_decrecen_en_el_ultimo_tramo": [
+        {
+          "componente": "edges",
+          "valores": [
+            750,
+            550
+          ]
+        }
+      ],
+      "nota": "El criterio anterior comparaba diccionarios enteros con `da == db`. En el tramo real el desglose pasa de {nodes:250, edges:750} a {nodes:300, edges:550}: difieren, luego 'no saturado'. Y en /api/sources, plano en 4 mientras aún no ha empezado a crecer, decía 'saturado'."
+    },
+    {
+      "nombre": "C9b SATURACIÓN: las tres cláusulas del criterio son NECESARIAS (ablación)",
+      "superada": true,
+      "ablacion_exigir_acotado": {
+        "serie": "MEDIDA en esta misma prueba",
+        "api_graph_300_con_clausula": [
+          false,
+          false,
+          true
+        ],
+        "api_graph_300_sin_clausula": [
+          true,
+          true,
+          true
+        ],
+        "por_que": "las aristas llegan a 750 y el limit=300 no las acota"
+      },
+      "ablacion_exigir_crecimiento_previo": {
+        "serie": {
+          "SINTETICA": {
+            "sources": [
+              4,
+              4,
+              4
+            ]
+          }
+        },
+        "con_clausula": false,
+        "sin_clausula": true,
+        "por_que": "un componente que nunca creció no demuestra ningún techo"
+      },
+      "ablacion_exigir_maximo": {
+        "serie": {
+          "SINTETICA": {
+            "nodes": [
+              2,
+              13,
+              13,
+              63
+            ]
+          }
+        },
+        "con_clausula": false,
+        "sin_clausula": true,
+        "por_que": "meseta en 13 con máximo 63: es una pausa, no un techo"
+      }
+    },
+    {
+      "nombre": "C10 HASH DEL SISTEMA: mutar static/js/graph.js invalida la calibración",
+      "superada": true,
+      "fichero_mutado": "viewer/app/static/js/graph.js",
+      "sha_antes": "9ee38c2c29846821",
+      "sha_con_mutacion": "d3def2b34ea2483d",
+      "sha_tras_revertir": "9ee38c2c29846821",
+      "el_hash_se_movio": true,
+      "ficheros_cubiertos": 107,
+      "por_extension": {
+        ".py": 63,
+        ".json": 9,
+        ".css": 3,
+        ".js": 4,
+        ".html": 28
+      },
+      "invisibles_para_v20": [
+        "viewer/app/services/review_console_fixtures/candidates/src_demo_01/cand_a1.json",
+        "viewer/app/services/review_console_fixtures/candidates/src_demo_01/cand_a2.json",
+        "viewer/app/services/review_console_fixtures/candidates/src_demo_01/cand_a3.json",
+        "viewer/app/services/review_console_fixtures/candidates/src_demo_02/cand_b1.json",
+        "viewer/app/services/review_console_fixtures/candidates/src_demo_02/cand_b2.json",
+        "viewer/app/services/review_console_fixtures/plans/src_demo_01.json",
+        "viewer/app/services/review_console_fixtures/plans/src_demo_02.json",
+        "viewer/app/services/review_console_fixtures/summaries/src_demo_01.json",
+        "viewer/app/services/review_console_fixtures/summaries/src_demo_02.json",
+        "viewer/app/static/css/app.css",
+        "viewer/app/static/css/reviews.css",
+        "viewer/app/static/css/v3-review.css",
+        "viewer/app/static/js/graph-core.js",
+        "viewer/app/static/js/graph.js",
+        "viewer/app/static/js/v3-review.js",
+        "viewer/app/static/js/vendor/vis-network.min.js"
+      ],
+      "nota": "Con el filtro de v2.0 (`suffix in ('.py','.html')`) esta misma mutación dejaba el hash INTACTO: graph.js —el motor de pintado del grafo, objeto de este carril— no entraba en la huella."
     }
   ],
   "instrumento_calibrado": true
