@@ -40,20 +40,36 @@ development:
   # Cuántos jobs CORREN frente a cuántos BLOQUEAN un merge. La diferencia se
   # escribe a propósito: un job que corre pero no se exige no impide fusionar
   # en rojo. Es un informe, no una puerta. Ver RK-20.
-  # MEDIDO contra `main@0dfa788` el 2026-08-12: 13 jobs en `ci.yml` + 1 en
-  # `supply-chain.yml` = 14. Se deja el LITERAL a propósito, no una cuenta
-  # derivada de los workflows: derivarla la haría siempre cierta y la fila C13
-  # («ponerlo a 99 enrojece») dejaría de poder ponerse roja. Una cifra que no
-  # puede fallar no comprueba nada.
-  # PENDIENTE CONOCIDO: el PR #167 (carril M) añade un job; en cuanto se
-  # fusione esto pasará a 15 y habrá que refrescarlo. No se escribe 15 hoy
-  # porque hoy es falso y dejaría `main` rojo igual.
-  ci_jobs_running: 14
+  # Se deja el LITERAL a propósito, no una cuenta derivada de los workflows:
+  # derivarla la haría siempre cierta y la fila C13 («ponerlo a 99 enrojece»)
+  # dejaría de poder ponerse roja. Una cifra que no puede fallar no comprueba
+  # nada. El precio de esa decisión es que hay que refrescarla a mano, y le
+  # toca a quien añade o quita un job, en el mismo commit que lo hace: es lo
+  # único que evita una ventana en rojo entre el merge y el refresco.
+  #
+  # EL PENDIENTE ANOTADO SE HA CUMPLIDO. Aquí decía que el PR #167 (carril M)
+  # añadiría un job y esto pasaría a 15. Es este commit.
+  #
+  # MEDIDO el 2026-08-13 sobre ESTA rama ya rebasada sobre `main@e2e8214`
+  # —no sobre `main`, y no sobre lo que ya estaba escrito—:
+  #     `ci.yml` 14 + `supply-chain.yml` 1 = 15
+  # Para referencia, `main@e2e8214` da 13 + 1 = 14: el delta es exactamente
+  # el job `check-env-reproducibility` que introduce esta rama, y ninguno se
+  # pierde. Contar el worktree creyendo contar `origin/main` es un error ya
+  # anotado en este proyecto; por eso se dice contra qué se midió.
+  ci_jobs_running: 15
   ci_checks_required: 11   # leído de la protección de rama con `gh api` el 2026-08-12, no de un documento
+  # 15 corren − 11 exigidos = 4. Los cuatro, medidos el 2026-08-13 cruzando
+  # los `name:` de los workflows de esta rama con los contextos que devuelve
+  # `gh api .../branches/main/protection`: ningún exigido se queda sin job.
   ci_running_but_not_required:
     - "Especificacion JS del grafo (Node obligatorio)"
     - "Integridad de gates (cobertura de ramas, 0 tests, skips criticos)"
     - "Calibracion de gates (cada violacion tiene que ponerse ROJA)"
+    # Lo añade esta rama. CORRE pero NO bloquea: la protección de rama sigue
+    # exigiendo 11 contextos y éste no está entre ellos, así que hoy es un
+    # informe, no una puerta. Añadirlo a los exigidos es decisión del operador.
+    - "Reproducibilidad de entorno (declarado == instalado)"
 
   # Cuántos merges puede ir por detrás este bloque antes de que el gate lo
   # considere una mentira. NO es cero a propósito: exigir igualdad con la punta
