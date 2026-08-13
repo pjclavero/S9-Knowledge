@@ -36,7 +36,7 @@ Pruebas
                      sanas tres de ellas).
   C8  DRIVER FALSO — el contador de consultas Cypher, contrastado con un contador
                      independiente; saboteado -> rojo.
-  C9a SATURACIÓN   — el criterio de v2.1 (`da == db`) es CIEGO justo en
+  C9a SATURACIÓN   — el criterio anterior (`da == db`) es CIEGO justo en
                      /api/graph?limit=300 y da FALSOS POSITIVOS en /api/sources;
                      el criterio nuevo ve uno y deja de inventarse el otro.
   C9b SATURACIÓN   — ABLACIÓN: las tres cláusulas del criterio son necesarias.
@@ -713,7 +713,7 @@ TAMANOS_SATURACION = (10, 100, 250, 500)
 
 
 def _saturado_v20(da: dict, db: dict) -> bool:
-    """El criterio de v2.0, tal cual estaba en ``run_bench.discontinuidades``.
+    """El criterio anterior (v2.1), tal cual estaba en ``run_bench.discontinuidades``.
 
     Se conserva AQUÍ, y sólo aquí, como control negativo: es lo que hay que
     ver fallar para que el criterio nuevo signifique algo.
@@ -765,7 +765,7 @@ def c9_saturacion() -> tuple[dict, dict]:
     aristas_bajan = any(c["componente"] == "edges" for c in ultimo["componentes_que_decrecen"])
 
     c9a = _ok(
-        "C9a SATURACIÓN: el criterio de v2.0 es CIEGO en /api/graph?limit=300; el de v2.1 lo ve",
+        "C9a SATURACIÓN: el criterio anterior es CIEGO en /api/graph?limit=300; el nuevo lo ve",
         # Falso negativo de v2.0 en el tramo real de saturación...
         graf_v20[-1] is False
         # ...y falsos positivos de v2.0 en un endpoint que no satura.
@@ -784,7 +784,7 @@ def c9_saturacion() -> tuple[dict, dict]:
             "componentes_saturados_en_el_ultimo_tramo": ultimo["componentes_saturados"],
             "componentes_que_decrecen_en_el_ultimo_tramo": ultimo["componentes_que_decrecen"],
             "nota": (
-                "v2.0 comparaba diccionarios enteros con `da == db`. En el tramo real "
+                "El criterio anterior comparaba diccionarios enteros con `da == db`. En el tramo real "
                 "el desglose pasa de {nodes:250, edges:750} a {nodes:300, edges:550}: "
                 "difieren, luego 'no saturado'. Y en /api/sources, plano en 4 mientras "
                 "aún no ha empezado a crecer, decía 'saturado'."

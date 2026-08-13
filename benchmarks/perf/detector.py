@@ -197,8 +197,8 @@ class Incumplimiento:
 # SATURACIÓN: ¿el tramo sigue comparando la misma carga?
 # ---------------------------------------------------------------------------
 #
-# Criterio de v2.0 (roto, medido)
-# -------------------------------
+# Criterio anterior (v2.1) - roto, y MEDIDO roto
+# ----------------------------------------------
 # ``saturado = bool(da) and da == db``: el desglose ENTERO idéntico entre los
 # dos tamaños. Medido sobre las 65 filas del baseline:
 #
@@ -214,7 +214,7 @@ class Incumplimiento:
 #   * ``api_entity_detalle`` sale ``saturado=True`` una vez por coincidencia
 #     numérica (``{outgoing:2, incoming:2}`` en dos GRAFOS DISTINTOS).
 #
-# Criterio de v2.1
+# Criterio de v2.2
 # ----------------
 # La saturación es una propiedad de CADA COMPONENTE de la respuesta a lo largo
 # de la serie completa, no de la igualdad de dos diccionarios. Un componente
