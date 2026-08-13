@@ -27,14 +27,29 @@
 
 development:
   # Lo que hay en `main` ahora mismo. NO implica que esté desplegado.
-  main_commit: "0dfa788be3bf75f5bca7a829cbda208721d3bacb"
-  latest_merged_pr: 169  # ojo: el #158 se fusionó DESPUÉS que el #160 — el último NO es el de número mayor
-  # CI en 0dfa788: ROJO, medido con `gh run view 31581877578`, no supuesto.
-  # Fallan `Combined Test Suite` (desfase 8 > 3, el aviso programado que este
-  # commit refresca) y `Deployment scripts validation` (diagnóstico FALSO por
-  # clon superficial, corregido en esta misma rama). Se declara rojo porque lo
-  # está: poner "green" aquí sería la mentira coherente que el punto 0 existe
-  # para matar. La rama que refresca estas cifras es la que lo devuelve a verde.
+  # REMEDIDO el 2026-08-13 contra `origin/main`, no contra el worktree:
+  #   `git rev-parse origin/main` -> e752dbe4b6ef…
+  #   `gh pr list --state merged --base main` ordenado por `mergedAt` -> #168
+  # El aviso de la propia línea se cumplió otra vez: **#168 se fusionó DESPUÉS
+  # que el #172** (07:28 frente a 07:14 UTC), así que el último NO es el de
+  # número mayor. Comprobado con la fecha de fusión, no con el número.
+  main_commit: "e752dbe4b6ef1d32c9a0baaba54a86d1e9ecc817"
+  latest_merged_pr: 168  # ojo: el #168 se fusionó DESPUÉS que el #172 — el último NO es el de número mayor
+  # CI en e752dbe: ROJO, medido con `gh run view 31677929782`, no supuesto.
+  # Fallan `Deployment scripts validation` y `Combined Test Suite`, y ambos por
+  # la MISMA causa: `main_commit` iba **9** commits por detrás de `origin/main`,
+  # muy por encima de la ventana de 3. Es decir, el bloque que describía `main`
+  # dejó de describirlo, que es exactamente lo que el gate existe para cazar.
+  #
+  # Es la SEGUNDA vez que pasa por el mismo motivo, y la causa no es el
+  # descuido de nadie: al refrescar estas cifras sólo cuando ya están vencidas,
+  # el desfase se come la ventana entera entre dos merges. Por eso este refresco
+  # va en la rama que AÑADE un job, junto a `ci_jobs_running`: quien toca `main`
+  # deja el bloque al día en el mismo commit, y no hay ventana en rojo.
+  #
+  # Se declara rojo porque lo está: poner "green" aquí sería la mentira
+  # coherente que el punto 0 existe para matar. Este commit es el que lo
+  # devuelve a verde, y no al revés.
   latest_ci: "red"
 
   # Cuántos jobs CORREN frente a cuántos BLOQUEAN un merge. La diferencia se
