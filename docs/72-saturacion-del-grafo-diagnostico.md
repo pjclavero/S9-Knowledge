@@ -23,8 +23,16 @@ en §4.)
 > fracción de nodos mostrada: `p ≈ (limit / N)²`.
 
 A 2.000 entidades con `limit=300` la fracción de nodos es 300/2000 = 15 %, y la de relaciones
-15 %² = 2,25 %. **Medido: 171 de 6.000 = 2,85 %.** El visor no enseña un grafo recortado:
-enseña el polvo que queda tras elevar al cuadrado.
+15 %² = 2,25 %. **Medido: 171 de 6.000 = 2,85 %.**
+
+**Pero ese 2,85 % es el PEOR CASO, no una predicción de producción.** La severidad depende de la
+**alineación** entre el orden de almacenamiento y la topología: con la misma densidad real, si las
+entidades del mismo documento se almacenan consecutivas y están densamente interconectadas —el
+caso plausible en producción— la cobertura sube a **15,33 %** y la **densidad mostrada se conserva
+(3,07 frente a 3,00 real), con 1 nodo suelto en vez de 118**. Es decir: la caracterización de
+«polvo desconectado» es real en el peor caso y **no sobrevive** al caso alineado; lo que sobrevive
+siempre es que **la vista es parcial**. La severidad real **está sin medir**: exige el grafo de
+producción. Todo esto, con cifras, en **§6**.
 
 El punto exacto, en `viewer/app/authz/filtered_provider.py:101-104`:
 
@@ -59,7 +67,8 @@ Instrumento: bancos en `docs/measurements/72-saturacion-grafo/` — `harness_gsa
 | **L3** muertas por **política de arista** | 0 | 0 | 0 | **0** |
 | **L3** salen | 571 | 318 | **171** | |
 | **L4** `serialize_graph` | 571 | 318 | 171 | **0** |
-| **L5** HTTP 200, cuerpo real | 571 | 318 | 171 | **0** |
+| **L5a** HTTP 200, auth **desactivada** (`admin_full`) | 571 | 318 | 171 | volumen sí, **autorización NO ejercida** |
+| **L5b** HTTP 200, espectador `reviewer` real | 571 | 318 | 171 | **0** |
 | **L6** cliente `filterGraph` sin filtros | 171 → 171 | | | **0** |
 | Densidad (aristas/nodo) | 1,90 | 1,06 | **0,57** | (real: 3,00) |
 | Bytes en el cable | 305 KB | 237 KB | 197 KB | |
@@ -67,6 +76,11 @@ Instrumento: bancos en `docs/measurements/72-saturacion-grafo/` — `harness_gsa
 
 La predicción cuadrática acierta el orden y la tendencia en las tres bases; el pequeño exceso
 sobre la predicción es el sesgo de que los ids consecutivos comparten aristas por construcción.
+
+**Aviso de lectura**: las dos filas del desglose «muertas por truncado» / «muertas por política»
+son una **descomposición local del banco de medida**, no dos pasos separados del código de
+producción — en `filter_edges` ambas condiciones se evalúan en el mismo bucle. El resto de las
+filas (L0, L1, L3 entran/salen, L4, L5a, L5b, L6) sí son salidas directas del código real.
 
 **Además**: con `hideIsolated` el propio cliente revela que de los 300 nodos entregados a
 n=2000, **sólo 182 tienen alguna arista**: 118 nodos (39 %) son puntos sueltos.
@@ -96,9 +110,26 @@ Una cifra no vale hasta que el medidor demuestra que sabe ponerse rojo.
   parecido «el grafo entero se pierde». Corregido el generador, no el código medido.
 - **Control del cliente** — `filterGraph` con un tipo de relación inexistente devuelve
   **0 aristas**; sin filtros devuelve **171 → 171**. La capa cliente sabe ponerse roja y no pierde.
+- **Cuarta avería, y es la misma otra vez** (la encontró el revisor, no yo). `harness_http.py`
+  —la fila L5— **nunca fijaba `S9K_AUTH_ENABLED`**, cuyo valor por defecto es `False`
+  (`viewer/app/auth/config.py:13`); entonces `viewer/app/authz/context.py:84-88` devuelve
+  `ViewerContext(role="public", admin_full=True)`. **La fila del cuerpo HTTP estaba medida con el
+  bypass total puesto**: exactamente la avería nº 1, un fichero más allá, en el único banco que
+  no volví a revisar tras corregirla. Las cifras no eran falsas (la fixture es toda `reference`,
+  que un `reviewer` con `can_view_reference=True` deja pasar igual), pero **la afirmación de
+  alcance sí lo era**: no certificaba «la autorización no pierde nada de extremo a extremo».
+  Corregido midiendo **dos filas declaradas**, L5a (auth desactivada, volumen sí / autorización
+  no ejercida) y L5b (espectador `reviewer` real inyectado), con un control: el mismo espectador
+  **sin** `can_view_reference` debe colapsar la respuesta. **Medido: 0 nodos, 0 aristas.**
+  Al calibrar ese control salió además un **quinto fallo del banco**: sobrescribir
+  `get_visibility_context` **no surte ningún efecto** sobre `/api/graph`, porque
+  `get_filtered_provider` lo llama como función normal y no vía `Depends`; con ese punto de
+  inyección el control NO colapsaba (seguía dando 300/171) y habría certificado en falso.
 
-Las tres averías fueron **del instrumento**, no del sistema. Se declaran porque las dos primeras
-habrían producido conclusiones opuestas a la verdadera.
+Cinco averías, **todas del instrumento**, ninguna del sistema. Y no afirmo que la lista sea
+exhaustiva: la cuarta apareció después de que yo diera por cerrada la calibración, y la quinta
+sólo apareció porque un control se negó a ponerse rojo. Lo único que puedo sostener es que cada
+fila que afirma «0 pérdidas» tiene detrás un control que **se ha visto ponerse rojo**.
 
 ---
 
@@ -143,16 +174,58 @@ es *lo que la API devolvió*. Resultado medido a n=2000: la interfaz muestra **3
 como si fueran el grafo, sin `/ 2000` ni `/ 6000` en ninguna parte, porque nunca se le contó que
 faltan 1.700 entidades y 5.829 relaciones.
 
-Esto es lo más grave del hallazgo: no es sólo que la vista sea parcial, es que **se presenta como
-completa**. Quien la mire sacará conclusiones falsas sobre la topología del grafo de conocimiento.
+Esto es lo más grave del hallazgo, y es lo único que **no depende de la alineación** (§6): sea la
+cobertura 2,9 % o 15,3 %, la vista es parcial y **se presenta como completa**. Quien la mire
+tomará por el grafo entero lo que es un trozo cuyo tamaño nadie le dice.
 
 ---
 
-## 6. Opciones, con coste y efecto MEDIDO
+## 6. Cuánto de esto le pasa a producción: manda la ALINEACIÓN
+
+**Corrección a una versión anterior de esta nota.** Decía que con comunidades densas B/C/D
+mejorarían «pero la opción 0 no, porque su pérdida depende del orden de almacenamiento, no de la
+topología». **Las dos mitades de esa frase son falsas, y está medido.** No manda el orden ni la
+topología por separado, sino **su alineación**.
+
+Misma densidad real (grado medio 3), mismo `limit=300`, n=2000, mismo medidor:
+
+| Base | relaciones mostradas | cobertura | densidad mostrada | nodos sueltos |
+|---|---|---|---|---|
+| Uniforme (orden sin relación con la topología) | 171 / 6000 | **2,85 %** | 0,57 | 118 |
+| **Comunidades con orden alineado** | **920 / 6000** | **15,33 %** | **3,07** | **1** |
+| Comunidades barajadas (misma topología, otro orden) | 139 / 6000 | 2,32 % | 0,46 | 123 |
+
+Alineado frente a barajado: **×6,6 con la topología idéntica**. Y lo importante no es sólo el
+factor:
+
+- Bajo alineación la **densidad mostrada es 3,07 frente a 3,00 real**, y quedan **1** nodo suelto
+  de 300. Es decir, **la mitad del impacto que se reportó —«densidad 3,0 → 0,5», «polvo
+  desconectado», 118 nodos sueltos— NO sobrevive al caso plausible de producción.**
+- Lo que sí sobrevive es la **cobertura**: 15,33 % sigue siendo una vista **parcial** de las
+  relaciones.
+
+Por tanto **2,85 % es el peor caso sintético, no una predicción de producción.** En producción las
+entidades de un mismo documento se crean consecutivas *y* están densamente interconectadas, que es
+justo el caso alineado. **La severidad real está SIN MEDIR** —medirla exige el grafo de
+producción, prohibido para este carril— y puede estar en cualquier punto entre 2,85 % y 15,33 %,
+o fuera si la alineación es distinta de la que supongo.
+
+Mi afirmación «un panorama de 300 sobre 2.000 es semánticamente imposible» **sobrevive como
+afirmación sobre cobertura** (15,3 % sigue siendo parcial) pero **no sobre densidad ni sobre nodos
+sueltos**.
+
+Esto **refuerza la recomendación** en vez de debilitarla: si la severidad de lo que ve el usuario
+depende de una alineación entre orden de almacén y topología que **nadie mide ni garantiza**, y
+que cualquier reindexado o migración puede romper sin previo aviso, entonces que la respuesta
+**declare que es una vista parcial** deja de ser una mejora y pasa a ser obligatorio.
+
+---
+
+## 7. Opciones, con coste y efecto MEDIDO
 
 Todas las opciones operan **sobre el conjunto ya filtrado por política**, así que ninguna amplía
 lo que un usuario ve: `visibility`, `known_by`, workspace y tope de sesión siguen mandando.
-Medido con `harness_opciones.py`, `limit=300`, mismas bases.
+Medido con `harness_opciones.py`, `limit=300`, mismas bases **uniformes** (peor caso: véase §6).
 
 ### n=2000 entidades, 6.000 relaciones visibles
 
@@ -174,9 +247,15 @@ Medido con `harness_opciones.py`, `limit=300`, mismas bases.
 **Ninguna selección de 300 nodos arregla esto, y ése es el resultado principal de la fase 2.**
 B, C y D multiplican las aristas por 1,7–2,4 respecto al estado actual, pero a n=2000 la mejor
 sigue enseñando **6,7 % de las relaciones con densidad 1,35 frente a 3,00 real**. Es aritmética,
-no implementación: en un grafo de grado medio 3, cualquier subconjunto de 300 de 2.000 nodos
-contiene una fracción pequeña de las aristas. **Un panorama global de 300 nodos sobre un grafo
-de 2.000 es semánticamente imposible**, se elijan como se elijan los nodos.
+no implementación: en un grafo **uniforme** de grado medio 3, cualquier subconjunto de 300 de
+2.000 nodos contiene una fracción pequeña de las aristas. **Un panorama global de 300 nodos sobre
+un grafo de 2.000 no puede ser completo en COBERTURA**, se elijan como se elijan los nodos —ni
+siquiera en el caso alineado de §6, que llega al 15,3 %—.
+
+Matiz obligado por §6: esta tabla es el **peor caso**. En el caso alineado, la opción 0 sube a
+15,33 % con densidad 3,07 y 1 nodo suelto, así que **el orden de mérito entre 0/B/C/D podría
+cambiar sobre datos reales** y no lo he medido. Lo que no cambia en ningún caso es que la vista
+sigue siendo parcial y que el visor no lo dice.
 
 Por tanto las opciones reales no son «qué 300 nodos elijo» sino **qué pregunta responde el visor**:
 
@@ -193,7 +272,34 @@ son exactamente los totales que ese espectador ya tiene derecho a ver.
 
 ---
 
-## 7. Recomendación
+## 7bis. El defecto pasa de narrado a aseverado en CI
+
+Los bancos de `docs/measurements/` **no los ejecuta ningún job** (`grep -rn measurements
+.github/workflows/` → vacío). Un defecto que sólo vive en un documento no enciende ninguna luz
+cuando una refactorización lo mueve, lo mejora o lo empeora.
+
+Se añade `viewer/tests/test_saturacion_grafo_caracterizacion.py`, que **fija el desplome
+cuadrático** y va con su calibración **dentro de CI, no en prosa**:
+
+- `test_la_retencion_de_relaciones_se_desploma_con_el_cuadrado` — banda de retención por tamaño,
+  más la comprobación de que la retención acompaña a `(limit/N)²` dentro de un factor 2.
+- `test_calibracion_..._si_alguien_arregla_el_truncado` — ablación del `[:limit]` en una subclase
+  local (no se toca `viewer/app/authz/**`): la retención vuelve al **100 %** y se exige que la
+  comprobación anterior **falle**. Rojo por arriba.
+- `test_calibracion_..._si_el_desplome_empeora` — rojo por abajo.
+- `test_la_severidad_depende_de_la_alineacion_entre_orden_y_topologia` — fija el hallazgo de §6.
+
+**Ciclo verificado contra el código de producción**, no sólo contra la subclase: mutando de verdad
+`filtered_provider.py:102` (quitar `[:limit]`) → **4 de 6 tests en ROJO**; revertido → **6/6 en
+VERDE**, con `sha256` idéntico antes y después
+(`6a0a85ea1cb559b7af2484e8981914c30d989034d802866a9a105369b8f870a5`) y la zona prohibida limpia.
+
+`viewer/tests/` está **fuera** del hash de `viewer/app/**` que usa
+`benchmarks/perf/calibracion.py:105`, así que **no invalida la calibración de rendimiento**.
+
+---
+
+## 8. Recomendación
 
 1. **H primero, y por separado** (bajo riesgo, no cambia ni la semántica ni el volumen): que la
    respuesta lleve totales visibles y marca de truncado, y que el visor muestre «300 / 2000» y
@@ -210,14 +316,19 @@ son exactamente los totales que ese espectador ya tiene derecho a ver.
 5. Aparte de este carril: el `LIMIT` inerte del `rel_query` de Neo4j (§4) y el parámetro `q`
    ignorado por el provider Neo4j (§4, superviviente 2).
 
-## 8. Limitaciones declaradas
+## 9. Limitaciones declaradas
 
-- Medido sobre **grafos sintéticos** de grado medio 3 y aristas uniformes al azar, no sobre el
-  grafo real de producción (prohibido para este carril). Un grafo real con comunidades densas
-  daría a B/C/D mejores resultados que los de aquí; **la opción 0 no mejoraría**, porque su
-  pérdida depende del orden de almacenamiento, no de la topología.
-- El camino Neo4j se midió con un **driver de pega que ejecuta la semántica de `LIMIT`**, no
-  contra un Neo4j real.
+- Medido sobre **grafos sintéticos** de grado medio 3, no sobre el grafo real de producción
+  (prohibido para este carril). **La severidad real está sin medir** y depende de la alineación
+  entre orden de almacén y topología (§6): entre 2,85 % y 15,33 % de cobertura en lo medido, y
+  fuera de ese rango si la alineación real es otra. **El orden de mérito de las opciones 0/B/C/D
+  podría cambiar sobre datos reales.**
+- El camino Neo4j se midió con un **driver de pega**. Es fiel en la semántica de `LIMIT`, que es
+  lo que se quería medir, pero **ignora los predicados `workspace` y `entity_type`** de las
+  consultas Cypher: no sirve para afirmar nada sobre el acotado por workspace en el provider.
+- El **test de caracterización** (`viewer/tests/test_saturacion_grafo_caracterizacion.py`) fija el
+  desplome en CI, pero lo hace sobre la **misma fixture sintética**: asevera que el defecto sigue
+  ahí y que su magnitud no se mueve, no que la magnitud sea la de producción.
 - **El rendimiento en el navegador no se mide en absoluto en este proyecto**; todas las cifras de
   volumen son bytes de carga útil, no comportamiento del cliente. Ninguna afirmación de esta
   nota depende de suponer lo que aguanta el navegador.

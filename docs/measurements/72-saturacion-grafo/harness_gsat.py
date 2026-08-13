@@ -9,8 +9,29 @@ os.environ.setdefault("S9K_CSRF_SECRET", "x" * 64)
 os.environ.setdefault("S9K_SESSION_SECURE", "false")
 
 
+COMUNIDAD = 100  # entidades por "documento": tamano de comunidad densa
+
+
 def build(n_nodes, n_edges, mode="random", seed=7, edge_vis="reference", node_vis="reference"):
+    """Modos:
+
+    - ``random``      : aristas uniformes. **Peor caso**: el orden de
+                        almacenamiento no guarda ninguna relacion con la
+                        topologia.
+    - ``head``        : control positivo (todas las aristas entre los 300
+                        primeros nodos).
+    - ``comunidades`` : entidades del mismo "documento" consecutivas Y
+                        densamente interconectadas -> orden ALINEADO con la
+                        topologia. Es el caso plausible de produccion.
+    - ``comunidades_barajadas``: misma topologia, ids repartidos al azar ->
+                        aisla si lo que manda es la topologia o la ALINEACION.
+    """
     rnd = random.Random(seed)
+    orden = list(range(n_nodes))
+    if mode == "comunidades_barajadas":
+        rnd.shuffle(orden)          # comunidad c -> posiciones dispersas
+    pos = {c: i for i, c in enumerate(orden)}   # id_comunidad -> indice de almacen
+
     nodes = [{"id": f"n{i}", "entity_id": f"n{i}", "label": f"E{i}", "type": "Character",
               "visibility": node_vis, "workspace": "leyenda", "scope": "juego",
               "knowledge_layer": "book", "review_status": "auto_extracted", "confidence": 0.9}
@@ -23,6 +44,12 @@ def build(n_nodes, n_edges, mode="random", seed=7, edge_vis="reference", node_vi
             a, b = rnd.randrange(min(300, n_nodes)), rnd.randrange(min(300, n_nodes))
         elif mode == "chain":
             a = k % max(1, n_nodes - 1); b = a + 1
+        elif mode in ("comunidades", "comunidades_barajadas"):
+            # Ambos extremos dentro de la misma comunidad de COMUNIDAD miembros.
+            base = rnd.randrange(max(1, n_nodes // COMUNIDAD)) * COMUNIDAD
+            ancho = min(COMUNIDAD, n_nodes - base)
+            a = pos[base + rnd.randrange(ancho)]
+            b = pos[base + rnd.randrange(ancho)]
         if a == b:
             b = (b + 1) % n_nodes
         edges.append({"id": f"e{k}", "from": f"n{a}", "to": f"n{b}", "type": "RELATED_TO",
@@ -78,6 +105,8 @@ def measure(path, limit):
     R["L3_edges_out"] = len(vedges)
     ser = serialize_graph("leyenda", vnodes, vedges)
     R["L4_serial_nodes"], R["L4_serial_edges"] = len(ser["nodes"]), len(ser["edges"])
+    conectados = {e["from"] for e in vedges} | {e["to"] for e in vedges}
+    R["nodos_sueltos"] = len(vnodes) - len(conectados & vids)
     R["L5_json_bytes"] = len(json.dumps(ser))
     pn, pe = prov.graph("leyenda", limit=limit)
     R["Lprov_nodes"], R["Lprov_edges"] = len(pn), len(pe)
@@ -101,4 +130,6 @@ if __name__ == "__main__":
               f"L3out={R['L3_edges_out']:5d} L4={R['L4_serial_edges']:5d} prov={R['Lprov_edges']:5d} "
               f"nodos={R['L4_serial_nodes']:4d} | trunc={R['L3_drop_truncado']:5d} "
               f"pol={R['L3_drop_politica']:5d} | pred(L/N)^2={pred:7.1f} "
-              f"| dens={R['L3_edges_out']/max(1,R['L4_serial_nodes']):.2f} bytes={R['L5_json_bytes']}")
+              f"| dens={R['L3_edges_out']/max(1,R['L4_serial_nodes']):.2f} "
+              f"sueltos={R['nodos_sueltos']:4d} cob={100*R['L3_edges_out']/max(1,n*3):5.2f}% "
+              f"bytes={R['L5_json_bytes']}")
