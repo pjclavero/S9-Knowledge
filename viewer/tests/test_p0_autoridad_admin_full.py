@@ -11,6 +11,7 @@ contexto. Aqui viven las dos cosas que HTTP no puede demostrar:
 from __future__ import annotations
 
 import ast
+import dataclasses
 from pathlib import Path
 
 import pytest
@@ -27,6 +28,48 @@ APP = Path(__file__).resolve().parents[1] / "app"
 PRODUCTOR = "app/authz/context.py"
 
 
+def _fabrica_un_contexto(nodo: ast.AST, campos: frozenset[str]) -> bool:
+    """¿Esta llamada produce un `ViewerContext`? Las TRES formas conocidas.
+
+    La primera version solo miraba `ast.Name` --`ViewerContext(...)` a secas-- y
+    la revision independiente la abrio por dos sitios, las dos con la suite en
+    VERDE y la potestad total realmente concedida:
+
+      R8  `models.ViewerContext(role="admin", admin_full=True)`
+          Calificar el import cambia el nodo de `ast.Name` a `ast.Attribute`.
+          Basta con escribir el import de otra forma para que el productor
+          unico deje de ser unico.
+
+      R7  `dataclasses.replace(ctx_de_viewer, admin_full=True)`
+          Ni siquiera es una llamada a `ViewerContext`: parte de un contexto
+          legitimo de `viewer` y le pone la potestad encima. El dataclass es
+          `frozen=True`, y `replace()` es precisamente la forma soportada de
+          sortear esa inmutabilidad.
+
+    Las dos fabricaban la CUARTA autoridad lateral --la que este carril cerro en
+    `UNRESTRICTED`-- sin pasar por el constructor y sin que nada se pusiera
+    rojo. Es la lección del carril repetida contra el propio carril: **un nombre
+    no puede conceder nada**, y aqui la red estaba concediendo "no hay otro
+    productor" a cambio de que la llamada se escribiera de UNA forma concreta.
+
+    `replace(...)` se cuenta solo si alguno de sus kwargs es un campo de
+    `ViewerContext`: `"a".replace("x", "y")` va por posicion y no entra.
+    """
+    if not isinstance(nodo, ast.Call):
+        return False
+    f = nodo.func
+    # Forma 1 y 2: `ViewerContext(...)` y `algo.ViewerContext(...)`.
+    if isinstance(f, ast.Name) and f.id == "ViewerContext":
+        return True
+    if isinstance(f, ast.Attribute) and f.attr == "ViewerContext":
+        return True
+    # Forma 3: `replace(ctx, campo=...)` / `dataclasses.replace(ctx, campo=...)`.
+    nombre = f.id if isinstance(f, ast.Name) else getattr(f, "attr", None)
+    if nombre == "replace":
+        return any(k.arg in campos for k in nodo.keywords if k.arg)
+    return False
+
+
 def _construcciones_de_contexto() -> dict[str, int]:
     """`{ruta relativa: nº de veces que construye un ViewerContext}`, por AST.
 
@@ -35,15 +78,11 @@ def _construcciones_de_contexto() -> dict[str, int]:
     distinguir CONSTRUIR de MENCIONAR. El registro entero existe porque alguien
     conto una mencion como si fuera un escritor real (T1).
     """
+    campos = frozenset(f.name for f in dataclasses.fields(ViewerContext))
     encontrados: dict[str, int] = {}
     for py in sorted(APP.rglob("*.py")):
         arbol = ast.parse(py.read_text(encoding="utf-8"))
-        n = sum(
-            1 for nodo in ast.walk(arbol)
-            if isinstance(nodo, ast.Call)
-            and isinstance(nodo.func, ast.Name)
-            and nodo.func.id == "ViewerContext"
-        )
+        n = sum(1 for nodo in ast.walk(arbol) if _fabrica_un_contexto(nodo, campos))
         if n:
             encontrados[str(py.relative_to(APP.parent))] = n
     return encontrados
@@ -69,6 +108,49 @@ def test_el_constructor_de_contexto_es_el_unico_productor():
         f"({PRODUCTOR}). Un contexto construido a mano puede concederse a si "
         f"mismo `admin_full` sin pasar por la autoridad, y ninguna revocacion "
         f"en el constructor lo alcanzaria."
+    )
+
+
+@pytest.mark.parametrize("etiqueta,fuente", [
+    ("llamada directa", 'UNRESTRICTED = ViewerContext(role="admin", admin_full=True)'),
+    ("R8 import calificado",
+     'UNRESTRICTED = models.ViewerContext(role="admin", admin_full=True)'),
+    ("R8 bis import calificado a dos niveles",
+     'UNRESTRICTED = app.policies.models.ViewerContext(admin_full=True)'),
+    ("R7 replace sobre un contexto legitimo",
+     'UNRESTRICTED = replace(ctx_de_viewer, admin_full=True)'),
+    ("R7 bis dataclasses.replace",
+     'UNRESTRICTED = dataclasses.replace(ctx_de_viewer, admin_full=True)'),
+])
+def test_el_detector_ve_las_TRES_formas_de_fabricar_un_contexto(etiqueta, fuente):
+    """CALIBRACION del detector, sobre las evasiones REALES que se midieron.
+
+    Las dos ultimas familias pasaban en VERDE con la suite entera (1211 passed)
+    y concedian potestad total de verdad. Sin este test, el arreglo seria una
+    afirmacion sobre codigo que nadie ejerce.
+    """
+    campos = frozenset(f.name for f in dataclasses.fields(ViewerContext))
+    arbol = ast.parse(fuente)
+    assert any(_fabrica_un_contexto(n, campos) for n in ast.walk(arbol)), (
+        f"el detector NO ve la forma '{etiqueta}': la autoridad se puede "
+        f"reabrir escribiendo la llamada de otra manera"
+    )
+
+
+@pytest.mark.parametrize("fuente", [
+    '"hola".replace("a", "b")',                  # str.replace, por posicion
+    'texto.replace(viejo, nuevo)',
+    'replace(algo, campo_que_no_existe=1)',      # replace ajeno al contexto
+    'OtraClase(role="admin")',                   # otro constructor
+])
+def test_el_detector_no_cuenta_lo_que_no_fabrica_un_contexto(fuente):
+    """Contraveneno: sobre-aproximar esta bien, pero no hasta el punto de que
+    cualquier `.replace()` del repositorio cuente como fabricar autoridad --eso
+    haria el test imposible de satisfacer y acabaria desactivandose."""
+    campos = frozenset(f.name for f in dataclasses.fields(ViewerContext))
+    arbol = ast.parse(fuente)
+    assert not any(_fabrica_un_contexto(n, campos) for n in ast.walk(arbol)), (
+        f"falso positivo del detector sobre: {fuente}"
     )
 
 

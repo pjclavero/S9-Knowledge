@@ -243,14 +243,22 @@ def test_el_control_de_autorizacion_COLAPSA_en_api_graph(entorno):
         "/api/graph", params={"workspace": OTRO_WS},
         headers={"accept": "application/json"},
     )
-    if r2.status_code == 200:
-        assert len(r2.json()["nodes"]) == 0, (
-            "FUGA: un `viewer` recibe nodos de un workspace que no tiene "
-            "permitido. Y si esto no colapsa, tampoco colapsaria una fuga real: "
-            "el instrumento no estaria conectado."
-        )
-    else:
-        assert r2.status_code == 404, r2.status_code
+    # Se exige 200 y CERO nodos, no "200-o-404". Aceptar 404 como rama
+    # alternativa era una coartada: un 404 puede venir de una ruta mal escrita,
+    # de un parametro invalido o de un fallo de arranque, y entonces el test
+    # pasaria sin que la politica hubiera intervenido en absoluto. El colapso
+    # que se quiere demostrar es "misma ruta, misma respuesta valida, cero
+    # contenido", que es la unica forma de saber que quien recorto fue la
+    # politica y no el enrutador.
+    assert r2.status_code == 200, (
+        f"se esperaba 200 con el grafo vacio y llego {r2.status_code}: sin una "
+        f"respuesta valida no se puede afirmar que el recorte lo hizo la politica"
+    )
+    assert len(r2.json()["nodes"]) == 0, (
+        "FUGA: un `viewer` recibe nodos de un workspace que no tiene "
+        "permitido. Y si esto no colapsa, tampoco colapsaria una fuga real: "
+        "el instrumento no estaria conectado."
+    )
 
 
 # --- 2. REVOCACION: retirar el rol retira la potestad ------------------------

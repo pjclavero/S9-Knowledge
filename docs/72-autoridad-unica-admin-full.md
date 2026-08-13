@@ -161,7 +161,7 @@ reclamada, ni una línea más.
 
 ---
 
-## 6. Calibración: 9 mutaciones, dos fases cada una
+## 6. Calibración: 11 mutaciones, dos fases cada una
 
 `python3 scripts/calibracion/mutaciones_p0_auth.py`
 
@@ -182,34 +182,68 @@ tests en las dos fases, y una fase que no recoja nada se declara ERROR. Una
 mutación cuyo patrón no aparezca en el fichero también es ERROR: *"no se pudo
 mutar" no es "no hay defecto"*.
 
-### Resultado medido (suite del visor: 1205 tests, verde de partida y tras revertir)
+### Resultado medido (suite del visor: 1220 tests, verde de partida y tras revertir)
 
 | # | mutación | ablación | completo | test(s) rojo(s) |
 |---|---|---|---|---|
 | M1 | borrar `admin_full` del registro | VERDE (1069) | **ROJO** (5) | red AST + productor + prueba de ausencia + monotonía |
 | M2 | reintroducir `role == "admin"` en `scope.py` | VERDE (1204) | **ROJO** (1) | `test_la_segunda_via_al_bypass_total_tiene_testigo` |
 | M3 | reintroducir `AUTH_ENABLED=false ⇒ admin_full` | VERDE (1182) | **ROJO** (4) | `test_api_search_…`, `test_desactivar_la_autenticacion_no_concede_potestad`, `test_el_valor_POR_DEFECTO_…`, `test_con_la_autenticacion_desactivada_…` |
-| M4 | quitar la revocación (rol cacheado) | **ROJO** (5) | **ROJO** (7) | ver nota abajo |
+| M4 | quitar la revocación (rol congelado en la sesión, caché por token) | VERDE (1189) | **ROJO** (1) | `test_retirar_el_rol_admin_retira_admin_full_en_la_siguiente_peticion` |
 | M5 | `admin_full` supera un `deny` | **ROJO** (1) | **ROJO** (3) | ver nota abajo |
 | M6 | dimensión nueva + su nombre en la cuarentena, mismo commit | VERDE (1069) | **ROJO** (2) | red AST + `test_no_reaparece_ninguna_lista_de_EXENTAS_en_esta_red` |
 | M7 | `ViewerContext` a mano esquivando el productor | VERDE (1190) | **ROJO** (1) | `test_el_constructor_de_contexto_es_el_unico_productor` |
 | M8 | **`_scope_workspaces()` abierto** (superviviente del carril J) | VERDE (1204) | **ROJO** (1) | `test_el_acotado_por_workspace_…_solo_se_levanta_para_admin_full` |
 | M9 | **bypass por alias local** | VERDE (1069) | **ROJO** (1) | red AST del contexto |
+| M10 | **(R8) `models.ViewerContext(...)`, import calificado** | VERDE | **ROJO** (1) | `test_el_constructor_…_unico_productor` |
+| M11 | **(R7) `dataclasses.replace(ctx, admin_full=True)`** | VERDE | **ROJO** (1) | `test_el_constructor_…_unico_productor` |
 
-**M4 y M5 no pueden cobrarse como defensa exclusiva de este carril**, y el arnés
-lo dice solo:
+Además, **M10 (R8)** y **M11 (R7)**: las dos evasiones que la revisión
+independiente encontró contra M7, ambas medidas en VERDE (1211 passed) antes del
+arreglo y ROJAS después. Ver §6bis.
 
-- **M5** (`deny` + `admin_full`): la ablación ya sale roja por
-  `test_m5b2_cierre_defecto_permisivo.py::test_deny_es_terminal_tambien_para_administrador`,
-  que es **preexistente**. La terminalidad de `deny` ya estaba defendida; lo que
-  aporta este carril es el testigo **por HTTP** y la declaración en el registro.
-- **M4** (revocación): la mutación elegida —cachear el rol en un diccionario de
-  módulo— **no es quirúrgica**: el caché sobrevive entre tests y envenena el rol
-  de otros, así que tumba 5 pruebas ajenas al asunto
-  (`test_multipartida_*`, `test_autorizacion_e2e_http_septima_ronda`). El
-  testigo propio (`test_retirar_el_rol_admin_retira_admin_full_en_la_siguiente_peticion`)
-  sí se pone rojo, pero de esta medición **no se puede concluir que sea la única
-  defensa**. Queda declarado como límite, no maquillado.
+**M5 no puede cobrarse como defensa exclusiva de este carril**, y el arnés lo
+dice solo: la ablación ya sale roja por
+`test_m5b2_cierre_defecto_permisivo.py::test_deny_es_terminal_tambien_para_administrador`,
+que es **preexistente**. La terminalidad de `deny` ya estaba defendida; lo que
+aporta este carril es el testigo **por HTTP** y la declaración en el registro.
+
+**M4 sí es exclusiva, y mi renuncia anterior era EXCESIVA.** Este documento
+declaraba que la revocación no se podía medir en aislamiento porque la mutación
+tumbaba 5 pruebas ajenas. El defecto estaba en **mi mutación**, no en la
+cobertura: cacheaba el rol por `user.id`, y los ids **se repiten entre tests**
+(cada uno estrena su `auth.db` y crea el usuario 1), así que el caché saltaba de
+un test a otro. Cacheando por **token de cookie** —aleatorio en cada login,
+nunca compartido— la mutación reproduce exactamente el defecto buscado y nada
+más. Medido: **1 solo rojo** (1219 passed + 1 failed), **ablación VERDE** (1189).
+Es decir, `test_retirar_el_rol_admin_retira_admin_full_en_la_siguiente_peticion`
+**es la defensa exclusiva de la revocación**. Lo señaló la revisión
+independiente; renunciar a medir algo medible es tan poco honesto como afirmarlo
+sin medirlo.
+
+## 6bis. La cuarta autoridad se reabría escribiendo la llamada de otra forma
+
+La revisión independiente atacó M7 —"el constructor de contexto es el único
+productor"— y la abrió **por dos sitios**, las dos con la suite **VERDE (1211
+passed)** y la potestad total realmente concedida (lo comprobó con control
+positivo, no por lectura):
+
+| | evasión | por qué pasaba |
+|---|---|---|
+| **R8** | `models.ViewerContext(role="admin", admin_full=True)` | el detector contaba `ast.Name`; calificar el import lo convierte en `ast.Attribute` |
+| **R7** | `dataclasses.replace(ctx_de_viewer, admin_full=True)` | no es una llamada a `ViewerContext` en absoluto: parte de un contexto legítimo de `viewer` y le pone la potestad encima. `replace()` es la vía soportada para sortear `frozen=True` |
+
+Es **la lección de este carril aplicada contra el propio carril**: *un nombre no
+puede conceder nada*, y el detector estaba concediendo "no hay otro productor" a
+cambio de que la llamada se escribiera de **una** forma concreta. Exactamente el
+mismo error que la red inversa que sólo veía `ctx.foo` y no `_c.foo`.
+
+Arreglado en `_fabrica_un_contexto()`: cuenta `ast.Name`, `ast.Attribute` y
+`replace(...)` cuyos kwargs sean campos de `ViewerContext` (`"a".replace(x, y)`
+va por posición y no entra). Calibrado en las dos direcciones: cinco formas que
+**deben** detectarse y cuatro que **no** deben producir falso positivo — porque
+un detector que marcase cualquier `.replace()` del repositorio sería imposible de
+satisfacer y acabaría desactivado.
 
 ### Defectos del propio arnés, encontrados calibrándolo
 
@@ -229,14 +263,56 @@ lo dice solo:
 
 ## 7. Lo que este carril NO cierra
 
-- **`character_knowledge` está viva en el motor e inerte en la cadena.** La
-  cadena de petición (`authz/dependencies.py`) no la puebla: hoy llega siempre
-  vacía en producción, y el único productor que la rellena
-  (`context_for_simulated_character`) no lo invoca ninguna ruta. Es la forma de
-  H-A. Se declara así —con su prueba HTTP midiendo justo esa inercia— en vez de
+- **`character_knowledge` es una vía LATENTE, no inocua.** La cadena de petición
+  (`authz/dependencies.py`) no la puebla: hoy llega siempre vacía, y el único
+  productor que la rellena (`context_for_simulated_character`) no lo invoca
+  ninguna ruta. Es la forma de H-A. Pero conviene ser preciso sobre **cuánto**
+  concede si alguien la puebla: concede por `id` **saltándose `known_by` y la
+  regla de nivel**, y su otra condición —`active_character` legible— **sí la
+  puebla la cadena** desde la concesión de partida. Es decir, **basta con que un
+  productor la rellene para que la vía se estrene entera**; no hace falta nada
+  más. Se declara así —con su prueba HTTP midiendo justo esa inercia— en vez de
   retirarla, porque el modo "ver como personaje" la necesita. El día que se
   conecte un productor, esa prueba se pone roja y obliga a declarar autoridad y
   revocación **antes** de estrenarla.
+
+## 8. Observaciones de la revisión independiente (declaradas, no cerradas)
+
+Ninguna bloquea; todas son ciertas y quedan escritas para que nadie las
+redescubra creyendo que eran desconocidas.
+
+- **El campo `prueba_http` concede por el nombre.** Sólo se comprueba que la
+  función **exista** y que el fichero **mencione** `TestClient`. Repuntarla a un
+  test irrelevante deja todo verde. En un carril cuyo lema es *un nombre no puede
+  conceder nada*, ese campo concede "está probada por HTTP" a cambio de un
+  nombre. Mismo diagnóstico que H6-1 (mencionar no es probar), un nivel más
+  arriba.
+- **`consumer`, `storage` y `revocation` no se validan en absoluto.** Son prosa.
+  `authority` se comprueba con `"servidor" in campo.authority` —un **substring**,
+  no un vocabulario cerrado— y la prueba de ausencia/invalidez sigue siendo
+  `campo.name in corpus`, es decir un `grep`. El registro es más fuerte que
+  antes, pero **no todos sus campos son ejecutables**; los que no lo son están
+  aquí nombrados uno a uno.
+- **`test_no_reaparece_ninguna_lista_de_EXENTAS` es un guardián por NOMBRE.**
+  Usa una expresión regular sobre nombres de constante: llamar a la lista
+  `_SALTAR` la evade. Es **defensa en profundidad, no barrera** —su valor es que
+  reabrir la puerta salga en el diff—, y así hay que leerlo.
+- **`simulated` esquiva la degradación por autenticación desactivada.** Con
+  `simulated=True` el rol de la petición se toma por bueno sin autenticar: no
+  concede `admin_full`, pero sí `can_view_reference` y `can_view_future`. Hoy es
+  **inalcanzable** —ninguna ruta invoca `context_for_simulated_character`, que
+  además fija `auth_enabled=True`—, pero es **una excepción escrita dentro del
+  propio cierre y no declarada en el registro**. Queda declarada aquí.
+- **Los tres límites de la red AST son ciertos y explotables** (R1/R2/R3 del
+  revisor: bypass total con la suite verde). Están bien declarados y **no
+  cerrados**, que es distinto. Un matiz suyo que corrige mi redacción: **R2 no es
+  una "evasión deliberada"** —mover una decisión a `filtered_provider.py` es
+  refactor normal, y `MODULOS_DE_POLITICA` no tiene descubrimiento automático—,
+  así que el riesgo real es el **descuido**, no la mala fe.
+- **Dos averías menores del arnés, no corregidas**: `recogidos = passed+failed`
+  **no cuenta `error`**, así que una mutación que rompa la colección puede
+  degradar a "0 recogidos" y parecer arnés roto en vez de mutación inválida; y la
+  reversión **no se verifica por hash**, sólo se reescribe el texto original.
 - **El caso de ausencia de `admin_full` en la red de monotonía es débil** y está
   dicho en el propio código: es una concesión booleana cuya ausencia es `False`,
   así que "quitarla no enseña más" se cumple por construcción. Lo que sostiene
@@ -255,7 +331,13 @@ lo dice solo:
   atraviesan la cadena real con cookie de sesión), y eso está **demostrado**, no
   afirmado, en `test_el_control_de_autorizacion_COLAPSA_en_api_graph`. **No se ha
   cambiado el punto de inyección**: hacerlo toca cómo se construye el proveedor y
-  el operador quiere decidirlo antes. Queda como propuesta con su evidencia.
+  el operador quiere decidirlo antes. Queda como propuesta con su evidencia. La
+  revisión independiente lo reprodujo por su cuenta —sobrescribió
+  `get_visibility_context` y `/api/graph` siguió devolviendo nodos— y dictamina
+  que dejarlo sin tocar es correcto: **deuda declarada, no bloqueante**. A raíz de
+  su única pega, la prueba de colapso ya **no acepta `404`** como rama
+  alternativa: exige **200 con cero nodos**, porque un 404 puede venir de una ruta
+  mal escrita y dejaría pasar el test sin que la política hubiera intervenido.
 - **`S9K_AUTH_ENABLED` sigue valiendo `False` por defecto.** Que la barrera esté
   apagada por defecto es una decisión de despliegue discutible y no se ha
   tocado; lo que se ha cerrado es que apagarla **conceda la potestad máxima**.

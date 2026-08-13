@@ -86,11 +86,24 @@ MUTACIONES = [
         {"ignorar": [P0, P0HTTP], "deseleccionar": [BUSQUEDA]},
     ),
     (
-        "M4 se quita la REVOCACION: el rol se cachea y no se relee de auth.db",
+        # QUIRURGICA a la segunda. La primera version cacheaba por `user.id`, y
+        # los ids se REPITEN entre tests (cada uno estrena su auth.db y crea el
+        # usuario 1), asi que el cache saltaba de un test a otro y tumbaba 5
+        # pruebas ajenas al asunto. De ahi concluí que la revocacion no se podia
+        # medir en aislamiento y lo declaré como limite -- una renuncia
+        # EXCESIVA: el defecto estaba en mi mutacion, no en la cobertura.
+        #
+        # Cacheando por TOKEN DE COOKIE --aleatorio en cada login, luego nunca
+        # compartido entre tests-- la mutacion reproduce exactamente el defecto
+        # que se quiere impedir (el rol queda congelado en la sesion viva) y
+        # nada mas. Resultado: UN solo rojo, y la ablacion en verde.
+        "M4 se quita la REVOCACION: el rol se congela en la sesion viva "
+        "(cache por token de cookie) y deja de releerse de auth.db",
         [_mut("app/authz/dependencies.py",
               '    role = getattr(user, "role", None) if user is not None else None\n',
+              '    _tok = request.cookies.get("s9k_session")\n'
               '    role = (globals().setdefault("_ROL_CACHE", {}).setdefault(\n'
-              '        getattr(user, "id", None), getattr(user, "role", None))\n'
+              '        _tok, getattr(user, "role", None))\n'
               '        if user is not None else None)\n')],
         CADENA_HTTP,
     ),
@@ -137,6 +150,50 @@ MUTACIONES = [
               "        if self._ctx.admin_full:\n            return None\n        return self._ctx.allowed_workspaces\n",
               "        if True:\n            return None\n        return self._ctx.allowed_workspaces\n")],
         {"ignorar": [], "deseleccionar": [ACOTADO]},
+    ),
+    (
+        # R8 del revisor independiente. M7 cerraba la CUARTA autoridad lateral
+        # contando `ViewerContext(...)` como `ast.Name`; calificar el import la
+        # reabre entera y la suite seguia VERDE (medido: 1211 passed).
+        "M10 (R8) la potestad total se fabrica con el import CALIFICADO "
+        "(`models.ViewerContext(...)`), que no es un ast.Name",
+        [
+            _mut("app/authz/scope.py",
+                 "from app.authz.context import build_internal_context\n",
+                 "from app.authz.context import build_internal_context\n"
+                 "from app.policies import models as _m\n"),
+            _mut("app/authz/scope.py",
+                 "UNRESTRICTED = VisibilityScope(\n"
+                 "    build_internal_context(motivo=\"llamador interno sin usuario (CLI/servicios)\")\n"
+                 ")",
+                 "UNRESTRICTED = VisibilityScope("
+                 "_m.ViewerContext(role=\"admin\", admin_full=True))"),
+        ],
+        {"ignorar": [P0], "deseleccionar": []},
+    ),
+    (
+        # R7 del revisor. Ni siquiera llama a `ViewerContext`: parte de un
+        # contexto legitimo de `viewer` y le pone la potestad encima con
+        # `dataclasses.replace`, que es la via soportada para sortear
+        # `frozen=True`. Tambien VERDE antes del arreglo (1211 passed).
+        "M11 (R7) la potestad total se fabrica con `dataclasses.replace` sobre "
+        "un contexto de viewer, sin llamar jamas a ViewerContext",
+        [
+            _mut("app/authz/scope.py",
+                 "from dataclasses import dataclass\n",
+                 "from dataclasses import dataclass, replace\n"),
+            _mut("app/authz/scope.py",
+                 "from app.authz.context import build_internal_context\n",
+                 "from app.authz.context import build_internal_context, build_viewer_context\n"),
+            _mut("app/authz/scope.py",
+                 "UNRESTRICTED = VisibilityScope(\n"
+                 "    build_internal_context(motivo=\"llamador interno sin usuario (CLI/servicios)\")\n"
+                 ")",
+                 "UNRESTRICTED = VisibilityScope(replace(\n"
+                 "    build_viewer_context(role=\"viewer\", auth_enabled=True, default_workspace=\"\"),\n"
+                 "    admin_full=True))"),
+        ],
+        {"ignorar": [P0], "deseleccionar": []},
     ),
     (
         "M9 bypass por ALIAS LOCAL (`_c = ctx; if _c.puerta_trasera: return _ALLOW`)",
@@ -256,7 +313,8 @@ def main() -> int:
     if problemas:
         print("\nPROBLEMAS:\n  " + "\n  ".join(problemas))
         return 1
-    print("\nLas 9 mutaciones producen ROJO con los controles, y VERDE sin ellos.")
+    print(f"\nLas {len(MUTACIONES)} mutaciones producen ROJO con los controles, "
+          f"y VERDE sin ellos.")
     return 0
 
 

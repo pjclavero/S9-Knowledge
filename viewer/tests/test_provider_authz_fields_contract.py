@@ -48,14 +48,10 @@ ya no declara, las redes inversas del final de este fichero se ponen rojas.
 from __future__ import annotations
 
 import ast
-import inspect
-import re
 from pathlib import Path
 
 import pytest
 
-from app.policies import engine as engine_mod
-from app.policies import models as models_mod
 from app.policies.registry import RETIRADAS, TODOS
 from app.providers.neo4j_provider import _node_to_dict, _rel_to_dict
 from tests.authz_lecturas import (
@@ -119,19 +115,12 @@ DIMENSIONES_DEL_CONTEXTO = tuple(c.name for c in TODOS if not c.in_projection)
 _ESTRUCTURALES = frozenset({"type", "name", "label", "id", "from", "to"})
 
 
-def _fuente_de_politica() -> str:
-    """Codigo de los dos modulos de politica, SIN comentarios.
-
-    Sin comentarios a proposito: una mencion en prosa no es un consumo. La red
-    anterior barria el fichero entero y se conformaba con que el nombre
-    apareciera en cualquier sitio.
-    """
-    lineas = []
-    for mod in (engine_mod, models_mod):
-        for ln in inspect.getsource(mod).splitlines():
-            if not ln.lstrip().startswith("#"):
-                lineas.append(ln)
-    return "\n".join(lineas)
+# `_fuente_de_politica()` vivia aqui: leia los dos modulos de politica como
+# TEXTO, sin comentarios, para que las redes inversas buscaran en el con
+# expresiones regulares. Al pasar esas redes a AST (`tests/authz_lecturas.py`)
+# se quedo sin un solo llamador y se retira. Un helper muerto en un fichero de
+# redes de seguridad no es inocuo: invita a escribir la proxima comprobacion
+# sobre texto, que es justo el metodo que dejaba pasar los alias locales.
 
 
 class _NodoFalso:
