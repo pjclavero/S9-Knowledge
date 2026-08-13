@@ -327,6 +327,19 @@ button.search-result:hover {
   color: var(--accent-2);
 }
 
+/* Aviso de vista parcial: tiene que verse sin buscarlo. Barra de advertencia
+   a lo ancho, sobre el lienzo, no una nota gris mas. */
+.graph-partiality {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--warning, #8a5a00);
+  background: var(--bg-card);
+  border-bottom: 2px solid var(--warning, #d19a00);
+  border-left: 4px solid var(--warning, #d19a00);
+}
+
 /* --- Ficha lateral --- */
 
 .side-panel {

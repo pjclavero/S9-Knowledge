@@ -358,6 +358,51 @@
     return ERROR_MESSAGES[errorKindForStatus(status)];
   }
 
+  // -----------------------------------------------------------------------
+  // Parcialidad de la vista
+  // -----------------------------------------------------------------------
+
+  /**
+   * Aviso de vista parcial a partir del bloque `view` de /api/graph.
+   *
+   * Devuelve `null` SOLO cuando el servidor ha dicho explícitamente que la
+   * respuesta está completa. Cualquier otra situación —falta `view`, faltan
+   * los contadores, llegan valores que no son números— produce aviso: si el
+   * visor no puede demostrar que ve el grafo entero, no puede presentarlo
+   * como entero. Es a propósito fail-closed; romper el metadato hace que
+   * salga el aviso genérico, no que desaparezca la advertencia.
+   *
+   * Los números que se enseñan son los que manda el servidor, que los calcula
+   * DESPUÉS de filtrar por autorización. Aquí no se inventa ninguno: no se
+   * resta, no se estima y no se muestra nada que el servidor no haya dicho.
+   */
+  var PARTIALITY_UNKNOWN =
+    "Vista posiblemente incompleta: el servidor no ha indicado si se muestra todo el grafo.";
+
+  function partialityNotice(view) {
+    if (!view || typeof view !== "object") return PARTIALITY_UNKNOWN;
+    var n = view.nodes_shown, N = view.nodes_total;
+    var e = view.edges_shown, E = view.edges_total;
+    var nums = [n, N, e, E];
+    for (var i = 0; i < nums.length; i++) {
+      if (typeof nums[i] !== "number" || !isFinite(nums[i]) || nums[i] < 0) {
+        return PARTIALITY_UNKNOWN;
+      }
+    }
+    if (view.truncated !== true && view.truncated !== false) return PARTIALITY_UNKNOWN;
+    // Incoherencia (mostrado > total, o "completa" con cosas fuera): el
+    // metadato no es de fiar, así que se avisa igual.
+    if (n > N || e > E) return PARTIALITY_UNKNOWN;
+    if (view.truncated === false) {
+      if (n < N || e < E) return PARTIALITY_UNKNOWN;
+      return null;
+    }
+    return "Vista parcial: se muestran " + n + " de " + N + " entidades y " +
+      e + " de " + E + " relaciones de las que puedes ver. " +
+      "Las relaciones entre las entidades no mostradas quedan fuera, así que " +
+      "esta vista NO sirve para sacar conclusiones sobre la forma del grafo.";
+  }
+
   /**
    * Estado de la vista para pintar el mensaje adecuado.
    * "empty" = el workspace no ha devuelto nada; "no_results" = hay datos pero
@@ -396,6 +441,8 @@
     serializeState: serializeState,
     errorKindForStatus: errorKindForStatus,
     errorMessageForStatus: errorMessageForStatus,
+    PARTIALITY_UNKNOWN: PARTIALITY_UNKNOWN,
+    partialityNotice: partialityNotice,
     viewState: viewState
   };
 });

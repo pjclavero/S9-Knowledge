@@ -395,3 +395,86 @@ def test_existe_la_bateria_de_navegador_del_grafo():
     assert e2e.exists(), "falta la batería E2E de navegador del visor de grafo"
     assert (e2e.parent / "e2e_support.py").exists(), \
         "falta la infraestructura de navegador compartida (carril D)"
+
+
+# ---------------------------------------------------------------------------
+# GATE de parcialidad, parte JS (docs/73). Vive AQUI y no en
+# `test_parcialidad_declarada.py` porque este es el fichero que el job
+# `test-graph-js` ejecuta POR NOMBRE con Node instalado y prohibiendo skips.
+# En `viewer/tests/` a secas se omitiria en silencio: un gate omitido no es un
+# gate. Su gemelo en Python (contrato del servidor, contadores, plantilla) si
+# vive alli, porque no necesita Node.
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# El aviso en JS: mutación real del fichero, ejecutada con Node
+# ---------------------------------------------------------------------------
+_SONDA_JS = """
+const assert = require("assert");
+const core = require(process.argv[process.argv.length - 1]);
+const truncada = {limit:300, truncated:true, nodes_shown:300, nodes_total:2000,
+                  edges_shown:171, edges_total:6000};
+const aviso = core.partialityNotice(truncada);
+assert(aviso, "vista TRUNCADA sin aviso: el visor la presenta como completa");
+assert(/300/.test(aviso) && /2000/.test(aviso), "el aviso no dice cuanto falta");
+assert(core.partialityNotice({limit:300, truncated:false, nodes_shown:5,
+       nodes_total:5, edges_shown:4, edges_total:4}) === null,
+       "una vista completa no debe avisar");
+assert(core.partialityNotice(undefined), "sin metadato hay que avisar");
+"""
+
+
+def _corre_sonda(ruta_core: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [NODE, "-e", _SONDA_JS, "--", str(ruta_core)],
+        capture_output=True, text=True, timeout=60,
+    )
+
+
+@pytest.mark.skipif(NODE is None, reason="node no disponible en este entorno")
+def test_la_sonda_js_pasa_sobre_el_fichero_real():
+    r = _corre_sonda(GRAPH_CORE_JS)
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+@pytest.mark.skipif(NODE is None, reason="node no disponible en este entorno")
+def test_calibracion_js_romper_el_aviso_pone_la_sonda_en_ROJO(tmp_path):
+    """MUTACIÓN 7, la que pedía el operador con nombre y apellidos: forzar una
+    respuesta truncada y ROMPER el indicador de parcialidad. La sonda que pasa
+    en verde sobre el fichero real tiene que ponerse ROJA sobre cada mutante.
+
+    Tres mutantes, tres formas distintas de romperlo:
+      (a) callar siempre,
+      (b) declarar completa cualquier vista,
+      (c) avisar, pero sin decir cuánto falta.
+    """
+    fuente = GRAPH_CORE_JS.read_text(encoding="utf-8")
+    ORIGINAL_AVISO = (
+        'return "Vista parcial: se muestran " + n + " de " + N + " entidades y " +'
+    )
+    mutantes = {
+        "callar_siempre": ("  function partialityNotice(view) {",
+                           "  function partialityNotice(view) {\n    return null;"),
+        "todo_completo": ("    if (view.truncated === false) {",
+                          "    if (true) {"),
+        "aviso_sin_cifras": (ORIGINAL_AVISO, 'return "Vista parcial." + ("" +'),
+    }
+
+    verde = _corre_sonda(GRAPH_CORE_JS)
+    assert verde.returncode == 0, "la sonda no está verde sobre el fichero real: " + (
+        verde.stdout + verde.stderr
+    )
+
+    for nombre, (viejo, nuevo) in mutantes.items():
+        assert viejo in fuente, f"la mutación {nombre} ya no muerde: revísala"
+        destino = tmp_path / f"mutante_{nombre}.js"
+        destino.write_text(fuente.replace(viejo, nuevo, 1), encoding="utf-8")
+        r = _corre_sonda(destino)
+        assert r.returncode != 0, (
+            f"mutante {nombre}: el indicador de parcialidad está roto y la sonda "
+            f"siguió VERDE. Este gate no defiende nada."
+        )
+
+    # ...y revertir devuelve el verde (mismo proceso, sin residuos).
+    intacto = tmp_path / "revertido.js"
+    intacto.write_text(fuente, encoding="utf-8")
+    assert _corre_sonda(intacto).returncode == 0
