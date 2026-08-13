@@ -22,8 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from app.policies import engine as engine_mod
-from app.policies import models as models_mod
+from tests.authz_lecturas import campos_de_dato_consumidos
 from app.policies.registry import (
     CAMPOS_DEL_CONTEXTO,
     CAMPOS_DEL_DATO,
@@ -44,11 +43,19 @@ def _lee_del_motor() -> set[str]:
     Se barren los dos modulos enteros porque una regla puede mudarse de
     funcion: la version anterior miraba solo `can_view` y por eso no vio que
     `known_by_of` --en otro fichero-- leia un campo no transportado (G3).
+
+    P0-AUTH: se lee el AST y no el texto. La expresion regular exigia que la
+    variable se llamase `node`, asi que `n = node; n.get("campo")` --o una regla
+    extraida a una funcion con otro nombre de parametro-- desaparecia del
+    barrido sin que nada se pusiera rojo. Limites del instrumento declarados en
+    `tests/authz_lecturas.py`.
     """
-    fuente = "\n".join(inspect.getsource(m) for m in (engine_mod, models_mod))
-    leidos = set(re.findall(r'node\.get\(\s*["\']([a-z_]+)["\']', fuente))
-    leidos.discard("id")  # identidad, no autorizacion (y siempre viaja)
-    return leidos
+    # Identidad y estructura del grafo, no autorizacion: `id` siempre viaja y
+    # `from`/`to` son los extremos de una arista, que el filtro de relaciones
+    # lee para comprobar que AMBOS nodos son visibles. La version con expresion
+    # regular no los veia porque exigia la variable `node`; al leer el arbol
+    # aparecen, y excluirlos es una decision explicita, no un descuido.
+    return set(campos_de_dato_consumidos(excluir={"id", "from", "to"}))
 
 
 # --- direccion 1: lo que el motor consume debe estar declarado y viajar ------

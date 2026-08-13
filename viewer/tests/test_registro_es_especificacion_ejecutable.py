@@ -67,6 +67,12 @@ def _ctx(**over) -> ViewerContext:
         can_view_future=False,
         can_view_reference=True,
         session_public=True,
+        # P0-AUTH: la referencia tiene que EJERCER las dimensiones nuevas, o su
+        # prueba de ausencia pasaria por vacuidad. `character_knowledge` concede
+        # `secreto_por_id` y `can_view_reference` concede `manual`; sin ellas en
+        # la referencia, quitarlas no cambiaria nada y el subconjunto se
+        # cumpliria siempre.
+        character_knowledge=frozenset({"secreto_por_id"}),
     )
     base.update(over)
     return ViewerContext(**base)
@@ -161,6 +167,11 @@ CORPUS = [
     {"id": "otra_partida", "workspace": WS, "scope": "partida", "partida_id": OTRA_P,
      "visibility": "player", "known_from_session": 0},
     {"id": "otro_ws", "workspace": OTRO_WS, "scope": "juego", "visibility": "player"},
+    # P0-AUTH -- material que SOLO abre una de las dimensiones nuevas.
+    {"id": "manual", "workspace": WS, "scope": "juego", "visibility": "reference"},
+    {"id": "secreto_por_id", "workspace": WS, "scope": "partida", "partida_id": P,
+     "visibility": "secret", "known_from_session": 2},
+    {"id": "denegado", "workspace": WS, "scope": "juego", "visibility": "deny"},
 ]
 
 #: Representacion de "esta dimension no llega" para cada dimension del contexto,
@@ -174,6 +185,18 @@ AUSENCIAS: dict[str, list] = {
     "can_view_future": [False],
     "can_view_secret": [False],
     "allowed_workspaces": [frozenset()],
+    "can_view_reference": [False],
+    "character_knowledge": [frozenset()],
+    # `admin_full` es una CONCESION booleana: su ausencia es `False`, y `False`
+    # es el minimo por construccion. Este caso comprueba la monotonia igual que
+    # los demas, pero se dice con todas las letras que es DEBIL: la referencia
+    # ya se evalua sin la potestad, asi que quitarla no puede ensenar mas. Lo
+    # que de verdad sostiene esta dimension no es esta linea, sino la cadena
+    # HTTP completa --concesion, uso y REVOCACION-- de
+    # `test_p0_autoridad_admin_full_http.py`, mas la mutacion que la reintroduce
+    # por cada una de sus tres vias. Declararlo aqui, en vez de cobrarse este
+    # caso como cobertura, es la diferencia entre medir y aparentar.
+    "admin_full": [False],
 }
 
 

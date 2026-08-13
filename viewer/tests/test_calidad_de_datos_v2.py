@@ -614,15 +614,24 @@ def test_la_segunda_via_al_bypass_total_tiene_testigo():
         "modulo habrian dejado de ser la misma"
     )
 
-    # La SEGUNDA via, la que sobrevive aunque el campo desaparezca: `role`
-    # evaluado de nuevo aqui, sin pasar por `admin_full`.
+    # P0-AUTH -- LA SEGUNDA VIA YA NO EXISTE, y este testigo cambia de signo.
+    #
+    # Este mismo test afirmaba antes que `role == "admin"` SIN `admin_full`
+    # concedia el detalle operativo, y lo declaraba "visible y deliberado". Era
+    # una segunda potestad de bypass total evaluada fuera del constructor de
+    # contexto: revocar el bypass en el constructor la habria dejado viva. El
+    # rol es ENTRADA del constructor; `admin_full` es su unica salida legible
+    # aguas abajo. Ahora se comprueba justo lo contrario, y sigue siendo un
+    # testigo con las dos direcciones cubiertas (arriba, que `admin_full` SI
+    # concede).
     por_el_rol = ViewerContext(
         role="admin", allowed_workspaces=frozenset({"leyenda"}), admin_full=False
     )
-    assert VisibilityScope(por_el_rol).sees_operational_detail is True, (
-        "la via `role == 'admin'` de `authz/scope.py` ha cambiado de "
-        "comportamiento: es una SEGUNDA via a la potestad de bypass total y "
-        "debe seguir siendo visible y deliberada, no un efecto colateral"
+    assert VisibilityScope(por_el_rol).sees_operational_detail is False, (
+        "`authz/scope.py` vuelve a conceder la potestad de bypass total por "
+        "`role == 'admin'`, saltandose el constructor de contexto: es una "
+        "SEGUNDA autoridad sobre la dimension mas potente del sistema y una "
+        "revocacion en el constructor no la alcanzaria"
     )
 
 
