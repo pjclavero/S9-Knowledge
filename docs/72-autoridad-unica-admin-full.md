@@ -182,11 +182,48 @@ tests en las dos fases, y una fase que no recoja nada se declara ERROR. Una
 mutación cuyo patrón no aparezca en el fichero también es ERROR: *"no se pudo
 mutar" no es "no hay defecto"*.
 
-Defecto propio, encontrado y corregido durante la calibración: la primera
-versión del arnés informaba `0 rojos` en todas las mutaciones porque comparaba
-`ln.startswith("FAILED")` contra líneas coloreadas por pytest. Daba el semáforo
-correcto y **ninguna evidencia**. Un arnés que no sabe decir qué se ha puesto
-rojo no entrega evidencia.
+### Resultado medido (suite del visor: 1205 tests, verde de partida y tras revertir)
+
+| # | mutación | ablación | completo | test(s) rojo(s) |
+|---|---|---|---|---|
+| M1 | borrar `admin_full` del registro | VERDE (1069) | **ROJO** (5) | red AST + productor + prueba de ausencia + monotonía |
+| M2 | reintroducir `role == "admin"` en `scope.py` | VERDE (1204) | **ROJO** (1) | `test_la_segunda_via_al_bypass_total_tiene_testigo` |
+| M3 | reintroducir `AUTH_ENABLED=false ⇒ admin_full` | VERDE (1182) | **ROJO** (4) | `test_api_search_…`, `test_desactivar_la_autenticacion_no_concede_potestad`, `test_el_valor_POR_DEFECTO_…`, `test_con_la_autenticacion_desactivada_…` |
+| M4 | quitar la revocación (rol cacheado) | **ROJO** (5) | **ROJO** (7) | ver nota abajo |
+| M5 | `admin_full` supera un `deny` | **ROJO** (1) | **ROJO** (3) | ver nota abajo |
+| M6 | dimensión nueva + su nombre en la cuarentena, mismo commit | VERDE (1069) | **ROJO** (2) | red AST + `test_no_reaparece_ninguna_lista_de_EXENTAS_en_esta_red` |
+| M7 | `ViewerContext` a mano esquivando el productor | VERDE (1190) | **ROJO** (1) | `test_el_constructor_de_contexto_es_el_unico_productor` |
+| M8 | **`_scope_workspaces()` abierto** (superviviente del carril J) | VERDE (1204) | **ROJO** (1) | `test_el_acotado_por_workspace_…_solo_se_levanta_para_admin_full` |
+| M9 | **bypass por alias local** | VERDE (1069) | **ROJO** (1) | red AST del contexto |
+
+**M4 y M5 no pueden cobrarse como defensa exclusiva de este carril**, y el arnés
+lo dice solo:
+
+- **M5** (`deny` + `admin_full`): la ablación ya sale roja por
+  `test_m5b2_cierre_defecto_permisivo.py::test_deny_es_terminal_tambien_para_administrador`,
+  que es **preexistente**. La terminalidad de `deny` ya estaba defendida; lo que
+  aporta este carril es el testigo **por HTTP** y la declaración en el registro.
+- **M4** (revocación): la mutación elegida —cachear el rol en un diccionario de
+  módulo— **no es quirúrgica**: el caché sobrevive entre tests y envenena el rol
+  de otros, así que tumba 5 pruebas ajenas al asunto
+  (`test_multipartida_*`, `test_autorizacion_e2e_http_septima_ronda`). El
+  testigo propio (`test_retirar_el_rol_admin_retira_admin_full_en_la_siguiente_peticion`)
+  sí se pone rojo, pero de esta medición **no se puede concluir que sea la única
+  defensa**. Queda declarado como límite, no maquillado.
+
+### Defectos del propio arnés, encontrados calibrándolo
+
+1. informaba `0 rojos` en **todas** las mutaciones: comparaba
+   `ln.startswith("FAILED")` contra líneas **coloreadas** por pytest. Daba el
+   semáforo correcto y **ninguna evidencia**;
+2. los `--deselect` se ignoraban **en silencio**, porque el nodeid va relativo al
+   *rootdir* y se le pasaba relativo al *cwd*. La ablación de M2, M3 y M8 corría
+   con el control puesto, salía roja, y yo lo estaba leyendo como *"el defecto lo
+   ve también otro control"*. Es la misma familia que el hallazgo de
+   `get_visibility_context`: **un instrumento desconectado que no se queja**,
+   cometido por el arnés que persigue exactamente eso;
+3. corregido con una comprobación mecánica: si la ablación no recoge **menos**
+   tests que la corrida completa, no ha ablacionado nada y se declara ERROR.
 
 ---
 
@@ -208,6 +245,17 @@ rojo no entrega evidencia.
 - **Que la consulta salga sin acotar no demuestra que se filtren datos.** El
   testigo de `_scope_workspaces()` fija el ACOTADO, no la ausencia de fuga: el
   filtrado posterior por política podría taparla, y eso no se comprueba.
+- **`get_filtered_provider` llama a `get_visibility_context(request)` como
+  función normal, NO vía `Depends`** (`viewer/app/authz/dependencies.py:168`).
+  Consecuencia, medida en el carril de saturación: sobrescribir
+  `get_visibility_context` con `app.dependency_overrides` **no surte ningún
+  efecto** sobre `/api/graph` y las demás rutas de datos — el control no colapsa
+  y el banco certifica en falso que la política se ejercía. Las pruebas de este
+  carril **no** usan ese punto de inyección (sustituyen el proveedor base y
+  atraviesan la cadena real con cookie de sesión), y eso está **demostrado**, no
+  afirmado, en `test_el_control_de_autorizacion_COLAPSA_en_api_graph`. **No se ha
+  cambiado el punto de inyección**: hacerlo toca cómo se construye el proveedor y
+  el operador quiere decidirlo antes. Queda como propuesta con su evidencia.
 - **`S9K_AUTH_ENABLED` sigue valiendo `False` por defecto.** Que la barrera esté
   apagada por defecto es una decisión de despliegue discutible y no se ha
   tocado; lo que se ha cerrado es que apagarla **conceda la potestad máxima**.
