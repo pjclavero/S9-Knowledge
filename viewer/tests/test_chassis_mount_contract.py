@@ -55,6 +55,27 @@ def _reset_auth_settings():
     get_auth_settings.cache_clear()
 
 
+@pytest.fixture(autouse=True)
+def _panels_on():
+    """Enciende los cuatro huecos para el resto de la suite.
+
+    Los interruptores fallan CERRADOS, así que sin esta fixture los paneles
+    devuelven 404 y las pruebas de guarda no probarían nada. Encenderlos aquí es
+    deliberado y explícito; los tests del propio interruptor los apagan.
+    """
+    from app.chassis import FEATURE_SLOTS, slot_flag_env
+
+    previo = {slot_flag_env(s): os.environ.get(slot_flag_env(s)) for s in FEATURE_SLOTS}
+    for var in previo:
+        os.environ[var] = "true"
+    yield
+    for var, valor in previo.items():
+        if valor is None:
+            os.environ.pop(var, None)
+        else:
+            os.environ[var] = valor
+
+
 @pytest.fixture
 def auth_on(tmp_path):
     """Auth activada con una base de datos temporal. Nunca toca producción."""
@@ -157,6 +178,88 @@ def test_slot_routers_are_importable_and_export_router():
         assert getattr(module, "router", None) is not None, (
             f"{slot.module} no exporta `router`"
         )
+
+
+# ---------------------------------------------------------------------------
+# 1bis. El contrato ESCRITO A MANO, no leído del propio FEATURE_SLOTS
+# ---------------------------------------------------------------------------
+# Todo lo de arriba compara `FEATURE_SLOTS` consigo mismo: afirma coherencia
+# interna. Cambiar el rol de B a `viewer` o el prefijo de C a `/panel/revision`
+# pasaba esa suite en VERDE (medido: 40 passed/2 skipped y 41 passed), porque el
+# test leía el mismo dato que estaba comprobando. Autorreferencia.
+#
+# Esta tabla es la copia INDEPENDIENTE del contrato publicado en
+# `docs/69-chasis-de-montaje.md`. Está escrita a mano a propósito: si alguien
+# cambia `FEATURE_SLOTS`, aquí sale rojo y hay que cambiar también el documento
+# y a los carriles que se montan encima. Es exactamente la fricción que se
+# quiere: C, B, F y G se construyen en paralelo contra estos valores.
+
+#: key -> (prefix, route_name, role, module, template)
+CONTRATO_PUBLICADO = {
+    "C": ("/panel/review", "chassis_review", "reviewer",
+          "app.routers.chassis_review", "chassis/review.html"),
+    "B": ("/panel/operations", "chassis_operations", "admin",
+          "app.routers.chassis_operations", "chassis/operations.html"),
+    "F": ("/panel/sources", "chassis_sources", "reviewer",
+          "app.routers.chassis_sources", "chassis/sources.html"),
+    "G": ("/panel/entities", "chassis_entities", "viewer",
+          "app.routers.chassis_entities", "chassis/entities.html"),
+}
+
+
+def test_feature_slots_match_the_published_contract():
+    declarado = {
+        s.key: (s.prefix, s.route_name, s.role, s.module, s.template)
+        for s in FEATURE_SLOTS
+    }
+    assert declarado == CONTRATO_PUBLICADO, (
+        "FEATURE_SLOTS ya no coincide con el contrato publicado en docs/69. "
+        "Si el cambio es intencionado, hay que actualizar el documento, esta "
+        "tabla y avisar a los carriles C/B/F/G: se están montando sobre estos "
+        "prefijos y estos roles."
+    )
+
+
+@pytest.mark.parametrize("key,esperado", sorted(CONTRATO_PUBLICADO.items()))
+def test_published_prefix_and_role_are_served_as_such(real_app, auth_on, key, esperado):
+    """El prefijo y el rol del contrato, comprobados por HTTP contra la app real.
+
+    No basta con que `FEATURE_SLOTS` diga lo correcto: lo que importa es que la
+    URL publicada responda y que el rol publicado sea el que abre la puerta. Se
+    pide la URL literal de la tabla, nunca `slot.prefix`.
+    """
+    prefix, route_name, role, _module, _template = esperado
+    index = route_index(real_app)
+    assert index.get(route_name) == prefix, (
+        f"Hueco {key}: el contrato publica {prefix!r} para {route_name!r}; "
+        f"montado en {index.get(route_name)!r}"
+    )
+    cookie = _login_cookie(auth_on, f"contrato_{key.lower()}", role)
+    r = _client(real_app, cookie).get(prefix, headers={"accept": "text/html"})
+    assert r.status_code == 200, (
+        f"Hueco {key}: el rol publicado {role!r} recibe {r.status_code} en {prefix}"
+    )
+
+
+@pytest.mark.parametrize("key,esperado", sorted(CONTRATO_PUBLICADO.items()))
+def test_published_role_is_the_minimum_not_a_wider_one(real_app, auth_on, key, esperado):
+    """El rol publicado es MÍNIMO: el inmediatamente inferior debe recibir 403.
+
+    Sin esto, subir el rol de un hueco (G: `viewer` -> `admin`) pasaría verde:
+    nadie afirma que un `viewer` deba entrar en G.
+    """
+    prefix, _route_name, role, _module, _template = esperado
+    inferior = {"admin": "reviewer", "reviewer": "viewer", "viewer": None}[role]
+    cliente = lambda rol: _client(  # noqa: E731
+        real_app, _login_cookie(auth_on, f"min_{key.lower()}_{rol}", rol)
+    ).get(prefix, headers={"accept": "text/html"})
+    if inferior is not None:
+        assert cliente(inferior).status_code == 403, (
+            f"Hueco {key}: el contrato publica {role!r} como mínimo, pero "
+            f"{inferior!r} entra."
+        )
+    # ...y el rol publicado sí entra: un rol de más tampoco es el contrato.
+    assert cliente(role).status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -300,6 +403,117 @@ def test_slot_allows_declared_role(real_app, auth_on, slot):
     cookie = _login_cookie(auth_on, f"ok_{slot.key.lower()}", slot.role)
     r = _client(real_app, cookie).get(slot.prefix, headers={"accept": "text/html"})
     assert r.status_code == 200, f"Hueco {slot.key}: {slot.role} recibe {r.status_code}"
+
+
+def test_admin_slot_denies_anonymous_with_auth_disabled(real_app, monkeypatch):
+    """Un hueco `admin` no puede ser MÁS permisivo que `/admin/users`.
+
+    Con `S9K_AUTH_ENABLED` ausente, `html_role_guard` es no-op y servía la
+    pantalla a un anónimo (200) mientras `/admin/users` y `/admin/partidas`
+    respondían 302. Misma área, dos posturas: eso es una degradación, aunque no
+    haya vocabulario de autorización nuevo. Se compara contra los pares REALES,
+    no contra una constante escrita en el test.
+    """
+    monkeypatch.delenv("S9K_AUTH_ENABLED", raising=False)
+    from app.auth.config import get_auth_settings
+    get_auth_settings.cache_clear()
+
+    client = _client(real_app)
+    pares = [client.get(p, headers={"accept": "text/html"}).status_code
+             for p in ("/admin/users", "/admin/partidas")]
+    for slot in FEATURE_SLOTS:
+        if slot.role != "admin":
+            continue
+        r = client.get(slot.prefix, headers={"accept": "text/html"})
+        assert r.status_code in pares, (
+            f"Hueco {slot.key} ({slot.role}): con auth desactivada responde "
+            f"{r.status_code} a un anónimo; sus pares de administración "
+            f"responden {pares}."
+        )
+
+
+# ---------------------------------------------------------------------------
+# 3bis. Interruptor por hueco: apagar un panel a medio construir
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("slot", FEATURE_SLOTS, ids=lambda s: s.key)
+def test_slot_is_off_when_flag_is_absent(real_app, auth_on, slot, monkeypatch):
+    """Sin flag NO hay panel, ni siquiera para quien tiene el rol.
+
+    La ausencia de dato nunca es permiso máximo: es la variante de "apagado".
+    """
+    from app.chassis import slot_flag_env
+
+    monkeypatch.delenv(slot_flag_env(slot), raising=False)
+    cookie = _login_cookie(auth_on, f"off_{slot.key.lower()}", slot.role)
+    r = _client(real_app, cookie).get(slot.prefix, headers={"accept": "text/html"})
+    assert r.status_code == 404, (
+        f"Hueco {slot.key}: sin {slot_flag_env(slot)} responde {r.status_code}"
+    )
+
+
+@pytest.mark.parametrize("valor", ["quizas", "", "false", "TRUE-ish", "0", "yes"])
+def test_slot_is_off_when_flag_is_garbage(real_app, auth_on, valor, monkeypatch):
+    """Un valor que no se entiende es un dato ausente: panel apagado.
+
+    Incluye `yes` y `0` a propósito: valores plausibles que NO están en
+    `FLAG_ON_VALUES`. Si mañana se amplía el vocabulario, este test lo obliga a
+    ser una decisión escrita, no un descuido de parsing.
+    """
+    from app.chassis import slot_flag_env
+
+    slot = FEATURE_SLOTS[0]
+    monkeypatch.setenv(slot_flag_env(slot), valor)
+    cookie = _login_cookie(auth_on, f"raro_{abs(hash(valor)) % 9999}", slot.role)
+    r = _client(real_app, cookie).get(slot.prefix, headers={"accept": "text/html"})
+    assert r.status_code == 404, f"valor {valor!r} enciende el panel ({r.status_code})"
+
+
+@pytest.mark.parametrize("slot", FEATURE_SLOTS, ids=lambda s: s.key)
+def test_slot_is_on_only_with_an_explicit_flag(real_app, auth_on, slot, monkeypatch):
+    from app.chassis import FLAG_ON_VALUES, slot_flag_env
+
+    for valor in sorted(FLAG_ON_VALUES):
+        monkeypatch.setenv(slot_flag_env(slot), valor)
+        cookie = _login_cookie(auth_on, f"on_{slot.key.lower()}_{valor}", slot.role)
+        r = _client(real_app, cookie).get(slot.prefix, headers={"accept": "text/html"})
+        assert r.status_code == 200, f"Hueco {slot.key} con {valor!r}: {r.status_code}"
+
+
+def test_flag_does_not_bypass_authorization(real_app, auth_on, monkeypatch):
+    """Encender el panel no es autorizar: el anónimo sigue fuera.
+
+    El interruptor se comprueba DESPUÉS de la guarda; un flag no puede
+    convertirse nunca en una puerta lateral.
+    """
+    from app.chassis import slot_flag_env
+
+    for slot in FEATURE_SLOTS:
+        monkeypatch.setenv(slot_flag_env(slot), "true")
+        r = _client(real_app).get(slot.prefix, headers={"accept": "text/html"})
+        assert r.status_code in (302, 401), f"Hueco {slot.key}: {r.status_code}"
+
+
+def test_disabled_slot_is_not_linked_in_the_nav(real_app, auth_on, monkeypatch):
+    """Un panel apagado desaparece del menú; los demás enlaces siguen ahí.
+
+    Enlazar un panel apagado sería un enlace roto — el fallo que el chasis
+    persigue— y omitirlo es la ÚNICA excusa admitida: un hueco declarado y
+    explícitamente apagado, nunca una ruta que falta por error.
+    """
+    from app.auth import db as auth_db_mod
+    from app.chassis import slot_flag_env
+
+    _login_cookie(auth_on, "nav_off", "admin")
+    with auth_db_mod.get_conn(auth_on) as conn:
+        user = auth_db_mod.get_user_by_username(conn, "nav_off")
+
+    apagado = FEATURE_SLOTS[0]
+    monkeypatch.delenv(slot_flag_env(apagado), raising=False)
+    nombres = {i["route_name"] for i in nav_for(real_app, user)}
+    assert apagado.route_name not in nombres
+    for otro in FEATURE_SLOTS[1:]:
+        assert otro.route_name in nombres, f"{otro.key} desapareció sin motivo"
 
 
 # ---------------------------------------------------------------------------
