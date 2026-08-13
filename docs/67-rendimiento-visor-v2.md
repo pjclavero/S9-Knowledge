@@ -1,7 +1,7 @@
 # 67 — Rendimiento y escala del visor (v2): arreglar el instrumento antes de medir
 
 **Repositorio**: S9-Knowledge · **Rama**: `perf/viewer-scale-baseline-v2` ·
-**Base medida**: `695035f` (main) · **artefactos recalibrados y remedidos en v2.2**
+**Base medida**: `dda9822` (main) · **artefactos recalibrados y remedidos en v2.2**
 
 Todo lo que sigue se midió sobre datos **sintéticos**, con el proveedor *mock* en
 memoria y el cliente en proceso. Nunca se tocó producción, ni VM105, ni Neo4j,
@@ -183,8 +183,14 @@ Python 3.13.5, Xeon E5-2680 v4, 8 vCPU, Debian 13.
 > quedado avaladas por un instrumento que decía corresponder a otro sistema.
 >
 > `calibracion.json` y `baseline_v2.json` están **recalibrados y remedidos**
-> sobre `main = 695035f`: **15/15**, instrumento `2d3255e6ddf1`, sistema
+> sobre `main = dda9822`: **15/15**, instrumento `2d3255e6ddf1`, sistema
 > `d0fe380d5d98`, con el árbol limpio.
+>
+> *(Al rebasar de `695035f` a `dda9822` la puerta **no** rehusó, y con razón:
+> `main` no tocó ni un fichero de `viewer/app/**`, así que
+> `sha_del_sistema_medido` salió idéntico. Se remidió de todas formas para que
+> `entorno.commit` apunte a un commit vivo de la rama y no a uno que el rebase
+> dejó huérfano: la procedencia de un artefacto tiene que poder seguirse.)*
 >
 > **Los dos hallazgos se reprodujeron idénticos** sobre la base nueva:
 > `2·grado+3` exacto en los 5 puntos (812 → 1 627) y la saturación de
@@ -230,19 +236,19 @@ calentamiento. Formato: **mediana ± MAD (ms) / llamadas a la fuente**.
 
 | escenario | n=10 | n=50 | n=100 | n=101 | n=250 | n=500 |
 |---|---|---|---|---|---|---|
-| api_status | 4.0±0.06 / 4 | 4.5±0.13 / 4 | 5.1±0.09 / 4 | 5.3±0.13 / 4 | 6.0±0.14 / 4 | 7.5±0.12 / 4 |
-| api_entity_types | 4.2±0.07 / 1 | 4.4±0.08 / 1 | 4.9±0.11 / 1 | 5.2±0.07 / 1 | 5.6±0.09 / 1 | 6.3±0.08 / 1 |
-| api_graph_300 *(satura, §5)* | 5.9±0.08 / 1 | 13.4±0.48 / 1 | 21.1±0.53 / 1 | 21.7±0.40 / 1 | 46.1±1.30 / 1 | 43.8±1.34 / 1 |
-| api_graph_300_filtro_tipo | 4.5±0.09 / 1 | 5.2±0.12 / 1 | 6.1±0.10 / 1 | 6.3±0.06 / 1 | 8.3±0.16 / 1 | 11.0±0.20 / 1 |
-| api_search *(satura en 50)* | 5.0±0.07 / 1 | 7.9±0.10 / 1 | 8.4±0.18 / 1 | 8.6±0.13 / 1 | 9.0±0.14 / 1 | 9.8±0.13 / 1 |
-| api_entities_p50 | 5.3±0.10 / 1 | 8.3±0.13 / 1 | 8.7±0.13 / 1 | 9.1±0.19 / 1 | 9.3±0.15 / 1 | 10.0±0.12 / 1 |
-| api_entities_ultima_pag | 5.3±0.07 / 1 | 8.3±0.19 / 1 | 8.9±0.14 / 1 | 9.0±0.11 / 1 | 9.4±0.16 / 1 | 10.1±0.16 / 1 |
-| api_entity_detalle | 4.9±0.06 / 11 | 5.9±0.11 / 19 | 5.8±0.12 / 11 | 6.6±0.10 / 21 | 6.5±0.14 / 11 | 6.8±0.14 / 11 |
-| api_sources | 4.4±0.08 / 1 | 4.9±0.12 / 1 | 5.3±0.11 / 1 | 5.6±0.14 / 1 | 6.0±0.09 / 1 | 6.6±0.13 / 1 |
-| api_quality | 4.5±0.06 / 1 | 5.2±0.11 / 1 | 5.7±0.12 / 1 | 6.1±0.10 / 1 | 7.1±0.14 / 1 | 8.8±0.19 / 1 |
-| html_entities | 4.9±0.08 / 2 | 6.2±0.12 / 2 | 6.7±0.14 / 2 | 6.9±0.15 / 2 | 7.3±0.13 / 2 | 8.2±0.21 / 2 |
-| html_graph | 3.2±0.09 / 0 | 3.6±0.09 / 0 | 3.9±0.08 / 0 | 4.2±0.14 / 0 | 4.4±0.11 / 0 | 4.8±0.05 / 0 |
-| html_entity_detalle | 4.8±0.15 / 11 | 5.4±0.11 / 19 | 5.6±0.08 / 11 | 6.1±0.12 / 21 | 6.2±0.11 / 11 | 6.7±0.07 / 11 |
+| api_status | 4.0±0.12 / 4 | 4.4±0.08 / 4 | 5.0±0.10 / 4 | 5.2±0.12 / 4 | 6.1±0.12 / 4 | 7.2±0.20 / 4 |
+| api_entity_types | 4.0±0.10 / 1 | 4.5±0.06 / 1 | 4.8±0.07 / 1 | 5.0±0.10 / 1 | 5.5±0.15 / 1 | 6.0±0.15 / 1 |
+| api_graph_300 *(satura, §5)* | 6.0±0.08 / 1 | 12.9±0.10 / 1 | 21.5±0.40 / 1 | 22.5±0.61 / 1 | 46.6±0.68 / 1 | 46.4±1.14 / 1 |
+| api_graph_300_filtro_tipo | 4.5±0.21 / 1 | 5.2±0.07 / 1 | 6.0±0.12 / 1 | 6.4±0.20 / 1 | 8.1±0.12 / 1 | 10.9±0.20 / 1 |
+| api_search *(satura en 50)* | 4.9±0.10 / 1 | 7.9±0.12 / 1 | 8.4±0.17 / 1 | 8.8±0.16 / 1 | 9.0±0.14 / 1 | 9.7±0.10 / 1 |
+| api_entities_p50 | 5.4±0.07 / 1 | 8.3±0.09 / 1 | 8.8±0.11 / 1 | 9.1±0.18 / 1 | 9.3±0.09 / 1 | 9.8±0.14 / 1 |
+| api_entities_ultima_pag | 5.4±0.06 / 1 | 8.4±0.07 / 1 | 9.0±0.25 / 1 | 9.0±0.09 / 1 | 9.5±0.13 / 1 | 9.9±0.15 / 1 |
+| api_entity_detalle | 5.0±0.12 / 11 | 5.8±0.07 / 19 | 5.5±0.11 / 11 | 6.5±0.10 / 21 | 6.2±0.10 / 11 | 6.6±0.10 / 11 |
+| api_sources | 4.5±0.07 / 1 | 4.8±0.06 / 1 | 5.0±0.06 / 1 | 5.4±0.09 / 1 | 5.9±0.12 / 1 | 6.5±0.13 / 1 |
+| api_quality | 4.7±0.12 / 1 | 5.1±0.07 / 1 | 5.5±0.05 / 1 | 5.9±0.10 / 1 | 7.0±0.12 / 1 | 8.6±0.08 / 1 |
+| html_entities | 5.1±0.09 / 2 | 6.2±0.13 / 2 | 6.3±0.14 / 2 | 6.8±0.24 / 2 | 7.3±0.10 / 2 | 8.0±0.14 / 2 |
+| html_graph | 3.2±0.08 / 0 | 3.5±0.06 / 0 | 3.7±0.06 / 0 | 4.1±0.11 / 0 | 4.4±0.11 / 0 | 4.7±0.08 / 0 |
+| html_entity_detalle | 4.8±0.10 / 11 | 5.3±0.11 / 19 | 5.5±0.21 / 11 | 5.9±0.11 / 21 | 6.1±0.07 / 11 | 6.6±0.13 / 11 |
 
 Dispersión relativa (MAD/mediana) entre el 1 % y el 5 %.
 
@@ -295,10 +301,10 @@ Mismo grafo (250 entidades), variando el **grado** del nodo pedido en
 
 | grado del nodo | llamadas a la fuente | **2·grado+3** | ¿coincide? | mediana ± MAD | bytes |
 |---|---|---|---|---|---|
-| 3 | 9 | 9 | **sí** | 6.70 ± 0.16 ms | 5 396 |
-| 33 | 69 | 69 | **sí** | 9.86 ± 0.15 ms | 48 481 |
-| 125 | 253 | 253 | **sí** | 20.02 ± 0.25 ms | 180 924 |
-| **406** | **815** | 815 | **sí** | **48.39 ± 1.18 ms** | 586 319 |
+| 3 | 9 | 9 | **sí** | 6.60 ± 0.09 ms | 5 396 |
+| 33 | 69 | 69 | **sí** | 9.89 ± 0.19 ms | 48 481 |
+| 125 | 253 | 253 | **sí** | 19.97 ± 0.53 ms | 180 924 |
+| **406** | **815** | 815 | **sí** | **50.67 ± 0.93 ms** | 586 319 |
 | **812** | **1 627** | 1 627 | **sí** | *(medida aparte)* | — |
 
 Pendiente **2.0 llamadas por relación**, constante y **sin tope**: el endpoint
@@ -332,35 +338,51 @@ puntos perdidos se **deduplican explícitamente y se declaran** en el informe
 
 `101` está a propósito, para buscar un salto justo pasado 100.
 
-* **No hay ningún umbral en 100.** De los 13 escenarios, **12 no cambian ni una
-  llamada** (`delta_llamadas: 0`) y los 12 salen **"indistinguible del ruido"**
-  en latencia: el mayor factor efecto/ruido entre ellos es **2.65**, por debajo
-  del corte de 3. Cruzar la centena no le cuesta nada a nadie.
-* **El único escenario que sí supera el ruido es `api_entity_detalle`**
-  (factor **3.52**, veredicto **"peor"**) — y es precisamente el único cuyo
-  TRABAJO cambia: pasa de **11 a 21 llamadas**. No es un umbral, es el eje
-  GRADO: `p_0000050` tiene grado 4 en el grafo de 100 y grado 9 en el de 101, y
-  2·4+3 = 11, 2·9+3 = 21. La latencia sube porque hace **10 consultas más**, no
-  porque haya cruzado 100.
+* **El hecho determinista: nadie cambia de trabajo al cruzar 100, salvo la ficha
+  de entidad.** De los 13 escenarios, **11 no cambian ni una llamada**
+  (`delta_llamadas: 0`). Los dos que sí —`api_entity_detalle` y
+  `html_entity_detalle`— pasan de **11 a 21 llamadas**, y **no es un umbral**:
+  es el eje GRADO. `p_0000050` tiene grado 4 en el grafo de 100 y grado 9 en el
+  de 101, y 2·4+3 = 11, 2·9+3 = 21. Esto es reproducible tanda tras tanda.
   *(En v2.0 esa fila lucía `delta_llamadas: 10` bajo la etiqueta "indistinguible
   del ruido", que sólo hablaba de milisegundos. Ahora hay dos campos separados:
   `veredicto_latencia` y `veredicto_llamadas`.)*
-  **Ojo al alcance**: ese 3.52 es de ESTA máquina y ESTA tanda. En la medición
-  anterior el mismo escenario dio **2.98**, justo por debajo del corte, con las
-  mismas 10 llamadas de más. El **hecho determinista** (11 → 21 llamadas) es
-  estable; el **veredicto de latencia** de esa fila está en el filo del umbral y
-  no se debe leer como un resultado firme.
+
+* **Los veredictos de LATENCIA de este tramo NO son reproducibles, y hay que
+  decirlo.** El mismo código, los mismos datos y las mismas 30 repeticiones
+  dieron tres respuestas distintas en tres tandas de esta misma máquina:
+
+  | escenario | ¿cambia de trabajo? | tanda 1 | tanda 2 | tanda 3 |
+  |---|---|---|---|---|
+  | `api_entity_detalle` | sí (+10 llamadas) | 2.04 *ruido* | 3.52 **peor** | 4.87 **peor** |
+  | `html_entity_detalle` | sí (+10 llamadas) | 1.58 *ruido* | 2.65 *ruido* | 1.25 *ruido* |
+  | `api_sources` | **no** (0 llamadas) | 1.47 *ruido* | 1.34 *ruido* | 3.01 **peor** |
+  | `api_quality` | **no** (0 llamadas) | 1.17 *ruido* | 1.76 *ruido* | 3.01 **peor** |
+
+  Dos escenarios que **no hacen ni una consulta más** salen "peor" en la última
+  tanda, a **3.01**, un pelo por encima del corte de 3. Y dos escenarios que
+  hacen exactamente **las mismas 10 consultas de más** salen uno a 4.87 y el
+  otro a 1.25. La conclusión honesta no es "hay una regresión en 100 → 101": es
+  que **el corte de 3 MAD sobre efectos de décimas de milisegundo, en una máquina
+  de desarrollo compartida, produce veredictos inestables**. Cerca del umbral, la
+  etiqueta la decide el jitter, no el sistema.
+
+* **Qué se sostiene, entonces.** Que **no hay evidencia de ningún umbral en 100**:
+  ningún escenario cambia de trabajo por cruzar la centena. Lo que sí cambia
+  —11 → 21 llamadas— tiene causa medida y nombre propio, el grado del nodo. Los
+  milisegundos de este tramo **no soportan ninguna afirmación**, ni a favor ni en
+  contra, y así quedan declarados (ver §6 y la deuda 19).
 
 ### `api_graph_300` **satura** a partir de n ≈ 300 — la curva no es continua
 
 | n | nodos devueltos | aristas | bytes | mediana |
 |---|---|---|---|---|
-| 10 | 10 | 30 | 22 140 | 5.9 ms |
-| 50 | 50 | 150 | 110 044 | 13.4 ms |
-| 100 | 100 | 300 | 219 835 | 21.1 ms |
-| 101 | 101 | 303 | 222 333 | 21.7 ms |
-| 250 | 250 | 750 | 550 187 | 46.1 ms |
-| **500** | **300 (tope)** | **550** | **523 136** | **43.8 ms** |
+| 10 | 10 | 30 | 22 140 | 6.0 ms |
+| 50 | 50 | 150 | 110 044 | 12.9 ms |
+| 100 | 100 | 300 | 219 835 | 21.5 ms |
+| 101 | 101 | 303 | 222 333 | 22.5 ms |
+| 250 | 250 | 750 | 550 187 | 46.6 ms |
+| **500** | **300 (tope)** | **550** | **523 136** | **46.4 ms** |
 
 El `limit=300` **satura sobre los nodos**: a n=500 la respuesta trae 300 nodos y
 sólo 550 aristas (las que caen entre nodos seleccionados), es **más pequeña** que
@@ -426,7 +448,7 @@ Máquina de desarrollo **compartida**. Por eso todo va con mediana y MAD, y por
 eso el informe dice "indistinguible del ruido" cuando lo es. Y cuando el MAD
 combinado es **0**, ya no dice "peor" ni "mejor": dice **"sin dispersión
 medible"** y no afirma nada. *(Es una corrección **latente**: en este baseline el
-MAD combinado mínimo es **0.1557 ms** y hay **0 filas** con ruido 0. Se cierra
+MAD combinado mínimo es **0.1160 ms** y hay **0 filas** con ruido 0. Se cierra
 antes de que deje de serlo, porque con umbral 0 la regla se invertía y una
 diferencia de 0,0005 ms se declaraba "peor" con `factor = inf`.)*
 
@@ -536,3 +558,11 @@ queda **declarado como no medido**, que es lo que corresponde.
     observado, 50). Se cumple hoy; si alguien sube la ventana, la calibración se
     pone roja. El caso ciego sale marcado como `componentes_no_evaluables`, no
     como sano.
+19. **Los veredictos de LATENCIA del tramo 100 → 101 no son reproducibles.**
+    Tres tandas del mismo código en la misma máquina dieron tres respuestas
+    (ver §5): dos escenarios con **0 llamadas de diferencia** llegaron a salir
+    "peor" a **3.01**, rozando el corte de 3. El corte de 3 MAD sobre efectos
+    de décimas de milisegundo en una máquina compartida **no discrimina**. Lo
+    que sostiene los hallazgos de este documento son los **conteos
+    deterministas**, no los milisegundos. Arreglarlo pide más repeticiones,
+    máquina dedicada, o subir `k` — y calibrar el cambio, no elegirlo a ojo.
