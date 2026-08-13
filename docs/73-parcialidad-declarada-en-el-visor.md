@@ -67,6 +67,23 @@ consultarlo. Los totales significan *«cuántos elementos autorizados para ti ha
 hay en la base»*: un total real calculado antes de filtrar sería una fuga por conteo — revelaría
 por diferencia cuánto material oculto existe.
 
+### La afirmación de seguridad que sostiene el carril (medida por el revisor independiente)
+
+Barrido de `limit` de **1 a 2000** con un espectador restringido (`can_view_reference=False`) sobre
+el grafo mixto de 40 nodos, de los que sólo 10 le tocan:
+
+- `nodes_total` se queda **clavado en 10** en todo el barrido — el recuento **autorizado**, no el
+  real.
+- `truncated` cambia exactamente en **`limit=10`**, no en 40: la frontera que se observa desde
+  fuera es la del material autorizado, no la del que existe.
+- **Los números 40 y 39 no aparecen en ninguna respuesta del viewer restringido.** Una búsqueda
+  binaria sobre `limit` —el ataque natural contra un contador— sólo enseña lo que ese espectador
+  tiene derecho a saber.
+- No se halló **ninguna ruta, rol ni parámetro** que hiciera aflorar un total pre-filtrado.
+
+Esta es la garantía que sostiene el carril: **publicar contadores no abre un canal de inferencia**
+porque el contador es una propiedad del conjunto autorizado, no del conjunto real.
+
 El cliente **no deriva ninguna cifra**: no resta, no divide, no calcula porcentajes. Eso está
 aseverado leyendo el cuerpo de la función (`test_el_cliente_no_calcula_cifras_propias`) y contando
 los números del mensaje en la spec JS (sólo aparecen los cuatro que mandó el servidor).
@@ -77,7 +94,7 @@ de autorización** y no se ha tocado `viewer/app/policies/**` ni `viewer/app/aut
 
 ## 4. Evidencia — cada control se ha visto ROJO
 
-`viewer/tests/test_parcialidad_declarada.py` (18 casos, contrato del servidor, contadores y
+`viewer/tests/test_parcialidad_declarada.py` (22 casos: contrato del servidor, contadores, cláusulas de `truncated` y
 plantilla) + la sonda JS mutada en `viewer/tests/test_graph_ux_v2.py` (2 casos) + 5 casos nuevos
 en `viewer/tests/js/graph_core_spec.js` (55 en total, antes 50).
 
@@ -96,7 +113,7 @@ Mutaciones **sobre el árbol real**, ciclo verde → rojo → revertir → verde
 | 3 | `core.partialityNotice(lastView)` → `null` en `graph.js` | ROJO — `test_el_cliente_pinta_el_aviso` |
 
 Revertidas las tres: **1243 pasados, 191 saltados**, el mismo recuento que antes del carril más
-los 20 casos nuevos de Python (18 + 2).
+los 24 casos nuevos de Python (22 + 2).
 
 Mutaciones **en memoria / sobre copias**, dentro de la propia suite (para que el gate lleve su
 control negativo pegado y no dependa de que alguien repita el experimento a mano):
@@ -110,6 +127,26 @@ control negativo pegado y no dependa de que alguien repita el experimento a mano
   (`test_calibracion_js_romper_el_aviso_pone_la_sonda_en_ROJO`, en `test_graph_ux_v2.py`): tres mutantes de `partialityNotice` —callar siempre, declarar todo completo,
   avisar sin decir cuánto falta— y la sonda, que pasa en verde sobre el fichero real, sale ROJA
   sobre los tres. Revertir devuelve el verde en el mismo proceso.
+
+**La segunda cláusula de `truncated`, calibrada** (hallazgo del revisor). Reducir
+`truncated` a `len(mostrados) < len(nodes)` —olvidando «faltan relaciones»— dejaba **toda la suite
+en verde**: media afirmación de cabecera estaba cobrada sin control. Ya no:
+`test_truncado_por_relaciones_aunque_quepan_todos_los_nodos` ejerce el caso directo sobre
+`vista_truncada` (3/3 nodos, 1/2 relaciones, una colgante) y `test_calibracion_quitar_la_segunda_clausula_de_truncated_pone_el_gate_ROJO` es su mutante. Verificado además con la mutación **real
+sobre el árbol**: verde → ROJO (2 casos) → revertir → verde (1247 pasados).
+
+**Esa rama es INALCANZABLE desde el router de hoy, y aun así está cubierta.** Con `SIN_TOPE` las
+relaciones se computan sobre TODOS los nodos visibles: si los nodos caben, caben todas, así que no
+hay relación colgante posible por esa vía (`test_la_rama_de_relaciones_es_INALCANZABLE_desde_el_router_de_hoy` lo fija). No es un defecto de seguridad ni de producto hoy; es una **garantía de una
+función pública (`__all__`)**, y la norma del proyecto no permite cobrarla sin un control capaz de
+ponerse rojo. Si algún día el router dejara de pedir sin tope, la cláusula pasaría de inalcanzable
+a imprescindible y el control ya estaría puesto.
+
+**Deriva de criterio corregida** (hallazgo del revisor): `vista_truncada` filtraba con
+`n.get("id") is not None` y el proveedor con `"id" in n`. Difieren ante un nodo con `id=None`, que
+ninguna fixture generaba — exactamente el tipo de deriva silenciosa que el test byte-a-byte
+vigila y que su fixture no cubría. Criterio **alineado** al del proveedor y caso añadido
+(`test_el_criterio_de_id_es_el_mismo_que_el_del_proveedor`), rojo bajo el criterio antiguo.
 
 **Ablación / necesidad**: `test_ablacion_sin_permisos_los_totales_colapsan`. El punto de inyección
 `get_visibility_context` está congelado como deuda declarada y sobrescribirlo es **inerte**, así
@@ -138,7 +175,8 @@ módulo estaría midiendo la política y el módulo entero se caería.
 - **La puerta de calibración de `benchmarks/perf/` queda invalidada**, y es lo correcto: este
   carril sí toca `viewer/app/**` y el `sha_del_sistema_medido` de
   `benchmarks/perf/resultados/calibracion.json` ya no corresponde al sistema que se publica.
-  `run_bench.py` **rehusará medir** hasta que se recalibre. Se intentó recalibrar y **no se pudo**:
+  `run_bench.py` **rehusará medir** hasta que se recalibre (verificado por el revisor: rehúsa con
+  mensaje informativo; borrar el artefacto también rehusaría, pero peor). Se intentó recalibrar y **no se pudo**:
   `calibracion.py` aborta en C3 con `/api/entities/p_0000002 -> 404`. Se comprobó que **aborta
   igual sobre `main` sin ninguno de estos cambios** (mismo árbol, cambios guardados en `stash`),
   así que es una avería previa del banco, no de este carril. Se deja el JSON **sin tocar**: un

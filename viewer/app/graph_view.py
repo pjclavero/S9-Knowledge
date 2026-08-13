@@ -52,7 +52,12 @@ def vista_truncada(
     Devuelve `(nodos_mostrados, relaciones_mostradas, vista)`.
     """
     mostrados = nodes[:limit]
-    ids = {n["id"] for n in mostrados if n.get("id") is not None}
+    # `"id" in n`, NO `n.get("id") is not None`: es el criterio LITERAL de
+    # `PolicyFilteredProvider.graph`. Los dos difieren ante un nodo con
+    # `id=None` y esa deriva sería silenciosa — justo lo que vigila
+    # `test_la_vista_del_router_es_byte_a_byte_la_del_proveedor`, cuya fixture
+    # no la cubría. Cubierta ahora en `test_el_criterio_de_id_es_el_mismo_...`.
+    ids = {n["id"] for n in mostrados if "id" in n}
     relaciones = [e for e in edges if e.get("from") in ids and e.get("to") in ids]
 
     return mostrados, relaciones, {

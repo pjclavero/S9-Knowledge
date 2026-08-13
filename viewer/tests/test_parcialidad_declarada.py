@@ -181,6 +181,107 @@ def test_la_vista_del_router_es_byte_a_byte_la_del_proveedor(tmp_path):
         assert [e["id"] for e in edges] == [e["id"] for e in esperadas_e]
 
 
+def _exige_truncado_por_relaciones(nodes, edges, limit) -> None:
+    """Control calibrado de la SEGUNDA cláusula de `truncated`.
+
+    La cabecera de este carril afirma: «truncada si falta CUALQUIER cosa —
+    pueden caber todos los nodos y faltar relaciones igualmente». Esa mitad de
+    la afirmación estaba **cobrada sin control**: el revisor demostró que
+    reducir `truncated` a `len(mostrados) < len(nodes)` dejaba TODA la suite en
+    verde. Una garantía sin una mutación capaz de ponerla roja no vale, aunque
+    hoy sea inofensiva.
+    """
+    _, relaciones, view = vista_truncada(nodes, edges, limit)
+    assert view["nodes_shown"] == view["nodes_total"], "el caso exige que los nodos QUEPAN"
+    assert len(relaciones) < len(edges), "el caso exige que falte alguna relación"
+    assert view["truncated"] is True, (
+        "caben todos los nodos pero faltan relaciones y la vista se declara "
+        "COMPLETA. Es exactamente el desplome cuadrático presentado como grafo "
+        "entero: la segunda cláusula de `truncated` no está haciendo su trabajo."
+    )
+
+
+# Nodos que caben de sobra y una relación COLGANTE (un extremo fuera del
+# conjunto). No es alcanzable desde el router de hoy (ver el test siguiente),
+# pero `vista_truncada` es una función pública (`__all__`) y responde de lo que
+# promete para cualquier entrada válida.
+_NODOS_QUE_CABEN = [{"id": "a"}, {"id": "b"}, {"id": "c"}]
+_RELACIONES_CON_UNA_COLGANTE = [
+    {"id": "e1", "from": "a", "to": "b"},
+    {"id": "e2", "from": "b", "to": "FUERA"},
+]
+
+
+def test_truncado_por_relaciones_aunque_quepan_todos_los_nodos():
+    _exige_truncado_por_relaciones(_NODOS_QUE_CABEN, _RELACIONES_CON_UNA_COLGANTE, 300)
+
+
+def test_calibracion_quitar_la_segunda_clausula_de_truncated_pone_el_gate_ROJO():
+    """MUTACIÓN 8 (la que faltaba): `truncated` reducido a mirar sólo los nodos.
+
+    Se ejerce sobre la MISMA función, monkey-patcheada en el módulo, para que la
+    mutación sea la de verdad y no una reimplementación que se pareciera.
+    """
+    import app.graph_view as gv
+
+    original = gv.vista_truncada
+    _exige_truncado_por_relaciones(_NODOS_QUE_CABEN, _RELACIONES_CON_UNA_COLGANTE, 300)  # verde
+
+    def mutante(nodes, edges, limit):
+        mostrados, relaciones, view = original(nodes, edges, limit)
+        view["truncated"] = len(mostrados) < len(nodes)  # <- sólo la 1ª cláusula
+        return mostrados, relaciones, view
+
+    globals()["vista_truncada"] = mutante
+    try:
+        with pytest.raises(AssertionError, match="COMPLETA"):
+            _exige_truncado_por_relaciones(
+                _NODOS_QUE_CABEN, _RELACIONES_CON_UNA_COLGANTE, 300
+            )
+    finally:
+        globals()["vista_truncada"] = original
+
+    # revertido: verde otra vez, en el mismo proceso
+    _exige_truncado_por_relaciones(_NODOS_QUE_CABEN, _RELACIONES_CON_UNA_COLGANTE, 300)
+
+
+def test_la_rama_de_relaciones_es_INALCANZABLE_desde_el_router_de_hoy(tmp_path):
+    """Y queda escrito por qué el caso anterior es una garantía de la función,
+    no un defecto de producto: con `SIN_TOPE` las relaciones se computan sobre
+    TODOS los nodos visibles, así que si los nodos caben, caben todas. No hay
+    relación colgante posible por esta vía.
+
+    Si algún día el router dejara de pedir sin tope, esta afirmación caería — y
+    entonces la segunda cláusula pasaría de inalcanzable a imprescindible.
+    """
+    for n_nodes in (50, 200):
+        path, n_edges = _fixture(tmp_path, n_nodes)
+        payload = _respuesta(path, limit=300)  # limit > n_nodes: caben todos
+        assert payload["view"]["nodes_shown"] == payload["view"]["nodes_total"]
+        assert payload["view"]["edges_shown"] == n_edges, (
+            "caben todos los nodos y aun así falta alguna relación: la rama "
+            "'colgante' ha dejado de ser inalcanzable desde el router"
+        )
+        assert payload["view"]["truncated"] is False
+
+
+def test_el_criterio_de_id_es_el_mismo_que_el_del_proveedor():
+    """Deriva silenciosa que el test byte-a-byte no cubría: el proveedor usa
+    `"id" in n` y `vista_truncada` usaba `n.get("id") is not None`. Difieren
+    ante un nodo con `id=None`, que ninguna fixture generaba."""
+    nodes = [{"id": None}, {"id": "b"}]
+    edges = [{"id": "e1", "from": None, "to": "b"}]
+    _, relaciones, _ = vista_truncada(nodes, edges, 300)
+
+    # Criterio del proveedor (copiado de `PolicyFilteredProvider.graph`).
+    ids_proveedor = {n["id"] for n in nodes if "id" in n}
+    esperadas = [e for e in edges
+                 if e.get("from") in ids_proveedor and e.get("to") in ids_proveedor]
+    assert [e["id"] for e in relaciones] == [e["id"] for e in esperadas], (
+        "el criterio de identidad de `vista_truncada` ya no es el del proveedor"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Regla 4: los contadores se calculan DESPUÉS de autorizar
 # ---------------------------------------------------------------------------
