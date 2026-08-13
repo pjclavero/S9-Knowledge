@@ -27,25 +27,29 @@
 
 development:
   # Lo que hay en `main` ahora mismo. NO implica que esté desplegado.
-  # REMEDIDO el 2026-08-13 contra `origin/main`, no contra el worktree:
-  #   `git rev-parse origin/main` -> e752dbe4b6ef…
-  #   `gh pr list --state merged --base main` ordenado por `mergedAt` -> #168
-  # El aviso de la propia línea se cumplió otra vez: **#168 se fusionó DESPUÉS
-  # que el #172** (07:28 frente a 07:14 UTC), así que el último NO es el de
-  # número mayor. Comprobado con la fecha de fusión, no con el número.
-  main_commit: "e752dbe4b6ef1d32c9a0baaba54a86d1e9ecc817"
-  latest_merged_pr: 168  # ojo: el #168 se fusionó DESPUÉS que el #172 — el último NO es el de número mayor
-  # CI en e752dbe: ROJO, medido con `gh run view 31677929782`, no supuesto.
-  # Fallan `Deployment scripts validation` y `Combined Test Suite`, y ambos por
-  # la MISMA causa: `main_commit` iba **9** commits por detrás de `origin/main`,
-  # muy por encima de la ventana de 3. Es decir, el bloque que describía `main`
-  # dejó de describirlo, que es exactamente lo que el gate existe para cazar.
   #
-  # Es la SEGUNDA vez que pasa por el mismo motivo, y la causa no es el
-  # descuido de nadie: al refrescar estas cifras sólo cuando ya están vencidas,
-  # el desfase se come la ventana entera entre dos merges. Por eso este refresco
-  # va en la rama que AÑADE un job, junto a `ci_jobs_running`: quien toca `main`
-  # deja el bloque al día en el mismo commit, y no hay ventana en rojo.
+  # REMEDIDO el 2026-08-13 contra `origin/main`, no contra el worktree:
+  #   `git rev-parse origin/main`                       -> 37accbaca201…
+  #   `gh pr list --state merged` ordenado por `mergedAt` -> #178
+  #
+  # Y otra vez el aviso de esta línea se cumple: **el #171 se fusionó DESPUÉS
+  # que el #173** (09:46 frente a 09:33 UTC). El último NO es el de número
+  # mayor; se determina por FECHA DE FUSIÓN, nunca ordenando números.
+  #
+  # Desde el refresco anterior (#168) entraron: #172, #173, #167, #171, #166,
+  # #170, #174, #175, #176, #177 y #178 — el bloque de transición
+  # post-hardening (P0 `admin_full`, saturación del grafo, parcialidad del
+  # visor, inventario) y el carril C (Review Console).
+  main_commit: "37accbaca201d29195e06ec9b225ec9ca79bc67b"
+  latest_merged_pr: 178  # por fecha de fusión: el #171 entró DESPUÉS que el #173
+  # CI en 37accba: ROJO, medido con `gh run view 31736789573`, no supuesto.
+  #
+  # UNA sola contradicción, y esta vez el gate acierta de pleno: el bloque
+  # declaraba `latest_merged_pr: #168`, que YA NO APARECE entre los PR
+  # fusionados en `origin/main`. Eso no es el reloj —el desfase de commits es
+  # aviso desde el #173, y en efecto no aparece por ningún lado—, es una
+  # AFIRMACIÓN FALSA sobre el repositorio, que es justo lo que este gate existe
+  # para cazar. Se arregla refrescando el dato, no tocando el gate.
   #
   # Se declara rojo porque lo está: poner "green" aquí sería la mentira
   # coherente que el punto 0 existe para matar. Este commit es el que lo
@@ -58,33 +62,30 @@ development:
   # Se deja el LITERAL a propósito, no una cuenta derivada de los workflows:
   # derivarla la haría siempre cierta y la fila C13 («ponerlo a 99 enrojece»)
   # dejaría de poder ponerse roja. Una cifra que no puede fallar no comprueba
-  # nada. El precio de esa decisión es que hay que refrescarla a mano, y le
-  # toca a quien añade o quita un job, en el mismo commit que lo hace: es lo
-  # único que evita una ventana en rojo entre el merge y el refresco.
+  # nada. El precio es refrescarla a mano, y le toca a quien añade o quita un
+  # job, en el mismo commit que lo hace.
   #
-  # EL PENDIENTE ANOTADO SE HA CUMPLIDO. Aquí decía que el PR #167 (carril M)
-  # añadiría un job y esto pasaría a 15. Es este commit.
-  #
-  # MEDIDO el 2026-08-13 sobre ESTA rama ya rebasada sobre `main@e2e8214`
-  # —no sobre `main`, y no sobre lo que ya estaba escrito—:
-  #     `ci.yml` 14 + `supply-chain.yml` 1 = 15
-  # Para referencia, `main@e2e8214` da 13 + 1 = 14: el delta es exactamente
-  # el job `check-env-reproducibility` que introduce esta rama, y ninguno se
-  # pierde. Contar el worktree creyendo contar `origin/main` es un error ya
-  # anotado en este proyecto; por eso se dice contra qué se midió.
+  # MEDIDO el 2026-08-13 sobre `main@37accba`, contando los `name:` de
+  # `.github/workflows/*.y*ml`: `ci.yml` 14 + `supply-chain.yml` 1 = **15**.
+  # Sin cambio respecto al refresco anterior: los 11 PR fusionados desde
+  # entonces no añaden ni quitan ningún job.
   ci_jobs_running: 15
-  ci_checks_required: 11   # leído de la protección de rama con `gh api` el 2026-08-12, no de un documento
-  # 15 corren − 11 exigidos = 4. Los cuatro, medidos el 2026-08-13 cruzando
-  # los `name:` de los workflows de esta rama con los contextos que devuelve
-  # `gh api .../branches/main/protection`: ningún exigido se queda sin job.
-  ci_running_but_not_required:
-    - "Especificacion JS del grafo (Node obligatorio)"
-    - "Integridad de gates (cobertura de ramas, 0 tests, skips criticos)"
-    - "Calibracion de gates (cada violacion tiene que ponerse ROJA)"
-    # Lo añade esta rama. CORRE pero NO bloquea: la protección de rama sigue
-    # exigiendo 11 contextos y éste no está entre ellos, así que hoy es un
-    # informe, no una puerta. Añadirlo a los exigidos es decisión del operador.
-    - "Reproducibilidad de entorno (declarado == instalado)"
+  #
+  # CAMBIO REAL, medido con `gh api .../branches/main/protection` el
+  # 2026-08-13: la protección de `main` devuelve **15** contextos, y el cruce
+  # con los `name:` de los workflows no deja NINGÚN job fuera ni NINGÚN
+  # contexto exigido sin job. Antes eran 11.
+  ci_checks_required: 15
+  # 15 corren − 15 exigidos = 0. **Ya no hay ningún job que corra sin bloquear**,
+  # incluidos los dos que existen precisamente para detectar gates que no pueden
+  # ponerse rojos. Con esto RK-20b (los tres jobs que corrían sin ser puerta)
+  # queda CERRADO: era decisión del operador y la tomó.
+  #
+  # Se deja la lista VACÍA y no se borra la clave: el validador comprueba
+  # `ci_jobs_running − len(lista) == ci_checks_required`, así que la lista
+  # sigue siendo la que hace cuadrar la aritmética, y si mañana vuelve a haber
+  # un job no exigido tiene que anotarse aquí o la cuenta se pone roja.
+  ci_running_but_not_required: []
 
   # UMBRAL DE AVISO del desfase. NO es un umbral de error (rediseñado el
   # 2026-08-13): a partir de aquí el gate ANUNCIA cuántos commits han entrado
