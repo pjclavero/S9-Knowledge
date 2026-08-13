@@ -1,3 +1,174 @@
+{#
+  Hueco C — Review Console, SOLO LECTURA.
+
+  Extiende `chassis/_slot.html`, así que hereda sus tres estados explícitos
+  (`data-state` = error | empty | ready) y su barra de navegación por registro.
+
+  NINGUNA URL ESCRITA A MANO. Todo enlace y todo `action` se resuelve por
+  NOMBRE de ruta con `url_for`. Escribir "/panel/review" aquí es el fallo nº 2
+  que el chasis existe para impedir: nadie se entera cuando la ruta cambia.
+#}
 {% extends "chassis/_slot.html" %}
-{% block empty_title %}Sin revisiones pendientes{% endblock %}
-{% block empty_body %}No hay nada en cola de revisión para tu ámbito actual.{% endblock %}
+
+{% block empty_title %}Sin propuestas visibles{% endblock %}
+{% block empty_body %}
+  {% if workspaces %}
+    No hay propuestas en tu ámbito actual para los filtros aplicados.
+  {% else %}
+    No hay ningún workspace de revisión visible para tu ámbito actual.
+  {% endif %}
+{% endblock %}
+
+{% block body %}
+{#
+  Sin `view` en el contexto no hay panel que pintar: se delega en la pantalla
+  genérica del hueco (`super()`), que ya sabe pintar error / vacío / listo.
+  Esto no es un adorno: la suite del chasis renderiza esta plantilla FUERA de
+  una petición (`request=None`, `items=["uno"]`) para comprobar sus tres
+  estados, y ahí no existe ni `url_for` ni una fila de verdad. Un panel que
+  sólo sabe pintarse con su propio contexto rompe ese contrato compartido.
+#}
+{% if view is not defined %}{{ super() }}{% else %}
+<main class="container" data-slot="{{ slot.key }}" data-readonly="true">
+  <h1>{{ slot.title }}</h1>
+
+  {% if error %}
+    {# El motivo, sin ruta y sin traza. `error_detail` es sólo el nombre del tipo. #}
+    <section class="panel panel-error" data-state="error">
+      <h2>No se pudo cargar</h2>
+      <p>{{ error }}</p>
+      {% if error_detail %}<p class="muted" data-error-kind>{{ error_detail | e }}</p>{% endif %}
+    </section>
+  {% else %}
+
+    <form method="get" action="{{ url_for('chassis_review') }}" class="panel" data-role="filtros">
+      <label>Workspace
+        <select name="workspace">
+          <option value="">—</option>
+          {% for w in workspaces %}
+          <option value="{{ w | e }}" {% if w == workspace %}selected{% endif %}>{{ w | e }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Decisión
+        <select name="decision">
+          <option value="">Todas</option>
+          {% for d in (view.facets.decisions if view else []) %}
+          <option value="{{ d | e }}" {% if spec and spec.decision == d %}selected{% endif %}>{{ d | e }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Motivo
+        <select name="reason_code">
+          <option value="">Todos</option>
+          {% for code, label in (view.facets.reason_codes if view else []) %}
+          <option value="{{ code | e }}" {% if spec and spec.reason_code == code %}selected{% endif %}>{{ label | e }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Buscar <input type="search" name="q" value="{{ (spec.query if spec else '') | e }}"></label>
+      <label><input type="checkbox" name="disagreements_only" value="true"
+             {% if spec and spec.disagreements_only %}checked{% endif %}> Sólo desacuerdos</label>
+      <label><input type="checkbox" name="low_confidence_only" value="true"
+             {% if spec and spec.low_confidence_only %}checked{% endif %}> Sólo baja confianza</label>
+      <label><input type="checkbox" name="include_decided" value="true"
+             {% if spec and spec.include_decided %}checked{% endif %}> Incluir ya decididas</label>
+      <label>Orden
+        <select name="sort">
+          {% for name in sorts %}
+          <option value="{{ name | e }}" {% if sort == name %}selected{% endif %}>{{ name | e }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Por página
+        <select name="page_size">
+          {% for size in page_sizes %}
+          <option value="{{ size }}" {% if view and view.page.page_size == size %}selected{% endif %}>{{ size }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit">Filtrar</button>
+    </form>
+
+    {% if view %}
+    {#
+      Contadores del conjunto FILTRADO, nunca de la página: `build_view` filtra,
+      ordena y sólo entonces pagina, y `Page.total` es el total del filtrado.
+    #}
+    <section class="panel" data-role="contadores">
+      <span data-count="visible">{{ view.visible_total }}</span> visibles ·
+      <span data-count="filtered">{{ view.filtered_total }}</span> tras filtros ·
+      <span data-count="disagreements">{{ view.disagreements }}</span> desacuerdos ·
+      <span data-count="low-confidence">{{ view.low_confidence }}</span> baja confianza ·
+      <span data-count="missing-confidence">{{ view.missing_confidence }}</span> sin confianza ·
+      <span data-count="decided">{{ view.decided }}</span> ya decididas
+    </section>
+    {% endif %}
+
+    {% if not items %}
+      <section class="panel panel-empty" data-state="empty">
+        <h2>{{ self.empty_title() }}</h2>
+        <p>{{ self.empty_body() }}</p>
+      </section>
+    {% else %}
+      <section class="panel" data-state="ready">
+        <table>
+          <thead>
+            <tr><th>Propuesta</th><th>Decisión</th><th>Confianza</th>
+                <th>Acuerdo</th><th>Fuente</th><th>Candidato</th></tr>
+          </thead>
+          <tbody>
+          {% for row in items %}
+            <tr data-proposal-id="{{ row.proposal_id | e }}">
+              <td>
+                <a href="{{ url_for('chassis_review_item', proposal_id=row.proposal_id) }}?workspace={{ (workspace or '') | urlencode }}&sort={{ sort | urlencode }}">
+                  {{ row.proposal_id | e }}</a>
+              </td>
+              {#
+                FALLO CERRADO: un estado que este visor no reconoce se marca
+                como desconocido y NUNCA se pinta con el aspecto de una
+                decisión buena. `decision_known` lo decide en el servicio,
+                contra `VALID_ENGINE_DECISIONS` del motor.
+              #}
+              <td data-decision="{{ (row.effective_decision or '') | e }}"
+                  data-decision-known="{{ 'true' if row.decision_known else 'false' }}"
+                  class="{{ 'decision-known' if row.decision_known else 'decision-unknown' }}">
+                {% if row.effective_decision %}
+                  {{ row.effective_decision | e }}{% if not row.decision_known %} (estado no reconocido){% endif %}
+                {% else %}no disponible{% endif %}
+              </td>
+              {# `None` es ausencia declarada, no un 0 inventado. #}
+              <td data-confidence="{{ row.confidence if row.confidence is not none else '' }}">
+                {% if row.confidence is not none %}{{ '%.2f' % row.confidence }}{% else %}no disponible{% endif %}
+              </td>
+              <td data-agreement="{{ (row.agreement or '') | e }}">
+                {% if row.agreement %}{{ row.agreement | e }}{% else %}sin sombra{% endif %}
+              </td>
+              <td>{{ row.source_id | e if row.source_id else 'no disponible' }}</td>
+              <td>
+                {{ row.subject | e if row.subject else 'no disponible' }} ·
+                {{ row.predicate | e if row.predicate else 'no disponible' }} ·
+                {{ row.object | e if row.object else 'no disponible' }}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+
+        <nav data-role="paginacion">
+          <span data-page="current">{{ view.page.page }}</span> /
+          <span data-page="total">{{ view.page.pages }}</span>
+          ({{ view.page.first_index }}–{{ view.page.last_index }} de {{ view.page.total }})
+          {% if view.page.has_previous %}
+          <a href="{{ url_for('chassis_review') }}?page={{ view.page.page - 1 }}&workspace={{ (workspace or '') | urlencode }}&sort={{ sort | urlencode }}">Anterior</a>
+          {% endif %}
+          {% if view.page.has_next %}
+          <a href="{{ url_for('chassis_review') }}?page={{ view.page.page + 1 }}&workspace={{ (workspace or '') | urlencode }}&sort={{ sort | urlencode }}">Siguiente</a>
+          {% endif %}
+        </nav>
+      </section>
+    {% endif %}
+  {% endif %}
+</main>
+{% endif %}
+{% endblock %}

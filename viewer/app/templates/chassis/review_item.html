@@ -1,0 +1,97 @@
+{#
+  Hueco C — ficha de UNA propuesta. SOLO LECTURA: aquí no hay ni un `<form
+  method="post">`, ni un botón de decisión. Se explica por qué la propuesta
+  está en cola; no se resuelve.
+
+  Igual que la lista: ninguna URL escrita a mano, todo por `url_for`.
+#}
+{% extends "chassis/_slot.html" %}
+{% block title %}{{ slot.title }} · {{ row.proposal_id }} · S9 Knowledge{% endblock %}
+
+{% block body %}
+<main class="container" data-slot="{{ slot.key }}" data-readonly="true"
+      data-proposal-id="{{ row.proposal_id | e }}">
+  <p><a href="{{ url_for('chassis_review') }}?workspace={{ (workspace or '') | urlencode }}&sort={{ sort | urlencode }}">← Volver a la lista</a></p>
+
+  <h1>{{ row.proposal_id | e }}</h1>
+
+  {# Posición dentro del MISMO orden filtrado del que salió la lista. #}
+  <nav data-role="vecinos">
+    {% if previous %}
+    <a rel="prev" data-neighbour="previous"
+       href="{{ url_for('chassis_review_item', proposal_id=previous.proposal_id) }}?workspace={{ (workspace or '') | urlencode }}&sort={{ sort | urlencode }}">Anterior</a>
+    {% endif %}
+    <span data-position>{{ position }}</span> de <span data-total>{{ total }}</span>
+    {% if next %}
+    <a rel="next" data-neighbour="next"
+       href="{{ url_for('chassis_review_item', proposal_id=next.proposal_id) }}?workspace={{ (workspace or '') | urlencode }}&sort={{ sort | urlencode }}">Siguiente</a>
+    {% endif %}
+  </nav>
+
+  <section class="panel" data-state="ready" data-role="decision">
+    <h2>Decisión del motor</h2>
+    <p data-decision="{{ (row.effective_decision or '') | e }}"
+       data-decision-known="{{ 'true' if row.decision_known else 'false' }}"
+       class="{{ 'decision-known' if row.decision_known else 'decision-unknown' }}">
+      {% if row.effective_decision %}
+        {{ row.effective_decision | e }}{% if not row.decision_known %} — estado no reconocido por el visor{% endif %}
+      {% else %}no disponible{% endif %}
+    </p>
+    <p data-agreement="{{ (row.agreement or '') | e }}">
+      Sombra: {% if row.shadow_decision %}{{ row.shadow_decision | e }}{% else %}no disponible{% endif %}
+      · Acuerdo: {% if row.agreement %}{{ row.agreement | e }}{% else %}no comparable{% endif %}
+    </p>
+    <p data-confidence="{{ row.confidence if row.confidence is not none else '' }}">
+      Confianza: {% if row.confidence is not none %}{{ '%.2f' % row.confidence }}{% else %}no disponible{% endif %}
+    </p>
+    <ul data-role="explicacion">
+      {% for line in explanation %}<li>{{ line | e }}</li>{% endfor %}
+    </ul>
+  </section>
+
+  <section class="panel" data-role="candidato">
+    <h2>Candidato</h2>
+    <dl>
+      <dt>Sujeto</dt><dd>{{ row.subject | e if row.subject else 'no disponible' }}</dd>
+      <dt>Predicado</dt><dd>{{ row.predicate | e if row.predicate else 'no disponible' }}</dd>
+      <dt>Objeto</dt><dd>{{ row.object | e if row.object else 'no disponible' }}</dd>
+      <dt>Dirección</dt><dd>{{ row.direction | e if row.direction else 'no disponible' }}</dd>
+      <dt>Negación</dt><dd>{{ row.negation_kind | e if row.negation_kind else 'no disponible' }}</dd>
+      <dt>Temporalidad</dt><dd>{{ row.temporal_status | e if row.temporal_status else 'no disponible' }}</dd>
+      <dt>Epistémico</dt><dd>{{ row.epistemic_status | e if row.epistemic_status else 'no disponible' }}</dd>
+    </dl>
+  </section>
+
+  <section class="panel" data-role="evidencia">
+    <h2>Evidencia</h2>
+    {% if row.has_evidence %}
+      <p>{{ row.evidence_before | e }}<mark>{{ row.evidence_literal | e }}</mark>{{ row.evidence_after | e }}</p>
+    {% else %}
+      <p data-state="empty">Sin texto literal de evidencia en el paquete.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel" data-role="procedencia">
+    <h2>Procedencia</h2>
+    <dl>
+      <dt>Extractores</dt>
+      <dd>{% if row.extractors %}{{ row.extractors | join(', ') | e }}{% else %}no disponible{% endif %}</dd>
+      <dt>Proveedores</dt>
+      <dd>{% if row.providers %}{{ row.providers | join(', ') | e }}{% else %}no disponible{% endif %}</dd>
+      <dt>Versión del motor</dt>
+      <dd>{{ row.engine_version | e if row.engine_version else 'no disponible' }}</dd>
+      <dt>Ontología</dt>
+      <dd>{{ row.ontology_version | e if row.ontology_version else 'no disponible' }}</dd>
+    </dl>
+  </section>
+
+  <section class="panel" data-role="estado-humano">
+    <h2>Estado de revisión</h2>
+    {# Informativo. Esta consola NO decide: no hay ningún control que escriba. #}
+    <p>{% if row.human_decision %}{{ row.human_decision | e }}
+       ({{ row.reviewer | e if row.reviewer else 'revisor no declarado' }},
+        {{ row.decided_at | e if row.decided_at else 'fecha no declarada' }})
+       {% else %}Sin decisión humana registrada.{% endif %}</p>
+  </section>
+</main>
+{% endblock %}
