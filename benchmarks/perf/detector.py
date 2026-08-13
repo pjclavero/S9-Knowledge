@@ -236,6 +236,35 @@ class Incumplimiento:
 # caso de las aristas de ``/api/graph?limit=300``, que caen de 750 a 550
 # mientras los nodos topan en 300.
 
+# PRECONDICIÓN DEL CRITERIO (declarada, no supuesta)
+# --------------------------------------------------
+# El criterio sólo puede ver un techo IMPLÍCITO (el que no aparece como
+# ``limit=`` en la URL) si la ventana de medida EMPIEZA POR DEBAJO de ese techo.
+# La cláusula "creció antes" —la misma que mata el falso positivo de
+# ``api_sources``— exige haber visto crecer al componente para creerse su
+# meseta; y si todos los tamaños medidos ya están por encima del tope, no hay
+# crecimiento que ver:
+#
+#     serie [10, 50, 50, 50]  -> se marca saturada (se vio subir y luego topar)
+#     serie [50, 50, 50, 50]  -> NO se marca (jamás se la vio crecer)
+#
+# Es decir:
+#
+#     **El criterio es correcto sólo si el tamaño más pequeño medido está por
+#     debajo de todos los topes implícitos de los escenarios.**
+#
+# Hoy se cumple: ``run_bench.TAMANOS`` empieza en 10 y el tope implícito más
+# bajo observado es el de ``/api/search`` (50). Por eso el defecto no muerde. Si
+# alguien sube el tamaño mínimo por encima de un tope, o aparece un endpoint que
+# corte por debajo de 10, la saturación de ese componente deja de verse.
+#
+# Y como una precondición sólo declarada en prosa se pudre en silencio, aquí se
+# COMPRUEBA: los componentes planos en TODA la ventana y sin techo declarado se
+# devuelven en ``componentes_no_evaluables``. No se declaran saturados —eso sería
+# inventarse un techo que no consta— pero tampoco se dan por sanos: con esta
+# ventana no se puede saber si son constantes por diseño o recortados desde
+# antes del primer punto. Calibrado en C9c.
+
 _LIMITE_EN_URL = re.compile(r"[?&]limit=(\d+)")
 
 
@@ -257,7 +286,12 @@ def analizar_saturacion(
     """Saturación del tramo ``idx -> idx+1`` para un escenario.
 
     ``series``: {componente de la respuesta -> valores en TODOS los tamaños}.
-    Devuelve ``{saturado, componentes_saturados, componentes_que_decrecen}``.
+    Devuelve ``{saturado, componentes_saturados, componentes_que_decrecen,
+    componentes_no_evaluables}``.
+
+    PRECONDICIÓN (ver el bloque de arriba): el tamaño más pequeño medido debe
+    estar por debajo de todos los topes implícitos. Los componentes para los que
+    NO se puede afirmar eso salen en ``componentes_no_evaluables``.
 
     Los tres ``exigir_*`` valen ``True`` en producción y existen para que la
     calibración pueda ABLACIONAR cada cláusula sobre ESTE MISMO código —no
@@ -266,6 +300,7 @@ def analizar_saturacion(
     techo = techo_declarado(url)
     saturados: list[dict[str, Any]] = []
     decrecen: list[dict[str, Any]] = []
+    no_evaluables: list[dict[str, Any]] = []
 
     for comp, ys in sorted(series.items()):
         if idx + 1 >= len(ys) or any(y is None for y in ys):
@@ -287,6 +322,19 @@ def analizar_saturacion(
             and monotona
         )
 
+        # Plano en TODA la ventana y sin techo declarado: la ventana empieza por
+        # encima de un posible tope implícito y el criterio no puede pronunciarse.
+        if techo is None and len(set(ys)) == 1:
+            no_evaluables.append({
+                "componente": comp,
+                "valores": [va, vb],
+                "motivo": (
+                    "plano en toda la ventana de medida y sin techo declarado: "
+                    "no se puede distinguir 'constante por diseño' de 'recortado "
+                    "desde antes del primer tamaño medido'. Mide un tamaño menor."
+                ),
+            })
+
         if toca_techo or meseta:
             saturados.append({
                 "componente": comp,
@@ -302,6 +350,7 @@ def analizar_saturacion(
         "saturado": bool(saturados),
         "componentes_saturados": saturados,
         "componentes_que_decrecen": decrecen,
+        "componentes_no_evaluables": no_evaluables,
     }
 
 

@@ -40,6 +40,9 @@ Pruebas
                      /api/graph?limit=300 y da FALSOS POSITIVOS en /api/sources;
                      el criterio nuevo ve uno y deja de inventarse el otro.
   C9b SATURACIÓN   — ABLACIÓN: las tres cláusulas del criterio son necesarias.
+  C9c PRECONDICIÓN — el criterio no ve un tope que empiece ANTES de la ventana
+                     de medida; queda declarado, comprobado sobre la ventana
+                     real, y el caso ciego sale como "no evaluable".
   C10 HASH SISTEMA — mutar `viewer/app/static/js/graph.js` mueve el hash. Con el
                      filtro de v2.1 (`.py`/`.html`) no lo movía: 16 ficheros
                      invisibles, el motor de pintado del grafo entre ellos.
@@ -849,6 +852,73 @@ def c9_saturacion() -> tuple[dict, dict]:
     return c9a, c9b
 
 
+def c9c_precondicion_de_la_ventana() -> dict:
+    """El SUPERVIVIENTE del criterio, con su precondición puesta por escrito.
+
+    El criterio no marca una saturación que empiece ANTES de la ventana de
+    medida. Un tope implícito (sin ``limit=`` en la URL) medido sólo por encima
+    del tope da ``[50, 50, 50, 50]``: ``crecio_antes`` es falso, no hay techo
+    declarado, y no se marca. La MISMA serie empezando en 10 sí se marca.
+
+    Es decir: **el criterio es correcto sólo si el tamaño más pequeño medido
+    está por debajo de todos los topes implícitos**. Hoy se cumple
+    (``TAMANOS`` empieza en 10, el tope implícito más bajo es 50), así que no
+    muerde — pero se comprueba aquí para que no se pudra en silencio, y el caso
+    ciego sale declarado en ``componentes_no_evaluables``.
+    """
+    url_sin_techo = "/api/search?q=sintetico"
+
+    dentro = detector.analizar_saturacion(url_sin_techo, {"results": [10, 50, 50, 50]}, 1)
+    fuera = detector.analizar_saturacion(url_sin_techo, {"results": [50, 50, 50, 50]}, 1)
+
+    # La precondición, comprobada sobre la ventana REAL del baseline.
+    minimo_medido = min(run_bench_tamanos())
+    tope_implicito_mas_bajo = 50  # /api/search corta en 50 (medido en el baseline)
+    precondicion_se_cumple = minimo_medido < tope_implicito_mas_bajo
+
+    return _ok(
+        "C9c PRECONDICIÓN: la ventana de medida debe empezar por debajo de los topes",
+        # ventana que empieza por debajo del tope: se ve
+        dentro["saturado"] is True
+        # ventana que empieza por encima: NO se ve — el superviviente, declarado
+        and fuera["saturado"] is False
+        # ...pero no se da por sano: sale como no evaluable
+        and len(fuera["componentes_no_evaluables"]) == 1
+        and len(dentro["componentes_no_evaluables"]) == 0
+        # y la ventana real del laboratorio cumple la precondición
+        and precondicion_se_cumple,
+        {
+            "ventana_que_empieza_por_debajo_del_tope": {
+                "serie": [10, 50, 50, 50], "saturado": dentro["saturado"],
+                "no_evaluables": dentro["componentes_no_evaluables"],
+            },
+            "ventana_que_empieza_por_encima_del_tope": {
+                "serie": [50, 50, 50, 50], "saturado": fuera["saturado"],
+                "no_evaluables": fuera["componentes_no_evaluables"],
+            },
+            "precondicion": (
+                "el tamaño más pequeño medido debe estar por debajo de todos los "
+                "topes implícitos de los escenarios"
+            ),
+            "tamano_minimo_medido": minimo_medido,
+            "tope_implicito_mas_bajo_observado": tope_implicito_mas_bajo,
+            "precondicion_se_cumple_hoy": precondicion_se_cumple,
+            "quien_lo_causa": (
+                "la cláusula `crecio_antes`, que es justo la que elimina el falso "
+                "positivo de api_sources. Es un intercambio consciente: se prefiere "
+                "no inventarse techos a costa de no ver los que empiezan antes de "
+                "la ventana, y el caso ciego queda MARCADO como no evaluable."
+            ),
+        },
+    )
+
+
+def run_bench_tamanos() -> list[int]:
+    """Los tamaños que mide de verdad la línea base (no una copia a mano)."""
+    import run_bench
+    return list(run_bench.TAMANOS)
+
+
 # ---------------------------------------------------------------------------
 # C10 — el hash del SISTEMA MEDIDO cubre lo que dice cubrir
 # ---------------------------------------------------------------------------
@@ -1029,6 +1099,7 @@ def main() -> int:
     c9a, c9b = c9_saturacion()
     pruebas.append(c9a)
     pruebas.append(c9b)
+    pruebas.append(c9c_precondicion_de_la_ventana())
     pruebas.append(c10_hash_del_sistema())
 
     calibrado = all(p["superada"] for p in pruebas)

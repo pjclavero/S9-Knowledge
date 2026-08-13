@@ -94,6 +94,40 @@ caso de las aristas de `/api/graph?limit=300`: ver §5.
 Las tres cláusulas están ablacionadas una a una en **C9b**, sobre el mismo código
 que corre en producción del laboratorio, no sobre una copia.
 
+#### Precondición del criterio (declarada, y comprobada — no supuesta)
+
+El criterio **no ve una saturación que empiece antes de la ventana de medida**.
+La cláusula "creció antes" exige haber visto subir al componente para creerse su
+meseta; si todos los tamaños medidos están ya por encima de un tope
+**implícito** (el que no aparece como `limit=` en la URL), no hay crecimiento
+que ver:
+
+| serie medida | ¿se marca? | por qué |
+|---|---|---|
+| `[10, 50, 50, 50]` | **sí** | se la vio subir y luego topar |
+| `[50, 50, 50, 50]` | **no** | jamás se la vio crecer, y no hay techo declarado |
+
+> **El criterio es correcto sólo si el tamaño más pequeño medido está por debajo
+> de todos los topes implícitos de los escenarios.**
+
+**Hoy se cumple**: `TAMANOS` empieza en **10** y el tope implícito más bajo
+observado es el de `/api/search`, en **50**. Por eso el defecto no muerde. Pero
+es una precondición, no un teorema, y la causa **justo la cláusula que elimina
+el falso positivo de `api_sources`**: es un intercambio consciente —se prefiere
+no inventarse techos, a costa de no ver los que empiezan antes de la ventana.
+
+Dos cosas evitan que esto se pudra en silencio:
+
+* el caso ciego **no se da por sano**: los componentes planos en toda la ventana
+  y sin techo declarado salen en **`componentes_no_evaluables`**, con el motivo
+  escrito. No se declaran saturados —eso sería inventarse un techo que no
+  consta— pero tampoco limpios. *(En este baseline: **0 componentes**; ninguno
+  es plano en los seis tamaños.)*
+* **C9c** comprueba la precondición **contra la ventana real** de
+  `run_bench.TAMANOS`. Verificado poniéndola roja: si se deja de marcar el caso
+  ciego, C9c falla; si se sube la ventana a `[100, 250, 500]` —por encima del
+  tope de 50— C9c falla también. Revertido, verde.
+
 ### Por qué "plano" no es lo mismo que "sano"
 
 Un endpoint con tope produce una serie de llamadas **plana** en cuanto los puntos
@@ -465,3 +499,9 @@ queda **declarado como no medido**, que es lo que corresponde.
     justo lo que la caché evita.
 17. **El número de FILAS del driver doble sigue sin calibrar** (sólo el recuento
     de consultas lo está, C8).
+18. **El criterio de saturación no ve un tope que empiece antes de la ventana de
+    medida.** Precondición declarada y **comprobada en C9c**: el tamaño mínimo
+    medido (10) debe estar por debajo de todos los topes implícitos (el más bajo
+    observado, 50). Se cumple hoy; si alguien sube la ventana, la calibración se
+    pone roja. El caso ciego sale marcado como `componentes_no_evaluables`, no
+    como sano.
