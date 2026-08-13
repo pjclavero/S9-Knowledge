@@ -153,3 +153,8 @@ módulo estaría midiendo la política y el módulo entero se caería.
   lo recorren: la comprobación de que el cliente lo pinta es sobre el **texto** de `graph.js`
   (`grep` estructurado) más la lógica pura en Node. No hay captura de navegador que demuestre el
   píxel; los `.js` nunca se ejecutan en un navegador en las pruebas de este proyecto.
+- **Expandir vecinos no actualiza las cifras.** `expandNeighbors` añade nodos al lienzo desde
+  `/api/entities/{id}`, que por diseño no informa de lo que falta (decirlo revelaría lo que la
+  política oculta). Tras expandir, el aviso sigue mostrando los contadores de la última respuesta
+  de `/api/graph`: queda **conservador** —sigue siendo cierto que la vista es parcial— en vez de
+  inventar un total nuevo, que es exactamente lo que prohíbe la regla 3.

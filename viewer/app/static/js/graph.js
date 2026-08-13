@@ -147,7 +147,13 @@
   }
 
   /**
-   * Pinta el aviso de vista parcial. No decide nada por su cuenta: llama a la
+   * Pinta el aviso de vista parcial.
+   *
+   * `lastView` NO se recalcula al expandir vecinos: esas cifras son las que el
+   * servidor conto para la respuesta de /api/graph, y ahi se quedan. Tras
+   * expandir puede haber mas nodos en el lienzo que `nodes_shown`; el aviso
+   * queda entonces conservador (sigue siendo cierto que la vista es parcial) en
+   * vez de inventar un total nuevo, que es justo lo que la regla 3 prohibe. No decide nada por su cuenta: llama a la
    * lógica pura de `graph-core.js`, que sólo calla cuando el servidor ha dicho
    * que la respuesta está completa.
    */
