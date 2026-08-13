@@ -1,4 +1,103 @@
 {
+  "configuracion": {
+    "aviso": "este mapa vale para ESTA configuración; el instrumento no distingue «apagada por bandera» de «muerta»",
+    "interruptores_y_modo": {
+      "S9K_DEFAULT_WORKSPACE": "leyenda",
+      "S9K_GRAPH_PROVIDER": "mock"
+    },
+    "otras_variables_s9k_presentes_sin_valor": [
+      "S9K_CSRF_SECRET",
+      "S9K_SAMPLE_GRAPH_PATH",
+      "S9K_SESSION_SECURE"
+    ]
+  },
+  "control_positivo_csrf": {
+    "contaminacion_usuarios": [],
+    "ok": true,
+    "pares": [
+      {
+        "distingue": false,
+        "ruta": "POST /login",
+        "status_token_invalido": 403,
+        "status_token_valido": 403
+      },
+      {
+        "distingue": true,
+        "ruta": "POST /logout",
+        "status_token_invalido": 403,
+        "status_token_valido": 302
+      },
+      {
+        "distingue": true,
+        "ruta": "POST /account/change-password",
+        "status_token_invalido": 403,
+        "status_token_valido": 400
+      },
+      {
+        "distingue": false,
+        "ruta": "POST /admin/users/new",
+        "status_token_invalido": 422,
+        "status_token_valido": 422
+      },
+      {
+        "distingue": false,
+        "ruta": "POST /admin/users/{user_id}",
+        "status_token_invalido": 422,
+        "status_token_valido": 422
+      },
+      {
+        "distingue": true,
+        "ruta": "POST /admin/users/{user_id}/unlock",
+        "status_token_invalido": 403,
+        "status_token_valido": 404
+      },
+      {
+        "distingue": true,
+        "ruta": "POST /admin/users/{user_id}/revoke-sessions",
+        "status_token_invalido": 403,
+        "status_token_valido": 404
+      },
+      {
+        "distingue": false,
+        "ruta": "POST /admin/partidas/grant",
+        "status_token_invalido": 422,
+        "status_token_valido": 422
+      },
+      {
+        "distingue": true,
+        "ruta": "POST /admin/partidas/{access_id}/revoke",
+        "status_token_invalido": 403,
+        "status_token_valido": 404
+      },
+      {
+        "distingue": true,
+        "ruta": "POST /partida/select",
+        "status_token_invalido": 403,
+        "status_token_valido": 400
+      },
+      {
+        "distingue": true,
+        "ruta": "POST /review-console/source/{source_id}/decide",
+        "status_token_invalido": 403,
+        "status_token_valido": 400
+      },
+      {
+        "distingue": true,
+        "ruta": "POST /v3/review/decide",
+        "status_token_invalido": 403,
+        "status_token_valido": 400
+      },
+      {
+        "distingue": true,
+        "ruta": "POST /v3/review/undo",
+        "status_token_invalido": 403,
+        "status_token_valido": 400
+      }
+    ],
+    "roles_no_concluyentes": true,
+    "rutas_con_campo_csrf": 13,
+    "rutas_que_distinguen": 9
+  },
   "counts": {
     "autorizadas": 57,
     "consumidas": 56,
@@ -13,10 +112,13 @@
     "de_ellas_metodos_con_cuerpo": 12,
     "denegacion_404_ambigua": 0,
     "denegacion_no_atribuible": 0,
-    "denegadas_atribuibles": 57
+    "denegadas_atribuibles": 57,
+    "excluidas_por_contradiccion": 0
   },
   "findings": {
+    "barrido_contamino_la_db": [],
     "contradiccion_deniega_y_sirve": [],
+    "control_positivo_csrf_fallido": [],
     "enlaces_rotos": [],
     "guardian_declarado_pero_no_aplicado": [],
     "rutas_capturadas": [],
@@ -210,7 +312,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/routers/readonly.py:117",
+        "source": "viewer/app/routers/readonly.py:145",
         "status_anonimo": 401,
         "status_por_rol": {
           "admin": 200,
@@ -471,7 +573,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/routers/readonly.py:455",
+        "source": "viewer/app/routers/readonly.py:487",
         "status_anonimo": 401,
         "status_por_rol": {
           "admin": 200,
@@ -559,7 +661,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/routers/readonly.py:346",
+        "source": "viewer/app/routers/readonly.py:374",
         "status_anonimo": 401,
         "status_por_rol": {
           "admin": 200,
@@ -602,7 +704,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/routers/readonly.py:365",
+        "source": "viewer/app/routers/readonly.py:393",
         "status_anonimo": 401,
         "status_por_rol": {
           "admin": 404,
@@ -902,7 +1004,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/routers/readonly.py:474",
+        "source": "viewer/app/routers/readonly.py:506",
         "status_anonimo": 302,
         "status_por_rol": {
           "admin": 200,
@@ -1405,7 +1507,7 @@
         "source": "viewer/app/routers/admin.py:163",
         "status_anonimo": 401,
         "status_por_rol": {
-          "admin": 200,
+          "admin": 404,
           "reviewer": 403,
           "viewer": 403
         },
@@ -1485,7 +1587,7 @@
         "source": "viewer/app/routers/admin.py:294",
         "status_anonimo": 401,
         "status_por_rol": {
-          "admin": 302,
+          "admin": 404,
           "reviewer": 403,
           "viewer": 403
         },
@@ -1528,7 +1630,7 @@
         "source": "viewer/app/routers/admin.py:263",
         "status_anonimo": 401,
         "status_por_rol": {
-          "admin": 302,
+          "admin": 404,
           "reviewer": 403,
           "viewer": 403
         },
@@ -1920,7 +2022,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/routers/readonly.py:117",
+        "source": "viewer/app/routers/readonly.py:145",
         "status_anonimo": 401,
         "status_por_rol": {
           "admin": 200,
@@ -1968,7 +2070,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/routers/readonly.py:183",
+        "source": "viewer/app/routers/readonly.py:211",
         "status_anonimo": 401,
         "status_por_rol": {
           "admin": 404,
@@ -2418,7 +2520,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/routers/readonly.py:225",
+        "source": "viewer/app/routers/readonly.py:253",
         "status_anonimo": 302,
         "status_por_rol": {
           "admin": 200,
@@ -2467,7 +2569,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/routers/readonly.py:290",
+        "source": "viewer/app/routers/readonly.py:318",
         "status_anonimo": 302,
         "status_por_rol": {
           "admin": 404,
@@ -2779,9 +2881,8 @@
     ],
     "sondas_inconcluyentes": []
   },
-  "head": "f95b815ebb066ab1edef30cf3abb31d69ee8a5b8",
+  "head": "2185f2b01bb7ed83f392bbcbd2151c9e2a514817",
   "probe_error": null,
-  "repo": "/home/ia02/S9-Knowledge/.claude/worktrees/agent-af3bcac10924a0494",
   "routes": [
     {
       "authz_body_guards": [
@@ -3371,7 +3472,7 @@
       "source": "viewer/app/routers/admin.py:163",
       "status_anonimo": 401,
       "status_por_rol": {
-        "admin": 200,
+        "admin": 404,
         "reviewer": 403,
         "viewer": 403
       },
@@ -3451,7 +3552,7 @@
       "source": "viewer/app/routers/admin.py:294",
       "status_anonimo": 401,
       "status_por_rol": {
-        "admin": 302,
+        "admin": 404,
         "reviewer": 403,
         "viewer": 403
       },
@@ -3494,7 +3595,7 @@
       "source": "viewer/app/routers/admin.py:263",
       "status_anonimo": 401,
       "status_por_rol": {
-        "admin": 302,
+        "admin": 404,
         "reviewer": 403,
         "viewer": 403
       },
@@ -3574,7 +3675,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:117",
+      "source": "viewer/app/routers/readonly.py:145",
       "status_anonimo": 401,
       "status_por_rol": {
         "admin": 200,
@@ -3622,7 +3723,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:183",
+      "source": "viewer/app/routers/readonly.py:211",
       "status_anonimo": 401,
       "status_por_rol": {
         "admin": 404,
@@ -3929,7 +4030,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:455",
+      "source": "viewer/app/routers/readonly.py:487",
       "status_anonimo": 401,
       "status_por_rol": {
         "admin": 200,
@@ -4017,7 +4118,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:346",
+      "source": "viewer/app/routers/readonly.py:374",
       "status_anonimo": 401,
       "status_por_rol": {
         "admin": 200,
@@ -4060,7 +4161,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:365",
+      "source": "viewer/app/routers/readonly.py:393",
       "status_anonimo": 401,
       "status_por_rol": {
         "admin": 404,
@@ -4245,7 +4346,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:225",
+      "source": "viewer/app/routers/readonly.py:253",
       "status_anonimo": 302,
       "status_por_rol": {
         "admin": 200,
@@ -4294,7 +4395,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:290",
+      "source": "viewer/app/routers/readonly.py:318",
       "status_anonimo": 302,
       "status_por_rol": {
         "admin": 404,
@@ -4757,7 +4858,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:474",
+      "source": "viewer/app/routers/readonly.py:506",
       "status_anonimo": 302,
       "status_por_rol": {
         "admin": 200,
@@ -5116,7 +5217,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:391",
+      "source": "viewer/app/routers/readonly.py:419",
       "status_anonimo": 302,
       "status_por_rol": {
         "admin": 200,
@@ -5165,7 +5266,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/routers/readonly.py:416",
+      "source": "viewer/app/routers/readonly.py:444",
       "status_anonimo": 302,
       "status_por_rol": {
         "admin": 404,
@@ -5461,5 +5562,5 @@
     "apps_instrumented": 1,
     "exitstatus": 0
   },
-  "tested_source": "/tmp/tested_routes.json"
+  "tested_source": "tested_routes.json"
 }

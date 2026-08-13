@@ -542,10 +542,22 @@ def template_inheritance(repo: Path) -> dict[str, list[str]]:
 # 4) authorized — sonda anónima real contra la app con auth activada
 # --------------------------------------------------------------------------
 
+#: Identificador numérico deliberadamente INALCANZABLE para los parámetros que
+#: el visor interpreta como clave primaria. Antes se usaba `1`, que es un id
+#: REAL de la auth DB efímera (el primer usuario que crea la sonda). Con él, un
+#: handler que aceptase la carga falsa `"probe"` en todos sus campos modificaría
+#: un usuario de la sonda de forma DETERMINISTA — y tres corridas idénticas no
+#: lo delatarían, precisamente por ser determinista. Con un id fuera de rango,
+#: esos handlers mueren en «no encontrado» antes de escribir nada.
+ID_INALCANZABLE = "987654321"
+
+
 def _concrete_url(path: str) -> str:
     def sub(m):
         name = m.group(1).split(":")[0]
-        return "1" if name.endswith("_id") and name in {"user_id", "access_id"} else "probe"
+        if name.endswith("_id") and name in {"user_id", "access_id"}:
+            return ID_INALCANZABLE
+        return "probe"
     return re.sub(r"\{([^}]+)\}", sub, path)
 
 
@@ -695,6 +707,22 @@ def probe_main(repo: Path, out_path: Path) -> None:
 
     cookie_name = get_auth_settings().S9K_SESSION_COOKIE_NAME
 
+    def _censo_usuarios() -> list:
+        """Foto del estado que el barrido NO debe alterar."""
+        if not db_path:
+            return []
+        from app.auth import db as _adb
+
+        try:
+            with _adb.get_conn(Path(db_path)) as conn:
+                return sorted(
+                    [u.username, getattr(u, "role", ""), bool(getattr(u, "is_active", True)),
+                     getattr(u, "failed_attempts", None), str(getattr(u, "locked_until", ""))]
+                    for u in _adb.list_users(conn)
+                )
+        except Exception as exc:  # pragma: no cover
+            return [["__error__", repr(exc)[:200]]]
+
     results: dict[str, dict] = {}
     registro = _install_resolver(app)
     with TestClient(app, follow_redirects=False) as client:
@@ -702,6 +730,15 @@ def probe_main(repo: Path, out_path: Path) -> None:
 
         secret = get_auth_settings().S9K_CSRF_SECRET
         csrf_anonimo = _csrf_para(0, "", secret)
+
+        # Los tres usuarios de sonda se crean ANTES del barrido para poder
+        # fotografiar el estado que el barrido no debe alterar.
+        for _role in ROLES:
+            try:
+                _fresh_token(db_path, _role)
+            except Exception:  # pragma: no cover
+                pass
+        censo_inicial = _censo_usuarios()
 
         def _cuerpo(r, csrf):
             """Cuerpo de la petición con un token CSRF VÁLIDO en su campo.
@@ -760,6 +797,53 @@ def probe_main(repo: Path, out_path: Path) -> None:
                 except Exception as exc:  # pragma: no cover
                     res["por_rol"][role] = {"status": None, "error": repr(exc)[:300]}
             results[r["key"]] = res
+
+        # ------------------------------------------------------------------
+        # CONTROL POSITIVO del CSRF (diferencial válido vs. deliberadamente
+        # inválido). `csrf_enviado` sólo dice «rellené el campo», NUNCA «la app
+        # lo aceptó»: si la derivación del visor cambia, la sonda envía basura
+        # con cara de token y el barrido vuelve a morir en el CSRF **en
+        # silencio**. Aquí se exige la prueba: para alguna ruta con cuerpo y
+        # sesión válida, el token bueno y uno malo tienen que producir
+        # respuestas DISTINTAS. Si ninguna distingue, el token bueno no vale más
+        # que la basura y la medida de autorización en esos métodos no es
+        # creíble. No se compara contra una lista blanca de estados: se compara
+        # la app consigo misma.
+        control = {"pares": [], "ok": False, "roles_no_concluyentes": True}
+        for r in routes:
+            campos = r.get("body_fields") or []
+            if r["method"] in ("GET", "HEAD", "OPTIONS"):
+                continue
+            if not any("csrf" in f.lower() for f in campos):
+                continue
+            bueno = (results[r["key"]].get("por_rol") or {}).get("admin") or {}
+            try:
+                token, _ = _fresh_token(db_path, "admin")
+                # Sólo se emite la petición con token MALO: la buena ya se hizo
+                # en el barrido y repetirla duplicaría sus efectos.
+                malo = _hit(r, {cookie_name: token}, "csrf-deliberadamente-invalido")
+            except Exception as exc:  # pragma: no cover
+                control["pares"].append({"ruta": r["key"], "error": repr(exc)[:200]})
+                continue
+            par = {"ruta": r["key"], "status_token_valido": bueno.get("status"),
+                   "status_token_invalido": malo.get("status")}
+            par["distingue"] = (par["status_token_valido"] is not None
+                                and par["status_token_valido"] != par["status_token_invalido"])
+            control["pares"].append(par)
+        # Los usuarios que la sonda crea son los únicos que existen; si el
+        # barrido los ha tocado, es que un handler aceptó la carga falsa y
+        # escribió. Se MIDE en vez de confiarse, porque una contaminación
+        # determinista sobrevive intacta a repetir la corrida tres veces.
+        censo_final = _censo_usuarios()
+        control["contaminacion_usuarios"] = (
+            [] if censo_final == censo_inicial
+            else {"antes": censo_inicial, "despues": censo_final})
+
+        control["ok"] = any(p.get("distingue") for p in control["pares"])
+        control["rutas_con_campo_csrf"] = len(control["pares"])
+        control["rutas_que_distinguen"] = sum(1 for p in control["pares"] if p.get("distingue"))
+        results["__control_csrf__"] = control
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
 
@@ -775,7 +859,7 @@ def _is_denial(st: int | None, loc: str) -> bool:
 
 
 def role_verdict(key: str, res: dict | None, has_params: bool = False,
-                 path: str = "") -> dict:
+                 path: str = "", csrf_control_ok: bool = True) -> dict:
     """Rol MÍNIMO que obtiene respuesta servida, medido de verdad por rol.
 
     Sólo se concluye para GET: en POST la protección CSRF responde antes que el
@@ -799,7 +883,9 @@ def role_verdict(key: str, res: dict | None, has_params: bool = False,
             isinstance(r, dict) and r.get("csrf_enviado")
             for r in res["por_rol"].values()
         )
-        if not todos_con_csrf:
+        # …y sólo si el CONTROL POSITIVO demuestra que ese token vale. Rellenar
+        # el campo no es que la app lo acepte.
+        if not todos_con_csrf or not csrf_control_ok:
             return {"rol_minimo": "no-concluyente-csrf", "por_rol": per}
     for role in ROLES:
         r = res["por_rol"].get(role) or {}
@@ -1008,6 +1094,9 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
     # --- authorized ------------------------------------------------------
     probe = {} if skip_probe else run_probe(repo)
     probe_error = probe.pop("__error__", None)
+    csrf_control = probe.pop("__control_csrf__", None)
+    # Sin sonda no hay control que valga; con sonda, el control manda.
+    csrf_control_ok = bool(csrf_control and csrf_control.get("ok")) if not skip_probe else True
 
     # --- consumed --------------------------------------------------------
     consumers = _collect_consumers(repo, mounted_routes, links, match_url, tested)
@@ -1022,7 +1111,7 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
         verdict, detail = classify_probe(k, probe.get(k), r["path"],
                                          static_guard=static_guard)
         roles = role_verdict(k, probe.get(k), has_params="{" in r["path"],
-                             path=r["path"])
+                             path=r["path"], csrf_control_ok=csrf_control_ok)
         captor = capturada_por(r["path"], probe.get(k))
         t = tested.get(k)
         rows.append({
@@ -1087,9 +1176,39 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
             for r in rows if _motivo_contradiccion(r)
         ],
     }
-    denegadas = [r for r in rows if r["authz_probe"] == "denegada"]
+    contaminacion = (csrf_control or {}).get("contaminacion_usuarios") or []
+    findings["barrido_contamino_la_db"] = ([{
+        "key": "__contaminacion__",
+        "detalle": ("el barrido MODIFICÓ los usuarios de la auth DB efímera: algún "
+                    "handler aceptó la carga falsa y escribió. La medida sigue siendo "
+                    "de un árbol desechable, pero deja de ser un barrido de sólo "
+                    "lectura y puede arrastrar resultados entre rutas"),
+        "diferencia": contaminacion,
+    }] if contaminacion else [])
+    if not csrf_control_ok and not skip_probe:
+        findings["control_positivo_csrf_fallido"] = [{
+            "key": "__control_csrf__",
+            "detalle": ("ninguna ruta con cuerpo distingue el token CSRF válido del "
+                        "inválido: el token que emite la sonda no vale más que basura, "
+                        "así que la medida de autorización en métodos con cuerpo NO es "
+                        "creíble (probable deriva de la derivación del visor)"),
+            "control": csrf_control,
+        }]
+    else:
+        findings["control_positivo_csrf_fallido"] = []
+    # Q5: un NOMBRE no puede conceder. Una fila cuya denegación se contradice a
+    # sí misma no suma al titular, tenga o no un `Depends` de nombre convincente.
+    # Sin esto, una dependencia inútil llamada `require_nothing_access` apagaba
+    # el cubo ambiguo y la ruta abierta subía el recuento (57 -> 58).
+    contradichas = {r["key"] for r in findings["contradiccion_deniega_y_sirve"]}
+    denegadas = [r for r in rows
+                 if r["authz_probe"] == "denegada" and r["key"] not in contradichas]
+    excluidas = [r for r in rows
+                 if r["authz_probe"] == "denegada" and r["key"] in contradichas]
     return {
-        "repo": str(repo),
+        # El árbol auditado se identifica por su HEAD, nunca por su ruta en
+        # disco: la ruta (worktree, /tmp, home de quien mide) es topología de una
+        # máquina concreta y este artefacto se publica en un repo público.
         "head": head_label or _head(repo),
         "counts": {
             "definidas": len(defined), "montadas": len(rows),
@@ -1108,8 +1227,11 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
             "de_ellas_con_csrf_valido_emitido": sum(r["csrf_enviado"] for r in denegadas),
             "denegacion_404_ambigua": len(findings["rutas_denegacion_404_ambigua"]),
             "denegacion_no_atribuible": len(findings["rutas_denegacion_no_atribuible"]),
+            "excluidas_por_contradiccion": len(excluidas),
         },
-        "tested_source": str(tested_path) if tested_path else None,
+        "control_positivo_csrf": csrf_control,
+        "configuracion": _configuracion(),
+        "tested_source": tested_path.name if tested_path else None,
         "tested_meta": tested_meta,
         "probe_error": probe_error,
         "routes": rows,
@@ -1127,6 +1249,38 @@ def _collect_consumers(repo, mounted_routes, links, match_url, tested) -> dict[s
     for key, rec in tested.items():
         out.setdefault(key, []).append(f"tests:{rec.get('count', 0)} peticiones")
     return {k: sorted(set(v)) for k, v in out.items()}
+
+
+#: Variables cuyo VALOR se puede publicar en el artefacto: interruptores, no
+#: secretos. Todo lo demás se registra sólo por su NOMBRE. Nunca se vuelca el
+#: entorno entero: ahí viven `S9K_CSRF_SECRET` y compañía.
+_CONFIG_VALOR_PUBLICABLE = re.compile(r"^S9K_.*_ENABLED$|^S9K_AUTH_EXPOSE_DOCS$"
+                                      r"|^S9K_GRAPH_PROVIDER$|^S9K_DEFAULT_WORKSPACE$")
+
+
+def _configuracion() -> dict:
+    """Configuración con la que se tomó esta medida.
+
+    Un mapa describe el código **bajo una configuración**. Con interruptores por
+    funcionalidad (`S9K_PANEL_<KEY>_ENABLED` del chasis, por ejemplo) la misma
+    rama da dos mapas distintos: con el panel apagado la ruta sigue montada pero
+    no la enlaza nadie y no la sirve ningún rol — indistinguible, para este
+    instrumento, de una ruta muerta. Por eso el artefacto lleva escrito con qué
+    configuración se tomó, y por eso hay que ejecutarlo UNA VEZ POR
+    CONFIGURACIÓN antes de dictaminar.
+    """
+    valores, solo_nombre = {}, []
+    for k in sorted(os.environ):
+        if not k.startswith("S9K_"):
+            continue
+        if _CONFIG_VALOR_PUBLICABLE.match(k):
+            valores[k] = os.environ[k]
+        else:
+            solo_nombre.append(k)
+    return {"interruptores_y_modo": valores,
+            "otras_variables_s9k_presentes_sin_valor": solo_nombre,
+            "aviso": ("este mapa vale para ESTA configuración; el instrumento no "
+                      "distingue «apagada por bandera» de «muerta»")}
 
 
 def _head(repo: Path) -> str:
@@ -1163,7 +1317,13 @@ def _desglose_titular(m: dict) -> str:
         fuera.append(f"{d['denegacion_404_ambigua']} con 404 ambiguo (sin guardián)")
     if d.get("denegacion_no_atribuible"):
         fuera.append(f"{d['denegacion_no_atribuible']} con 403 no atribuible")
+    if d.get("excluidas_por_contradiccion"):
+        fuera.append(f"{d['excluidas_por_contradiccion']} excluidas por contradecirse")
     cola = f"; FUERA del recuento: {', '.join(fuera)}" if fuera else "; 0 fuera del recuento"
+    ctrl = m.get("control_positivo_csrf")
+    if ctrl is not None and not ctrl.get("ok"):
+        cola += ("; **CONTROL POSITIVO DEL CSRF FALLIDO: la cifra de métodos con "
+                 "cuerpo NO es creíble**")
     return " — " + "; ".join(partes) + cola
 
 
@@ -1177,6 +1337,12 @@ def render_md(m: dict) -> str:
          f"- deniegan petición anónima con auth ON: **{c['autorizadas']}**"
          + _desglose_titular(m),
          f"- consumidas: **{c['consumidas']}**", "",
+         "> Medido con esta configuración: "
+         + (", ".join(f"`{k}={v}`" for k, v in
+                      (m.get("configuracion") or {}).get("interruptores_y_modo", {}).items())
+            or "sin interruptores S9K_* declarados")
+         + ". El instrumento **no distingue «apagada por bandera» de «muerta»**: "
+           "ejecútalo una vez por configuración antes de dictaminar.", "",
          "| ruta | def | mnt | link | test | authz anónimo | rol mínimo medido | guardián estático | consum |",
          "|---|:-:|:-:|:-:|:-:|---|---|---|:-:|"]
     tick = lambda b: "si" if b else "NO"  # noqa: E731
@@ -1257,6 +1423,24 @@ def main(argv=None) -> int:
         print(json.dumps(m["counts"], indent=2))
         for name, items in m["findings"].items():
             print(f"{name}: {len(items)}")
+    # Fallo RUIDOSO del control positivo: el mapa se escribe igual (hace falta
+    # para diagnosticar), pero el proceso NO sale con 0. Degradar en silencio es
+    # exactamente el defecto que este control existe para impedir.
+    if m["findings"].get("control_positivo_csrf_fallido"):
+        ctrl = m.get("control_positivo_csrf") or {}
+        print("", file=sys.stderr)
+        print("=" * 72, file=sys.stderr)
+        print("CONTROL POSITIVO DEL CSRF: FALLIDO", file=sys.stderr)
+        print("Ninguna de las %s rutas con campo CSRF distingue un token válido de "
+              "uno inválido." % ctrl.get("rutas_con_campo_csrf", "?"), file=sys.stderr)
+        print("El token que emite la sonda NO vale más que basura: la derivación del "
+              "visor ha cambiado", file=sys.stderr)
+        print("y `_csrf_para` ya no la reproduce. La medida de autorización en "
+              "métodos con cuerpo NO", file=sys.stderr)
+        print("es creíble mientras esto siga rojo. Rutas y estados en "
+              "`control_positivo_csrf`.", file=sys.stderr)
+        print("=" * 72, file=sys.stderr)
+        return 2
     return 0
 
 

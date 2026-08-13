@@ -7,6 +7,8 @@
 - deniegan petición anónima con auth ON: **65** — de ellas 64 con guardián estático; 12 de métodos con cuerpo (sondeados con token CSRF válido: 12); 0 fuera del recuento
 - consumidas: **67**
 
+> Medido con esta configuración: `S9K_DEFAULT_WORKSPACE=leyenda`, `S9K_GRAPH_PROVIDER=mock`. El instrumento **no distingue «apagada por bandera» de «muerta»**: ejecútalo una vez por configuración antes de dictaminar.
+
 | ruta | def | mnt | link | test | authz anónimo | rol mínimo medido | guardián estático | consum |
 |---|:-:|:-:|:-:|:-:|---|---|---|:-:|
 | `GET /` | si | si | si | si (10) | denegada | viewer | _require_user_or_redirect | si |

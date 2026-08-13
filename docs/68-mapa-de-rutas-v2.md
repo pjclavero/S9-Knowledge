@@ -10,8 +10,10 @@ en lo que este mapa mide (mismas 59 rutas, mismos recuentos).
 > calibrados los tres defectos que encontró la revisión —Q1 (barrido ciego en los
 > `POST` por el muro del CSRF), Q2 (404 de recurso inexistente contado como
 > denegación) y Q3 (falsas rutas capturadas al compartirse el objeto `Route`)—.
-> Ver §3.0, §4.1, §4.2 y §6.1. La calibración pasa de 12 a **16 casos** (los tres del dictamen más un
-> superviviente propio, §4.3).
+> Ver §3.0, §4.1, §4.2 y §6.1. En una segunda ronda el revisor encontró dos
+> defectos más de la misma familia —**Q4** (la deriva de la derivación CSRF
+> degradaba en silencio) y **Q5** (un *nombre* de guardián falso sí CONCEDÍA)—,
+> corregidos en §3.4 y §3.5. La calibración pasa de 12 a **19 casos**.
 
 ## 1. Qué arregla respecto al mapa anterior
 
@@ -110,6 +112,7 @@ primera línea del `.md`):
 | …sondeadas con un **token CSRF válido**, para que hable el guardián y no el CSRF | 12 de 12 |
 | denegaciones **no atribuibles** dejadas FUERA del recuento | 0 |
 | 404 ambiguos (ruta con `{param}` y sin guardián) dejados FUERA | 0 |
+| filas **excluidas por contradecirse a sí mismas** (§3.5) | 0 |
 
 Las dos últimas filas son cero **en esta base**, y ése es el punto: son cubos que
 existen y se llenan cuando hay motivo. Una revisión independiente demostró que
@@ -137,7 +140,8 @@ control de acceso; (b) un 404 sin guardián estático se marca
 y **ninguno de los dos cuenta como denegación**; (c) el cruce de las dos señales
 («deniega al anónimo» + «servida a un rol» + sin guardián) es un hallazgo propio,
 `contradiccion_deniega_y_sirve`. Los tres defectos están calibrados: casos
-**M12, M13, M14** (y **M15**, superviviente propio) de §4.
+**M12, M13, M14** (y **M15**, superviviente propio) de §4; los de la segunda
+ronda, **M16, M17 y M18**, en §3.4 y §3.5.
 
 El detalle ruta por ruta —incluido el **rol mínimo medido** de cada una— está en
 `artifacts/route-map/route_map.md` y `route_map.json`.
@@ -223,6 +227,64 @@ y está calibrada con ese señuelo — caso **M11**. Aun así el orden de confia
 **primero la medida dinámica, después la estática**; si divergen, manda la que
 hace la petición.
 
+### 3.4 Q4 — el token CSRF podía dejar de valer, y nadie se enteraba
+
+El arreglo de Q1 dejó una promesa colgando: «`_csrf_para` copia la derivación del
+visor, y si cambia lo vigila `csrf_enviado`». **No lo vigilaba.** El revisor lo
+demostró cambiando la derivación EN EL VISOR (`f"csrf:"` → `f"csrf-v2:"` en
+`app/auth/middleware.py`), que es exactamente el cambio futuro que yo decía tener
+cubierto. Medido con el instrumento de la ronda anterior:
+
+| señal | con la deriva |
+|---|---|
+| `autorizadas` | **57**, sin moverse |
+| veredictos `authz` cambiados | **0** |
+| hallazgos nuevos | **0** |
+| `csrf_enviado` en los 13 `POST` | **`True`** — sigue diciendo que sí |
+| único rastro | los 8 roles `POST` concluyentes colapsan a `ninguno-sirve` |
+
+`csrf_enviado` sólo significa «rellené el campo», **nunca** «la app lo aceptó».
+Con la deriva **más** un guardián retirado, el barrido volvía a morir en el CSRF:
+la ceguera de Q1 restaurada sin que nada se pusiera rojo.
+
+**Arreglo: un control positivo, y diferencial.** Para cada ruta con campo CSRF y
+sesión válida, la sonda repite la petición con un token **deliberadamente
+inválido** y exige que el estado sea DISTINTO del que dio el token bueno. No se
+compara contra una lista blanca de códigos: se compara la app consigo misma. Si
+**ninguna** ruta distingue, el token bueno no vale más que basura y se declara:
+
+- `control_positivo_csrf` en el JSON, con los pares ruta/estado;
+- hallazgo `control_positivo_csrf_fallido`;
+- aviso en el titular del `.md`;
+- los veredictos de rol en métodos con cuerpo **vuelven** a `no-concluyente-csrf`;
+- y `route_map.py` **sale con código 2**, no con 0.
+
+Medido en esta base: **13** rutas con campo CSRF, **9** distinguen. Las 4 que no
+lo hacen dan 422 en ambos casos —la validación del cuerpo responde antes que el
+CSRF—, y por eso no cuentan como prueba. Calibrado en **M16**; con la deriva, el
+control se pone rojo y el proceso sale 2.
+
+### 3.5 Q5 — un guardián estático puede CONCEDER, y eso es peor
+
+Mi formulación de la ronda anterior («el cubo ambiguo sólo sirve para *no* dar
+por buena una denegación, nunca para darla por buena») era cierta **del cubo** y
+falsa **de su condición de guarda**. El revisor añadió `GET /fuga2/{item_id}`,
+abierta de par en par, con una dependencia inútil llamada
+`require_nothing_access` — que casa con el patrón de nombres por terminar en
+`_access`. Resultado medido: `authz_static=True` ⇒ el 404 **no** cae en el cubo
+ambiguo ⇒ veredicto `denegada` ⇒ **`autorizadas` 57 → 58**. Un nombre falso
+apagaba la sospecha y la ruta abierta sumaba al titular. Le pasaba lo mismo a mi
+propio M15 (delta `autorizadas` = 0 cuando debía bajar).
+
+**Arreglo: una fila que se contradice a sí misma no cuenta**, tenga o no un
+`Depends` de nombre convincente. `autorizadas` excluye toda fila con
+`contradiccion_deniega_y_sirve`, y el desglose lo declara en
+`excluidas_por_contradiccion`. Con la mutación: montadas 60, **`autorizadas` 57**
+(antes 58) y 1 excluida. Calibrado en **M17**.
+
+El principio de toda esta ronda, dicho una vez: **un nombre no concede nada.** La
+señal estática puede levantar sospecha; no puede retirarla.
+
 ## 4. Calibración: el instrumento se ha visto rojo
 
 «Una afirmación no constituye evidencia porque exista un test verde». Cada
@@ -249,8 +311,11 @@ exactamente lo mismo.
 | M13 | se quita `Depends(require_authenticated_user)` de `POST /partida/select` (Q1) | el veredicto deja de ser `denegada` y **`autorizadas` −1** | sí |
 | M14 | el mismo router incluido dos veces (`prefix="/dup"`) (Q3) | **0 capturadas nuevas** y las 10 rutas del segundo prefijo **medidas de verdad** | sí |
 | M15 | se quita el guardián de `POST /admin/partidas/{access_id}/revoke`, donde el detector estático da un **falso positivo** | `contradiccion_deniega_y_sirve` con motivo `indistinguible-del-acceso` | sí |
+| M16 | la derivación del CSRF cambia **en el visor** (`csrf:` → `csrf-v2:`) (Q4) | `control_positivo_csrf_fallido`, roles `POST` de vuelta a `no-concluyente-csrf`, **salida 2** | sí |
+| M17 | ruta abierta con `Depends(require_nothing_access)`, dependencia inútil de nombre convincente (Q5) | contradicción + **`autorizadas` +0** pese a `montadas` +1 | sí |
+| M18 | handler sin guardián ni CSRF que acepta la carga falsa y **escribe** en la auth DB | **no contamina**: el id fabricado está fuera del rango de los usuarios de la sonda, y el censo antes/después lo confirma | sí |
 
-`reversion_identica: true` — tras las dieciséis mutaciones, el árbol limpio
+`reversion_identica: true` — tras las diecinueve mutaciones, el árbol limpio
 devuelve el mismo mapa. Salida completa en
 `artifacts/route-map/calibracion.json`.
 
@@ -282,6 +347,9 @@ por separado, uno a uno, y se reejecutó su caso:
 | cubo `denegada-404-ambigua` | M12 | **rojo** (`detectado: false`) |
 | hallazgo `contradiccion_deniega_y_sirve` | M12 | **rojo** (`detectado: false`) |
 | señal dinámica `indistinguible-del-acceso` | M15 | **rojo** (`detectado: false`) |
+| control positivo del CSRF | M16 | **rojo** (`detectado: false`) |
+| exclusión de las filas contradictorias del recuento | M17 | **rojo** (`detectado: false`) |
+| id fabricado fuera de rango (vuelta a `user_id=1`) | M18 | **rojo**: contamina de verdad (`contamino_db_nuevo: true`) |
 | resolvedor indexado por `(id(route), path)` | M14 | **rojo** (`detectado: false`) |
 | emisión del token CSRF válido | M13 | sigue verde |
 | cubo `denegacion-no-atribuible` | M13 | sigue verde |
@@ -356,6 +424,16 @@ desaparece del censo (y sale como muerta), y una ruta que sirve 200 aparece
 montada. M6 cierra el error concreto que ya se cometió aquí: medir cobertura
 contra una app privada de test.
 
+### 4.4 M18 nació VACÍO, y por eso se endureció
+
+La primera versión de M18 afirmaba «no contaminó». Contra el instrumento
+**anterior**, que no tiene detector de contaminación ninguno, **también pasaba**:
+«no contaminó» era cierto por no mirar. Una aserción que no puede distinguir
+«prevenido» de «no observado» no calibra nada. Ahora M18 exige además que el
+detector **exista y haya corrido** (`contaminacion_usuarios` presente en el
+artefacto), y con esa condición **falla** contra el instrumento anterior, que es
+lo que tenía que hacer desde el principio.
+
 ## 5. Qué NO se cubrió (declarado, no disimulado)
 
 - **`consumed` es el eslabón más débil.** Se resuelve por enlaces de plantillas y
@@ -364,12 +442,21 @@ contra una app privada de test.
   consumidores externos al repo (nginx, otro servicio, un cliente humano). Una
   ruta marcada `consumed: false` puede tener consumidores reales fuera de vista.
 - **Rol en `POST`: ya medido**, pero con una condición que conviene enunciar. La
-  sonda calcula el token CSRF **reproduciendo la derivación del visor**. Si esa
-  derivación cambia y el cálculo deja de coincidir, el barrido volvería a
-  estrellarse contra el CSRF; lo que evita que eso pase en silencio es que
-  `csrf_enviado` se registra por petición y el veredicto vuelve a
-  `no-concluyente-csrf` si falta en alguna. Es una copia de una fórmula ajena, y
-  como tal se puede desincronizar: M13 es lo que la mantiene honesta.
+  sonda calcula el token CSRF **reproduciendo la derivación del visor**, y esa
+  copia se puede desincronizar. Lo que impide que la desincronización pase en
+  silencio NO es `csrf_enviado` —que sólo dice «rellené el campo» y se demostró
+  inútil para esto (§3.4)— sino el **control positivo diferencial**: si ninguna
+  ruta distingue un token válido de uno inválido, el mapa lo declara, degrada los
+  veredictos y sale con código 2. Calibrado en M16.
+- **El control positivo necesita al menos una ruta que llegue al CSRF.** Si
+  mañana todas las rutas con cuerpo respondieran 422 antes del CSRF (validación
+  del cuerpo primero), el control se quedaría sin poder concluir. Hoy 9 de 13 lo
+  atraviesan; si ese número llegara a 0, el control debe leerse como «no
+  evaluable», no como «bien». No está gateado a un mínimo: se declara el número.
+- **El `403 no atribuible` sigue apoyándose en la señal estática de guardián**,
+  que Q5 demostró falsable por nombre. Ahí el error posible es lo contrario que
+  en el cubo 404 (marcar como no atribuible una denegación real), así que no
+  concede; pero es la misma heurística y conviene no olvidarlo.
 - **El barrido de `POST` ahora EJECUTA los handlers** (antes morían en el CSRF).
   Se ejecutan contra la auth DB **efímera** del subproceso y con provider `mock`,
   nunca contra nada persistente, y con una sesión nueva por petición. Aun así es
@@ -412,11 +499,13 @@ contra una app privada de test.
   describe el código, no el despliegue», pero conviene tenerlo presente: para una
   ruta así, hay que ejecutar el mapa una vez por configuración.
 - **Este mapa no se revisa a sí mismo**: la calibración demuestra que el
-  instrumento se pone rojo ante dieciséis defectos concretos; no demuestra que no
-  existan géneros de defecto que ninguno de los dieciséis representa. La prueba está
-  a la vista: **cinco de esos dieciséis (M10, M11, M12, M13, M14) existen porque una
-  revisión externa encontró lo que yo no había pensado en inyectar**, y un sexto
-  (M15) porque al arreglar Q2 fui a buscar supervivientes y encontré uno, y las tres
+  instrumento se pone rojo ante diecinueve defectos concretos; no demuestra que no
+  existan géneros de defecto que ninguno de los diecinueve representa. La prueba está
+  a la vista: **siete de esos diecinueve (M10, M11, M12, M13, M14, M16, M17) existen porque
+  una revisión externa encontró lo que yo no había pensado en inyectar**, y dos
+  más (M15, M18) porque al arreglar lo anterior fui a buscar supervivientes.
+  Dos rondas seguidas de revisión han encontrado defectos en la afirmación
+  central; la tercera bien podría encontrar otro, y las tres
   últimas atacaban directamente la afirmación central del carril («0 rutas sin
   auth», «57 deniegan»). El ritmo al que las revisiones siguen encontrando
   géneros nuevos es el dato honesto sobre la madurez de este instrumento.
@@ -504,11 +593,11 @@ pero son inalcanzables navegando.
 
 ### Calibración sobre la propia rama del chasis
 
-Los dieciséis casos se reejecutaron **contra `4b2ae5a`**, no sólo contra la base:
-**16/16 detectados, `reversion_identica: true`**. Incluye M9 (menú de datos que
+Los diecinueve casos se reejecutaron **contra `4b2ae5a`**, no sólo contra la base:
+**19/19 detectados, `reversion_identica: true`**. Incluye M9 (menú de datos que
 apunta a una ruta no montada → ROTO, con el `ChassisContractError` textual), M7
 (censo: 11 vs 67, sin rutas servidas fuera del censo) y los tres casos nuevos
-M12/M13/M14/M15. Un instrumento que juzga una rama debe haberse visto rojo **en esa
+M12/M13/M14/M15/M16/M17/M18. Un instrumento que juzga una rama debe haberse visto rojo **en esa
 rama**.
 
 ### Remedición tras el arreglo de Q1/Q2/Q3
@@ -532,6 +621,42 @@ instrumento corregido para comprobar que el dictamen no dependía de ellos:
 **El dictamen APTO se mantiene sin cambios.** Los artefactos de
 `artifacts/route-map/chasis-4b2ae5a/` están regenerados con el instrumento
 corregido.
+
+### 5.ter El APTO del chasis vale POR CONFIGURACIÓN, no por commit
+
+El chasis siguió avanzando y en `7dddece` cada hueco tiene su interruptor
+(`S9K_PANEL_<KEY>_ENABLED`), **apagado por defecto**. El mapa se ejecutó **una vez
+por configuración**, con el instrumento de esta ronda, y las dos medidas están en
+`artifacts/route-map/chasis-7dddece/route_map-flags-{on,off}.{json,md}`:
+
+| medida | flags APAGADOS (por defecto) | flags ENCENDIDOS |
+|---|---|---|
+| definidas / montadas | 61 / **67** | 61 / **67** |
+| enlazadas | **31** | **35** |
+| deniegan al anónimo | 65 | 65 |
+| consumidas | 39 | 43 |
+| `GET /panel/review` | huérfana, rol **`ninguno-sirve`** | enlazada, rol **`reviewer`** |
+| `GET /panel/operations` | huérfana, rol **`ninguno-sirve`** | enlazada, rol **`admin`** |
+| `GET /panel/sources` | huérfana, rol **`ninguno-sirve`** | enlazada, rol **`reviewer`** |
+| `GET /panel/entities` | huérfana, rol **`ninguno-sirve`** | enlazada, rol **`viewer`** |
+
+Las **mismas 67 claves** en ambas configuraciones, y con los flags encendidos el
+rol medido coincide con el rol del contrato en los cuatro huecos: indistinguible
+de `4b2ae5a`. **0 muertas · 0 rotos · 0 sin auth · 0 contradicciones · control
+positivo verde** en las dos.
+
+**La limitación, dicha con todas las letras: este instrumento NO distingue
+«apagada por bandera» de «muerta».** Con los flags apagados, los cuatro paneles
+salen huérfanos y sin rol servido — que es coherente y no es un agujero, pero se
+parece demasiado a una ruta abandonada. Por eso:
+
+1. cada artefacto lleva ahora escrita **la configuración con la que se tomó**
+   (bloque `configuracion` en el JSON y una línea bajo el titular en el `.md`;
+   sólo se publican los valores de interruptores y modo, nunca el entorno
+   entero: ahí vive `S9K_CSRF_SECRET`, del que se registra el nombre y nada más);
+2. **quien fusione el chasis debe ejecutar el mapa una vez por configuración de
+   flags** y decir con cuál dictamina. Un APTO sin configuración declarada no
+   significa nada.
 
 ## 6. Rutas CAPTURADAS: detector, no aviso en prosa
 
@@ -602,10 +727,17 @@ rutas sin un solo aviso.
 - `artifacts/route-map/calibracion.json` — salidas reales de la calibración.
 - `artifacts/route-map/chasis-4b2ae5a/route_map.{json,md}` — mapa del chasis.
 - `artifacts/route-map/chasis-4b2ae5a/calibracion.json` — calibración sobre la
-  rama del chasis (16/16).
+  rama del chasis (19/19).
+- `artifacts/route-map/chasis-7dddece/route_map-flags-{on,off}.{json,md}` — el
+  mismo commit del chasis medido con los interruptores de panel apagados y
+  encendidos: la prueba de que el dictamen es por configuración (§5.ter).
 - `artifacts/route-map/diferencial-n3-n1-instrumento-{viejo,nuevo}.json` — el
   mismo árbol mutado (ruta capturada sin guardián + guardián con señuelo) visto
   por el instrumento `9afd737` y por el actual: el rojo previo de M10 y M11.
+- `artifacts/route-map/diferencial-q4q5-instrumento-{viejo,nuevo}.json` — las
+  mutaciones M16/M17/M18 vistas por el instrumento `2185f2b` (los tres falsos
+  negativos; también M0, que ahí no puede pasar porque ese instrumento no tiene
+  control positivo) y por el actual: el rojo previo de Q4 y Q5.
 - `artifacts/route-map/diferencial-q1q2q3-instrumento-{viejo,nuevo}.json` — las
   mutaciones M12/M13/M14 (y M15 en el nuevo) vistas por el instrumento `0b287f9` (los tres falsos
   negativos, con sus deltas) y por el actual: el rojo previo de Q1, Q2 y Q3.

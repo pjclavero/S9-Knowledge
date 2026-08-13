@@ -18,6 +18,9 @@ Defectos inyectados:
   M13 POST sin guardián tras el muro del CSRF       -> el veredicto se mueve (Q1)
   M14 mismo router incluido dos veces               -> NO se declaran capturadas (Q3)
   M15 guardián retirado donde la estática da falso positivo -> contradicción
+  M16 deriva de la derivación CSRF en el visor    -> control positivo ROJO (Q4)
+  M17 dependencia inútil con nombre de guardián   -> NO sube "deniegan" (Q5)
+  M18 handler que acepta la carga falsa y escribe -> NO contamina la DB efímera
 
 Uso:
     python3 scripts/route_map/calibrate.py --base <arbol_limpio> \
@@ -246,6 +249,75 @@ def m15_guardian_falso_positivo(tree: Path) -> None:
     p.write_text(text[:i] + nuevo + text[j:], encoding="utf-8")
 
 
+def m16_deriva_csrf(tree: Path) -> None:
+    """Cambia la derivación del CSRF EN EL VISOR (defecto Q4 del revisor).
+
+    Simula el cambio futuro que `_csrf_para` dice vigilar. Antes del control
+    positivo, la deriva degradaba EN SILENCIO: `autorizadas` seguía en 57, 0
+    veredictos cambiados, 0 hallazgos nuevos, y `csrf_enviado` seguía diciendo
+    `True` — porque sólo significa «rellené el campo», no «la app lo aceptó».
+    Con la deriva MÁS un guardián retirado, el instrumento volvía a la ceguera
+    de Q1 sin ponerse rojo.
+    """
+    _patch(tree / "viewer/app/auth/middleware.py",
+           'f"csrf:{session.id}:{session.session_hash[:8]}".encode()',
+           'f"csrf-v2:{session.id}:{session.session_hash[:8]}".encode()')
+
+
+def m17_nombre_que_concede(tree: Path) -> None:
+    """Ruta abierta con una dependencia INÚTIL de nombre convincente (Q5).
+
+    `require_nothing_access` casa con el patrón de nombres de guardián y no
+    guarda nada. Antes, ese nombre ponía `authz_static=True`, apagaba el cubo
+    `denegada-404-ambigua` y la ruta abierta SUMABA al titular (57 -> 58). Un
+    nombre no puede conceder: la fila que se contradice ya no cuenta.
+    """
+    p = tree / "viewer/app/routers/readonly.py"
+    p.write_text(p.read_text(encoding="utf-8") + '''
+
+# MUTACION M17: dependencia inútil con nombre de guardián
+def require_nothing_access():
+    return True
+
+
+@router.get("/fuga2/{item_id}")
+def fuga2_sin_guardian(request: Request, item_id: str, _x=Depends(require_nothing_access)):
+    if item_id != "42":
+        raise HTTPException(status_code=404, detail="no existe")
+    return {"secreto": "servido a cualquiera sin autorización"}
+''', encoding="utf-8")
+
+
+def m18_handler_gloton(tree: Path) -> None:
+    """Handler que acepta la carga falsa del barrido y ESCRIBE.
+
+    Es el escenario que el revisor señalaba como riesgo residual: si un día un
+    handler acepta `"probe"` en todos sus campos y opera sobre el id que la
+    sonda fabrica, el barrido contaminaría la DB de forma DETERMINISTA — y
+    repetir la corrida tres veces no lo delataría, precisamente por ser
+    determinista. Lo que lo impide es que el id fabricado esté FUERA del rango
+    de los usuarios de la sonda; lo que lo delataría, si aun así ocurriese, es
+    el censo de usuarios antes/después.
+    """
+    p = tree / "viewer/app/routers/readonly.py"
+    p.write_text(p.read_text(encoding="utf-8") + '''
+
+# MUTACION M18: sin guardián, sin CSRF, y escribe en la auth DB
+@router.post("/promociona/{user_id}")
+def promociona(request: Request, user_id: int, csrf_token: str = "", partida_id: str = ""):
+    from pathlib import Path as _P
+
+    from app.auth import db as _adb
+    from app.auth.config import get_auth_settings as _gas
+
+    with _adb.get_conn(_P(_gas().S9K_AUTH_DB_PATH)) as conn:
+        if _adb.get_user_by_id(conn, user_id) is None:
+            raise HTTPException(status_code=404, detail="no existe")
+        _adb.update_user(conn, user_id, role="admin")
+    return {"promovido": user_id}
+''', encoding="utf-8")
+
+
 MUTATIONS = {
     "M0-control": m0_control,
     "M1-router-desmontado": m1_desmontar_router,
@@ -261,6 +333,9 @@ MUTATIONS = {
     "M13-post-sin-guardian-csrf-ciego": m13_post_sin_guardian,
     "M14-router-incluido-dos-veces": m14_router_incluido_dos_veces,
     "M15-guardian-estatico-falso-positivo": m15_guardian_falso_positivo,
+    "M16-deriva-csrf-silenciosa": m16_deriva_csrf,
+    "M17-nombre-que-concede": m17_nombre_que_concede,
+    "M18-handler-gloton-contamina": m18_handler_gloton,
 }
 
 
@@ -285,6 +360,15 @@ def summarize(m: dict) -> dict:
     return {
         "montadas": m["counts"]["montadas"],
         "autorizadas": m["counts"]["autorizadas"],
+        "csrf_control_ok": bool((m.get("control_positivo_csrf") or {}).get("ok")),
+        "control_csrf_fallido": [r["key"] for r in
+                                 f.get("control_positivo_csrf_fallido", [])],
+        "contamino_db": [r["key"] for r in f.get("barrido_contamino_la_db", [])],
+        # Que el detector EXISTA y haya corrido. Sin esto, «no contaminó» sería
+        # cierto por no mirar, y M18 pasaría contra un instrumento que no tiene
+        # detector ninguno (comprobado: pasaba).
+        "detector_contaminacion": "contaminacion_usuarios" in (
+            m.get("control_positivo_csrf") or {}),
         "authz": {r["key"]: r["authz_probe"] for r in m["routes"]},
         "denegacion_404_ambigua": [r["key"] for r in
                                    f.get("rutas_denegacion_404_ambigua", [])],
@@ -436,6 +520,11 @@ def main(argv=None) -> int:
             "denegacion_no_atribuible_nuevas": sorted(
                 set(s["denegacion_no_atribuible"])
                 - set(baseline["denegacion_no_atribuible"])),
+            "csrf_control_ok": s["csrf_control_ok"],
+            "control_csrf_fallido_nuevo": bool(s["control_csrf_fallido"])
+            and not baseline["control_csrf_fallido"],
+            "contamino_db_nuevo": bool(s["contamino_db"]) and not baseline["contamino_db"],
+            "detector_contaminacion": s["detector_contaminacion"],
             "contradicciones_nuevas": sorted(
                 set(s["contradiccion"]) - set(baseline["contradiccion"])),
             "authz_cambiados": {k: [baseline["authz"].get(k), v]
@@ -465,7 +554,8 @@ def main(argv=None) -> int:
                                              d["contradicciones_nuevas"],
                                              d["denegacion_404_ambigua_nuevas"],
                                              d["denegacion_no_atribuible_nuevas"]])
-            and d["montadas"] == 0 and d["autorizadas"] == 0,
+            and d["montadas"] == 0 and d["autorizadas"] == 0
+            and d["csrf_control_ok"] and not d["contamino_db_nuevo"],
             "M1-router-desmontado": lambda d: len(d["muertas_nuevas"]) > 0 and d["montadas"] < 0,
             "M2-enlace-roto": lambda d: any("/ruta-que-no-existe" in x for x in d["rotos_nuevos"]),
             "M3-ruta-sin-auth": lambda d: "GET /entities" in d["sin_auth_nuevas"],
@@ -521,6 +611,21 @@ def main(argv=None) -> int:
             # la señal DINÁMICA, no la estática.
             "M15-guardian-estatico-falso-positivo": lambda d: (
                 "POST /admin/partidas/{access_id}/revoke" in d["contradicciones_nuevas"]),
+            # Q4: la deriva de la derivación CSRF tiene que ponerse ROJA, no
+            # degradar en silencio. `csrf_enviado` no vale como prueba: sólo
+            # dice que se rellenó el campo.
+            "M16-deriva-csrf-silenciosa": lambda d: (
+                d["control_csrf_fallido_nuevo"] and d["csrf_control_ok"] is False),
+            # Q5: un NOMBRE no concede. La ruta abierta no puede subir el titular.
+            "M17-nombre-que-concede": lambda d: (
+                "GET /fuga2/{item_id}" in d["contradicciones_nuevas"]
+                and d["montadas"] == 1 and d["autorizadas"] == 0),
+            # Riesgo residual del barrido: aunque el handler acepte la carga
+            # falsa, el id fabricado está fuera del rango de los usuarios de la
+            # sonda, así que no escribe. Y si escribiera, el censo lo diría.
+            "M18-handler-gloton-contamina": lambda d: (
+                not d["contamino_db_nuevo"] and d["detector_contaminacion"]
+                and "POST /promociona/{user_id}" in d["rutas_nuevas"]),
             "M9-nav-de-datos-rota": lambda d: (
                 any("ruta_que_no_existe" in x for x in d["rotos_nuevos"])
                 if (base / "viewer/app/chassis.py").exists() else True),

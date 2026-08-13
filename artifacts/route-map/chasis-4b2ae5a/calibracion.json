@@ -140,9 +140,13 @@
       "GET /v3/review/glossary-candidates",
       "POST /v3/review/undo"
     ],
+    "contamino_db": [],
     "contradiccion": [],
+    "control_csrf_fallido": [],
+    "csrf_control_ok": true,
     "denegacion_404_ambigua": [],
     "denegacion_no_atribuible": [],
+    "detector_contaminacion": true,
     "guardian_no_aplicado": [],
     "montadas": 67,
     "muertas": [],
@@ -226,9 +230,13 @@
         "authz_cambiados": {},
         "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
         "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
         "denegacion_404_ambigua_nuevas": [],
         "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
@@ -246,9 +254,13 @@
         "authz_cambiados": {},
         "autorizadas": -10,
         "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
         "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
         "denegacion_404_ambigua_nuevas": [],
         "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
         "guardian_no_aplicado_nuevos": [],
         "montadas": -10,
         "muertas_nuevas": [
@@ -300,9 +312,13 @@
         "capturadas_nuevas": [
           "GET /sources/panel <- /sources/{source_id}"
         ],
+        "contamino_db_nuevo": false,
         "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
         "denegacion_404_ambigua_nuevas": [],
         "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
         "guardian_no_aplicado_nuevos": [],
         "montadas": 1,
         "muertas_nuevas": [],
@@ -336,9 +352,13 @@
         },
         "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
         "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
         "denegacion_404_ambigua_nuevas": [],
         "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
         "guardian_no_aplicado_nuevos": [
           "GET /ruta-con-senuelo"
         ],
@@ -374,13 +394,17 @@
         },
         "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
         "contradicciones_nuevas": [
           "GET /fuga/{item_id}"
         ],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
         "denegacion_404_ambigua_nuevas": [
           "GET /fuga/{item_id}"
         ],
         "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
         "guardian_no_aplicado_nuevos": [],
         "montadas": 1,
         "muertas_nuevas": [],
@@ -412,9 +436,13 @@
         },
         "autorizadas": -1,
         "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
         "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
         "denegacion_404_ambigua_nuevas": [],
         "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
@@ -478,9 +506,13 @@
         },
         "autorizadas": 10,
         "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
         "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
         "denegacion_404_ambigua_nuevas": [],
         "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
         "guardian_no_aplicado_nuevos": [],
         "montadas": 10,
         "muertas_nuevas": [],
@@ -559,13 +591,17 @@
     "M15-guardian-estatico-falso-positivo": {
       "delta": {
         "authz_cambiados": {},
-        "autorizadas": 0,
+        "autorizadas": -1,
         "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
         "contradicciones_nuevas": [
           "POST /admin/partidas/{access_id}/revoke"
         ],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
         "denegacion_404_ambigua_nuevas": [],
         "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
@@ -583,14 +619,175 @@
       },
       "detectado": true
     },
+    "M16-deriva-csrf-silenciosa": {
+      "delta": {
+        "authz_cambiados": {},
+        "autorizadas": 0,
+        "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
+        "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": true,
+        "csrf_control_ok": false,
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 0,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [],
+        "roles_cambiados": {
+          "POST /account/change-password": [
+            "viewer",
+            "no-concluyente-csrf"
+          ],
+          "POST /admin/partidas/grant": [
+            "admin",
+            "no-concluyente-csrf"
+          ],
+          "POST /admin/partidas/{access_id}/revoke": [
+            "admin",
+            "no-concluyente-csrf"
+          ],
+          "POST /admin/users/new": [
+            "admin",
+            "no-concluyente-csrf"
+          ],
+          "POST /admin/users/{user_id}": [
+            "admin",
+            "no-concluyente-csrf"
+          ],
+          "POST /admin/users/{user_id}/revoke-sessions": [
+            "admin",
+            "no-concluyente-csrf"
+          ],
+          "POST /admin/users/{user_id}/unlock": [
+            "admin",
+            "no-concluyente-csrf"
+          ],
+          "POST /login": [
+            "ninguno-sirve",
+            "no-concluyente-csrf"
+          ],
+          "POST /logout": [
+            "ninguno-sirve",
+            "no-concluyente-csrf"
+          ],
+          "POST /partida/select": [
+            "admin",
+            "no-concluyente-csrf"
+          ],
+          "POST /review-console/source/{source_id}/decide": [
+            "reviewer",
+            "no-concluyente-csrf"
+          ],
+          "POST /v3/review/decide": [
+            "reviewer",
+            "no-concluyente-csrf"
+          ],
+          "POST /v3/review/undo": [
+            "reviewer",
+            "no-concluyente-csrf"
+          ]
+        },
+        "roles_no_evaluables_nuevos": [],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [],
+        "sin_auth_nuevas": []
+      },
+      "detectado": true
+    },
+    "M17-nombre-que-concede": {
+      "delta": {
+        "authz_cambiados": {
+          "GET /fuga2/{item_id}": [
+            null,
+            "denegada"
+          ]
+        },
+        "autorizadas": 0,
+        "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
+        "contradicciones_nuevas": [
+          "GET /fuga2/{item_id}"
+        ],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 1,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [
+          "GET /fuga2/{item_id}"
+        ],
+        "roles_cambiados": {
+          "GET /fuga2/{item_id}": [
+            null,
+            "viewer"
+          ]
+        },
+        "roles_no_evaluables_nuevos": [],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [
+          "GET /fuga2/{item_id}"
+        ],
+        "sin_auth_nuevas": []
+      },
+      "detectado": true
+    },
+    "M18-handler-gloton-contamina": {
+      "delta": {
+        "authz_cambiados": {
+          "POST /promociona/{user_id}": [
+            null,
+            "denegada-404-ambigua"
+          ]
+        },
+        "autorizadas": 0,
+        "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
+        "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
+        "denegacion_404_ambigua_nuevas": [
+          "POST /promociona/{user_id}"
+        ],
+        "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 1,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [
+          "POST /promociona/{user_id}"
+        ],
+        "roles_cambiados": {
+          "POST /promociona/{user_id}": [
+            null,
+            "no-concluyente-csrf"
+          ]
+        },
+        "roles_no_evaluables_nuevos": [],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [
+          "POST /promociona/{user_id}"
+        ],
+        "sin_auth_nuevas": []
+      },
+      "detectado": true
+    },
     "M2-enlace-roto": {
       "delta": {
         "authz_cambiados": {},
         "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
         "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
         "denegacion_404_ambigua_nuevas": [],
         "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
@@ -615,9 +812,13 @@
         },
         "autorizadas": -1,
         "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
         "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
         "denegacion_404_ambigua_nuevas": [],
         "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
@@ -642,9 +843,13 @@
         },
         "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
         "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
         "denegacion_404_ambigua_nuevas": [],
         "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
         "guardian_no_aplicado_nuevos": [
           "GET /ruta-nueva-sin-test"
         ],
@@ -675,9 +880,13 @@
         "authz_cambiados": {},
         "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
         "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
         "denegacion_404_ambigua_nuevas": [],
         "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
@@ -824,9 +1033,13 @@
         "authz_cambiados": {},
         "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
         "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
         "denegacion_404_ambigua_nuevas": [],
         "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
@@ -849,9 +1062,13 @@
         "authz_cambiados": {},
         "autorizadas": 0,
         "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
         "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": true,
         "denegacion_404_ambigua_nuevas": [],
         "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": true,
         "guardian_no_aplicado_nuevos": [],
         "montadas": 0,
         "muertas_nuevas": [],
