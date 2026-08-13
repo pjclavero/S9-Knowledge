@@ -1,18 +1,18 @@
 {
-  "generado": "2026-08-13T09:43:00+0200",
+  "generado": "2026-08-13T11:16:44+0200",
   "entorno": {
-    "commit": "5fc4029be56473e7c5dd038f3f0e07df22f3d61d",
+    "commit": "a78660ebc4a050cb9d85e09c46af088ac3e739f5",
     "rama": "HEAD",
     "arbol_limpio": true,
     "python": "3.13.5",
     "cpu": "8",
     "modelo_cpu": "Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz",
     "ram_total": "MemTotal:        9156844 kB",
-    "carga": "0.44 1.44 2.11 2/610 997193",
+    "carga": "1.01 1.23 0.98 3/500 1523827",
     "so": "Linux 6.12.90+deb13.1-amd64",
     "advertencia": "Máquina de desarrollo compartida, proveedor mock en memoria, cliente en proceso. NO es rendimiento de producción: no hay Neo4j, ni red, ni nginx, ni concurrencia."
   },
-  "sha_del_instrumento": "679b1d8464e78b3f47834a1594470d970dfb8a77ded1bd2567fbce1efee17ef7",
+  "sha_del_instrumento": "2d3255e6ddf1e3ce6404050ae8a54dfa3e8e069665d2326ed87d24b5053c796d",
   "modulos_cubiertos_por_el_hash": [
     "arnes.py",
     "cache.py",
@@ -477,38 +477,38 @@
       "retardo_inyectado_ms": 5.0,
       "base": {
         "n": 40,
-        "mediana_ms": 8.1474,
-        "mad_ms": 0.1711,
-        "iqr_ms": 0.3406,
-        "p05_ms": 7.8833,
-        "p95_ms": 9.0431,
-        "min_ms": 7.8245,
-        "max_ms": 10.0555,
-        "media_ms": 8.2425,
-        "dispersion_relativa": 0.021
+        "mediana_ms": 8.0467,
+        "mad_ms": 0.1232,
+        "iqr_ms": 0.2425,
+        "p05_ms": 7.802,
+        "p95_ms": 8.8392,
+        "min_ms": 7.767,
+        "max_ms": 11.3009,
+        "media_ms": 8.1954,
+        "dispersion_relativa": 0.0153
       },
       "misma_medida_repetida": {
-        "base_mediana_ms": 8.1474,
-        "otra_mediana_ms": 8.2114,
-        "efecto_ms": 0.064,
-        "ruido_ms": 0.3806,
-        "factor_efecto_ruido": 0.17,
+        "base_mediana_ms": 8.0467,
+        "otra_mediana_ms": 8.0871,
+        "efecto_ms": 0.0404,
+        "ruido_ms": 0.2254,
+        "factor_efecto_ruido": 0.18,
         "veredicto": "indistinguible del ruido"
       },
       "con_retardo": {
-        "base_mediana_ms": 8.1474,
-        "otra_mediana_ms": 13.5882,
-        "efecto_ms": 5.4408,
-        "ruido_ms": 0.394,
-        "factor_efecto_ruido": 13.81,
+        "base_mediana_ms": 8.0467,
+        "otra_mediana_ms": 13.4108,
+        "efecto_ms": 5.3641,
+        "ruido_ms": 0.2493,
+        "factor_efecto_ruido": 21.52,
         "veredicto": "peor"
       },
       "tras_revertir": {
-        "base_mediana_ms": 8.1474,
-        "otra_mediana_ms": 8.2408,
-        "efecto_ms": 0.0934,
-        "ruido_ms": 0.4523,
-        "factor_efecto_ruido": 0.21,
+        "base_mediana_ms": 8.0467,
+        "otra_mediana_ms": 8.1923,
+        "efecto_ms": 0.1456,
+        "ruido_ms": 0.2004,
+        "factor_efecto_ruido": 0.73,
         "veredicto": "indistinguible del ruido"
       }
     },
@@ -812,6 +812,44 @@
         "sin_clausula": true,
         "por_que": "meseta en 13 con máximo 63: es una pausa, no un techo"
       }
+    },
+    {
+      "nombre": "C9c PRECONDICIÓN: la ventana de medida debe empezar por debajo de los topes",
+      "superada": true,
+      "ventana_que_empieza_por_debajo_del_tope": {
+        "serie": [
+          10,
+          50,
+          50,
+          50
+        ],
+        "saturado": true,
+        "no_evaluables": []
+      },
+      "ventana_que_empieza_por_encima_del_tope": {
+        "serie": [
+          50,
+          50,
+          50,
+          50
+        ],
+        "saturado": false,
+        "no_evaluables": [
+          {
+            "componente": "results",
+            "valores": [
+              50,
+              50
+            ],
+            "motivo": "plano en toda la ventana de medida y sin techo declarado: no se puede distinguir 'constante por diseño' de 'recortado desde antes del primer tamaño medido'. Mide un tamaño menor."
+          }
+        ]
+      },
+      "precondicion": "el tamaño más pequeño medido debe estar por debajo de todos los topes implícitos de los escenarios",
+      "tamano_minimo_medido": 10,
+      "tope_implicito_mas_bajo_observado": 50,
+      "precondicion_se_cumple_hoy": true,
+      "quien_lo_causa": "la cláusula `crecio_antes`, que es justo la que elimina el falso positivo de api_sources. Es un intercambio consciente: se prefiere no inventarse techos a costa de no ver los que empiezan antes de la ventana, y el caso ciego queda MARCADO como no evaluable."
     },
     {
       "nombre": "C10 HASH DEL SISTEMA: mutar static/js/graph.js invalida la calibración",

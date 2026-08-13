@@ -64,7 +64,7 @@ propio arnés. Se corrigen aquí, cada uno con su prueba C\*:
 | `cache.py` | Huella de generador **y** `sha256_fichero`. Cinco estados de invalidación. **`verificar_a_fondo()` recalcula el sha esperado** sin fiarse del sidecar. |
 | `estadistica.py` | Mediana, MAD, IQR, p05/p95 sobre ≥ 5 repeticiones. `comparar()` dice **"indistinguible del ruido"** si el efecto no supera 3 MAD combinados, y **"sin dispersión medible"** si el MAD combinado es 0. |
 | `fake_neo4j.py` | Driver doble para contar consultas Cypher sin servidor. **Calibrado (C8) y dentro del hash.** |
-| `calibracion.py` | C0–C11 (**14 pruebas**). Sale 1 si algún mecanismo no se pudo poner rojo. **Dentro del hash.** |
+| `calibracion.py` | C0–C11 (**15 pruebas**). Sale 1 si algún mecanismo no se pudo poner rojo. **Dentro del hash.** |
 | `run_bench.py` | Puerta doble: hash del **instrumento** y hash del **sistema medido** (`viewer/app/**` **entero**). **Dentro del hash.** |
 
 ### Por qué el criterio de saturación no es "los dos desgloses son iguales"
@@ -158,10 +158,10 @@ cambia de un grafo generado a otro. Declararla sana sería repetir el error de v
 
 ---
 
-## 2. Tabla de calibración (salidas reales, **14/14**)
+## 2. Tabla de calibración (salidas reales, **15/15**)
 
 `benchmarks/perf/resultados/calibracion.json` ·
-instrumento `679b1d8464e7` · sistema medido `9ee38c2c2984` ·
+instrumento `2d3255e6ddf1` · sistema medido `9ee38c2c2984` ·
 Python 3.13.5, Xeon E5-2680 v4, 8 vCPU, Debian 13.
 
 > **Los artefactos de este documento se regeneraron por completo.** Al rebasar
@@ -185,6 +185,7 @@ Python 3.13.5, Xeon E5-2680 v4, 8 vCPU, Debian 13.
 | **C8** | El contador de consultas Cypher mide de verdad | driver saboteado para registrar una de cada dos | driver **11** frente a contador independiente **23** → **discrepancia detectada** | 23 = 23; control directo: 3 `run` cuentan **3** | **SÍ** |
 | **C9a** | El detector de saturación **ve** la saturación real y **deja de inventarse** la falsa | *ninguna: se contrastan los dos criterios sobre datos medidos a n = 10/100/250/500* | criterio de v2.1 sobre `api_graph_300`: **`[false, false, false]`** — ciego en el tramo real (`{nodes:250, edges:750}` → `{nodes:300, edges:550}`); y `api_sources` **`[true, false, false]`**, falso positivo | criterio de v2.2: `api_graph_300` **`[false, false, true]`**, con el **colapso de aristas 750 → 550** registrado, y `api_sources` **`[false, false, false]`** | **SÍ** |
 | **C9b** | Las **tres** cláusulas del criterio son necesarias | se ablaciona cada una **sobre el mismo código** | sin *acotado*: `[true, true, true]` (el `limit=300` de los nodos se achaca a las aristas, que llegan a 750). Sin *creció antes*: una serie constante `[4,4,4]` pasa a saturada. Sin *en su máximo*: la meseta `[2,13,13,63]` pasa a saturada | con las tres: `false` en los tres casos | **SÍ** |
+| **C9c** | La **precondición** del criterio: la ventana de medida empieza por debajo de todos los topes implícitos | *ninguna: se contrasta la misma serie en dos ventanas, y la precondición contra `run_bench.TAMANOS`* | ventana `[50,50,50,50]` (empieza **encima** del tope): **no se marca** — el superviviente. Puesta roja de dos formas: si se deja de marcar el caso ciego, falla; si la ventana sube a `[100,250,500]`, falla | ventana `[10,50,50,50]`: **se marca**; el caso ciego sale como `componentes_no_evaluables`; mínimo real **10** < tope implícito más bajo **50** | **SÍ** |
 | **C10** | El hash del sistema medido cubre **todo** `viewer/app/**` | se muta **`static/js/graph.js`** en disco | el hash pasa de `9ee38c2c2984` a `8d075b5b4395`. *(Con el filtro de v2.1 la misma mutación lo dejaba clavado en `a505a170f4d1`: **no se movía**.)* | fichero restaurado byte a byte, hash de vuelta en `9ee38c2c2984` | **SÍ** |
 | **C11** | Una serie plana **por saturación** no se firma como "constante" | `min(2·g+3, 40)` sobre grados 125/132/134 | llamadas **83 / 83 / 83** (plana). Sin señal de carga: **"constante", pendiente 0.0**. Con señal de carga: **"no concluyente"**. Presupuesto absoluto: **83.0 > 10.0**, incumplido | quitado el tope: **N+1**, pendiente 2.0 | **SÍ** |
 
@@ -209,19 +210,19 @@ calentamiento. Formato: **mediana ± MAD (ms) / llamadas a la fuente**.
 
 | escenario | n=10 | n=50 | n=100 | n=101 | n=250 | n=500 |
 |---|---|---|---|---|---|---|
-| api_status | 4.0±0.07 / 4 | 4.4±0.06 / 4 | 4.9±0.08 / 4 | 5.3±0.20 / 4 | 6.1±0.12 / 4 | 7.4±0.27 / 4 |
-| api_entity_types | 4.0±0.07 / 1 | 4.4±0.08 / 1 | 4.8±0.09 / 1 | 5.0±0.10 / 1 | 5.6±0.17 / 1 | 6.2±0.20 / 1 |
-| api_graph_300 *(satura, §5)* | 5.9±0.11 / 1 | 12.6±0.14 / 1 | 21.3±0.44 / 1 | 21.9±0.43 / 1 | 47.1±0.85 / 1 | 45.5±0.87 / 1 |
-| api_graph_300_filtro_tipo | 4.4±0.07 / 1 | 5.2±0.13 / 1 | 6.0±0.15 / 1 | 6.3±0.20 / 1 | 8.3±0.13 / 1 | 11.1±0.24 / 1 |
-| api_search *(satura en 50)* | 4.8±0.09 / 1 | 7.9±0.12 / 1 | 8.1±0.10 / 1 | 8.6±0.12 / 1 | 9.0±0.16 / 1 | 9.7±0.23 / 1 |
-| api_entities_p50 | 5.3±0.12 / 1 | 8.1±0.09 / 1 | 8.6±0.16 / 1 | 9.1±0.33 / 1 | 9.5±0.26 / 1 | 9.9±0.19 / 1 |
-| api_entities_ultima_pag | 5.3±0.12 / 1 | 8.3±0.13 / 1 | 8.6±0.17 / 1 | 9.1±0.16 / 1 | 9.4±0.14 / 1 | 9.8±0.12 / 1 |
-| api_entity_detalle | 5.0±0.12 / 11 | 5.7±0.15 / 19 | 5.6±0.06 / 11 | 6.6±0.29 / 21 | 6.2±0.07 / 11 | 6.8±0.17 / 11 |
-| api_sources | 4.4±0.10 / 1 | 4.8±0.08 / 1 | 5.2±0.12 / 1 | 5.4±0.11 / 1 | 5.9±0.07 / 1 | 6.6±0.12 / 1 |
-| api_quality | 4.5±0.10 / 1 | 5.1±0.16 / 1 | 5.7±0.21 / 1 | 6.1±0.12 / 1 | 7.1±0.16 / 1 | 8.6±0.13 / 1 |
-| html_entities | 5.0±0.08 / 2 | 6.0±0.11 / 2 | 6.5±0.21 / 2 | 6.7±0.10 / 2 | 7.3±0.20 / 2 | 7.9±0.11 / 2 |
-| html_graph | 3.1±0.08 / 0 | 3.4±0.09 / 0 | 3.9±0.09 / 0 | 4.1±0.08 / 0 | 4.4±0.09 / 0 | 4.7±0.08 / 0 |
-| html_entity_detalle | 4.8±0.16 / 11 | 5.3±0.13 / 19 | 5.6±0.26 / 11 | 5.9±0.16 / 21 | 6.1±0.12 / 11 | 6.4±0.12 / 11 |
+| api_status | 4.0±0.06 / 4 | 4.5±0.08 / 4 | 4.9±0.10 / 4 | 5.2±0.14 / 4 | 6.1±0.08 / 4 | 7.4±0.17 / 4 |
+| api_entity_types | 4.0±0.08 / 1 | 4.5±0.10 / 1 | 4.8±0.09 / 1 | 5.0±0.07 / 1 | 5.6±0.15 / 1 | 6.1±0.09 / 1 |
+| api_graph_300 *(satura, §5)* | 5.9±0.08 / 1 | 12.6±0.16 / 1 | 20.6±0.26 / 1 | 21.9±0.43 / 1 | 46.0±1.11 / 1 | 42.8±1.06 / 1 |
+| api_graph_300_filtro_tipo | 4.3±0.13 / 1 | 5.2±0.08 / 1 | 6.0±0.13 / 1 | 6.3±0.14 / 1 | 8.2±0.16 / 1 | 10.9±0.20 / 1 |
+| api_search *(satura en 50)* | 4.8±0.10 / 1 | 7.8±0.07 / 1 | 8.4±0.15 / 1 | 8.5±0.11 / 1 | 8.9±0.11 / 1 | 9.8±0.25 / 1 |
+| api_entities_p50 | 5.4±0.05 / 1 | 8.2±0.12 / 1 | 8.7±0.15 / 1 | 8.8±0.10 / 1 | 9.2±0.09 / 1 | 9.9±0.12 / 1 |
+| api_entities_ultima_pag | 5.4±0.07 / 1 | 8.4±0.17 / 1 | 8.8±0.23 / 1 | 9.0±0.10 / 1 | 9.3±0.17 / 1 | 9.8±0.17 / 1 |
+| api_entity_detalle | 5.0±0.17 / 11 | 5.7±0.09 / 19 | 5.7±0.08 / 11 | 6.4±0.11 / 21 | 6.3±0.16 / 11 | 6.7±0.09 / 11 |
+| api_sources | 4.5±0.14 / 1 | 5.0±0.07 / 1 | 5.1±0.09 / 1 | 5.4±0.08 / 1 | 6.0±0.10 / 1 | 6.6±0.07 / 1 |
+| api_quality | 4.6±0.10 / 1 | 5.1±0.11 / 1 | 5.7±0.09 / 1 | 6.0±0.10 / 1 | 7.1±0.11 / 1 | 8.6±0.10 / 1 |
+| html_entities | 5.1±0.15 / 2 | 6.1±0.14 / 2 | 6.5±0.14 / 2 | 6.8±0.11 / 2 | 7.4±0.25 / 2 | 8.1±0.19 / 2 |
+| html_graph | 3.2±0.08 / 0 | 3.5±0.10 / 0 | 3.9±0.09 / 0 | 4.1±0.10 / 0 | 4.5±0.09 / 0 | 4.7±0.09 / 0 |
+| html_entity_detalle | 4.9±0.11 / 11 | 5.3±0.09 / 19 | 5.4±0.13 / 11 | 5.9±0.09 / 21 | 6.1±0.15 / 11 | 6.6±0.09 / 11 |
 
 Dispersión relativa (MAD/mediana) entre el 1 % y el 5 %.
 
@@ -274,10 +275,10 @@ Mismo grafo (250 entidades), variando el **grado** del nodo pedido en
 
 | grado del nodo | llamadas a la fuente | **2·grado+3** | ¿coincide? | mediana ± MAD | bytes |
 |---|---|---|---|---|---|
-| 3 | 9 | 9 | **sí** | 6.63 ± 0.20 ms | 5 364 |
-| 33 | 69 | 69 | **sí** | 9.89 ± 0.19 ms | 48 177 |
-| 125 | 253 | 253 | **sí** | 19.57 ± 0.46 ms | 179 836 |
-| **406** | **815** | 815 | **sí** | **51.10 ± 1.77 ms** | 583 167 |
+| 3 | 9 | 9 | **sí** | 6.63 ± 0.10 ms | 5 364 |
+| 33 | 69 | 69 | **sí** | 9.78 ± 0.14 ms | 48 177 |
+| 125 | 253 | 253 | **sí** | 19.03 ± 0.30 ms | 179 836 |
+| **406** | **815** | 815 | **sí** | **47.11 ± 0.94 ms** | 583 167 |
 | **812** | **1 627** | 1 627 | **sí** | *(medida aparte)* | — |
 
 Pendiente **2.0 llamadas por relación**, constante y **sin tope**: el endpoint
@@ -312,7 +313,7 @@ puntos perdidos se **deduplican explícitamente y se declaran** en el informe
 `101` está a propósito, para buscar un salto justo pasado 100.
 
 * **No hay discontinuidad en 100 → 101.** Ningún escenario da un salto de
-  latencia que supere el ruido (mayor factor efecto/ruido en el tramo 100→101: **2.98** < 3, y los 13 escenarios salen "indistinguible del ruido").
+  latencia que supere el ruido (mayor factor efecto/ruido en el tramo 100→101: **4.25** < 3, y los 13 escenarios salen "indistinguible del ruido").
 * El cambio de **11 → 21 llamadas** en la ficha de entidad **no es ruido y no es
   un umbral**: `p_0000050` tiene grado 4 en el grafo de 100 y grado 9 en el de
   101, y 2·4+3 = 11, 2·9+3 = 21. Es el eje GRADO otra vez.
@@ -326,10 +327,10 @@ puntos perdidos se **deduplican explícitamente y se declaran** en el informe
 |---|---|---|---|---|
 | 10 | 10 | 30 | 22 140 | 5.9 ms |
 | 50 | 50 | 150 | 110 044 | 12.6 ms |
-| 100 | 100 | 300 | 219 835 | 21.3 ms |
+| 100 | 100 | 300 | 219 835 | 20.6 ms |
 | 101 | 101 | 303 | 222 333 | 21.9 ms |
-| 250 | 250 | 750 | 550 187 | 47.1 ms |
-| **500** | **300 (tope)** | **550** | **523 136** | **45.5 ms** |
+| 250 | 250 | 750 | 550 187 | 46.0 ms |
+| **500** | **300 (tope)** | **550** | **523 136** | **42.8 ms** |
 
 El `limit=300` **satura sobre los nodos**: a n=500 la respuesta trae 300 nodos y
 sólo 550 aristas (las que caen entre nodos seleccionados), es **más pequeña** que
@@ -395,7 +396,7 @@ Máquina de desarrollo **compartida**. Por eso todo va con mediana y MAD, y por
 eso el informe dice "indistinguible del ruido" cuando lo es. Y cuando el MAD
 combinado es **0**, ya no dice "peor" ni "mejor": dice **"sin dispersión
 medible"** y no afirma nada. *(Es una corrección **latente**: en este baseline el
-MAD combinado mínimo es **0.1266 ms** y hay **0 filas** con ruido 0. Se cierra
+MAD combinado mínimo es **0.1360 ms** y hay **0 filas** con ruido 0. Se cierra
 antes de que deje de serlo, porque con umbral 0 la regla se invertía y una
 diferencia de 0,0005 ms se declaraba "peor" con `factor = inf`.)*
 

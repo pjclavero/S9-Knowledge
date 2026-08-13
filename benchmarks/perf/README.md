@@ -37,7 +37,7 @@ Cambia cualquiera de los dos y hay que **recalibrar**. Es a propósito.
 | `detector.py` | N+1 en **tres ejes** (dataset, página, grado) por **crecimiento**, sin umbral inventado. ≥ 3 puntos o "insuficiente". **Saturación por componente** (`analizar_saturacion`) y **presupuestos absolutos** (`comprobar_presupuestos`). |
 | `estadistica.py` | Mediana, MAD, IQR y `comparar()` — "indistinguible del ruido" cuando lo es, y **"sin dispersión medible"** si el MAD combinado es 0. |
 | `arnes.py` | Montaje del visor sobre un dataset y primitivas de medida. |
-| `calibracion.py` | **C0–C11, 14 pruebas**: rojo/verde demostrado de cada mecanismo, el juez incluido. Sale 1 si algo no se pudo poner rojo. |
+| `calibracion.py` | **C0–C11, 15 pruebas**: rojo/verde demostrado de cada mecanismo, el juez incluido. Sale 1 si algo no se pudo poner rojo. |
 | `run_bench.py` | Línea base: 10/50/100/101/250/500 entidades + casos con hubs. |
 
 ## Veredictos del detector
@@ -48,6 +48,12 @@ Cambia cualquiera de los dos y hay que **recalibrar**. Es a propósito.
 | `N+1` | crece de forma no decreciente, al menos `CRECIMIENTO_MINIMO` llamadas |
 | `no concluyente` | la serie sube y baja (eje confundido con otra variable) o crece muy poco. **No es "sano"** |
 | `insuficiente` | menos de tres puntos: un par de puntos no demuestra una pendiente |
+
+**Precondición del criterio de saturación**: sólo ve un tope IMPLÍCITO si la
+ventana de medida empieza POR DEBAJO de él (`[50,50,50,50]` no se marca;
+`[10,50,50,50]` sí). Hoy se cumple —`TAMANOS` empieza en 10 y el tope implícito
+más bajo observado es 50— y **C9c lo comprueba** contra la ventana real. El caso
+ciego no se da por sano: sale en `componentes_no_evaluables`.
 
 Una serie plana **no** se firma como `constante` si la **carga devuelta** está
 recortada y ha dejado de crecer: entonces es `no concluyente`. Sin esa señal, un
