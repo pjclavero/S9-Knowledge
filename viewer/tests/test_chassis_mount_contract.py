@@ -359,17 +359,15 @@ def _sample_path(path: str) -> str:
     return "/".join(out)
 
 
-def test_no_mounted_route_serves_200_to_anonymous(real_app, auth_on):
-    """Con auth activada y SIN sesión, ninguna ruta devuelve 200.
+def clasificar_para_el_barrido(rutas):
+    """Reparte el censo en (sondeables, opacas, sin_path). FALLA CERRADO dos veces.
 
-    Ésta es la forma operativa de "ausencia de dato nunca es permiso máximo":
-    el anónimo es exactamente el caso de contexto ausente.
+    Se extrae del test para que el caso real y el sintético muerdan EXACTAMENTE
+    el mismo código: si esta clasificación se relaja, los dos se ponen rojos.
+    Un test sintético que reimplementa la lógica que dice vigilar no vigila nada.
     """
-    client = _client(real_app)
-    fugas = []
-    opacas = []
-    sin_path = []
-    for route in iter_mounted_routes(real_app):
+    sondeables, opacas, sin_path = [], [], []
+    for route in rutas:
         path = effective_path(route)
         if path is None:
             # Antes esto era `if not path: continue`, es decir: una ruta cuyo
@@ -390,11 +388,46 @@ def test_no_mounted_route_serves_200_to_anonymous(real_app, auth_on):
             # blanca a mano, que es una decisión visible.
             opacas.append(path)
             continue
-        for method in sorted(m for m in metodos if m in {"GET", "POST"}):
+        sondeables.append((path, sorted(m for m in metodos if m in {"GET", "POST"})))
+    return sondeables, opacas, sin_path
+
+
+def test_el_barrido_de_autorizacion_no_se_salta_un_path_irresoluble():
+    """Suelo del barrido: lo que no sabe resolver, lo DECLARA.
+
+    Hoy la app real no tiene ninguna ruta así (el arreglo de `_walk` resuelve el
+    único vector vivo), así que este caso se prueba con una ruta fabricada: es
+    el suelo que queda si un tipo de ruta futuro vuelve a llegar sin path.
+    """
+    class RutaSinPath:
+        path = ""
+        name = "fantasma"
+
+    _sondeables, _opacas, sin_path = clasificar_para_el_barrido([RutaSinPath()])
+    assert sin_path, (
+        "El barrido se saltó en silencio una ruta cuyo path no sabe resolver"
+    )
+
+
+def test_no_mounted_route_serves_200_to_anonymous(real_app, auth_on):
+    """Con auth activada y SIN sesión, ninguna ruta devuelve 200.
+
+    Ésta es la forma operativa de "ausencia de dato nunca es permiso máximo":
+    el anónimo es exactamente el caso de contexto ausente.
+    """
+    client = _client(real_app)
+    fugas = []
+    sondeables, opacas, sin_path = clasificar_para_el_barrido(
+        iter_mounted_routes(real_app))
+    for path, metodos in sondeables:
+        for method in metodos:
             r = client.request(method, _sample_path(path),
                                headers={"accept": "text/html"})
             if r.status_code == 200:
                 fugas.append(f"{method} {path}")
+    assert sondeables, (
+        "El barrido no sondeó ni una sola ruta: un arnés vacío no demuestra nada"
+    )
     assert not sin_path, (
         f"Rutas cuyo path el censo no sabe resolver: {sin_path}. No saber dónde "
         "está una ruta no la absuelve: este barrido no puede sondearla y por eso "

@@ -199,15 +199,67 @@ Necesidad medida por **ablación** (reversión byte a byte verificada por sha256
 quitar la composición de prefijo deja colarse R9 y R11 (`Mount` anidado a dos
 niveles); quitar el fallo cerrado por métodos deja colarse R10, R13 (`Mount` de
 estáticos) y R14 (WebSocket ante el barrido de autorización). Ninguno de los dos
-criterios es redundante. En cambio `include_router` con prefijo dentro de otro
-router (R13→R12) **nunca fue** un punto ciego: FastAPI resuelve esos prefijos
-dentro del `path` de cada `APIRoute`; se conserva como control negativo.
+criterios es redundante.
+
+**Cuidado con el control negativo (R12).** `include_router` con prefijo dentro de
+otro router no era punto ciego **cuando lo que anida son `APIRoute`s**: FastAPI
+resuelve esos prefijos dentro del `path` de cada una. **No vale generalizarlo**:
+con un `Mount` dentro sí estaba abierto, y eso es la vía M-G de abajo. Un control
+negativo mal generalizado es peor que ninguno, porque desactiva la sospecha justo
+donde hacía falta.
+
+### Nota técnica: M-G, el `path` también es tri-estado
+
+Misma clase que R9, por otra vía. FastAPI sólo rellena el
+`_EffectiveRouteContext` para las `APIRoute`; si el contexto envuelve un `Mount`
+—`r.mount("/m", sub); app.include_router(r, prefix="/panel/review/inc")`— llega
+con **`path=''`**. Medido:
+
+```
+POST /panel/review/inc/m/aprobar -> 200, y escribió
+el censo lo emitía como _EffectiveRouteContext con path=''
+el filtro de C lo descartaba:  ''.startswith('/panel/review') -> False
+el barrido de autorización lo saltaba: `if not path: continue`
+```
+
+El fallo cerrado por métodos **no salvaba nada**, porque el filtro por path corre
+primero y el path era indeterminable. Era la doctrina `None != frozenset()`
+aplicada a `methods` **pero no a `path`**: un path irresoluble se trataba como
+`''`, benigno y fuera de todo prefijo. Dos capas:
+
+- **(a)** `_walk` sustituye ese contexto por su `starlette_route`, que **sí** trae
+  el path compuesto (`Mount(path='/panel/review/inc/m')`), y el descenso normal
+  por `Mount` hace el resto. Sólo se dispara cuando el path es falsy.
+- **(b)** `effective_path` devuelve `None` cuando no se puede resolver, y
+  `route_in_prefix` declara esa ruta **dentro de cualquier espacio**: no saber
+  dónde está una ruta no la pone fuera de tu frontera, la pone en todas. El
+  barrido de autorización, en vez de `if not path: continue`, la declara y
+  revienta.
+
+Ablación medida, y dice algo preciso: **quitar sólo (a) no deja pasar M-G**
+(la capa (b) lo atrapa igualmente), y **quitar sólo (b) tampoco** (la capa (a) lo
+resuelve). Con **las dos quitadas, M-G vuelve a colarse en VERDE**. Lo que (a)
+aporta por encima de (b) es *nombrar* la ruta con su URL real en vez de reportar
+un anónimo `<PATH-NO-RESOLUBLE>`; lo que (b) aporta es el suelo para cualquier
+tipo de ruta futuro que llegue sin path resoluble.
+
+### Nota técnica: M-E, la frontera es de SEGMENTO
+
+El filtro usaba `startswith` a secas, así que `POST /panel/reviewXYZ/borrar` se
+imputaba al espacio de `/panel/review` sin serlo: un **falso positivo**. Un rojo
+por el motivo equivocado es más peligroso que un verde — entrena a ignorar el
+gate. `path_in_prefix` compara por segmentos (`path == base` o
+`path.startswith(base + "/")`), y se calibra en las dos bandas: R18 exige que el
+gate **no** acuse al vecino, y `test_el_gate_si_reclama_lo_que_es_suyo` exige que
+la frontera no se convierta en un "siempre False" que apague el gate. Importa
+ya: B, F y G van a tener prefijos vecinos.
 
 Sobre la app real, el censo corregido mide **exactamente las mismas cifras** que
 antes (69 rutas aplanadas, 62 nombres en `route_index`, 3 rutas bajo
-`/panel/review`): hoy el único `Mount` del visor es `/static`, en el primer nivel
-y ya en la lista blanca. El arreglo no destapa hallazgos nuevos en producción;
-cierra el hueco por el que B, F y G iban a copiar el patrón.
+`/panel/review`, 1 sin `methods`), con **0 objetos `MountedRoute` emitidos** y
+**0 rutas con path irresoluble**: hoy el único `Mount` del visor es `/static`, en
+el primer nivel y ya en la lista blanca. El arreglo no destapa hallazgos nuevos
+en producción; cierra el hueco por el que B, F y G iban a copiar el patrón.
 
 ## 4. Regla de las pruebas
 
@@ -290,8 +342,27 @@ uno inferior con el que probar la denegación).
 - **No toca la política de visibilidad de contenido** (`app/policies`,
   `app/authz`, `neo4j_provider`). Un hueco que necesite filtrar material del
   grafo usará `get_filtered_provider`, como el resto del visor.
-- **No cubre WebSockets ni rutas montadas fuera de FastAPI.** El barrido
-  enumera rutas HTTP con métodos GET/POST.
+- **No SONDEA WebSockets ni apps ASGI opacas por HTTP** — no se puede lanzar un
+  `GET` contra un WebSocket. Lo que sí hace desde el arreglo de R10 es
+  **declararlas y fallar cerrado** en vez de darlas por buenas: antes
+  desaparecían del barrido en silencio. Sondearlas de verdad (abrir el canal y
+  comprobar la guarda) sigue pendiente y es trabajo del carril de auditoría de
+  rutas (K).
+- **No arregla el CUARTO censo.** `scripts/route_map/route_map.py:iter_effective_routes`
+  es un enumerador independiente del del chasis, con **tres** huecos medidos:
+  (1) no desciende por los `Mount` —emite una fila opaca—, (2) `r.methods or
+  {"GET"}` es fail-**open**, y (3) `APIWebSocketRoute` no encaja en ninguna de
+  sus ramas, así que **desaparece del censo entero**. Y es justo el instrumento
+  que emite los hallazgos `SIN-AUTH` / `MUERTA` / `HUERFANA`. **Atenuante
+  decisivo: no está cableado en `ci.yml`** — es auditoría bajo demanda, no
+  puerta de merge. Alcance de la anotación: **ese mapa no se puede citar como
+  garantía** hasta que se alinee con `iter_mounted_routes`; el censo del chasis
+  es el que manda.
+- **No cambia `viewer/tests/test_readonly.py`.** Repite el patrón fail-open
+  `getattr(route, "methods", set()) or set()` y enumera el MÓDULO
+  (`readonly.router.routes`), no el espacio de URL. Gravedad **baja y acotada**:
+  las 10 rutas de ese router declaran `methods`, así que el fail-open no se
+  dispara hoy. El riesgo real es que **es un patrón copiable por grep**.
 - **No comprueba el rol correcto de las rutas preexistentes**, sólo que ninguna
   sirve 200 a un anónimo. Afinar rol por rol en todo el visor es trabajo del
   carril de auditoría de rutas (K).

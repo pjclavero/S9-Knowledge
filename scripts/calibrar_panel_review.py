@@ -377,11 +377,14 @@ CASOS: tuple[Caso, ...] = (
         ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
     ),
     Caso(
-        "R17", "El barrido de AUTORIZACION no se salta una ruta cuyo path no "
-               "sabe resolver",
-        # Ablacion del arreglo M-G en el propio helper: sin resolver la ruta de
-        # Starlette subyacente, R16 vuelve a llegar con `path=''`. El suelo que
-        # queda es el tri-estado del path, y este es el test que lo sostiene.
+        "R17", "Capa (a) de M-G: sin resolver la `starlette_route` subyacente, "
+               "el censo vuelve a emitir la ruta con path indeterminable",
+        # Calibracion DEL INSTRUMENTO. Ojo con lo que NO dice: quitar esta capa
+        # NO deja pasar M-G por el gate, porque la capa (b) —el tri-estado del
+        # path— lo atrapa igualmente (medido). Lo que esta capa aporta es
+        # NOMBRAR la ruta con su URL real en vez de reportar un anonimo
+        # "<PATH-NO-RESOLUBLE>". Las dos capas juntas son las necesarias: con
+        # ambas quitadas, M-G vuelve a colarse en VERDE (medido).
         CHASSIS,
         "            if real is not None and getattr(real, \"path\", None):\n"
         "                route = real",
@@ -399,6 +402,32 @@ CASOS: tuple[Caso, ...] = (
         "    return [r for r in iter_mounted_routes(app)\n"
         "            if str(getattr(r, \"path\", \"\")).startswith(SLOT.prefix)]",
         ("test_el_gate_no_acusa_a_un_vecino_de_prefijo",),
+    ),
+    Caso(
+        "R19", "Capa (b) de M-G: una ruta con path irresoluble cae DENTRO de "
+               "cualquier prefijo, no fuera de todos",
+        # El suelo que queda si un tipo de ruta futuro vuelve a llegar sin path
+        # resoluble. Hoy no hay ninguna en la app real, asi que se calibra sobre
+        # el helper, que es donde vive la doctrina.
+        CHASSIS,
+        "    path = effective_path(route)\n"
+        "    if path is None:\n"
+        "        return True\n"
+        "    return path_in_prefix(path, prefix)",
+        "    return path_in_prefix(str(getattr(route, \"path\", \"\") or \"\"), prefix)",
+        ("test_una_ruta_con_path_irresoluble_cae_DENTRO_de_cualquier_prefijo",),
+        SUITE_CHASIS,
+    ),
+    Caso(
+        "R20", "El barrido de AUTORIZACION declara las rutas cuyo path no sabe "
+               "resolver en vez de saltarselas",
+        VIEWER / "tests" / "test_chassis_mount_contract.py",
+        "        if path is None:\n"
+        "            # Antes esto era `if not path: continue`",
+        "        if path is None and False:\n"
+        "            # Antes esto era `if not path: continue`",
+        ("test_el_barrido_de_autorizacion_no_se_salta_un_path_irresoluble",),
+        SUITE_CHASIS,
     ),
 )
 
