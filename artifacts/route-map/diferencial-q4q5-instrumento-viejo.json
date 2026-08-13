@@ -1,0 +1,428 @@
+{
+  "baseline": {
+    "authz": {
+      "GET /": "denegada",
+      "GET /account": "denegada",
+      "GET /account/change-password": "denegada",
+      "GET /admin/audit": "denegada",
+      "GET /admin/health": "denegada",
+      "GET /admin/partidas": "denegada",
+      "GET /admin/users": "denegada",
+      "GET /admin/users/new": "denegada",
+      "GET /admin/users/{user_id}": "denegada",
+      "GET /api/admin/health": "denegada",
+      "GET /api/entities": "denegada",
+      "GET /api/entities/{entity_id}": "denegada",
+      "GET /api/entity-types": "denegada",
+      "GET /api/entity/{entity_id}": "denegada",
+      "GET /api/graph": "denegada",
+      "GET /api/jobs": "denegada",
+      "GET /api/jobs/counts": "denegada",
+      "GET /api/jobs/{job_id}": "denegada",
+      "GET /api/quality": "denegada",
+      "GET /api/search": "denegada",
+      "GET /api/sources": "denegada",
+      "GET /api/sources/{source_id}": "denegada",
+      "GET /api/status": "denegada",
+      "GET /api/workspaces": "denegada",
+      "GET /docs": "denegada",
+      "GET /entities": "denegada",
+      "GET /entities/{entity_id}": "denegada",
+      "GET /entity/{entity_id}": "denegada",
+      "GET /graph": "denegada",
+      "GET /jobs": "denegada",
+      "GET /jobs/{job_id}": "denegada",
+      "GET /login": "publica-por-diseno",
+      "GET /openapi.json": "denegada",
+      "GET /quality": "denegada",
+      "GET /redoc": "denegada",
+      "GET /review-console": "denegada",
+      "GET /review-console/": "denegada",
+      "GET /review-console/source/{source_id}": "denegada",
+      "GET /reviews": "denegada",
+      "GET /reviews/{source_id}": "denegada",
+      "GET /sources": "denegada",
+      "GET /sources/{source_id}": "denegada",
+      "GET /status": "denegada",
+      "GET /v3/review": "denegada",
+      "GET /v3/review/": "denegada",
+      "GET /v3/review/glossary-candidates": "denegada",
+      "POST /account/change-password": "denegada",
+      "POST /admin/partidas/grant": "denegada",
+      "POST /admin/partidas/{access_id}/revoke": "denegada",
+      "POST /admin/users/new": "denegada",
+      "POST /admin/users/{user_id}": "denegada",
+      "POST /admin/users/{user_id}/revoke-sessions": "denegada",
+      "POST /admin/users/{user_id}/unlock": "denegada",
+      "POST /login": "publica-por-diseno",
+      "POST /logout": "denegada",
+      "POST /partida/select": "denegada",
+      "POST /review-console/source/{source_id}/decide": "denegada",
+      "POST /v3/review/decide": "denegada",
+      "POST /v3/review/undo": "denegada"
+    },
+    "autorizadas": 57,
+    "capturadas": [],
+    "claves": [
+      "GET /",
+      "GET /account",
+      "GET /account/change-password",
+      "POST /account/change-password",
+      "GET /admin/audit",
+      "GET /admin/health",
+      "GET /admin/partidas",
+      "POST /admin/partidas/grant",
+      "POST /admin/partidas/{access_id}/revoke",
+      "GET /admin/users",
+      "GET /admin/users/new",
+      "POST /admin/users/new",
+      "GET /admin/users/{user_id}",
+      "POST /admin/users/{user_id}",
+      "POST /admin/users/{user_id}/revoke-sessions",
+      "POST /admin/users/{user_id}/unlock",
+      "GET /api/admin/health",
+      "GET /api/entities",
+      "GET /api/entities/{entity_id}",
+      "GET /api/entity-types",
+      "GET /api/entity/{entity_id}",
+      "GET /api/graph",
+      "GET /api/jobs",
+      "GET /api/jobs/counts",
+      "GET /api/jobs/{job_id}",
+      "GET /api/quality",
+      "GET /api/search",
+      "GET /api/sources",
+      "GET /api/sources/{source_id}",
+      "GET /api/status",
+      "GET /api/workspaces",
+      "GET /docs",
+      "GET /entities",
+      "GET /entities/{entity_id}",
+      "GET /entity/{entity_id}",
+      "GET /graph",
+      "GET /jobs",
+      "GET /jobs/{job_id}",
+      "GET /login",
+      "POST /login",
+      "POST /logout",
+      "GET /openapi.json",
+      "POST /partida/select",
+      "GET /quality",
+      "GET /redoc",
+      "GET /review-console",
+      "GET /review-console/",
+      "GET /review-console/source/{source_id}",
+      "POST /review-console/source/{source_id}/decide",
+      "GET /reviews",
+      "GET /reviews/{source_id}",
+      "GET /sources",
+      "GET /sources/{source_id}",
+      "GET /status",
+      "GET /v3/review",
+      "GET /v3/review/",
+      "POST /v3/review/decide",
+      "GET /v3/review/glossary-candidates",
+      "POST /v3/review/undo"
+    ],
+    "contamino_db": [],
+    "contradiccion": [],
+    "control_csrf_fallido": [],
+    "csrf_control_ok": false,
+    "denegacion_404_ambigua": [],
+    "denegacion_no_atribuible": [],
+    "detector_contaminacion": false,
+    "guardian_no_aplicado": [],
+    "montadas": 59,
+    "muertas": [],
+    "no_probadas": [
+      "GET /account",
+      "GET /admin/health",
+      "GET /admin/users/new",
+      "POST /admin/users/new",
+      "GET /admin/users/{user_id}",
+      "POST /admin/users/{user_id}",
+      "POST /admin/users/{user_id}/revoke-sessions",
+      "POST /admin/users/{user_id}/unlock",
+      "GET /review-console/",
+      "GET /v3/review/",
+      "GET /v3/review/glossary-candidates",
+      "POST /v3/review/undo"
+    ],
+    "roles": {
+      "GET /": "viewer",
+      "GET /account": "viewer",
+      "GET /account/change-password": "viewer",
+      "GET /admin/audit": "admin",
+      "GET /admin/health": "admin",
+      "GET /admin/partidas": "admin",
+      "GET /admin/users": "admin",
+      "GET /admin/users/new": "admin",
+      "GET /admin/users/{user_id}": "admin",
+      "GET /api/admin/health": "admin",
+      "GET /api/entities": "viewer",
+      "GET /api/entities/{entity_id}": "viewer",
+      "GET /api/entity-types": "viewer",
+      "GET /api/entity/{entity_id}": "viewer",
+      "GET /api/graph": "viewer",
+      "GET /api/jobs": "viewer",
+      "GET /api/jobs/counts": "viewer",
+      "GET /api/jobs/{job_id}": "viewer",
+      "GET /api/quality": "reviewer",
+      "GET /api/search": "viewer",
+      "GET /api/sources": "reviewer",
+      "GET /api/sources/{source_id}": "reviewer",
+      "GET /api/status": "viewer",
+      "GET /api/workspaces": "viewer",
+      "GET /docs": "ninguno-sirve",
+      "GET /entities": "viewer",
+      "GET /entities/{entity_id}": "viewer",
+      "GET /entity/{entity_id}": "viewer",
+      "GET /graph": "viewer",
+      "GET /jobs": "viewer",
+      "GET /jobs/{job_id}": "viewer",
+      "GET /login": "viewer",
+      "GET /openapi.json": "ninguno-sirve",
+      "GET /quality": "reviewer",
+      "GET /redoc": "ninguno-sirve",
+      "GET /review-console": "reviewer",
+      "GET /review-console/": "reviewer",
+      "GET /review-console/source/{source_id}": "reviewer",
+      "GET /reviews": "reviewer",
+      "GET /reviews/{source_id}": "reviewer",
+      "GET /sources": "reviewer",
+      "GET /sources/{source_id}": "reviewer",
+      "GET /status": "viewer",
+      "GET /v3/review": "reviewer",
+      "GET /v3/review/": "reviewer",
+      "GET /v3/review/glossary-candidates": "reviewer",
+      "POST /account/change-password": "viewer",
+      "POST /admin/partidas/grant": "admin",
+      "POST /admin/partidas/{access_id}/revoke": "admin",
+      "POST /admin/users/new": "admin",
+      "POST /admin/users/{user_id}": "admin",
+      "POST /admin/users/{user_id}/revoke-sessions": "admin",
+      "POST /admin/users/{user_id}/unlock": "admin",
+      "POST /login": "ninguno-sirve",
+      "POST /logout": "ninguno-sirve",
+      "POST /partida/select": "admin",
+      "POST /review-console/source/{source_id}/decide": "reviewer",
+      "POST /v3/review/decide": "reviewer",
+      "POST /v3/review/undo": "reviewer"
+    },
+    "roles_no_evaluables": [],
+    "rotos": [],
+    "sin_auth": []
+  },
+  "casos": {
+    "M0-control": {
+      "delta": {
+        "authz_cambiados": {},
+        "autorizadas": 0,
+        "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
+        "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": false,
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": false,
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 0,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [],
+        "roles_cambiados": {},
+        "roles_no_evaluables_nuevos": [],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [],
+        "sin_auth_nuevas": []
+      },
+      "detectado": false
+    },
+    "M16-deriva-csrf-silenciosa": {
+      "delta": {
+        "authz_cambiados": {},
+        "autorizadas": 0,
+        "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
+        "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": false,
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": false,
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 0,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [],
+        "roles_cambiados": {
+          "POST /account/change-password": [
+            "viewer",
+            "ninguno-sirve"
+          ],
+          "POST /admin/partidas/{access_id}/revoke": [
+            "admin",
+            "ninguno-sirve"
+          ],
+          "POST /admin/users/{user_id}/revoke-sessions": [
+            "admin",
+            "ninguno-sirve"
+          ],
+          "POST /admin/users/{user_id}/unlock": [
+            "admin",
+            "ninguno-sirve"
+          ],
+          "POST /partida/select": [
+            "admin",
+            "ninguno-sirve"
+          ],
+          "POST /review-console/source/{source_id}/decide": [
+            "reviewer",
+            "ninguno-sirve"
+          ],
+          "POST /v3/review/decide": [
+            "reviewer",
+            "ninguno-sirve"
+          ],
+          "POST /v3/review/undo": [
+            "reviewer",
+            "ninguno-sirve"
+          ]
+        },
+        "roles_no_evaluables_nuevos": [],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [],
+        "sin_auth_nuevas": []
+      },
+      "detectado": false
+    },
+    "M17-nombre-que-concede": {
+      "delta": {
+        "authz_cambiados": {
+          "GET /fuga2/{item_id}": [
+            null,
+            "denegada"
+          ]
+        },
+        "autorizadas": 1,
+        "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
+        "contradicciones_nuevas": [
+          "GET /fuga2/{item_id}"
+        ],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": false,
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": false,
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 1,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [
+          "GET /fuga2/{item_id}"
+        ],
+        "roles_cambiados": {
+          "GET /fuga2/{item_id}": [
+            null,
+            "viewer"
+          ]
+        },
+        "roles_no_evaluables_nuevos": [],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [
+          "GET /fuga2/{item_id}"
+        ],
+        "sin_auth_nuevas": []
+      },
+      "detectado": false
+    },
+    "M18-handler-gloton-contamina": {
+      "delta": {
+        "authz_cambiados": {
+          "POST /promociona/{user_id}": [
+            null,
+            "SIN-AUTH"
+          ]
+        },
+        "autorizadas": 0,
+        "capturadas_nuevas": [],
+        "contamino_db_nuevo": false,
+        "contradicciones_nuevas": [],
+        "control_csrf_fallido_nuevo": false,
+        "csrf_control_ok": false,
+        "denegacion_404_ambigua_nuevas": [],
+        "denegacion_no_atribuible_nuevas": [],
+        "detector_contaminacion": false,
+        "guardian_no_aplicado_nuevos": [],
+        "montadas": 1,
+        "muertas_nuevas": [],
+        "no_probadas_nuevas": [
+          "POST /promociona/{user_id}"
+        ],
+        "roles_cambiados": {
+          "GET /review-console": [
+            "reviewer",
+            "viewer"
+          ],
+          "GET /review-console/": [
+            "reviewer",
+            "viewer"
+          ],
+          "GET /review-console/source/{source_id}": [
+            "reviewer",
+            "viewer"
+          ],
+          "GET /reviews": [
+            "reviewer",
+            "viewer"
+          ],
+          "GET /reviews/{source_id}": [
+            "reviewer",
+            "viewer"
+          ],
+          "GET /v3/review": [
+            "reviewer",
+            "viewer"
+          ],
+          "GET /v3/review/": [
+            "reviewer",
+            "viewer"
+          ],
+          "GET /v3/review/glossary-candidates": [
+            "reviewer",
+            "viewer"
+          ],
+          "POST /partida/select": [
+            "admin",
+            "viewer"
+          ],
+          "POST /promociona/{user_id}": [
+            null,
+            "no-concluyente-csrf"
+          ],
+          "POST /review-console/source/{source_id}/decide": [
+            "reviewer",
+            "viewer"
+          ],
+          "POST /v3/review/decide": [
+            "reviewer",
+            "viewer"
+          ],
+          "POST /v3/review/undo": [
+            "reviewer",
+            "viewer"
+          ]
+        },
+        "roles_no_evaluables_nuevos": [],
+        "rotos_nuevos": [],
+        "rutas_nuevas": [
+          "POST /promociona/{user_id}"
+        ],
+        "sin_auth_nuevas": [
+          "POST /promociona/{user_id}"
+        ]
+      },
+      "detectado": false
+    }
+  },
+  "reversion_identica": true
+}
