@@ -21,7 +21,7 @@ from fastapi.templating import Jinja2Templates
 # chasis con su propia guarda sería una segunda autorización.
 from app.auth.dependencies import require_admin
 from app.auth.models import User
-from app.chassis import FeatureSlot, slot_enabled, slot_flag_env
+from app.chassis import FeatureSlot, slot_enabled
 from app.routers.readonly import html_role_guard
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -77,14 +77,17 @@ def build_slot_router(slot: FeatureSlot) -> APIRouter:
         # salida es parte de la denegación.
         if isinstance(user, RedirectResponse):
             return user
-        # Interruptor del hueco: se comprueba DESPUÉS de autorizar, para no
-        # revelar a un anónimo qué paneles existen. Ausente o con valor raro,
-        # el panel no está: 404, igual que una ruta que no existiera.
+        # Interruptor del hueco: se comprueba DESPUÉS de autorizar, para que un
+        # anónimo reciba la MISMA respuesta esté el panel encendido o apagado y
+        # no pueda enumerar cuáles lo están (`test_disabled_slots_are_not_
+        # enumerable_by_an_anonymous`). Ausente o con valor raro, el panel no
+        # está: 404, igual que una ruta inexistente. El cuerpo no nombra la
+        # variable de entorno: quien la necesita ya la tiene en docs/69 y en
+        # `.env.example`, y quien no, tampoco necesita saber cómo se llama.
         if not slot_enabled(slot):
             raise HTTPException(
                 status_code=404,
-                detail=(f"El panel {slot.title} está apagado "
-                        f"({slot_flag_env(slot)})"),
+                detail=(f"El panel {slot.title} está apagado"),
             )
         return templates.TemplateResponse(
             request, slot.template, slot_context(slot, user, items=[], error=None)

@@ -450,6 +450,12 @@ def test_slot_is_off_when_flag_is_absent(real_app, auth_on, slot, monkeypatch):
     assert r.status_code == 404, (
         f"Hueco {slot.key}: sin {slot_flag_env(slot)} responde {r.status_code}"
     )
+    # El cuerpo del 404 no enseña cómo se enciende el panel. No es un secreto
+    # —está en docs/69 y en `.env.example`—, pero una respuesta de error no es
+    # el sitio donde publicarlo.
+    assert slot_flag_env(slot) not in r.text, (
+        f"El 404 del hueco {slot.key} nombra su variable de entorno: {r.text}"
+    )
 
 
 @pytest.mark.parametrize("valor", ["quizas", "", "false", "TRUE-ish", "0", "yes"])
@@ -492,6 +498,41 @@ def test_flag_does_not_bypass_authorization(real_app, auth_on, monkeypatch):
         monkeypatch.setenv(slot_flag_env(slot), "true")
         r = _client(real_app).get(slot.prefix, headers={"accept": "text/html"})
         assert r.status_code in (302, 401), f"Hueco {slot.key}: {r.status_code}"
+
+
+def test_disabled_slots_are_not_enumerable_by_an_anonymous(real_app, auth_on, monkeypatch):
+    """Un anónimo recibe el MISMO estado para un panel encendido y uno apagado.
+
+    El orden importa y hasta ahora sólo estaba *afirmado en prosa*: comprobar el
+    interruptor ANTES de la guarda deja todo verde, y sin embargo con C
+    encendido y B/F/G apagados un anónimo obtiene `302 / 404 / 404 / 404` y
+    enumera qué paneles están encendidos. Medido, no supuesto. Aquí queda con
+    número y con red: un carril futuro que reordene esas dos líneas se pone
+    rojo en vez de perder la propiedad en silencio.
+
+    La comparación es entre respuestas al MISMO anónimo, no contra un código
+    escrito a mano: lo que se afirma es indistinguibilidad, no "302".
+    """
+    from app.chassis import slot_flag_env
+
+    encendido, *apagados = FEATURE_SLOTS
+    monkeypatch.setenv(slot_flag_env(encendido), "true")
+    for slot in apagados:
+        monkeypatch.delenv(slot_flag_env(slot), raising=False)
+
+    client = _client(real_app)
+    estados = {}
+    for slot in FEATURE_SLOTS:
+        for url in (slot.prefix, slot.prefix + "/"):
+            estados[(slot.key, url)] = client.get(
+                url, headers={"accept": "text/html"}).status_code
+
+    distintos = sorted(set(estados.values()))
+    assert len(distintos) == 1, (
+        "Un anónimo distingue paneles encendidos de apagados y puede "
+        f"enumerarlos: {estados}. El interruptor tiene que evaluarse DESPUÉS "
+        "de la guarda."
+    )
 
 
 def test_disabled_slot_is_not_linked_in_the_nav(real_app, auth_on, monkeypatch):
