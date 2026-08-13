@@ -27,6 +27,7 @@ from app.chassis import (
     FEATURE_SLOTS,
     NAV,
     ChassisContractError,
+    effective_path,
     enumerable_methods,
     iter_mounted_routes,
     nav_for,
@@ -367,11 +368,20 @@ def test_no_mounted_route_serves_200_to_anonymous(real_app, auth_on):
     client = _client(real_app)
     fugas = []
     opacas = []
+    sin_path = []
     for route in iter_mounted_routes(real_app):
-        path = getattr(route, "path", None)
-        metodos = enumerable_methods(route)
-        if not path or path in ANON_ALLOWED_PATHS:
+        path = effective_path(route)
+        if path is None:
+            # Antes esto era `if not path: continue`, es decir: una ruta cuyo
+            # path el censo no sabe resolver se SALTABA en silencio, que es
+            # exactamente la que se colaría. Medido: un `Mount` dentro de un
+            # `APIRouter` incluido con prefijo llegaba aquí con `path=''` y
+            # servía 200 sin que este barrido lo mirase.
+            sin_path.append(f"{type(route).__name__} {getattr(route, 'name', '')!r}")
             continue
+        if path in ANON_ALLOWED_PATHS:
+            continue
+        metodos = enumerable_methods(route)
         if metodos is None:
             # No se puede sondear lo que no declara métodos (WebSocket, `Mount`
             # opaco). Eso NO la absuelve: se declara y el barrido falla CERRADO,
@@ -385,6 +395,11 @@ def test_no_mounted_route_serves_200_to_anonymous(real_app, auth_on):
                                headers={"accept": "text/html"})
             if r.status_code == 200:
                 fugas.append(f"{method} {path}")
+    assert not sin_path, (
+        f"Rutas cuyo path el censo no sabe resolver: {sin_path}. No saber dónde "
+        "está una ruta no la absuelve: este barrido no puede sondearla y por eso "
+        "es precisamente la que se colaría."
+    )
     assert not opacas, (
         f"Rutas que el barrido de autorización no puede examinar porque no "
         f"declaran métodos enumerables: {opacas}. Ausencia de dato no es "
@@ -681,6 +696,55 @@ def test_el_censo_compone_el_prefijo_de_los_mount():
     )
 
 
+def _app_con_mount_dentro_de_router_incluido():
+    """El vector M-G: un `Mount` DENTRO de un `APIRouter` incluido con prefijo.
+
+    FastAPI sólo rellena el `_EffectiveRouteContext` para las `APIRoute`; si el
+    contexto envuelve un `Mount`, llega con `path=''`.
+    """
+    from fastapi import APIRouter, FastAPI
+
+    app = FastAPI()
+    router = APIRouter()
+    sub = FastAPI()
+
+    @sub.post("/aprobar")
+    def _aprobar():  # pragma: no cover
+        return {"ok": True}
+
+    router.mount("/m", sub)
+    app.include_router(router, prefix="/panel/review/inc")
+    return app
+
+
+def test_un_mount_dentro_de_un_router_incluido_no_pierde_el_path():
+    """M-G: sin esto el censo emitía `path=''` y NADIE lo veía.
+
+    Medido antes del arreglo: `POST /panel/review/inc/m/aprobar` respondía 200 y
+    escribía, el censo lo emitía como `_EffectiveRouteContext` con `path=''`, el
+    filtro por prefijo lo descartaba (`''.startswith(...)` es False) y el barrido
+    de autorización lo saltaba con `if not path: continue`.
+    """
+    from app.chassis import route_in_prefix, write_methods
+
+    app = _app_con_mount_dentro_de_router_incluido()
+    caminos = {str(getattr(r, "path", "")) for r in iter_mounted_routes(app)}
+    assert "/panel/review/inc/m/aprobar" in caminos, sorted(caminos)
+    assert "" not in caminos, "El censo sigue emitiendo una ruta con path vacío"
+
+    escrituras = [(r.path, write_methods(r)) for r in iter_mounted_routes(app)
+                  if route_in_prefix(r, "/panel/review") and write_methods(r)]
+    assert escrituras == [("/panel/review/inc/m/aprobar", ("POST",))]
+
+
+def test_el_mount_de_ese_vector_responde_de_verdad():
+    """Control positivo: si la ruta no sirviera, el caso no probaría nada."""
+    from fastapi.testclient import TestClient
+
+    app = _app_con_mount_dentro_de_router_incluido()
+    assert TestClient(app).post("/panel/review/inc/m/aprobar").status_code == 200
+
+
 def test_el_censo_compone_el_prefijo_a_dos_niveles():
     from fastapi import FastAPI
 
@@ -821,3 +885,88 @@ def test_un_websocket_bajo_el_prefijo_se_declara_capaz_de_escribir():
                  if str(getattr(r, "path", "")).startswith("/panel/review")
                  and write_methods(r)]
     assert culpables == [("/panel/review/ws", (METHODS_NOT_ENUMERABLE,))]
+
+
+# --- El `path` es tri-estado, y el filtro tiene frontera de SEGMENTO --------
+
+def test_effective_path_distingue_ausencia_de_raiz():
+    """`''` es ausencia de dato, no "la raíz". Misma doctrina que `methods`."""
+    from app.chassis import PATH_NOT_RESOLVABLE, effective_path, route_path
+
+    class SinPath:
+        pass
+
+    class PathNulo:
+        path = None
+
+    class PathVacio:
+        path = ""
+
+    class PathReal:
+        path = "/panel/review"
+
+    for opaca in (SinPath(), PathNulo(), PathVacio()):
+        assert effective_path(opaca) is None, type(opaca).__name__
+        assert route_path(opaca) == PATH_NOT_RESOLVABLE
+    assert effective_path(PathReal()) == "/panel/review"
+    assert route_path(PathReal()) == "/panel/review"
+
+
+def test_una_ruta_con_path_irresoluble_cae_DENTRO_de_cualquier_prefijo():
+    """FALLA CERRADO: no saber dónde está una ruta no la pone fuera.
+
+    Es el suelo que queda si un tipo de ruta futuro vuelve a llegar sin path
+    resoluble: el consumidor la reporta en vez de saltársela en silencio.
+    """
+    from app.chassis import route_in_prefix, write_methods
+
+    class Irresoluble:
+        path = ""
+
+    r = Irresoluble()
+    assert route_in_prefix(r, "/panel/review") is True
+    assert route_in_prefix(r, "/panel/operations") is True
+    # Y ademas es capaz de escribir, asi que el consumidor la saca por rojo.
+    assert write_methods(r)
+
+
+def test_el_filtro_de_prefijo_respeta_la_frontera_de_segmento():
+    """FALSO POSITIVO (M-E): `/panel/review` no contiene a `/panel/reviewXYZ`.
+
+    Un rojo por el motivo equivocado es más peligroso que un verde: acusar al
+    hueco C de una escritura que no está en su espacio de URL entrena a ignorar
+    el gate. Y B/F/G van a tener prefijos vecinos.
+    """
+    from app.chassis import path_in_prefix
+
+    dentro = ["/panel/review", "/panel/review/", "/panel/review/item/{id}",
+              "/panel/review/inc/m/aprobar"]
+    fuera = ["/panel/reviewXYZ/borrar", "/panel/reviews", "/panel/review-legacy",
+             "/panel", "/panel/operations", "/otro/panel/review"]
+
+    for path in dentro:
+        assert path_in_prefix(path, "/panel/review"), path
+    for path in fuera:
+        assert not path_in_prefix(path, "/panel/review"), path
+
+
+def test_el_prefijo_con_barra_final_no_cambia_la_frontera():
+    from app.chassis import path_in_prefix
+
+    for prefijo in ("/panel/review", "/panel/review/"):
+        assert path_in_prefix("/panel/review/item/{id}", prefijo)
+        assert not path_in_prefix("/panel/reviewXYZ/borrar", prefijo)
+
+
+@pytest.mark.parametrize("slot", FEATURE_SLOTS, ids=lambda s: s.key)
+def test_ningun_hueco_captura_el_espacio_de_otro(slot):
+    """Los cuatro prefijos son disjuntos POR SEGMENTOS, no sólo por texto."""
+    from app.chassis import path_in_prefix
+
+    for otro in FEATURE_SLOTS:
+        if otro.key == slot.key:
+            continue
+        assert not path_in_prefix(otro.prefix, slot.prefix), (
+            f"El espacio del hueco {slot.key} ({slot.prefix}) se traga al "
+            f"del hueco {otro.key} ({otro.prefix})"
+        )

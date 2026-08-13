@@ -47,6 +47,11 @@ __all__ = [
     "enumerable_methods",
     "write_methods",
     "is_write_capable",
+    "PATH_NOT_RESOLVABLE",
+    "effective_path",
+    "route_path",
+    "path_in_prefix",
+    "route_in_prefix",
     "nav_for",
     "install_nav_globals",
     "FLAG_ENV_TEMPLATE",
@@ -297,6 +302,19 @@ def _walk(routes: Iterable, prefix: str = "") -> Iterator:
     anidado, ruta suelta) para no atarse a una versión concreta.
     """
     for route in routes:
+        # Un `_EffectiveRouteContext` que envuelve algo que NO es una `APIRoute`
+        # —el caso medido es un `Mount` dentro de un `APIRouter` incluido con
+        # prefijo— trae `path=''`: FastAPI sólo rellena el contexto para las
+        # rutas de API. La ruta de Starlette subyacente SÍ la trae ya compuesta
+        # (`Mount(path='/panel/review/inc/m')`), así que se sustituye por ella y
+        # el descenso normal por `Mount` hace el resto. Sin esto, el censo
+        # emitía un objeto con path vacío: invisible para todo filtro por
+        # prefijo y saltado en silencio por el barrido de autorización, mientras
+        # `POST /panel/review/inc/m/aprobar` respondía 200 y escribía.
+        if not getattr(route, "path", None):
+            real = getattr(route, "starlette_route", None)
+            if real is not None and getattr(real, "path", None):
+                route = real
         candidates = getattr(route, "effective_candidates", None)
         if callable(candidates):
             # Envoltorio de router incluido: NO añade prefijo propio (FastAPI ya
@@ -386,6 +404,66 @@ def write_methods(route) -> tuple:
 def is_write_capable(route) -> bool:
     """¿Puede esta ruta escribir, hasta donde el censo puede demostrar?"""
     return bool(write_methods(route))
+
+
+# ---------------------------------------------------------------------------
+# El `path` también es tri-estado, y el filtro tiene FRONTERA DE SEGMENTO
+# ---------------------------------------------------------------------------
+# Faltaba aplicar al `path` la misma doctrina que a `methods`. Un path que no se
+# puede resolver se trataba como `''`: benigno, fuera de TODO prefijo, y saltado
+# por el barrido de autorización con un `if not path: continue`. El fallo cerrado
+# por métodos no salvaba nada, porque el filtro por path corre ANTES.
+#
+# Y el filtro es de ESPACIO DE URL, así que compara por segmentos: `/panel/review`
+# no contiene a `/panel/reviewXYZ/borrar`. Con `startswith` a secas eso era un
+# FALSO POSITIVO, y B/F/G van a tener prefijos vecinos (`/panel/sources` frente a
+# un hipotético `/panel/sources-legacy`).
+
+#: Marca que se devuelve cuando el path de una ruta no se puede resolver.
+PATH_NOT_RESOLVABLE = "<PATH-NO-RESOLUBLE>"
+
+
+def effective_path(route) -> Optional[str]:
+    """Path efectivo de la ruta, o ``None`` si NO se puede resolver.
+
+    Cadena vacía es ausencia de dato, no "la raíz": ninguna ruta servible tiene
+    path vacío, así que `''` sólo aparece cuando el censo no supo resolverlo.
+    """
+    raw = getattr(route, "path", None)
+    if raw is None:
+        return None
+    texto = str(raw)
+    return texto or None
+
+
+def route_path(route) -> str:
+    """Path para IMPRIMIR en un hallazgo. Nunca miente con una cadena vacía."""
+    path = effective_path(route)
+    return PATH_NOT_RESOLVABLE if path is None else path
+
+
+def path_in_prefix(path: str, prefix: str) -> bool:
+    """¿Está ``path`` dentro del espacio de URL ``prefix``, por SEGMENTOS?
+
+    `/panel/review` contiene a `/panel/review`, `/panel/review/` y
+    `/panel/review/item/{id}`, pero NO a `/panel/reviewXYZ/borrar`.
+    """
+    base = prefix.rstrip("/")
+    return path == base or path.startswith(base + "/")
+
+
+def route_in_prefix(route, prefix: str) -> bool:
+    """¿Cae ``route`` en el espacio de URL ``prefix``? FALLA CERRADO.
+
+    Una ruta cuyo path no se puede resolver se declara DENTRO de cualquier
+    espacio: no saber dónde está una ruta no la pone fuera de tu frontera, la
+    pone en todas. Combinado con ``write_methods`` (que también falla cerrado
+    ante esa misma ruta), el consumidor la reporta en vez de saltársela.
+    """
+    path = effective_path(route)
+    if path is None:
+        return True
+    return path_in_prefix(path, prefix)
 
 
 def route_index(app) -> dict[str, str]:

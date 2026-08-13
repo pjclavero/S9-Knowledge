@@ -223,8 +223,8 @@ CASOS: tuple[Caso, ...] = (
         # los routers incluidos en envoltorios `_IncludedRouter`), y entonces
         # R5 saldría verde por no mirar. El suelo tiene que cazarlo, y R5 no.
         FICHERO_SUITE,
-        "        r for r in iter_mounted_routes(app)",
-        "        r for r in app.routes",
+        "for r in iter_mounted_routes(app) if route_in_prefix",
+        "for r in app.routes if route_in_prefix",
         ("test_la_enumeracion_del_espacio_del_panel_no_puede_salir_vacia",),
     ),
     Caso(
@@ -295,14 +295,15 @@ CASOS: tuple[Caso, ...] = (
         ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
     ),
     Caso(
-        # HONESTIDAD: R12 ya salia ROJO ANTES de este carril, y sigue rojo con
-        # cualquiera de los dos criterios ablacionado. No demuestra nada nuevo:
-        # documenta que FastAPI resuelve los prefijos de `include_router` DENTRO
-        # del `path` de cada `APIRoute` (a diferencia de `Mount`), asi que ese
-        # anidamiento nunca fue un punto ciego. Se conserva como control
-        # NEGATIVO: distingue el caso que si estaba roto del que no.
-        "R12", "`include_router` con prefijo dentro de otro router tampoco "
-               "esconde escritura (ya cubierto: control negativo)",
+        # CONTROL NEGATIVO, Y ACOTADO. Ojo con generalizarlo: `include_router`
+        # anidado no era punto ciego **cuando lo que anida son `APIRoute`s**,
+        # porque FastAPI resuelve esos prefijos dentro del `path` de cada una.
+        # NO vale para un `Mount` dentro de un router incluido: ese caso SI
+        # estaba abierto y es R16. Un control negativo mal generalizado es peor
+        # que ninguno, porque desactiva la sospecha justo donde hacia falta.
+        "R12", "`include_router` con prefijo dentro de otro router no esconde "
+               "escritura SI lo anidado son APIRoutes (control negativo acotado; "
+               "con un `Mount` dentro, ver R16)",
         MAIN,
         "\n\n_mount_feature_slots()\n",
         "\n\n_mount_feature_slots()\n\n\n"
@@ -354,6 +355,50 @@ CASOS: tuple[Caso, ...] = (
         "    return path",
         ("test_el_censo_compone_el_prefijo_de_los_mount",),
         SUITE_CHASIS,
+    ),
+    Caso(
+        # La misma clase que R9, por otra via: FastAPI solo rellena el
+        # `_EffectiveRouteContext` para las `APIRoute`. Si envuelve un `Mount`,
+        # llega con `path=''`, el filtro lo descarta y el barrido de
+        # autorizacion lo salta. Medido: 200 y escritura.
+        "R16", "Un `Mount` DENTRO de un `APIRouter` incluido con prefijo tampoco "
+               "esconde escritura (path indeterminable)",
+        MAIN,
+        "\n\n_mount_feature_slots()\n",
+        "\n\n_mount_feature_slots()\n\n\n"
+        "from fastapi import APIRouter as _APIRouterMG\n"
+        "_router_mg = _APIRouterMG()\n"
+        "_sub_mg = FastAPI()\n\n\n"
+        "@_sub_mg.post(\"/aprobar\")\n"
+        "def _mutante_mount_en_router_incluido():\n"
+        "    return {\"ok\": True}\n\n\n"
+        "_router_mg.mount(\"/m\", _sub_mg)\n"
+        "app.include_router(_router_mg, prefix=\"/panel/review/inc\")\n",
+        ("test_ninguna_ruta_del_espacio_del_panel_acepta_escritura",),
+    ),
+    Caso(
+        "R17", "El barrido de AUTORIZACION no se salta una ruta cuyo path no "
+               "sabe resolver",
+        # Ablacion del arreglo M-G en el propio helper: sin resolver la ruta de
+        # Starlette subyacente, R16 vuelve a llegar con `path=''`. El suelo que
+        # queda es el tri-estado del path, y este es el test que lo sostiene.
+        CHASSIS,
+        "            if real is not None and getattr(real, \"path\", None):\n"
+        "                route = real",
+        "            pass",
+        ("test_un_mount_dentro_de_un_router_incluido_no_pierde_el_path",),
+        SUITE_CHASIS,
+    ),
+    Caso(
+        # FALSO POSITIVO (M-E), no falso negativo: la calibracion tiene que
+        # exigir tambien que el gate NO acuse a quien no es suyo.
+        "R18", "El gate de C no acusa a un vecino de prefijo "
+               "(`/panel/reviewXYZ` no es `/panel/review`)",
+        FICHERO_SUITE,
+        "    return [r for r in iter_mounted_routes(app) if route_in_prefix(r, SLOT.prefix)]",
+        "    return [r for r in iter_mounted_routes(app)\n"
+        "            if str(getattr(r, \"path\", \"\")).startswith(SLOT.prefix)]",
+        ("test_el_gate_no_acusa_a_un_vecino_de_prefijo",),
     ),
 )
 

@@ -502,13 +502,18 @@ def rutas_del_espacio_del_panel(app) -> list:
        `/panel/review/admin` con un `POST /aprobar` aparecía en el censo como
        `'/aprobar'` y este filtro la descartaba. Medido: 200 y escritura en
        disco con la suite en 48/48 VERDE.
+    4. La pertenencia se pregunta a `route_in_prefix`, no a `startswith`. Dos
+       motivos, uno por banda:
+       - FALSO NEGATIVO: una ruta cuyo path no se puede resolver (`path=''`)
+         quedaba fuera de TODO prefijo. Ahora se declara DENTRO de cualquiera —
+         no saber dónde está una ruta no la pone fuera de tu frontera.
+       - FALSO POSITIVO: `startswith` sin frontera de segmento metía
+         `/panel/reviewXYZ/borrar` en el espacio de `/panel/review`, que no es
+         suyo. Un rojo por el motivo equivocado es más peligroso que un verde.
     """
-    from app.chassis import iter_mounted_routes
+    from app.chassis import iter_mounted_routes, route_in_prefix
 
-    return [
-        r for r in iter_mounted_routes(app)
-        if str(getattr(r, "path", "")).startswith(SLOT.prefix)
-    ]
+    return [r for r in iter_mounted_routes(app) if route_in_prefix(r, SLOT.prefix)]
 
 
 def test_la_enumeracion_del_espacio_del_panel_no_puede_salir_vacia(real_app):
@@ -516,17 +521,70 @@ def test_la_enumeracion_del_espacio_del_panel_no_puede_salir_vacia(real_app):
 
     Si un cambio de FastAPI vuelve a esconder las rutas incluidas, este test
     cae ANTES que el de la frontera, y con el motivo correcto escrito.
+
+    El recuento sólo cuenta rutas con path RESOLUBLE. `route_in_prefix` falla
+    cerrado, así que una ristra de rutas con path indeterminable caería "dentro"
+    del prefijo y podría satisfacer el suelo sin que el censo viese nada real:
+    el suelo se estaría autocumpliendo con el propio fallo cerrado.
     """
+    from app.chassis import effective_path
+
     rutas = rutas_del_espacio_del_panel(real_app)
     caminos = {getattr(r, "path", "") for r in rutas}
-    assert len(rutas) >= 3, (
-        f"La enumeración de {SLOT.prefix} sólo ve {len(rutas)} rutas ({caminos}): "
-        "el barrido no está aplanando los routers incluidos"
+    resolubles = [r for r in rutas if effective_path(r) is not None]
+    assert len(resolubles) >= 3, (
+        f"La enumeración de {SLOT.prefix} sólo ve {len(resolubles)} rutas con "
+        f"path resoluble ({caminos}): el barrido no está aplanando los routers "
+        "incluidos"
     )
     # Las que este carril declara, nombradas: el suelo no se satisface con
     # cualquier ruta que pase por ahí.
     assert SLOT.prefix in caminos
     assert f"{SLOT.prefix}/item/{{proposal_id}}" in caminos
+
+
+def test_el_gate_no_acusa_a_un_vecino_de_prefijo():
+    """FALSO POSITIVO: la frontera es de SEGMENTO, no de texto.
+
+    `POST /panel/reviewXYZ/borrar` no está en el espacio de URL de este panel y
+    el gate no puede reportarlo. Se calibra igual que un falso negativo: si el
+    gate acusa a quien no es suyo, entrena a ignorarlo, y un rojo por el motivo
+    equivocado es más peligroso que un verde. B/F/G tendrán prefijos vecinos.
+    """
+    from fastapi import FastAPI
+
+    vecino = FastAPI()
+
+    @vecino.post(f"{SLOT.prefix}XYZ/borrar")
+    def _borrar():  # pragma: no cover - nunca se invoca
+        return {"ok": True}
+
+    @vecino.post(f"{SLOT.prefix}s/borrar")
+    def _borrar_plural():  # pragma: no cover
+        return {"ok": True}
+
+    caminos = [getattr(r, "path", "") for r in rutas_del_espacio_del_panel(vecino)]
+    assert caminos == [], (
+        f"El gate reclama como suyas rutas que no están bajo {SLOT.prefix}: {caminos}"
+    )
+
+
+def test_el_gate_si_reclama_lo_que_es_suyo():
+    """Contrapeso del anterior: la frontera de segmento no lo apaga.
+
+    Sin este control, `path_in_prefix` podría devolver `False` siempre y el test
+    del vecino seguiría verde mientras el gate dejaba de mirar.
+    """
+    from fastapi import FastAPI
+
+    propio = FastAPI()
+
+    @propio.post(f"{SLOT.prefix}/borrar")
+    def _borrar():  # pragma: no cover
+        return {"ok": True}
+
+    caminos = [getattr(r, "path", "") for r in rutas_del_espacio_del_panel(propio)]
+    assert caminos == [f"{SLOT.prefix}/borrar"], caminos
 
 
 def test_ninguna_ruta_del_espacio_del_panel_acepta_escritura(real_app):
@@ -542,10 +600,10 @@ def test_ninguna_ruta_del_espacio_del_panel_acepta_escritura(real_app):
     `set(getattr(r, "methods", set()))` escrito a mano, un
     `@app.websocket("/panel/review/ws")` quedaba invisible en silencio.
     """
-    from app.chassis import write_methods
+    from app.chassis import route_path, write_methods
 
     culpables = [
-        (getattr(r, "path", r), list(write_methods(r)))
+        (route_path(r), list(write_methods(r)))
         for r in rutas_del_espacio_del_panel(real_app)
         if write_methods(r)
     ]
