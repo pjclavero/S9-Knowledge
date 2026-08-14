@@ -195,13 +195,26 @@ cualquier prueba.
 |---|---|---|---|---|
 | **M1** | revertir la denegación (la capa juego no pide llave) | **10** pruebas | paneles G y F + suite HTTP | `c896051c659af3e8` ✔ |
 | **M2** | conceder lore por **otra vía**: `and ctx.role != "anonymous"` | **10** pruebas | paneles G y F + suite HTTP | `c896051c659af3e8` ✔ |
-| **M3** | conceder por **ausencia de partida**: `partida_in_scope` → `True` | **1** prueba | panel C | `c896051c659af3e8` ✔ |
+| **M3** | conceder por **ausencia de partida**: `partida_in_scope` → `True` | **2** pruebas | panel C | `c896051c659af3e8` ✔ |
 | **M4** | el **productor** concede la llave al anónimo | **11** pruebas | G, F, C + suite HTTP | `37d225920b2207dd` ✔ |
 | **M5** | **colapso**: retirar la llave también al legítimo (ocultar de más) | **26** pruebas | G + suite HTTP | `37d225920b2207dd` ✔ |
 
+**Todas las cifras de esta columna son COTAS INFERIORES**, por dos motivos
+distintos que conviene no confundir:
+
+1. se midieron sobre una **selección** (paneles + HTTP + registro), no sobre la
+   suite entera — 5 mutaciones × 2 corridas completas era inviable;
+2. y sin las **190 pruebas** que esta máquina salta (ver más abajo).
+
+La auditoría independiente, con su propia variante del control de colapso y otra
+selección, obtuvo **48 rojas** donde yo declaro 26. **No es una discrepancia**:
+son mutaciones y selecciones distintas midiendo la misma propiedad, y las dos
+son cotas. Lo que sostiene la garantía es que el control **muerde**, no el
+número; el número sólo sirve para no fingir precisión que no tengo.
+
 **M5 es el control que impide «arreglar» esto apagando el visor.** Un usuario
-autenticado y autorizado sigue viendo lo suyo, y si dejara de verlo, 26 pruebas
-lo dicen.
+autenticado y autorizado sigue viendo lo suyo, y si dejara de verlo, se pone
+rojo — y dice qué fila.
 
 ### Ablación: qué se puede cobrar como defensa y qué no
 
