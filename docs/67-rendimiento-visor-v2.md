@@ -311,7 +311,7 @@ cambia de un grafo generado a otro. Declararla sana sería repetir el error de v
 ## 2. Tabla de calibración (salidas reales, **15/15**)
 
 `benchmarks/perf/resultados/calibracion.json` ·
-instrumento `f85994e78842` · sistema medido `f118e4b71afc` ·
+instrumento `9007ec141d60` · sistema medido `f118e4b71afc` ·
 **máquina declarada**: Python 3.13.5, Intel Xeon E5-2680 v4 @ 2.40 GHz, 8 vCPU,
 9 156 844 kB de RAM, Linux 6.12.90+deb13.1-amd64, **compartida** (`loadavg`
 registrado en cada artefacto). La máquina acota los **milisegundos**, no los
