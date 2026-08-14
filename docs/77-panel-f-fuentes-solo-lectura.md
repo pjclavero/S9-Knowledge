@@ -74,6 +74,9 @@ Y un control de **falso positivo**: `test_el_gate_no_acusa_a_un_vecino_de_prefij
 frontera es de segmento), con su contrapeso `test_el_gate_si_reclama_lo_que_es_suyo` para que la
 frontera de segmento no pueda apagar el gate entero.
 
+Las vías 1 y 2 vienen del patrón del hueco C. **La vía 3 es de este carril y no está en C, B ni G**:
+por qué hace falta, en **§8.1**.
+
 ---
 
 ## 3. Con la autenticación desactivada
@@ -115,9 +118,13 @@ proveedor base sustituido (`test_tabla_medida_del_anonimo_con_auth_desactivada`)
 | sesión futura | no |
 | workspace ajeno | no |
 
-**1 de 11.** Coincide caso por caso con la tabla que midió el carril G sobre su propio hueco, y eso
-importa: dos huecos distintos sobre la misma autorización tienen que dar el mismo veredicto, o uno
-de los dos está aplicando una política suya.
+**1 de 11**, y **dos mediciones independientes lo dicen**: esta tabla y la que el carril G midió por
+su cuenta sobre su propio hueco coinciden **caso por caso**, sin que ninguno de los dos carriles
+viera la del otro mientras medía. Eso es evidencia bastante mejor que una sola medición: una
+medición aislada puede estar midiendo el defecto de su propio arnés; dos arneses distintos, sobre
+huecos distintos y con material distinto, dando el mismo 1 de 11, ya no. Y es justo lo que había que
+comprobar: dos huecos sobre la misma autorización tienen que dar el mismo veredicto, o uno de los
+dos está aplicando una política suya.
 
 La tabla trae los **dos** veredictos a propósito: once «no visible» se satisfarían con un panel roto
 que no pintara nunca nada, y once «visible» con uno que no filtrara. `test_la_tabla_del_anonimo_no_es_unanime`
@@ -146,6 +153,9 @@ servidor.**
 - El marcador `data-path-redacted` es **bidireccional**: `true` cuando se recortó,
   `false` cuando no había ruta que ocultar. Ponerlo siempre a `true` pasaría la prueba de fuga y
   vaciaría de significado el aviso; es el falso positivo calibrado en **F5**.
+
+El criterio de la tercera viñeta —**la plantilla no puede filtrar lo que no tiene**— y por qué es
+más fuerte que las otras dos, en **§8.2**.
 
 ---
 
@@ -220,6 +230,8 @@ test se pone rojo.
 Lo que sí se sustituye es `get_filtered_provider`, con control de colapso
 (`test_la_sustitucion_del_proveedor_muerde`: con la sustitución la fuente aparece, sin ella no).
 
+Por qué **demostrarlo** y no advertirlo, y por qué hay que calibrar también la demostración: **§8.3**.
+
 ---
 
 ## 7. Cambio en un fichero compartido — COLISIÓN CON EL CARRIL G, pendiente de coordinación
@@ -254,7 +266,73 @@ carril que se ha tocado.
 
 ---
 
-## 8. Supervivientes y limitaciones
+## 8. Tres piezas que este carril añade al patrón (no están en C, B ni G)
+
+Quien copie el patrón de los huecos se llevará de C el montaje, la guarda, el interruptor tras la
+guarda y el gate del espacio de URL. **Estas tres no vienen de ahí**: son de este carril, y sin
+ellas el patrón tiene tres huecos concretos.
+
+### 8.1 La tercera vía de la frontera: qué se le pide al BACKEND
+
+C, B y G comprueban la frontera de solo lectura por el lado del **espacio de URL**: qué rutas hay
+montadas bajo el prefijo y qué métodos declaran. Eso es necesario y no es suficiente.
+
+**Un GET que llame a reingesta no lo caza ninguna enumeración de métodos HTTP.** El handler declara
+`GET`, la ruta pasa el gate, la enumeración sale limpia — y por debajo el panel invoca un método del
+proveedor que escribe. En un panel de fuentes ese es *el* fallo probable, porque «reprocesar esta
+fuente» es lo primero que alguien querrá colgar de la ficha.
+
+Por eso aquí se enumera también **hacia abajo**: el proveedor de pruebas registra cada método que se
+le invoca y `test_el_panel_solo_invoca_metodos_de_LECTURA_del_proveedor` exige que el conjunto esté
+contenido en `{workspaces, list_entities}`, **lista escrita a mano**. Cualquier método nuevo —incluso
+uno de lectura— obliga a una decisión visible en ese test en vez de entrar en silencio. Calibrado en
+**F18**: se inyecta una llamada de más y el test se pone rojo.
+
+Recomendación para quien herede esto: **las dos enumeraciones, no una**. La de arriba dice qué se
+puede pedir al panel; la de abajo, qué pide el panel.
+
+### 8.2 El asa opaca, y por qué la plantilla no debe tener el dato
+
+El identificador de una fuente es un nombre de fichero y a veces una ruta del servidor. Tres capas,
+en orden de fuerza creciente:
+
+1. se pinta **sólo el último segmento** (`/` y `\` por igual);
+2. el enlace usa un identificador **derivado por hash** (`sha256[:16]`), no el real, así que la ruta
+   no acaba en la URL, ni en el historial del navegador, ni en los logs de acceso de un proxy;
+3. y la fila que llega a Jinja **no contiene el identificador crudo**: `_publicar` lo retira.
+
+La tercera es la que importa, y el criterio es éste:
+
+> **La plantilla no puede filtrar lo que no tiene.**
+
+Las dos primeras capas dependen de que nadie escriba `{{ f.clave }}` en un `<td>` dentro de seis
+meses. La tercera no depende de nadie. `test_la_fila_publicada_no_contiene_el_identificador_crudo`
+lo comprueba sobre el agregado, no sobre el HTML: la garantía vive donde se construye el dato, no
+donde se pinta.
+
+Y el marcador de redacción es **bidireccional** a propósito (**F5**): ponerlo siempre a `true`
+pasaría la prueba de fuga y dejaría el aviso «(ruta oculta)» sin significado.
+
+### 8.3 F19: demostrar el control negativo en vez de advertirlo
+
+`get_visibility_context` se llama como **función normal** desde `get_filtered_provider`, así que
+sustituirlo con `dependency_overrides` es **inerte**: un test que lo sustituya sale verde sin morder
+nada. Ese hecho estaba escrito en un comentario de la suite de C.
+
+Un comentario no impide que el siguiente carril fabrique un arnés que no muerde creyéndose
+protegido. Así que aquí el hecho **se demuestra**
+(`test_sustituir_get_visibility_context_es_inerte`) y, un paso más, **se calibra la demostración**
+(**F19**): se hace que el punto de inyección SÍ muerda —el router pasa a recibirlo por `Depends`— y
+se exige que el test lo note. Sin F19, la afirmación de inercia sería un test negativo que pasa por
+accidente, que es la forma más fácil de tener una garantía imaginaria.
+
+Es la lección que este proyecto ha aprendido a golpes, aplicada al propio instrumento: **una
+afirmación no cuenta hasta que existe una prueba capaz de ponerse roja, y eso vale también para las
+afirmaciones sobre el arnés.**
+
+---
+
+## 9. Supervivientes y limitaciones
 
 **Supervivientes (mutaciones que NO ponen rojo lo que uno esperaría):**
 
