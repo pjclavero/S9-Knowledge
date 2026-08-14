@@ -443,7 +443,7 @@ for r in app.router.routes:
             if m != "HEAD":
                 naive.append(m + " " + r.path)
 eff = []
-for path, methods, _d, _e, _h, kind in iter_effective_routes(app):
+for path, methods, _d, _e, _h, kind, _motivo in iter_effective_routes(app):
     if kind != "route":
         continue
     for m in methods:

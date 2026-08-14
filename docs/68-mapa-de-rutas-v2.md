@@ -76,7 +76,16 @@ python3 scripts/route_map/route_map.py --repo . \
 # 3) calibración: inyecta defectos y exige que el mapa los vea
 python3 scripts/route_map/calibrate.py --base . \
   --tested /tmp/tested_routes.json --out artifacts/route-map/calibracion.json
+
+# 4) calibración del CENSO (segundos, sin sonda ni subprocesos): §5.quater
+python3 scripts/route_map/calibrate_censo.py \
+  --out artifacts/route-map/calibracion-censo.json
 ```
+
+**Códigos de salida del mapa** (nunca degrada en silencio): `0` limpio; `2`
+control positivo del CSRF fallido; `3` **censo incompleto o vacío** — hay
+entradas que el instrumento no ha podido caracterizar y sus hallazgos no pueden
+citarse como garantía (§5.quater).
 
 La sonda de autorización arranca la app en un **subproceso** con
 `S9K_AUTH_ENABLED=true`, provider `mock` y una auth DB **efímera** en un
@@ -658,6 +667,128 @@ parece demasiado a una ruta abandonada. Por eso:
    flags** y decir con cuál dictamina. Un APTO sin configuración declarada no
    significa nada.
 
+## 5.quater El CENSO era un cuarto censo, y fallaba ABIERTO (`fix/route-map-fail-closed`)
+
+Dos revisores independientes midieron lo mismo: `iter_effective_routes` era un
+**cuarto censo de rutas** —además de los tres del chasis— y tenía **tres huecos,
+los tres fail-OPEN**. Y es justamente el instrumento que emite `SIN-AUTH`,
+`MUERTA` y `HUERFANA`.
+
+| hueco | qué hacía antes | por qué concede |
+|---|---|---|
+| **Mount** | emitía una fila opaca `["MOUNT"]` y **no descendía** | todo lo que colgara del montaje quedaba fuera del censo; un `POST` ahí dentro no existía para ningún hallazgo |
+| **`r.methods or {"GET"}`** | ausencia de métodos ⇒ `GET` | la ausencia de dato se convertía en «esto sólo lee»: inocuo por defecto |
+| **`APIWebSocketRoute`** | no encajaba en `isinstance(r, (APIRoute, Route))` | desaparecía del **censo entero**, sin fila, sin aviso |
+
+**Elección: se arregla hasta fail-closed y se calibra**, no se retira. La medida
+que lo justifica: los tres huecos son reproducibles con constructos reales de
+FastAPI/Starlette y **el criterio que los cierra ya existe y está en `main`**
+(`viewer/app/chassis.py`), así que arreglarlo es importar criterio, no inventarlo.
+Retirarlo habría dejado sin instrumento a `SIN-AUTH`/`MUERTA`/`HUERFANA`, que hoy
+no tienen otro.
+
+### Qué se comparte y qué no
+
+Se **importan** de `app.chassis` los CRITERIOS —`_join` (composición del prefijo
+de montaje), `enumerable_methods`/`METHODS_NOT_ENUMERABLE` (métodos tri-estado),
+`effective_path`/`PATH_NOT_RESOLVABLE` (path tri-estado)—. No se duplica ni una
+línea de ellos: un quinto censo con criterios propios sería peor que el defecto
+que se venía a arreglar, porque dos instrumentos podrían discrepar en silencio
+sobre qué rutas existen. Si el chasis no se puede importar, el censo **no se
+emite a medias**: levanta.
+
+Lo que **no** se puede compartir es el **recorrido**. `chassis._walk` emite
+objetos `Route`; este mapa necesita además el `dependant` con las dependencias
+del `include_router` ya combinadas (`ctx.dependant`), que sólo existe en los
+contextos de FastAPI y que `_walk` descarta. Así que el recorrido es propio
+(`_nodo`/`_walk_efectivo`/`_nodo_ctx`) y **los criterios son los del chasis**:
+la parte que puede divergir en silencio es exactamente la importada.
+
+### Fail-closed: qué pone el informe en ROJO
+
+Lo que el censo no puede caracterizar se emite con `kind == "opaco"` —nunca se
+salta— y el proceso sale con **código 3**:
+
+- `montaje-no-enumerable`: un `Mount` sobre una app ASGI que no expone rutas;
+- `metodos-no-enumerables`: sin métodos enumerables (aquí caen los WebSocket);
+- `path-no-resoluble` / `montaje-con-path-no-resoluble`;
+- `tipo-de-ruta-desconocido:<clase>`: **una ruta desconocida también es rojo**.
+
+Y el **caso vacío**: si el censo devuelve 0 rutas con path resoluble, es ROJO
+(`findings.censo_vacio`). Un gate que pasa sin haber observado nada es el defecto
+que ya se pagó en este repo. El suelo cuenta **sólo rutas con path resoluble**:
+si las opacas contasen, se satisfaría solo.
+
+### Calibración (`scripts/route_map/calibrate_censo.py`, 9 casos + 7 ablaciones)
+
+Diferencial contra el enumerador anterior, copiado **verbatim** dentro del arnés
+como control negativo: cada hueco sale **VERDE** con el instrumento viejo (no lo
+ve) y **ROJO** con el nuevo.
+
+| caso | con el censo viejo | con el censo nuevo |
+|---|---|---|
+| H1 `Mount` con un `POST` dentro | no ve `POST /zona/aprobar` | lo ve |
+| H2 ruta sin `methods` enumerables | la declara `GET /sin-metodos` | opaca |
+| H3 WebSocket | **ausente del censo** | presente y opaca |
+| H4 `Mount` anidado a 2 niveles | no ve `POST /n1/n2/fondo` | lo ve |
+| H5 `Mount` anidado a 3 niveles | no ve `POST /n1/n2/n3/fondo` | lo ve |
+| H6 `include_router` con `Mount` dentro | no ve `POST /inc/m/aprobar` | lo ve |
+| H7 censo vacío | 0 hallazgos, código 0 | `censo_vacio`, ROJO |
+| FP1 app limpia | — | 0 opacas (falso positivo vigilado) |
+| FP2 rutas llamadas `mount`/`websocket`/`opaco` | — | 0 opacas: **un nombre no acusa** |
+
+**Ablaciones (necesidad):** desactivando un criterio del módulo real, el caso que
+lo necesita vuelve a verde — A1 `methods` fail-open (H2), A2 sin descenso por
+`Mount` (H1, H4, H5, H6), A3 filtro por tipo como antes (H3), A4 sin regla de
+caso vacío (H7). 7/7.
+
+**El arnés se ha visto rojo**: sustituyendo el censo nuevo por el viejo, la
+calibración sale `FALLIDA` con código 1. Y exige carga: con menos de 9 casos o 7
+ablaciones no puede dar OK.
+
+### Qué cambió en la medida real de este árbol
+
+Medido sobre la app real (`app.main.app`) en esta rama: los censos viejo y nuevo
+producen **el mismo conjunto de rutas** (71 entradas), y la única diferencia es
+que `MOUNT /static` pasa a declararse `<METODOS-NO-ENUMERABLES> /static`, motivo
+`montaje-no-enumerable`. Es decir: **hoy no había ninguna ruta viva escondida**
+por los tres huecos. Lo que estaba roto no era la cifra, era la **garantía**:
+cualquier rama que montara un router bajo un `Mount`, expusiera un WebSocket o
+declarase una ruta sin métodos enumerables habría perdido esas rutas del censo —y
+con ellas su medida de autorización— sin un solo aviso.
+
+**Consecuencia directa y visible:** con `/static` montado, el mapa de este repo
+sale **ROJO (código 3)**, y eso es lo correcto: el instrumento no puede enumerar
+lo que sirve `StaticFiles`, así que no puede afirmar que el censo está completo.
+No se ha añadido ninguna excepción por nombre ni por tipo para taparlo: una
+excepción así sería otra vez una concesión por nombre.
+
+### ¿Debería ser puerta de merge?
+
+**Hoy no, y hay que decidirlo aparte.** Motivo medido: sobre `main` el mapa sale
+en rojo por el montaje de `/static`, que no es un defecto de una rama sino una
+propiedad permanente del visor. Cablearlo a `ci.yml` tal cual bloquearía todo
+merge desde el primer día, y la salida previsible sería añadirle una excepción —es
+decir, volver al fail-open por otra puerta. Antes de gatearlo hace falta una
+decisión explícita del operador sobre **cómo se declara un montaje no enumerable**
+(o si `/static` deja de servirse por un `Mount` opaco). Mientras tanto sigue
+siendo **auditoría bajo demanda**, y sus informes ya llevan escrito en la cabecera
+que el censo está incompleto. `ci.yml` no se ha tocado.
+
+### Limitaciones que quedan (declaradas, no disimuladas)
+
+- **Los tri-estados disparan ante la AUSENCIA de dato, no ante su incorrección.**
+  Un `path` presente pero mentiroso —una ruta que declara `/a` y sirve `/b`—
+  pasaría el censo sin marca. No es reproducible con constructos reales de
+  FastAPI/Starlette (el path declarado es el que se compila al enrutar), así que
+  no hay caso de calibración; se declara.
+- **Un `Mount` opaco sigue siendo opaco.** El censo dice *que* no puede ver
+  dentro, no *qué* hay dentro. Eso es lo máximo que este instrumento puede
+  afirmar.
+- El descenso por `Mount` compone la URL efectiva por concatenación de paths
+  declarados; una app ASGI que reescriba el path en tiempo de petición quedaría
+  mal compuesta y el censo no lo detectaría.
+
 ## 6. Rutas CAPTURADAS: detector, no aviso en prosa
 
 Una ruta puede quedar **capturada** por otra declarada antes sin que nada falle:
@@ -723,6 +854,11 @@ rutas sin un solo aviso.
 - `scripts/route_map/pytest_route_probe.py` — plugin de pytest: registra las
   peticiones que atraviesan la app real.
 - `scripts/route_map/calibrate.py` — inyección de defectos y tabla de calibración.
+- `scripts/route_map/calibrate_censo.py` — calibración del CENSO (§5.quater):
+  apps FastAPI/Starlette reales con cada hueco, diferencial contra el enumerador
+  anterior y ablación de cada criterio.
+- `artifacts/route-map/calibracion-censo.json` — salidas reales de esa
+  calibración (9 casos + 7 ablaciones).
 - `artifacts/route-map/route_map.{json,md}` — mapa de `cb874fe`.
 - `artifacts/route-map/calibracion.json` — salidas reales de la calibración.
 - `artifacts/route-map/chasis-4b2ae5a/route_map.{json,md}` — mapa del chasis.

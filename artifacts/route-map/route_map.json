@@ -99,24 +99,41 @@
     "rutas_que_distinguen": 9
   },
   "counts": {
-    "autorizadas": 57,
-    "consumidas": 56,
-    "definidas": 59,
+    "autorizadas": 68,
+    "consumidas": 70,
+    "definidas": 72,
     "enlazadas": 31,
-    "montadas": 59,
-    "probadas": 47
+    "montadas": 70,
+    "opacas_no_caracterizadas": 1,
+    "probadas": 70
   },
   "desglose_denegaciones": {
     "de_ellas_con_csrf_valido_emitido": 12,
-    "de_ellas_con_guardian_estatico": 56,
+    "de_ellas_con_guardian_estatico": 67,
     "de_ellas_metodos_con_cuerpo": 12,
     "denegacion_404_ambigua": 0,
     "denegacion_no_atribuible": 0,
-    "denegadas_atribuibles": 57,
+    "denegadas_atribuibles": 68,
     "excluidas_por_contradiccion": 0
   },
   "findings": {
     "barrido_contamino_la_db": [],
+    "censo_opaco": [
+      {
+        "body_guards": [],
+        "deps": [],
+        "endpoint": "static",
+        "key": "<METODOS-NO-ENUMERABLES> /static",
+        "kind": "opaco",
+        "method": "<METODOS-NO-ENUMERABLES>",
+        "motivo": "montaje-no-enumerable",
+        "path": "/static",
+        "scoping_deps": [],
+        "source": "",
+        "tipo": "Mount"
+      }
+    ],
+    "censo_vacio": [],
     "contradiccion_deniega_y_sirve": [],
     "control_positivo_csrf_fallido": [],
     "enlaces_rotos": [],
@@ -135,8 +152,10 @@
         "authz_probe_detail": "401",
         "authz_static": true,
         "capturada_por": null,
-        "consumed": false,
-        "consumers": [],
+        "consumed": true,
+        "consumers": [
+          "tests:1 peticiones"
+        ],
         "csrf_enviado": false,
         "defined": true,
         "endpoint": "admin_health_panel",
@@ -158,9 +177,11 @@
           "reviewer": 403,
           "viewer": 403
         },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
+        "tested": true,
+        "tested_hits": 1,
+        "tested_statuses": [
+          302
+        ]
       },
       {
         "authz_body_guards": [],
@@ -174,7 +195,8 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "template:auth/admin/users.html"
+          "template:auth/admin/users.html",
+          "tests:1 peticiones"
         ],
         "csrf_enviado": true,
         "defined": true,
@@ -197,9 +219,11 @@
           "reviewer": 403,
           "viewer": 403
         },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
+        "tested": true,
+        "tested_hits": 1,
+        "tested_statuses": [
+          422
+        ]
       },
       {
         "authz_body_guards": [],
@@ -213,7 +237,8 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "template:auth/admin/users.html"
+          "template:auth/admin/users.html",
+          "tests:1 peticiones"
         ],
         "csrf_enviado": true,
         "defined": true,
@@ -236,9 +261,11 @@
           "reviewer": 403,
           "viewer": 403
         },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
+        "tested": true,
+        "tested_hits": 1,
+        "tested_statuses": [
+          422
+        ]
       },
       {
         "authz_body_guards": [
@@ -251,7 +278,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:3 peticiones"
+          "tests:4 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -275,7 +302,7 @@
           "viewer": 403
         },
         "tested": true,
-        "tested_hits": 3,
+        "tested_hits": 4,
         "tested_statuses": [
           401,
           403,
@@ -293,7 +320,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:83 peticiones"
+          "tests:92 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -320,7 +347,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 83,
+        "tested_hits": 92,
         "tested_statuses": [
           200,
           401,
@@ -338,7 +365,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:4 peticiones"
+          "tests:5 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -365,7 +392,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 4,
+        "tested_hits": 5,
         "tested_statuses": [
           401,
           200
@@ -382,7 +409,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:6 peticiones"
+          "tests:7 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -409,10 +436,11 @@
           "viewer": 404
         },
         "tested": true,
-        "tested_hits": 6,
+        "tested_hits": 7,
         "tested_statuses": [
           404,
-          200
+          200,
+          401
         ]
       },
       {
@@ -426,7 +454,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:8 peticiones"
+          "tests:9 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -452,7 +480,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 8,
+        "tested_hits": 9,
         "tested_statuses": [
           200,
           401
@@ -469,7 +497,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:4 peticiones"
+          "tests:5 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -495,7 +523,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 4,
+        "tested_hits": 5,
         "tested_statuses": [
           200,
           401
@@ -512,7 +540,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:4 peticiones"
+          "tests:5 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -538,9 +566,10 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 4,
+        "tested_hits": 5,
         "tested_statuses": [
-          200
+          200,
+          401
         ]
       },
       {
@@ -554,7 +583,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:3 peticiones"
+          "tests:4 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -581,7 +610,7 @@
           "viewer": 403
         },
         "tested": true,
-        "tested_hits": 3,
+        "tested_hits": 4,
         "tested_statuses": [
           200,
           401
@@ -598,7 +627,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:8 peticiones"
+          "tests:9 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -625,7 +654,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 8,
+        "tested_hits": 9,
         "tested_statuses": [
           200,
           401
@@ -642,7 +671,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:2 peticiones"
+          "tests:3 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -669,8 +698,9 @@
           "viewer": 403
         },
         "tested": true,
-        "tested_hits": 2,
+        "tested_hits": 3,
         "tested_statuses": [
+          401,
           200
         ]
       },
@@ -685,7 +715,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:1 peticiones"
+          "tests:2 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -712,8 +742,9 @@
           "viewer": 403
         },
         "tested": true,
-        "tested_hits": 1,
+        "tested_hits": 2,
         "tested_statuses": [
+          401,
           404
         ]
       },
@@ -728,7 +759,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:11 peticiones"
+          "tests:12 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -755,7 +786,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 11,
+        "tested_hits": 12,
         "tested_statuses": [
           200,
           401
@@ -772,7 +803,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:6 peticiones"
+          "tests:7 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -799,7 +830,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 6,
+        "tested_hits": 7,
         "tested_statuses": [
           401,
           200
@@ -816,7 +847,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:4 peticiones"
+          "tests:5 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -832,7 +863,7 @@
         "path": "/docs",
         "rol_minimo_observado": "ninguno-sirve",
         "scoping_deps": [],
-        "source": "viewer/app/main.py:161",
+        "source": "viewer/app/main.py:213",
         "status_anonimo": 404,
         "status_por_rol": {
           "admin": 404,
@@ -840,7 +871,7 @@
           "viewer": 404
         },
         "tested": true,
-        "tested_hits": 4,
+        "tested_hits": 5,
         "tested_statuses": [
           404,
           401,
@@ -943,7 +974,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:1 peticiones"
+          "tests:2 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -959,7 +990,7 @@
         "path": "/openapi.json",
         "rol_minimo_observado": "ninguno-sirve",
         "scoping_deps": [],
-        "source": "viewer/app/main.py:155",
+        "source": "viewer/app/main.py:207",
         "status_anonimo": 404,
         "status_por_rol": {
           "admin": 404,
@@ -967,9 +998,528 @@
           "viewer": 404
         },
         "tested": true,
-        "tested_hits": 1,
+        "tested_hits": 2,
         "tested_statuses": [
           404
+        ]
+      },
+      {
+        "authz_body_guards": [
+          "slot_guard"
+        ],
+        "authz_deps": [
+          "app.routers.readonly._guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/panel/entities",
+        "authz_static": true,
+        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "tests:58 peticiones"
+        ],
+        "csrf_enviado": false,
+        "defined": true,
+        "endpoint": "chassis_entities",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /panel/entities",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.chassis_entities",
+        "mounted": true,
+        "path": "/panel/entities",
+        "rol_minimo_observado": "ninguno-sirve",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/routers/chassis_entities.py:146",
+        "status_anonimo": 302,
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 404
+        },
+        "tested": true,
+        "tested_hits": 58,
+        "tested_statuses": [
+          200,
+          302,
+          404,
+          503,
+          400
+        ]
+      },
+      {
+        "authz_body_guards": [
+          "slot_guard"
+        ],
+        "authz_deps": [
+          "app.routers.readonly._guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/panel/entities/",
+        "authz_static": true,
+        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "tests:2 peticiones"
+        ],
+        "csrf_enviado": false,
+        "defined": true,
+        "endpoint": "chassis_entities",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /panel/entities/",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.chassis_entities",
+        "mounted": true,
+        "path": "/panel/entities/",
+        "rol_minimo_observado": "ninguno-sirve",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/routers/chassis_entities.py:146",
+        "status_anonimo": 302,
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 404
+        },
+        "tested": true,
+        "tested_hits": 2,
+        "tested_statuses": [
+          302
+        ]
+      },
+      {
+        "authz_body_guards": [
+          "slot_guard"
+        ],
+        "authz_deps": [
+          "app.routers.readonly._guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/panel/entities/item/probe",
+        "authz_static": true,
+        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "tests:43 peticiones"
+        ],
+        "csrf_enviado": false,
+        "defined": true,
+        "endpoint": "chassis_entities_item",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /panel/entities/item/{entity_id}",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.chassis_entities",
+        "mounted": true,
+        "path": "/panel/entities/item/{entity_id}",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/routers/chassis_entities.py:214",
+        "status_anonimo": 302,
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 404
+        },
+        "tested": true,
+        "tested_hits": 43,
+        "tested_statuses": [
+          302,
+          404,
+          200,
+          503
+        ]
+      },
+      {
+        "authz_body_guards": [
+          "slot_guard"
+        ],
+        "authz_deps": [
+          "app.auth.dependencies.require_admin",
+          "app.auth.dependencies.require_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "tests:55 peticiones"
+        ],
+        "csrf_enviado": false,
+        "defined": true,
+        "endpoint": "chassis_operations",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /panel/operations",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.chassis_operations",
+        "mounted": true,
+        "path": "/panel/operations",
+        "rol_minimo_observado": "ninguno-sirve",
+        "scoping_deps": [
+          "app.authz.dependencies.get_visibility_scope"
+        ],
+        "source": "viewer/app/routers/chassis_operations.py:280",
+        "status_anonimo": 401,
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 403,
+          "viewer": 403
+        },
+        "tested": true,
+        "tested_hits": 55,
+        "tested_statuses": [
+          200,
+          403,
+          302,
+          404,
+          400,
+          503,
+          422
+        ]
+      },
+      {
+        "authz_body_guards": [
+          "slot_guard"
+        ],
+        "authz_deps": [
+          "app.auth.dependencies.require_admin",
+          "app.auth.dependencies.require_authenticated_user"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "401",
+        "authz_static": true,
+        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "tests:2 peticiones"
+        ],
+        "csrf_enviado": false,
+        "defined": true,
+        "endpoint": "chassis_operations",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /panel/operations/",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.chassis_operations",
+        "mounted": true,
+        "path": "/panel/operations/",
+        "rol_minimo_observado": "ninguno-sirve",
+        "scoping_deps": [
+          "app.authz.dependencies.get_visibility_scope"
+        ],
+        "source": "viewer/app/routers/chassis_operations.py:280",
+        "status_anonimo": 401,
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 403,
+          "viewer": 403
+        },
+        "tested": true,
+        "tested_hits": 2,
+        "tested_statuses": [
+          302
+        ]
+      },
+      {
+        "authz_body_guards": [
+          "slot_guard"
+        ],
+        "authz_deps": [
+          "app.routers.readonly._guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/panel/review",
+        "authz_static": true,
+        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "tests:50 peticiones"
+        ],
+        "csrf_enviado": false,
+        "defined": true,
+        "endpoint": "chassis_review",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /panel/review",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.chassis_review",
+        "mounted": true,
+        "path": "/panel/review",
+        "rol_minimo_observado": "ninguno-sirve",
+        "scoping_deps": [
+          "app.authz.dependencies.get_visibility_scope"
+        ],
+        "source": "viewer/app/routers/chassis_review.py:132",
+        "status_anonimo": 302,
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 403
+        },
+        "tested": true,
+        "tested_hits": 50,
+        "tested_statuses": [
+          200,
+          403,
+          302,
+          404,
+          503,
+          400
+        ]
+      },
+      {
+        "authz_body_guards": [
+          "slot_guard"
+        ],
+        "authz_deps": [
+          "app.routers.readonly._guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/panel/review/",
+        "authz_static": true,
+        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "tests:2 peticiones"
+        ],
+        "csrf_enviado": false,
+        "defined": true,
+        "endpoint": "chassis_review",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /panel/review/",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.chassis_review",
+        "mounted": true,
+        "path": "/panel/review/",
+        "rol_minimo_observado": "ninguno-sirve",
+        "scoping_deps": [
+          "app.authz.dependencies.get_visibility_scope"
+        ],
+        "source": "viewer/app/routers/chassis_review.py:132",
+        "status_anonimo": 302,
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 403
+        },
+        "tested": true,
+        "tested_hits": 2,
+        "tested_statuses": [
+          302
+        ]
+      },
+      {
+        "authz_body_guards": [
+          "slot_guard"
+        ],
+        "authz_deps": [
+          "app.routers.readonly._guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/panel/review/item/probe",
+        "authz_static": true,
+        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "tests:16 peticiones"
+        ],
+        "csrf_enviado": false,
+        "defined": true,
+        "endpoint": "chassis_review_item",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /panel/review/item/{proposal_id}",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.chassis_review",
+        "mounted": true,
+        "path": "/panel/review/item/{proposal_id}",
+        "rol_minimo_observado": "reviewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_visibility_scope"
+        ],
+        "source": "viewer/app/routers/chassis_review.py:196",
+        "status_anonimo": 302,
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 403
+        },
+        "tested": true,
+        "tested_hits": 16,
+        "tested_statuses": [
+          302,
+          404,
+          200
+        ]
+      },
+      {
+        "authz_body_guards": [
+          "slot_guard"
+        ],
+        "authz_deps": [
+          "app.routers.readonly._guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/panel/sources",
+        "authz_static": true,
+        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "tests:64 peticiones"
+        ],
+        "csrf_enviado": false,
+        "defined": true,
+        "endpoint": "chassis_sources",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /panel/sources",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.chassis_sources",
+        "mounted": true,
+        "path": "/panel/sources",
+        "rol_minimo_observado": "ninguno-sirve",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/routers/chassis_sources.py:360",
+        "status_anonimo": 302,
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 403
+        },
+        "tested": true,
+        "tested_hits": 64,
+        "tested_statuses": [
+          200,
+          403,
+          302,
+          404,
+          503
+        ]
+      },
+      {
+        "authz_body_guards": [
+          "slot_guard"
+        ],
+        "authz_deps": [
+          "app.routers.readonly._guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/panel/sources/",
+        "authz_static": true,
+        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "tests:2 peticiones"
+        ],
+        "csrf_enviado": false,
+        "defined": true,
+        "endpoint": "chassis_sources",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /panel/sources/",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.chassis_sources",
+        "mounted": true,
+        "path": "/panel/sources/",
+        "rol_minimo_observado": "ninguno-sirve",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/routers/chassis_sources.py:360",
+        "status_anonimo": 302,
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 403
+        },
+        "tested": true,
+        "tested_hits": 2,
+        "tested_statuses": [
+          302
+        ]
+      },
+      {
+        "authz_body_guards": [
+          "slot_guard"
+        ],
+        "authz_deps": [
+          "app.routers.readonly._guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/panel/sources/ficha/probe",
+        "authz_static": true,
+        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "tests:12 peticiones"
+        ],
+        "csrf_enviado": false,
+        "defined": true,
+        "endpoint": "chassis_sources_item",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /panel/sources/ficha/{handle}",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.chassis_sources",
+        "mounted": true,
+        "path": "/panel/sources/ficha/{handle}",
+        "rol_minimo_observado": "reviewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/routers/chassis_sources.py:387",
+        "status_anonimo": 302,
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 403
+        },
+        "tested": true,
+        "tested_hits": 12,
+        "tested_statuses": [
+          302,
+          404,
+          200,
+          503
         ]
       },
       {
@@ -985,7 +1535,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:2 peticiones"
+          "tests:3 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -1012,7 +1562,7 @@
           "viewer": 403
         },
         "tested": true,
-        "tested_hits": 2,
+        "tested_hits": 3,
         "tested_statuses": [
           302,
           200
@@ -1029,7 +1579,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:1 peticiones"
+          "tests:2 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -1045,7 +1595,7 @@
         "path": "/redoc",
         "rol_minimo_observado": "ninguno-sirve",
         "scoping_deps": [],
-        "source": "viewer/app/main.py:168",
+        "source": "viewer/app/main.py:220",
         "status_anonimo": 404,
         "status_por_rol": {
           "admin": 404,
@@ -1053,7 +1603,7 @@
           "viewer": 404
         },
         "tested": true,
-        "tested_hits": 1,
+        "tested_hits": 2,
         "tested_statuses": [
           404
         ]
@@ -1070,7 +1620,7 @@
         "consumed": true,
         "consumers": [
           "template:reviews_console_source.html",
-          "tests:7 peticiones"
+          "tests:8 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -1096,10 +1646,10 @@
           "viewer": 403
         },
         "tested": true,
-        "tested_hits": 7,
+        "tested_hits": 8,
         "tested_statuses": [
-          200,
-          302
+          302,
+          200
         ]
       },
       {
@@ -1111,8 +1661,10 @@
         "authz_probe_detail": "302 -> /login?next=/review-console/",
         "authz_static": true,
         "capturada_por": null,
-        "consumed": false,
-        "consumers": [],
+        "consumed": true,
+        "consumers": [
+          "tests:1 peticiones"
+        ],
         "csrf_enviado": false,
         "defined": true,
         "endpoint": "inbox",
@@ -1136,9 +1688,11 @@
           "reviewer": 200,
           "viewer": 403
         },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
+        "tested": true,
+        "tested_hits": 1,
+        "tested_statuses": [
+          302
+        ]
       },
       {
         "authz_body_guards": [
@@ -1152,7 +1706,7 @@
         "consumed": true,
         "consumers": [
           "template:reviews_console.html",
-          "tests:8 peticiones"
+          "tests:9 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -1178,8 +1732,9 @@
           "viewer": 403
         },
         "tested": true,
-        "tested_hits": 8,
+        "tested_hits": 9,
         "tested_statuses": [
+          302,
           200,
           404
         ]
@@ -1196,7 +1751,7 @@
         "consumed": true,
         "consumers": [
           "template:reviews_console_source.html",
-          "tests:7 peticiones"
+          "tests:8 peticiones"
         ],
         "csrf_enviado": true,
         "defined": true,
@@ -1222,8 +1777,9 @@
           "viewer": 403
         },
         "tested": true,
-        "tested_hits": 7,
+        "tested_hits": 8,
         "tested_statuses": [
+          422,
           400,
           303
         ]
@@ -1237,8 +1793,10 @@
         "authz_probe_detail": "302 -> /login?next=/v3/review/",
         "authz_static": true,
         "capturada_por": null,
-        "consumed": false,
-        "consumers": [],
+        "consumed": true,
+        "consumers": [
+          "tests:1 peticiones"
+        ],
         "csrf_enviado": false,
         "defined": true,
         "endpoint": "queue",
@@ -1262,9 +1820,11 @@
           "reviewer": 200,
           "viewer": 403
         },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
+        "tested": true,
+        "tested_hits": 1,
+        "tested_statuses": [
+          302
+        ]
       },
       {
         "authz_body_guards": [
@@ -1278,7 +1838,8 @@
         "consumed": true,
         "consumers": [
           "template-js:v3_glossary_candidates.html",
-          "template:v3_glossary_candidates.html"
+          "template:v3_glossary_candidates.html",
+          "tests:1 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -1303,502 +1864,43 @@
           "reviewer": 200,
           "viewer": 403
         },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
+        "tested": true,
+        "tested_hits": 1,
+        "tested_statuses": [
+          302
+        ]
       }
     ],
-    "rutas_muertas": [],
-    "rutas_no_probadas": [
+    "rutas_muertas": [
       {
-        "authz_body_guards": [],
-        "authz_deps": [
-          "app.auth.dependencies.require_authenticated_user"
-        ],
-        "authz_probe": "denegada",
-        "authz_probe_detail": "401",
-        "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "template:auth/change_password.html",
-          "template:base.html"
-        ],
-        "csrf_enviado": false,
-        "defined": true,
-        "endpoint": "account_page",
-        "guardian_pasivo_no_aplicado": false,
-        "key": "GET /account",
-        "kind": "html",
-        "linked": true,
-        "linked_by": [
-          "auth/account.html:/account",
-          "auth/admin/audit.html:/account",
-          "auth/admin/partidas.html:/account",
-          "auth/admin/user_detail.html:/account",
-          "auth/admin/users.html:/account",
-          "auth/change_password.html:/account"
-        ],
+        "file": "viewer/app/routers/chassis_entities.py",
+        "func": "chassis_entities_item",
+        "key": "GET /item/{entity_id}",
+        "line": 215,
         "method": "GET",
-        "module": "app.routers.auth",
-        "mounted": true,
-        "path": "/account",
-        "rol_minimo_observado": "viewer",
-        "scoping_deps": [],
-        "source": "viewer/app/routers/auth.py:286",
-        "status_anonimo": 401,
-        "status_por_rol": {
-          "admin": 200,
-          "reviewer": 200,
-          "viewer": 200
-        },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
+        "path": "/item/{entity_id}",
+        "router_var": "router"
       },
       {
-        "authz_body_guards": [],
-        "authz_deps": [
-          "app.auth.dependencies.require_admin",
-          "app.auth.dependencies.require_authenticated_user"
-        ],
-        "authz_probe": "denegada",
-        "authz_probe_detail": "401",
-        "authz_static": true,
-        "capturada_por": null,
-        "consumed": false,
-        "consumers": [],
-        "csrf_enviado": false,
-        "defined": true,
-        "endpoint": "admin_health_panel",
-        "guardian_pasivo_no_aplicado": false,
-        "key": "GET /admin/health",
-        "kind": "html",
-        "linked": false,
-        "linked_by": [],
+        "file": "viewer/app/routers/chassis_review.py",
+        "func": "chassis_review_item",
+        "key": "GET /item/{proposal_id}",
+        "line": 197,
         "method": "GET",
-        "module": "app.routers.health_admin",
-        "mounted": true,
-        "path": "/admin/health",
-        "rol_minimo_observado": "admin",
-        "scoping_deps": [],
-        "source": "viewer/app/routers/health_admin.py:34",
-        "status_anonimo": 401,
-        "status_por_rol": {
-          "admin": 200,
-          "reviewer": 403,
-          "viewer": 403
-        },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
+        "path": "/item/{proposal_id}",
+        "router_var": "router"
       },
       {
-        "authz_body_guards": [],
-        "authz_deps": [
-          "app.auth.dependencies.require_admin",
-          "app.auth.dependencies.require_authenticated_user"
-        ],
-        "authz_probe": "denegada",
-        "authz_probe_detail": "401",
-        "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "template:auth/admin/users.html"
-        ],
-        "csrf_enviado": false,
-        "defined": true,
-        "endpoint": "admin_users_new",
-        "guardian_pasivo_no_aplicado": false,
-        "key": "GET /admin/users/new",
-        "kind": "html",
-        "linked": true,
-        "linked_by": [
-          "auth/admin/users.html:/admin/users/new"
-        ],
+        "file": "viewer/app/routers/chassis_sources.py",
+        "func": "chassis_sources_item",
+        "key": "GET /ficha/{handle}",
+        "line": 388,
         "method": "GET",
-        "module": "app.routers.admin",
-        "mounted": true,
-        "path": "/admin/users/new",
-        "rol_minimo_observado": "admin",
-        "scoping_deps": [],
-        "source": "viewer/app/routers/admin.py:74",
-        "status_anonimo": 401,
-        "status_por_rol": {
-          "admin": 200,
-          "reviewer": 403,
-          "viewer": 403
-        },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
-      },
-      {
-        "authz_body_guards": [],
-        "authz_deps": [
-          "app.auth.dependencies.require_admin",
-          "app.auth.dependencies.require_authenticated_user"
-        ],
-        "authz_probe": "denegada",
-        "authz_probe_detail": "401",
-        "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "template:auth/admin/users.html"
-        ],
-        "csrf_enviado": true,
-        "defined": true,
-        "endpoint": "admin_users_new_submit",
-        "guardian_pasivo_no_aplicado": false,
-        "key": "POST /admin/users/new",
-        "kind": "html",
-        "linked": false,
-        "linked_by": [],
-        "method": "POST",
-        "module": "app.routers.admin",
-        "mounted": true,
-        "path": "/admin/users/new",
-        "rol_minimo_observado": "admin",
-        "scoping_deps": [],
-        "source": "viewer/app/routers/admin.py:100",
-        "status_anonimo": 401,
-        "status_por_rol": {
-          "admin": 422,
-          "reviewer": 403,
-          "viewer": 403
-        },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
-      },
-      {
-        "authz_body_guards": [],
-        "authz_deps": [
-          "app.auth.dependencies.require_admin",
-          "app.auth.dependencies.require_authenticated_user"
-        ],
-        "authz_probe": "denegada",
-        "authz_probe_detail": "401",
-        "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "template:auth/admin/users.html"
-        ],
-        "csrf_enviado": false,
-        "defined": true,
-        "endpoint": "admin_user_detail",
-        "guardian_pasivo_no_aplicado": false,
-        "key": "GET /admin/users/{user_id}",
-        "kind": "html",
-        "linked": true,
-        "linked_by": [
-          "auth/admin/users.html:/admin/users/new",
-          "auth/admin/users.html:/admin/users/{{ u.id }}"
-        ],
-        "method": "GET",
-        "module": "app.routers.admin",
-        "mounted": true,
-        "path": "/admin/users/{user_id}",
-        "rol_minimo_observado": "admin",
-        "scoping_deps": [],
-        "source": "viewer/app/routers/admin.py:163",
-        "status_anonimo": 401,
-        "status_por_rol": {
-          "admin": 404,
-          "reviewer": 403,
-          "viewer": 403
-        },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
-      },
-      {
-        "authz_body_guards": [],
-        "authz_deps": [
-          "app.auth.dependencies.require_admin",
-          "app.auth.dependencies.require_authenticated_user"
-        ],
-        "authz_probe": "denegada",
-        "authz_probe_detail": "401",
-        "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "template:auth/admin/users.html"
-        ],
-        "csrf_enviado": true,
-        "defined": true,
-        "endpoint": "admin_user_update",
-        "guardian_pasivo_no_aplicado": false,
-        "key": "POST /admin/users/{user_id}",
-        "kind": "html",
-        "linked": false,
-        "linked_by": [],
-        "method": "POST",
-        "module": "app.routers.admin",
-        "mounted": true,
-        "path": "/admin/users/{user_id}",
-        "rol_minimo_observado": "admin",
-        "scoping_deps": [],
-        "source": "viewer/app/routers/admin.py:195",
-        "status_anonimo": 401,
-        "status_por_rol": {
-          "admin": 422,
-          "reviewer": 403,
-          "viewer": 403
-        },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
-      },
-      {
-        "authz_body_guards": [],
-        "authz_deps": [
-          "app.auth.dependencies.require_admin",
-          "app.auth.dependencies.require_authenticated_user"
-        ],
-        "authz_probe": "denegada",
-        "authz_probe_detail": "401",
-        "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "template:auth/admin/user_detail.html"
-        ],
-        "csrf_enviado": true,
-        "defined": true,
-        "endpoint": "admin_revoke_sessions",
-        "guardian_pasivo_no_aplicado": false,
-        "key": "POST /admin/users/{user_id}/revoke-sessions",
-        "kind": "html",
-        "linked": true,
-        "linked_by": [
-          "auth/admin/user_detail.html:/admin/users/{{ edit_user.id }}/revoke-sessions"
-        ],
-        "method": "POST",
-        "module": "app.routers.admin",
-        "mounted": true,
-        "path": "/admin/users/{user_id}/revoke-sessions",
-        "rol_minimo_observado": "admin",
-        "scoping_deps": [],
-        "source": "viewer/app/routers/admin.py:294",
-        "status_anonimo": 401,
-        "status_por_rol": {
-          "admin": 404,
-          "reviewer": 403,
-          "viewer": 403
-        },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
-      },
-      {
-        "authz_body_guards": [],
-        "authz_deps": [
-          "app.auth.dependencies.require_admin",
-          "app.auth.dependencies.require_authenticated_user"
-        ],
-        "authz_probe": "denegada",
-        "authz_probe_detail": "401",
-        "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "template:auth/admin/user_detail.html",
-          "template:auth/admin/users.html"
-        ],
-        "csrf_enviado": true,
-        "defined": true,
-        "endpoint": "admin_user_unlock",
-        "guardian_pasivo_no_aplicado": false,
-        "key": "POST /admin/users/{user_id}/unlock",
-        "kind": "html",
-        "linked": true,
-        "linked_by": [
-          "auth/admin/user_detail.html:/admin/users/{{ edit_user.id }}/unlock",
-          "auth/admin/users.html:/admin/users/{{ u.id }}/unlock"
-        ],
-        "method": "POST",
-        "module": "app.routers.admin",
-        "mounted": true,
-        "path": "/admin/users/{user_id}/unlock",
-        "rol_minimo_observado": "admin",
-        "scoping_deps": [],
-        "source": "viewer/app/routers/admin.py:263",
-        "status_anonimo": 401,
-        "status_por_rol": {
-          "admin": 404,
-          "reviewer": 403,
-          "viewer": 403
-        },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
-      },
-      {
-        "authz_body_guards": [
-          "_guard"
-        ],
-        "authz_deps": [],
-        "authz_probe": "denegada",
-        "authz_probe_detail": "302 -> /login?next=/review-console/",
-        "authz_static": true,
-        "capturada_por": null,
-        "consumed": false,
-        "consumers": [],
-        "csrf_enviado": false,
-        "defined": true,
-        "endpoint": "inbox",
-        "guardian_pasivo_no_aplicado": false,
-        "key": "GET /review-console/",
-        "kind": "html",
-        "linked": false,
-        "linked_by": [],
-        "method": "GET",
-        "module": "app.routers.reviews_console",
-        "mounted": true,
-        "path": "/review-console/",
-        "rol_minimo_observado": "reviewer",
-        "scoping_deps": [
-          "app.authz.dependencies.get_visibility_scope"
-        ],
-        "source": "viewer/app/routers/reviews_console.py:80",
-        "status_anonimo": 302,
-        "status_por_rol": {
-          "admin": 200,
-          "reviewer": 200,
-          "viewer": 403
-        },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
-      },
-      {
-        "authz_body_guards": [
-          "_guard"
-        ],
-        "authz_deps": [],
-        "authz_probe": "denegada",
-        "authz_probe_detail": "302 -> /login?next=/v3/review/",
-        "authz_static": true,
-        "capturada_por": null,
-        "consumed": false,
-        "consumers": [],
-        "csrf_enviado": false,
-        "defined": true,
-        "endpoint": "queue",
-        "guardian_pasivo_no_aplicado": false,
-        "key": "GET /v3/review/",
-        "kind": "html",
-        "linked": false,
-        "linked_by": [],
-        "method": "GET",
-        "module": "app.routers.v3_review",
-        "mounted": true,
-        "path": "/v3/review/",
-        "rol_minimo_observado": "reviewer",
-        "scoping_deps": [
-          "app.authz.dependencies.get_visibility_scope"
-        ],
-        "source": "viewer/app/routers/v3_review.py:87",
-        "status_anonimo": 302,
-        "status_por_rol": {
-          "admin": 200,
-          "reviewer": 200,
-          "viewer": 403
-        },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
-      },
-      {
-        "authz_body_guards": [
-          "_guard"
-        ],
-        "authz_deps": [],
-        "authz_probe": "denegada",
-        "authz_probe_detail": "302 -> /login?next=/v3/review/glossary-candidates",
-        "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "template-js:v3_glossary_candidates.html",
-          "template:v3_glossary_candidates.html"
-        ],
-        "csrf_enviado": false,
-        "defined": true,
-        "endpoint": "glossary_candidates",
-        "guardian_pasivo_no_aplicado": false,
-        "key": "GET /v3/review/glossary-candidates",
-        "kind": "html",
-        "linked": false,
-        "linked_by": [],
-        "method": "GET",
-        "module": "app.routers.v3_review",
-        "mounted": true,
-        "path": "/v3/review/glossary-candidates",
-        "rol_minimo_observado": "reviewer",
-        "scoping_deps": [
-          "app.authz.dependencies.get_visibility_scope"
-        ],
-        "source": "viewer/app/routers/v3_review.py:65",
-        "status_anonimo": 302,
-        "status_por_rol": {
-          "admin": 200,
-          "reviewer": 200,
-          "viewer": 403
-        },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
-      },
-      {
-        "authz_body_guards": [
-          "_guard"
-        ],
-        "authz_deps": [],
-        "authz_probe": "denegada",
-        "authz_probe_detail": "302 -> /login?next=/v3/review/undo",
-        "authz_static": true,
-        "capturada_por": null,
-        "consumed": true,
-        "consumers": [
-          "template-js:v3_review.html",
-          "template:v3_review.html"
-        ],
-        "csrf_enviado": true,
-        "defined": true,
-        "endpoint": "undo",
-        "guardian_pasivo_no_aplicado": false,
-        "key": "POST /v3/review/undo",
-        "kind": "html",
-        "linked": true,
-        "linked_by": [
-          "v3_review.html:/v3/review/undo"
-        ],
-        "method": "POST",
-        "module": "app.routers.v3_review",
-        "mounted": true,
-        "path": "/v3/review/undo",
-        "rol_minimo_observado": "reviewer",
-        "scoping_deps": [
-          "app.authz.dependencies.get_visibility_scope"
-        ],
-        "source": "viewer/app/routers/v3_review.py:206",
-        "status_anonimo": 302,
-        "status_por_rol": {
-          "admin": 400,
-          "reviewer": 400,
-          "viewer": 403
-        },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
+        "path": "/ficha/{handle}",
+        "router_var": "router"
       }
     ],
+    "rutas_no_probadas": [],
     "rutas_servidas_a_viewer": [
       {
         "authz_body_guards": [
@@ -1811,10 +1913,10 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
+          "nav-contrato:app.chassis.NAV",
           "template:auth/403.html",
-          "template:base.html",
           "template:error.html",
-          "tests:8 peticiones"
+          "tests:10 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -1824,12 +1926,12 @@
         "kind": "html",
         "linked": true,
         "linked_by": [
-          "auth/account.html:/",
-          "auth/admin/audit.html:/",
-          "auth/admin/partidas.html:/",
-          "auth/admin/user_detail.html:/",
-          "auth/admin/users.html:/",
-          "auth/change_password.html:/"
+          "auth/account.html:home",
+          "auth/admin/audit.html:home",
+          "auth/admin/partidas.html:home",
+          "auth/admin/user_detail.html:home",
+          "auth/admin/users.html:home",
+          "auth/change_password.html:home"
         ],
         "method": "GET",
         "module": "app.main",
@@ -1839,7 +1941,7 @@
         "scoping_deps": [
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/main.py:428",
+        "source": "viewer/app/main.py:480",
         "status_anonimo": 302,
         "status_por_rol": {
           "admin": 200,
@@ -1847,7 +1949,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 8,
+        "tested_hits": 10,
         "tested_statuses": [
           200,
           302
@@ -1865,7 +1967,8 @@
         "consumed": true,
         "consumers": [
           "template:auth/change_password.html",
-          "template:base.html"
+          "template:base.html",
+          "tests:1 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -1895,9 +1998,11 @@
           "reviewer": 200,
           "viewer": 200
         },
-        "tested": false,
-        "tested_hits": 0,
-        "tested_statuses": []
+        "tested": true,
+        "tested_hits": 1,
+        "tested_statuses": [
+          302
+        ]
       },
       {
         "authz_body_guards": [],
@@ -1913,7 +2018,7 @@
           "template-js:auth/change_password.html",
           "template:auth/account.html",
           "template:auth/change_password.html",
-          "tests:9 peticiones"
+          "tests:10 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -1940,8 +2045,9 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 9,
+        "tested_hits": 10,
         "tested_statuses": [
+          302,
           200
         ]
       },
@@ -1959,7 +2065,7 @@
           "template-js:auth/change_password.html",
           "template:auth/account.html",
           "template:auth/change_password.html",
-          "tests:9 peticiones"
+          "tests:10 peticiones"
         ],
         "csrf_enviado": true,
         "defined": true,
@@ -1985,7 +2091,7 @@
           "viewer": 400
         },
         "tested": true,
-        "tested_hits": 9,
+        "tested_hits": 10,
         "tested_statuses": [
           302,
           400,
@@ -2003,7 +2109,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:83 peticiones"
+          "tests:92 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2030,7 +2136,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 83,
+        "tested_hits": 92,
         "tested_statuses": [
           200,
           401,
@@ -2049,7 +2155,7 @@
         "consumed": true,
         "consumers": [
           "js:static/js/graph.js",
-          "tests:16 peticiones"
+          "tests:18 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2078,10 +2184,11 @@
           "viewer": 404
         },
         "tested": true,
-        "tested_hits": 16,
+        "tested_hits": 18,
         "tested_statuses": [
           404,
-          200
+          200,
+          401
         ]
       },
       {
@@ -2095,7 +2202,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:4 peticiones"
+          "tests:5 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2122,7 +2229,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 4,
+        "tested_hits": 5,
         "tested_statuses": [
           401,
           200
@@ -2139,7 +2246,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:6 peticiones"
+          "tests:7 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2166,10 +2273,11 @@
           "viewer": 404
         },
         "tested": true,
-        "tested_hits": 6,
+        "tested_hits": 7,
         "tested_statuses": [
           404,
-          200
+          200,
+          401
         ]
       },
       {
@@ -2184,7 +2292,7 @@
         "consumed": true,
         "consumers": [
           "js:static/js/graph.js",
-          "tests:12 peticiones"
+          "tests:18 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2205,7 +2313,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/api/graph.py:14",
+        "source": "viewer/app/api/graph.py:15",
         "status_anonimo": 401,
         "status_por_rol": {
           "admin": 200,
@@ -2213,7 +2321,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 12,
+        "tested_hits": 18,
         "tested_statuses": [
           200,
           401
@@ -2230,7 +2338,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:8 peticiones"
+          "tests:9 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2256,7 +2364,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 8,
+        "tested_hits": 9,
         "tested_statuses": [
           200,
           401
@@ -2273,7 +2381,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:4 peticiones"
+          "tests:5 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2299,7 +2407,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 4,
+        "tested_hits": 5,
         "tested_statuses": [
           200,
           401
@@ -2316,7 +2424,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:4 peticiones"
+          "tests:5 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2342,9 +2450,10 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 4,
+        "tested_hits": 5,
         "tested_statuses": [
-          200
+          200,
+          401
         ]
       },
       {
@@ -2358,7 +2467,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:8 peticiones"
+          "tests:9 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2385,7 +2494,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 8,
+        "tested_hits": 9,
         "tested_statuses": [
           200,
           401
@@ -2402,7 +2511,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:11 peticiones"
+          "tests:12 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2429,7 +2538,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 11,
+        "tested_hits": 12,
         "tested_statuses": [
           200,
           401
@@ -2446,7 +2555,7 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "tests:6 peticiones"
+          "tests:7 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2473,7 +2582,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 6,
+        "tested_hits": 7,
         "tested_statuses": [
           401,
           200
@@ -2490,11 +2599,11 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
+          "nav-contrato:app.chassis.NAV",
           "template-js:entities.html",
-          "template:base.html",
           "template:entities.html",
           "template:entity_detail.html",
-          "tests:30 peticiones"
+          "tests:32 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2504,12 +2613,12 @@
         "kind": "html",
         "linked": true,
         "linked_by": [
-          "auth/account.html:/entities",
-          "auth/admin/audit.html:/entities",
-          "auth/admin/partidas.html:/entities",
-          "auth/admin/user_detail.html:/entities",
-          "auth/admin/users.html:/entities",
-          "auth/change_password.html:/entities"
+          "auth/account.html:entities_page",
+          "auth/admin/audit.html:entities_page",
+          "auth/admin/partidas.html:entities_page",
+          "auth/admin/user_detail.html:entities_page",
+          "auth/admin/users.html:entities_page",
+          "auth/change_password.html:entities_page"
         ],
         "method": "GET",
         "module": "app.routers.readonly",
@@ -2528,7 +2637,7 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 30,
+        "tested_hits": 32,
         "tested_statuses": [
           200,
           302
@@ -2547,7 +2656,7 @@
         "consumers": [
           "js:static/js/graph.js",
           "template:entity_detail.html",
-          "tests:3 peticiones"
+          "tests:4 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2577,8 +2686,9 @@
           "viewer": 404
         },
         "tested": true,
-        "tested_hits": 3,
+        "tested_hits": 4,
         "tested_statuses": [
+          302,
           200,
           404
         ]
@@ -2596,7 +2706,7 @@
         "consumers": [
           "template:entities.html",
           "template:entity.html",
-          "tests:2 peticiones"
+          "tests:3 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2618,7 +2728,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/main.py:471",
+        "source": "viewer/app/main.py:523",
         "status_anonimo": 302,
         "status_por_rol": {
           "admin": 404,
@@ -2626,9 +2736,10 @@
           "viewer": 404
         },
         "tested": true,
-        "tested_hits": 2,
+        "tested_hits": 3,
         "tested_statuses": [
           404,
+          302,
           200
         ]
       },
@@ -2643,9 +2754,9 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "template:base.html",
+          "nav-contrato:app.chassis.NAV",
           "template:index.html",
-          "tests:22 peticiones"
+          "tests:24 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2655,12 +2766,12 @@
         "kind": "html",
         "linked": true,
         "linked_by": [
-          "auth/account.html:/graph",
-          "auth/admin/audit.html:/graph",
-          "auth/admin/partidas.html:/graph",
-          "auth/admin/user_detail.html:/graph",
-          "auth/admin/users.html:/graph",
-          "auth/change_password.html:/graph"
+          "auth/account.html:graph_view",
+          "auth/admin/audit.html:graph_view",
+          "auth/admin/partidas.html:graph_view",
+          "auth/admin/user_detail.html:graph_view",
+          "auth/admin/users.html:graph_view",
+          "auth/change_password.html:graph_view"
         ],
         "method": "GET",
         "module": "app.main",
@@ -2668,7 +2779,7 @@
         "path": "/graph",
         "rol_minimo_observado": "viewer",
         "scoping_deps": [],
-        "source": "viewer/app/main.py:445",
+        "source": "viewer/app/main.py:497",
         "status_anonimo": 302,
         "status_por_rol": {
           "admin": 200,
@@ -2676,9 +2787,10 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 22,
+        "tested_hits": 24,
         "tested_statuses": [
-          200
+          200,
+          302
         ]
       },
       {
@@ -2692,10 +2804,10 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
+          "nav-contrato:app.chassis.NAV",
           "template-js:jobs.html",
-          "template:base.html",
           "template:jobs.html",
-          "tests:5 peticiones"
+          "tests:7 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2705,12 +2817,12 @@
         "kind": "html",
         "linked": true,
         "linked_by": [
-          "auth/account.html:/jobs",
-          "auth/admin/audit.html:/jobs",
-          "auth/admin/partidas.html:/jobs",
-          "auth/admin/user_detail.html:/jobs",
-          "auth/admin/users.html:/jobs",
-          "auth/change_password.html:/jobs"
+          "auth/account.html:jobs_view",
+          "auth/admin/audit.html:jobs_view",
+          "auth/admin/partidas.html:jobs_view",
+          "auth/admin/user_detail.html:jobs_view",
+          "auth/admin/users.html:jobs_view",
+          "auth/change_password.html:jobs_view"
         ],
         "method": "GET",
         "module": "app.main",
@@ -2718,7 +2830,7 @@
         "path": "/jobs",
         "rol_minimo_observado": "viewer",
         "scoping_deps": [],
-        "source": "viewer/app/main.py:503",
+        "source": "viewer/app/main.py:555",
         "status_anonimo": 302,
         "status_por_rol": {
           "admin": 200,
@@ -2726,9 +2838,10 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 5,
+        "tested_hits": 7,
         "tested_statuses": [
-          200
+          200,
+          302
         ]
       },
       {
@@ -2743,7 +2856,7 @@
         "consumed": true,
         "consumers": [
           "template:jobs.html",
-          "tests:1 peticiones"
+          "tests:2 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2761,7 +2874,7 @@
         "path": "/jobs/{job_id}",
         "rol_minimo_observado": "viewer",
         "scoping_deps": [],
-        "source": "viewer/app/main.py:534",
+        "source": "viewer/app/main.py:586",
         "status_anonimo": 302,
         "status_por_rol": {
           "admin": 200,
@@ -2769,9 +2882,58 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 1,
+        "tested_hits": 2,
         "tested_statuses": [
+          302,
           200
+        ]
+      },
+      {
+        "authz_body_guards": [
+          "slot_guard"
+        ],
+        "authz_deps": [
+          "app.routers.readonly._guard"
+        ],
+        "authz_probe": "denegada",
+        "authz_probe_detail": "302 -> /login?next=/panel/entities/item/probe",
+        "authz_static": true,
+        "capturada_por": null,
+        "consumed": true,
+        "consumers": [
+          "tests:43 peticiones"
+        ],
+        "csrf_enviado": false,
+        "defined": true,
+        "endpoint": "chassis_entities_item",
+        "guardian_pasivo_no_aplicado": false,
+        "key": "GET /panel/entities/item/{entity_id}",
+        "kind": "html",
+        "linked": false,
+        "linked_by": [],
+        "method": "GET",
+        "module": "app.routers.chassis_entities",
+        "mounted": true,
+        "path": "/panel/entities/item/{entity_id}",
+        "rol_minimo_observado": "viewer",
+        "scoping_deps": [
+          "app.authz.dependencies.get_filtered_provider",
+          "app.deps.get_provider"
+        ],
+        "source": "viewer/app/routers/chassis_entities.py:214",
+        "status_anonimo": 302,
+        "status_por_rol": {
+          "admin": 404,
+          "reviewer": 404,
+          "viewer": 404
+        },
+        "tested": true,
+        "tested_hits": 43,
+        "tested_statuses": [
+          302,
+          404,
+          200,
+          503
         ]
       },
       {
@@ -2785,9 +2947,9 @@
         "capturada_por": null,
         "consumed": true,
         "consumers": [
-          "template:base.html",
+          "nav-contrato:app.chassis.NAV",
           "template:index.html",
-          "tests:2 peticiones"
+          "tests:4 peticiones"
         ],
         "csrf_enviado": false,
         "defined": true,
@@ -2797,12 +2959,12 @@
         "kind": "html",
         "linked": true,
         "linked_by": [
-          "auth/account.html:/status",
-          "auth/admin/audit.html:/status",
-          "auth/admin/partidas.html:/status",
-          "auth/admin/user_detail.html:/status",
-          "auth/admin/users.html:/status",
-          "auth/change_password.html:/status"
+          "auth/account.html:status_view",
+          "auth/admin/audit.html:status_view",
+          "auth/admin/partidas.html:status_view",
+          "auth/admin/user_detail.html:status_view",
+          "auth/admin/users.html:status_view",
+          "auth/change_password.html:status_view"
         ],
         "method": "GET",
         "module": "app.main",
@@ -2813,7 +2975,7 @@
           "app.authz.dependencies.get_filtered_provider",
           "app.deps.get_provider"
         ],
-        "source": "viewer/app/main.py:462",
+        "source": "viewer/app/main.py:514",
         "status_anonimo": 302,
         "status_por_rol": {
           "admin": 200,
@@ -2821,9 +2983,10 @@
           "viewer": 200
         },
         "tested": true,
-        "tested_hits": 2,
+        "tested_hits": 4,
         "tested_statuses": [
-          200
+          200,
+          302
         ]
       }
     ],
@@ -2881,7 +3044,7 @@
     ],
     "sondas_inconcluyentes": []
   },
-  "head": "2185f2b01bb7ed83f392bbcbd2151c9e2a514817",
+  "head": "420f626d06910a3b4cd9ac99a4309216cf1d95b6",
   "probe_error": null,
   "routes": [
     {
@@ -2895,10 +3058,10 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
+        "nav-contrato:app.chassis.NAV",
         "template:auth/403.html",
-        "template:base.html",
         "template:error.html",
-        "tests:8 peticiones"
+        "tests:10 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -2908,12 +3071,12 @@
       "kind": "html",
       "linked": true,
       "linked_by": [
-        "auth/account.html:/",
-        "auth/admin/audit.html:/",
-        "auth/admin/partidas.html:/",
-        "auth/admin/user_detail.html:/",
-        "auth/admin/users.html:/",
-        "auth/change_password.html:/"
+        "auth/account.html:home",
+        "auth/admin/audit.html:home",
+        "auth/admin/partidas.html:home",
+        "auth/admin/user_detail.html:home",
+        "auth/admin/users.html:home",
+        "auth/change_password.html:home"
       ],
       "method": "GET",
       "module": "app.main",
@@ -2923,7 +3086,7 @@
       "scoping_deps": [
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/main.py:428",
+      "source": "viewer/app/main.py:480",
       "status_anonimo": 302,
       "status_por_rol": {
         "admin": 200,
@@ -2931,7 +3094,7 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 8,
+      "tested_hits": 10,
       "tested_statuses": [
         200,
         302
@@ -2949,7 +3112,8 @@
       "consumed": true,
       "consumers": [
         "template:auth/change_password.html",
-        "template:base.html"
+        "template:base.html",
+        "tests:1 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -2979,9 +3143,11 @@
         "reviewer": 200,
         "viewer": 200
       },
-      "tested": false,
-      "tested_hits": 0,
-      "tested_statuses": []
+      "tested": true,
+      "tested_hits": 1,
+      "tested_statuses": [
+        302
+      ]
     },
     {
       "authz_body_guards": [],
@@ -2997,7 +3163,7 @@
         "template-js:auth/change_password.html",
         "template:auth/account.html",
         "template:auth/change_password.html",
-        "tests:9 peticiones"
+        "tests:10 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3024,8 +3190,9 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 9,
+      "tested_hits": 10,
       "tested_statuses": [
+        302,
         200
       ]
     },
@@ -3043,7 +3210,7 @@
         "template-js:auth/change_password.html",
         "template:auth/account.html",
         "template:auth/change_password.html",
-        "tests:9 peticiones"
+        "tests:10 peticiones"
       ],
       "csrf_enviado": true,
       "defined": true,
@@ -3069,7 +3236,7 @@
         "viewer": 400
       },
       "tested": true,
-      "tested_hits": 9,
+      "tested_hits": 10,
       "tested_statuses": [
         302,
         400,
@@ -3090,7 +3257,7 @@
       "consumers": [
         "template:auth/admin/audit.html",
         "template:auth/admin/users.html",
-        "tests:1 peticiones"
+        "tests:2 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3117,9 +3284,10 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 1,
+      "tested_hits": 2,
       "tested_statuses": [
-        200
+        200,
+        302
       ]
     },
     {
@@ -3132,8 +3300,10 @@
       "authz_probe_detail": "401",
       "authz_static": true,
       "capturada_por": null,
-      "consumed": false,
-      "consumers": [],
+      "consumed": true,
+      "consumers": [
+        "tests:1 peticiones"
+      ],
       "csrf_enviado": false,
       "defined": true,
       "endpoint": "admin_health_panel",
@@ -3155,9 +3325,11 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": false,
-      "tested_hits": 0,
-      "tested_statuses": []
+      "tested": true,
+      "tested_hits": 1,
+      "tested_statuses": [
+        302
+      ]
     },
     {
       "authz_body_guards": [
@@ -3173,9 +3345,9 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
+        "nav-contrato:app.chassis.NAV",
         "template:auth/admin/users.html",
-        "template:base.html",
-        "tests:11 peticiones"
+        "tests:14 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3185,12 +3357,12 @@
       "kind": "html",
       "linked": true,
       "linked_by": [
-        "auth/account.html:/admin/partidas",
-        "auth/admin/audit.html:/admin/partidas",
-        "auth/admin/partidas.html:/admin/partidas",
-        "auth/admin/user_detail.html:/admin/partidas",
+        "auth/account.html:admin_partidas",
+        "auth/admin/audit.html:admin_partidas",
+        "auth/admin/partidas.html:admin_partidas",
+        "auth/admin/user_detail.html:admin_partidas",
         "auth/admin/users.html:/admin/partidas",
-        "auth/change_password.html:/admin/partidas"
+        "auth/admin/users.html:admin_partidas"
       ],
       "method": "GET",
       "module": "app.routers.admin",
@@ -3206,9 +3378,10 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 11,
+      "tested_hits": 14,
       "tested_statuses": [
         200,
+        302,
         403
       ]
     },
@@ -3228,7 +3401,7 @@
       "consumers": [
         "template-js:auth/admin/partidas.html",
         "template:auth/admin/partidas.html",
-        "tests:9 peticiones"
+        "tests:10 peticiones"
       ],
       "csrf_enviado": true,
       "defined": true,
@@ -3254,11 +3427,12 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 9,
+      "tested_hits": 10,
       "tested_statuses": [
         302,
         400,
-        403
+        403,
+        422
       ]
     },
     {
@@ -3276,7 +3450,7 @@
       "consumed": true,
       "consumers": [
         "template:auth/admin/partidas.html",
-        "tests:1 peticiones"
+        "tests:2 peticiones"
       ],
       "csrf_enviado": true,
       "defined": true,
@@ -3302,8 +3476,9 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 1,
+      "tested_hits": 2,
       "tested_statuses": [
+        422,
         302
       ]
     },
@@ -3319,9 +3494,9 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
+        "nav-contrato:app.chassis.NAV",
         "template:auth/admin/user_detail.html",
-        "template:base.html",
-        "tests:3 peticiones"
+        "tests:6 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3331,12 +3506,12 @@
       "kind": "html",
       "linked": true,
       "linked_by": [
-        "auth/account.html:/admin/users",
-        "auth/admin/audit.html:/admin/users",
-        "auth/admin/partidas.html:/admin/users",
+        "auth/account.html:admin_users",
+        "auth/admin/audit.html:admin_users",
+        "auth/admin/partidas.html:admin_users",
         "auth/admin/user_detail.html:/admin/users",
-        "auth/admin/users.html:/admin/users",
-        "auth/change_password.html:/admin/users"
+        "auth/admin/user_detail.html:admin_users",
+        "auth/admin/users.html:admin_users"
       ],
       "method": "GET",
       "module": "app.routers.admin",
@@ -3352,10 +3527,11 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 3,
+      "tested_hits": 6,
       "tested_statuses": [
         403,
-        200
+        200,
+        302
       ]
     },
     {
@@ -3370,7 +3546,8 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:auth/admin/users.html"
+        "template:auth/admin/users.html",
+        "tests:1 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3395,9 +3572,11 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": false,
-      "tested_hits": 0,
-      "tested_statuses": []
+      "tested": true,
+      "tested_hits": 1,
+      "tested_statuses": [
+        302
+      ]
     },
     {
       "authz_body_guards": [],
@@ -3411,7 +3590,8 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:auth/admin/users.html"
+        "template:auth/admin/users.html",
+        "tests:1 peticiones"
       ],
       "csrf_enviado": true,
       "defined": true,
@@ -3434,9 +3614,11 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": false,
-      "tested_hits": 0,
-      "tested_statuses": []
+      "tested": true,
+      "tested_hits": 1,
+      "tested_statuses": [
+        422
+      ]
     },
     {
       "authz_body_guards": [],
@@ -3450,7 +3632,8 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:auth/admin/users.html"
+        "template:auth/admin/users.html",
+        "tests:1 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3476,9 +3659,11 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": false,
-      "tested_hits": 0,
-      "tested_statuses": []
+      "tested": true,
+      "tested_hits": 1,
+      "tested_statuses": [
+        422
+      ]
     },
     {
       "authz_body_guards": [],
@@ -3492,7 +3677,8 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:auth/admin/users.html"
+        "template:auth/admin/users.html",
+        "tests:1 peticiones"
       ],
       "csrf_enviado": true,
       "defined": true,
@@ -3515,9 +3701,11 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": false,
-      "tested_hits": 0,
-      "tested_statuses": []
+      "tested": true,
+      "tested_hits": 1,
+      "tested_statuses": [
+        422
+      ]
     },
     {
       "authz_body_guards": [],
@@ -3531,7 +3719,8 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:auth/admin/user_detail.html"
+        "template:auth/admin/user_detail.html",
+        "tests:1 peticiones"
       ],
       "csrf_enviado": true,
       "defined": true,
@@ -3556,9 +3745,11 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": false,
-      "tested_hits": 0,
-      "tested_statuses": []
+      "tested": true,
+      "tested_hits": 1,
+      "tested_statuses": [
+        422
+      ]
     },
     {
       "authz_body_guards": [],
@@ -3573,7 +3764,8 @@
       "consumed": true,
       "consumers": [
         "template:auth/admin/user_detail.html",
-        "template:auth/admin/users.html"
+        "template:auth/admin/users.html",
+        "tests:1 peticiones"
       ],
       "csrf_enviado": true,
       "defined": true,
@@ -3599,9 +3791,11 @@
         "reviewer": 403,
         "viewer": 403
       },
-      "tested": false,
-      "tested_hits": 0,
-      "tested_statuses": []
+      "tested": true,
+      "tested_hits": 1,
+      "tested_statuses": [
+        422
+      ]
     },
     {
       "authz_body_guards": [
@@ -3614,7 +3808,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:3 peticiones"
+        "tests:4 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3638,7 +3832,7 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 3,
+      "tested_hits": 4,
       "tested_statuses": [
         401,
         403,
@@ -3656,7 +3850,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:83 peticiones"
+        "tests:92 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3683,7 +3877,7 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 83,
+      "tested_hits": 92,
       "tested_statuses": [
         200,
         401,
@@ -3702,7 +3896,7 @@
       "consumed": true,
       "consumers": [
         "js:static/js/graph.js",
-        "tests:16 peticiones"
+        "tests:18 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3731,10 +3925,11 @@
         "viewer": 404
       },
       "tested": true,
-      "tested_hits": 16,
+      "tested_hits": 18,
       "tested_statuses": [
         404,
-        200
+        200,
+        401
       ]
     },
     {
@@ -3748,7 +3943,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:4 peticiones"
+        "tests:5 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3775,7 +3970,7 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 4,
+      "tested_hits": 5,
       "tested_statuses": [
         401,
         200
@@ -3792,7 +3987,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:6 peticiones"
+        "tests:7 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3819,10 +4014,11 @@
         "viewer": 404
       },
       "tested": true,
-      "tested_hits": 6,
+      "tested_hits": 7,
       "tested_statuses": [
         404,
-        200
+        200,
+        401
       ]
     },
     {
@@ -3837,7 +4033,7 @@
       "consumed": true,
       "consumers": [
         "js:static/js/graph.js",
-        "tests:12 peticiones"
+        "tests:18 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3858,7 +4054,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/api/graph.py:14",
+      "source": "viewer/app/api/graph.py:15",
       "status_anonimo": 401,
       "status_por_rol": {
         "admin": 200,
@@ -3866,7 +4062,7 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 12,
+      "tested_hits": 18,
       "tested_statuses": [
         200,
         401
@@ -3883,7 +4079,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:8 peticiones"
+        "tests:9 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3909,7 +4105,7 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 8,
+      "tested_hits": 9,
       "tested_statuses": [
         200,
         401
@@ -3926,7 +4122,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:4 peticiones"
+        "tests:5 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3952,7 +4148,7 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 4,
+      "tested_hits": 5,
       "tested_statuses": [
         200,
         401
@@ -3969,7 +4165,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:4 peticiones"
+        "tests:5 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -3995,9 +4191,10 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 4,
+      "tested_hits": 5,
       "tested_statuses": [
-        200
+        200,
+        401
       ]
     },
     {
@@ -4011,7 +4208,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:3 peticiones"
+        "tests:4 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4038,7 +4235,7 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 3,
+      "tested_hits": 4,
       "tested_statuses": [
         200,
         401
@@ -4055,7 +4252,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:8 peticiones"
+        "tests:9 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4082,7 +4279,7 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 8,
+      "tested_hits": 9,
       "tested_statuses": [
         200,
         401
@@ -4099,7 +4296,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:2 peticiones"
+        "tests:3 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4126,8 +4323,9 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 2,
+      "tested_hits": 3,
       "tested_statuses": [
+        401,
         200
       ]
     },
@@ -4142,7 +4340,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:1 peticiones"
+        "tests:2 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4169,8 +4367,9 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 1,
+      "tested_hits": 2,
       "tested_statuses": [
+        401,
         404
       ]
     },
@@ -4185,7 +4384,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:11 peticiones"
+        "tests:12 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4212,7 +4411,7 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 11,
+      "tested_hits": 12,
       "tested_statuses": [
         200,
         401
@@ -4229,7 +4428,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:6 peticiones"
+        "tests:7 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4256,7 +4455,7 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 6,
+      "tested_hits": 7,
       "tested_statuses": [
         401,
         200
@@ -4273,7 +4472,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:4 peticiones"
+        "tests:5 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4289,7 +4488,7 @@
       "path": "/docs",
       "rol_minimo_observado": "ninguno-sirve",
       "scoping_deps": [],
-      "source": "viewer/app/main.py:161",
+      "source": "viewer/app/main.py:213",
       "status_anonimo": 404,
       "status_por_rol": {
         "admin": 404,
@@ -4297,7 +4496,7 @@
         "viewer": 404
       },
       "tested": true,
-      "tested_hits": 4,
+      "tested_hits": 5,
       "tested_statuses": [
         404,
         401,
@@ -4316,11 +4515,11 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
+        "nav-contrato:app.chassis.NAV",
         "template-js:entities.html",
-        "template:base.html",
         "template:entities.html",
         "template:entity_detail.html",
-        "tests:30 peticiones"
+        "tests:32 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4330,12 +4529,12 @@
       "kind": "html",
       "linked": true,
       "linked_by": [
-        "auth/account.html:/entities",
-        "auth/admin/audit.html:/entities",
-        "auth/admin/partidas.html:/entities",
-        "auth/admin/user_detail.html:/entities",
-        "auth/admin/users.html:/entities",
-        "auth/change_password.html:/entities"
+        "auth/account.html:entities_page",
+        "auth/admin/audit.html:entities_page",
+        "auth/admin/partidas.html:entities_page",
+        "auth/admin/user_detail.html:entities_page",
+        "auth/admin/users.html:entities_page",
+        "auth/change_password.html:entities_page"
       ],
       "method": "GET",
       "module": "app.routers.readonly",
@@ -4354,7 +4553,7 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 30,
+      "tested_hits": 32,
       "tested_statuses": [
         200,
         302
@@ -4373,7 +4572,7 @@
       "consumers": [
         "js:static/js/graph.js",
         "template:entity_detail.html",
-        "tests:3 peticiones"
+        "tests:4 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4403,8 +4602,9 @@
         "viewer": 404
       },
       "tested": true,
-      "tested_hits": 3,
+      "tested_hits": 4,
       "tested_statuses": [
+        302,
         200,
         404
       ]
@@ -4422,7 +4622,7 @@
       "consumers": [
         "template:entities.html",
         "template:entity.html",
-        "tests:2 peticiones"
+        "tests:3 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4444,7 +4644,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/main.py:471",
+      "source": "viewer/app/main.py:523",
       "status_anonimo": 302,
       "status_por_rol": {
         "admin": 404,
@@ -4452,9 +4652,10 @@
         "viewer": 404
       },
       "tested": true,
-      "tested_hits": 2,
+      "tested_hits": 3,
       "tested_statuses": [
         404,
+        302,
         200
       ]
     },
@@ -4469,9 +4670,9 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:base.html",
+        "nav-contrato:app.chassis.NAV",
         "template:index.html",
-        "tests:22 peticiones"
+        "tests:24 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4481,12 +4682,12 @@
       "kind": "html",
       "linked": true,
       "linked_by": [
-        "auth/account.html:/graph",
-        "auth/admin/audit.html:/graph",
-        "auth/admin/partidas.html:/graph",
-        "auth/admin/user_detail.html:/graph",
-        "auth/admin/users.html:/graph",
-        "auth/change_password.html:/graph"
+        "auth/account.html:graph_view",
+        "auth/admin/audit.html:graph_view",
+        "auth/admin/partidas.html:graph_view",
+        "auth/admin/user_detail.html:graph_view",
+        "auth/admin/users.html:graph_view",
+        "auth/change_password.html:graph_view"
       ],
       "method": "GET",
       "module": "app.main",
@@ -4494,7 +4695,7 @@
       "path": "/graph",
       "rol_minimo_observado": "viewer",
       "scoping_deps": [],
-      "source": "viewer/app/main.py:445",
+      "source": "viewer/app/main.py:497",
       "status_anonimo": 302,
       "status_por_rol": {
         "admin": 200,
@@ -4502,9 +4703,10 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 22,
+      "tested_hits": 24,
       "tested_statuses": [
-        200
+        200,
+        302
       ]
     },
     {
@@ -4518,10 +4720,10 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
+        "nav-contrato:app.chassis.NAV",
         "template-js:jobs.html",
-        "template:base.html",
         "template:jobs.html",
-        "tests:5 peticiones"
+        "tests:7 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4531,12 +4733,12 @@
       "kind": "html",
       "linked": true,
       "linked_by": [
-        "auth/account.html:/jobs",
-        "auth/admin/audit.html:/jobs",
-        "auth/admin/partidas.html:/jobs",
-        "auth/admin/user_detail.html:/jobs",
-        "auth/admin/users.html:/jobs",
-        "auth/change_password.html:/jobs"
+        "auth/account.html:jobs_view",
+        "auth/admin/audit.html:jobs_view",
+        "auth/admin/partidas.html:jobs_view",
+        "auth/admin/user_detail.html:jobs_view",
+        "auth/admin/users.html:jobs_view",
+        "auth/change_password.html:jobs_view"
       ],
       "method": "GET",
       "module": "app.main",
@@ -4544,7 +4746,7 @@
       "path": "/jobs",
       "rol_minimo_observado": "viewer",
       "scoping_deps": [],
-      "source": "viewer/app/main.py:503",
+      "source": "viewer/app/main.py:555",
       "status_anonimo": 302,
       "status_por_rol": {
         "admin": 200,
@@ -4552,9 +4754,10 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 5,
+      "tested_hits": 7,
       "tested_statuses": [
-        200
+        200,
+        302
       ]
     },
     {
@@ -4569,7 +4772,7 @@
       "consumed": true,
       "consumers": [
         "template:jobs.html",
-        "tests:1 peticiones"
+        "tests:2 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4587,7 +4790,7 @@
       "path": "/jobs/{job_id}",
       "rol_minimo_observado": "viewer",
       "scoping_deps": [],
-      "source": "viewer/app/main.py:534",
+      "source": "viewer/app/main.py:586",
       "status_anonimo": 302,
       "status_por_rol": {
         "admin": 200,
@@ -4595,8 +4798,9 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 1,
+      "tested_hits": 2,
       "tested_statuses": [
+        302,
         200
       ]
     },
@@ -4744,7 +4948,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:1 peticiones"
+        "tests:2 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4760,7 +4964,7 @@
       "path": "/openapi.json",
       "rol_minimo_observado": "ninguno-sirve",
       "scoping_deps": [],
-      "source": "viewer/app/main.py:155",
+      "source": "viewer/app/main.py:207",
       "status_anonimo": 404,
       "status_por_rol": {
         "admin": 404,
@@ -4768,9 +4972,528 @@
         "viewer": 404
       },
       "tested": true,
-      "tested_hits": 1,
+      "tested_hits": 2,
       "tested_statuses": [
         404
+      ]
+    },
+    {
+      "authz_body_guards": [
+        "slot_guard"
+      ],
+      "authz_deps": [
+        "app.routers.readonly._guard"
+      ],
+      "authz_probe": "denegada",
+      "authz_probe_detail": "302 -> /login?next=/panel/entities",
+      "authz_static": true,
+      "capturada_por": null,
+      "consumed": true,
+      "consumers": [
+        "tests:58 peticiones"
+      ],
+      "csrf_enviado": false,
+      "defined": true,
+      "endpoint": "chassis_entities",
+      "guardian_pasivo_no_aplicado": false,
+      "key": "GET /panel/entities",
+      "kind": "html",
+      "linked": false,
+      "linked_by": [],
+      "method": "GET",
+      "module": "app.routers.chassis_entities",
+      "mounted": true,
+      "path": "/panel/entities",
+      "rol_minimo_observado": "ninguno-sirve",
+      "scoping_deps": [
+        "app.authz.dependencies.get_filtered_provider",
+        "app.deps.get_provider"
+      ],
+      "source": "viewer/app/routers/chassis_entities.py:146",
+      "status_anonimo": 302,
+      "status_por_rol": {
+        "admin": 404,
+        "reviewer": 404,
+        "viewer": 404
+      },
+      "tested": true,
+      "tested_hits": 58,
+      "tested_statuses": [
+        200,
+        302,
+        404,
+        503,
+        400
+      ]
+    },
+    {
+      "authz_body_guards": [
+        "slot_guard"
+      ],
+      "authz_deps": [
+        "app.routers.readonly._guard"
+      ],
+      "authz_probe": "denegada",
+      "authz_probe_detail": "302 -> /login?next=/panel/entities/",
+      "authz_static": true,
+      "capturada_por": null,
+      "consumed": true,
+      "consumers": [
+        "tests:2 peticiones"
+      ],
+      "csrf_enviado": false,
+      "defined": true,
+      "endpoint": "chassis_entities",
+      "guardian_pasivo_no_aplicado": false,
+      "key": "GET /panel/entities/",
+      "kind": "html",
+      "linked": false,
+      "linked_by": [],
+      "method": "GET",
+      "module": "app.routers.chassis_entities",
+      "mounted": true,
+      "path": "/panel/entities/",
+      "rol_minimo_observado": "ninguno-sirve",
+      "scoping_deps": [
+        "app.authz.dependencies.get_filtered_provider",
+        "app.deps.get_provider"
+      ],
+      "source": "viewer/app/routers/chassis_entities.py:146",
+      "status_anonimo": 302,
+      "status_por_rol": {
+        "admin": 404,
+        "reviewer": 404,
+        "viewer": 404
+      },
+      "tested": true,
+      "tested_hits": 2,
+      "tested_statuses": [
+        302
+      ]
+    },
+    {
+      "authz_body_guards": [
+        "slot_guard"
+      ],
+      "authz_deps": [
+        "app.routers.readonly._guard"
+      ],
+      "authz_probe": "denegada",
+      "authz_probe_detail": "302 -> /login?next=/panel/entities/item/probe",
+      "authz_static": true,
+      "capturada_por": null,
+      "consumed": true,
+      "consumers": [
+        "tests:43 peticiones"
+      ],
+      "csrf_enviado": false,
+      "defined": true,
+      "endpoint": "chassis_entities_item",
+      "guardian_pasivo_no_aplicado": false,
+      "key": "GET /panel/entities/item/{entity_id}",
+      "kind": "html",
+      "linked": false,
+      "linked_by": [],
+      "method": "GET",
+      "module": "app.routers.chassis_entities",
+      "mounted": true,
+      "path": "/panel/entities/item/{entity_id}",
+      "rol_minimo_observado": "viewer",
+      "scoping_deps": [
+        "app.authz.dependencies.get_filtered_provider",
+        "app.deps.get_provider"
+      ],
+      "source": "viewer/app/routers/chassis_entities.py:214",
+      "status_anonimo": 302,
+      "status_por_rol": {
+        "admin": 404,
+        "reviewer": 404,
+        "viewer": 404
+      },
+      "tested": true,
+      "tested_hits": 43,
+      "tested_statuses": [
+        302,
+        404,
+        200,
+        503
+      ]
+    },
+    {
+      "authz_body_guards": [
+        "slot_guard"
+      ],
+      "authz_deps": [
+        "app.auth.dependencies.require_admin",
+        "app.auth.dependencies.require_authenticated_user"
+      ],
+      "authz_probe": "denegada",
+      "authz_probe_detail": "401",
+      "authz_static": true,
+      "capturada_por": null,
+      "consumed": true,
+      "consumers": [
+        "tests:55 peticiones"
+      ],
+      "csrf_enviado": false,
+      "defined": true,
+      "endpoint": "chassis_operations",
+      "guardian_pasivo_no_aplicado": false,
+      "key": "GET /panel/operations",
+      "kind": "html",
+      "linked": false,
+      "linked_by": [],
+      "method": "GET",
+      "module": "app.routers.chassis_operations",
+      "mounted": true,
+      "path": "/panel/operations",
+      "rol_minimo_observado": "ninguno-sirve",
+      "scoping_deps": [
+        "app.authz.dependencies.get_visibility_scope"
+      ],
+      "source": "viewer/app/routers/chassis_operations.py:280",
+      "status_anonimo": 401,
+      "status_por_rol": {
+        "admin": 404,
+        "reviewer": 403,
+        "viewer": 403
+      },
+      "tested": true,
+      "tested_hits": 55,
+      "tested_statuses": [
+        200,
+        403,
+        302,
+        404,
+        400,
+        503,
+        422
+      ]
+    },
+    {
+      "authz_body_guards": [
+        "slot_guard"
+      ],
+      "authz_deps": [
+        "app.auth.dependencies.require_admin",
+        "app.auth.dependencies.require_authenticated_user"
+      ],
+      "authz_probe": "denegada",
+      "authz_probe_detail": "401",
+      "authz_static": true,
+      "capturada_por": null,
+      "consumed": true,
+      "consumers": [
+        "tests:2 peticiones"
+      ],
+      "csrf_enviado": false,
+      "defined": true,
+      "endpoint": "chassis_operations",
+      "guardian_pasivo_no_aplicado": false,
+      "key": "GET /panel/operations/",
+      "kind": "html",
+      "linked": false,
+      "linked_by": [],
+      "method": "GET",
+      "module": "app.routers.chassis_operations",
+      "mounted": true,
+      "path": "/panel/operations/",
+      "rol_minimo_observado": "ninguno-sirve",
+      "scoping_deps": [
+        "app.authz.dependencies.get_visibility_scope"
+      ],
+      "source": "viewer/app/routers/chassis_operations.py:280",
+      "status_anonimo": 401,
+      "status_por_rol": {
+        "admin": 404,
+        "reviewer": 403,
+        "viewer": 403
+      },
+      "tested": true,
+      "tested_hits": 2,
+      "tested_statuses": [
+        302
+      ]
+    },
+    {
+      "authz_body_guards": [
+        "slot_guard"
+      ],
+      "authz_deps": [
+        "app.routers.readonly._guard"
+      ],
+      "authz_probe": "denegada",
+      "authz_probe_detail": "302 -> /login?next=/panel/review",
+      "authz_static": true,
+      "capturada_por": null,
+      "consumed": true,
+      "consumers": [
+        "tests:50 peticiones"
+      ],
+      "csrf_enviado": false,
+      "defined": true,
+      "endpoint": "chassis_review",
+      "guardian_pasivo_no_aplicado": false,
+      "key": "GET /panel/review",
+      "kind": "html",
+      "linked": false,
+      "linked_by": [],
+      "method": "GET",
+      "module": "app.routers.chassis_review",
+      "mounted": true,
+      "path": "/panel/review",
+      "rol_minimo_observado": "ninguno-sirve",
+      "scoping_deps": [
+        "app.authz.dependencies.get_visibility_scope"
+      ],
+      "source": "viewer/app/routers/chassis_review.py:132",
+      "status_anonimo": 302,
+      "status_por_rol": {
+        "admin": 404,
+        "reviewer": 404,
+        "viewer": 403
+      },
+      "tested": true,
+      "tested_hits": 50,
+      "tested_statuses": [
+        200,
+        403,
+        302,
+        404,
+        503,
+        400
+      ]
+    },
+    {
+      "authz_body_guards": [
+        "slot_guard"
+      ],
+      "authz_deps": [
+        "app.routers.readonly._guard"
+      ],
+      "authz_probe": "denegada",
+      "authz_probe_detail": "302 -> /login?next=/panel/review/",
+      "authz_static": true,
+      "capturada_por": null,
+      "consumed": true,
+      "consumers": [
+        "tests:2 peticiones"
+      ],
+      "csrf_enviado": false,
+      "defined": true,
+      "endpoint": "chassis_review",
+      "guardian_pasivo_no_aplicado": false,
+      "key": "GET /panel/review/",
+      "kind": "html",
+      "linked": false,
+      "linked_by": [],
+      "method": "GET",
+      "module": "app.routers.chassis_review",
+      "mounted": true,
+      "path": "/panel/review/",
+      "rol_minimo_observado": "ninguno-sirve",
+      "scoping_deps": [
+        "app.authz.dependencies.get_visibility_scope"
+      ],
+      "source": "viewer/app/routers/chassis_review.py:132",
+      "status_anonimo": 302,
+      "status_por_rol": {
+        "admin": 404,
+        "reviewer": 404,
+        "viewer": 403
+      },
+      "tested": true,
+      "tested_hits": 2,
+      "tested_statuses": [
+        302
+      ]
+    },
+    {
+      "authz_body_guards": [
+        "slot_guard"
+      ],
+      "authz_deps": [
+        "app.routers.readonly._guard"
+      ],
+      "authz_probe": "denegada",
+      "authz_probe_detail": "302 -> /login?next=/panel/review/item/probe",
+      "authz_static": true,
+      "capturada_por": null,
+      "consumed": true,
+      "consumers": [
+        "tests:16 peticiones"
+      ],
+      "csrf_enviado": false,
+      "defined": true,
+      "endpoint": "chassis_review_item",
+      "guardian_pasivo_no_aplicado": false,
+      "key": "GET /panel/review/item/{proposal_id}",
+      "kind": "html",
+      "linked": false,
+      "linked_by": [],
+      "method": "GET",
+      "module": "app.routers.chassis_review",
+      "mounted": true,
+      "path": "/panel/review/item/{proposal_id}",
+      "rol_minimo_observado": "reviewer",
+      "scoping_deps": [
+        "app.authz.dependencies.get_visibility_scope"
+      ],
+      "source": "viewer/app/routers/chassis_review.py:196",
+      "status_anonimo": 302,
+      "status_por_rol": {
+        "admin": 404,
+        "reviewer": 404,
+        "viewer": 403
+      },
+      "tested": true,
+      "tested_hits": 16,
+      "tested_statuses": [
+        302,
+        404,
+        200
+      ]
+    },
+    {
+      "authz_body_guards": [
+        "slot_guard"
+      ],
+      "authz_deps": [
+        "app.routers.readonly._guard"
+      ],
+      "authz_probe": "denegada",
+      "authz_probe_detail": "302 -> /login?next=/panel/sources",
+      "authz_static": true,
+      "capturada_por": null,
+      "consumed": true,
+      "consumers": [
+        "tests:64 peticiones"
+      ],
+      "csrf_enviado": false,
+      "defined": true,
+      "endpoint": "chassis_sources",
+      "guardian_pasivo_no_aplicado": false,
+      "key": "GET /panel/sources",
+      "kind": "html",
+      "linked": false,
+      "linked_by": [],
+      "method": "GET",
+      "module": "app.routers.chassis_sources",
+      "mounted": true,
+      "path": "/panel/sources",
+      "rol_minimo_observado": "ninguno-sirve",
+      "scoping_deps": [
+        "app.authz.dependencies.get_filtered_provider",
+        "app.deps.get_provider"
+      ],
+      "source": "viewer/app/routers/chassis_sources.py:360",
+      "status_anonimo": 302,
+      "status_por_rol": {
+        "admin": 404,
+        "reviewer": 404,
+        "viewer": 403
+      },
+      "tested": true,
+      "tested_hits": 64,
+      "tested_statuses": [
+        200,
+        403,
+        302,
+        404,
+        503
+      ]
+    },
+    {
+      "authz_body_guards": [
+        "slot_guard"
+      ],
+      "authz_deps": [
+        "app.routers.readonly._guard"
+      ],
+      "authz_probe": "denegada",
+      "authz_probe_detail": "302 -> /login?next=/panel/sources/",
+      "authz_static": true,
+      "capturada_por": null,
+      "consumed": true,
+      "consumers": [
+        "tests:2 peticiones"
+      ],
+      "csrf_enviado": false,
+      "defined": true,
+      "endpoint": "chassis_sources",
+      "guardian_pasivo_no_aplicado": false,
+      "key": "GET /panel/sources/",
+      "kind": "html",
+      "linked": false,
+      "linked_by": [],
+      "method": "GET",
+      "module": "app.routers.chassis_sources",
+      "mounted": true,
+      "path": "/panel/sources/",
+      "rol_minimo_observado": "ninguno-sirve",
+      "scoping_deps": [
+        "app.authz.dependencies.get_filtered_provider",
+        "app.deps.get_provider"
+      ],
+      "source": "viewer/app/routers/chassis_sources.py:360",
+      "status_anonimo": 302,
+      "status_por_rol": {
+        "admin": 404,
+        "reviewer": 404,
+        "viewer": 403
+      },
+      "tested": true,
+      "tested_hits": 2,
+      "tested_statuses": [
+        302
+      ]
+    },
+    {
+      "authz_body_guards": [
+        "slot_guard"
+      ],
+      "authz_deps": [
+        "app.routers.readonly._guard"
+      ],
+      "authz_probe": "denegada",
+      "authz_probe_detail": "302 -> /login?next=/panel/sources/ficha/probe",
+      "authz_static": true,
+      "capturada_por": null,
+      "consumed": true,
+      "consumers": [
+        "tests:12 peticiones"
+      ],
+      "csrf_enviado": false,
+      "defined": true,
+      "endpoint": "chassis_sources_item",
+      "guardian_pasivo_no_aplicado": false,
+      "key": "GET /panel/sources/ficha/{handle}",
+      "kind": "html",
+      "linked": false,
+      "linked_by": [],
+      "method": "GET",
+      "module": "app.routers.chassis_sources",
+      "mounted": true,
+      "path": "/panel/sources/ficha/{handle}",
+      "rol_minimo_observado": "reviewer",
+      "scoping_deps": [
+        "app.authz.dependencies.get_filtered_provider",
+        "app.deps.get_provider"
+      ],
+      "source": "viewer/app/routers/chassis_sources.py:387",
+      "status_anonimo": 302,
+      "status_por_rol": {
+        "admin": 404,
+        "reviewer": 404,
+        "viewer": 403
+      },
+      "tested": true,
+      "tested_hits": 12,
+      "tested_statuses": [
+        302,
+        404,
+        200,
+        503
       ]
     },
     {
@@ -4786,7 +5509,7 @@
       "consumers": [
         "template-js:base.html",
         "template:base.html",
-        "tests:31 peticiones"
+        "tests:32 peticiones"
       ],
       "csrf_enviado": true,
       "defined": true,
@@ -4817,11 +5540,11 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 31,
+      "tested_hits": 32,
       "tested_statuses": [
+        422,
         302,
         403,
-        422,
         400,
         401
       ]
@@ -4839,7 +5562,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:2 peticiones"
+        "tests:3 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4866,7 +5589,7 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 2,
+      "tested_hits": 3,
       "tested_statuses": [
         302,
         200
@@ -4883,7 +5606,7 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "tests:1 peticiones"
+        "tests:2 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4899,7 +5622,7 @@
       "path": "/redoc",
       "rol_minimo_observado": "ninguno-sirve",
       "scoping_deps": [],
-      "source": "viewer/app/main.py:168",
+      "source": "viewer/app/main.py:220",
       "status_anonimo": 404,
       "status_por_rol": {
         "admin": 404,
@@ -4907,7 +5630,7 @@
         "viewer": 404
       },
       "tested": true,
-      "tested_hits": 1,
+      "tested_hits": 2,
       "tested_statuses": [
         404
       ]
@@ -4924,7 +5647,7 @@
       "consumed": true,
       "consumers": [
         "template:reviews_console_source.html",
-        "tests:7 peticiones"
+        "tests:8 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -4950,10 +5673,10 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 7,
+      "tested_hits": 8,
       "tested_statuses": [
-        200,
-        302
+        302,
+        200
       ]
     },
     {
@@ -4965,8 +5688,10 @@
       "authz_probe_detail": "302 -> /login?next=/review-console/",
       "authz_static": true,
       "capturada_por": null,
-      "consumed": false,
-      "consumers": [],
+      "consumed": true,
+      "consumers": [
+        "tests:1 peticiones"
+      ],
       "csrf_enviado": false,
       "defined": true,
       "endpoint": "inbox",
@@ -4990,9 +5715,11 @@
         "reviewer": 200,
         "viewer": 403
       },
-      "tested": false,
-      "tested_hits": 0,
-      "tested_statuses": []
+      "tested": true,
+      "tested_hits": 1,
+      "tested_statuses": [
+        302
+      ]
     },
     {
       "authz_body_guards": [
@@ -5006,7 +5733,7 @@
       "consumed": true,
       "consumers": [
         "template:reviews_console.html",
-        "tests:8 peticiones"
+        "tests:9 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -5032,8 +5759,9 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 8,
+      "tested_hits": 9,
       "tested_statuses": [
+        302,
         200,
         404
       ]
@@ -5050,7 +5778,7 @@
       "consumed": true,
       "consumers": [
         "template:reviews_console_source.html",
-        "tests:7 peticiones"
+        "tests:8 peticiones"
       ],
       "csrf_enviado": true,
       "defined": true,
@@ -5076,8 +5804,9 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 7,
+      "tested_hits": 8,
       "tested_statuses": [
+        422,
         400,
         303
       ]
@@ -5093,9 +5822,9 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:base.html",
+        "nav-contrato:app.chassis.NAV",
         "template:reviews_detail.html",
-        "tests:7 peticiones"
+        "tests:9 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -5105,12 +5834,12 @@
       "kind": "html",
       "linked": true,
       "linked_by": [
-        "auth/account.html:/reviews",
-        "auth/admin/audit.html:/reviews",
-        "auth/admin/partidas.html:/reviews",
-        "auth/admin/user_detail.html:/reviews",
-        "auth/admin/users.html:/reviews",
-        "auth/change_password.html:/reviews"
+        "auth/account.html:reviews_view",
+        "auth/admin/audit.html:reviews_view",
+        "auth/admin/partidas.html:reviews_view",
+        "auth/admin/user_detail.html:reviews_view",
+        "auth/admin/users.html:reviews_view",
+        "auth/change_password.html:reviews_view"
       ],
       "method": "GET",
       "module": "app.main",
@@ -5118,7 +5847,7 @@
       "path": "/reviews",
       "rol_minimo_observado": "reviewer",
       "scoping_deps": [],
-      "source": "viewer/app/main.py:551",
+      "source": "viewer/app/main.py:603",
       "status_anonimo": 302,
       "status_por_rol": {
         "admin": 200,
@@ -5126,10 +5855,11 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 7,
+      "tested_hits": 9,
       "tested_statuses": [
         403,
-        200
+        200,
+        302
       ]
     },
     {
@@ -5144,7 +5874,7 @@
       "consumed": true,
       "consumers": [
         "template:reviews.html",
-        "tests:9 peticiones"
+        "tests:10 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -5162,7 +5892,7 @@
       "path": "/reviews/{source_id}",
       "rol_minimo_observado": "reviewer",
       "scoping_deps": [],
-      "source": "viewer/app/main.py:565",
+      "source": "viewer/app/main.py:617",
       "status_anonimo": 302,
       "status_por_rol": {
         "admin": 404,
@@ -5170,9 +5900,10 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 9,
+      "tested_hits": 10,
       "tested_statuses": [
         200,
+        302,
         404
       ]
     },
@@ -5189,9 +5920,9 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:base.html",
+        "nav-contrato:app.chassis.NAV",
         "template:source_detail.html",
-        "tests:4 peticiones"
+        "tests:6 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -5201,12 +5932,12 @@
       "kind": "html",
       "linked": true,
       "linked_by": [
-        "auth/account.html:/sources",
-        "auth/admin/audit.html:/sources",
-        "auth/admin/partidas.html:/sources",
-        "auth/admin/user_detail.html:/sources",
-        "auth/admin/users.html:/sources",
-        "auth/change_password.html:/sources"
+        "auth/account.html:sources_page",
+        "auth/admin/audit.html:sources_page",
+        "auth/admin/partidas.html:sources_page",
+        "auth/admin/user_detail.html:sources_page",
+        "auth/admin/users.html:sources_page",
+        "auth/change_password.html:sources_page"
       ],
       "method": "GET",
       "module": "app.routers.readonly",
@@ -5225,10 +5956,11 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 4,
+      "tested_hits": 6,
       "tested_statuses": [
-        403,
-        200
+        200,
+        302,
+        403
       ]
     },
     {
@@ -5245,7 +5977,7 @@
       "consumed": true,
       "consumers": [
         "template:sources.html",
-        "tests:1 peticiones"
+        "tests:2 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -5274,8 +6006,9 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 1,
+      "tested_hits": 2,
       "tested_statuses": [
+        302,
         404
       ]
     },
@@ -5290,9 +6023,9 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
-        "template:base.html",
+        "nav-contrato:app.chassis.NAV",
         "template:index.html",
-        "tests:2 peticiones"
+        "tests:4 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -5302,12 +6035,12 @@
       "kind": "html",
       "linked": true,
       "linked_by": [
-        "auth/account.html:/status",
-        "auth/admin/audit.html:/status",
-        "auth/admin/partidas.html:/status",
-        "auth/admin/user_detail.html:/status",
-        "auth/admin/users.html:/status",
-        "auth/change_password.html:/status"
+        "auth/account.html:status_view",
+        "auth/admin/audit.html:status_view",
+        "auth/admin/partidas.html:status_view",
+        "auth/admin/user_detail.html:status_view",
+        "auth/admin/users.html:status_view",
+        "auth/change_password.html:status_view"
       ],
       "method": "GET",
       "module": "app.main",
@@ -5318,7 +6051,7 @@
         "app.authz.dependencies.get_filtered_provider",
         "app.deps.get_provider"
       ],
-      "source": "viewer/app/main.py:462",
+      "source": "viewer/app/main.py:514",
       "status_anonimo": 302,
       "status_por_rol": {
         "admin": 200,
@@ -5326,9 +6059,10 @@
         "viewer": 200
       },
       "tested": true,
-      "tested_hits": 2,
+      "tested_hits": 4,
       "tested_statuses": [
-        200
+        200,
+        302
       ]
     },
     {
@@ -5342,10 +6076,10 @@
       "capturada_por": null,
       "consumed": true,
       "consumers": [
+        "nav-contrato:app.chassis.NAV",
         "template-js:v3_review.html",
-        "template:base.html",
         "template:v3_review.html",
-        "tests:24 peticiones"
+        "tests:26 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -5355,12 +6089,12 @@
       "kind": "html",
       "linked": true,
       "linked_by": [
-        "auth/account.html:/v3/review",
-        "auth/admin/audit.html:/v3/review",
-        "auth/admin/partidas.html:/v3/review",
-        "auth/admin/user_detail.html:/v3/review",
-        "auth/admin/users.html:/v3/review",
-        "auth/change_password.html:/v3/review"
+        "auth/account.html:queue",
+        "auth/admin/audit.html:queue",
+        "auth/admin/partidas.html:queue",
+        "auth/admin/user_detail.html:queue",
+        "auth/admin/users.html:queue",
+        "auth/change_password.html:queue"
       ],
       "method": "GET",
       "module": "app.routers.v3_review",
@@ -5378,7 +6112,7 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 24,
+      "tested_hits": 26,
       "tested_statuses": [
         200,
         302,
@@ -5395,8 +6129,10 @@
       "authz_probe_detail": "302 -> /login?next=/v3/review/",
       "authz_static": true,
       "capturada_por": null,
-      "consumed": false,
-      "consumers": [],
+      "consumed": true,
+      "consumers": [
+        "tests:1 peticiones"
+      ],
       "csrf_enviado": false,
       "defined": true,
       "endpoint": "queue",
@@ -5420,9 +6156,11 @@
         "reviewer": 200,
         "viewer": 403
       },
-      "tested": false,
-      "tested_hits": 0,
-      "tested_statuses": []
+      "tested": true,
+      "tested_hits": 1,
+      "tested_statuses": [
+        302
+      ]
     },
     {
       "authz_body_guards": [
@@ -5437,7 +6175,7 @@
       "consumers": [
         "template-js:v3_review.html",
         "template:v3_review.html",
-        "tests:21 peticiones"
+        "tests:22 peticiones"
       ],
       "csrf_enviado": true,
       "defined": true,
@@ -5465,8 +6203,9 @@
         "viewer": 403
       },
       "tested": true,
-      "tested_hits": 21,
+      "tested_hits": 22,
       "tested_statuses": [
+        422,
         400,
         303,
         302,
@@ -5485,7 +6224,8 @@
       "consumed": true,
       "consumers": [
         "template-js:v3_glossary_candidates.html",
-        "template:v3_glossary_candidates.html"
+        "template:v3_glossary_candidates.html",
+        "tests:1 peticiones"
       ],
       "csrf_enviado": false,
       "defined": true,
@@ -5510,9 +6250,11 @@
         "reviewer": 200,
         "viewer": 403
       },
-      "tested": false,
-      "tested_hits": 0,
-      "tested_statuses": []
+      "tested": true,
+      "tested_hits": 1,
+      "tested_statuses": [
+        302
+      ]
     },
     {
       "authz_body_guards": [
@@ -5526,7 +6268,8 @@
       "consumed": true,
       "consumers": [
         "template-js:v3_review.html",
-        "template:v3_review.html"
+        "template:v3_review.html",
+        "tests:1 peticiones"
       ],
       "csrf_enviado": true,
       "defined": true,
@@ -5553,9 +6296,11 @@
         "reviewer": 400,
         "viewer": 403
       },
-      "tested": false,
-      "tested_hits": 0,
-      "tested_statuses": []
+      "tested": true,
+      "tested_hits": 1,
+      "tested_statuses": [
+        422
+      ]
     }
   ],
   "tested_meta": {

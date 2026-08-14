@@ -106,8 +106,149 @@ def load_real_app(repo: Path):
 # 1) mounted — verdad de campo tomada del enrutador de la app real
 # --------------------------------------------------------------------------
 
+#: Marca del `kind` de una entrada que el censo NO puede caracterizar del todo.
+#: No es una ruta menos: es una ruta de la que este instrumento no sabe lo
+#: suficiente para afirmar nada sobre ella, y por eso pone el informe en ROJO.
+KIND_OPACO = "opaco"
+
+
+def _criterios():
+    """Los criterios de censo del CHASIS. No se reimplementan aquí.
+
+    `viewer/app/chassis.py` ya resolvió esta familia exacta (composición del
+    prefijo de los `Mount`, `methods` tri-estado, `path` tri-estado, filtro de
+    prefijo por segmentos) y sus tres consumidores la comparten. Un quinto censo
+    con criterios propios sería peor que el defecto que se viene a arreglar:
+    dos instrumentos capaces de discrepar sobre qué rutas existen.
+
+    Lo que NO se puede compartir es el RECORRIDO: `chassis._walk` emite objetos
+    `Route`, y este mapa necesita además el `dependant` con las dependencias del
+    `include_router` ya combinadas (`ctx.dependant`), que sólo existe en los
+    contextos de FastAPI y que `_walk` descarta. Así que el recorrido es propio
+    y los CRITERIOS son importados: es la parte que puede divergir en silencio.
+
+    FALLA CERRADO: si el chasis no se puede importar, no hay criterio que
+    aplicar y el censo no se emite a medias.
+    """
+    import importlib
+
+    try:
+        return importlib.import_module("app.chassis")
+    except Exception as exc:  # pragma: no cover - rama sin chasis
+        raise RuntimeError(
+            "el censo de rutas necesita los criterios de `app.chassis` "
+            f"(methods/path tri-estado, composición de Mount) y no se pudo importar: {exc!r}"
+        ) from exc
+
+
+def _tipos_http():
+    from fastapi.routing import APIRoute
+    from starlette.routing import Route
+
+    return (APIRoute, Route)
+
+
+def _opaca(obj, prefijo: str, ch, motivo: str) -> tuple:
+    """Entrada que el censo no sabe caracterizar. Se EMITE, nunca se salta."""
+    crudo = ch.effective_path(obj)
+    path = ch.PATH_NOT_RESOLVABLE if crudo is None else ch._join(prefijo, crudo)
+    return (path, [ch.METHODS_NOT_ENUMERABLE], None, None, obj, KIND_OPACO, motivo)
+
+
+def _hoja(r, prefijo: str, ch, dependant=None, endpoint=None, metodos_ctx=None,
+          path_ctx: str | None = None) -> tuple:
+    """Una ruta terminal, ya con la URL EFECTIVA compuesta.
+
+    Tres cosas pueden faltar, y ninguna se sustituye por el valor benigno:
+    el `path` (antes se emitía `''`), los `methods` (antes `or {"GET"}`: la
+    ausencia de dato se convertía en «sólo lee») y el propio tipo de ruta
+    (antes, lo que no fuese `APIRoute`/`Route` —un `APIWebSocketRoute`, por
+    ejemplo— desaparecía del censo ENTERO sin dejar rastro).
+    """
+    crudo = path_ctx if path_ctx else ch.effective_path(r)
+    metodos = metodos_ctx if metodos_ctx is not None else ch.enumerable_methods(r)
+    if crudo is None:
+        return _opaca(r, prefijo, ch, "path-no-resoluble")
+    if metodos is None:
+        return _opaca(r, prefijo, ch, "metodos-no-enumerables")
+    if not isinstance(r, _tipos_http()):
+        return _opaca(r, prefijo, ch, f"tipo-de-ruta-desconocido:{type(r).__name__}")
+    return (ch._join(prefijo, crudo), sorted(metodos),
+            dependant if dependant is not None else getattr(r, "dependant", None),
+            endpoint if endpoint is not None else getattr(r, "endpoint", None),
+            r, "route", "")
+
+
+def _walk_efectivo(routes, prefijo: str, ch):
+    for r in routes:
+        yield from _nodo(r, prefijo, ch)
+
+
+def _nodo(r, prefijo: str, ch):
+    """Un nodo del árbol de rutas: router incluido, contenedor u hoja."""
+    ctxs = getattr(r, "effective_route_contexts", None)
+    if callable(ctxs):
+        # Router incluido: FastAPI ya resolvió el prefijo del include dentro del
+        # path de cada contexto, así que el prefijo de MONTAJE sólo se propaga.
+        contextos = list(ctxs())
+        low = getattr(r, "effective_low_priority_routes", None)
+        if callable(low):
+            contextos += list(low())
+        for ctx in contextos:
+            yield from _nodo_ctx(ctx, prefijo, ch)
+        return
+    sub = getattr(r, "routes", None)
+    if sub is not None and not hasattr(r, "endpoint"):
+        # `Mount`. Sus rutas internas llevan el path RELATIVO al punto de
+        # montaje: se ARRASTRA el prefijo y se desciende, en vez de emitir una
+        # fila opaca `MOUNT` que ocultaba el árbol entero de debajo.
+        propio = ch.effective_path(r)
+        if propio is None:
+            yield _opaca(r, prefijo, ch, "montaje-con-path-no-resoluble")
+            return
+        if not list(sub):
+            # App ASGI que no expone rutas (`StaticFiles`, un ASGI a pelo): no se
+            # puede enumerar lo que sirve. NO se calla; se declara opaca.
+            yield _opaca(r, prefijo, ch, "montaje-no-enumerable")
+            return
+        yield from _walk_efectivo(sub, ch._join(prefijo, propio), ch)
+        return
+    yield _hoja(r, prefijo, ch)
+
+
+def _nodo_ctx(ctx, prefijo: str, ch):
+    """Un contexto de ruta efectiva de un router incluido.
+
+    Punto ciego medido en el chasis: un `Mount` dentro de un `APIRouter`
+    incluido llega con `ctx.path == ''` (FastAPI sólo rellena el contexto de las
+    rutas de API) y con la ruta de Starlette subyacente ya compuesta. Sin bajar
+    a ella, todo lo que cuelgue de ese `Mount` desaparece del censo.
+    """
+    original = getattr(ctx, "original_route", None)
+    path_ctx = ch.effective_path(ctx)
+    if path_ctx is None:
+        real = getattr(ctx, "starlette_route", None) or original
+        if real is not None:
+            yield from _nodo(real, prefijo, ch)
+            return
+        yield _opaca(ctx, prefijo, ch, "contexto-sin-path-ni-ruta-subyacente")
+        return
+    if original is not None and getattr(original, "routes", None) is not None \
+            and not hasattr(original, "endpoint"):
+        yield from _nodo(original, prefijo, ch)
+        return
+    metodos = ch.enumerable_methods(ctx)
+    if metodos is None and original is not None:
+        metodos = ch.enumerable_methods(original)
+    base = original if original is not None else ctx
+    yield _hoja(base, prefijo, ch,
+                dependant=getattr(ctx, "dependant", None),
+                endpoint=getattr(ctx, "endpoint", None) or getattr(base, "endpoint", None),
+                metodos_ctx=metodos, path_ctx=path_ctx)
+
+
 def iter_effective_routes(app):
-    """Aplana el enrutador REAL a rutas efectivas.
+    """Aplana el enrutador REAL a rutas efectivas. FALLA CERRADO.
 
     FastAPI >= 0.13x no aplana `include_router`: deja objetos `_IncludedRouter`
     que resuelven sus rutas efectivas en tiempo de petición. Enumerar sólo
@@ -116,38 +257,54 @@ def iter_effective_routes(app):
     las dependencias del include ya combinadas, y el objeto Route ORIGINAL que
     realmente atiende la petición (que es el que instrumenta la sonda).
 
-    Devuelve tuplas (path, methods, dependant, endpoint, handler_route, kind).
-    """
-    try:
-        from fastapi.routing import _IncludedRouter
-    except ImportError:  # pragma: no cover - versiones antiguas de FastAPI
-        _IncludedRouter = ()
-    from fastapi.routing import APIRoute
-    from starlette.routing import Mount, Route
+    Y se desciende por los `Mount` a cualquier profundidad componiendo la URL
+    efectiva. Lo que no se pueda caracterizar (montaje no enumerable, métodos no
+    enumerables, path irresoluble, tipo de ruta desconocido) se emite con
+    `kind=="opaco"` y pone el informe en ROJO: un hueco del censo no es una
+    ausencia de hallazgo.
 
-    for r in app.router.routes:
-        if _IncludedRouter and isinstance(r, _IncludedRouter):
-            ctxs = list(r.effective_route_contexts()) + list(r.effective_low_priority_routes())
-            for ctx in ctxs:
-                original = ctx.original_route
-                yield (ctx.path or getattr(original, "path", ""),
-                       sorted(ctx.methods or getattr(original, "methods", {"GET"})),
-                       ctx.dependant, ctx.endpoint or getattr(original, "endpoint", None),
-                       original, "route")
-        elif isinstance(r, Mount):
-            yield (r.path, ["MOUNT"], None, None, r, "mount")
-        elif isinstance(r, (APIRoute, Route)):
-            yield (r.path, sorted(r.methods or {"GET"}), getattr(r, "dependant", None),
-                   r.endpoint, r, "route")
+    Devuelve tuplas (path, methods, dependant, endpoint, handler_route, kind,
+    motivo).
+    """
+    ch = _criterios()
+    yield from _walk_efectivo(app.router.routes, "", ch)
+
+
+def rutas_con_path_resoluble(rows, ch=None) -> list:
+    """Rutas que cuentan para el suelo de plausibilidad del censo.
+
+    Cuentan SÓLO las de path resoluble. Si las opacas contasen, el suelo se
+    satisfaría solo: una app cuyo censo entero fuese opaco pasaría por «censo no
+    vacío» sin que el instrumento hubiera caracterizado ni una ruta.
+    """
+    ch = ch or _criterios()
+    return [r for r in rows if r.get("path") != ch.PATH_NOT_RESOLVABLE]
+
+
+def censo_vacio_findings(rows, ch=None) -> list[dict]:
+    """Hallazgo del CASO VACÍO: 0 rutas observadas es ROJO, no verde silencioso."""
+    if rutas_con_path_resoluble(rows, ch):
+        return []
+    return [{
+        "key": "__censo_vacio__",
+        "detalle": ("el censo no devolvió NINGUNA ruta con path resoluble: un mapa "
+                    "sin rutas no es un mapa limpio, es un instrumento que no ha "
+                    "observado nada. Todo hallazgo de este informe sería vacío por "
+                    "no haber mirado"),
+    }]
 
 
 def collect_mounted(app) -> list[dict]:
+    ch = _criterios()
     out: list[dict] = []
-    for path, methods, dependant, endpoint, _handler, kind in iter_effective_routes(app):
-        if kind == "mount":
+    for path, methods, dependant, endpoint, _handler, kind, motivo in iter_effective_routes(app):
+        if kind == KIND_OPACO:
             out.append({
-                "key": f"MOUNT {path}", "path": path, "method": "MOUNT",
-                "kind": "mount", "endpoint": getattr(_handler, "name", ""),
+                "key": f"{ch.METHODS_NOT_ENUMERABLE} {path}", "path": path,
+                "method": ch.METHODS_NOT_ENUMERABLE,
+                "kind": KIND_OPACO, "motivo": motivo,
+                "tipo": type(_handler).__name__,
+                "endpoint": str(getattr(_handler, "name", "") or ""),
                 "source": "", "deps": [], "scoping_deps": [], "body_guards": [],
             })
             continue
@@ -686,7 +843,7 @@ def _install_resolver(app) -> list:
 
         route.handle = _handle
 
-    for path, _m, _d, _e, handler_route, kind in iter_effective_routes(app):
+    for path, _m, _d, _e, handler_route, kind, _motivo in iter_effective_routes(app):
         if kind == "route":
             _wrap(handler_route, path)
     return registro
@@ -726,7 +883,7 @@ def probe_main(repo: Path, out_path: Path) -> None:
     results: dict[str, dict] = {}
     registro = _install_resolver(app)
     with TestClient(app, follow_redirects=False) as client:
-        routes = [r for r in collect_mounted(app) if r["method"] != "MOUNT"]
+        routes = [r for r in collect_mounted(app) if r["kind"] != KIND_OPACO]
 
         secret = get_auth_settings().S9K_CSRF_SECRET
         csrf_anonimo = _csrf_para(0, "", secret)
@@ -998,8 +1155,10 @@ def _motivo_contradiccion(r: dict) -> str:
 def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
               head_label: str = "") -> dict:
     app = load_real_app(repo)
+    ch = _criterios()
     mounted = collect_mounted(app)
-    mounted_routes = [r for r in mounted if r["method"] != "MOUNT"]
+    mounted_routes = [r for r in mounted if r["kind"] != KIND_OPACO]
+    opacas = [r for r in mounted if r["kind"] == KIND_OPACO]
     defined = collect_defined(repo)
     links = collect_links(repo)
     handler_tpls = collect_handler_templates(repo)
@@ -1176,6 +1335,13 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
             for r in rows if _motivo_contradiccion(r)
         ],
     }
+    # --- fail-closed del propio CENSO ------------------------------------
+    # Un hueco del censo NO es una ausencia de hallazgo. Estas dos entradas son
+    # las que ponen el informe en ROJO (salida != 0), porque sin ellas el
+    # instrumento afirmaba «0 rutas SIN-AUTH» sobre un censo que se había dejado
+    # fuera un `Mount` entero, un WebSocket y toda ruta sin métodos enumerables.
+    findings["censo_opaco"] = opacas
+    findings["censo_vacio"] = censo_vacio_findings(rows, ch)
     contaminacion = (csrf_control or {}).get("contaminacion_usuarios") or []
     findings["barrido_contamino_la_db"] = ([{
         "key": "__contaminacion__",
@@ -1212,6 +1378,9 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
         "head": head_label or _head(repo),
         "counts": {
             "definidas": len(defined), "montadas": len(rows),
+            # Entradas que el censo NO pudo caracterizar. No es una métrica
+            # decorativa: mientras no sea 0, el informe es incompleto y rojo.
+            "opacas_no_caracterizadas": len(opacas),
             "enlazadas": sum(r["linked"] for r in rows),
             "probadas": sum(r["tested"] for r in rows),
             "autorizadas": len(denegadas),
@@ -1336,7 +1505,17 @@ def render_md(m: dict) -> str:
          f"- probadas de verdad (sonda pytest): **{c['probadas']}**",
          f"- deniegan petición anónima con auth ON: **{c['autorizadas']}**"
          + _desglose_titular(m),
-         f"- consumidas: **{c['consumidas']}**", "",
+         f"- consumidas: **{c['consumidas']}**",
+         f"- **entradas OPACAS (censo incompleto): {c.get('opacas_no_caracterizadas', 0)}**"
+         + (" — el censo está completo" if not c.get("opacas_no_caracterizadas")
+            else " — **este informe NO puede citarse como garantía**: hay rutas que "
+                 "el censo no ha podido caracterizar y cuya autorización no se ha "
+                 "medido; ver `findings.censo_opaco`"), "",]
+    if m["findings"].get("censo_vacio"):
+        L += ["> **CENSO VACÍO: ROJO.** No se observó ninguna ruta con path "
+              "resoluble. Todos los hallazgos de abajo son vacíos por no haber "
+              "mirado, no por estar limpio.", ""]
+    L += [
          "> Medido con esta configuración: "
          + (", ".join(f"`{k}={v}`" for k, v in
                       (m.get("configuracion") or {}).get("interruptores_y_modo", {}).items())
@@ -1423,6 +1602,26 @@ def main(argv=None) -> int:
         print(json.dumps(m["counts"], indent=2))
         for name, items in m["findings"].items():
             print(f"{name}: {len(items)}")
+    # Fallo RUIDOSO del CENSO: si hay un hueco (montaje no enumerable, métodos
+    # no enumerables, path irresoluble, tipo de ruta desconocido) o si el censo
+    # sale vacío, el informe no puede citarse como garantía. Se escribe igual
+    # —hace falta para saber QUÉ no se pudo ver— pero el proceso sale ROJO.
+    if m["findings"].get("censo_opaco") or m["findings"].get("censo_vacio"):
+        print("", file=sys.stderr)
+        print("=" * 72, file=sys.stderr)
+        print("CENSO DE RUTAS: INCOMPLETO (rojo)", file=sys.stderr)
+        if m["findings"].get("censo_vacio"):
+            print("El censo devolvió 0 rutas con path resoluble: este informe no ha "
+                  "observado nada.", file=sys.stderr)
+        for o in m["findings"].get("censo_opaco", []):
+            print(f"  - {o['path']}  [{o.get('tipo', '?')}]  motivo={o.get('motivo', '?')}",
+                  file=sys.stderr)
+        print("Mientras esto siga rojo, los hallazgos SIN-AUTH / MUERTA / HUERFANA de "
+              "este informe", file=sys.stderr)
+        print("describen SÓLO la parte del enrutador que el censo pudo caracterizar.",
+              file=sys.stderr)
+        print("=" * 72, file=sys.stderr)
+        return 3
     # Fallo RUIDOSO del control positivo: el mapa se escribe igual (hace falta
     # para diagnosticar), pero el proceso NO sale con 0. Degradar en silencio es
     # exactamente el defecto que este control existe para impedir.
