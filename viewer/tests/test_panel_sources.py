@@ -751,16 +751,42 @@ def test_el_panel_solo_invoca_metodos_de_LECTURA_del_proveedor(
     """La otra mitad de la frontera: por debajo del HTTP tampoco se escribe.
 
     Un panel de fuentes es el sitio donde más tienta llamar a "reingestar esta
-    fuente" desde un GET. Aquí se enumera qué se le pide de verdad al
-    proveedor, y la lista permitida está escrita a mano: cualquier método nuevo
-    —incluso de lectura— obliga a una decisión visible en este test.
+    fuente" desde un GET, y eso no lo caza ninguna enumeración de métodos HTTP:
+    el handler declara `GET`, la ruta pasa el gate y la escritura ocurre por
+    debajo.
+
+    ALCANCE EXACTO — y no más, que es lo que la revisión independiente corrigió:
+    esto afirma que **el panel no invoca, sobre el proveedor BASE inyectado,
+    ningún método fuera de** ``{workspaces, list_entities}``. NO afirma que
+    cualquier método nuevo del proveedor obligue a pasar por aquí. Dos límites
+    medidos:
+
+    * ``list_sources()`` y ``source_detail()`` del proveedor FILTRADO se
+      recomputan desde ``_visible_nodes -> _base.list_entities``, que está en la
+      lista blanca, así que llamarlos sobrevive en verde;
+    * un método que **no exista en este doble** es invisible del todo:
+      ``getattr(provider, "reingest_source", noop)(ws)`` desde el handler pasaría
+      verde.
+
+    Hoy eso no es un defecto vivo: ``GraphProvider`` no declara ni un método de
+    escritura en toda la jerarquía y el único extra del proveedor real es
+    ``close()``. Y hay una mitigación real: si ``reingest_source`` llegara como
+    ``@abstractmethod``, este doble tendría que implementarlo y **sí** quedaría
+    registrado. Es deuda de instrumento, declarada, no una garantía que aquí se
+    esté cobrando.
     """
     LECTURA = {"workspaces", "list_entities"}
     base = con_base([nodo("a"), nodo("b", source=RUTA_SENSIBLE)])
     cliente = client(real_app)
     cliente.get(SLOT.prefix)
     cliente.get(f"{SLOT.prefix}/ficha/{panel.asa_de(RUTA_SENSIBLE)}")
-    assert base.llamadas, "el arnés no registró ni una llamada: no mide nada"
+    # SUELO: no basta con que se registrara *alguna* llamada. Con un proveedor
+    # vacío sólo se registra `workspaces` y este test pasaría sin haber
+    # ejercitado nunca el camino que de verdad lee datos.
+    assert "list_entities" in base.llamadas, (
+        "el panel no llegó a pedir entidades: el arnés no ejercitó el camino "
+        f"que lee datos (registrado: {base.llamadas})"
+    )
     ajenas = sorted(set(base.llamadas) - LECTURA)
     assert not ajenas, f"El panel invocó métodos del proveedor fuera de {LECTURA}: {ajenas}"
 
@@ -876,6 +902,37 @@ def test_un_identificador_que_es_solo_directorio_no_se_pinta_entero():
     etiqueta, recortado = panel.etiqueta_de("/srv/s9k/originales/")
     assert "/srv" not in etiqueta
     assert recortado is True
+
+
+def test_dos_fuentes_distintas_con_el_mismo_nombre_no_comparten_asa(
+    real_app, panel_on, con_base
+):
+    """El asa se deriva del identificador COMPLETO, no del nombre que se pinta.
+
+    Superviviente encontrado por la revisión independiente: derivar el asa del
+    último segmento pasaba la suite entera en verde (70/70 medido), y sin
+    embargo `/srv/a/informe.pdf` y `/srv/b/informe.pdf` compartirían asa. La
+    ficha serviría entonces **la primera que apareciera**, es decir los datos de
+    una fuente bajo la identidad de otra. No era un defecto vivo —el código ya
+    era correcto—, era una propiedad que nada fijaba.
+
+    Se distinguen por su recuento a propósito: comparar sólo las asas dejaría
+    pasar una colisión que la ficha resolviera bien por otro camino.
+    """
+    a, b = "/srv/a/informe.pdf", "/srv/b/informe.pdf"
+    con_base([nodo("n1", source=a),
+              nodo("n2", source=b), nodo("n3", source=b)])
+
+    assert panel.asa_de(a) != panel.asa_de(b)
+
+    cliente = client(real_app)
+    asas = _asas(cliente.get(SLOT.prefix).text)
+    assert len(set(asas)) == 2, f"las dos fuentes comparten asa: {asas}"
+
+    ficha_a = cliente.get(f"{SLOT.prefix}/ficha/{panel.asa_de(a)}").text
+    ficha_b = cliente.get(f"{SLOT.prefix}/ficha/{panel.asa_de(b)}").text
+    assert '<span data-count="entities">1</span>' in ficha_a
+    assert '<span data-count="entities">2</span>' in ficha_b
 
 
 def test_el_asa_no_es_reversible_ni_contiene_el_identificador():

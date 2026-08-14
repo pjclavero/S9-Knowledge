@@ -8,6 +8,7 @@ Carril **F — SOURCES**. Rama `feat/panel-sources-f`, rebasada sobre `main@e4bc
 > de `main` **más todas las ramas abiertas**, que es justo el caso en el que cuatro carriles
 > paralelos numeran mirando sólo `main`. Renumerado tras medir los números ocupados en las 49 ramas
 > remotas: `78` y `79` eran los únicos libres por debajo de `80` (de B).
+
 Hueco **F** del chasis de montaje (`docs/69`), montado con el mismo patrón que el hueco C
 (`docs/76`). Prefijo `/panel/sources`, ruta raíz `chassis_sources`, rol y plantilla los del
 contrato publicado, interruptor `S9K_PANEL_F_ENABLED` (apagado por defecto, sólo `true` o `1`).
@@ -72,9 +73,10 @@ no hay nada de eso, y la ausencia se comprueba por **tres** vías independientes
    `/panel/sources`, `/panel/sources/` y `/panel/sources/ficha/{handle}`. Un gate que enumera cero
    elementos habría «demostrado» cualquier cosa (calibrado en **F14**).
 3. **Por debajo del HTTP.** `test_el_panel_solo_invoca_metodos_de_LECTURA_del_proveedor` registra
-   qué métodos del proveedor se llaman de verdad y exige que estén dentro de
+   qué métodos se invocan **sobre el proveedor base inyectado** y exige que estén dentro de
    `{workspaces, list_entities}`, lista escrita a mano. Un GET que llame a un método de escritura
    del backend no lo caza ninguna enumeración de métodos HTTP (calibrado en **F18**).
+   **Ojo al alcance**, que es más estrecho de lo que parece y está medido: **§8.1**.
 
 Y un control de **falso positivo**: `test_el_gate_no_acusa_a_un_vecino_de_prefijo` exige que
 `/panel/sources-legacy/borrar` y `/panel/sourcesXYZ/borrar` **no** se reclamen como propios (la
@@ -125,13 +127,19 @@ proveedor base sustituido (`test_tabla_medida_del_anonimo_con_auth_desactivada`)
 | sesión futura | no |
 | workspace ajeno | no |
 
-**1 de 11**, y **dos mediciones independientes lo dicen**: esta tabla y la que el carril G midió por
-su cuenta sobre su propio hueco coinciden **caso por caso**, sin que ninguno de los dos carriles
-viera la del otro mientras medía. Eso es evidencia bastante mejor que una sola medición: una
-medición aislada puede estar midiendo el defecto de su propio arnés; dos arneses distintos, sobre
-huecos distintos y con material distinto, dando el mismo 1 de 11, ya no. Y es justo lo que había que
-comprobar: dos huecos sobre la misma autorización tienen que dar el mismo veredicto, o uno de los
-dos está aplicando una política suya.
+**1 de 11**, y hay una segunda medición independiente: el carril G midió la suya sobre su propio
+hueco, sin que ninguno de los dos viera la del otro mientras medía.
+
+**Con la precisión exacta**, porque «coincide caso por caso» era demasiado fuerte y se corrigió tras
+la revisión: **mismo veredicto y misma proporción —1 de 11, y el mismo caso visible— sobre conjuntos
+solapados pero NO idénticos**. Nueve celdas son comunes; G cubre además `lore-futuro` y `known_by`
+malformado, y esta tabla cubre `partida sin sesión de revelación` y `sesión futura`.
+
+El argumento de fondo se sostiene igual, y es el que importa: **una medición aislada puede estar
+midiendo el defecto de su propio arnés; dos arneses distintos, sobre huecos distintos y con material
+distinto, no comparten el mismo defecto por casualidad**. Y es justo lo que había que comprobar: dos
+huecos sobre la misma autorización tienen que dar el mismo veredicto, o uno de los dos está
+aplicando una política suya.
 
 La tabla trae los **dos** veredictos a propósito: once «no visible» se satisfarían con un panel roto
 que no pintara nunca nada, y once «visible» con uno que no filtrara. `test_la_tabla_del_anonimo_no_es_unanime`
@@ -194,14 +202,14 @@ más fuerte que las otras dos, en **§8.2**.
 
 ---
 
-## 6. Calibración: 19/19, cada garantía puesta en rojo
+## 6. Calibración: 20/20, cada garantía puesta en rojo
 
 `scripts/calibrar_panel_sources.py`. Por caso: hash del fichero, mutación efímera, ejecución de los
 tests **nombrados uno a uno**, restauración y hash de vuelta. Se exige VERDE sin mutar (diferencial),
 ROJO con el defecto, rojo **en la comprobación declarada y no en otra**, y reversión byte a byte.
 
 ```
-19/19 garantías calibradas: verdes sin mutar, rojas con el defecto, reversión idéntica por hash.
+20/20 garantías calibradas: verdes sin mutar, rojas con el defecto, reversión idéntica por hash.
 ```
 
 | Caso | Garantía |
@@ -225,6 +233,7 @@ ROJO con el defecto, rojo **en la comprobación declarada y no en otra**, y reve
 | F17 | El router no declara vocabulario propio de autorización |
 | F18 | El panel no invoca métodos del proveedor fuera de la lectura |
 | F19 | *(control del control)* El test de inercia de `get_visibility_context` detecta que dejara de ser inerte |
+| F20 | *(superviviente cazado en revisión)* El asa se deriva del identificador COMPLETO: dos fuentes homónimas no colisionan |
 
 ### El punto de inyección congelado
 
@@ -301,13 +310,37 @@ proveedor que escribe. En un panel de fuentes ese es *el* fallo probable, porque
 fuente» es lo primero que alguien querrá colgar de la ficha.
 
 Por eso aquí se enumera también **hacia abajo**: el proveedor de pruebas registra cada método que se
-le invoca y `test_el_panel_solo_invoca_metodos_de_LECTURA_del_proveedor` exige que el conjunto esté
-contenido en `{workspaces, list_entities}`, **lista escrita a mano**. Cualquier método nuevo —incluso
-uno de lectura— obliga a una decisión visible en ese test en vez de entrar en silencio. Calibrado en
+le invoca y `test_el_panel_solo_invoca_metodos_de_LECTURA_del_proveedor` lo comprueba. Calibrado en
 **F18**: se inyecta una llamada de más y el test se pone rojo.
 
-Recomendación para quien herede esto: **las dos enumeraciones, no una**. La de arriba dice qué se
-puede pedir al panel; la de abajo, qué pide el panel.
+**Alcance exacto de esa garantía** — corregido tras la revisión independiente, porque la primera
+redacción de esta sección **sobrevendía** y eso está medido:
+
+> El panel no invoca, **sobre el proveedor BASE inyectado**, ningún método fuera de
+> `{workspaces, list_entities}`.
+
+Y **no** afirma, como decía antes, que «cualquier método nuevo obligue a una decisión visible». Dos
+límites, los dos medidos sobre los 7 métodos del proveedor filtrado:
+
+- `list_sources()` y `source_detail()` **sobreviven en verde (70/70)**: el registro vive en el
+  proveedor **base**, y esos dos se recomputan desde `_visible_nodes → _base.list_entities`, que
+  está en la lista blanca.
+- Más serio: **un método que no exista en el doble es invisible del todo**.
+  `getattr(provider, "reingest_source", noop)(ws)` desde el GET pasaría **verde** — es decir, el
+  escenario mismo que esta sección usa para justificar el mecanismo es el que no cazaría si
+  `reingest_source` llegara al proveedor real.
+
+**Hoy no es un defecto vivo**: `GraphProvider` no declara ni un método de escritura en toda la
+jerarquía, y el único extra del proveedor real es `close()`. Y hay una **mitigación real que
+conviene declarar**: si `reingest_source` llegara como `@abstractmethod`, el doble tendría que
+implementarlo y **sí** quedaría registrado. Es **deuda de instrumento, no defecto**, y se escribe
+aquí para que nadie herede la garantía más ancha de lo que es.
+
+Recomendación de fondo, que **sigue en pie y es lo valioso de esta sección**: **las dos
+enumeraciones, no una**. La de arriba dice qué se le puede pedir al panel; la de abajo, qué pide el
+panel. Quien la herede que la monte sobre el objeto que de verdad quiere vigilar —si lo que
+preocupa es el proveedor real, el registro va ahí, no en un doble que sólo tiene los métodos que
+alguien se acordó de escribir.
 
 ### 8.2 El asa opaca, y por qué la plantilla no debe tener el dato
 
@@ -363,24 +396,32 @@ afirmaciones sobre el arnés.**
 
 **Limitaciones declaradas:**
 
-- El panel materializa el conjunto visible del workspace para agregarlo. No es una pasada nueva
+- **Sin techo de página**, y es una limitación *compartida con los otros huecos*. El panel
+  materializa el conjunto visible del workspace para agregarlo; no es una pasada nueva
   —`PolicyFilteredProvider` ya lo materializa por dentro en cada llamada, igual que hace `/sources`
-  hoy—, pero **no hay techo de página**: en un workspace muy grande esto es tan caro como la
-  pantalla `/sources` existente. No se ha medido con un corpus grande.
+  hoy—, pero el «sin tope» es `_ALL = 10_000_000` viajando como `LIMIT $limit` hasta Neo4j. Eso **no
+  abre ningún canal** (el filtro sigue aplicándose antes de entregar), pero **puede degradar** con un
+  corpus grande. **Sigue sin medirse**: no hay aquí ninguna cifra de rendimiento, y no se afirma
+  ninguna.
 - No hay filtros ni paginación en el listado: se muestran todas las fuentes visibles. Un workspace
   con miles de fuentes daría una tabla larga.
 - **Los estados y la procedencia se calculan sobre entidades, no sobre la fuente.** Una fuente cuyas
   entidades sean todas invisibles para el lector **no existe** para este panel, y eso es
   deliberado: la alternativa es contar lo invisible.
-- **Contra base viva: el proveedor sí, este panel no.** Conviene ser preciso, porque el residuo
-  fácil de escribir aquí sería más ancho de lo debido. Los tests de integración de autorización se
-  saltan **sólo en local**; el job `Authz integration (Neo4j efímero)` los ejecuta contra **Neo4j
-  5.26 vivo**, y ese job **falla si algo se omite y falla si no se ejecutó ninguna prueba**, así que
-  un verde por omisión ahí no es posible. Lo que queda fuera es más estrecho: **el proveedor está
-  ejercitado contra base viva; las dos pantallas de este panel, no**. Toda la evidencia de este
-  documento sale del proveedor `mock` y de proveedores de prueba en memoria. Lo que eso no cubre es
-  la traducción a Cypher de `list_entities` en `Neo4jGraphProvider`, no la política ni la
-  agregación, que son código puro y sí están medidos.
+- **Contra base viva.** Conviene ser preciso, porque las dos redacciones anteriores de este punto se
+  desplazaron, y la segunda hacia el lado conservador.
+
+  Lo que **sí** está cubierto: los tests de integración se saltan **sólo en local**; el job
+  `Authz integration (Neo4j efímero)` los ejecuta contra **Neo4j 5.26 vivo**, y ese job **falla si
+  algo se omite y falla si no se ejecutó ninguna prueba**, así que un verde por omisión ahí no es
+  posible. Y `list_entities` **sí** se ejercita contra base viva: unas 8 pruebas de
+  `test_neo4j_integration_authz.py` pasan por ella a través del proveedor filtrado.
+
+  Lo que **nadie** mide contra base viva, y es el residuo real de este carril: que la **proyección
+  Cypher entregue `source_document`, `source_kind` y `review_status`** — que es exactamente de lo
+  que vive este panel. Es plausible que los entregue (`RETURN n` + `_node_to_dict` devuelve todas
+  las propiedades del nodo), **pero no está medido**. Ni la política ni la agregación entran en ese
+  residuo: son código puro y sí están medidas.
 - El hueco sigue **apagado por defecto**. Encenderlo en producción es una decisión del operador,
   fuera de este carril.
 - Nada de esto se ha ejecutado contra producción, VM105 ni Neo4j productivo. Todas las cifras salen

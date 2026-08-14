@@ -135,6 +135,21 @@ CASOS: tuple[Caso, ...] = (
          "test_la_ruta_de_origen_no_aparece_nunca_en_el_html"),
     ),
     Caso(
+        # SUPERVIVIENTE encontrado por la revisión independiente: antes de su
+        # test, esta mutación pasaba la suite entera en VERDE (70/70 medido).
+        # El codigo ya era correcto; lo que faltaba era algo que lo FIJARA. Con
+        # el asa derivada del nombre, `/a/informe.pdf` y `/b/informe.pdf`
+        # comparten asa y la ficha sirve los datos de una bajo la identidad de
+        # la otra.
+        "F20", "El asa se deriva del identificador COMPLETO, no del nombre "
+               "que se pinta (dos fuentes homónimas no colisionan)",
+        ROUTER,
+        "    return hashlib.sha256(source_id.encode(\"utf-8\")).hexdigest()[:LONGITUD_ASA]",
+        "    return hashlib.sha256(etiqueta_de(source_id)[0].encode(\"utf-8\"))"
+        ".hexdigest()[:LONGITUD_ASA]",
+        ("test_dos_fuentes_distintas_con_el_mismo_nombre_no_comparten_asa",),
+    ),
+    Caso(
         "F7", "Un estado de revisión que el visor no reconoce NO se declara bueno",
         ROUTER,
         "            conocido = bool(review_status_contract.is_canonical(clave))",
