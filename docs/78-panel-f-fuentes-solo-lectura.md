@@ -1,6 +1,13 @@
-# 77 — Panel F (Fuentes) de solo lectura sobre el chasis
+# 78 — Panel F (Fuentes) de solo lectura sobre el chasis
 
-Carril **F — SOURCES**. Rama `feat/panel-sources-f`, base `main@1f70726`.
+Carril **F — SOURCES**. Rama `feat/panel-sources-f`, rebasada sobre `main@e4bcc62`
+(base original `main@1f70726`).
+
+> **Numeración.** Este documento nació como `docs/77` y pasó a `78` al rebasar: el carril G reclamó
+> el 77 y fusionó antes. El gate `tests/test_docs_numbering.py` lo cazó — comprueba contra la unión
+> de `main` **más todas las ramas abiertas**, que es justo el caso en el que cuatro carriles
+> paralelos numeran mirando sólo `main`. Renumerado tras medir los números ocupados en las 49 ramas
+> remotas: `78` y `79` eran los únicos libres por debajo de `80` (de B).
 Hueco **F** del chasis de montaje (`docs/69`), montado con el mismo patrón que el hueco C
 (`docs/76`). Prefijo `/panel/sources`, ruta raíz `chassis_sources`, rol y plantilla los del
 contrato publicado, interruptor `S9K_PANEL_F_ENABLED` (apagado por defecto, sólo `true` o `1`).
@@ -234,16 +241,21 @@ Por qué **demostrarlo** y no advertirlo, y por qué hay que calibrar también l
 
 ---
 
-## 7. Cambio en un fichero compartido — COLISIÓN CON EL CARRIL G, pendiente de coordinación
+## 7. El choque con el test compartido — RESUELTO a favor del carril G
 
-> **AVISO.** El carril G ha resuelto **el mismo choque** en su PR (**#183**) con un bloque
-> **aditivo** que monta la premisa «sin datos» sin debilitar ninguna aserción. Esa solución es
-> mejor que la de aquí y **debe prevalecer**. Lo previsible es fusionar G primero y rebasar este
-> carril encima, **descartando el cambio de esta sección**; el resto del PR no lo toca.
-> Que dos carriles editen a la vez el mismo test compartido es precisamente lo que se quiere
-> evitar, así que este cambio **no se defiende**: se retira en cuanto el coordinador lo diga.
-> Se deja escrito lo medido porque el diagnóstico sí es útil.
-
+> **CERRADO.** Este carril **ya no toca** `viewer/tests/test_chassis_mount_contract.py`. El carril G
+> resolvió el mismo choque con un bloque **aditivo** que monta la premisa «sin datos» sin debilitar
+> ninguna aserción; es mejor que lo que había aquí, fusionó antes (PR #183, `main@e4bcc62`) y **es
+> la que queda**. Al rebasar, la versión de este carril se descartó y el fichero quedó **byte a byte
+> idéntico a `main`** (comprobado: `git diff origin/main -- <fichero>` = 0 líneas).
+>
+> Comprobación de conjuntos, mecánica y no a ojo: de los 7 ficheros que tocaba este carril quedan
+> **6**, el perdido es exactamente el compartido, **cero ficheros ganados**, y los 6 son byte a byte
+> los de antes del rebase. Ninguno de los tests de este hueco dependía de la reescritura descartada:
+> viven en la suite propia con su propio proveedor sustituido, y siguen verdes.
+>
+> Se deja escrito el diagnóstico porque el hallazgo sigue siendo válido y explica por qué el test
+> compartido tenía que cambiar.
 
 ### El diagnóstico medido
 
@@ -257,12 +269,18 @@ lee del proveedor `mock` del visor, que **sí** trae entidades con fuente (`exam
 11 nodos, 2 fuentes), así que con el rol publicado la pantalla legítima es `ready`. Con la
 aserción anterior, F sólo pasaba **mintiendo**.
 
-Lo que el test defendía de verdad —que la pantalla se pinta con un estado declarado y que no es de
-error— se conserva íntegro. La versión estricta no desaparece: se traslada a la suite del hueco,
-que es la única que puede controlar si hay material
+La versión estricta («sin datos → vacío; con datos → listo») vive de todas formas en la suite de
+este hueco, que es la única que puede controlar si hay material
 (`test_sin_material_se_pinta_el_estado_vacio_no_una_excepcion` y
-`test_con_material_se_pinta_el_estado_listo`). Es el único fichero fuera de la propiedad de este
-carril que se ha tocado.
+`test_con_material_se_pinta_el_estado_listo`). Por eso descartar la reescritura no costó nada: la
+garantía no estaba allí.
+
+**Lección de la ronda**, y vale para el siguiente que monte un hueco: cuatro carriles en paralelo
+sobre un test compartido que asume «todos los huecos están vacíos» van a chocar **todos** contra él
+en cuanto el primero se llene de verdad. La forma correcta es la de G —**añadir** la premisa que el
+test necesita, no relajar la aserción—, y la forma correcta de descubrirlo es avisar al coordinador
+en vez de resolverlo cada uno por su cuenta. Aquí se hizo lo segundo tarde: el aviso llegó después
+de empujar, y por eso hubo dos ediciones compitiendo por el mismo fichero.
 
 ---
 
@@ -354,6 +372,15 @@ afirmaciones sobre el arnés.**
 - **Los estados y la procedencia se calculan sobre entidades, no sobre la fuente.** Una fuente cuyas
   entidades sean todas invisibles para el lector **no existe** para este panel, y eso es
   deliberado: la alternativa es contar lo invisible.
+- **Contra base viva: el proveedor sí, este panel no.** Conviene ser preciso, porque el residuo
+  fácil de escribir aquí sería más ancho de lo debido. Los tests de integración de autorización se
+  saltan **sólo en local**; el job `Authz integration (Neo4j efímero)` los ejecuta contra **Neo4j
+  5.26 vivo**, y ese job **falla si algo se omite y falla si no se ejecutó ninguna prueba**, así que
+  un verde por omisión ahí no es posible. Lo que queda fuera es más estrecho: **el proveedor está
+  ejercitado contra base viva; las dos pantallas de este panel, no**. Toda la evidencia de este
+  documento sale del proveedor `mock` y de proveedores de prueba en memoria. Lo que eso no cubre es
+  la traducción a Cypher de `list_entities` en `Neo4jGraphProvider`, no la política ni la
+  agregación, que son código puro y sí están medidos.
 - El hueco sigue **apagado por defecto**. Encenderlo en producción es una decisión del operador,
   fuera de este carril.
 - Nada de esto se ha ejecutado contra producción, VM105 ni Neo4j productivo. Todas las cifras salen
