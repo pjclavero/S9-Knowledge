@@ -20,7 +20,16 @@ Casos:
   H4  `Mount` anidado a dos niveles                -> URL efectiva compuesta
   H5  `Mount` anidado a tres niveles               -> URL efectiva compuesta
   H6  `include_router` con un `Mount` dentro       -> punto ciego real del chasis
+  M5  `Mount` ASGI plano sin subrutas              -> opaca (el motivo que de
+                                                      verdad dispara en esta app)
+  M3  tipo de ruta ajeno CON path y methods        -> opaca `tipo-desconocido`
   H7  censo VACÍO                                  -> ROJO, no verde silencioso
+  E1  `StaticFiles`                                -> caracterizado y VERIFICADO
+  E2  `StaticFiles(html=True)`                     -> caracterizado y verificado
+  E3  subclase que acepta POST                     -> muere en la verificación
+  E4  montaje que 405ea también GET                -> no es de lectura: ROJO
+  E5  escribe por `PROPFIND` (verbo no sondeado)   -> ROJO (conjunto cerrado)
+  E6  escribe por `OPTIONS` (sondeado, no exigido) -> ROJO (conjunto cerrado)
   FP1 app limpia sin huecos                        -> 0 opacas (falso positivo)
   FP2 nombres que suenan a hueco pero no lo son    -> 0 opacas (un nombre no concede)
 
@@ -286,6 +295,53 @@ def app_estatico(html=False, clase=None):
     return app
 
 
+def _estatico_que_escribe_por(verbo):
+    """`StaticFiles` que ESCRIBE UN FICHERO usando un verbo fuera de la lista.
+
+    Pasa la hipótesis de tipo y —con la aserción de lista de verbos— pasaba
+    también la verificación: `OPTIONS` se sondeaba y no se comprobaba, y
+    `PROPFIND`/`MKCOL`/`TRACE` ni se sondeaban. Escribe de verdad en disco para
+    que el caso no dependa del código de estado: se comprueba el fichero.
+    """
+    from starlette.staticfiles import StaticFiles
+
+    class _Escribe(StaticFiles):
+        colado = None  # ruta del fichero que consigue colar
+
+        async def __call__(self, scope, receive, send):
+            if scope.get("method") == verbo:
+                destino = Path(self.directory) / "colado.txt"
+                destino.write_text("escrito por " + verbo, encoding="utf-8")
+                type(self).colado = destino
+                await send({"type": "http.response.start", "status": 200,
+                            "headers": []})
+                await send({"type": "http.response.body", "body": b"escrito"})
+                return
+            await super().__call__(scope, receive, send)
+
+    return _Escribe
+
+
+class _EstaticoQue405eaLectura:
+    """`StaticFiles` que rechaza también `GET`: no es un montaje de lectura.
+
+    Es la mitad de LECTURA de la aserción, que no tenía ningún caso capaz de
+    matarla: borrar entero `malos_lectura` dejaba la calibración en OK.
+    """
+
+    @staticmethod
+    def construir():
+        from starlette.responses import PlainTextResponse
+        from starlette.staticfiles import StaticFiles
+
+        class _Cerrado(StaticFiles):
+            async def __call__(self, scope, receive, send):
+                resp = PlainTextResponse("Method Not Allowed", status_code=405)
+                await resp(scope, receive, send)
+
+        return _Cerrado
+
+
 class _EstaticoQueMiente:
     """Subclase de `StaticFiles` que ACEPTA POST.
 
@@ -311,8 +367,13 @@ class _EstaticoQueMiente:
         return _Miente
 
 
-def _caso_estatico(nombre, app, espera_fallo, descripcion):
-    """Censa, sonda contra la app real y verifica la caracterización."""
+def _caso_estatico(nombre, app, espera_fallo, descripcion, clase_que_escribe=None):
+    """Censa, sonda contra la app real y verifica la caracterización.
+
+    Si `clase_que_escribe` está presente, se comprueba además si el montaje
+    consiguió **escribir un fichero en disco** durante el sondeo: el defecto que
+    importa es la escritura, no el código de estado.
+    """
     from fastapi.testclient import TestClient
 
     censo = censo_nuevo(app)
@@ -320,6 +381,10 @@ def _caso_estatico(nombre, app, espera_fallo, descripcion):
     with TestClient(app) as client:
         sondas = RM.sondar_estaticos(client, estaticos)
     fallos = RM.verificar_estaticos(estaticos, sondas, skip_probe=False)
+    colado = None
+    if clase_que_escribe is not None:
+        ruta = getattr(clase_que_escribe, "colado", None)
+        colado = bool(ruta and Path(ruta).exists())
     # Sin sonda, la afirmación NO se concede: una caracterización sin verificar
     # es una excepción disfrazada.
     fallos_sin_sonda = RM.verificar_estaticos(estaticos, None, skip_probe=True)
@@ -329,6 +394,7 @@ def _caso_estatico(nombre, app, espera_fallo, descripcion):
         "montajes_estaticos": [e["key"] for e in estaticos],
         "sondas": sondas,
         "fallos": fallos,
+        "fichero_colado_existe": colado,
         "sin_sonda_tambien_falla": bool(fallos_sin_sonda),
         "detectado": (bool(fallos) == espera_fallo) and bool(estaticos)
         and bool(fallos_sin_sonda),
@@ -464,17 +530,29 @@ def casos_principales() -> dict:
     # Caracterización de los montajes estáticos: afirmación positiva y falsable,
     # no excepción. Las dos primeras tienen que CUMPLIRLA (y por tanto dejar la
     # app en verde legítimo); la tercera la incumple y tiene que ponerse roja.
-    for nombre, app, espera_fallo, desc in [
+    _propfind = _estatico_que_escribe_por("PROPFIND")
+    _options = _estatico_que_escribe_por("OPTIONS")
+    for nombre, app, espera_fallo, desc, escritor in [
         ("E1-estatico-verificado", app_estatico(), False,
-         "StaticFiles: {GET, HEAD} servidos y escritura rechazada con 405"),
+         "StaticFiles: {GET, HEAD} servidos y todo lo demás rechazado con 405", None),
         ("E2-estatico-html-true", app_estatico(html=True), False,
-         "StaticFiles(html=True): la raíz sirve index.html y la escritura sigue 405"),
+         "StaticFiles(html=True): la raíz sirve index.html y el resto sigue 405", None),
         ("E3-dice-ser-estatico-y-no-lo-es", app_estatico(clase=_EstaticoQueMiente.construir()),
          True,
          "una subclase de StaticFiles que acepta POST pasa la hipótesis de tipo y "
-         "MUERE en la verificación: por eso esto no es una lista de excepciones"),
+         "MUERE en la verificación: por eso esto no es una lista de excepciones",
+         None),
+        ("E4-405-tambien-en-lectura", app_estatico(clase=_EstaticoQue405eaLectura.construir()),
+         True,
+         "un montaje que 405ea GET tampoco es de lectura: mata la mitad de LECTURA "
+         "de la aserción, que antes no tenía ningún caso que la matase", None),
+        ("E5-escribe-por-PROPFIND", app_estatico(clase=_propfind), True,
+         "verbo que ni se sondeaba: escribía un fichero en disco y pasaba en verde",
+         _propfind),
+        ("E6-escribe-por-OPTIONS", app_estatico(clase=_options), True,
+         "verbo que se sondeaba y NO se comprobaba: mismo agujero", _options),
     ]:
-        n, r = _caso_estatico(nombre, app, espera_fallo, desc)
+        n, r = _caso_estatico(nombre, app, espera_fallo, desc, escritor)
         out[n] = r
 
     # Falsos positivos: vigilar el verde equivocado Y el rojo equivocado.
@@ -605,11 +683,11 @@ def ablaciones() -> dict:
             "vuelve_a_verde": not _hay_opaca("/asgi")(None, censo),
         }
 
+    from fastapi.testclient import TestClient
+
     # A6: se desactiva la VERIFICACIÓN de la caracterización estática y se acepta
     # la hipótesis de tipo a secas. Es exactamente «una lista de excepciones»: el
     # montaje que miente pasa por bueno.
-    from fastapi.testclient import TestClient
-
     app_miente = app_estatico(clase=_EstaticoQueMiente.construir())
     estaticos = [r for r in RM.collect_mounted(app_miente) if r["kind"] == RM.KIND_ESTATICO]
     with TestClient(app_miente) as client:
@@ -620,6 +698,56 @@ def ablaciones() -> dict:
         out["A6-sin-verificacion-de-la-caracterizacion"] = {
             "criterio": "la afirmación «montaje estático» se comprueba contra la app real",
             "caso": "E3-dice-ser-estatico-y-no-lo-es",
+            "censo_ablado": fallos,
+            "vuelve_a_verde": not fallos,
+        }
+
+    # A7: la aserción vuelve a ser una LISTA de cuatro verbos en vez de un
+    # conjunto cerrado. El montaje que escribe por OPTIONS vuelve a pasar.
+    _opt = _estatico_que_escribe_por("OPTIONS")
+    app_opt = app_estatico(clase=_opt)
+    est_opt = [r for r in RM.collect_mounted(app_opt) if r["kind"] == RM.KIND_ESTATICO]
+    with TestClient(app_opt) as client:
+        sondas_opt = RM.sondar_estaticos(client, est_opt)
+    with _ablacion(RM, "fallo_metodos_no_lectura",
+                   lambda res: {m: res.get(m) for m in RM.ESCRITURA_ESTATICA
+                                if res.get(m) != 405}):
+        fallos = RM.verificar_estaticos(est_opt, sondas_opt)
+        out["A7-lista-de-verbos-en-vez-de-conjunto-cerrado"] = {
+            "criterio": "todo método sondeado que no sea {GET, HEAD} debe dar 405",
+            "caso": "E6-escribe-por-OPTIONS",
+            "censo_ablado": fallos,
+            "vuelve_a_verde": not fallos,
+        }
+
+    # A8: se sondean sólo los verbos clásicos. `PROPFIND` deja de existir para
+    # el instrumento y el montaje que escribe con él vuelve a pasar.
+    _pf = _estatico_que_escribe_por("PROPFIND")
+    app_pf = app_estatico(clase=_pf)
+    est_pf = [r for r in RM.collect_mounted(app_pf) if r["kind"] == RM.KIND_ESTATICO]
+    with _ablacion(RM, "METODOS_SONDEADOS_ESTATICO",
+                   ("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE")):
+        with TestClient(app_pf) as client:
+            sondas_pf = RM.sondar_estaticos(client, est_pf)
+        fallos = RM.verificar_estaticos(est_pf, sondas_pf)
+        out["A8-sin-verbos-arbitrarios-en-la-sonda"] = {
+            "criterio": "la sonda incluye verbos fuera de los clásicos (PROPFIND, MKCOL, TRACE)",
+            "caso": "E5-escribe-por-PROPFIND",
+            "censo_ablado": fallos,
+            "vuelve_a_verde": not fallos,
+        }
+
+    # A9: se borra la mitad de LECTURA de la aserción. Sin caso que la matara,
+    # borrarla entera dejaba la calibración en OK; con E4, se pone roja.
+    app_cerrado = app_estatico(clase=_EstaticoQue405eaLectura.construir())
+    est_c = [r for r in RM.collect_mounted(app_cerrado) if r["kind"] == RM.KIND_ESTATICO]
+    with TestClient(app_cerrado) as client:
+        sondas_c = RM.sondar_estaticos(client, est_c)
+    with _ablacion(RM, "fallo_lectura", lambda res: {}):
+        fallos = RM.verificar_estaticos(est_c, sondas_c)
+        out["A9-sin-mitad-de-lectura"] = {
+            "criterio": "GET/HEAD tienen que servirse para poder llamarlo montaje de lectura",
+            "caso": "E4-405-tambien-en-lectura",
             "censo_ablado": fallos,
             "vuelve_a_verde": not fallos,
         }
@@ -638,7 +766,7 @@ def main(argv=None) -> int:
     # incluyendo una constante literal (`A4`, que no medía nada) y una ablación
     # del instrumento VIEJO (`A3`), que tampoco se cobra. Hoy las 9 ablaciones
     # patchean el módulo nuevo y todas pueden ponerse rojas.
-    hay_carga = len(casos) >= 14 and len(abl) >= 9
+    hay_carga = len(casos) >= 17 and len(abl) >= 12
     ok = (hay_carga
           and all(c["detectado"] for c in casos.values())
           and all(x["vuelve_a_verde"] for x in abl.values()))

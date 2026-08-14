@@ -131,8 +131,21 @@ KIND_ESTATICO = "static"
 #: la respuesta no es la esperada.
 SUPERFICIE_ESTATICA = ("GET", "HEAD")
 
-#: Métodos que un montaje estático tiene que RECHAZAR con 405. Si alguno pasa a
-#: servirse, la caracterización es falsa y el informe sale rojo.
+#: Métodos que se SONDEAN. Ojo con leer esto como «la lista de lo prohibido»: la
+#: aserción es de CONJUNTO CERRADO —todo lo que no sea `SUPERFICIE_ESTATICA`
+#: tiene que dar 405—, y esto es sólo la muestra con la que se comprueba.
+#:
+#: Una versión anterior sí era una lista de verbos (`POST/PUT/PATCH/DELETE`) y
+#: tenía el agujero exacto que se le supone a una lista: `OPTIONS` se sondeaba y
+#: no se comprobaba, y `PROPFIND`/`MKCOL`/`TRACE` ni se sondeaban. Medido: dos
+#: montajes que pasaban la hipótesis Y la verificación **y escribían un fichero
+#: en disco**. Cerrar el conjunto cierra la familia entera en vez de cuatro
+#: nombres, y sale gratis: un `StaticFiles` real ya devuelve 405 a todos ellos.
+METODOS_SONDEADOS_ESTATICO = ("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE",
+                              "OPTIONS", "PROPFIND", "MKCOL", "TRACE")
+
+#: Compatibilidad de lectura: los métodos de escritura HTTP clásicos. Ya no es
+#: el criterio (lo es el conjunto cerrado), sólo se publica en el artefacto.
 ESCRITURA_ESTATICA = ("POST", "PUT", "PATCH", "DELETE")
 
 
@@ -352,7 +365,7 @@ def sondar_estaticos(client, estaticos: list[dict]) -> dict:
         base = e["path"].rstrip("/")
         urls = [base + "/", base + "/__sonda-inexistente__.txt"]
         por_metodo: dict = {}
-        for m in list(SUPERFICIE_ESTATICA) + list(ESCRITURA_ESTATICA) + ["OPTIONS"]:
+        for m in METODOS_SONDEADOS_ESTATICO:
             estados = []
             for u in urls:
                 try:
@@ -367,19 +380,46 @@ def sondar_estaticos(client, estaticos: list[dict]) -> dict:
     return sondas
 
 
+def fallo_metodos_no_lectura(res: dict) -> dict:
+    """Mitad de NO-LECTURA de la aserción, en CONJUNTO CERRADO.
+
+    Todo método sondeado que no esté en `SUPERFICIE_ESTATICA` tiene que dar
+    **405**. No se enumera lo prohibido —eso es una lista, y una lista deja
+    fuera lo que nadie escribió en ella—: se enumera lo permitido y se exige que
+    el resto esté cerrado. Un método que no aparece en la sonda cuenta como
+    fallo: no comprobado no es correcto.
+    """
+    return {m: res.get(m) for m in METODOS_SONDEADOS_ESTATICO
+            if m not in SUPERFICIE_ESTATICA and res.get(m) != 405}
+
+
+def fallo_lectura(res: dict) -> dict:
+    """Mitad de LECTURA de la aserción: `GET`/`HEAD` tienen que servirse.
+
+    Un montaje que también 405ea `GET` no es un montaje de lectura, y declararlo
+    estático sería describir mal lo que hay. Se separa de la otra mitad para que
+    cada una sea ablatable por su cuenta.
+    """
+    return {m: res.get(m) for m in SUPERFICIE_ESTATICA
+            if res.get(m) in (None, 405)}
+
+
 def verificar_estaticos(estaticos: list[dict], sondas: dict | None,
                         skip_probe: bool = False) -> list[dict]:
     """Comprueba la CARACTERIZACIÓN de cada montaje estático. FALLA CERRADO.
 
-    La afirmación es concreta y falsable: `GET`/`HEAD` se sirven (o dan 404 si
-    el fichero no existe, que también es servir) y `POST/PUT/PATCH/DELETE`
-    responden **405**. Tres formas de ponerse rojo, y ninguna necesita que nadie
-    revise una lista:
+    La afirmación es concreta, falsable y de CONJUNTO CERRADO: `GET`/`HEAD` se
+    sirven (o dan 404 si el fichero no existe, que también es servir) y **todo
+    lo demás** —no cuatro verbos elegidos, todo lo que se sondee— responde
+    **405**. Tres formas de ponerse rojo, y ninguna necesita que nadie revise
+    una lista:
 
     - la sonda no corrió  -> `no-verificado` (una afirmación sin comprobar no es
       una caracterización, es una excepción con otro nombre);
-    - un método de escritura NO da 405 -> el montaje escribe y la afirmación era
-      falsa;
+    - un método que no es de lectura NO da 405 -> el montaje hace algo más que
+      leer y la afirmación era falsa (aquí caen `PROPFIND`, `MKCOL`, `TRACE` y
+      `OPTIONS`, que con la lista de cuatro verbos escribían en disco y pasaban
+      en verde);
     - `GET`/`HEAD` dan 405 -> no es un montaje de lectura y la afirmación
       también era falsa.
 
@@ -399,19 +439,18 @@ def verificar_estaticos(estaticos: list[dict], sondas: dict | None,
                               "excepción disfrazada, no una caracterización"),
             })
             continue
-        malos_escritura = {m: res.get(m) for m in ESCRITURA_ESTATICA
-                           if res.get(m) != 405}
-        malos_lectura = {m: res.get(m) for m in SUPERFICIE_ESTATICA
-                         if res.get(m) in (None, 405)}
+        malos_escritura = fallo_metodos_no_lectura(res)
+        malos_lectura = fallo_lectura(res)
         if malos_escritura or malos_lectura:
             fallos.append({
                 "key": e["key"], "path": e["path"], "tipo": e.get("tipo", ""),
                 "motivo": "caracterizacion-falsa",
-                "escritura_no_rechazada": malos_escritura,
+                "metodos_no_lectura_no_rechazados": malos_escritura,
                 "lectura_no_servida": malos_lectura,
                 "sonda": res,
-                "detalle": ("este montaje se declaró estático (superficie {GET, HEAD}, "
-                            "sin escritura) y la app real NO lo cumple"),
+                "detalle": ("este montaje se declaró estático (superficie {GET, HEAD}; "
+                            "TODO lo demás rechazado con 405) y la app real NO lo "
+                            "cumple"),
             })
     return fallos
 

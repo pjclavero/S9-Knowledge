@@ -123,9 +123,27 @@
       "censo_ablado": [],
       "criterio": "la afirmación «montaje estático» se comprueba contra la app real",
       "vuelve_a_verde": true
+    },
+    "A7-lista-de-verbos-en-vez-de-conjunto-cerrado": {
+      "caso": "E6-escribe-por-OPTIONS",
+      "censo_ablado": [],
+      "criterio": "todo método sondeado que no sea {GET, HEAD} debe dar 405",
+      "vuelve_a_verde": true
+    },
+    "A8-sin-verbos-arbitrarios-en-la-sonda": {
+      "caso": "E5-escribe-por-PROPFIND",
+      "censo_ablado": [],
+      "criterio": "la sonda incluye verbos fuera de los clásicos (PROPFIND, MKCOL, TRACE)",
+      "vuelve_a_verde": true
+    },
+    "A9-sin-mitad-de-lectura": {
+      "caso": "E4-405-tambien-en-lectura",
+      "censo_ablado": [],
+      "criterio": "GET/HEAD tienen que servirse para poder llamarlo montaje de lectura",
+      "vuelve_a_verde": true
     }
   },
-  "ablaciones_ejecutadas": 9,
+  "ablaciones_ejecutadas": 12,
   "arnes_con_carga": true,
   "casos": {
     "E1-estatico-verificado": {
@@ -141,9 +159,10 @@
         "HEAD /redoc",
         "HEAD /static"
       ],
-      "descripcion": "StaticFiles: {GET, HEAD} servidos y escritura rechazada con 405",
+      "descripcion": "StaticFiles: {GET, HEAD} servidos y todo lo demás rechazado con 405",
       "detectado": true,
       "fallos": [],
+      "fichero_colado_existe": null,
       "montajes_estaticos": [
         "ESTATICO /static"
       ],
@@ -153,10 +172,13 @@
           "DELETE": 405,
           "GET": 404,
           "HEAD": 404,
+          "MKCOL": 405,
           "OPTIONS": 405,
           "PATCH": 405,
           "POST": 405,
+          "PROPFIND": 405,
           "PUT": 405,
+          "TRACE": 405,
           "urls_sondeadas": [
             "/static/",
             "/static/__sonda-inexistente__.txt"
@@ -177,9 +199,10 @@
         "HEAD /redoc",
         "HEAD /static"
       ],
-      "descripcion": "StaticFiles(html=True): la raíz sirve index.html y la escritura sigue 405",
+      "descripcion": "StaticFiles(html=True): la raíz sirve index.html y el resto sigue 405",
       "detectado": true,
       "fallos": [],
+      "fichero_colado_existe": null,
       "montajes_estaticos": [
         "ESTATICO /static"
       ],
@@ -189,10 +212,13 @@
           "DELETE": 405,
           "GET": 200,
           "HEAD": 200,
+          "MKCOL": 405,
           "OPTIONS": 405,
           "PATCH": 405,
           "POST": 405,
+          "PROPFIND": 405,
           "PUT": 405,
+          "TRACE": 405,
           "urls_sondeadas": [
             "/static/",
             "/static/__sonda-inexistente__.txt"
@@ -217,25 +243,28 @@
       "detectado": true,
       "fallos": [
         {
-          "detalle": "este montaje se declaró estático (superficie {GET, HEAD}, sin escritura) y la app real NO lo cumple",
-          "escritura_no_rechazada": {
+          "detalle": "este montaje se declaró estático (superficie {GET, HEAD}; TODO lo demás rechazado con 405) y la app real NO lo cumple",
+          "key": "ESTATICO /static",
+          "lectura_no_servida": {},
+          "metodos_no_lectura_no_rechazados": {
             "DELETE": 200,
             "PATCH": 200,
             "POST": 200,
             "PUT": 200
           },
-          "key": "ESTATICO /static",
-          "lectura_no_servida": {},
           "motivo": "caracterizacion-falsa",
           "path": "/static",
           "sonda": {
             "DELETE": 200,
             "GET": 404,
             "HEAD": 404,
+            "MKCOL": 405,
             "OPTIONS": 405,
             "PATCH": 200,
             "POST": 200,
+            "PROPFIND": 405,
             "PUT": 200,
+            "TRACE": 405,
             "urls_sondeadas": [
               "/static/",
               "/static/__sonda-inexistente__.txt"
@@ -244,6 +273,7 @@
           "tipo": "_Miente"
         }
       ],
+      "fichero_colado_existe": null,
       "montajes_estaticos": [
         "ESTATICO /static"
       ],
@@ -253,10 +283,218 @@
           "DELETE": 200,
           "GET": 404,
           "HEAD": 404,
+          "MKCOL": 405,
           "OPTIONS": 405,
           "PATCH": 200,
           "POST": 200,
+          "PROPFIND": 405,
           "PUT": 200,
+          "TRACE": 405,
+          "urls_sondeadas": [
+            "/static/",
+            "/static/__sonda-inexistente__.txt"
+          ]
+        }
+      }
+    },
+    "E4-405-tambien-en-lectura": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "GET /static",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "HEAD /static"
+      ],
+      "descripcion": "un montaje que 405ea GET tampoco es de lectura: mata la mitad de LECTURA de la aserción, que antes no tenía ningún caso que la matase",
+      "detectado": true,
+      "fallos": [
+        {
+          "detalle": "este montaje se declaró estático (superficie {GET, HEAD}; TODO lo demás rechazado con 405) y la app real NO lo cumple",
+          "key": "ESTATICO /static",
+          "lectura_no_servida": {
+            "GET": 405,
+            "HEAD": 405
+          },
+          "metodos_no_lectura_no_rechazados": {},
+          "motivo": "caracterizacion-falsa",
+          "path": "/static",
+          "sonda": {
+            "DELETE": 405,
+            "GET": 405,
+            "HEAD": 405,
+            "MKCOL": 405,
+            "OPTIONS": 405,
+            "PATCH": 405,
+            "POST": 405,
+            "PROPFIND": 405,
+            "PUT": 405,
+            "TRACE": 405,
+            "urls_sondeadas": [
+              "/static/",
+              "/static/__sonda-inexistente__.txt"
+            ]
+          },
+          "tipo": "_Cerrado"
+        }
+      ],
+      "fichero_colado_existe": null,
+      "montajes_estaticos": [
+        "ESTATICO /static"
+      ],
+      "sin_sonda_tambien_falla": true,
+      "sondas": {
+        "ESTATICO /static": {
+          "DELETE": 405,
+          "GET": 405,
+          "HEAD": 405,
+          "MKCOL": 405,
+          "OPTIONS": 405,
+          "PATCH": 405,
+          "POST": 405,
+          "PROPFIND": 405,
+          "PUT": 405,
+          "TRACE": 405,
+          "urls_sondeadas": [
+            "/static/",
+            "/static/__sonda-inexistente__.txt"
+          ]
+        }
+      }
+    },
+    "E5-escribe-por-PROPFIND": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "GET /static",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "HEAD /static"
+      ],
+      "descripcion": "verbo que ni se sondeaba: escribía un fichero en disco y pasaba en verde",
+      "detectado": true,
+      "fallos": [
+        {
+          "detalle": "este montaje se declaró estático (superficie {GET, HEAD}; TODO lo demás rechazado con 405) y la app real NO lo cumple",
+          "key": "ESTATICO /static",
+          "lectura_no_servida": {},
+          "metodos_no_lectura_no_rechazados": {
+            "PROPFIND": 200
+          },
+          "motivo": "caracterizacion-falsa",
+          "path": "/static",
+          "sonda": {
+            "DELETE": 405,
+            "GET": 404,
+            "HEAD": 404,
+            "MKCOL": 405,
+            "OPTIONS": 405,
+            "PATCH": 405,
+            "POST": 405,
+            "PROPFIND": 200,
+            "PUT": 405,
+            "TRACE": 405,
+            "urls_sondeadas": [
+              "/static/",
+              "/static/__sonda-inexistente__.txt"
+            ]
+          },
+          "tipo": "_Escribe"
+        }
+      ],
+      "fichero_colado_existe": true,
+      "montajes_estaticos": [
+        "ESTATICO /static"
+      ],
+      "sin_sonda_tambien_falla": true,
+      "sondas": {
+        "ESTATICO /static": {
+          "DELETE": 405,
+          "GET": 404,
+          "HEAD": 404,
+          "MKCOL": 405,
+          "OPTIONS": 405,
+          "PATCH": 405,
+          "POST": 405,
+          "PROPFIND": 200,
+          "PUT": 405,
+          "TRACE": 405,
+          "urls_sondeadas": [
+            "/static/",
+            "/static/__sonda-inexistente__.txt"
+          ]
+        }
+      }
+    },
+    "E6-escribe-por-OPTIONS": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "GET /static",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "HEAD /static"
+      ],
+      "descripcion": "verbo que se sondeaba y NO se comprobaba: mismo agujero",
+      "detectado": true,
+      "fallos": [
+        {
+          "detalle": "este montaje se declaró estático (superficie {GET, HEAD}; TODO lo demás rechazado con 405) y la app real NO lo cumple",
+          "key": "ESTATICO /static",
+          "lectura_no_servida": {},
+          "metodos_no_lectura_no_rechazados": {
+            "OPTIONS": 200
+          },
+          "motivo": "caracterizacion-falsa",
+          "path": "/static",
+          "sonda": {
+            "DELETE": 405,
+            "GET": 404,
+            "HEAD": 404,
+            "MKCOL": 405,
+            "OPTIONS": 200,
+            "PATCH": 405,
+            "POST": 405,
+            "PROPFIND": 405,
+            "PUT": 405,
+            "TRACE": 405,
+            "urls_sondeadas": [
+              "/static/",
+              "/static/__sonda-inexistente__.txt"
+            ]
+          },
+          "tipo": "_Escribe"
+        }
+      ],
+      "fichero_colado_existe": true,
+      "montajes_estaticos": [
+        "ESTATICO /static"
+      ],
+      "sin_sonda_tambien_falla": true,
+      "sondas": {
+        "ESTATICO /static": {
+          "DELETE": 405,
+          "GET": 404,
+          "HEAD": 404,
+          "MKCOL": 405,
+          "OPTIONS": 200,
+          "PATCH": 405,
+          "POST": 405,
+          "PROPFIND": 405,
+          "PUT": 405,
+          "TRACE": 405,
           "urls_sondeadas": [
             "/static/",
             "/static/__sonda-inexistente__.txt"
@@ -620,6 +858,6 @@
       ]
     }
   },
-  "casos_ejecutados": 14,
+  "casos_ejecutados": 17,
   "ok": true
 }

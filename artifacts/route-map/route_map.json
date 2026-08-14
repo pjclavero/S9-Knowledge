@@ -3032,7 +3032,7 @@
     ],
     "sondas_inconcluyentes": []
   },
-  "head": "c31553f1811ca08912346328ff1807cb9d1bbabd",
+  "head": "029df6e196dd5a5986e9a614a4c48dfb8b482055",
   "montajes_estaticos": [
     {
       "body_guards": [],
@@ -6321,10 +6321,13 @@
       "DELETE": 405,
       "GET": 404,
       "HEAD": 404,
+      "MKCOL": 405,
       "OPTIONS": 405,
       "PATCH": 405,
       "POST": 405,
+      "PROPFIND": 405,
       "PUT": 405,
+      "TRACE": 405,
       "urls_sondeadas": [
         "/static/",
         "/static/__sonda-inexistente__.txt"

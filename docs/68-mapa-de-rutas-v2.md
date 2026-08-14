@@ -733,16 +733,29 @@ aquel carril no fue congelarla mejor, fue **eliminarla**.
 > caracterización es una aserción que se pone ROJA si el mundo deja de
 > cumplirla.**
 
-Medido en vivo contra la app real: `GET 200 · HEAD 200 · POST/PUT/DELETE/PATCH
-405`. Eso es una afirmación positiva y falsable, así que `/static` pasa a
-`kind="static"` —no `"opaco"`— con superficie declarada `{GET, HEAD}` y escritura
-declarada rechazada con 405, **y la sonda la comprueba contra la app real**. Tres
-formas de ponerse rojo, ninguna de las cuales requiere que nadie revise una lista:
+Medido en vivo contra la app real: `GET`/`HEAD` servidos y **todo lo demás 405**
+(`POST · PUT · PATCH · DELETE · OPTIONS · PROPFIND · MKCOL · TRACE`). Eso es una
+afirmación positiva y falsable, así que `/static` pasa a `kind="static"` —no
+`"opaco"`— y **la sonda la comprueba contra la app real**. Tres formas de ponerse
+rojo, ninguna de las cuales requiere que nadie revise una lista:
 
 1. **sin sonda** (`--skip-probe`) ⇒ `no-verificado`: una afirmación que nadie ha
    comprobado es una excepción disfrazada;
-2. un método de escritura que **no** devuelve 405 ⇒ `caracterizacion-falsa`;
+2. un método sondeado que no sea `{GET, HEAD}` y **no** devuelva 405 ⇒
+   `caracterizacion-falsa`;
 3. `GET`/`HEAD` que devuelven 405 ⇒ tampoco es un montaje de lectura.
+
+**La aserción es de CONJUNTO CERRADO, y esto no es un detalle.** Una versión
+anterior enumeraba los verbos prohibidos (`POST/PUT/PATCH/DELETE`) y tenía el
+agujero que se le supone a una lista: `OPTIONS` se sondeaba y **no se
+comprobaba**, y `PROPFIND`/`MKCOL`/`TRACE` **ni se sondeaban**. Medido: dos
+montajes que pasaban la hipótesis **y** la verificación y **escribían un fichero
+en disco** (`fallos=[]`, `fichero colado existe: True`). La frase «se pone roja si
+el mundo deja de cumplirla» se pasaba de lo medido: cubría cuatro verbos, no la
+escritura. Hoy se enumera lo **permitido** y se exige que el resto esté cerrado —y
+un método que no aparezca en la sonda cuenta como fallo, porque *no comprobado* no
+es *correcto*—. Cierra la familia entera en vez de cuatro nombres y sale gratis:
+un `StaticFiles` real ya devuelve 405 a todos ellos (medido en el artefacto).
 
 La hipótesis de que un montaje es estático se toma del **tipo que da el propio
 framework** (`StaticFiles`), no de su nombre ni de una lista nuestra, y **no
@@ -773,6 +786,9 @@ ve) y **ROJO** con el nuevo.
 | **E1 `StaticFiles`** | `MOUNT /static` | caracterizado y **verificado** (405 en escritura) |
 | **E2 `StaticFiles(html=True)`** | `MOUNT /static` | caracterizado y verificado |
 | **E3 subclase que acepta POST** | `MOUNT /static` | **`caracterizacion-falsa`, ROJO** |
+| **E4 montaje que 405ea también `GET`** | `MOUNT /static` | ROJO: no es de lectura |
+| **E5 escribe por `PROPFIND`** (verbo que ni se sondeaba) | `MOUNT /static` | ROJO |
+| **E6 escribe por `OPTIONS`** (sondeado y no exigido) | `MOUNT /static` | ROJO |
 | FP1 app limpia | — | 0 opacas (falso positivo vigilado) |
 | FP2 rutas llamadas `mount`/`websocket`/`opaco` | — | 0 opacas: **un nombre no acusa** |
 
@@ -785,11 +801,16 @@ daba 70 filas, 0 opacas y **rc=0 verde**, y la calibración seguía diciendo `OK
 esa rama, muere antes en `metodos-no-enumerables`. Hoy las dos mutaciones ponen la
 calibración en rojo.
 
-**Ablaciones (necesidad), 9, todas sobre el módulo NUEVO:** A1 `methods`
+**Ablaciones (necesidad), 12, todas sobre el módulo NUEVO:** A1 `methods`
 fail-open (H2), A2 sin descenso por `Mount` (H1, H4, H5, H6 — cuatro entradas),
 A3 sin comprobación de tipo (M3), A4 sin regla de caso vacío (H7), A5 el `Mount`
 vacío se salta en silencio (M5), A6 sin verificación de la caracterización
-estática (E3).
+estática (E3), A7 lista de verbos en vez de conjunto cerrado (E6), A8 sin verbos
+arbitrarios en la sonda (E5), A9 sin la mitad de LECTURA de la aserción (E4).
+
+A9 cierra un superviviente propio: la mitad de lectura **existía pero no tenía
+ningún caso capaz de matarla**, así que borrarla entera dejaba la calibración en
+OK. Con E4 ya no.
 
 Dos de las ablaciones anteriores **no se cobraban y se han rehecho**: `A4` era la
 constante literal `True` con `"censo_ablado": []` —no medía nada y no podía
@@ -801,8 +822,12 @@ umbrales del arnés se han ajustado a la carga real: **14 casos y 9 ablaciones**
 **El arnés se ha visto rojo**, con un proceso por mutación (`route_map` es un
 singleton en `sys.modules`: mutar varias en el mismo proceso las acumula y las
 corridas siguientes salen rojas por el motivo equivocado, que es peor que un
-verde). VERDE → `M5`, `M3`, `E3`, `H7`, `H2`, `H1` los seis en ROJO → VERDE tras
-revertir.
+verde). VERDE → `M5`, `M3`, `E3`, `H7`, `H2`, `H1`, `A7`, `A8`, `A9` en ROJO →
+VERDE tras revertir.
+
+*(Sobre el aviso del singleton: es un riesgo real y me mordió — la primera tanda
+en un solo proceso dio una reversión roja por el motivo equivocado. Pero no lo
+cobro como verificación de nada: sólo justifica el aislamiento.)*
 
 ### Qué cambió en la medida real de este árbol
 
@@ -824,11 +849,26 @@ afirmación.
 ### ¿Debería ser puerta de merge?
 
 **Ya es cableable sin ninguna excepción**, que era el obstáculo real: la app sale
-rc=0 porque su único montaje no enumerable está caracterizado, no exento. Aun así
-**`ci.yml` no se toca aquí**: el cableado lo coordina el operador. Lo que queda
-por decidir no es técnico sino de proceso (en qué job, con qué configuración —el
-mapa vale para UNA configuración— y con qué presupuesto de tiempo, porque el
-barrido de autorización arranca un subproceso por corrida).
+rc=0 porque su único montaje no enumerable está caracterizado, no exento. Y si
+`/static` empezara a servir POST, el mapa se pone rojo solo. **`ci.yml` no se toca
+aquí**: el cableado lo decide el operador. Cuando se decida, ésta es la
+configuración recomendada, y las cinco condiciones importan:
+
+1. **Los cuatro paneles APAGADOS**: no exportar ninguna `S9K_PANEL_*_ENABLED`.
+   `chassis.py:186` falla cerrado ante la ausencia y `chassis.py:166` dice que
+   apagados es lo correcto para producción. **La puerta debe medir la
+   configuración que se despliega**, no una cómoda.
+2. **La puerta COMPRUEBA la configuración, no la confía.** `_configuracion()` ya
+   escribe los interruptores en el artefacto; el job debe salir **rojo** si
+   aparece alguno encendido. Sin eso, mide una app y certifica otra — el mismo
+   error de altura que este censo venía a cerrar.
+3. **La sonda es obligatoria.** Con `--skip-probe` es rc=3 por diseño: el job
+   tiene que correr `pytest -p route_map.pytest_route_probe` y pasar `--tested`.
+4. **Presupuesto medido**: el mapa tarda ~4 s; la corrida que genera `--tested`,
+   ~51 s. Cabe en el job que ya corre los tests del visor.
+5. **Un segundo job con los paneles encendidos, informativo**, más adelante: hoy
+   el instrumento **no distingue «apagada por bandera» de «muerta»**, así que ese
+   job no puede ser bloqueante sin producir hallazgos falsos.
 
 ### Limitaciones que quedan (declaradas, no disimuladas)
 
@@ -846,9 +886,16 @@ barrido de autorización arranca un subproceso por corrida).
   sobre lo que no ha visto. La distinción importa: fail-open sería declarar
   limpio lo no observado; esto es declarar que no se ha observado.
 - **La caracterización estática afirma la SUPERFICIE, no el contenido.** Dice que
-  `/static` sólo lee y rechaza escritura con 405; no dice qué ficheros expone ni
-  si alguno de ellos no debería estar ahí. Un fichero sensible dentro del
+  `/static` sólo lee y rechaza con 405 todo lo demás; no dice qué ficheros expone
+  ni si alguno de ellos no debería estar ahí. Un fichero sensible dentro del
   directorio servido pasaría sin marca.
+- **La superficie se comprueba sobre una MUESTRA de verbos y dos URLs.** El
+  conjunto es cerrado (todo lo que no sea `{GET, HEAD}` debe dar 405), pero lo
+  que se emite son diez métodos contra el punto de montaje y un fichero
+  inexistente bajo él. Un montaje que rechazara correctamente en esas dos URLs y
+  sirviera en una tercera no lo vería esta sonda; con `StaticFiles` no es
+  reproducible, porque la comprobación de método precede a la búsqueda del
+  fichero.
 - **La verificación estática necesita la sonda.** Con `--skip-probe` el montaje
   queda `no-verificado` y el informe sale rojo. Es deliberado, pero significa que
   el modo rápido del mapa nunca puede salir verde en una app con estáticos.
