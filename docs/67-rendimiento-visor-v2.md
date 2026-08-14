@@ -174,8 +174,11 @@ Con el dataset actual **ningún rol realista puede medir**: se desploma a
 **125 de 250** nodos (`viewer` y `reviewer`) y confundiría "coste de la política"
 con "menos nodos que serializar". La comparación no confundida es **dataset
 todo-`player` × rol realista**, que da **250/250 con la política realmente
-evaluada**. Medido así, `/api/graph?limit=300`, n=250, 30 repeticiones, **tres
-tandas** en esta misma máquina:
+evaluada** — y ojo, todo-`player` **en los nodos Y en las aristas**: igualar sólo
+los nodos reintroduce el mismo confundido por la puerta de atrás, con un falso
+sobrecoste de ~40 % (se demuestra justo debajo). Medido así,
+`/api/graph?limit=300`, n=250, 30 repeticiones, **tres tandas** en esta misma
+máquina:
 
 | rol | nodos/aristas | tanda 1 | tanda 2 | tanda 3 |
 |---|---|---|---|---|
@@ -189,19 +192,49 @@ en este endpoint y a este tamaño, **el coste de la política no se distingue de
 ruido de la máquina**, que es la limitación 19 de este mismo documento aplicada
 a sí misma.
 
-> **Contraste honesto.** La revisión independiente reportó `viewer` 42,4 ms ·
-> `reviewer` 47,4 ms · `admin_full` 60,7 ms — un **43 %** de sobrecoste del
-> perfil del banco. **No se reproduce**: tres tandas propias dan ±2 % y el signo
-> contrario. La discrepancia es del **orden de la deriva de una máquina
-> compartida**, no de una diferencia de mecanismo. Se deja escrito el desacuerdo
-> con las dos medidas en vez de elegir la más vistosa; **quien quiera cerrarlo
-> necesita máquina dedicada**, no otra tanda aquí.
+#### El 43 % que no existía: **igualar los nodos no es igualar el payload**
 
-Conclusión operativa: la deuda **sigue abierta** —el banco publica cifras de un
-lector con bypass, que no es el usuario real— pero **la magnitud medida hoy es
-~0**, no el 43 % que se llegó a suponer. El eje aparte (todo-`player` × rol
-realista) **existe y funciona**; no se añade al banco porque a día de hoy no
-mediría nada distinguible.
+Hubo un desacuerdo, y **está cerrado, aquí y sin máquina dedicada**. La revisión
+independiente midió `viewer` 42,4 ms · `reviewer` 47,4 ms · `admin_full`
+**60,7 ms** — un **43 %** de sobrecoste del perfil del banco — y **no se
+reproducía**. No era deriva: repetido con el **orden invertido**, el efecto
+seguía **al rol y no a la posición**.
+
+**Era un confundido de PAYLOAD, y el mecanismo está medido.** El eje
+todo-`player` tiene que igualar la visibilidad de **los nodos Y las aristas**.
+Si se igualan sólo los nodos, las aristas siguen repartidas `j % 4` y un rol
+realista **no ve tres cuartos de ellas**: serializa la mitad del grafo y se mide
+**volumen de serialización**, no coste de política. Reproducido aquí, mismo
+grafo de 250 nodos, `/api/graph?limit=300`, 30 repeticiones:
+
+| dataset | rol | nodos | aristas | bytes | mediana |
+|---|---|---|---|---|---|
+| **A) igualadas nodos Y aristas** | `viewer` | 250 | 750 | 553 721 | 46.0 ms |
+| | `reviewer` | 250 | 750 | 553 721 | 46.2 ms |
+| | `admin_full` | 250 | 750 | 553 721 | **45.7 ms** |
+| **B) igualados SÓLO los nodos** | `viewer` | 250 | **375** | **406 357** | 34.4 ms |
+| | `reviewer` | 250 | **375** | **406 357** | 34.6 ms |
+| | `admin_full` | 250 | **750** | **553 721** | 47.1 ms → **+37 %** |
+
+En **B** el rol realista sale "más rápido" porque **le dan la mitad de las
+aristas y un 27 % menos de bytes**; leído al revés, eso es el falso sobrecoste
+de `admin_full`. La revisión midió su variante de **B** (555 vs 1 110 aristas,
+477 489 vs 696 056 B) y de ahí salía el 43 %. Con el payload **byte-idéntico**
+—que es lo que registra la tabla de arriba, `250 / 750` en las tres filas— el
+efecto de rol **desaparece**: ±3 %, y `admin_full` el más rápido en uno de los
+dos órdenes. Ambas partes reproducen ya la misma conclusión, **en signo y
+magnitud**.
+
+> **Trampa a evitar, escrita para el siguiente**: quien rehaga el eje
+> todo-`player` **y olvide las aristas** volverá a obtener un ~40 % de sobrecoste
+> **falso**. Igualar el payload no es un detalle del montaje: **es la condición
+> que hace que la medida signifique lo que dice medir**.
+
+Conclusión operativa (sin cambios): la deuda **sigue abierta y es
+ESTRUCTURAL** —el banco publica cifras de un lector con bypass, que no es el
+usuario real— pero su **magnitud medida hoy es ~0**, no el 43 %. El eje aparte
+(todo-`player` en nodos **y** aristas × rol realista) **existe y funciona**; no
+se añade al banco porque a día de hoy no mediría nada distinguible del ruido.
 
 ---
 
