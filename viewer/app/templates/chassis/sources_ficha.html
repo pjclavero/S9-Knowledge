@@ -1,0 +1,84 @@
+{#
+  Hueco F — ficha de UNA fuente. SOLO LECTURA.
+
+  Mismas dos reglas que el listado: ningún enlace escrito a mano (todo por
+  `url_for`) y ningún identificador crudo (la fila publicada trae `etiqueta` y
+  `handle`, no la ruta de origen).
+
+  No hay aquí ni un botón, ni un formulario, ni una acción: esta ficha no
+  reingesta, no reprocesa y no marca nada. Es una lectura.
+#}
+{% extends "chassis/_slot.html" %}
+
+{% block empty_title %}Fuente sin contenido visible{% endblock %}
+{% block empty_body %}Esta fuente no aporta entidades visibles en tu ámbito actual.{% endblock %}
+
+{% block body %}
+{% if source is not defined %}{{ super() }}{% else %}
+<main class="container" data-slot="{{ slot.key }}" data-readonly="true"
+      data-source-handle="{{ source.handle | e }}"
+      data-path-redacted="{{ 'true' if source.ruta_oculta else 'false' }}">
+  <p><a href="{{ url_for('chassis_sources') }}?workspace={{ (workspace or '') | urlencode }}">← Fuentes</a></p>
+
+  <h1>{{ source.etiqueta | e }}</h1>
+  {% if source.ruta_oculta %}
+  <p class="muted" data-role="redaccion">
+    Se muestra sólo el nombre de la fuente. La ruta de origen en el servidor no
+    se publica en esta pantalla.
+  </p>
+  {% endif %}
+  {% if source.sin_fuente %}
+  <p class="muted" data-role="ausencia">
+    Estas entidades <strong>no declaran</strong> de qué fuente proceden. Es una
+    ausencia de dato, no una fuente llamada así.
+  </p>
+  {% endif %}
+
+  <section class="panel" data-state="ready" data-role="resumen" data-scope="visible">
+    <p>Workspace: <span data-role="workspace">{{ (workspace or 'no disponible') | e }}</span></p>
+    <p><span data-count="entities">{{ source.entity_count }}</span> entidades visibles</p>
+    <p class="muted" data-role="alcance">
+      Todo lo de esta ficha se cuenta después de aplicar la autorización: es lo
+      que <strong>tú</strong> puedes ver de esta fuente, no lo que la fuente tiene.
+    </p>
+  </section>
+
+  <section class="panel" data-role="procedencia">
+    <h2>Procedencia</h2>
+    <ul>
+      {% for p in source.procedencias %}
+      <li data-kind="{{ (p.clave or '') | e }}">{{ p.etiqueta | e }} · {{ p.count }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="panel" data-role="estados">
+    <h2>Estado de revisión</h2>
+    <table>
+      <thead><tr><th>Estado</th><th>Entidades</th></tr></thead>
+      <tbody>
+      {% for e in source.estados %}
+        <tr data-status="{{ (e.clave or '') | e }}"
+            data-status-known="{{ 'true' if e.conocido else 'false' }}">
+          <td class="{{ 'status-known' if e.conocido else 'status-unknown' }}">{{ e.etiqueta | e }}</td>
+          <td>{{ e.count }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel" data-role="tipos">
+    <h2>Por tipo de entidad</h2>
+    <table>
+      <thead><tr><th>Tipo</th><th>Entidades</th></tr></thead>
+      <tbody>
+      {% for t in source.tipos %}
+        <tr data-type="{{ (t.clave or '') | e }}"><td>{{ t.etiqueta | e }}</td><td>{{ t.count }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</main>
+{% endif %}
+{% endblock %}

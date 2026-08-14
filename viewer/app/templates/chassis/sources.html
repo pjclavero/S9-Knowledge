@@ -1,3 +1,116 @@
+{#
+  Hueco F — Panel de Fuentes, SOLO LECTURA.
+
+  Extiende `chassis/_slot.html`, así que hereda sus tres estados explícitos
+  (`data-state` = error | empty | ready).
+
+  NINGUNA URL ESCRITA A MANO. Todo enlace y todo `action` se resuelve por
+  NOMBRE de ruta con `url_for`. Escribir el prefijo del hueco aquí es el fallo
+  nº 2 que el chasis existe para impedir: nadie se entera cuando la ruta cambia.
+
+  NINGÚN NOMBRE DE FICHERO COMPLETO. Las filas traen `etiqueta` (último
+  segmento) y `handle` (asa opaca); el identificador crudo no llega hasta aquí,
+  así que no se puede imprimir por descuido. Ver `_publicar` en el router.
+#}
 {% extends "chassis/_slot.html" %}
-{% block empty_title %}Sin fuentes{% endblock %}
-{% block empty_body %}No hay fuentes visibles en tu ámbito actual.{% endblock %}
+
+{% block empty_title %}Sin fuentes visibles{% endblock %}
+{% block empty_body %}
+  {% if workspaces %}
+    Ninguna entidad de tu ámbito actual declara fuente en este workspace.
+  {% else %}
+    No hay ningún workspace visible para tu ámbito actual.
+  {% endif %}
+{% endblock %}
+
+{% block body %}
+{#
+  Sin `sources` en el contexto no hay panel que pintar: se delega en la
+  pantalla genérica del hueco (`super()`), que ya sabe pintar error / vacío /
+  listo. No es un adorno: la suite del chasis renderiza esta plantilla FUERA de
+  una petición (`request=None`, `items=["uno"]`) para comprobar sus tres
+  estados, y ahí no existe ni `url_for` ni una fila de verdad.
+#}
+{% if sources is not defined %}{{ super() }}{% else %}
+<main class="container" data-slot="{{ slot.key }}" data-readonly="true">
+  <h1>{{ slot.title }}</h1>
+
+  {% if error %}
+    {# El motivo, sin ruta y sin traza. `error_detail` es sólo el nombre del tipo. #}
+    <section class="panel panel-error" data-state="error">
+      <h2>No se pudo cargar</h2>
+      <p>{{ error }}</p>
+      {% if error_detail %}<p class="muted" data-error-kind>{{ error_detail | e }}</p>{% endif %}
+    </section>
+  {% else %}
+
+    <form method="get" action="{{ url_for('chassis_sources') }}" class="panel" data-role="filtros">
+      <label>Workspace
+        <select name="workspace">
+          {% for w in workspaces %}
+          <option value="{{ w | e }}" {% if w == workspace %}selected{% endif %}>{{ w | e }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit">Ver</button>
+    </form>
+
+    {#
+      CONTADORES DESPUÉS DE LA AUTORIZACIÓN. Salen de agregar el conjunto que
+      `PolicyFilteredProvider` ya filtró, no de preguntar un total al proveedor
+      sin filtrar: un total del sistema junto a una lista recortada revela por
+      diferencia lo que el espectador no puede ver.
+    #}
+    <section class="panel" data-role="contadores" data-scope="visible">
+      <span data-count="sources">{{ sources | length }}</span> fuentes ·
+      <span data-count="entities">{{ sources | sum(attribute='entity_count') }}</span> entidades
+      <p class="muted" data-role="alcance">
+        Recuentos de lo que <strong>tú</strong> puedes ver, calculados después de
+        aplicar la autorización. No son los totales del sistema y no deben leerse
+        como tales.
+      </p>
+    </section>
+
+    {% if not sources %}
+      <section class="panel panel-empty" data-state="empty">
+        <h2>{{ self.empty_title() }}</h2>
+        <p>{{ self.empty_body() }}</p>
+      </section>
+    {% else %}
+      <section class="panel" data-state="ready">
+        <table>
+          <thead>
+            <tr><th>Fuente</th><th>Entidades</th><th>Procedencia</th><th>Estado de revisión</th></tr>
+          </thead>
+          <tbody>
+          {% for f in sources %}
+            <tr data-source-handle="{{ f.handle | e }}"
+                data-path-redacted="{{ 'true' if f.ruta_oculta else 'false' }}"
+                data-source-declared="{{ 'false' if f.sin_fuente else 'true' }}">
+              <td>
+                <a href="{{ url_for('chassis_sources_item', handle=f.handle) }}?workspace={{ (workspace or '') | urlencode }}">{{ f.etiqueta | e }}</a>
+                {% if f.ruta_oculta %}
+                <span class="muted" data-role="redaccion" title="Se muestra sólo el nombre; la ruta de origen no se publica">(ruta oculta)</span>
+                {% endif %}
+              </td>
+              <td data-count="entities">{{ f.entity_count }}</td>
+              <td data-role="procedencia">
+                {% for p in f.procedencias %}{{ p.etiqueta | e }} ({{ p.count }}){% if not loop.last %} · {% endif %}{% endfor %}
+              </td>
+              <td data-role="estados">
+                {% for e in f.estados %}
+                <span data-status="{{ (e.clave or '') | e }}"
+                      data-status-known="{{ 'true' if e.conocido else 'false' }}"
+                      class="{{ 'status-known' if e.conocido else 'status-unknown' }}">{{ e.etiqueta | e }} ({{ e.count }})</span>{% if not loop.last %} · {% endif %}
+                {% endfor %}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    {% endif %}
+  {% endif %}
+</main>
+{% endif %}
+{% endblock %}
