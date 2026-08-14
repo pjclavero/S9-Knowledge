@@ -235,6 +235,33 @@ Se resolvió así, y conviene saber cuál es cuál:
 **Medido sobre este árbol:** `1539 passed, 191 skipped, 0 failed`, en orden fijo
 y en orden aleatorio. Línea base en `main@420f626`: `1499 passed, 191 skipped`.
 
+### Lo que la medición local NO vio, y hay que decirlo
+
+**Verde local no fue verde en CI.** `viewer/tests/test_neo4j_integration_authz.py`
+se **salta** en esta máquina —no hay Neo4j efímero—, así que sus 19 pruebas
+formaban parte de esos `191 skipped` y **nunca se ejercieron en ninguna de mis
+mediciones**. En CI se pusieron rojas dos:
+
+* `test_known_by_valido_concede_y_solo_a_quien_toca` — el nodo `conocido` es
+  `scope=juego`, así que sin la llave lo denegaba 2b-bis **antes** de llegar a
+  `known_by`: rojo por el motivo equivocado.
+* `test_las_relaciones_llegan_con_su_visibilidad` — la única arista no secreta
+  tiene `lore` (`scope=juego`) como extremo, y una relación exige que **ambos**
+  extremos sean visibles. Sin la llave no quedaba ni una arista.
+
+Se arregló con el mismo cambio mecánico que las otras diez suites
+(`can_view_lore=True` en la factoría, que representa a un lector autenticado).
+Pero el hallazgo que importa no es el arreglo: **una suite que no corre donde se
+mide no está medida**, y «1539 passed en local» no era la cobertura que parecía.
+
+Hay un segundo efecto de esto que conviene apuntar: mientras las aristas venían
+vacías, `test_una_arista_no_revela_un_extremo_secreto` **pasaba por vacío**
+—recorría una lista vacía—. Es un bucle vacío que no ejercía nada, y sólo se vio
+porque el fallo de al lado obligó a mirar. Con el arreglo vuelve a ejercerse.
+
+Las otras pruebas que sólo corren en CI son las de navegador (Playwright), que
+no construyen contexto ni dependen de la capa juego.
+
 ---
 
 ## 8. Supervivientes y limitaciones, sin racionalizar
@@ -258,6 +285,15 @@ y en orden aleatorio. Línea base en `main@420f626`: `1499 passed, 191 skipped`.
 6. **La coincidencia G/F de la medición vieja era «mismo veredicto y misma
    proporción sobre conjuntos solapados pero no idénticos»**, no celda a celda.
    Ya estaba corregido en `docs/78 §3` y se mantiene así.
+7. **Toqué un fichero fuera de mi ámbito declarado**:
+   `viewer/tests/test_neo4j_integration_authz.py`, porque mi cambio lo puso rojo
+   y no se puede dejar CI en rojo. Es el mismo cambio mecánico de una línea que
+   en las otras diez suites, no relaja ninguna barrera, y **queda señalado aquí
+   para el carril del contrato Neo4j efímero**, por si colisiona con lo suyo.
+8. **La calibración se ejerció sobre la selección de paneles + HTTP + registro**,
+   no sobre la suite entera en cada ciclo (5 mutaciones × 2 corridas completas
+   habría sido inviable). Los guardianes exigidos por mutación están declarados
+   en §5, así que un rojo por otro sitio no cuenta como calibración.
 
 ---
 
