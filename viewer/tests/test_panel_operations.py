@@ -613,11 +613,13 @@ def test_el_panel_no_ejecuta_healthchecks_ni_escribe_el_informe(
     real_app, panel_on, with_jobs, with_scope, tmp_path, operador):
     """La frontera que distingue este panel de `/admin/health`.
 
-    `/admin/health` llama a `runner.run_report()`, que EJECUTA las
-    comprobaciones y guarda el informe en disco: un GET con efecto lateral. Este
-    panel lee el último informe ya guardado. Se comprueba de dos formas
-    independientes: el fichero no llega a existir tras recorrer el panel, y el
-    módulo no nombra al ejecutor en su AST.
+    `/admin/health` ejecuta el informe con `runner.run_report()` y acto seguido
+    lo guarda con `storage.save_report(report)` DENTRO del mismo GET: un GET con
+    efecto lateral. (El que escribe es el manejador de la ruta, no
+    `run_report`; la conclusión es la misma pero conviene señalar al culpable
+    correcto.) Este panel lee el último informe ya guardado. Se comprueba de dos
+    formas independientes: el fichero no llega a existir tras recorrer el panel,
+    y el módulo no nombra ni al ejecutor ni al escritor en su AST.
     """
     import ast
 
@@ -670,13 +672,27 @@ def test_una_cola_no_disponible_no_se_pinta_como_cero(
 
 def test_la_ruta_de_la_base_de_datos_nunca_se_publica(
     real_app, panel_on, with_scope, sin_cola, with_jobs, operador):
-    """`jobs_db_status` trae `db_path`: una ruta del servidor. No sale a pantalla."""
+    """`jobs_db_status` trae `db_path`: una ruta del servidor. No sale a pantalla.
+
+    TODAS las aserciones de fuga son NEGATIVAS (`... not in text`), y una
+    aserción negativa la satisface cualquier cuerpo vacío: sobre el cuerpo de un
+    302 pasaría igual. Hoy no es vacuo —se entra por un admin de verdad—, pero
+    sería frágil ante cualquier regresión que convirtiese el 200 en 302 o 404.
+    Por eso cada mitad exige además el código 200 y un MARCADOR POSITIVO de que
+    la pantalla se pintó de verdad.
+    """
     with_scope(anon_scope())
     caido = operador.get(SLOT.prefix)
+    assert caido.status_code == 200
+    assert f'data-slot="{SLOT.key}"' in caido.text, "la pantalla no llegó a pintarse"
+    assert 'data-jobs-available="false"' in caido.text
     assert "/ruta/secreta/del/servidor" not in caido.text
 
     with_jobs([make_job("j1")])
     vivo = operador.get(SLOT.prefix)
+    assert vivo.status_code == 200
+    assert f'data-slot="{SLOT.key}"' in vivo.text, "la pantalla no llegó a pintarse"
+    assert _ids_de_la_lista(vivo.text) == ["j1"], "la pantalla no pintó ninguna fila"
     assert "/ruta/secreta/del/servidor" not in vivo.text
 
 
@@ -743,9 +759,68 @@ def test_el_detalle_operativo_se_recorta_a_quien_no_es_autoridad_plena(
     assert fila["has_error"] is True
 
 
+def test_un_campo_ausente_no_se_convierte_en_cero(
+    real_app, panel_on, with_jobs, with_scope, operador):
+    """AUSENCIA != CERO también CAMPO A CAMPO, no sólo por sección.
+
+    FALSO NEGATIVO MEDIDO EN VERDE (O2/O3 de la revisión independiente): con
+    `job.get("attempts") or 0` la suite entera salía 48 passed, porque la
+    doctrina sólo estaba calibrada a nivel de sección (cola no disponible) y no
+    a nivel de campo. El comentario de la plantilla decía «`None` es ausencia
+    declarada, no un 0 inventado» y ninguna comprobación podía ponerlo rojo.
+
+    Bidireccional a propósito: un CERO DE VERDAD sí es un cero y debe pintarse
+    como tal. Sin esa mitad, "convertir todo 0 en ausencia" pasaría en verde, y
+    mentir en la otra dirección es igual de mentira.
+    """
+    sin_campo = make_job("sin-intentos")
+    sin_campo.pop("attempts")
+    with_jobs([sin_campo, make_job("cero-real", attempts=0)])
+    with_scope(anon_scope())
+
+    fila_ausente = panel._fila(sin_campo, panel.known_job_statuses())
+    assert fila_ausente["attempts"] is None, (
+        "un campo ausente se ha convertido en un dato inventado"
+    )
+
+    r = operador.get(SLOT.prefix)
+    assert r.status_code == 200
+    celdas = dict(re.findall(
+        r'<tr data-job-id="([^"]+)">.*?data-attempts="([^"]*)"', r.text, re.S
+    ))
+    assert celdas["sin-intentos"] == "", celdas
+    assert celdas["cero-real"] == "0", celdas
+    assert "no disponible" in r.text
+
+
 # ===========================================================================
 # 6. Estados desconocidos: FALLO CERRADO
 # ===========================================================================
+
+def test_un_estado_desconocido_no_se_pinta_con_el_aspecto_de_bueno(
+    real_app, panel_on, with_jobs, with_scope, operador):
+    """La CLASE CSS es "el aspecto", y hasta ahora nadie la calibraba.
+
+    FALSO NEGATIVO MEDIDO EN VERDE (O2 de la revisión independiente): fijando
+    `class="status-known"` y dejando honesto el `data-status-known`, la suite
+    entera salía 48 passed. Los tests miraban el atributo `data-*` y el texto —
+    que son el contrato de máquina— mientras la doctrina escrita («NUNCA se
+    pinta con el aspecto de un estado bueno») hablaba de lo que ve el humano.
+
+    Bidireccional: se exige la clase de desconocido para el estado raro Y la de
+    conocido para el legítimo, así que "pintarlo todo de desconocido" tampoco
+    pasa.
+    """
+    with_jobs([make_job("raro", status="TERMINADO_POR_LA_CASA"),
+               make_job("bueno", status="pending")])
+    with_scope(anon_scope())
+    r = operador.get(SLOT.prefix)
+    assert r.status_code == 200
+    clases = dict(re.findall(
+        r'<tr data-job-id="([^"]+)">.*?class="(status-[a-z]+)"', r.text, re.S
+    ))
+    assert clases == {"raro": "status-unknown", "bueno": "status-known"}, clases
+
 
 def test_un_estado_de_trabajo_desconocido_no_se_declara_conocido(
     real_app, panel_on, with_jobs, with_scope, operador):

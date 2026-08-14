@@ -34,11 +34,14 @@ Filtros (todos GET): `workspace`, `status`, `job_type`, `limit` (techo
 
 **Lo que se dejó FUERA a propósito**: cualquier cosa que exigiera un endpoint
 nuevo o una lectura con efecto lateral. En concreto, el estado de salud *en
-vivo*: `/admin/health` lo obtiene con `runner.run_report()`, que ejecuta los
-checks **y escribe el informe en disco**. Un GET que escribe sigue siendo
-escritura, así que este panel enseña el último informe guardado y lo dice
-cuando no hay ninguno. Si se quiere salud en vivo, hace falta una lectura sin
-persistencia, y eso es backend nuevo: queda fuera de este carril.
+vivo*. `/admin/health` ejecuta los checks con `runner.run_report()` y acto
+seguido, **dentro del mismo GET**, los guarda con `storage.save_report(report)`.
+Precisión que la primera redacción de este documento se saltó: **`run_report`
+no escribe**; el efecto lateral es del manejador de la ruta. La conclusión no
+cambia —ese camino, tomado entero, es un GET que escribe—, así que este panel
+enseña el último informe guardado y lo dice cuando no hay ninguno. Si se quiere
+salud en vivo, hace falta una lectura sin persistencia, y eso es backend nuevo:
+queda fuera de este carril.
 
 ## Frontera de solo lectura: cómo se garantiza
 
@@ -123,6 +126,10 @@ adorno.
 * Del informe de salud se publican componente y estado; **nunca** `message` ni
   `details`, que pueden traer rutas, hosts o comandos del servidor.
 * De un trabajo se publica la **señal** de incidencia, nunca el texto del error.
+* Y **campo a campo**, no sólo por sección: un `attempts` ausente se pinta *no
+  disponible*, mientras que un `0` de verdad se pinta `0` (**B23**). Doctrina y
+  contrapeso: mentir en la otra dirección —convertir todo cero en ausencia— es
+  igual de mentira.
 
 ## Estados desconocidos: fallo cerrado
 
@@ -140,10 +147,12 @@ adorno.
   este visor no reconoce.
 * Errores: la pantalla publica `type(exc).__name__` y nunca `str(exc)` (que
   puede traer la ruta de la base) ni la traza (**B10**).
+* Y no sólo en el contrato de máquina: la **clase CSS** —"el aspecto"— también
+  distingue conocido de desconocido, con las dos direcciones exigidas (**B22**).
 
 ## Calibración
 
-`python3 scripts/calibrar_panel_operations.py` → **21/21**: verdes sin mutar,
+`python3 scripts/calibrar_panel_operations.py` → **23/23**: verdes sin mutar,
 rojas con el defecto inyectado, reversión byte a byte verificada por sha256, y
 el rojo cae en la comprobación declarada (un rojo por el motivo equivocado se
 reporta como fallo del caso).
@@ -163,8 +172,14 @@ reporta como fallo del caso).
   `/jobs/{job_id}`, con el mismo ámbito. Duplicarlo aquí habría sido superficie
   nueva sin valor nuevo.
 * La sección de salud es **global** (infraestructura), no material de partida:
-  no se acota por ámbito, se acota por la puerta `admin` del hueco. Si algún día
-  el informe incluyera datos de partida, haría falta acotarlo.
+  no se acota por ámbito, se acota por la puerta `admin` del hueco. Hoy no
+  concede nada nuevo, porque esa puerta es el mismo `require_admin` que ya abre
+  `/admin/health`, que muestra lo mismo y además ejecuta.
+  **Condición de futuro**: el día que existan *admins de partida* —un rol de
+  administración acotado a un ámbito, que hoy **no** existe—, estos nombres de
+  componente serían infraestructura global expuesta a un administrador acotado,
+  y habría que acotar la sección o retirarla. Igual si el informe llegara a
+  incluir datos de partida.
 * La ausencia de escritura se demuestra por **enumeración de métodos HTTP**. Un
   GET que escribiera en disco no lo caza el censo: por eso se comprueba aparte,
   y por observación del sistema de ficheros, que este panel no escribe (**B13**).
@@ -173,3 +188,26 @@ reporta como fallo del caso).
   producción, el mismo de `/jobs`. Que coincida con el total de la base es
   correcto ahí: la autorización concede todo. La medida de que el recuento es
   posterior a la autorización se hace con un ámbito que **no** es pleno.
+* Aserciones NEGATIVAS: las de fuga (`"…" not in text`) las satisface cualquier
+  cuerpo vacío. Donde se usan se exige además el **200** y un marcador positivo
+  de que la pantalla se pintó, para que una regresión que devuelva 302 o 404 no
+  las deje verdes por vacuidad.
+
+## Deuda ajena, sólo anotada
+
+`app/jobs_client.py` usa `_SCOPE_LIMIT = 100_000` como ventana para filtrar
+antes de contar: por encima de esa cifra los listados y los recuentos **truncan
+en silencio**. Es preexistente y compartida con `/jobs` y `/api/jobs`; este
+carril no la toca ni la arregla, sólo la deja escrita.
+
+## Método, y un aviso de herramienta
+
+Las tres garantías añadidas tras la revisión independiente (**B22**, **B23**, y
+el refuerzo de la aserción negativa) siguieron el ciclo completo: falso negativo
+**medido en VERDE primero** (con las dos mutaciones puestas a la vez la suite
+salía **48 passed**), arreglo, **ROJO** por la comprobación declarada, reversión
+verificada por sha256 y **VERDE** de nuevo.
+
+Aviso: en este entorno `python` **no existe**, y una invocación con ese nombre
+puede devolver código de salida 0 sin haber ejecutado nada. Se usa `python3` y
+se lee la **línea de resumen** de pytest, nunca el código de salida a secas.

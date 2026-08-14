@@ -267,6 +267,28 @@ CASOS: tuple[Caso, ...] = (
          "test_la_enumeracion_del_espacio_del_panel_no_puede_salir_vacia"),
     ),
     Caso(
+        # O2 de la revisión independiente. FALSO NEGATIVO MEDIDO EN VERDE: con
+        # esta mutación —clase CSS fija de "estado bueno", dejando honesto el
+        # `data-status-known`— la suite entera salía 48 passed. Los tests
+        # miraban el atributo `data-*` y el texto, y nadie calibraba LA CLASE,
+        # que es justamente "el aspecto" del que habla la doctrina.
+        "B22", "Un estado desconocido tampoco se pinta con el ASPECTO de bueno",
+        PLANTILLA,
+        "                  class=\"{{ 'status-known' if row.status_known else 'status-unknown' }}\">",
+        "                  class=\"status-known\">",
+        ("test_un_estado_desconocido_no_se_pinta_con_el_aspecto_de_bueno",),
+    ),
+    Caso(
+        # O3 de la revisión independiente. FALSO NEGATIVO MEDIDO EN VERDE: la
+        # doctrina "ausencia != cero" sólo estaba calibrada a nivel de SECCIÓN
+        # (B5, cola no disponible), no a nivel de CAMPO de fila.
+        "B23", "AUSENCIA != CERO también campo a campo, no sólo por sección",
+        ROUTER,
+        "        \"attempts\": job.get(\"attempts\"),",
+        "        \"attempts\": job.get(\"attempts\") or 0,",
+        ("test_un_campo_ausente_no_se_convierte_en_cero",),
+    ),
+    Caso(
         "B21", "Con la auth desactivada el panel NO se sirve (mitad A del control)",
         ROUTER,
         "    user=Depends(slot_guard(SLOT)),",

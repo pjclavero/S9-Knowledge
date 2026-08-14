@@ -3,11 +3,17 @@
 FRONTERA DURA: aquí no hay ningún método que no sea GET, y ninguna lectura con
 efecto lateral. Este panel NO aprueba, NO reintenta, NO cancela, NO reinicia y
 NO purga nada. Tampoco *ejecuta* los healthchecks: lee el ÚLTIMO INFORME YA
-GUARDADO (``app.health.storage.load_last``) en vez de llamar a
-``runner.run_report()``, que es lo que hace ``/admin/health`` y que además
-ESCRIBE el informe en disco. Un GET que escribe sigue siendo escritura; por eso
-la diferencia entre ``load_last`` y ``run_report`` es la frontera de este
-carril, no un detalle de implementación.
+GUARDADO (``app.health.storage.load_last``) en vez de tomar el camino de
+``/admin/health``.
+
+PRECISIÓN, porque la frase importa y la primera versión de este docstring
+señalaba al culpable equivocado: ``runner.run_report()`` **no escribe**. Quien
+escribe es el MANEJADOR de ``/admin/health``, que tras ejecutar el informe llama
+a ``storage.save_report(report)`` dentro del propio GET (ver
+``app/routers/health_admin.py``). La conclusión operativa no cambia —ese camino,
+tomado entero, ejecuta comprobaciones y deja un fichero nuevo en disco, y un GET
+que escribe sigue siendo escritura—, pero el efecto lateral es de la RUTA, no de
+la función.
 
 La ausencia de escritura no se promete en prosa: se comprueba por ENUMERACIÓN
 de los métodos montados bajo el prefijo del contrato
