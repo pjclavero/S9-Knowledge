@@ -248,9 +248,15 @@ calibradas con **un proceso por mutación**:
 |---|---|---|---|---|
 | **N1** | «una dimensión booleana de concesión no puede fallar abierta si su defecto es `False`» | invertir el **defecto del campo** a `True` | **2** | `089793fbc8ae0f82` ✔ |
 | **N2** | «es de ámbito, no de nivel; por eso `known_by` no la salta» | **mover** 2b-bis dentro de `if not knows` | **3** | `c896051c659af3e8` ✔ |
-| **N3** | la segunda puerta en su **dirección legítima** | `partida_in_scope` → `False` (ocultar de más) | **12** | `c896051c659af3e8` ✔ |
+| **N3** | la segunda puerta en su **dirección legítima** | `partida_in_scope` → `False` (ocultar de más) | **4** en el fichero · **50** en la suite | `c896051c659af3e8` ✔ |
 
-**N1 — el defecto del campo.** La frase está en el registro (`missing=MINIMO`),
+**N1 — el defecto del campo.** *(Sobre el carve-out de `session_public`: hoy es
+**INERTE**. Su defecto real, medido, ya es `False`, así que la exclusión **no
+exime de nada** — no debilita la comprobación. Se deja dicho porque si algún día
+pasara a `True`, el carve-out lo **taparía en silencio**, y entonces habría que
+quitarlo o justificarlo de nuevo.)*
+
+La frase está en el registro (`missing=MINIMO`),
 en `models.py` y en este documento, y **invertir el defecto dejaba las 1539 en
 verde**. La `prueba_negativa` que la dimensión declaraba mide **monotonía**
 («con `can_view_lore=False` no se ve más»), que es **otra propiedad**: se
@@ -262,6 +268,16 @@ añade además una comprobación **general**: ninguna dimensión booleana de
 concesión del `ViewerContext` puede tener defecto `True`, para que la próxima no
 nazca desprotegida.
 
+**El censo es NOMINAL, y hay que decirlo.** Esa comprobación general caza **por
+nombre** (`can_view_*`, más `admin_full`): una dimensión de concesión bautizada
+fuera del patrón **no la caza**. Está atacado y medido por la auditoría —añadió
+una así y el censo no la vio—. Lo que cierra el hueco es la **segunda capa**: en
+cuanto el motor la lee, salta el **guardián por AST**, que no mira nombres sino
+el árbol (`el motor decide con [...] y el registro no la declara`). Son **dos
+capas, y la nominal es la primera, no la única**: una dimensión con otro nombre
+que nadie consulta no concede nada, y en el momento en que alguien la consulta,
+queda declarada o el CI se pone rojo.
+
 **N2 — ámbito contra nivel.** La mutación fiel es la que describió la auditoría:
 no borrar la comprobación, sino **moverla** dentro del bloque de nivel. Es más
 exigente que borrarla, porque **deja el comportamiento del anónimo intacto** —un
@@ -272,6 +288,27 @@ parametrizaciones de la prueba nueva. Eso confirma exactamente el diagnóstico:
 lo que se perdía era **defensa en profundidad, no una puerta abierta**.
 
 **N3 — la dirección que faltaba.** Ver arriba, en la ablación.
+
+**Corrección de una cifra que no estaba medida.** Aquí decía **12**, y 12 no era
+una medición: era `4 familias × 3 roles`, es decir un recuento de
+**aserciones**. Pero los tres roles se recorren en un `for` **dentro** del test,
+así que **el primero que falla corta los otros dos**: esas 12 no son observables
+como rojas por nadie. En un documento que va sobre cómo se mide, una cifra
+derivada de leer el código en vez de ejecutarlo es justo lo que no puede haber.
+
+Lo medido, ejecutando la mutación (`c896051c659af3e8` → `94ab94dbd0286812` →
+`c896051c659af3e8`):
+
+* **4 pruebas rojas** en el fichero nuevo (las cuatro familias de registro);
+* **50 pruebas rojas** en la suite completa: 13 `test_v3_review_e2e`,
+  9 `panel_operations`, 8 `panel_review_console`,
+  6 `multipartida_m5a_adversarial`, 4 invariantes, 4 `reviews_console`,
+  3 `api_jobs`, 2 `v3_review`, 1 `scope_probe`.
+
+La cifra vieja **subestimaba**, no exageraba —el número real es mucho más
+fuerte—, pero eso no la salva: estaba mal obtenida. Y el 50 dice además otra
+cosa que corrige una limitación que yo mismo había declarado: la segunda puerta
+**no está poco cubierta**; lo que estaba poco cubierto era mi *selección*.
 
 ### Y una verificación independiente del guardián por AST, con su tropiezo
 
@@ -300,6 +337,35 @@ FAILED test_provider_authz_fields_contract.py::
 `c896051c659af3e8` → `bd4870c6c2f57acc` → `c896051c659af3e8`. Confirmado: la
 cadena de autoridad única está **impuesta por el sistema**, no sostenida por mi
 disciplina.
+
+### La lección que sale de los dos tropiezos, y no es «ten más cuidado»
+
+Este carril produjo **tres** fallos de medición, y los tres tienen la misma
+forma: **medir sobre un recorte elegido a mano**.
+
+| | Qué se recortó | Qué se perdió |
+|---|---|---|
+| suite Neo4j | la máquina saltaba 19 pruebas | verde local que no era verde en CI |
+| guardián AST | seleccioné dos ficheros de tres | «no muerde», cuando sí muerde |
+| N3 = 12 | conté aserciones leyendo, sin ejecutar | 4 y 50, que es lo que se puede observar |
+
+La revisión independiente **no tuvo ninguno de los tres**, y su explicación es
+la que vale la pena copiar: **no fue puntería, fue no apuntar** — corrió la
+**suite completa** en las seis mutaciones en lugar de seleccionar. Seleccionar
+es una optimización, y como toda optimización **puede estar mal y verse igual de
+verde**. Cuando el recorte se hace para ir rápido, el coste no aparece como
+error sino como **ausencia**, que es indistinguible de «no pasa nada».
+
+Y la simétrica, que la auditoría reconoce de su propio trabajo: encontró **un**
+harness silencioso y se quedó ahí en vez de generalizar la forma; al
+generalizarla resultaron ser **cuatro**. Es exactamente el mismo defecto que la
+lección de más abajo —*el barrido tiene que ser del repositorio, no de la
+carpeta que uno tiene en la cabeza*— aplicado a un directorio en vez de a una
+carpeta.
+
+**Regla operativa que queda escrita**: para una cifra que va a un documento, se
+ejecuta lo que se pueda ejecutar entero; y si hay que recortar, el recorte se
+declara como recorte —cota inferior— y no como total.
 
 ---
 
@@ -426,10 +492,15 @@ cierta por no mirar que este carril ha estado persiguiendo.
    Es la consecuencia buscada, pero es un cambio de comportamiento operativo
    real: cualquier despliegue que dependiera del modo abierto para *ver algo*
    deja de hacerlo. No es un efecto lateral escondido, es la decisión.
-2. **La cobertura de `partida_in_scope` sigue siendo la más fina de las dos
-   puertas**, aunque ya cubre las dos direcciones (§5 bis, N3). Se mide sobre
-   la unidad (`VisibilityScope.allows`) y sobre el panel C, **no** por HTTP
-   contra `/v3/review`, `/review-console` y `/api/jobs` a la vez.
+2. ~~La cobertura de `partida_in_scope` es la más fina de las dos puertas.~~
+   **RETIRADA: era falsa, y la retiro porque la medición la desmiente.** La
+   escribí a partir de M3, que ponía 2 rojas — pero M3 se midió sobre una
+   selección de cuatro ficheros. Ejecutada la mutación contra la suite entera
+   (§5 bis, N3), la segunda puerta pone **50 pruebas rojas en 9 ficheros**,
+   incluidas 13 de `test_v3_review_e2e` y 3 de `api_jobs`, **que sí son HTTP**.
+   Lo que estaba poco cubierto no era la puerta: **era mi selección**. Dejarla
+   escrita como limitación real habría sido una autocrítica falsa, que engaña
+   igual que un elogio falso y encima parece rigor.
 3. **`can_view_lore` se concede por ROL, a los tres roles.** Hoy no hay ninguna
    concesión por usuario ni por workspace. Si mañana hiciera falta un rol que
    entre pero no vea lore, la dimensión lo soporta, pero **hoy no está
