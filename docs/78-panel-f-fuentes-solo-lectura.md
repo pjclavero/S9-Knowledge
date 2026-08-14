@@ -90,20 +90,31 @@ por qué hace falta, en **§8.1**.
 
 ## 3. Con la autenticación desactivada
 
+> **ACTUALIZADO — decisión del operador, 2026-08-14 (V3 RC).**
+> **LORE_ANÓNIMO = DENEGADO.** La medida de este apartado era **1 de 11**; ahora
+> es **0 de 11**. La capa juego dejó de concederse por la AUSENCIA de partida y
+> pasó a exigir llave propia (`can_view_lore`, declarada en el registro M5b).
+> Ver `docs/81`.
+
 Sin `S9K_AUTH_ENABLED` no hay principal, luego no hay autoridad: `build_viewer_context` degrada a
 **anónimo de mínimo privilegio** (P0 de autoridad, `docs/75`). El panel **entra** —la guarda
-`html_role_guard` es no-op en ese banco— y muestra lo que la política deja pasar: la **capa juego**
-del workspace por defecto y **nada de ninguna partida**.
+`html_role_guard` es no-op en ese banco— y, desde la decisión, **no muestra nada**: ni material de
+partida ni capa juego.
 
-**Un panel vacío ahí es el resultado CORRECTO**, no una pantalla que arreglar. Se fija en las dos
-direcciones, y sobre el camino real (se sustituye el proveedor **base**, no el contexto ni el
-proveedor filtrado, de modo que la política y el contexto que deciden son los de verdad):
+**Un panel vacío ahí es el resultado CORRECTO**, no una pantalla que arreglar. Y ahora es vacío
+**absoluto**, no contingente: antes dependía de que el material tuviera partida, y ese matiz es
+justamente el que se cerró. Se fija en las dos direcciones, y sobre el camino real (se sustituye el
+proveedor **base**, no el contexto ni el proveedor filtrado, de modo que la política y el contexto
+que deciden son los de verdad):
 
 - `test_sin_auth_no_reaparece_el_comportamiento_permisivo`: material de partida no aparece ni en la
   lista, ni en los contadores (`sources=0`, `entities=0`), ni por su asa (404).
-- `test_sin_auth_la_capa_juego_SI_es_visible_y_eso_tambien_es_la_politica`: el lore compartido **sí**
-  se entrega. Sin este contrapeso, el test anterior seguiría verde con un panel roto que no
-  mostrase nunca nada.
+- `test_sin_auth_la_capa_juego_TAMPOCO_es_visible`: el lore compartido **ya no** se entrega. Este
+  test decía lo contrario y decía verdad; se **invirtió**, no se borró, y su docstring conserva por
+  qué decía lo que decía.
+- `test_pero_un_lector_legitimo_SI_ve_ese_mismo_lore`: **el contrapeso que hacía falta al invertir el
+  anterior**. Mismo material, misma ruta; lo único distinto es que hay principal. Sin él, «el panel
+  sale vacío» volvería a ser compatible con un panel roto que no muestra nada nunca.
 - `test_la_barrera_de_partida_es_real_no_un_panel_siempre_vacio`: la **misma** fuente de partida que
   el rol publicado no ve, una sesión de administrador **sí** la ve. Lo que separa los dos
   resultados es la autoridad, no un defecto de la pantalla.
@@ -113,22 +124,30 @@ proveedor filtrado, de modo que la política y el contexto que deciden son los d
 No es una cita de la política: es lo que **este panel** entrega, medido contra la app real con el
 proveedor base sustituido (`test_tabla_medida_del_anonimo_con_auth_desactivada`).
 
-| Material | ¿Aparece la fuente? |
-|---|---|
-| capa juego, `player` | **VISIBLE** |
-| capa juego, `reference` | no |
-| capa juego, `secret` | no |
-| capa juego, `narrator` | no |
-| capa juego, `deny` | no |
-| visibilidad inválida (`verde`) | no |
-| sin ámbito declarado | no |
-| partida ajena | no |
-| partida sin sesión de revelación | no |
-| sesión futura | no |
-| workspace ajeno | no |
+| Material | Anónimo | Lector legítimo |
+|---|---|---|
+| capa juego, `player` | **no** *(antes VISIBLE)* | **sí** |
+| capa juego, `reference` | no | **sí** |
+| capa juego, `secret` | no | no |
+| capa juego, `narrator` | no | no |
+| capa juego, `deny` | no | no |
+| visibilidad inválida (`verde`) | no | no |
+| sin ámbito declarado | no | no |
+| partida ajena | no | no |
+| partida sin sesión de revelación | no | no |
+| sesión futura | no | **sí** (`can_view_future` del rol revisor) |
+| workspace ajeno | no | no |
+| | **0 de 11** | **4 de 11** |
 
-**1 de 11**, y hay una segunda medición independiente: el carril G midió la suya sobre su propio
-hueco, sin que ninguno de los dos viera la del otro mientras medía.
+**0 de 11** para el anónimo. La segunda columna se añadió al invertir el veredicto y **no es
+adorno**: la columna del anónimo es ahora unánime a propósito, así que el suelo «que no sea unánime»
+ya no sirve —se autocumpliría—. El suelo pasa a ser: la columna del anónimo tiene que ser CERO, y la
+del lector legítimo ni cero ni todo (`test_la_tabla_tiene_las_dos_direcciones_representadas`).
+
+La medición anterior, **1 de 11**, tenía una segunda medición independiente: el carril G midió la
+suya sobre su propio hueco, sin que ninguno de los dos viera la del otro mientras medía. Esa
+coincidencia es la que demostró que no era el defecto de un panel sino la política —y por tanto que
+la corrección tenía que ir en la política, que es donde ha ido—.
 
 **Con la precisión exacta**, porque «coincide caso por caso» era demasiado fuerte y se corrigió tras
 la revisión: **mismo veredicto y misma proporción —1 de 11, y el mismo caso visible— sobre conjuntos
@@ -141,9 +160,11 @@ distinto, no comparten el mismo defecto por casualidad**. Y es justo lo que hab�
 huecos sobre la misma autorización tienen que dar el mismo veredicto, o uno de los dos está
 aplicando una política suya.
 
-La tabla trae los **dos** veredictos a propósito: once «no visible» se satisfarían con un panel roto
-que no pintara nunca nada, y once «visible» con uno que no filtrara. `test_la_tabla_del_anonimo_no_es_unanime`
-exige que la proporción sea la medida y no otra, para que el parametrizado no pueda autocumplirse.
+La tabla sigue trayendo los **dos** veredictos a propósito —once «no visible» se satisfarían con un
+panel roto que no pintara nunca nada—, sólo que ahora los dos veredictos viven en **columnas**
+distintas de la misma fila en vez de en filas distintas: una fila por caso, y cada fila falla en las
+dos direcciones. `test_tabla_la_misma_fila_para_un_lector_legitimo` es la mitad que se pone roja si
+se oculta de más.
 
 Si algún día aparece ahí un «VISIBLE» nuevo, **no se arregla el panel**: se mide, se declara y se
 pregunta.

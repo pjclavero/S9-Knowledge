@@ -39,6 +39,10 @@ def _ctx(**extra):
         "role": "viewer",
         "allowed_workspaces": frozenset({"ws"}),
         "max_visible_session": 5,
+        # LORE-ANONIMO-DENEGADO: lector AUTENTICADO. Sin la llave de la capa
+        # juego estas pruebas se pondrian rojas por `lore_not_allowed`, es
+        # decir, por el motivo equivocado: lo que miden es `known_by`.
+        "can_view_lore": True,
     }
     base.update(extra)
     return ViewerContext(**base)

@@ -110,20 +110,30 @@ def test_lab_store_never_references_neo4j(tmp_path):
 # ---------------------------------------------------------------------------
 # Rutas FastAPI (auth desactivada por defecto en tests)
 # ---------------------------------------------------------------------------
-def _client():
+def _client(lector_por_dependencia=None):
+    """Cliente de la consola de revision.
+
+    LORE-ANONIMO-DENEGADO (V3 RC, 2026-08-14): sin principal ya no se entrega
+    la capa juego --una fuente sin `partida_id` era visible para cualquiera-- y
+    estas pruebas, que miden la FORMA de la pantalla y no la autorizacion,
+    necesitan un lector con derecho. Se le pasa el ayudante y lo instala sobre
+    ESTA app, que es la real y compartida.
+    """
     from app.main import app
+    if lector_por_dependencia is not None:
+        lector_por_dependencia(app)
     return TestClient(app)
 
 
-def test_inbox_lists_sources():
-    r = _client().get("/review-console")
+def test_inbox_lists_sources(lector_por_dependencia):
+    r = _client(lector_por_dependencia).get("/review-console")
     assert r.status_code == 200
     assert "src_demo_01" in r.text and "src_demo_02" in r.text
     assert "No se escribe en Neo4j" in r.text
 
 
-def test_source_detail_shows_candidates_and_plan_preview():
-    r = _client().get("/review-console/source/src_demo_01")
+def test_source_detail_shows_candidates_and_plan_preview(lector_por_dependencia):
+    r = _client(lector_por_dependencia).get("/review-console/source/src_demo_01")
     assert r.status_code == 200
     assert "Personaje Alfa" in r.text
     assert "Preview del ingest-plan" in r.text
@@ -131,15 +141,15 @@ def test_source_detail_shows_candidates_and_plan_preview():
     assert "expected_candidate_hash" in r.text  # control optimista en el form
 
 
-def test_source_detail_404_for_missing():
-    assert _client().get("/review-console/source/nope").status_code == 404
+def test_source_detail_404_for_missing(lector_por_dependencia):
+    assert _client(lector_por_dependencia).get("/review-console/source/nope").status_code == 404
 
 
-def test_post_decide_happy_path_writes_decision(tmp_path, monkeypatch):
+def test_post_decide_happy_path_writes_decision(tmp_path, monkeypatch, lector_por_dependencia):
     monkeypatch.setenv("S9K_REVIEW_LAB_DIR", str(tmp_path))
     c = rc.get_candidate("src_demo_01", "cand_a1")
     ch = rc.candidate_hash(c)["value"]
-    r = _client().post(
+    r = _client(lector_por_dependencia).post(
         "/review-console/source/src_demo_01/decide",
         data={"candidate_id": "cand_a1", "action": "APPROVE",
               "expected_candidate_hash": ch},
@@ -150,9 +160,9 @@ def test_post_decide_happy_path_writes_decision(tmp_path, monkeypatch):
     assert len(rc.read_decisions(tmp_path)) == 1
 
 
-def test_post_decide_stale_redirects_with_warning(tmp_path, monkeypatch):
+def test_post_decide_stale_redirects_with_warning(tmp_path, monkeypatch, lector_por_dependencia):
     monkeypatch.setenv("S9K_REVIEW_LAB_DIR", str(tmp_path))
-    r = _client().post(
+    r = _client(lector_por_dependencia).post(
         "/review-console/source/src_demo_01/decide",
         data={"candidate_id": "cand_a1", "action": "APPROVE",
               "expected_candidate_hash": "0" * 64},
@@ -162,13 +172,13 @@ def test_post_decide_stale_redirects_with_warning(tmp_path, monkeypatch):
     assert r.headers["location"].endswith("?stale=1")
     assert rc.read_decisions(tmp_path) == []
     # la página de detalle muestra el aviso de obsolescencia
-    detail = _client().get("/review-console/source/src_demo_01?stale=1")
+    detail = _client(lector_por_dependencia).get("/review-console/source/src_demo_01?stale=1")
     assert "Revisión obsoleta" in detail.text
 
 
-def test_post_decide_invalid_action_400(tmp_path, monkeypatch):
+def test_post_decide_invalid_action_400(tmp_path, monkeypatch, lector_por_dependencia):
     monkeypatch.setenv("S9K_REVIEW_LAB_DIR", str(tmp_path))
-    r = _client().post(
+    r = _client(lector_por_dependencia).post(
         "/review-console/source/src_demo_01/decide",
         data={"candidate_id": "cand_a1", "action": "PURGE",
               "expected_candidate_hash": "0" * 64},

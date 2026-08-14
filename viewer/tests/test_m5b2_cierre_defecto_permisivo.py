@@ -36,6 +36,7 @@ def ctx(**kw):
         can_view_secret=True,
         can_view_reference=True,
         can_view_future=True,
+        can_view_lore=True,  # LORE-ANONIMO-DENEGADO: lector autenticado
     )
     base.update(kw)
     return ViewerContext(**base)

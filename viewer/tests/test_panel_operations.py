@@ -184,6 +184,24 @@ def anon_scope() -> VisibilityScope:
     ))
 
 
+def lector_scope(workspace: str = "bruma") -> VisibilityScope:
+    """Ambito de un LECTOR LEGITIMO sin partida activa (`viewer` autenticado).
+
+    LORE-ANONIMO-DENEGADO: hasta aqui las pruebas de PINTADO de este panel se
+    servian de `lector_scope()` como si fuera un ambito sin restricciones. Lo era
+    por accidente: la cola de trabajos no declara partida, y "sin partida" era
+    precisamente lo que concedia visibilidad. Cerrada esa via un anonimo no ve
+    ninguna fila, asi que esas pruebas habrian seguido en verde sin pintar
+    nada, que es la forma mas facil de aprobar una prueba de pantalla.
+
+    Las pruebas de AUTORIZACION siguen usando `lector_scope()`: alli la anonimia
+    es el sujeto, no el andamio.
+    """
+    return VisibilityScope(build_viewer_context(
+        role="viewer", auth_enabled=True, default_workspace=workspace,
+    ))
+
+
 def player_scope(partida: str | None, workspace: str = "bruma") -> VisibilityScope:
     return VisibilityScope(build_viewer_context(
         role="viewer", auth_enabled=True, default_workspace=workspace,
@@ -604,7 +622,7 @@ def test_los_metodos_de_escritura_son_rechazados_por_http(  # noqa: D401
     # es sustituto.
     real_app, panel_on, with_jobs, with_scope, metodo, operador):
     with_jobs([make_job("j1")])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = getattr(operador, metodo)(SLOT.prefix)
     assert r.status_code in (404, 405), f"{metodo.upper()} devolvió {r.status_code}"
 
@@ -626,7 +644,7 @@ def test_el_panel_no_ejecuta_healthchecks_ni_escribe_el_informe(
     from app.health import storage
 
     with_jobs([make_job("j1")])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     informe = storage.default_report_path()
     assert not informe.exists()
 
@@ -647,7 +665,7 @@ def test_el_panel_no_crea_la_base_de_datos_de_trabajos(
     """Una cola ausente se declara ausente; no se crea para poder enseñarla."""
     db = tmp_path / "jobs.db"
     monkeypatch.setenv("S9K_JOBS_DB", str(db))
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     assert operador.get(SLOT.prefix).status_code == 200
     assert not db.exists(), "El panel creó la base de datos de trabajos"
 
@@ -659,7 +677,7 @@ def test_el_panel_no_crea_la_base_de_datos_de_trabajos(
 def test_una_cola_no_disponible_no_se_pinta_como_cero(
     real_app, panel_on, with_scope, sin_cola, operador):
     """No hay dato: se dice. Un 0 inventado es una afirmación falsa."""
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix)
     assert r.status_code == 200
     assert 'data-jobs-available="false"' in r.text
@@ -681,7 +699,7 @@ def test_la_ruta_de_la_base_de_datos_nunca_se_publica(
     Por eso cada mitad exige además el código 200 y un MARCADOR POSITIVO de que
     la pantalla se pintó de verdad.
     """
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     caido = operador.get(SLOT.prefix)
     assert caido.status_code == 200
     assert f'data-slot="{SLOT.key}"' in caido.text, "la pantalla no llegó a pintarse"
@@ -776,7 +794,7 @@ def test_un_campo_ausente_no_se_convierte_en_cero(
     sin_campo = make_job("sin-intentos")
     sin_campo.pop("attempts")
     with_jobs([sin_campo, make_job("cero-real", attempts=0)])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
 
     fila_ausente = panel._fila(sin_campo, panel.known_job_statuses())
     assert fila_ausente["attempts"] is None, (
@@ -813,7 +831,7 @@ def test_un_estado_desconocido_no_se_pinta_con_el_aspecto_de_bueno(
     """
     with_jobs([make_job("raro", status="TERMINADO_POR_LA_CASA"),
                make_job("bueno", status="pending")])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix)
     assert r.status_code == 200
     clases = dict(re.findall(
@@ -825,7 +843,7 @@ def test_un_estado_desconocido_no_se_pinta_con_el_aspecto_de_bueno(
 def test_un_estado_de_trabajo_desconocido_no_se_declara_conocido(
     real_app, panel_on, with_jobs, with_scope, operador):
     with_jobs([make_job("j1", status="TERMINADO_POR_LA_CASA")])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix)
     assert 'data-status-known="false"' in r.text
     assert "estado no reconocido" in r.text
@@ -839,7 +857,7 @@ def test_los_estados_del_motor_si_se_reconocen(real_app, panel_on, with_jobs, wi
         assert panel.job_status_known(estado, vocabulario) is True, estado
 
     with_jobs([make_job("j1", status="pending")])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix)
     assert 'data-status-known="true"' in r.text
     assert "estado no reconocido" not in r.text
@@ -857,7 +875,7 @@ def test_sin_vocabulario_no_se_reconoce_ningun_estado(
     assert panel.job_status_known("pending", None) is False
 
     with_jobs([make_job("j1", status="pending")])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix)
     assert 'data-status-known="false"' in r.text
 
@@ -870,7 +888,7 @@ def test_un_filtro_de_estado_no_reconocido_se_rechaza_con_el_nombre_del_parametr
     el parámetro sin contrastar convertía una consulta en un error de servidor.
     """
     with_jobs([make_job("j1")])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix, params={"status": "inventado"})
     assert r.status_code == 400
     assert "status" in r.text
@@ -880,7 +898,7 @@ def test_un_filtro_de_estado_no_reconocido_se_rechaza_con_el_nombre_del_parametr
 def test_un_filtro_de_estado_valido_si_pasa(real_app, panel_on, with_jobs, with_scope, operador):
     """Contrapeso del anterior: la validación no es un "rechaza siempre"."""
     with_jobs([make_job("j1", status="failed"), make_job("j2", status="pending")])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix, params={"status": "failed"})
     assert r.status_code == 200
     assert _ids_de_la_lista(r.text) == ["j1"]
@@ -893,7 +911,7 @@ def test_un_estado_de_salud_desconocido_no_se_pinta_como_bueno(
         "generated_at": "2026-08-01T10:00:00+00:00",
         "components": [{"component": "neo4j", "status": "TODO_ESTUPENDO"}],
     })
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix)
     assert 'data-health-overall-known="false"' in r.text
     assert 'data-component-status-known="false"' in r.text
@@ -911,7 +929,7 @@ def test_los_estados_de_salud_del_subsistema_si_se_reconocen():
 
 def test_sin_informe_de_salud_no_se_dice_que_todo_va_bien(
     real_app, panel_on, with_scope, sin_cola, operador):
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix)
     assert 'data-health-available="false"' in r.text
     assert 'data-availability="absent"' in r.text
@@ -923,7 +941,7 @@ def test_un_informe_ilegible_se_distingue_de_uno_ausente(
     """Tres desenlaces, tres mensajes: ausente, ilegible, disponible."""
     monkeypatch.setattr(panel, "_health_report", lambda: None)
     monkeypatch.setattr(panel, "_health_report_exists", lambda: True)
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix)
     assert 'data-availability="unreadable"' in r.text
     assert 'data-health-available="false"' in r.text
@@ -941,7 +959,7 @@ def test_el_informe_de_salud_no_publica_mensajes_ni_detalles(
             "details": {"db_path": "/srv/neo4j/data"},
         }],
     })
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix)
     assert "DEGRADED" in r.text and "neo4j" in r.text
     assert "192.168" not in r.text
@@ -962,7 +980,7 @@ def test_una_cola_que_revienta_da_503_sin_filtrar_rutas(
         raise RuntimeError("no such table: jobs en /srv/oculto/jobs.db")
 
     monkeypatch.setattr(jobs_client, "list_jobs", _explota)
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix)
     assert r.status_code == 503
     assert 'data-state="error"' in r.text
@@ -979,7 +997,7 @@ def test_una_cola_que_revienta_da_503_sin_filtrar_rutas(
 def test_sin_material_se_pinta_el_estado_vacio_no_una_excepcion(
     real_app, panel_on, with_jobs, with_scope, operador):
     with_jobs([])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix)
     assert r.status_code == 200
     assert 'data-state="empty"' in r.text
@@ -990,7 +1008,7 @@ def test_el_techo_de_filas_no_miente_sobre_el_total(
     real_app, panel_on, with_jobs, with_scope, operador):
     """Se muestran `limit` filas, pero el recuento visible sigue siendo el real."""
     with_jobs([make_job(f"j{i:02d}") for i in range(30)])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix, params={"limit": 5})
     assert len(_ids_de_la_lista(r.text)) == 5
     assert '<span data-count="visible">30</span>' in r.text
@@ -1000,6 +1018,6 @@ def test_el_techo_de_filas_no_miente_sobre_el_total(
 def test_el_techo_de_filas_tiene_maximo(real_app, panel_on, with_jobs, with_scope, operador):
     """Una página sin techo es una petición que materializa la cola entera."""
     with_jobs([make_job("j1")])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = operador.get(SLOT.prefix, params={"limit": panel.MAX_ROWS + 1})
     assert r.status_code == 422

@@ -146,7 +146,11 @@ def test_el_vendor_se_sirve_desde_el_propio_servidor():
 # Contrato con la API que consume el visor
 # ---------------------------------------------------------------------------
 
-def test_api_graph_devuelve_lo_que_la_ui_necesita():
+def test_api_graph_devuelve_lo_que_la_ui_necesita(lector_por_dependencia):
+    # LORE-ANONIMO-DENEGADO (V3 RC, 2026-08-14): sin principal ya no se
+    # entrega la capa juego, asi que esta prueba de FORMA necesita un lector
+    # con derecho. Lo instala por las dependencias que si muerden.
+    lector_por_dependencia(app)
     data = client.get("/api/graph", params={"workspace": "leyenda", "limit": 100}).json()
     assert data["nodes"] and data["edges"]
     n = data["nodes"][0]
@@ -157,9 +161,13 @@ def test_api_graph_devuelve_lo_que_la_ui_necesita():
         assert campo in e, f"la UI necesita el campo {campo!r} en cada relación"
 
 
-def test_expandir_vecinos_usa_un_endpoint_existente():
+def test_expandir_vecinos_usa_un_endpoint_existente(lector_por_dependencia):
     """El botón "Expandir vecinos" llama a /api/entities/{id}: si esa ruta
     cambia de forma, la funcionalidad muere en silencio en el navegador."""
+    # LORE-ANONIMO-DENEGADO (V3 RC, 2026-08-14): sin principal ya no se
+    # entrega la capa juego, asi que esta prueba de FORMA necesita un lector
+    # con derecho. Lo instala por las dependencias que si muerden.
+    lector_por_dependencia(app)
     assert "/api/entities/" in GRAPH_JS.read_text(encoding="utf-8")
     node_id = client.get("/api/graph", params={"workspace": "leyenda", "limit": 5}).json()["nodes"][0]["id"]
     r = client.get(f"/api/entities/{node_id}")
@@ -261,9 +269,13 @@ def test_las_fichas_de_entidad_conservan_el_estado_de_revision(nombre):
 
 
 @pytest.mark.parametrize("plantilla", ["/entity/{}", "/entities/{}"])
-def test_la_ficha_servida_no_menciona_ninguna_etiqueta_de_visibilidad(plantilla):
+def test_la_ficha_servida_no_menciona_ninguna_etiqueta_de_visibilidad(plantilla, lector_por_dependencia):
     """La comprobación equivalente sobre el HTML ya renderizado, por si algún
     día el dato llegase por otro camino (una macro, un include)."""
+    # LORE-ANONIMO-DENEGADO (V3 RC, 2026-08-14): sin principal ya no se
+    # entrega la capa juego, asi que esta prueba de FORMA necesita un lector
+    # con derecho. Lo instala por las dependencias que si muerden.
+    lector_por_dependencia(app)
     from app.labels import VISIBILITY_LABELS_ES
 
     entity_id = client.get(

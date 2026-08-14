@@ -47,6 +47,11 @@ def scope(**kw):
         allowed_partida_ids=frozenset({PARTIDA}),
     )
     base.update(kw)
+    # LORE-ANONIMO-DENEGADO: un registro SIN partida es capa juego, y la capa
+    # juego pide llave. El sujeto de esta sonda es un lector legitimo, asi que
+    # la tiene; lo que aqui se mide es que la sonda no se evalue como CONTENIDO,
+    # no la barrera nueva.
+    base.setdefault("can_view_lore", True)
     return VisibilityScope(ViewerContext(**base))
 
 

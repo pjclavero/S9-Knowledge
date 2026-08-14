@@ -23,6 +23,7 @@ def _viewer(**over) -> ViewerContext:
         can_view_secret=False,
         can_view_future=False,
         can_view_reference=True,
+        can_view_lore=True,  # LORE-ANONIMO-DENEGADO: lector autenticado
         party_membership=frozenset({"grupo_alfa"}),
         character_knowledge=frozenset(),
         session_public=True,

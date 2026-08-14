@@ -10,6 +10,11 @@ Reglas (en orden; la primera denegación gana):
                               lore compartido y no puede llevar `partida_id`.
                               Sin `scope` válido -> denegado. La ausencia nunca
                               se interpreta como el ámbito más amplio.
+  2b-bis. capa juego       -> `scope=juego` exige `can_view_lore`. La AUSENCIA
+                              de partida no concede visibilidad: el lore
+                              compartido tiene llave propia y el contexto
+                              anónimo no la recibe. Barrera de ÁMBITO, así que
+                              `known_by` no la salta.
   2c. known_by (M5c)       -> si está presente debe ser lista de cadenas no
                               vacías; malformado -> denegado.
   3. nivel de visibilidad  -> reference exige can_view_reference; secret y narrator
@@ -130,6 +135,26 @@ class VisibilityPolicy:
             if pid is not None:
                 return VisibilityDecision(False, "scope_contradictorio")
 
+            # 2b-bis. LORE-ANÓNIMO-DENEGADO: la capa juego exige llave PROPIA.
+            #
+            # "Compartida entre partidas del workspace" nunca quiso decir
+            # "compartida con quien no es nadie". Hasta aquí la capa juego era
+            # la única rama del ámbito sin ninguna condición sobre el LECTOR:
+            # bastaba superar la barrera de workspace, y un contexto anónimo la
+            # supera porque el workspace por defecto del despliegue está en
+            # `allowed_workspaces`. El resultado medido era que la AUSENCIA de
+            # partida concedía visibilidad -- exactamente la inferencia
+            # permisiva que M5c arrancó del propio dato, sobreviviendo un nivel
+            # más arriba, en el lector.
+            #
+            # Va aquí, con el ámbito y no con el nivel de contenido, porque es
+            # una barrera de ÁMBITO: como workspace y como partida, NO la salta
+            # el conocimiento de personaje. Por eso está antes de `ctx.knows` y
+            # fuera del `if not knows` de la regla 3: `known_by` dice que un PJ
+            # conoce un dato, no que quien lee sea ese PJ.
+            if not ctx.can_view_lore:
+                return VisibilityDecision(False, "lore_not_allowed")
+
         # 2c. M5c: `known_by` malformado deniega el nodo entero, no solo el
         # conocimiento. Es un campo de autorización: si no se puede interpretar,
         # no se puede decidir. Además evita el 500 que producía un tipo
@@ -238,11 +263,21 @@ class VisibilityPolicy:
         ``None`` significa "este registro no tiene dimensión de partida", no
         "es de todas": no es un dato del grafo al que se le haya perdido el
         ámbito, sino una fila que nunca lo tuvo.
+
+        LORE-ANÓNIMO-DENEGADO: y "no tiene dimensión de partida" tampoco puede
+        significar "lo ve cualquiera". Este ``return True`` incondicional era la
+        SEGUNDA vía de la misma concesión implícita --la del corpus que no vive
+        en el grafo: propuestas V3, contratos de revisión, cola de trabajos--,
+        acotado con ``scope.partida_only()``. Un registro sin partida es
+        material de capa juego, así que pide la misma llave que la capa juego
+        pide en ``can_view``. Un lector legítimo la tiene y no pierde nada; el
+        anónimo no la tiene y deja de recibir por aquí lo que ya no recibe por
+        el grafo.
         """
         if ctx.admin_full:
             return True
         if partida_id is None:
-            return True
+            return ctx.can_view_lore
         if not isinstance(partida_id, str) or not partida_id.strip():
             return False
         return partida_id in ctx.allowed_partida_ids

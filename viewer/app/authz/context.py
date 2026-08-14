@@ -7,7 +7,9 @@ Mapa rol -> capacidades (slice inicial; ampliable con datos reales de personaje)
               PERO no secretos RPG ajenos salvo permiso explícito.
   viewer    : sólo conocimiento permitido: player + reference; nada de secreto,
               narrator ni futuro; acotado a su party y a lo que su personaje sabe.
-  anonymous : no ve contenido protegido; sólo lo público de sesiones publicadas.
+  anonymous : NADA. Ni contenido protegido, ni la capa juego. Sin principal no
+              hay autoridad, y la ausencia de partida no concede visibilidad:
+              `can_view_lore=False` (LORE-ANÓNIMO-DENEGADO, V3 RC).
 
 AUTORIDAD ÚNICA (P0-AUTH). Este módulo es el ÚNICO productor de
 ``ViewerContext``. La cadena entera de la dimensión más potente del sistema es:
@@ -27,6 +29,11 @@ y no hay ninguna otra. En particular:
     que se salta workspace, aislamiento entre partidas, nivel de visibilidad,
     ``known_by`` y el tope de sesión. No se sustituye por un "modo dev": un
     interruptor nuevo sería la misma autoridad lateral con otro nombre.
+    Y desde LORE-ANÓNIMO-DENEGADO ese contexto anónimo tampoco recibe la capa
+    juego: quedaba una concesión implícita --la ausencia de partida-- que
+    entregaba el lore `player` a cualquiera con la autenticación apagada. El
+    lore público, si algún día se quiere, será una capacidad EXPLÍCITA con sus
+    pruebas, no lo que el sistema hace cuando nadie ha iniciado sesión.
   * los llamadores internos sin usuario (CLI, servicios) NO fabrican el
     contexto a mano: pasan por :func:`build_internal_context`, que es parte de
     este mismo productor y exige declarar un motivo.
@@ -118,6 +125,7 @@ def build_viewer_context(
             can_view_secret=True,
             can_view_future=True,
             can_view_reference=True,
+            can_view_lore=True,
         )
 
     if role == "reviewer":
@@ -131,6 +139,7 @@ def build_viewer_context(
             can_view_secret=False,       # no secretos RPG ajenos salvo permiso
             can_view_future=True,        # revisa material aún no publicado
             can_view_reference=True,
+            can_view_lore=True,          # la capa juego es su material de trabajo
             party_membership=parties,
             character_knowledge=knowledge,
             session_public=True,
@@ -148,6 +157,7 @@ def build_viewer_context(
             can_view_secret=False,
             can_view_future=False,
             can_view_reference=True,
+            can_view_lore=True,          # el lore compartido es de los jugadores
             party_membership=parties,
             character_knowledge=knowledge,
             session_public=True,
@@ -167,6 +177,9 @@ def build_viewer_context(
         can_view_secret=False,
         can_view_future=False,
         can_view_reference=False,
+        # LORE-ANÓNIMO-DENEGADO. Explícito, no heredado del valor por defecto:
+        # esta línea es la decisión, y tiene que poder leerse aquí.
+        can_view_lore=False,
         party_membership=frozenset(),
         character_knowledge=frozenset(),
         session_public=True,
