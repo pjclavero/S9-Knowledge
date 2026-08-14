@@ -98,6 +98,12 @@ def _ctx(partida=None, **over) -> ViewerContext:
         # campana, asi que declara un tope alto explicito. Los casos que si
         # prueban la barrera historica lo sobreescriben con `_jugador_a(tope)`.
         max_visible_session=1000,
+        # LORE-ANONIMO-DENEGADO (V3 RC, 2026-08-14): la capa juego exige llave
+        # propia y un lector AUTENTICADO la tiene. Sin ella estos casos --que
+        # miden aislamiento entre partidas y `known_by` contra Neo4j de verdad--
+        # se pondrian rojos por `lore_not_allowed`, es decir, por el motivo
+        # equivocado.
+        can_view_lore=True,
     )
     base.update(over)
     return ViewerContext(**base)
