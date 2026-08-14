@@ -106,8 +106,210 @@ def load_real_app(repo: Path):
 # 1) mounted — verdad de campo tomada del enrutador de la app real
 # --------------------------------------------------------------------------
 
+#: Marca del `kind` de una entrada que el censo NO puede caracterizar del todo.
+#: No es una ruta menos: es una ruta de la que este instrumento no sabe lo
+#: suficiente para afirmar nada sobre ella, y por eso pone el informe en ROJO.
+KIND_OPACO = "opaco"
+
+#: Marca del `kind` de un montaje que NO es incaracterizable: es que hay que
+#: caracterizarlo. Un `Mount` sobre `StaticFiles` admite una afirmación positiva
+#: y falsable —superficie `{GET, HEAD}`, sin escritura, sin guardián— que se
+#: COMPRUEBA contra la app real en la sonda.
+#:
+#: LA DIFERENCIA, que es la razón de que esto no sea una excepción disfrazada:
+#: **una excepción es una lista donde escribir un nombre para dejar de mirar;
+#: una caracterización es una aserción que se pone ROJA si el mundo deja de
+#: cumplirla.** Si `/static` empezara a aceptar POST, la sonda de 405 se cae y
+#: el mapa sale rojo sin que nadie tenga que acordarse de revisar una lista.
+#: Este repo ya pagó la otra opción: `viewer/tests/test_provider_authz_fields_contract.py`
+#: documenta una cuarentena congelada donde un revisor escribió el nombre de un
+#: bypass nuevo en el mismo commit que lo introducía y la suite pasó verde.
+KIND_ESTATICO = "static"
+
+#: Superficie que se AFIRMA de un montaje estático. No es una suposición: cada
+#: uno de estos métodos se sondea contra la app real y la afirmación se cae si
+#: la respuesta no es la esperada.
+SUPERFICIE_ESTATICA = ("GET", "HEAD")
+
+#: Métodos que se SONDEAN. Ojo con leer esto como «la lista de lo prohibido»: la
+#: aserción es de CONJUNTO CERRADO —todo lo que no sea `SUPERFICIE_ESTATICA`
+#: tiene que dar 405—, y esto es sólo la muestra con la que se comprueba.
+#:
+#: Una versión anterior sí era una lista de verbos (`POST/PUT/PATCH/DELETE`) y
+#: tenía el agujero exacto que se le supone a una lista: `OPTIONS` se sondeaba y
+#: no se comprobaba, y `PROPFIND`/`MKCOL`/`TRACE` ni se sondeaban. Medido: dos
+#: montajes que pasaban la hipótesis Y la verificación **y escribían un fichero
+#: en disco**. Cerrar el conjunto cierra la familia entera en vez de cuatro
+#: nombres, y sale gratis: un `StaticFiles` real ya devuelve 405 a todos ellos.
+METODOS_SONDEADOS_ESTATICO = ("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE",
+                              "OPTIONS", "PROPFIND", "MKCOL", "TRACE")
+
+#: Compatibilidad de lectura: los métodos de escritura HTTP clásicos. Ya no es
+#: el criterio (lo es el conjunto cerrado), sólo se publica en el artefacto.
+ESCRITURA_ESTATICA = ("POST", "PUT", "PATCH", "DELETE")
+
+
+def _criterios():
+    """Los criterios de censo del CHASIS. No se reimplementan aquí.
+
+    `viewer/app/chassis.py` ya resolvió esta familia exacta (composición del
+    prefijo de los `Mount`, `methods` tri-estado, `path` tri-estado, filtro de
+    prefijo por segmentos) y sus tres consumidores la comparten. Un quinto censo
+    con criterios propios sería peor que el defecto que se viene a arreglar:
+    dos instrumentos capaces de discrepar sobre qué rutas existen.
+
+    Lo que NO se puede compartir es el RECORRIDO: `chassis._walk` emite objetos
+    `Route`, y este mapa necesita además el `dependant` con las dependencias del
+    `include_router` ya combinadas (`ctx.dependant`), que sólo existe en los
+    contextos de FastAPI y que `_walk` descarta. Así que el recorrido es propio
+    y los CRITERIOS son importados: es la parte que puede divergir en silencio.
+
+    FALLA CERRADO: si el chasis no se puede importar, no hay criterio que
+    aplicar y el censo no se emite a medias.
+    """
+    import importlib
+
+    try:
+        return importlib.import_module("app.chassis")
+    except Exception as exc:  # pragma: no cover - rama sin chasis
+        raise RuntimeError(
+            "el censo de rutas necesita los criterios de `app.chassis` "
+            f"(methods/path tri-estado, composición de Mount) y no se pudo importar: {exc!r}"
+        ) from exc
+
+
+def _tipos_http():
+    from fastapi.routing import APIRoute
+    from starlette.routing import Route
+
+    return (APIRoute, Route)
+
+
+def _es_montaje_estatico(mount) -> bool:
+    """HIPÓTESIS de que este montaje sirve ficheros estáticos.
+
+    Se decide por el TIPO que da el propio framework (`StaticFiles`), no por el
+    nombre del montaje ni por una lista nuestra: un nombre no concede. Y la
+    hipótesis por sí sola no concede tampoco NADA: mientras la sonda no
+    verifique la superficie (`verificar_estaticos`), el montaje cuenta como NO
+    verificado y el informe sale rojo igual. Una subclase de `StaticFiles` que
+    sirviera POST entraría por aquí y **moriría en la verificación**, que es
+    exactamente la propiedad que una lista de excepciones no tiene.
+    """
+    try:
+        from starlette.staticfiles import StaticFiles
+    except ImportError:  # pragma: no cover
+        return False
+    return isinstance(getattr(mount, "app", None), StaticFiles)
+
+
+def _opaca(obj, prefijo: str, ch, motivo: str) -> tuple:
+    """Entrada que el censo no sabe caracterizar. Se EMITE, nunca se salta."""
+    crudo = ch.effective_path(obj)
+    path = ch.PATH_NOT_RESOLVABLE if crudo is None else ch._join(prefijo, crudo)
+    return (path, [ch.METHODS_NOT_ENUMERABLE], None, None, obj, KIND_OPACO, motivo)
+
+
+def _hoja(r, prefijo: str, ch, dependant=None, endpoint=None, metodos_ctx=None,
+          path_ctx: str | None = None) -> tuple:
+    """Una ruta terminal, ya con la URL EFECTIVA compuesta.
+
+    Tres cosas pueden faltar, y ninguna se sustituye por el valor benigno:
+    el `path` (antes se emitía `''`), los `methods` (antes `or {"GET"}`: la
+    ausencia de dato se convertía en «sólo lee») y el propio tipo de ruta
+    (antes, lo que no fuese `APIRoute`/`Route` —un `APIWebSocketRoute`, por
+    ejemplo— desaparecía del censo ENTERO sin dejar rastro).
+    """
+    crudo = path_ctx if path_ctx else ch.effective_path(r)
+    metodos = metodos_ctx if metodos_ctx is not None else ch.enumerable_methods(r)
+    if crudo is None:
+        return _opaca(r, prefijo, ch, "path-no-resoluble")
+    if metodos is None:
+        return _opaca(r, prefijo, ch, "metodos-no-enumerables")
+    if not isinstance(r, _tipos_http()):
+        return _opaca(r, prefijo, ch, f"tipo-de-ruta-desconocido:{type(r).__name__}")
+    return (ch._join(prefijo, crudo), sorted(metodos),
+            dependant if dependant is not None else getattr(r, "dependant", None),
+            endpoint if endpoint is not None else getattr(r, "endpoint", None),
+            r, "route", "")
+
+
+def _walk_efectivo(routes, prefijo: str, ch):
+    for r in routes:
+        yield from _nodo(r, prefijo, ch)
+
+
+def _nodo(r, prefijo: str, ch):
+    """Un nodo del árbol de rutas: router incluido, contenedor u hoja."""
+    ctxs = getattr(r, "effective_route_contexts", None)
+    if callable(ctxs):
+        # Router incluido: FastAPI ya resolvió el prefijo del include dentro del
+        # path de cada contexto, así que el prefijo de MONTAJE sólo se propaga.
+        contextos = list(ctxs())
+        low = getattr(r, "effective_low_priority_routes", None)
+        if callable(low):
+            contextos += list(low())
+        for ctx in contextos:
+            yield from _nodo_ctx(ctx, prefijo, ch)
+        return
+    sub = getattr(r, "routes", None)
+    if sub is not None and not hasattr(r, "endpoint"):
+        # `Mount`. Sus rutas internas llevan el path RELATIVO al punto de
+        # montaje: se ARRASTRA el prefijo y se desciende, en vez de emitir una
+        # fila opaca `MOUNT` que ocultaba el árbol entero de debajo.
+        propio = ch.effective_path(r)
+        if propio is None:
+            yield _opaca(r, prefijo, ch, "montaje-con-path-no-resoluble")
+            return
+        if not list(sub):
+            # App ASGI que no expone rutas. Dos salidas, y ninguna es callarse:
+            #   - si es un montaje ESTÁTICO, se CARACTERIZA (afirmación falsable
+            #     que la sonda comprueba contra la app real);
+            #   - si no, se declara OPACA y el informe sale rojo.
+            if _es_montaje_estatico(r):
+                yield (ch._join(prefijo, propio), list(SUPERFICIE_ESTATICA),
+                       None, None, r, KIND_ESTATICO, "montaje-estatico-por-verificar")
+                return
+            yield _opaca(r, prefijo, ch, "montaje-no-enumerable")
+            return
+        yield from _walk_efectivo(sub, ch._join(prefijo, propio), ch)
+        return
+    yield _hoja(r, prefijo, ch)
+
+
+def _nodo_ctx(ctx, prefijo: str, ch):
+    """Un contexto de ruta efectiva de un router incluido.
+
+    Punto ciego medido en el chasis: un `Mount` dentro de un `APIRouter`
+    incluido llega con `ctx.path == ''` (FastAPI sólo rellena el contexto de las
+    rutas de API) y con la ruta de Starlette subyacente ya compuesta. Sin bajar
+    a ella, todo lo que cuelgue de ese `Mount` desaparece del censo.
+    """
+    original = getattr(ctx, "original_route", None)
+    path_ctx = ch.effective_path(ctx)
+    if path_ctx is None:
+        real = getattr(ctx, "starlette_route", None) or original
+        if real is not None:
+            yield from _nodo(real, prefijo, ch)
+            return
+        yield _opaca(ctx, prefijo, ch, "contexto-sin-path-ni-ruta-subyacente")
+        return
+    if original is not None and getattr(original, "routes", None) is not None \
+            and not hasattr(original, "endpoint"):
+        yield from _nodo(original, prefijo, ch)
+        return
+    metodos = ch.enumerable_methods(ctx)
+    if metodos is None and original is not None:
+        metodos = ch.enumerable_methods(original)
+    base = original if original is not None else ctx
+    yield _hoja(base, prefijo, ch,
+                dependant=getattr(ctx, "dependant", None),
+                endpoint=getattr(ctx, "endpoint", None) or getattr(base, "endpoint", None),
+                metodos_ctx=metodos, path_ctx=path_ctx)
+
+
 def iter_effective_routes(app):
-    """Aplana el enrutador REAL a rutas efectivas.
+    """Aplana el enrutador REAL a rutas efectivas. FALLA CERRADO.
 
     FastAPI >= 0.13x no aplana `include_router`: deja objetos `_IncludedRouter`
     que resuelven sus rutas efectivas en tiempo de petición. Enumerar sólo
@@ -116,38 +318,178 @@ def iter_effective_routes(app):
     las dependencias del include ya combinadas, y el objeto Route ORIGINAL que
     realmente atiende la petición (que es el que instrumenta la sonda).
 
-    Devuelve tuplas (path, methods, dependant, endpoint, handler_route, kind).
-    """
-    try:
-        from fastapi.routing import _IncludedRouter
-    except ImportError:  # pragma: no cover - versiones antiguas de FastAPI
-        _IncludedRouter = ()
-    from fastapi.routing import APIRoute
-    from starlette.routing import Mount, Route
+    Y se desciende por los `Mount` a cualquier profundidad componiendo la URL
+    efectiva. Lo que no se pueda caracterizar (montaje no enumerable, métodos no
+    enumerables, path irresoluble, tipo de ruta desconocido) se emite con
+    `kind=="opaco"` y pone el informe en ROJO: un hueco del censo no es una
+    ausencia de hallazgo.
 
-    for r in app.router.routes:
-        if _IncludedRouter and isinstance(r, _IncludedRouter):
-            ctxs = list(r.effective_route_contexts()) + list(r.effective_low_priority_routes())
-            for ctx in ctxs:
-                original = ctx.original_route
-                yield (ctx.path or getattr(original, "path", ""),
-                       sorted(ctx.methods or getattr(original, "methods", {"GET"})),
-                       ctx.dependant, ctx.endpoint or getattr(original, "endpoint", None),
-                       original, "route")
-        elif isinstance(r, Mount):
-            yield (r.path, ["MOUNT"], None, None, r, "mount")
-        elif isinstance(r, (APIRoute, Route)):
-            yield (r.path, sorted(r.methods or {"GET"}), getattr(r, "dependant", None),
-                   r.endpoint, r, "route")
+    Devuelve tuplas (path, methods, dependant, endpoint, handler_route, kind,
+    motivo).
+    """
+    ch = _criterios()
+    yield from _walk_efectivo(app.router.routes, "", ch)
+
+
+def rutas_con_path_resoluble(rows, ch=None) -> list:
+    """Rutas que cuentan para el suelo de plausibilidad del censo.
+
+    Cuentan SÓLO las rutas **caracterizadas**: ni opacas ni de path irresoluble.
+    El filtro se aplica AQUÍ, no en el llamador: una versión anterior de este
+    helper describía el criterio completo pero sólo comprobaba el path, así que
+    aislado devolvía filas opacas como si contaran. No era explotable (el
+    llamador ya las excluía y `censo_opaco` daba rojo), pero la frase describía
+    mal lo que hacía.
+
+    Si las opacas contasen, el suelo se satisfaría solo: una app cuyo censo
+    entero fuese opaco pasaría por «censo no vacío» sin que el instrumento
+    hubiera caracterizado ni una ruta.
+    """
+    ch = ch or _criterios()
+    return [r for r in rows
+            if r.get("kind") != KIND_OPACO
+            and r.get("path") not in (None, "", ch.PATH_NOT_RESOLVABLE)]
+
+
+def sondar_estaticos(client, estaticos: list[dict]) -> dict:
+    """Emite contra la app REAL las peticiones que sostienen la caracterización.
+
+    Se sondean dos URLs por montaje: el propio punto de montaje y un fichero
+    inexistente bajo él. Con `html=True` la raíz sirve `index.html` y sin él da
+    404 —ambas son «lectura servida»—, mientras que el 405 de escritura tiene
+    que aparecer en las dos, porque `StaticFiles` comprueba el método ANTES de
+    mirar el fichero.
+    """
+    sondas: dict[str, dict] = {}
+    for e in estaticos:
+        base = e["path"].rstrip("/")
+        urls = [base + "/", base + "/__sonda-inexistente__.txt"]
+        por_metodo: dict = {}
+        for m in METODOS_SONDEADOS_ESTATICO:
+            estados = []
+            for u in urls:
+                try:
+                    estados.append(client.request(m, u).status_code)
+                except Exception as exc:  # pragma: no cover
+                    sondas.setdefault("__errores__", {})[f"{m} {u}"] = repr(exc)[:200]
+            # Si las dos URLs no coinciden se queda el estado MÁS PERMISIVO:
+            # fallar cerrado aquí es quedarse con el que delata.
+            por_metodo[m] = min(estados) if estados else None
+        por_metodo["urls_sondeadas"] = urls
+        sondas[e["key"]] = por_metodo
+    return sondas
+
+
+def fallo_metodos_no_lectura(res: dict) -> dict:
+    """Mitad de NO-LECTURA de la aserción, en CONJUNTO CERRADO.
+
+    Todo método sondeado que no esté en `SUPERFICIE_ESTATICA` tiene que dar
+    **405**. No se enumera lo prohibido —eso es una lista, y una lista deja
+    fuera lo que nadie escribió en ella—: se enumera lo permitido y se exige que
+    el resto esté cerrado. Un método que no aparece en la sonda cuenta como
+    fallo: no comprobado no es correcto.
+    """
+    return {m: res.get(m) for m in METODOS_SONDEADOS_ESTATICO
+            if m not in SUPERFICIE_ESTATICA and res.get(m) != 405}
+
+
+def fallo_lectura(res: dict) -> dict:
+    """Mitad de LECTURA de la aserción: `GET`/`HEAD` tienen que servirse.
+
+    Un montaje que también 405ea `GET` no es un montaje de lectura, y declararlo
+    estático sería describir mal lo que hay. Se separa de la otra mitad para que
+    cada una sea ablatable por su cuenta.
+    """
+    return {m: res.get(m) for m in SUPERFICIE_ESTATICA
+            if res.get(m) in (None, 405)}
+
+
+def verificar_estaticos(estaticos: list[dict], sondas: dict | None,
+                        skip_probe: bool = False) -> list[dict]:
+    """Comprueba la CARACTERIZACIÓN de cada montaje estático. FALLA CERRADO.
+
+    La afirmación es concreta, falsable y de CONJUNTO CERRADO: `GET`/`HEAD` se
+    sirven (o dan 404 si el fichero no existe, que también es servir) y **todo
+    lo demás** —no cuatro verbos elegidos, todo lo que se sondee— responde
+    **405**. Tres formas de ponerse rojo, y ninguna necesita que nadie revise
+    una lista:
+
+    - la sonda no corrió  -> `no-verificado` (una afirmación sin comprobar no es
+      una caracterización, es una excepción con otro nombre);
+    - un método que no es de lectura NO da 405 -> el montaje hace algo más que
+      leer y la afirmación era falsa (aquí caen `PROPFIND`, `MKCOL`, `TRACE` y
+      `OPTIONS`, que con la lista de cuatro verbos escribían en disco y pasaban
+      en verde);
+    - `GET`/`HEAD` dan 405 -> no es un montaje de lectura y la afirmación
+      también era falsa.
+
+    Devuelve la lista de FALLOS (vacía = todos verificados).
+    """
+    fallos: list[dict] = []
+    for e in estaticos:
+        res = (sondas or {}).get(e["key"])
+        if not res:
+            fallos.append({
+                "key": e["key"], "path": e["path"], "tipo": e.get("tipo", ""),
+                "motivo": "no-verificado",
+                "detalle": ("la caracterización de este montaje estático NO se ha "
+                            "comprobado contra la app real"
+                            + (" (--skip-probe)" if skip_probe else "")
+                            + ": una afirmación sin sonda que la pueda tumbar es una "
+                              "excepción disfrazada, no una caracterización"),
+            })
+            continue
+        malos_escritura = fallo_metodos_no_lectura(res)
+        malos_lectura = fallo_lectura(res)
+        if malos_escritura or malos_lectura:
+            fallos.append({
+                "key": e["key"], "path": e["path"], "tipo": e.get("tipo", ""),
+                "motivo": "caracterizacion-falsa",
+                "metodos_no_lectura_no_rechazados": malos_escritura,
+                "lectura_no_servida": malos_lectura,
+                "sonda": res,
+                "detalle": ("este montaje se declaró estático (superficie {GET, HEAD}; "
+                            "TODO lo demás rechazado con 405) y la app real NO lo "
+                            "cumple"),
+            })
+    return fallos
+
+
+def censo_vacio_findings(rows, ch=None) -> list[dict]:
+    """Hallazgo del CASO VACÍO: 0 rutas observadas es ROJO, no verde silencioso."""
+    if rutas_con_path_resoluble(rows, ch):
+        return []
+    return [{
+        "key": "__censo_vacio__",
+        "detalle": ("el censo no devolvió NINGUNA ruta con path resoluble: un mapa "
+                    "sin rutas no es un mapa limpio, es un instrumento que no ha "
+                    "observado nada. Todo hallazgo de este informe sería vacío por "
+                    "no haber mirado"),
+    }]
 
 
 def collect_mounted(app) -> list[dict]:
+    ch = _criterios()
     out: list[dict] = []
-    for path, methods, dependant, endpoint, _handler, kind in iter_effective_routes(app):
-        if kind == "mount":
+    for path, methods, dependant, endpoint, _handler, kind, motivo in iter_effective_routes(app):
+        if kind == KIND_OPACO:
             out.append({
-                "key": f"MOUNT {path}", "path": path, "method": "MOUNT",
-                "kind": "mount", "endpoint": getattr(_handler, "name", ""),
+                "key": f"{ch.METHODS_NOT_ENUMERABLE} {path}", "path": path,
+                "method": ch.METHODS_NOT_ENUMERABLE,
+                "kind": KIND_OPACO, "motivo": motivo,
+                "tipo": type(_handler).__name__,
+                "endpoint": str(getattr(_handler, "name", "") or ""),
+                "source": "", "deps": [], "scoping_deps": [], "body_guards": [],
+            })
+            continue
+        if kind == KIND_ESTATICO:
+            out.append({
+                "key": f"ESTATICO {path}", "path": path, "method": "ESTATICO",
+                "kind": KIND_ESTATICO, "motivo": motivo,
+                "tipo": type(getattr(_handler, "app", None)).__name__,
+                "superficie_declarada": list(SUPERFICIE_ESTATICA),
+                "escritura_declarada_rechazada": list(ESCRITURA_ESTATICA),
+                "endpoint": str(getattr(_handler, "name", "") or ""),
                 "source": "", "deps": [], "scoping_deps": [], "body_guards": [],
             })
             continue
@@ -686,7 +1028,7 @@ def _install_resolver(app) -> list:
 
         route.handle = _handle
 
-    for path, _m, _d, _e, handler_route, kind in iter_effective_routes(app):
+    for path, _m, _d, _e, handler_route, kind, _motivo in iter_effective_routes(app):
         if kind == "route":
             _wrap(handler_route, path)
     return registro
@@ -726,7 +1068,9 @@ def probe_main(repo: Path, out_path: Path) -> None:
     results: dict[str, dict] = {}
     registro = _install_resolver(app)
     with TestClient(app, follow_redirects=False) as client:
-        routes = [r for r in collect_mounted(app) if r["method"] != "MOUNT"]
+        censo = collect_mounted(app)
+        routes = [r for r in censo if r["kind"] not in (KIND_OPACO, KIND_ESTATICO)]
+        estaticos = [r for r in censo if r["kind"] == KIND_ESTATICO]
 
         secret = get_auth_settings().S9K_CSRF_SECRET
         csrf_anonimo = _csrf_para(0, "", secret)
@@ -843,6 +1187,13 @@ def probe_main(repo: Path, out_path: Path) -> None:
         control["rutas_con_campo_csrf"] = len(control["pares"])
         control["rutas_que_distinguen"] = sum(1 for p in control["pares"] if p.get("distingue"))
         results["__control_csrf__"] = control
+
+        # ------------------------------------------------------------------
+        # CARACTERIZACIÓN de los montajes estáticos, comprobada contra la app
+        # real. Esto es lo que separa una caracterización de una excepción: la
+        # afirmación «superficie {GET, HEAD}, sin escritura» se EMITE como
+        # peticiones y se cae sola si deja de ser cierta.
+        results["__estaticos__"] = sondar_estaticos(client, estaticos)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
@@ -998,8 +1349,11 @@ def _motivo_contradiccion(r: dict) -> str:
 def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
               head_label: str = "") -> dict:
     app = load_real_app(repo)
+    ch = _criterios()
     mounted = collect_mounted(app)
-    mounted_routes = [r for r in mounted if r["method"] != "MOUNT"]
+    mounted_routes = [r for r in mounted if r["kind"] not in (KIND_OPACO, KIND_ESTATICO)]
+    opacas = [r for r in mounted if r["kind"] == KIND_OPACO]
+    estaticos = [r for r in mounted if r["kind"] == KIND_ESTATICO]
     defined = collect_defined(repo)
     links = collect_links(repo)
     handler_tpls = collect_handler_templates(repo)
@@ -1094,6 +1448,7 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
     # --- authorized ------------------------------------------------------
     probe = {} if skip_probe else run_probe(repo)
     probe_error = probe.pop("__error__", None)
+    sondas_estaticas = probe.pop("__estaticos__", None)
     csrf_control = probe.pop("__control_csrf__", None)
     # Sin sonda no hay control que valga; con sonda, el control manda.
     csrf_control_ok = bool(csrf_control and csrf_control.get("ok")) if not skip_probe else True
@@ -1176,6 +1531,15 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
             for r in rows if _motivo_contradiccion(r)
         ],
     }
+    # --- fail-closed del propio CENSO ------------------------------------
+    # Un hueco del censo NO es una ausencia de hallazgo. Estas dos entradas son
+    # las que ponen el informe en ROJO (salida != 0), porque sin ellas el
+    # instrumento afirmaba «0 rutas SIN-AUTH» sobre un censo que se había dejado
+    # fuera un `Mount` entero, un WebSocket y toda ruta sin métodos enumerables.
+    findings["censo_opaco"] = opacas
+    findings["censo_vacio"] = censo_vacio_findings(rows, ch)
+    findings["caracterizacion_estatica_fallida"] = verificar_estaticos(
+        estaticos, sondas_estaticas, skip_probe)
     contaminacion = (csrf_control or {}).get("contaminacion_usuarios") or []
     findings["barrido_contamino_la_db"] = ([{
         "key": "__contaminacion__",
@@ -1212,6 +1576,12 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
         "head": head_label or _head(repo),
         "counts": {
             "definidas": len(defined), "montadas": len(rows),
+            # Entradas que el censo NO pudo caracterizar. No es una métrica
+            # decorativa: mientras no sea 0, el informe es incompleto y rojo.
+            "opacas_no_caracterizadas": len(opacas),
+            # Montajes estáticos CARACTERIZADOS y verificados contra la app real
+            # (superficie {GET, HEAD}, escritura rechazada con 405).
+            "montajes_estaticos": len(estaticos),
             "enlazadas": sum(r["linked"] for r in rows),
             "probadas": sum(r["tested"] for r in rows),
             "autorizadas": len(denegadas),
@@ -1230,6 +1600,8 @@ def build_map(repo: Path, tested_path: Path | None, skip_probe: bool = False,
             "excluidas_por_contradiccion": len(excluidas),
         },
         "control_positivo_csrf": csrf_control,
+        "montajes_estaticos": estaticos,
+        "sondas_estaticas": sondas_estaticas,
         "configuracion": _configuracion(),
         "tested_source": tested_path.name if tested_path else None,
         "tested_meta": tested_meta,
@@ -1336,7 +1708,23 @@ def render_md(m: dict) -> str:
          f"- probadas de verdad (sonda pytest): **{c['probadas']}**",
          f"- deniegan petición anónima con auth ON: **{c['autorizadas']}**"
          + _desglose_titular(m),
-         f"- consumidas: **{c['consumidas']}**", "",
+         f"- consumidas: **{c['consumidas']}**",
+         f"- **entradas OPACAS (censo incompleto): {c.get('opacas_no_caracterizadas', 0)}**"
+         + (" — el censo está completo" if not c.get("opacas_no_caracterizadas")
+            else " — **este informe NO puede citarse como garantía**: hay rutas que "
+                 "el censo no ha podido caracterizar y cuya autorización no se ha "
+                 "medido; ver `findings.censo_opaco`"),
+         f"- montajes estáticos caracterizados: **{c.get('montajes_estaticos', 0)}**"
+         + (" (superficie `{GET, HEAD}` verificada contra la app real; escritura "
+            "rechazada con 405)"
+            if not m["findings"].get("caracterizacion_estatica_fallida")
+            else " — **CARACTERIZACIÓN FALSA O SIN VERIFICAR**: ver "
+                 "`findings.caracterizacion_estatica_fallida`"), "",]
+    if m["findings"].get("censo_vacio"):
+        L += ["> **CENSO VACÍO: ROJO.** No se observó ninguna ruta con path "
+              "resoluble. Todos los hallazgos de abajo son vacíos por no haber "
+              "mirado, no por estar limpio.", ""]
+    L += [
          "> Medido con esta configuración: "
          + (", ".join(f"`{k}={v}`" for k, v in
                       (m.get("configuracion") or {}).get("interruptores_y_modo", {}).items())
@@ -1423,6 +1811,30 @@ def main(argv=None) -> int:
         print(json.dumps(m["counts"], indent=2))
         for name, items in m["findings"].items():
             print(f"{name}: {len(items)}")
+    # Fallo RUIDOSO del CENSO: si hay un hueco (montaje no enumerable, métodos
+    # no enumerables, path irresoluble, tipo de ruta desconocido) o si el censo
+    # sale vacío, el informe no puede citarse como garantía. Se escribe igual
+    # —hace falta para saber QUÉ no se pudo ver— pero el proceso sale ROJO.
+    if (m["findings"].get("censo_opaco") or m["findings"].get("censo_vacio")
+            or m["findings"].get("caracterizacion_estatica_fallida")):
+        print("", file=sys.stderr)
+        print("=" * 72, file=sys.stderr)
+        print("CENSO DE RUTAS: INCOMPLETO (rojo)", file=sys.stderr)
+        if m["findings"].get("censo_vacio"):
+            print("El censo devolvió 0 rutas con path resoluble: este informe no ha "
+                  "observado nada.", file=sys.stderr)
+        for o in m["findings"].get("censo_opaco", []):
+            print(f"  - {o['path']}  [{o.get('tipo', '?')}]  motivo={o.get('motivo', '?')}",
+                  file=sys.stderr)
+        for e in m["findings"].get("caracterizacion_estatica_fallida", []):
+            print(f"  - {e['path']}  [{e.get('tipo', '?')}]  montaje estático "
+                  f"{e.get('motivo', '?')}: {e.get('detalle', '')}", file=sys.stderr)
+        print("Mientras esto siga rojo, los hallazgos SIN-AUTH / MUERTA / HUERFANA de "
+              "este informe", file=sys.stderr)
+        print("describen SÓLO la parte del enrutador que el censo pudo caracterizar.",
+              file=sys.stderr)
+        print("=" * 72, file=sys.stderr)
+        return 3
     # Fallo RUIDOSO del control positivo: el mapa se escribe igual (hace falta
     # para diagnosticar), pero el proceso NO sale con 0. Degradar en silencio es
     # exactamente el defecto que este control existe para impedir.

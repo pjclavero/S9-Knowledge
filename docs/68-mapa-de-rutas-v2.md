@@ -76,7 +76,16 @@ python3 scripts/route_map/route_map.py --repo . \
 # 3) calibración: inyecta defectos y exige que el mapa los vea
 python3 scripts/route_map/calibrate.py --base . \
   --tested /tmp/tested_routes.json --out artifacts/route-map/calibracion.json
+
+# 4) calibración del CENSO (segundos, sin sonda ni subprocesos): §5.quater
+python3 scripts/route_map/calibrate_censo.py \
+  --out artifacts/route-map/calibracion-censo.json
 ```
+
+**Códigos de salida del mapa** (nunca degrada en silencio): `0` limpio; `2`
+control positivo del CSRF fallido; `3` **censo incompleto o vacío** — hay
+entradas que el instrumento no ha podido caracterizar y sus hallazgos no pueden
+citarse como garantía (§5.quater).
 
 La sonda de autorización arranca la app en un **subproceso** con
 `S9K_AUTH_ENABLED=true`, provider `mock` y una auth DB **efímera** en un
@@ -658,6 +667,242 @@ parece demasiado a una ruta abandonada. Por eso:
    flags** y decir con cuál dictamina. Un APTO sin configuración declarada no
    significa nada.
 
+## 5.quater El CENSO era un cuarto censo, y fallaba ABIERTO (`fix/route-map-fail-closed`)
+
+Dos revisores independientes midieron lo mismo: `iter_effective_routes` era un
+**cuarto censo de rutas** —además de los tres del chasis— y tenía **tres huecos,
+los tres fail-OPEN**. Y es justamente el instrumento que emite `SIN-AUTH`,
+`MUERTA` y `HUERFANA`.
+
+| hueco | qué hacía antes | por qué concede |
+|---|---|---|
+| **Mount** | emitía una fila opaca `["MOUNT"]` y **no descendía** | todo lo que colgara del montaje quedaba fuera del censo; un `POST` ahí dentro no existía para ningún hallazgo |
+| **`r.methods or {"GET"}`** | ausencia de métodos ⇒ `GET` | la ausencia de dato se convertía en «esto sólo lee»: inocuo por defecto |
+| **`APIWebSocketRoute`** | no encajaba en `isinstance(r, (APIRoute, Route))` | desaparecía del **censo entero**, sin fila, sin aviso |
+
+**Elección: se arregla hasta fail-closed y se calibra**, no se retira. La medida
+que lo justifica: los tres huecos son reproducibles con constructos reales de
+FastAPI/Starlette y **el criterio que los cierra ya existe y está en `main`**
+(`viewer/app/chassis.py`), así que arreglarlo es importar criterio, no inventarlo.
+Retirarlo habría dejado sin instrumento a `SIN-AUTH`/`MUERTA`/`HUERFANA`, que hoy
+no tienen otro.
+
+### Qué se comparte y qué no
+
+Se **importan** de `app.chassis` los CRITERIOS —`_join` (composición del prefijo
+de montaje), `enumerable_methods`/`METHODS_NOT_ENUMERABLE` (métodos tri-estado),
+`effective_path`/`PATH_NOT_RESOLVABLE` (path tri-estado)—. No se duplica ni una
+línea de ellos: un quinto censo con criterios propios sería peor que el defecto
+que se venía a arreglar, porque dos instrumentos podrían discrepar en silencio
+sobre qué rutas existen. Si el chasis no se puede importar, el censo **no se
+emite a medias**: levanta.
+
+Lo que **no** se puede compartir es el **recorrido**. `chassis._walk` emite
+objetos `Route`; este mapa necesita además el `dependant` con las dependencias
+del `include_router` ya combinadas (`ctx.dependant`), que sólo existe en los
+contextos de FastAPI y que `_walk` descarta. Así que el recorrido es propio
+(`_nodo`/`_walk_efectivo`/`_nodo_ctx`) y **los criterios son los del chasis**:
+la parte que puede divergir en silencio es exactamente la importada.
+
+### Fail-closed: qué pone el informe en ROJO
+
+Lo que el censo no puede caracterizar se emite con `kind == "opaco"` —nunca se
+salta— y el proceso sale con **código 3**:
+
+- `montaje-no-enumerable`: un `Mount` sobre una app ASGI que no expone rutas;
+- `metodos-no-enumerables`: sin métodos enumerables (aquí caen los WebSocket);
+- `path-no-resoluble` / `montaje-con-path-no-resoluble`;
+- `tipo-de-ruta-desconocido:<clase>`: **una ruta desconocida también es rojo**.
+
+Y el **caso vacío**: si el censo devuelve 0 rutas con path resoluble, es ROJO
+(`findings.censo_vacio`). Un gate que pasa sin haber observado nada es el defecto
+que ya se pagó en este repo. El suelo cuenta **sólo rutas con path resoluble**:
+si las opacas contasen, se satisfaría solo.
+
+### `/static` no es incaracterizable: es que nadie había escrito su caracterización
+
+La primera versión de este arreglo dejaba `/static` como **opaco**, y con él la
+app real salía en rojo permanente. La salida tentadora era una **excepción**: una
+lista congelada con `/static` dentro. **Este repo ya pagó ese patrón**:
+`viewer/tests/test_provider_authz_fields_contract.py` documenta la
+`_CUARENTENA_CONGELADA` donde un revisor añadió un bypass nuevo **y su nombre a la
+lista en el mismo commit**, y la suite pasó verde (92 passed). La resolución de
+aquel carril no fue congelarla mejor, fue **eliminarla**.
+
+> **Una excepción es una lista donde escribir un nombre para dejar de mirar. Una
+> caracterización es una aserción que se pone ROJA si el mundo deja de
+> cumplirla.**
+
+Medido en vivo contra la app real: `GET`/`HEAD` servidos y **todo lo demás 405**
+(`POST · PUT · PATCH · DELETE · OPTIONS · PROPFIND · MKCOL · TRACE`). Eso es una
+afirmación positiva y falsable, así que `/static` pasa a `kind="static"` —no
+`"opaco"`— y **la sonda la comprueba contra la app real**. Tres formas de ponerse
+rojo, ninguna de las cuales requiere que nadie revise una lista:
+
+1. **sin sonda** (`--skip-probe`) ⇒ `no-verificado`: una afirmación que nadie ha
+   comprobado es una excepción disfrazada;
+2. un método sondeado que no sea `{GET, HEAD}` y **no** devuelva 405 ⇒
+   `caracterizacion-falsa`;
+3. `GET`/`HEAD` que devuelven 405 ⇒ tampoco es un montaje de lectura.
+
+**La aserción es de CONJUNTO CERRADO, y esto no es un detalle.** Una versión
+anterior enumeraba los verbos prohibidos (`POST/PUT/PATCH/DELETE`) y tenía el
+agujero que se le supone a una lista: `OPTIONS` se sondeaba y **no se
+comprobaba**, y `PROPFIND`/`MKCOL`/`TRACE` **ni se sondeaban**. Medido: dos
+montajes que pasaban la hipótesis **y** la verificación y **escribían un fichero
+en disco** (`fallos=[]`, `fichero colado existe: True`). La frase «se pone roja si
+el mundo deja de cumplirla» se pasaba de lo medido: cubría cuatro verbos, no la
+escritura. Hoy se enumera lo **permitido** y se exige que el resto esté cerrado —y
+un método que no aparezca en la sonda cuenta como fallo, porque *no comprobado* no
+es *correcto*—. Cierra la familia entera en vez de cuatro nombres y sale gratis:
+un `StaticFiles` real ya devuelve 405 a todos ellos (medido en el artefacto).
+
+La hipótesis de que un montaje es estático se toma del **tipo que da el propio
+framework** (`StaticFiles`), no de su nombre ni de una lista nuestra, y **no
+concede nada por sí sola**: una subclase de `StaticFiles` que aceptase POST entra
+por la hipótesis y **muere en la verificación** (caso E3). Con esto la app real
+queda en **rc=0 legítimamente**, sin una sola excepción.
+
+Un `Mount` no enumerable que **no** sea estático (ASGI plano, WSGI) sigue siendo
+opaco y sigue poniendo el informe en rojo.
+
+### Calibración (`scripts/route_map/calibrate_censo.py`, 14 casos + 9 ablaciones)
+
+Diferencial contra el enumerador anterior, copiado **verbatim** dentro del arnés
+como control negativo: cada hueco sale **VERDE** con el instrumento viejo (no lo
+ve) y **ROJO** con el nuevo.
+
+| caso | con el censo viejo | con el censo nuevo |
+|---|---|---|
+| H1 `Mount` con un `POST` dentro | no ve `POST /zona/aprobar` | lo ve |
+| H2 ruta sin `methods` enumerables | la declara `GET /sin-metodos` | opaca |
+| H3 WebSocket | **ausente del censo** | presente y opaca |
+| H4 `Mount` anidado a 2 niveles | no ve `POST /n1/n2/fondo` | lo ve |
+| H5 `Mount` anidado a 3 niveles | no ve `POST /n1/n2/n3/fondo` | lo ve |
+| H6 `include_router` con `Mount` dentro | no ve `POST /inc/m/aprobar` | lo ve |
+| **M5 `Mount` ASGI plano sin subrutas** | ve `MOUNT /asgi`, no acusa | **opaca** |
+| **M3 tipo de ruta ajeno con `path` y `methods`** | **ausente del censo** | opaca `tipo-de-ruta-desconocido` |
+| H7 censo vacío | 0 hallazgos, código 0 | `censo_vacio`, ROJO |
+| **E1 `StaticFiles`** | `MOUNT /static` | caracterizado y **verificado** (405 en escritura) |
+| **E2 `StaticFiles(html=True)`** | `MOUNT /static` | caracterizado y verificado |
+| **E3 subclase que acepta POST** | `MOUNT /static` | **`caracterizacion-falsa`, ROJO** |
+| **E4 montaje que 405ea también `GET`** | `MOUNT /static` | ROJO: no es de lectura |
+| **E5 escribe por `PROPFIND`** (verbo que ni se sondeaba) | `MOUNT /static` | ROJO |
+| **E6 escribe por `OPTIONS`** (sondeado y no exigido) | `MOUNT /static` | ROJO |
+| FP1 app limpia | — | 0 opacas (falso positivo vigilado) |
+| FP2 rutas llamadas `mount`/`websocket`/`opaco` | — | 0 opacas: **un nombre no acusa** |
+
+**M5 y M3 no estaban cubiertos y era serio.** `montaje-no-enumerable` es el único
+motivo que dispara en esta app, y ninguno de los casos originales montaba un
+`Mount` **no enumerable** (H1/H4/H5/H6 montan sub-apps FastAPI, que sí tienen
+rutas): con la mutación «un `Mount` sin subrutas se salta en silencio» la app real
+daba 70 filas, 0 opacas y **rc=0 verde**, y la calibración seguía diciendo `OK`.
+`tipo-de-ruta-desconocido` era el mismo patrón más leve: H3 (WebSocket) no llega a
+esa rama, muere antes en `metodos-no-enumerables`. Hoy las dos mutaciones ponen la
+calibración en rojo.
+
+**Ablaciones (necesidad), 12, todas sobre el módulo NUEVO:** A1 `methods`
+fail-open (H2), A2 sin descenso por `Mount` (H1, H4, H5, H6 — cuatro entradas),
+A3 sin comprobación de tipo (M3), A4 sin regla de caso vacío (H7), A5 el `Mount`
+vacío se salta en silencio (M5), A6 sin verificación de la caracterización
+estática (E3), A7 lista de verbos en vez de conjunto cerrado (E6), A8 sin verbos
+arbitrarios en la sonda (E5), A9 sin la mitad de LECTURA de la aserción (E4).
+
+A9 cierra un superviviente propio: la mitad de lectura **existía pero no tenía
+ningún caso capaz de matarla**, así que borrarla entera dejaba la calibración en
+OK. Con E4 ya no.
+
+Dos de las ablaciones anteriores **no se cobraban y se han rehecho**: `A4` era la
+constante literal `True` con `"censo_ablado": []` —no medía nada y no podía
+ponerse roja— y `A3` ablaba el instrumento **viejo**, no el módulo que se está
+calibrando. Por la regla de la casa (un control que no cambia ningún resultado no
+se cobra), la carga real de la versión anterior eran **5** ablaciones, no 7. Los
+umbrales del arnés se han ajustado a la carga real: **14 casos y 9 ablaciones**.
+
+**El arnés se ha visto rojo**, con un proceso por mutación (`route_map` es un
+singleton en `sys.modules`: mutar varias en el mismo proceso las acumula y las
+corridas siguientes salen rojas por el motivo equivocado, que es peor que un
+verde). VERDE → `M5`, `M3`, `E3`, `H7`, `H2`, `H1`, `A7`, `A8`, `A9` en ROJO →
+VERDE tras revertir.
+
+*(Sobre el aviso del singleton: es un riesgo real y me mordió — la primera tanda
+en un solo proceso dio una reversión roja por el motivo equivocado. Pero no lo
+cobro como verificación de nada: sólo justifica el aislamiento.)*
+
+### Qué cambió en la medida real de este árbol
+
+Medido sobre la app real (`app.main.app`) en esta rama: los censos viejo y nuevo
+producen **el mismo conjunto de rutas** (71 entradas), y la única diferencia es
+que `MOUNT /static` pasa a declararse `<METODOS-NO-ENUMERABLES> /static`, motivo
+`montaje-no-enumerable`. Es decir: **hoy no había ninguna ruta viva escondida**
+por los tres huecos. Lo que estaba roto no era la cifra, era la **garantía**:
+cualquier rama que montara un router bajo un `Mount`, expusiera un WebSocket o
+declarase una ruta sin métodos enumerables habría perdido esas rutas del censo —y
+con ellas su medida de autorización— sin un solo aviso.
+
+**Consecuencia visible:** `/static` deja de ser opaco y pasa a estar
+**caracterizado y verificado** (superficie `{GET, HEAD}`, escritura 405 medida
+contra la app real), así que el mapa de este repo sale en **verde legítimo**. Con
+`--skip-probe` sale rojo, y también es correcto: sin sonda no hay quien tumbe la
+afirmación.
+
+### ¿Debería ser puerta de merge?
+
+**Ya es cableable sin ninguna excepción**, que era el obstáculo real: la app sale
+rc=0 porque su único montaje no enumerable está caracterizado, no exento. Y si
+`/static` empezara a servir POST, el mapa se pone rojo solo. **`ci.yml` no se toca
+aquí**: el cableado lo decide el operador. Cuando se decida, ésta es la
+configuración recomendada, y las cinco condiciones importan:
+
+1. **Los cuatro paneles APAGADOS**: no exportar ninguna `S9K_PANEL_*_ENABLED`.
+   `chassis.py:186` falla cerrado ante la ausencia y `chassis.py:166` dice que
+   apagados es lo correcto para producción. **La puerta debe medir la
+   configuración que se despliega**, no una cómoda.
+2. **La puerta COMPRUEBA la configuración, no la confía.** `_configuracion()` ya
+   escribe los interruptores en el artefacto; el job debe salir **rojo** si
+   aparece alguno encendido. Sin eso, mide una app y certifica otra — el mismo
+   error de altura que este censo venía a cerrar.
+3. **La sonda es obligatoria.** Con `--skip-probe` es rc=3 por diseño: el job
+   tiene que correr `pytest -p route_map.pytest_route_probe` y pasar `--tested`.
+4. **Presupuesto medido**: el mapa tarda ~4 s; la corrida que genera `--tested`,
+   ~51 s. Cabe en el job que ya corre los tests del visor.
+5. **Un segundo job con los paneles encendidos, informativo**, más adelante: hoy
+   el instrumento **no distingue «apagada por bandera» de «muerta»**, así que ese
+   job no puede ser bloqueante sin producir hallazgos falsos.
+
+### Limitaciones que quedan (declaradas, no disimuladas)
+
+- **Los tri-estados disparan ante la AUSENCIA de dato, no ante su incorrección.**
+  Un `path` presente pero mentiroso —una ruta que declara `/a` y sirve `/b`—
+  pasaría el censo sin marca. No es reproducible con constructos reales de
+  FastAPI/Starlette (el path declarado es el que se compila al enrutar), así que
+  no hay caso de calibración; se declara.
+- **Un `Mount` opaco sigue siendo opaco.** El censo dice *que* no puede ver
+  dentro, no *qué* hay dentro. Eso es lo máximo que este instrumento puede
+  afirmar.
+- **Sub-reporte bajo bandera roja, no fail-open.** En `Host` routing y en
+  `Mount("")` el subárbol vivo **desaparece** del censo. No es una concesión: en
+  los dos casos el informe queda **ROJO**, así que el instrumento no afirma nada
+  sobre lo que no ha visto. La distinción importa: fail-open sería declarar
+  limpio lo no observado; esto es declarar que no se ha observado.
+- **La caracterización estática afirma la SUPERFICIE, no el contenido.** Dice que
+  `/static` sólo lee y rechaza con 405 todo lo demás; no dice qué ficheros expone
+  ni si alguno de ellos no debería estar ahí. Un fichero sensible dentro del
+  directorio servido pasaría sin marca.
+- **La superficie se comprueba sobre una MUESTRA de verbos y dos URLs.** El
+  conjunto es cerrado (todo lo que no sea `{GET, HEAD}` debe dar 405), pero lo
+  que se emite son diez métodos contra el punto de montaje y un fichero
+  inexistente bajo él. Un montaje que rechazara correctamente en esas dos URLs y
+  sirviera en una tercera no lo vería esta sonda; con `StaticFiles` no es
+  reproducible, porque la comprobación de método precede a la búsqueda del
+  fichero.
+- **La verificación estática necesita la sonda.** Con `--skip-probe` el montaje
+  queda `no-verificado` y el informe sale rojo. Es deliberado, pero significa que
+  el modo rápido del mapa nunca puede salir verde en una app con estáticos.
+- El descenso por `Mount` compone la URL efectiva por concatenación de paths
+  declarados; una app ASGI que reescriba el path en tiempo de petición quedaría
+  mal compuesta y el censo no lo detectaría.
+
 ## 6. Rutas CAPTURADAS: detector, no aviso en prosa
 
 Una ruta puede quedar **capturada** por otra declarada antes sin que nada falle:
@@ -723,6 +968,11 @@ rutas sin un solo aviso.
 - `scripts/route_map/pytest_route_probe.py` — plugin de pytest: registra las
   peticiones que atraviesan la app real.
 - `scripts/route_map/calibrate.py` — inyección de defectos y tabla de calibración.
+- `scripts/route_map/calibrate_censo.py` — calibración del CENSO (§5.quater):
+  apps FastAPI/Starlette reales con cada hueco, diferencial contra el enumerador
+  anterior y ablación de cada criterio.
+- `artifacts/route-map/calibracion-censo.json` — salidas reales de esa
+  calibración (9 casos + 7 ablaciones).
 - `artifacts/route-map/route_map.{json,md}` — mapa de `cb874fe`.
 - `artifacts/route-map/calibracion.json` — salidas reales de la calibración.
 - `artifacts/route-map/chasis-4b2ae5a/route_map.{json,md}` — mapa del chasis.

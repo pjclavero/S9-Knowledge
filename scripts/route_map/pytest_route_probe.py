@@ -65,7 +65,18 @@ def _patch_real_app() -> None:
     _PATCHED_APPS.add(id(app))
     from route_map.route_map import iter_effective_routes
 
-    for path, _methods, _dep, _endpoint, handler_route, _kind in iter_effective_routes(app):
+    from route_map.route_map import KIND_ESTATICO, KIND_OPACO
+
+    for path, _methods, _dep, _endpoint, handler_route, kind, _motivo in \
+            iter_effective_routes(app):
+        if kind in (KIND_OPACO, KIND_ESTATICO):
+            # Entrada que el censo no supo caracterizar (montaje no enumerable,
+            # WebSocket, tipo desconocido): no se instrumenta, porque no se sabe
+            # qué se estaría instrumentando. Sale del censo como opaca y el mapa
+            # lo declara en rojo; aquí, callar sería fingir cobertura. Los
+            # montajes ESTÁTICOS tampoco se instrumentan: no son rutas y su
+            # afirmación la comprueba `verificar_estaticos`, no la cobertura.
+            continue
         # `handler_route` es el objeto Route ORIGINAL: es el que FastAPI invoca
         # (`original_route.handle`) tras resolver el include. Se etiqueta con el
         # path EFECTIVO para que la clave coincida con la del mapa.

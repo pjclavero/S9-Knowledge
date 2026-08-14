@@ -1,0 +1,863 @@
+{
+  "ablaciones": {
+    "A1-methods-fail-open": {
+      "caso": "H2-ruta-sin-metodos-enumerables",
+      "censo_ablado": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "GET /sin-metodos",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc"
+      ],
+      "criterio": "methods tri-estado (None != frozenset())",
+      "vuelve_a_verde": true
+    },
+    "A2-sin-descenso-por-mount::H1-mount-con-post-dentro": {
+      "caso": "H1-mount-con-post-dentro",
+      "censo_ablado": [
+        "<METODOS-NO-ENUMERABLES> /zona",
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc"
+      ],
+      "criterio": "descender por los Mount componiendo la URL efectiva",
+      "vuelve_a_verde": true
+    },
+    "A2-sin-descenso-por-mount::H4-mount-anidado-2-niveles": {
+      "caso": "H4-mount-anidado-2-niveles",
+      "censo_ablado": [
+        "<METODOS-NO-ENUMERABLES> /n1",
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc"
+      ],
+      "criterio": "descender por los Mount componiendo la URL efectiva",
+      "vuelve_a_verde": true
+    },
+    "A2-sin-descenso-por-mount::H5-mount-anidado-3-niveles": {
+      "caso": "H5-mount-anidado-3-niveles",
+      "censo_ablado": [
+        "<METODOS-NO-ENUMERABLES> /n1",
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc"
+      ],
+      "criterio": "descender por los Mount componiendo la URL efectiva",
+      "vuelve_a_verde": true
+    },
+    "A2-sin-descenso-por-mount::H6-include-router-con-mount": {
+      "caso": "H6-include-router-con-mount",
+      "censo_ablado": [
+        "<METODOS-NO-ENUMERABLES> /inc/m",
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /inc/normal",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc"
+      ],
+      "criterio": "descender por los Mount componiendo la URL efectiva",
+      "vuelve_a_verde": true
+    },
+    "A3-sin-comprobacion-de-tipo": {
+      "caso": "M3-tipo-de-ruta-ajeno",
+      "censo_ablado": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "POST /ajena"
+      ],
+      "criterio": "un tipo de ruta desconocido se emite como opaco",
+      "vuelve_a_verde": true
+    },
+    "A4-sin-regla-de-censo-vacio": {
+      "caso": "H7-censo-vacio",
+      "censo_ablado": [],
+      "criterio": "0 rutas observadas es ROJO",
+      "vuelve_a_verde": true
+    },
+    "A5-mount-vacio-se-salta-en-silencio": {
+      "caso": "M5-mount-no-enumerable-asgi-plano",
+      "censo_ablado": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc"
+      ],
+      "criterio": "un montaje no enumerable se declara opaco, no se salta",
+      "vuelve_a_verde": true
+    },
+    "A6-sin-verificacion-de-la-caracterizacion": {
+      "caso": "E3-dice-ser-estatico-y-no-lo-es",
+      "censo_ablado": [],
+      "criterio": "la afirmación «montaje estático» se comprueba contra la app real",
+      "vuelve_a_verde": true
+    },
+    "A7-lista-de-verbos-en-vez-de-conjunto-cerrado": {
+      "caso": "E6-escribe-por-OPTIONS",
+      "censo_ablado": [],
+      "criterio": "todo método sondeado que no sea {GET, HEAD} debe dar 405",
+      "vuelve_a_verde": true
+    },
+    "A8-sin-verbos-arbitrarios-en-la-sonda": {
+      "caso": "E5-escribe-por-PROPFIND",
+      "censo_ablado": [],
+      "criterio": "la sonda incluye verbos fuera de los clásicos (PROPFIND, MKCOL, TRACE)",
+      "vuelve_a_verde": true
+    },
+    "A9-sin-mitad-de-lectura": {
+      "caso": "E4-405-tambien-en-lectura",
+      "censo_ablado": [],
+      "criterio": "GET/HEAD tienen que servirse para poder llamarlo montaje de lectura",
+      "vuelve_a_verde": true
+    }
+  },
+  "ablaciones_ejecutadas": 12,
+  "arnes_con_carga": true,
+  "casos": {
+    "E1-estatico-verificado": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "GET /static",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "HEAD /static"
+      ],
+      "descripcion": "StaticFiles: {GET, HEAD} servidos y todo lo demás rechazado con 405",
+      "detectado": true,
+      "fallos": [],
+      "fichero_colado_existe": null,
+      "montajes_estaticos": [
+        "ESTATICO /static"
+      ],
+      "sin_sonda_tambien_falla": true,
+      "sondas": {
+        "ESTATICO /static": {
+          "DELETE": 405,
+          "GET": 404,
+          "HEAD": 404,
+          "MKCOL": 405,
+          "OPTIONS": 405,
+          "PATCH": 405,
+          "POST": 405,
+          "PROPFIND": 405,
+          "PUT": 405,
+          "TRACE": 405,
+          "urls_sondeadas": [
+            "/static/",
+            "/static/__sonda-inexistente__.txt"
+          ]
+        }
+      }
+    },
+    "E2-estatico-html-true": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "GET /static",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "HEAD /static"
+      ],
+      "descripcion": "StaticFiles(html=True): la raíz sirve index.html y el resto sigue 405",
+      "detectado": true,
+      "fallos": [],
+      "fichero_colado_existe": null,
+      "montajes_estaticos": [
+        "ESTATICO /static"
+      ],
+      "sin_sonda_tambien_falla": true,
+      "sondas": {
+        "ESTATICO /static": {
+          "DELETE": 405,
+          "GET": 200,
+          "HEAD": 200,
+          "MKCOL": 405,
+          "OPTIONS": 405,
+          "PATCH": 405,
+          "POST": 405,
+          "PROPFIND": 405,
+          "PUT": 405,
+          "TRACE": 405,
+          "urls_sondeadas": [
+            "/static/",
+            "/static/__sonda-inexistente__.txt"
+          ]
+        }
+      }
+    },
+    "E3-dice-ser-estatico-y-no-lo-es": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "GET /static",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "HEAD /static"
+      ],
+      "descripcion": "una subclase de StaticFiles que acepta POST pasa la hipótesis de tipo y MUERE en la verificación: por eso esto no es una lista de excepciones",
+      "detectado": true,
+      "fallos": [
+        {
+          "detalle": "este montaje se declaró estático (superficie {GET, HEAD}; TODO lo demás rechazado con 405) y la app real NO lo cumple",
+          "key": "ESTATICO /static",
+          "lectura_no_servida": {},
+          "metodos_no_lectura_no_rechazados": {
+            "DELETE": 200,
+            "PATCH": 200,
+            "POST": 200,
+            "PUT": 200
+          },
+          "motivo": "caracterizacion-falsa",
+          "path": "/static",
+          "sonda": {
+            "DELETE": 200,
+            "GET": 404,
+            "HEAD": 404,
+            "MKCOL": 405,
+            "OPTIONS": 405,
+            "PATCH": 200,
+            "POST": 200,
+            "PROPFIND": 405,
+            "PUT": 200,
+            "TRACE": 405,
+            "urls_sondeadas": [
+              "/static/",
+              "/static/__sonda-inexistente__.txt"
+            ]
+          },
+          "tipo": "_Miente"
+        }
+      ],
+      "fichero_colado_existe": null,
+      "montajes_estaticos": [
+        "ESTATICO /static"
+      ],
+      "sin_sonda_tambien_falla": true,
+      "sondas": {
+        "ESTATICO /static": {
+          "DELETE": 200,
+          "GET": 404,
+          "HEAD": 404,
+          "MKCOL": 405,
+          "OPTIONS": 405,
+          "PATCH": 200,
+          "POST": 200,
+          "PROPFIND": 405,
+          "PUT": 200,
+          "TRACE": 405,
+          "urls_sondeadas": [
+            "/static/",
+            "/static/__sonda-inexistente__.txt"
+          ]
+        }
+      }
+    },
+    "E4-405-tambien-en-lectura": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "GET /static",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "HEAD /static"
+      ],
+      "descripcion": "un montaje que 405ea GET tampoco es de lectura: mata la mitad de LECTURA de la aserción, que antes no tenía ningún caso que la matase",
+      "detectado": true,
+      "fallos": [
+        {
+          "detalle": "este montaje se declaró estático (superficie {GET, HEAD}; TODO lo demás rechazado con 405) y la app real NO lo cumple",
+          "key": "ESTATICO /static",
+          "lectura_no_servida": {
+            "GET": 405,
+            "HEAD": 405
+          },
+          "metodos_no_lectura_no_rechazados": {},
+          "motivo": "caracterizacion-falsa",
+          "path": "/static",
+          "sonda": {
+            "DELETE": 405,
+            "GET": 405,
+            "HEAD": 405,
+            "MKCOL": 405,
+            "OPTIONS": 405,
+            "PATCH": 405,
+            "POST": 405,
+            "PROPFIND": 405,
+            "PUT": 405,
+            "TRACE": 405,
+            "urls_sondeadas": [
+              "/static/",
+              "/static/__sonda-inexistente__.txt"
+            ]
+          },
+          "tipo": "_Cerrado"
+        }
+      ],
+      "fichero_colado_existe": null,
+      "montajes_estaticos": [
+        "ESTATICO /static"
+      ],
+      "sin_sonda_tambien_falla": true,
+      "sondas": {
+        "ESTATICO /static": {
+          "DELETE": 405,
+          "GET": 405,
+          "HEAD": 405,
+          "MKCOL": 405,
+          "OPTIONS": 405,
+          "PATCH": 405,
+          "POST": 405,
+          "PROPFIND": 405,
+          "PUT": 405,
+          "TRACE": 405,
+          "urls_sondeadas": [
+            "/static/",
+            "/static/__sonda-inexistente__.txt"
+          ]
+        }
+      }
+    },
+    "E5-escribe-por-PROPFIND": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "GET /static",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "HEAD /static"
+      ],
+      "descripcion": "verbo que ni se sondeaba: escribía un fichero en disco y pasaba en verde",
+      "detectado": true,
+      "fallos": [
+        {
+          "detalle": "este montaje se declaró estático (superficie {GET, HEAD}; TODO lo demás rechazado con 405) y la app real NO lo cumple",
+          "key": "ESTATICO /static",
+          "lectura_no_servida": {},
+          "metodos_no_lectura_no_rechazados": {
+            "PROPFIND": 200
+          },
+          "motivo": "caracterizacion-falsa",
+          "path": "/static",
+          "sonda": {
+            "DELETE": 405,
+            "GET": 404,
+            "HEAD": 404,
+            "MKCOL": 405,
+            "OPTIONS": 405,
+            "PATCH": 405,
+            "POST": 405,
+            "PROPFIND": 200,
+            "PUT": 405,
+            "TRACE": 405,
+            "urls_sondeadas": [
+              "/static/",
+              "/static/__sonda-inexistente__.txt"
+            ]
+          },
+          "tipo": "_Escribe"
+        }
+      ],
+      "fichero_colado_existe": true,
+      "montajes_estaticos": [
+        "ESTATICO /static"
+      ],
+      "sin_sonda_tambien_falla": true,
+      "sondas": {
+        "ESTATICO /static": {
+          "DELETE": 405,
+          "GET": 404,
+          "HEAD": 404,
+          "MKCOL": 405,
+          "OPTIONS": 405,
+          "PATCH": 405,
+          "POST": 405,
+          "PROPFIND": 200,
+          "PUT": 405,
+          "TRACE": 405,
+          "urls_sondeadas": [
+            "/static/",
+            "/static/__sonda-inexistente__.txt"
+          ]
+        }
+      }
+    },
+    "E6-escribe-por-OPTIONS": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "GET /static",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "HEAD /static"
+      ],
+      "descripcion": "verbo que se sondeaba y NO se comprobaba: mismo agujero",
+      "detectado": true,
+      "fallos": [
+        {
+          "detalle": "este montaje se declaró estático (superficie {GET, HEAD}; TODO lo demás rechazado con 405) y la app real NO lo cumple",
+          "key": "ESTATICO /static",
+          "lectura_no_servida": {},
+          "metodos_no_lectura_no_rechazados": {
+            "OPTIONS": 200
+          },
+          "motivo": "caracterizacion-falsa",
+          "path": "/static",
+          "sonda": {
+            "DELETE": 405,
+            "GET": 404,
+            "HEAD": 404,
+            "MKCOL": 405,
+            "OPTIONS": 200,
+            "PATCH": 405,
+            "POST": 405,
+            "PROPFIND": 405,
+            "PUT": 405,
+            "TRACE": 405,
+            "urls_sondeadas": [
+              "/static/",
+              "/static/__sonda-inexistente__.txt"
+            ]
+          },
+          "tipo": "_Escribe"
+        }
+      ],
+      "fichero_colado_existe": true,
+      "montajes_estaticos": [
+        "ESTATICO /static"
+      ],
+      "sin_sonda_tambien_falla": true,
+      "sondas": {
+        "ESTATICO /static": {
+          "DELETE": 405,
+          "GET": 404,
+          "HEAD": 404,
+          "MKCOL": 405,
+          "OPTIONS": 200,
+          "PATCH": 405,
+          "POST": 405,
+          "PROPFIND": 405,
+          "PUT": 405,
+          "TRACE": 405,
+          "urls_sondeadas": [
+            "/static/",
+            "/static/__sonda-inexistente__.txt"
+          ]
+        }
+      }
+    },
+    "FP1-app-limpia-sin-opacas": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /raiz",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "POST /sub/crear"
+      ],
+      "descripcion": "una app sin huecos no puede producir ninguna entrada opaca",
+      "detectado": true,
+      "opacas_nuevo": []
+    },
+    "FP2-nombres-que-suenan-a-hueco": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /mount",
+        "GET /opaco/{x}",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "POST /websocket"
+      ],
+      "descripcion": "un NOMBRE no concede ni acusa: se decide por comportamiento observado",
+      "detectado": true,
+      "opacas_nuevo": []
+    },
+    "H1-mount-con-post-dentro": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "GET /zona/docs",
+        "GET /zona/docs/oauth2-redirect",
+        "GET /zona/openapi.json",
+        "GET /zona/redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "HEAD /zona/docs",
+        "HEAD /zona/docs/oauth2-redirect",
+        "HEAD /zona/openapi.json",
+        "HEAD /zona/redoc",
+        "POST /zona/aprobar"
+      ],
+      "censo_viejo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "MOUNT /zona"
+      ],
+      "descripcion": "un POST escondido bajo un Mount tiene que aparecer con su URL efectiva",
+      "detectado": true,
+      "el_nuevo_lo_ve": true,
+      "el_viejo_lo_ve": false,
+      "opacas_nuevo": []
+    },
+    "H2-ruta-sin-metodos-enumerables": {
+      "censo_nuevo": [
+        "<METODOS-NO-ENUMERABLES> /sin-metodos",
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc"
+      ],
+      "censo_viejo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "GET /sin-metodos",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc"
+      ],
+      "descripcion": "sin métodos enumerables la ruta es OPACA, jamás «GET»",
+      "detectado": true,
+      "el_nuevo_lo_ve": true,
+      "el_viejo_lo_ve": false,
+      "opacas_nuevo": [
+        {
+          "motivo": "metodos-no-enumerables",
+          "path": "/sin-metodos"
+        }
+      ]
+    },
+    "H3-websocket": {
+      "censo_nuevo": [
+        "<METODOS-NO-ENUMERABLES> /ws",
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc"
+      ],
+      "censo_viejo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc"
+      ],
+      "descripcion": "el WebSocket desaparecía del censo entero; ahora está y es opaco",
+      "detectado": true,
+      "el_nuevo_lo_ve": true,
+      "el_viejo_lo_ve": false,
+      "opacas_nuevo": [
+        {
+          "motivo": "metodos-no-enumerables",
+          "path": "/ws"
+        }
+      ]
+    },
+    "H4-mount-anidado-2-niveles": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /n1/docs",
+        "GET /n1/docs/oauth2-redirect",
+        "GET /n1/n2/docs",
+        "GET /n1/n2/docs/oauth2-redirect",
+        "GET /n1/n2/openapi.json",
+        "GET /n1/n2/redoc",
+        "GET /n1/openapi.json",
+        "GET /n1/redoc",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /n1/docs",
+        "HEAD /n1/docs/oauth2-redirect",
+        "HEAD /n1/n2/docs",
+        "HEAD /n1/n2/docs/oauth2-redirect",
+        "HEAD /n1/n2/openapi.json",
+        "HEAD /n1/n2/redoc",
+        "HEAD /n1/openapi.json",
+        "HEAD /n1/redoc",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "POST /n1/n2/fondo"
+      ],
+      "censo_viejo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "MOUNT /n1"
+      ],
+      "descripcion": "dos niveles de Mount componen la URL efectiva",
+      "detectado": true,
+      "el_nuevo_lo_ve": true,
+      "el_viejo_lo_ve": false,
+      "opacas_nuevo": []
+    },
+    "H5-mount-anidado-3-niveles": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /n1/docs",
+        "GET /n1/docs/oauth2-redirect",
+        "GET /n1/n2/docs",
+        "GET /n1/n2/docs/oauth2-redirect",
+        "GET /n1/n2/n3/docs",
+        "GET /n1/n2/n3/docs/oauth2-redirect",
+        "GET /n1/n2/n3/openapi.json",
+        "GET /n1/n2/n3/redoc",
+        "GET /n1/n2/openapi.json",
+        "GET /n1/n2/redoc",
+        "GET /n1/openapi.json",
+        "GET /n1/redoc",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /n1/docs",
+        "HEAD /n1/docs/oauth2-redirect",
+        "HEAD /n1/n2/docs",
+        "HEAD /n1/n2/docs/oauth2-redirect",
+        "HEAD /n1/n2/n3/docs",
+        "HEAD /n1/n2/n3/docs/oauth2-redirect",
+        "HEAD /n1/n2/n3/openapi.json",
+        "HEAD /n1/n2/n3/redoc",
+        "HEAD /n1/n2/openapi.json",
+        "HEAD /n1/n2/redoc",
+        "HEAD /n1/openapi.json",
+        "HEAD /n1/redoc",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "POST /n1/n2/n3/fondo"
+      ],
+      "censo_viejo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "MOUNT /n1"
+      ],
+      "descripcion": "tres niveles de Mount componen la URL efectiva",
+      "detectado": true,
+      "el_nuevo_lo_ve": true,
+      "el_viejo_lo_ve": false,
+      "opacas_nuevo": []
+    },
+    "H6-include-router-con-mount": {
+      "censo_nuevo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /inc/m/docs",
+        "GET /inc/m/docs/oauth2-redirect",
+        "GET /inc/m/openapi.json",
+        "GET /inc/m/redoc",
+        "GET /inc/normal",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /inc/m/docs",
+        "HEAD /inc/m/docs/oauth2-redirect",
+        "HEAD /inc/m/openapi.json",
+        "HEAD /inc/m/redoc",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "POST /inc/m/aprobar"
+      ],
+      "censo_viejo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /inc/normal",
+        "GET /m",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc"
+      ],
+      "descripcion": "Mount dentro de un router incluido: punto ciego real del chasis",
+      "detectado": true,
+      "el_nuevo_lo_ve": true,
+      "el_viejo_lo_ve": false,
+      "opacas_nuevo": []
+    },
+    "H7-censo-vacio": {
+      "censo_nuevo": [],
+      "descripcion": "0 rutas observadas debe ser ROJO, no verde silencioso",
+      "detectado": true,
+      "hallazgo_censo_vacio": [
+        {
+          "detalle": "el censo no devolvió NINGUNA ruta con path resoluble: un mapa sin rutas no es un mapa limpio, es un instrumento que no ha observado nada. Todo hallazgo de este informe sería vacío por no haber mirado",
+          "key": "__censo_vacio__"
+        }
+      ],
+      "suelo_no_se_autocumple_con_opacas": true
+    },
+    "M3-tipo-de-ruta-ajeno": {
+      "censo_nuevo": [
+        "<METODOS-NO-ENUMERABLES> /ajena",
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc"
+      ],
+      "censo_viejo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc"
+      ],
+      "descripcion": "un tipo de ruta ajeno CON path y methods llega a la rama `tipo-de-ruta-desconocido`; el WebSocket no, muere antes en métodos",
+      "detectado": true,
+      "el_nuevo_lo_ve": true,
+      "el_viejo_lo_ve": false,
+      "opacas_nuevo": [
+        {
+          "motivo": "tipo-de-ruta-desconocido:_RutaAjena",
+          "path": "/ajena"
+        }
+      ]
+    },
+    "M5-mount-no-enumerable-asgi-plano": {
+      "censo_nuevo": [
+        "<METODOS-NO-ENUMERABLES> /asgi",
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc"
+      ],
+      "censo_viejo": [
+        "GET /docs",
+        "GET /docs/oauth2-redirect",
+        "GET /openapi.json",
+        "GET /redoc",
+        "HEAD /docs",
+        "HEAD /docs/oauth2-redirect",
+        "HEAD /openapi.json",
+        "HEAD /redoc",
+        "MOUNT /asgi"
+      ],
+      "descripcion": "un Mount ASGI sin subrutas que NO es estático tiene que salir opaco; es el motivo que de verdad dispara en esta app y no estaba calibrado",
+      "detectado": true,
+      "el_nuevo_lo_ve": true,
+      "el_viejo_lo_ve": false,
+      "opacas_nuevo": [
+        {
+          "motivo": "montaje-no-enumerable",
+          "path": "/asgi"
+        }
+      ]
+    }
+  },
+  "casos_ejecutados": 17,
+  "ok": true
+}
