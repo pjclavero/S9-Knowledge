@@ -100,7 +100,8 @@ CASOS: tuple[Caso, ...] = (
         "    provider = _crudo()",
         ("test_sin_auth_no_reaparece_el_comportamiento_permisivo",
          "test_los_contadores_no_incluyen_lo_que_el_espectador_no_ve",
-         "test_la_sustitucion_del_proveedor_muerde"),
+         "test_la_sustitucion_del_proveedor_muerde",
+         "test_tabla_medida_del_anonimo_con_auth_desactivada"),
     ),
     Caso(
         "F4", "La pantalla NO publica la ruta de origen de una fuente",

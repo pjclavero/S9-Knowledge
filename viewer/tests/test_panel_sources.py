@@ -526,6 +526,68 @@ def test_la_barrera_de_partida_es_real_no_un_panel_siempre_vacio(
     )
 
 
+#: TABLA MEDIDA del anónimo con la autenticación desactivada. No es una cita de
+#: la política: es lo que ESTE panel entrega, caso por caso, medido contra la
+#: app real con el proveedor base sustituido. Coincide con la tabla que midió el
+#: carril G sobre su propio hueco, y eso importa: dos huecos distintos sobre la
+#: misma autorización tienen que dar el mismo veredicto, o uno de los dos está
+#: aplicando una política suya.
+#:
+#: Si mañana aparece aquí un `True` nuevo, NO se "arregla" cambiando el panel:
+#: se mide, se declara y se pregunta.
+TABLA_ANONIMO_SIN_AUTH: tuple[tuple[str, dict[str, Any], bool], ...] = (
+    ("capa juego, player", dict(scope="juego", visibility="player"), True),
+    ("capa juego, reference", dict(scope="juego", visibility="reference"), False),
+    ("capa juego, secret", dict(scope="juego", visibility="secret"), False),
+    ("capa juego, narrator", dict(scope="juego", visibility="narrator"), False),
+    ("capa juego, deny", dict(scope="juego", visibility="deny"), False),
+    ("visibilidad invalida", dict(scope="juego", visibility="verde"), False),
+    ("sin ambito declarado", dict(scope=None, visibility="player"), False),
+    ("partida ajena", dict(scope="partida", partida="p-A",
+                           known_from_session=1, visibility="player"), False),
+    ("partida sin sesion de revelacion", dict(scope="partida", partida="p-A",
+                                              visibility="player"), False),
+    ("sesion futura", dict(scope="juego", visibility="player",
+                           known_from_session=9), False),
+    ("workspace ajeno", dict(scope="juego", visibility="player",
+                             workspace="otro-workspace"), False),
+)
+
+
+@pytest.mark.parametrize(
+    "nombre,atributos,visible", TABLA_ANONIMO_SIN_AUTH, ids=[c[0] for c in TABLA_ANONIMO_SIN_AUTH]
+)
+def test_tabla_medida_del_anonimo_con_auth_desactivada(
+    real_app, panel_on, con_base, nombre, atributos, visible
+):
+    """Caso por caso, y con los dos veredictos representados.
+
+    Una tabla de once "no visible" se satisfaría con un panel roto que no
+    pintara nunca nada; una de once "visible", con un panel que no filtrara. La
+    tabla trae los dos, y el test de abajo exige que la proporción sea la
+    medida y no otra.
+    """
+    fuente = f"fuente-{nombre}"
+    n = nodo("n1", source=fuente, **atributos)
+    if atributos.get("scope") is None:
+        n.pop("scope", None)
+    con_base([n])
+    html = client(real_app).get(SLOT.prefix).text
+    assert (fuente in html) is visible, (
+        f"{nombre}: el panel {'oculta' if visible else 'entrega'} este material "
+        "con la autenticación desactivada, y la tabla medida dice lo contrario"
+    )
+
+
+def test_la_tabla_del_anonimo_no_es_unanime():
+    """Suelo de la tabla: si todos los casos apuntaran al mismo lado, el
+    parametrizado de arriba no distinguiría un panel correcto de uno roto."""
+    veredictos = {c[2] for c in TABLA_ANONIMO_SIN_AUTH}
+    assert veredictos == {True, False}
+    visibles = [c[0] for c in TABLA_ANONIMO_SIN_AUTH if c[2]]
+    assert visibles == ["capa juego, player"], visibles
+
+
 def test_el_panel_no_declara_vocabulario_propio_de_autorizacion():
     """Ni una segunda tabla de rangos, ni un `admin_full` local, ni un `role ==`.
 

@@ -96,6 +96,36 @@ proveedor filtrado, de modo que la política y el contexto que deciden son los d
   el rol publicado no ve, una sesión de administrador **sí** la ve. Lo que separa los dos
   resultados es la autoridad, no un defecto de la pantalla.
 
+### La tabla, MEDIDA caso por caso
+
+No es una cita de la política: es lo que **este panel** entrega, medido contra la app real con el
+proveedor base sustituido (`test_tabla_medida_del_anonimo_con_auth_desactivada`).
+
+| Material | ¿Aparece la fuente? |
+|---|---|
+| capa juego, `player` | **VISIBLE** |
+| capa juego, `reference` | no |
+| capa juego, `secret` | no |
+| capa juego, `narrator` | no |
+| capa juego, `deny` | no |
+| visibilidad inválida (`verde`) | no |
+| sin ámbito declarado | no |
+| partida ajena | no |
+| partida sin sesión de revelación | no |
+| sesión futura | no |
+| workspace ajeno | no |
+
+**1 de 11.** Coincide caso por caso con la tabla que midió el carril G sobre su propio hueco, y eso
+importa: dos huecos distintos sobre la misma autorización tienen que dar el mismo veredicto, o uno
+de los dos está aplicando una política suya.
+
+La tabla trae los **dos** veredictos a propósito: once «no visible» se satisfarían con un panel roto
+que no pintara nunca nada, y once «visible» con uno que no filtrara. `test_la_tabla_del_anonimo_no_es_unanime`
+exige que la proporción sea la medida y no otra, para que el parametrizado no pueda autocumplirse.
+
+Si algún día aparece ahí un «VISIBLE» nuevo, **no se arregla el panel**: se mide, se declara y se
+pregunta.
+
 ---
 
 ## 4. Rutas y nombres de fichero
@@ -192,7 +222,18 @@ Lo que sí se sustituye es `get_filtered_provider`, con control de colapso
 
 ---
 
-## 7. Cambio en un fichero compartido (requiere visto bueno)
+## 7. Cambio en un fichero compartido — COLISIÓN CON EL CARRIL G, pendiente de coordinación
+
+> **AVISO.** El carril G ha resuelto **el mismo choque** en su PR (**#183**) con un bloque
+> **aditivo** que monta la premisa «sin datos» sin debilitar ninguna aserción. Esa solución es
+> mejor que la de aquí y **debe prevalecer**. Lo previsible es fusionar G primero y rebasar este
+> carril encima, **descartando el cambio de esta sección**; el resto del PR no lo toca.
+> Que dos carriles editen a la vez el mismo test compartido es precisamente lo que se quiere
+> evitar, así que este cambio **no se defiende**: se retira en cuanto el coordinador lo diga.
+> Se deja escrito lo medido porque el diagnóstico sí es útil.
+
+
+### El diagnóstico medido
 
 `viewer/tests/test_chassis_mount_contract.py`:
 `test_slot_renders_empty_state_instead_of_exploding` →
