@@ -24,6 +24,26 @@ from dataset import Parametros  # noqa: E402
 from instrumentation import CountingProvider  # noqa: E402
 
 
+class EscenarioNoMedible(RuntimeError):
+    """El escenario que el banco iba a medir NO representa al sistema medido.
+
+    Un TIPO, no un mensaje. Los dos guardias de montaje --"¿hay grafo?" y
+    "¿se ve entero?"-- son la misma propiedad vista desde dos alturas, y qué
+    guardia salta primero depende de cuánto recorte haya: con el grafo al 25 %
+    salta el de visibilidad; si un día el recorte llega al 100 %, salta antes
+    el de "no hay grafo", con otro texto.
+
+    Por eso existe esta clase. Una prueba que casara contra el LITERAL
+    ("PARCIALMENTE INVISIBLE") se pondría roja **por el motivo equivocado** en
+    cuanto el recorte cambiara de grado -- que es exactamente lo que va a pasar
+    cuando aterrice el carril de `lore anónimo = denegado`: el dataset de
+    `perflab` no lleva `partida_id` y es `knowledge_layer="book"`, o sea, justo
+    el material que ese carril deniega, y el anónimo pasará de ver 63 nodos a
+    ver 0. Se afirma el TIPO de fallo; el texto sigue siendo diagnóstico, no
+    contrato.
+    """
+
+
 def preparar_entorno(ruta_grafo: Path) -> None:
     """Variables de entorno ANTES de importar la app (Settings usa lru_cache)."""
     os.environ["S9K_GRAPH_PROVIDER"] = "mock"
@@ -57,18 +77,34 @@ def contexto_del_banco():
 
     El banco no puede medir un grafo parcialmente invisible: es el defecto
     histórico de v1 (25 % de nodos invisibles) reencarnado por otra vía. Y no
-    puede recuperar la visibilidad reactivando un atajo de autoridad. Así que la
-    pide por la puerta declarada del ÚNICO productor de contextos
-    (``authz.context``), igual que un llamador interno sin usuario: aquí queda
-    escrito POR QUÉ. Es una decisión del INSTRUMENTO, no del sistema medido: no
-    cambia una línea de ``viewer/app/**``.
-    """
-    from app.authz.context import build_viewer_context
+    puede recuperar la visibilidad reactivando un atajo de autoridad.
 
-    return build_viewer_context(
-        role="admin",
-        auth_enabled=True,          # hay principal declarado: el propio banco
-        default_workspace=dataset.WORKSPACE,
+    LA PUERTA, y por qué es ÉSTA
+    ----------------------------
+    ``build_internal_context(motivo=...)`` es la vía que ``authz/context.py``
+    declara para un llamador sin usuario, y exige escribir POR QUÉ. La primera
+    versión de esta función llamaba a ``build_viewer_context(role="admin",
+    auth_enabled=True)`` a mano: exactamente el patrón que el docstring de
+    ``context.py`` nombra como **«una CUARTA vía a la potestad de bypass
+    total»**, y el único sitio del repo que lo escribía fuera del propio
+    ``context.py`` --el llamador interno del producto (``authz/scope.py``) sí
+    usa la puerta--. Que el guardián AST del P0 escanee sólo ``viewer/app/``
+    y por tanto no viera esto **no lo hacía correcto**: es el mismo argumento
+    del hash del sistema medido, en sentido inverso.
+
+    Es una decisión del INSTRUMENTO, no del sistema medido: no cambia una línea
+    de ``viewer/app/**``.
+    """
+    from app.authz.context import build_internal_context
+
+    return build_internal_context(
+        motivo=(
+            "banco de rendimiento (benchmarks/perf): mide el camino de DATOS "
+            "del visor sobre un dataset sintético, sin usuario ni sesión. "
+            "Necesita ver el grafo COMPLETO porque medir un grafo recortado "
+            "por visibilidad da cifras de un sistema que no es el que se "
+            "publica (docs/67 §0.2). No toca producción ni datos reales."
+        )
     )
 
 
@@ -96,8 +132,19 @@ def construir_cliente(ruta_grafo: Path):
         lambda: PolicyFilteredProvider(contador, contexto_del_banco())
     )
     cliente = TestClient(app)
-    comprobar_que_hay_datos(cliente)
-    comprobar_visibilidad_completa(cliente, ruta_grafo)
+    # Camino ROJO sin fuga: si una comprobación lanza, los overrides ya están
+    # instalados en la `app` GLOBAL del proceso y nadie los quita -- el llamador
+    # no tiene todavía el objeto `app` para limpiarlos en su `finally`. Todo
+    # test posterior del mismo proceso heredaría un proveedor filtrado ajeno.
+    # Se limpia AQUÍ, antes de re-lanzar, para que un fallo del arnés no
+    # contamine lo que venga detrás.
+    try:
+        comprobar_que_hay_datos(cliente)
+        comprobar_visibilidad_completa(cliente, ruta_grafo)
+    except BaseException:
+        app.dependency_overrides.pop(get_provider, None)
+        app.dependency_overrides.pop(get_filtered_provider, None)
+        raise
     return cliente, contador, app
 
 
@@ -111,6 +158,18 @@ def comprobar_visibilidad_completa(cliente, ruta_grafo: Path) -> None:
     visibilidad**, que es la propiedad que se rompió.
 
     Se ejecuta en TODO montaje, así que cubre calibración y línea base.
+
+    LÍMITE DECLARADO de este guardia (medido por construcción, no por lectura)
+    -------------------------------------------------------------------------
+    Muestrea **un solo representante por nivel**. Por construcción, entonces,
+    **no detecta un recorte que deje al menos un nodo de cada nivel**: si la
+    política empezara a ocultar el 90 % de cada nivel, los cuatro representantes
+    podrían seguir respondiendo 200 y este guardia pasaría. El que sí lo caza es
+    el **conteo** (`len(nodes) == len(grafo["nodes"])`), y ese vive SÓLO en
+    `viewer/tests/test_banco_perf_visibilidad_regresion.py`: **ninguna corrida
+    del banco lo ejecuta**. Se muestrea así a propósito --el conteo pide una
+    petición del tamaño del grafo en cada montaje-- pero el hueco queda escrito
+    aquí y en docs/67, no descubierto por el siguiente.
     """
     import json as _json
 
@@ -121,7 +180,7 @@ def comprobar_visibilidad_completa(cliente, ruta_grafo: Path) -> None:
         representantes.setdefault(n["visibility"], n["id"])
     faltan = sorted(set(dataset.VISIBILITIES) - set(representantes))
     if faltan:
-        raise RuntimeError(
+        raise EscenarioNoMedible(
             f"El dataset no contiene nodos de {faltan}: la comprobación de "
             "visibilidad pasaría con menos casos de los que dice cubrir."
         )
@@ -131,7 +190,7 @@ def comprobar_visibilidad_completa(cliente, ruta_grafo: Path) -> None:
         if cliente.get(f"/api/entities/{nid}").status_code != 200
     }
     if invisibles:
-        raise RuntimeError(
+        raise EscenarioNoMedible(
             "El banco mediría un grafo PARCIALMENTE INVISIBLE: la ficha de "
             f"entidad no responde 200 para {invisibles} (nivel -> (id, status)). "
             "Medir así da cifras de un sistema que no es el que se publica; fue "
@@ -158,14 +217,14 @@ def comprobar_que_hay_datos(cliente) -> None:
     r = cliente.get("/api/graph?limit=300")
     datos = r.json() if r.status_code == 200 else {}
     if not datos.get("nodes") or not datos.get("edges"):
-        raise RuntimeError(
+        raise EscenarioNoMedible(
             f"El escenario base no devuelve grafo (status={r.status_code}, "
             f"nodos={len(datos.get('nodes', []))}, aristas={len(datos.get('edges', []))}). "
             "Medir esto no tendría sentido."
         )
     filtrado = cliente.get("/api/graph?limit=300&entity_type=Character").json()
     if not filtrado.get("nodes"):
-        raise RuntimeError("El filtro por tipo devuelve 0 nodos: el dataset o el filtro están mal.")
+        raise EscenarioNoMedible("El filtro por tipo devuelve 0 nodos: el dataset o el filtro están mal.")
 
 
 # ---------------------------------------------------------------------------

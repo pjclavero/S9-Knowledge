@@ -149,8 +149,19 @@ def test_calibracion_negativa_el_guardia_sabe_ponerse_rojo(monkeypatch):
             role=None, auth_enabled=False, default_workspace=dataset.WORKSPACE
         ),
     )
-    with pytest.raises(RuntimeError, match="PARCIALMENTE INVISIBLE"):
+    # Se afirma el TIPO de fallo, NO el literal del mensaje. Casar contra
+    # "PARCIALMENTE INVISIBLE" ataría esta prueba al GRADO del recorte: cuando
+    # aterrice el carril de `lore anónimo = denegado`, el anónimo pasará de ver
+    # 63 nodos a ver 0 y saltará antes el otro guardia ("El escenario base no
+    # devuelve grafo"), con lo que esta prueba se pondría roja **por el motivo
+    # equivocado** -- justo la avería que este proyecto ya ha pagado. Ambos
+    # guardias lanzan `EscenarioNoMedible`, que es la propiedad real: el
+    # escenario no representa al sistema que se va a publicar.
+    with pytest.raises(arnes.EscenarioNoMedible) as fallo:
         arnes.montar(PARAMS)
+    # El texto sigue siendo diagnóstico útil; se comprueba que dice ALGO de por
+    # qué, sin exigir cuál de los dos recortes ocurrió.
+    assert str(fallo.value).strip()
 
     monkeypatch.undo()
     cliente, _c, app, _e = arnes.montar(PARAMS)  # VERDE de nuevo
@@ -158,3 +169,99 @@ def test_calibracion_negativa_el_guardia_sabe_ponerse_rojo(monkeypatch):
         assert cliente.get("/api/entities/p_0000002").status_code == 200
     finally:
         app.dependency_overrides.clear()
+
+
+def test_el_guardia_tambien_enrojece_con_recorte_TOTAL(monkeypatch):
+    """El futuro `lore anónimo = denegado`, simulado HOY.
+
+    Ese carril dejará al anónimo viendo **cero** nodos de `perflab` (sus nodos
+    no llevan `partida_id` y son `knowledge_layer="book"`). Aquí se fuerza esa
+    condición --contexto acotado a otro workspace, 0 nodos visibles-- y se
+    comprueba que:
+
+      * el banco **sigue enrojeciendo** (no mide un grafo vacío), y
+      * lo hace con el **mismo tipo** `EscenarioNoMedible`, aunque el guardia
+        que salta y el texto sean OTROS.
+
+    Es la prueba de que desacoplar el `match` del literal era necesario: se
+    afirma explícitamente que el mensaje **no** es el del recorte parcial.
+    """
+    from app.authz.context import build_viewer_context
+
+    monkeypatch.setattr(
+        arnes,
+        "contexto_del_banco",
+        lambda: build_viewer_context(
+            role="viewer", auth_enabled=True, default_workspace="workspace-que-no-existe"
+        ),
+    )
+    with pytest.raises(arnes.EscenarioNoMedible) as fallo:
+        arnes.montar(PARAMS)
+    assert "PARCIALMENTE INVISIBLE" not in str(fallo.value), (
+        "salta OTRO guardia, con OTRO texto: por eso la prueba afirma el tipo"
+    )
+
+    monkeypatch.undo()
+    _c, _cont, app, _e = arnes.montar(PARAMS)  # VERDE de nuevo
+    app.dependency_overrides.clear()
+
+
+def test_un_montaje_fallido_no_deja_overrides_vivos(monkeypatch):
+    """Camino ROJO sin fuga (`construir_cliente` limpia antes de re-lanzar).
+
+    Si los overrides sobrevivieran a un montaje fallido, quedarían instalados en
+    la `app` GLOBAL del proceso y **todo test posterior** heredaría un proveedor
+    filtrado ajeno -- un rojo por el motivo equivocado, propagado.
+    """
+    from app.authz.dependencies import get_filtered_provider
+    from app.authz.context import build_viewer_context
+    from app.deps import get_provider
+    from app.main import app
+
+    app.dependency_overrides.clear()
+    monkeypatch.setattr(
+        arnes,
+        "contexto_del_banco",
+        lambda: build_viewer_context(
+            role=None, auth_enabled=False, default_workspace=dataset.WORKSPACE
+        ),
+    )
+    with pytest.raises(arnes.EscenarioNoMedible):
+        arnes.montar(PARAMS)
+
+    fugados = [
+        d for d in (get_provider, get_filtered_provider) if d in app.dependency_overrides
+    ]
+    assert not fugados, f"overrides vivos tras un montaje fallido: {fugados}"
+
+
+def test_el_arnes_no_fabrica_el_contexto_a_mano():
+    """El banco entra por `build_internal_context`, no por la CUARTA vía.
+
+    `authz/context.py` nombra `build_viewer_context(role="admin", ...)` escrito
+    a mano fuera del productor como *"una CUARTA vía a la potestad de bypass
+    total"*. El guardián AST del P0 escanea **sólo `viewer/app/`**, así que
+    `benchmarks/` queda fuera de su vista: este caso cubre ese hueco para el
+    único fichero del laboratorio que pide un contexto.
+    """
+    import ast
+
+    arbol = ast.parse((PERF / "arnes.py").read_text(encoding="utf-8"))
+    llamadas = [
+        n for n in ast.walk(arbol)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Name)
+        and n.func.id in {"build_viewer_context", "build_internal_context"}
+    ]
+    nombres = sorted({n.func.id for n in llamadas})
+    assert nombres == ["build_internal_context"], (
+        f"`arnes.py` llama a {nombres}: el contexto del banco debe pedirse por la "
+        "puerta declarada, no fabricarse a mano"
+    )
+    # Y el motivo no puede ir en blanco: es lo único que hace revisable la
+    # concesión. `build_internal_context` ya lo exige; aquí se ejercita.
+    from app.authz.context import build_internal_context
+
+    with pytest.raises(ValueError):
+        build_internal_context(motivo="   ")
+    assert arnes.contexto_del_banco().admin_full is True
