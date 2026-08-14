@@ -419,18 +419,38 @@ def test_las_plantillas_no_ofrecen_ninguna_accion_de_escritura(real_app):
     fusionar y no puede es una funcionalidad anunciada y ausente.
     """
     base = Path(panel.__file__).resolve().parent.parent / "templates" / "chassis"
+    formularios_vistos: dict[str, list[str]] = {}
     for nombre in ("entities.html", "entities_item.html"):
         marcado = re.sub(
             r"\{#.*?#\}", "",
             (base / nombre).read_text(encoding="utf-8"), flags=re.S,
         )
         formularios = re.findall(r"<form[^>]*>", marcado)
+        formularios_vistos[nombre] = formularios
         for f in formularios:
             assert 'method="get"' in f, f"{nombre} declara un formulario no-GET: {f}"
         for verbo in ("editar", "fusionar", "renombrar", "borrar", "eliminar"):
             assert verbo not in marcado.lower(), (
                 f"{nombre} ofrece la acción {verbo!r}, que este panel no puede cumplir"
             )
+
+    # CONTROL DE QUE EL BUCLE HA EJERCIDO ALGO. Sin esto, la comprobación de
+    # arriba es de la misma familia que el suelo autocumplido ya cazado en la
+    # prueba de contadores: `for f in []` no ejecuta nada y pasa en VERDE.
+    # Medido: hoy `entities_item.html` tiene CERO formularios, así que su vuelta
+    # del bucle ya es vacía (ahí la vacuidad coincide con lo correcto), y si
+    # alguien convirtiera también el formulario de filtros de `entities.html` en
+    # un `<div>`, la comprobación entera quedaría vacía y seguiría verde —
+    # comprobado inyectando justo eso.
+    #
+    # No se exige un número por plantilla: eso congelaría el producto (un
+    # formulario GET nuevo es legítimo). Se exige que el conjunto de plantillas
+    # del panel aporte AL MENOS UN formulario que el bucle haya llegado a mirar.
+    total = sum(len(v) for v in formularios_vistos.values())
+    assert total >= 1, (
+        f"el bucle no ha mirado ni un formulario ({formularios_vistos}): la "
+        "comprobación se está cumpliendo sola"
+    )
 
 
 # ===========================================================================
@@ -887,6 +907,54 @@ def test_no_autorizado_e_inexistente_dan_EL_MISMO_404(real_app, panel_on, con_pr
             inexistente.status_code, inexistente.text
         ), f"{oculto} es distinguible de un id inexistente"
     assert inexistente.status_code == 404
+
+
+def test_un_id_con_barra_no_llega_al_handler_y_TAMPOCO_distingue(
+    real_app, panel_on, con_proveedor
+):
+    """Menor declarado, con la medida delante.
+
+    Un id que contiene `/` no encaja en `/panel/entities/item/{entity_id}`, así
+    que lo rechaza el ENRUTADO de Starlette antes de llegar a este panel: el
+    cuerpo es el genérico de 22 bytes, no el 404 de 34 bytes del handler. Medido:
+
+        'no-existe'                  404, 34 bytes, sha256 0219103e…
+        'lore-secreto'               404, 34 bytes, sha256 0219103e…  (idéntico)
+        '<script>alert(1)</script>'  404, 22 bytes, sha256 37ec4665…
+        'a/b'                        404, 22 bytes, sha256 37ec4665…  (idéntico)
+
+    Nótese que el caso de `<script>` NO es una particularidad del marcado: lo
+    que lo desvía es la barra de la etiqueta de cierre. Y lo importante es que
+    **no rompe la indistinguibilidad**, porque la diferencia la marca la FORMA
+    del identificador y no la existencia del recurso: una entidad que SÍ existe
+    y cuyo id lleva barra recibe exactamente la misma respuesta que una que no
+    existe. Eso es lo que este test fija, y no la mera constatación del 404.
+    """
+    import hashlib
+
+    con_proveedor(ProveedorFalso(
+        nodos=[nodo("con/barra", description=TEXTO_LORE), nodo("lore-player")],
+        aristas=[],
+    ))
+    cliente = client(real_app)
+
+    existe_con_barra = cliente.get(f"{SLOT.prefix}/item/con/barra")
+    no_existe_con_barra = cliente.get(f"{SLOT.prefix}/item/otra/barra")
+    assert existe_con_barra.status_code == no_existe_con_barra.status_code == 404
+    assert hashlib.sha256(existe_con_barra.content).hexdigest() == \
+        hashlib.sha256(no_existe_con_barra.content).hexdigest(), (
+            "un id con barra que SÍ existe se distingue de uno que no: la forma "
+            "del identificador estaría filtrando la existencia del recurso"
+        )
+    # Y el contenido de la entidad no se escapa por esa vía.
+    assert TEXTO_LORE not in existe_con_barra.text
+
+    # Control positivo: el 404 del HANDLER (sin barra) es otro cuerpo, y es el
+    # que sostiene la indistinguibilidad de la prueba de al lado. Sin esta
+    # comparación, lo de arriba sería compatible con que TODO diese 22 bytes.
+    del_handler = cliente.get(f"{SLOT.prefix}/item/no-existe")
+    assert del_handler.status_code == 404
+    assert del_handler.content != no_existe_con_barra.content
 
 
 def test_el_cuerpo_del_404_no_nombra_la_entidad_pedida(real_app, panel_on, con_proveedor):
