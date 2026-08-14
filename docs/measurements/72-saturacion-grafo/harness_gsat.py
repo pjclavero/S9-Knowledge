@@ -1,4 +1,25 @@
-"""Banco de medida (no versionado): balance por capa de /api/graph."""
+"""Banco de medida (no versionado): balance por capa de /api/graph.
+
+LORE-ANONIMO-DENEGADO (V3 RC, 2026-08-14) — POR QUE ESTE BANCO PIDE UNA LLAVE
+----------------------------------------------------------------------------
+Las fixturas de este banco son `scope="juego"` (capa juego), y desde la decision
+del operador la capa juego exige `can_view_lore`. El contexto de este harness se
+construye A MANO, asi que no pasa por `build_viewer_context` y no recibe nada
+que el productor no le pongan aqui.
+
+Sin `can_view_lore=True` este banco NO revienta: todos sus nodos caen en
+`lore_not_allowed`, mide CERO y **no lo dice**. Es decir, se convierte en el
+mismo fallo silencioso que este banco existe para detectar, un nivel mas arriba.
+Ningun test ni CI lo ejecuta, asi que nada se pondria rojo.
+
+Un revisor AUTENTICADO tiene la llave, luego anadirla es lo que REPRODUCE la
+medida registrada, no lo que la relaja: no se toca workspace, ni partida, ni
+`known_by`, ni el tope de sesion, ni `admin_full` (que sigue en False, porque
+con bypass la columna `drop_politica` seria un instrumento muerto).
+
+Los otros tres bancos de este directorio (`harness_ablacion`, `harness_opciones`,
+`harness_http`) tenian exactamente la misma forma y llevan la misma linea.
+"""
 import json, os, sys, random, tempfile
 from pathlib import Path
 VIEWER = Path(__file__).resolve().parents[3] / "viewer"
@@ -77,6 +98,8 @@ def measure(path, limit):
         can_view_reference=True,
         can_view_secret=False,
         can_view_future=False,
+        # LORE-ANONIMO-DENEGADO (V3 RC, 2026-08-14): ver nota de cabecera.
+        can_view_lore=True,
         admin_full=False,
     )
     prov = PolicyFilteredProvider(base, ctx, pol)

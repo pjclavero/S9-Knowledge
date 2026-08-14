@@ -65,8 +65,14 @@ class DriverCotaQueMuerde(FakeDriver):
         return SessionCotaQueMuerde(self.nodes, self.edges, self.cotas_vistas)
 
 
+# LORE-ANONIMO-DENEGADO (V3 RC, 2026-08-14): la capa juego exige
+# `can_view_lore`, y las fixturas de este banco son `scope="juego"`. Sin
+# esta linea el harness NO revienta: cuenta CERO y NO LO DICE, que es
+# exactamente el fallo silencioso que este banco existe para detectar.
+# Un revisor AUTENTICADO tiene la llave, asi que anadirla es lo que
+# reproduce la medida registrada, no lo que la relaja.
 CTX = ViewerContext(role="reviewer", allowed_workspaces=frozenset({"leyenda"}),
-                    can_view_reference=True)
+                    can_view_reference=True, can_view_lore=True)
 
 
 def _mide(nodes, edges, driver_cls):

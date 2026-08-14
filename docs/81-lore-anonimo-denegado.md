@@ -116,22 +116,55 @@ Contra el árbol de esta rama, con la app real y el proveedor **base**
 sustituido, atravesando la cadena de autorización entera. Una fila por caso, y
 las **dos** direcciones en la misma fila.
 
+> **Corregido tras la auditoría.** La primera versión de este apartado mezclaba
+> las dos tablas: listaba los casos del carril **F** y declaraba el total del
+> carril **G** (3 «sí» visibles, «4 de 11» escrito). Los tests siempre
+> estuvieron bien y la columna del anónimo —la que sostiene la decisión— era
+> correcta; el defecto era **documental, en el artefacto de auditoría**, que es
+> justo donde menos puede permitirse. Aquí van las dos, cada una copiada de su
+> test, **y los conjuntos de casos NO son idénticos**: ya estaba dicho en
+> `docs/78 §3` («solapados pero no idénticos»), y ésa es la razón de que un
+> total no sirva para la otra.
+
+**Carril G — `viewer/tests/test_panel_entities.py::TABLA_ANONIMO_VS_LECTOR`**
+
 | Caso (matriz de la política) | Anónimo | Lector legítimo |
 |---|---|---|
-| capa juego, `player` | no *(antes **sí**, con el texto completo)* | **sí** |
+| `lore-player` | no *(antes **sí**, con el texto completo)* | **sí** |
+| `lore-secreto` | no | no |
+| `lore-narrador` | no | no |
+| `lore-referencia` | no | **sí** |
+| `lore-futuro` | no | **sí** (tope 5) |
+| `partida-A` | no | **sí** (partida activa) |
+| `workspace-ajeno` | no | no |
+| `sin-scope` | no | no |
+| `visibilidad-rara` | no | no |
+| `visibilidad-deny` | no | no |
+| `known-by-malformado` | no | no |
+| **TOTAL** | **0 de 11** | **4 de 11** |
+
+**Carril F — `viewer/tests/test_panel_sources.py::TABLA_ANONIMO_VS_LECTOR`**
+
+| Caso | Anónimo | Lector legítimo |
+|---|---|---|
+| capa juego, `player` | no *(antes **sí**)* | **sí** |
 | capa juego, `reference` | no | **sí** |
 | capa juego, `secret` | no | no |
 | capa juego, `narrator` | no | no |
 | capa juego, `deny` | no | no |
-| visibilidad inválida | no | no |
+| visibilidad inválida (`verde`) | no | no |
 | sin ámbito declarado | no | no |
 | partida ajena | no | no |
 | partida sin sesión de revelación | no | no |
-| sesión futura | no | **sí** (según rol/tope) |
+| sesión futura | no | **sí** (`can_view_future` del rol revisor) |
 | workspace ajeno | no | no |
-| **TOTAL** | **0 de 11** | **4 de 11** |
+| **TOTAL** | **0 de 11** | **3 de 11** |
 
-Fijada en `viewer/tests/test_panel_entities.py` (carril G),
+Las dos coinciden en lo que importa —**0 de 11 para el anónimo**— sobre
+conjuntos de casos distintos, que es exactamente el argumento de la medición
+original: dos arneses distintos no comparten un defecto por casualidad.
+
+Fijadas en `viewer/tests/test_panel_entities.py` (carril G),
 `viewer/tests/test_panel_sources.py` (carril F) y
 `viewer/tests/test_panel_review_console.py` (carril C). En los tres:
 
@@ -177,9 +210,55 @@ lo dicen.
   el panel C cae. Es decir: **no es redundante con el motor**; es la única
   defensa del corpus que no vive en el grafo. Si no se hubiera tocado, la
   decisión estaría aplicada a medias y con el CI en verde.
-* **M3 sólo pone roja 1 prueba.** Se dice tal cual, sin adornarlo: la cobertura
-  de esa segunda puerta es **mucho más fina** que la del motor. Es suficiente
-  para demostrar que la defensa muerde, no para afirmar que está bien cubierta.
+* **M3 ponía rojas 2 pruebas** (declaré 1; la cifra correcta la dio la
+  auditoría). Y la corrección que importa no es esa: **las dos eran de la
+  dirección ANÓNIMA**. Nada cubría la dirección contraria de la segunda puerta
+  —que un lector con derecho **siga recibiendo** propuestas V3, contratos de
+  revisión y cola de trabajos sin `partida_id`—, así que el control de colapso
+  **no llegaba hasta ahí**: `partida_in_scope` podía devolver `False` siempre,
+  vaciando esas tres pantallas para todo el mundo, sin una sola roja.
+  Cubierto ahora en §5 bis (**N3**).
+
+---
+
+## 5 bis. Tres garantías que se afirmaban y NO estaban protegidas
+
+Las encontró una auditoría independiente, y las tres tienen la misma forma —la
+forma que este repositorio lleva siete rondas persiguiendo—: **una afirmación
+cierta en el código que ninguna prueba podía poner roja**. Ninguna era
+explotable; eso se dice en cada una, y «no explotable» no es «protegido».
+
+Fijadas en `viewer/tests/test_lore_anonimo_denegado_invariantes.py` y
+calibradas con **un proceso por mutación**:
+
+| # | Afirmación que no estaba protegida | Mutación | Rojo | Hash |
+|---|---|---|---|---|
+| **N1** | «una dimensión booleana de concesión no puede fallar abierta si su defecto es `False`» | invertir el **defecto del campo** a `True` | **2** | `089793fbc8ae0f82` ✔ |
+| **N2** | «es de ámbito, no de nivel; por eso `known_by` no la salta» | **mover** 2b-bis dentro de `if not knows` | **3** | `c896051c659af3e8` ✔ |
+| **N3** | la segunda puerta en su **dirección legítima** | `partida_in_scope` → `False` (ocultar de más) | **12** | `c896051c659af3e8` ✔ |
+
+**N1 — el defecto del campo.** La frase está en el registro (`missing=MINIMO`),
+en `models.py` y en este documento, y **invertir el defecto dejaba las 1539 en
+verde**. La `prueba_negativa` que la dimensión declaraba mide **monotonía**
+(«con `can_view_lore=False` no se ve más»), que es **otra propiedad**: se
+cumple igual con cualquier defecto, porque pasa el valor explícitamente. No era
+explotable porque el productor lo fija en sus cuatro ramas — pero **el defecto y
+esas líneas explícitas son mutuamente redundantes y ninguno estaba probado por
+separado** (quitar la línea explícita del anónimo también daba cero rojas). Se
+añade además una comprobación **general**: ninguna dimensión booleana de
+concesión del `ViewerContext` puede tener defecto `True`, para que la próxima no
+nazca desprotegida.
+
+**N2 — ámbito contra nivel.** La mutación fiel es la que describió la auditoría:
+no borrar la comprobación, sino **moverla** dentro del bloque de nivel. Es más
+exigente que borrarla, porque **deja el comportamiento del anónimo intacto** —un
+anónimo no tiene personaje legible, así que `knows` es `False` y la comprobación
+se le sigue aplicando—. Medido: con la mutación fiel, **paneles G, F y C y toda
+la suite HTTP siguen VERDES**, y las **únicas 3 rojas** son las tres
+parametrizaciones de la prueba nueva. Eso confirma exactamente el diagnóstico:
+lo que se perdía era **defensa en profundidad, no una puerta abierta**.
+
+**N3 — la dirección que faltaba.** Ver arriba, en la ablación.
 
 ---
 
@@ -259,8 +338,44 @@ vacías, `test_una_arista_no_revela_un_extremo_secreto` **pasaba por vacío**
 —recorría una lista vacía—. Es un bucle vacío que no ejercía nada, y sólo se vio
 porque el fallo de al lado obligó a mirar. Con el arreglo vuelve a ejercerse.
 
+### Un tercer «pasa por vacío», y éste no lo encontré yo
+
+Los bancos de medida de `docs/measurements/72-saturacion-grafo/` construyen su
+`ViewerContext` **a mano** y alimentan fixturas `scope="juego"`. Sin la llave,
+**todos sus nodos caen en `lore_not_allowed`: el banco mide CERO y no lo dice**.
+No lo ejecuta pytest ni CI, así que nada enrojece — es exactamente el fallo
+silencioso que ese banco existe para detectar, un nivel más arriba, y es
+**el dual de N1**: con el defecto del campo abierto, estos harnesses habrían
+seguido funcionando y el problema no habría existido.
+
+La auditoría señaló `harness_gsat.py`. Al ir a arreglarlo resultó que **la
+familia son cuatro**: `harness_gsat`, `harness_ablacion`, `harness_opciones` y
+`harness_http`, todos con la misma forma. Los cuatro llevan ahora
+`can_view_lore=True` —un revisor autenticado la tiene, así que añadirla es lo
+que **reproduce** la medida registrada, no lo que la relaja: no se toca
+workspace, ni partida, ni `known_by`, ni el tope, ni `admin_full`— y
+`harness_gsat` lleva la nota de cabecera que explica por qué.
+
+Verificado ejecutándolo: antes de la corrección medía cero en silencio; después
+vuelve a dar las cifras del registro (`modo=head`, `n=300`, `cob=100.00%`).
+
+Severidad baja —registro congelado, no es producto— pero el hallazgo que
+importa es de método: **barrí las 65 construcciones directas de `ViewerContext`
+de los tests y no barrí las de `docs/` ni `scripts/`**. El barrido tiene que ser
+del repositorio, no de la carpeta que uno tiene en la cabeza.
+
 Las otras pruebas que sólo corren en CI son las de navegador (Playwright), que
 no construyen contexto ni dependen de la capa juego.
+
+**Desglose de los 191 saltos, y qué implica**: 171 son de navegador (Playwright
+sin librería en esta máquina), 19 los de Neo4j que se acaban de contar, y 1
+lógico. CI **sí** los ejecuta y además tiene guardia anti-skip, así que no hay
+riesgo de producto. Pero tiene una consecuencia que hay que escribir con todas
+las letras: **los cinco recuentos de mutación de §5 son COTAS INFERIORES**, no
+totales — se midieron sin esas 190 pruebas. La auditoría comprobó que ninguna de
+navegador depende de que el anónimo reciba lore, así que **aquí la cota no
+oculta nada**; pero es una cota, y llamarla total sería la misma clase de cifra
+cierta por no mirar que este carril ha estado persiguiendo.
 
 ---
 
@@ -270,7 +385,10 @@ no construyen contexto ni dependen de la capa juego.
    Es la consecuencia buscada, pero es un cambio de comportamiento operativo
    real: cualquier despliegue que dependiera del modo abierto para *ver algo*
    deja de hacerlo. No es un efecto lateral escondido, es la decisión.
-2. **La cobertura de `partida_in_scope` es fina** (M3 → 1 prueba). Dicho en §5.
+2. **La cobertura de `partida_in_scope` sigue siendo la más fina de las dos
+   puertas**, aunque ya cubre las dos direcciones (§5 bis, N3). Se mide sobre
+   la unidad (`VisibilityScope.allows`) y sobre el panel C, **no** por HTTP
+   contra `/v3/review`, `/review-console` y `/api/jobs` a la vez.
 3. **`can_view_lore` se concede por ROL, a los tres roles.** Hoy no hay ninguna
    concesión por usuario ni por workspace. Si mañana hiciera falta un rol que
    entre pero no vea lore, la dimensión lo soporta, pero **hoy no está
