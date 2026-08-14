@@ -1,4 +1,4 @@
-# Mapa de rutas v2 — 420f626d0691
+# Mapa de rutas v2 — c31553f1811c
 
 - definidas (AST): **72**
 - montadas en `app.main.app`: **70**
@@ -6,7 +6,8 @@
 - probadas de verdad (sonda pytest): **70**
 - deniegan petición anónima con auth ON: **68** — de ellas 67 con guardián estático; 12 de métodos con cuerpo (sondeados con token CSRF válido: 12); 0 fuera del recuento
 - consumidas: **70**
-- **entradas OPACAS (censo incompleto): 1** — **este informe NO puede citarse como garantía**: hay rutas que el censo no ha podido caracterizar y cuya autorización no se ha medido; ver `findings.censo_opaco`
+- **entradas OPACAS (censo incompleto): 0** — el censo está completo
+- montajes estáticos caracterizados: **1** (superficie `{GET, HEAD}` verificada contra la app real; escritura rechazada con 405)
 
 > Medido con esta configuración: `S9K_DEFAULT_WORKSPACE=leyenda`, `S9K_GRAPH_PROVIDER=mock`. El instrumento **no distingue «apagada por bandera» de «muerta»**: ejecútalo una vez por configuración antes de dictaminar.
 

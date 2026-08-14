@@ -104,7 +104,8 @@
     "definidas": 72,
     "enlazadas": 31,
     "montadas": 70,
-    "opacas_no_caracterizadas": 1,
+    "montajes_estaticos": 1,
+    "opacas_no_caracterizadas": 0,
     "probadas": 70
   },
   "desglose_denegaciones": {
@@ -118,21 +119,8 @@
   },
   "findings": {
     "barrido_contamino_la_db": [],
-    "censo_opaco": [
-      {
-        "body_guards": [],
-        "deps": [],
-        "endpoint": "static",
-        "key": "<METODOS-NO-ENUMERABLES> /static",
-        "kind": "opaco",
-        "method": "<METODOS-NO-ENUMERABLES>",
-        "motivo": "montaje-no-enumerable",
-        "path": "/static",
-        "scoping_deps": [],
-        "source": "",
-        "tipo": "Mount"
-      }
-    ],
+    "caracterizacion_estatica_fallida": [],
+    "censo_opaco": [],
     "censo_vacio": [],
     "contradiccion_deniega_y_sirve": [],
     "control_positivo_csrf_fallido": [],
@@ -3044,7 +3032,32 @@
     ],
     "sondas_inconcluyentes": []
   },
-  "head": "420f626d06910a3b4cd9ac99a4309216cf1d95b6",
+  "head": "c31553f1811ca08912346328ff1807cb9d1bbabd",
+  "montajes_estaticos": [
+    {
+      "body_guards": [],
+      "deps": [],
+      "endpoint": "static",
+      "escritura_declarada_rechazada": [
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE"
+      ],
+      "key": "ESTATICO /static",
+      "kind": "static",
+      "method": "ESTATICO",
+      "motivo": "montaje-estatico-por-verificar",
+      "path": "/static",
+      "scoping_deps": [],
+      "source": "",
+      "superficie_declarada": [
+        "GET",
+        "HEAD"
+      ],
+      "tipo": "StaticFiles"
+    }
+  ],
   "probe_error": null,
   "routes": [
     {
@@ -6303,6 +6316,21 @@
       ]
     }
   ],
+  "sondas_estaticas": {
+    "ESTATICO /static": {
+      "DELETE": 405,
+      "GET": 404,
+      "HEAD": 404,
+      "OPTIONS": 405,
+      "PATCH": 405,
+      "POST": 405,
+      "PUT": 405,
+      "urls_sondeadas": [
+        "/static/",
+        "/static/__sonda-inexistente__.txt"
+      ]
+    }
+  },
   "tested_meta": {
     "apps_instrumented": 1,
     "exitstatus": 0

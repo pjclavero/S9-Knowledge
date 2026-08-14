@@ -719,7 +719,41 @@ Y el **caso vacío**: si el censo devuelve 0 rutas con path resoluble, es ROJO
 que ya se pagó en este repo. El suelo cuenta **sólo rutas con path resoluble**:
 si las opacas contasen, se satisfaría solo.
 
-### Calibración (`scripts/route_map/calibrate_censo.py`, 9 casos + 7 ablaciones)
+### `/static` no es incaracterizable: es que nadie había escrito su caracterización
+
+La primera versión de este arreglo dejaba `/static` como **opaco**, y con él la
+app real salía en rojo permanente. La salida tentadora era una **excepción**: una
+lista congelada con `/static` dentro. **Este repo ya pagó ese patrón**:
+`viewer/tests/test_provider_authz_fields_contract.py` documenta la
+`_CUARENTENA_CONGELADA` donde un revisor añadió un bypass nuevo **y su nombre a la
+lista en el mismo commit**, y la suite pasó verde (92 passed). La resolución de
+aquel carril no fue congelarla mejor, fue **eliminarla**.
+
+> **Una excepción es una lista donde escribir un nombre para dejar de mirar. Una
+> caracterización es una aserción que se pone ROJA si el mundo deja de
+> cumplirla.**
+
+Medido en vivo contra la app real: `GET 200 · HEAD 200 · POST/PUT/DELETE/PATCH
+405`. Eso es una afirmación positiva y falsable, así que `/static` pasa a
+`kind="static"` —no `"opaco"`— con superficie declarada `{GET, HEAD}` y escritura
+declarada rechazada con 405, **y la sonda la comprueba contra la app real**. Tres
+formas de ponerse rojo, ninguna de las cuales requiere que nadie revise una lista:
+
+1. **sin sonda** (`--skip-probe`) ⇒ `no-verificado`: una afirmación que nadie ha
+   comprobado es una excepción disfrazada;
+2. un método de escritura que **no** devuelve 405 ⇒ `caracterizacion-falsa`;
+3. `GET`/`HEAD` que devuelven 405 ⇒ tampoco es un montaje de lectura.
+
+La hipótesis de que un montaje es estático se toma del **tipo que da el propio
+framework** (`StaticFiles`), no de su nombre ni de una lista nuestra, y **no
+concede nada por sí sola**: una subclase de `StaticFiles` que aceptase POST entra
+por la hipótesis y **muere en la verificación** (caso E3). Con esto la app real
+queda en **rc=0 legítimamente**, sin una sola excepción.
+
+Un `Mount` no enumerable que **no** sea estático (ASGI plano, WSGI) sigue siendo
+opaco y sigue poniendo el informe en rojo.
+
+### Calibración (`scripts/route_map/calibrate_censo.py`, 14 casos + 9 ablaciones)
 
 Diferencial contra el enumerador anterior, copiado **verbatim** dentro del arnés
 como control negativo: cada hueco sale **VERDE** con el instrumento viejo (no lo
@@ -733,18 +767,42 @@ ve) y **ROJO** con el nuevo.
 | H4 `Mount` anidado a 2 niveles | no ve `POST /n1/n2/fondo` | lo ve |
 | H5 `Mount` anidado a 3 niveles | no ve `POST /n1/n2/n3/fondo` | lo ve |
 | H6 `include_router` con `Mount` dentro | no ve `POST /inc/m/aprobar` | lo ve |
+| **M5 `Mount` ASGI plano sin subrutas** | ve `MOUNT /asgi`, no acusa | **opaca** |
+| **M3 tipo de ruta ajeno con `path` y `methods`** | **ausente del censo** | opaca `tipo-de-ruta-desconocido` |
 | H7 censo vacío | 0 hallazgos, código 0 | `censo_vacio`, ROJO |
+| **E1 `StaticFiles`** | `MOUNT /static` | caracterizado y **verificado** (405 en escritura) |
+| **E2 `StaticFiles(html=True)`** | `MOUNT /static` | caracterizado y verificado |
+| **E3 subclase que acepta POST** | `MOUNT /static` | **`caracterizacion-falsa`, ROJO** |
 | FP1 app limpia | — | 0 opacas (falso positivo vigilado) |
 | FP2 rutas llamadas `mount`/`websocket`/`opaco` | — | 0 opacas: **un nombre no acusa** |
 
-**Ablaciones (necesidad):** desactivando un criterio del módulo real, el caso que
-lo necesita vuelve a verde — A1 `methods` fail-open (H2), A2 sin descenso por
-`Mount` (H1, H4, H5, H6), A3 filtro por tipo como antes (H3), A4 sin regla de
-caso vacío (H7). 7/7.
+**M5 y M3 no estaban cubiertos y era serio.** `montaje-no-enumerable` es el único
+motivo que dispara en esta app, y ninguno de los casos originales montaba un
+`Mount` **no enumerable** (H1/H4/H5/H6 montan sub-apps FastAPI, que sí tienen
+rutas): con la mutación «un `Mount` sin subrutas se salta en silencio» la app real
+daba 70 filas, 0 opacas y **rc=0 verde**, y la calibración seguía diciendo `OK`.
+`tipo-de-ruta-desconocido` era el mismo patrón más leve: H3 (WebSocket) no llega a
+esa rama, muere antes en `metodos-no-enumerables`. Hoy las dos mutaciones ponen la
+calibración en rojo.
 
-**El arnés se ha visto rojo**: sustituyendo el censo nuevo por el viejo, la
-calibración sale `FALLIDA` con código 1. Y exige carga: con menos de 9 casos o 7
-ablaciones no puede dar OK.
+**Ablaciones (necesidad), 9, todas sobre el módulo NUEVO:** A1 `methods`
+fail-open (H2), A2 sin descenso por `Mount` (H1, H4, H5, H6 — cuatro entradas),
+A3 sin comprobación de tipo (M3), A4 sin regla de caso vacío (H7), A5 el `Mount`
+vacío se salta en silencio (M5), A6 sin verificación de la caracterización
+estática (E3).
+
+Dos de las ablaciones anteriores **no se cobraban y se han rehecho**: `A4` era la
+constante literal `True` con `"censo_ablado": []` —no medía nada y no podía
+ponerse roja— y `A3` ablaba el instrumento **viejo**, no el módulo que se está
+calibrando. Por la regla de la casa (un control que no cambia ningún resultado no
+se cobra), la carga real de la versión anterior eran **5** ablaciones, no 7. Los
+umbrales del arnés se han ajustado a la carga real: **14 casos y 9 ablaciones**.
+
+**El arnés se ha visto rojo**, con un proceso por mutación (`route_map` es un
+singleton en `sys.modules`: mutar varias en el mismo proceso las acumula y las
+corridas siguientes salen rojas por el motivo equivocado, que es peor que un
+verde). VERDE → `M5`, `M3`, `E3`, `H7`, `H2`, `H1` los seis en ROJO → VERDE tras
+revertir.
 
 ### Qué cambió en la medida real de este árbol
 
@@ -757,23 +815,20 @@ cualquier rama que montara un router bajo un `Mount`, expusiera un WebSocket o
 declarase una ruta sin métodos enumerables habría perdido esas rutas del censo —y
 con ellas su medida de autorización— sin un solo aviso.
 
-**Consecuencia directa y visible:** con `/static` montado, el mapa de este repo
-sale **ROJO (código 3)**, y eso es lo correcto: el instrumento no puede enumerar
-lo que sirve `StaticFiles`, así que no puede afirmar que el censo está completo.
-No se ha añadido ninguna excepción por nombre ni por tipo para taparlo: una
-excepción así sería otra vez una concesión por nombre.
+**Consecuencia visible:** `/static` deja de ser opaco y pasa a estar
+**caracterizado y verificado** (superficie `{GET, HEAD}`, escritura 405 medida
+contra la app real), así que el mapa de este repo sale en **verde legítimo**. Con
+`--skip-probe` sale rojo, y también es correcto: sin sonda no hay quien tumbe la
+afirmación.
 
 ### ¿Debería ser puerta de merge?
 
-**Hoy no, y hay que decidirlo aparte.** Motivo medido: sobre `main` el mapa sale
-en rojo por el montaje de `/static`, que no es un defecto de una rama sino una
-propiedad permanente del visor. Cablearlo a `ci.yml` tal cual bloquearía todo
-merge desde el primer día, y la salida previsible sería añadirle una excepción —es
-decir, volver al fail-open por otra puerta. Antes de gatearlo hace falta una
-decisión explícita del operador sobre **cómo se declara un montaje no enumerable**
-(o si `/static` deja de servirse por un `Mount` opaco). Mientras tanto sigue
-siendo **auditoría bajo demanda**, y sus informes ya llevan escrito en la cabecera
-que el censo está incompleto. `ci.yml` no se ha tocado.
+**Ya es cableable sin ninguna excepción**, que era el obstáculo real: la app sale
+rc=0 porque su único montaje no enumerable está caracterizado, no exento. Aun así
+**`ci.yml` no se toca aquí**: el cableado lo coordina el operador. Lo que queda
+por decidir no es técnico sino de proceso (en qué job, con qué configuración —el
+mapa vale para UNA configuración— y con qué presupuesto de tiempo, porque el
+barrido de autorización arranca un subproceso por corrida).
 
 ### Limitaciones que quedan (declaradas, no disimuladas)
 
@@ -785,6 +840,18 @@ que el censo está incompleto. `ci.yml` no se ha tocado.
 - **Un `Mount` opaco sigue siendo opaco.** El censo dice *que* no puede ver
   dentro, no *qué* hay dentro. Eso es lo máximo que este instrumento puede
   afirmar.
+- **Sub-reporte bajo bandera roja, no fail-open.** En `Host` routing y en
+  `Mount("")` el subárbol vivo **desaparece** del censo. No es una concesión: en
+  los dos casos el informe queda **ROJO**, así que el instrumento no afirma nada
+  sobre lo que no ha visto. La distinción importa: fail-open sería declarar
+  limpio lo no observado; esto es declarar que no se ha observado.
+- **La caracterización estática afirma la SUPERFICIE, no el contenido.** Dice que
+  `/static` sólo lee y rechaza escritura con 405; no dice qué ficheros expone ni
+  si alguno de ellos no debería estar ahí. Un fichero sensible dentro del
+  directorio servido pasaría sin marca.
+- **La verificación estática necesita la sonda.** Con `--skip-probe` el montaje
+  queda `no-verificado` y el informe sale rojo. Es deliberado, pero significa que
+  el modo rápido del mapa nunca puede salir verde en una app con estáticos.
 - El descenso por `Mount` compone la URL efectiva por concatenación de paths
   declarados; una app ASGI que reescriba el path en tiempo de petición quedaría
   mal compuesta y el censo no lo detectaría.

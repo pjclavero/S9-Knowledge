@@ -213,12 +213,126 @@ def app_h6():
     return app
 
 
+def app_m5():
+    """`Mount` NO enumerable que **no** es estático: ASGI plano.
+
+    Éste es el motivo (`montaje-no-enumerable`) que de verdad dispara en esta
+    app, y no lo cubría ningún caso: H1/H4/H5/H6 montan sub-apps FastAPI, que sí
+    tienen rutas. Sin este caso se podía reabrir el agujero —«un Mount sin
+    subrutas se salta en silencio»— con la calibración en verde.
+    """
+    from starlette.routing import Mount
+
+    async def asgi_plano(scope, receive, send):  # pragma: no cover
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    app = _fastapi()
+    app.router.routes.append(Mount("/asgi", app=asgi_plano))
+    return app
+
+
+class _RutaAjena:
+    """Tipo de ruta ajeno **con** `path` y `methods` enumerables.
+
+    Es el único constructo que llega a la rama `tipo-de-ruta-desconocido`: un
+    WebSocket no, porque muere antes en `metodos-no-enumerables`. Sin este caso,
+    ese motivo no tenía ni calibración ni ablación.
+    """
+
+    def __init__(self, path, methods):
+        self.path = path
+        self.methods = set(methods)
+        self.name = "ajena"
+
+    async def handle(self, scope, receive, send):  # pragma: no cover
+        return None
+
+
+def app_m3():
+    app = _fastapi()
+    app.router.routes.append(_RutaAjena("/ajena", {"POST"}))
+    return app
+
+
 def app_h7():
     """Censo vacío: una app sin ninguna ruta propia."""
     from starlette.applications import Starlette
 
     app = Starlette(routes=[])
     return app
+
+
+def _dir_estatico():
+    """Directorio temporal con un `index.html` y un fichero suelto."""
+    import tempfile
+
+    d = Path(tempfile.mkdtemp(prefix="s9k-cal-static-"))
+    (d / "index.html").write_text("<!doctype html><title>x</title>", encoding="utf-8")
+    (d / "a.txt").write_text("a", encoding="utf-8")
+    return d
+
+
+def app_estatico(html=False, clase=None):
+    """`Mount` sobre `StaticFiles` (o sobre una subclase que MIENTE)."""
+    from starlette.routing import Mount
+    from starlette.staticfiles import StaticFiles
+
+    cls = clase or StaticFiles
+    app = _fastapi()
+    app.router.routes.append(
+        Mount("/static", app=cls(directory=str(_dir_estatico()), html=html),
+              name="static"))
+    return app
+
+
+class _EstaticoQueMiente:
+    """Subclase de `StaticFiles` que ACEPTA POST.
+
+    Es «un `Mount` que dice ser estático y no lo es»: pasa la hipótesis de tipo
+    (es un `StaticFiles`) y tiene que morir en la VERIFICACIÓN. Es la prueba de
+    que esto no es una lista de excepciones: escribir el nombre correcto no basta,
+    hay que cumplir la afirmación.
+    """
+
+    @staticmethod
+    def construir():
+        from starlette.staticfiles import StaticFiles
+
+        class _Miente(StaticFiles):
+            async def __call__(self, scope, receive, send):
+                if scope.get("method") in ("POST", "PUT", "PATCH", "DELETE"):
+                    await send({"type": "http.response.start", "status": 200,
+                                "headers": []})
+                    await send({"type": "http.response.body", "body": b"escrito"})
+                    return
+                await super().__call__(scope, receive, send)
+
+        return _Miente
+
+
+def _caso_estatico(nombre, app, espera_fallo, descripcion):
+    """Censa, sonda contra la app real y verifica la caracterización."""
+    from fastapi.testclient import TestClient
+
+    censo = censo_nuevo(app)
+    estaticos = [r for r in RM.collect_mounted(app) if r["kind"] == RM.KIND_ESTATICO]
+    with TestClient(app) as client:
+        sondas = RM.sondar_estaticos(client, estaticos)
+    fallos = RM.verificar_estaticos(estaticos, sondas, skip_probe=False)
+    # Sin sonda, la afirmación NO se concede: una caracterización sin verificar
+    # es una excepción disfrazada.
+    fallos_sin_sonda = RM.verificar_estaticos(estaticos, None, skip_probe=True)
+    return nombre, {
+        "descripcion": descripcion,
+        "censo_nuevo": sorted(_claves(censo)),
+        "montajes_estaticos": [e["key"] for e in estaticos],
+        "sondas": sondas,
+        "fallos": fallos,
+        "sin_sonda_tambien_falla": bool(fallos_sin_sonda),
+        "detectado": (bool(fallos) == espera_fallo) and bool(estaticos)
+        and bool(fallos_sin_sonda),
+    }
 
 
 def app_fp1():
@@ -317,6 +431,12 @@ def casos_principales() -> dict:
          "tres niveles de Mount componen la URL efectiva"),
         ("H6-include-router-con-mount", app_h6, _tiene("POST /inc/m/aprobar"),
          "Mount dentro de un router incluido: punto ciego real del chasis"),
+        ("M5-mount-no-enumerable-asgi-plano", app_m5, _hay_opaca("/asgi"),
+         "un Mount ASGI sin subrutas que NO es estático tiene que salir opaco; "
+         "es el motivo que de verdad dispara en esta app y no estaba calibrado"),
+        ("M3-tipo-de-ruta-ajeno", app_m3, _hay_opaca("/ajena"),
+         "un tipo de ruta ajeno CON path y methods llega a la rama "
+         "`tipo-de-ruta-desconocido`; el WebSocket no, muere antes en métodos"),
     ]:
         n, r = _caso(nombre, ctor, chk, desc)
         out[n] = r
@@ -340,6 +460,22 @@ def casos_principales() -> dict:
         "detectado": bool(hallazgo) and bool(RM.censo_vacio_findings(solo_opacas))
         and not RM.censo_vacio_findings([{"path": "/algo"}]),
     }
+
+    # Caracterización de los montajes estáticos: afirmación positiva y falsable,
+    # no excepción. Las dos primeras tienen que CUMPLIRLA (y por tanto dejar la
+    # app en verde legítimo); la tercera la incumple y tiene que ponerse roja.
+    for nombre, app, espera_fallo, desc in [
+        ("E1-estatico-verificado", app_estatico(), False,
+         "StaticFiles: {GET, HEAD} servidos y escritura rechazada con 405"),
+        ("E2-estatico-html-true", app_estatico(html=True), False,
+         "StaticFiles(html=True): la raíz sirve index.html y la escritura sigue 405"),
+        ("E3-dice-ser-estatico-y-no-lo-es", app_estatico(clase=_EstaticoQueMiente.construir()),
+         True,
+         "una subclase de StaticFiles que acepta POST pasa la hipótesis de tipo y "
+         "MUERE en la verificación: por eso esto no es una lista de excepciones"),
+    ]:
+        n, r = _caso_estatico(nombre, app, espera_fallo, desc)
+        out[n] = r
 
     # Falsos positivos: vigilar el verde equivocado Y el rojo equivocado.
     for nombre, ctor, desc in [
@@ -426,28 +562,67 @@ def ablaciones() -> dict:
                 "vuelve_a_verde": clave not in _claves(censo),
             }
 
-    # A3: el WebSocket vuelve a desaparecer si se filtra por tipo como antes.
-    # La ablación de este criterio ES el instrumento viejo: no hay una pieza
-    # separable, la rama `isinstance(r, (APIRoute, Route))` era el filtro entero.
-    censo_v = censo_viejo(app_h3())
-    out["A3-filtro-por-tipo-como-antes"] = {
-        "criterio": "emitir también lo que no es APIRoute/Route, como opaco",
-        "caso": "H3-websocket",
-        "censo_ablado": sorted(_claves(censo_v)),
-        "vuelve_a_verde": not any("/ws" in k for k in _claves(censo_v)),
-    }
+    # A3: se desactiva la comprobación de TIPO (todo pasa por ruta buena).
+    # Ablación REAL sobre el módulo nuevo: la versión anterior de este arnés
+    # ablaba el instrumento viejo, que no es el que se está calibrando.
+    with _ablacion(RM, "_tipos_http", lambda: (object,)):
+        censo = censo_nuevo(app_m3())
+        out["A3-sin-comprobacion-de-tipo"] = {
+            "criterio": "un tipo de ruta desconocido se emite como opaco",
+            "caso": "M3-tipo-de-ruta-ajeno",
+            "censo_ablado": sorted(_claves(censo)),
+            "vuelve_a_verde": not _hay_opaca("/ajena")(None, censo),
+        }
 
-    # A4: sin la regla del caso vacío, un censo de 0 rutas pasaría por limpio.
-    out["A4-sin-regla-de-censo-vacio"] = {
-        "criterio": "0 rutas observadas es ROJO",
-        "caso": "H7-censo-vacio",
-        "censo_ablado": [],
-        # La ablación es la regla anterior: no había ninguna comprobación, así
-        # que el mapa salía con 0 hallazgos y código 0.
-        "vuelve_a_verde": True,
-        "nota": ("antes de este cambio no existía comprobación alguna del caso "
-                 "vacío: el mapa salía con 0 hallazgos y código de salida 0"),
-    }
+    # A4: se desactiva la REGLA del caso vacío en el módulo real. La versión
+    # anterior de este arnés ponía aquí la constante `True`, que no mide nada y
+    # no puede ponerse roja: no se cobraba.
+    with _ablacion(RM, "censo_vacio_findings", lambda rows, ch=None: []):
+        hallazgo = RM.censo_vacio_findings([])
+        out["A4-sin-regla-de-censo-vacio"] = {
+            "criterio": "0 rutas observadas es ROJO",
+            "caso": "H7-censo-vacio",
+            "censo_ablado": hallazgo,
+            "vuelve_a_verde": not hallazgo,
+        }
+
+    # A5: se salta en silencio el `Mount` sin subrutas (el falso negativo que
+    # reabría el agujero con el arnés en verde).
+    def nodo_saltando_mounts_vacios(r, prefijo, ch_):
+        sub = getattr(r, "routes", None)
+        if sub is not None and not hasattr(r, "endpoint") \
+                and not callable(getattr(r, "effective_route_contexts", None)) \
+                and not list(sub):
+            return
+        yield from original_nodo(r, prefijo, ch_)
+
+    with _ablacion(RM, "_nodo", nodo_saltando_mounts_vacios):
+        censo = censo_nuevo(app_m5())
+        out["A5-mount-vacio-se-salta-en-silencio"] = {
+            "criterio": "un montaje no enumerable se declara opaco, no se salta",
+            "caso": "M5-mount-no-enumerable-asgi-plano",
+            "censo_ablado": sorted(_claves(censo)),
+            "vuelve_a_verde": not _hay_opaca("/asgi")(None, censo),
+        }
+
+    # A6: se desactiva la VERIFICACIÓN de la caracterización estática y se acepta
+    # la hipótesis de tipo a secas. Es exactamente «una lista de excepciones»: el
+    # montaje que miente pasa por bueno.
+    from fastapi.testclient import TestClient
+
+    app_miente = app_estatico(clase=_EstaticoQueMiente.construir())
+    estaticos = [r for r in RM.collect_mounted(app_miente) if r["kind"] == RM.KIND_ESTATICO]
+    with TestClient(app_miente) as client:
+        sondas = RM.sondar_estaticos(client, estaticos)
+    with _ablacion(RM, "verificar_estaticos",
+                   lambda est, son, skip_probe=False: []):
+        fallos = RM.verificar_estaticos(estaticos, sondas)
+        out["A6-sin-verificacion-de-la-caracterizacion"] = {
+            "criterio": "la afirmación «montaje estático» se comprueba contra la app real",
+            "caso": "E3-dice-ser-estatico-y-no-lo-es",
+            "censo_ablado": fallos,
+            "vuelve_a_verde": not fallos,
+        }
     return out
 
 
@@ -458,8 +633,12 @@ def main(argv=None) -> int:
 
     casos = casos_principales()
     abl = ablaciones()
-    # Un arnés que pasa con 0 casos está roto: se exige carga.
-    hay_carga = len(casos) >= 9 and len(abl) >= 7
+    # Un arnés que pasa con 0 casos está roto: se exige carga. Los umbrales son
+    # la carga REAL, no la nominal: una versión anterior contaba 7 ablaciones
+    # incluyendo una constante literal (`A4`, que no medía nada) y una ablación
+    # del instrumento VIEJO (`A3`), que tampoco se cobra. Hoy las 9 ablaciones
+    # patchean el módulo nuevo y todas pueden ponerse rojas.
+    hay_carga = len(casos) >= 14 and len(abl) >= 9
     ok = (hay_carga
           and all(c["detectado"] for c in casos.values())
           and all(x["vuelve_a_verde"] for x in abl.values()))
