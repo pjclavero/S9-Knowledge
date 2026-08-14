@@ -53,6 +53,189 @@ propio arnés. Se corrigen aquí, cada uno con su prueba C\*:
 | `comprobar_presupuestos` —**el único guardia de magnitud absoluta**— **no se invocaba nunca desde `run_bench.py`**: vivía sólo dentro de la calibración C5 | El informe no tenía ni un campo de presupuesto | Conectado al informe (`presupuestos.por_tamano` y `presupuestos.por_grado`), con **techos medidos**, no inventados |
 | El **hash del sistema medido no cubría lo que su nombre promete**: filtraba por `suffix in (".py", ".html")` | Mutar **`viewer/app/static/js/graph.js`** —el motor de pintado del grafo, o sea el objeto de este carril— dejaba el hash **intacto** en `a505a170f4d1` y `run_bench.py` medía tan tranquilo. Quedaban fuera **16 ficheros**: 4 `.js`, 3 `.css`, 9 `.json` | Sin filtro de extensión: **todo** `viewer/app/**` (**119 ficheros** hoy; eran 107 cuando se corrigió). Con la misma mutación el hash se mueve — verificado en cada base (C10) |
 
+### 0.2 v2.3 — el banco medía un grafo invisible, y sólo se notó porque abortó
+
+Sobre `main = 420f626`, con el árbol limpio y **sin cambios de ningún carril**,
+`benchmarks/perf/calibracion.py` abortaba en la prueba C3 (eje GRADO):
+
+```
+RuntimeError: /api/entities/p_0000002 -> 404; no se mide un endpoint que falla
+```
+
+**Causa raíz, medida y no supuesta.** El arnés pone `S9K_AUTH_ENABLED=false`
+para medir el camino de datos y no el de login. Hasta el commit **`46af55a`**
+(*«p0-auth: admin_full deja de tener tres autoridades y ninguna declarada»*,
+13-08-2026) ese flag devolvía `ViewerContext(role="public", admin_full=True)`
+y el banco veía el grafo entero **por accidente**: apoyado justamente en la
+concesión de autoridad que ese commit cerró. Desde `46af55a` el mismo flag
+degrada a `anonymous` —mínimo privilegio, que es **lo correcto y no se toca**—.
+El generador reparte `visibility = VISIBILITIES[i % 4]` sobre
+`[player, narrator, secret, reference]`, así que un anónimo **sólo ve `player`**.
+
+**Diferencial de árbol** (mismo dataset, mismos ids, `/api/entities/{id}`):
+
+| árbol | `p_0000200` (player) | `p_0000002` (secret) | `p_0000001` (narrator) | `p_0000000` (player) |
+|---|---|---|---|---|
+| `533e074` (= `46af55a^`) | 200 | **200** | **200** | 200 |
+| `420f626` (main de hoy) | 200 | **404** | **404** | 200 |
+
+Los hubs del escenario de C3 son `p_0000000..2`: **dos de los tres hubs eran
+invisibles**, y por eso reventaba el eje del grado y no otro.
+
+**Lo grave no era el aborto: el aborto fue el aviso.** El resto del banco seguía
+midiendo, y medía un grafo recortado al 25 %: `/api/graph?limit=250` sobre un
+grafo de 250 nodos devolvía **63 nodos**. Es el defecto de v1 —nodos invisibles
+por vocabulario de visibilidad— reencarnado por la vía del contexto de
+autorización. `comprobar_que_hay_datos` no lo veía porque **sí** había nodos:
+un cuarto.
+
+**Corrección — sólo en el instrumento, ni una línea de `viewer/app/**`.**
+`arnes.contexto_del_banco()` pide la visibilidad completa **por la puerta
+declarada** del único productor de contextos (`authz.context.build_viewer_context`,
+`role="admin"`), y `construir_cliente` la inyecta con
+`dependency_overrides[get_filtered_provider]`. Queda escrito por qué. **No** se
+reactiva ningún atajo de autoridad en el producto.
+
+**Prueba de regresión + calibración negativa.**
+`viewer/tests/test_banco_perf_visibilidad_regresion.py` (8 casos) exige 200 en
+**los cuatro niveles de visibilidad** —no un simple "responde"—, incluye un
+guardia anti-cero (los cuatro niveles deben existir en el dataset) y una
+calibración negativa que reintroduce el defecto en memoria: **ROJO**
+(`PARCIALMENTE INVISIBLE`) → revertir → **VERDE**. Vive en `viewer/tests/`
+porque `benchmarks/**` **no está en `testpaths`** y ningún job de CI lo ejecuta
+—mismo motivo y mismo sitio que `test_saturacion_grafo_caracterizacion.py`—, y
+porque `viewer/tests/` queda **fuera** del hash de `viewer/app/**`: añadirlo no
+invalida la calibración.
+
+**Ablación (necesidad del arreglo).** Con `arnes.py` revertido a `origin/main` y
+el test nuevo intacto: **5 fallos / 3 pasan**, entre ellos
+`p_0000002 → assert 404 == 200` y `63 de 250 nodos`. Restaurado `arnes.py`:
+**8/8 verdes**, con la reversión verificada por hash
+(`sha256(arnes.py) = 2be31c0b5576…` antes y después, idéntico).
+
+**Los hallazgos deterministas no se movieron ni un dígito** (era la comprobación
+de que el arreglo restaura las condiciones de medida de `main = 0979b8a`, no
+otras):
+
+| hallazgo publicado | remedido en v2.3 |
+|---|---|
+| `llamadas = 2·grado + 3` | 4→**11**, 125→**253**, 132→**267**, 134→**271**, 406→**815**, 812→**1 627** |
+| presupuestos por grado (techo 9.0) | **69 / 253 / 815** incumplimientos, idénticos |
+| saturación de `/api/graph?limit=300` | 250→750 (100 %), 500→**550** (36.7 %), 1000→**275** (9.2 %), 2000→**151 de 6 000** (**2.5 %**) |
+| bytes de la ficha de grado 406 | **586 319 B**, al byte |
+
+**La puerta correcta.** La primera versión de este arreglo llamaba a
+`build_viewer_context(role="admin", auth_enabled=True)` **escrito a mano**: el
+patrón que el propio docstring de `authz/context.py` nombra como *«una CUARTA
+vía a la potestad de bypass total»*, y el único sitio del repo que lo escribía
+fuera de `context.py` —el llamador interno del producto (`authz/scope.py`) sí
+usa la puerta—. Corregido a **`build_internal_context(motivo=…)`**, con el
+motivo escrito. Que el guardián AST del P0 escanee **sólo `viewer/app/`** y por
+tanto no viera `benchmarks/` **no lo hacía correcto**: es el mismo argumento del
+hash del sistema medido, en sentido inverso. Ese hueco queda cubierto por
+`test_el_arnes_no_fabrica_el_contexto_a_mano` (comprueba por **AST**, no por
+`grep`).
+
+**Rojo por el motivo correcto, también en el futuro.** La calibración negativa
+casaba contra el literal `"PARCIALMENTE INVISIBLE"`. Cuando aterrice el carril
+de **`lore anónimo = denegado`**, el anónimo pasará de ver 63 nodos a ver **0**
+—el dataset de `perflab` no lleva `partida_id` y es `knowledge_layer="book"`,
+justo el material que ese carril deniega—, así que saltaría **el otro** guardia
+con **otro** texto y la prueba se pondría roja **por el motivo equivocado**.
+Ahora los dos guardias de montaje lanzan un **tipo** propio,
+`arnes.EscenarioNoMedible`, y la prueba afirma el tipo. **Medido hoy, no
+predicho**: `test_el_guardia_tambien_enrojece_con_recorte_TOTAL` fuerza la
+condición de recorte total y comprueba que sigue enrojeciendo *y que el mensaje
+ya no es el del recorte parcial*. Con el `match` literal reintroducido, ese caso
+falla con `AssertionError: Regex pattern did not match` — el rojo equivocado,
+exhibido.
+
+**Fuga de overrides en el camino rojo.** `construir_cliente` instalaba los
+overrides **antes** de las comprobaciones: si una saltaba, quedaban vivos en la
+`app` **global del proceso** y todo test posterior heredaba un proveedor
+filtrado ajeno. Ahora se limpian antes de re-lanzar
+(`test_un_montaje_fallido_no_deja_overrides_vivos`).
+
+**Los tres arreglos están calibrados en negativo**, cada uno por su mutación:
+VERDE (11/11) → revertir el arreglo → **ROJO** el caso que lo defiende → restaurar
+→ **VERDE**, con `sha256` de `arnes.py` (`350d389f40e2…`) y del fichero de tests
+(`f2569b04b04d…`) **idénticos antes y después**.
+
+**Limitación declarada, nueva.** El contexto del banco es `admin_full`, y
+`admin_full` es **bypass total** de la política (`policies/engine.py`). O sea:
+el banco **no mide el coste de evaluar la política** — exactamente igual que
+antes de `46af55a`, cuando el bypass llegaba solo por el flag. Se elige a
+propósito para que las cifras sigan siendo comparables; medir el coste de la
+política con un lector no-admin sigue pendiente (limitación 14).
+
+#### 0.2.1 ¿Cuánto cuesta la política que el banco no mide? Medido: **no se distingue del ruido**
+
+Con el dataset actual **ningún rol realista puede medir**: se desploma a
+**125 de 250** nodos (`viewer` y `reviewer`) y confundiría "coste de la política"
+con "menos nodos que serializar". La comparación no confundida es **dataset
+todo-`player` × rol realista**, que da **250/250 con la política realmente
+evaluada** — y ojo, todo-`player` **en los nodos Y en las aristas**: igualar sólo
+los nodos reintroduce el mismo confundido por la puerta de atrás, con un falso
+sobrecoste de ~40 % (se demuestra justo debajo). Medido así,
+`/api/graph?limit=300`, n=250, 30 repeticiones, **tres tandas** en esta misma
+máquina:
+
+| rol | nodos/aristas | tanda 1 | tanda 2 | tanda 3 |
+|---|---|---|---|---|
+| `viewer` (política evaluada) | 250 / 750 | 46.8 ms | 47.2 ms | 46.6 ms |
+| `reviewer` (política evaluada) | 250 / 750 | 47.1 ms | 47.3 ms | 47.5 ms |
+| `admin_full` (bypass, el del banco) | 250 / 750 | 47.2 ms | 46.0 ms | 46.1 ms |
+
+MAD entre 0.32 y 1.16 ms. **La diferencia entre evaluar la política y saltársela
+es de ±2 %, y `admin_full` sale más RÁPIDO en dos de las tres tandas.** O sea:
+en este endpoint y a este tamaño, **el coste de la política no se distingue del
+ruido de la máquina**, que es la limitación 19 de este mismo documento aplicada
+a sí misma.
+
+#### El 43 % que no existía: **igualar los nodos no es igualar el payload**
+
+Hubo un desacuerdo, y **está cerrado, aquí y sin máquina dedicada**. La revisión
+independiente midió `viewer` 42,4 ms · `reviewer` 47,4 ms · `admin_full`
+**60,7 ms** — un **43 %** de sobrecoste del perfil del banco — y **no se
+reproducía**. No era deriva: repetido con el **orden invertido**, el efecto
+seguía **al rol y no a la posición**.
+
+**Era un confundido de PAYLOAD, y el mecanismo está medido.** El eje
+todo-`player` tiene que igualar la visibilidad de **los nodos Y las aristas**.
+Si se igualan sólo los nodos, las aristas siguen repartidas `j % 4` y un rol
+realista **no ve tres cuartos de ellas**: serializa la mitad del grafo y se mide
+**volumen de serialización**, no coste de política. Reproducido aquí, mismo
+grafo de 250 nodos, `/api/graph?limit=300`, 30 repeticiones:
+
+| dataset | rol | nodos | aristas | bytes | mediana |
+|---|---|---|---|---|---|
+| **A) igualadas nodos Y aristas** | `viewer` | 250 | 750 | 553 721 | 46.0 ms |
+| | `reviewer` | 250 | 750 | 553 721 | 46.2 ms |
+| | `admin_full` | 250 | 750 | 553 721 | **45.7 ms** |
+| **B) igualados SÓLO los nodos** | `viewer` | 250 | **375** | **406 357** | 34.4 ms |
+| | `reviewer` | 250 | **375** | **406 357** | 34.6 ms |
+| | `admin_full` | 250 | **750** | **553 721** | 47.1 ms → **+37 %** |
+
+En **B** el rol realista sale "más rápido" porque **le dan la mitad de las
+aristas y un 27 % menos de bytes**; leído al revés, eso es el falso sobrecoste
+de `admin_full`. La revisión midió su variante de **B** (555 vs 1 110 aristas,
+477 489 vs 696 056 B) y de ahí salía el 43 %. Con el payload **byte-idéntico**
+—que es lo que registra la tabla de arriba, `250 / 750` en las tres filas— el
+efecto de rol **desaparece**: ±3 %, y `admin_full` el más rápido en uno de los
+dos órdenes. Ambas partes reproducen ya la misma conclusión, **en signo y
+magnitud**.
+
+> **Trampa a evitar, escrita para el siguiente**: quien rehaga el eje
+> todo-`player` **y olvide las aristas** volverá a obtener un ~40 % de sobrecoste
+> **falso**. Igualar el payload no es un detalle del montaje: **es la condición
+> que hace que la medida signifique lo que dice medir**.
+
+Conclusión operativa (sin cambios): la deuda **sigue abierta y es
+ESTRUCTURAL** —el banco publica cifras de un lector con bypass, que no es el
+usuario real— pero su **magnitud medida hoy es ~0**, no el 43 %. El eje aparte
+(todo-`player` en nodos **y** aristas × rol realista) **existe y funciona**; no
+se añade al banco porque a día de hoy no mediría nada distinguible del ruido.
+
 ---
 
 ## 1. El instrumento de v2.2
@@ -161,8 +344,15 @@ cambia de un grafo generado a otro. Declararla sana sería repetir el error de v
 ## 2. Tabla de calibración (salidas reales, **15/15**)
 
 `benchmarks/perf/resultados/calibracion.json` ·
-instrumento `2d3255e6ddf1` · sistema medido `23a5b1cafd33` ·
-Python 3.13.5, Xeon E5-2680 v4, 8 vCPU, Debian 13.
+instrumento `9007ec141d60` · sistema medido `f118e4b71afc` ·
+**máquina declarada**: Python 3.13.5, Intel Xeon E5-2680 v4 @ 2.40 GHz, 8 vCPU,
+9 156 844 kB de RAM, Linux 6.12.90+deb13.1-amd64, **compartida** (`loadavg`
+registrado en cada artefacto). La máquina acota los **milisegundos**, no los
+**conteos**: los conteos son deterministas y se reproducen al dígito en
+cualquier máquina.
+
+*(los hashes de v2.2 eran `2d3255e6ddf1` / `23a5b1cafd33`, sobre
+`main = 0979b8a`)*
 
 > **Los artefactos de este documento se regeneraron por completo, dos veces, y
 > las dos por el mismo motivo.** La puerta no es un formalismo: rehusó medir en
@@ -201,6 +391,13 @@ Python 3.13.5, Xeon E5-2680 v4, 8 vCPU, Debian 13.
 > la navegación desde el registro en vez de a mano, añadiendo un atributo
 > `data-nav` por enlace. **Ningún conteo determinista cambió**: ni una llamada
 > a la fuente, ni un desglose de respuesta, ni un byte en los hubs.
+>
+> 4. Y una **cuarta** vez, sobre `main = 420f626`: `run_bench.py` volvió a
+>    rehusar (`sha_del_sistema_medido` caduco) porque `main` había vuelto a
+>    tocar `viewer/app/**`. Se comprobó que **dejar el artefacto caduco es lo
+>    correcto**: borrarlo también hace rehusar, pero con peor mensaje. Y esta
+>    vez la puerta escondía además el defecto de §0.2, que sólo salió a la luz
+>    al recalibrar. **Cuatro de cuatro: siempre tenía razón.**
 >
 > *(Al rebasar de `695035f` a `dda9822` la puerta **no** rehusó, y con razón:
 > `main` no tocó ni un fichero de `viewer/app/**`, así que
@@ -544,6 +741,13 @@ queda **declarado como no medido**, que es lo que corresponde.
     ficheros de `viewer/app/**` (**119** hoy; 107 cuando se corrigió) (C10).
 15. **`comparar()` se invertía con MAD = 0** (v2.1) → veredicto "sin dispersión
     medible". *Latente: 0 filas afectadas en este baseline.*
+15b. **El banco medía un grafo invisible al 75 %** (v2.2, §0.2): al cerrarse en
+    `46af55a` el atajo `S9K_AUTH_ENABLED=false → admin_full`, el arnés pasó a
+    medir como anónimo y sólo veía `visibility=player`. Se manifestó como un
+    404 que abortaba C3; el resto del banco no abortaba, medía mal.
+    → `arnes.contexto_del_banco()` pide la visibilidad por la puerta declarada,
+    con prueba de regresión y calibración negativa en
+    `viewer/tests/test_banco_perf_visibilidad_regresion.py` (8 casos).
 16. **`_nombre()` de la caché omitía el `workspace`** (v2.1): dos parámetros
     distintos, un mismo `grafo_20.json`. La huella lo detectaba y regeneraba
     —las cifras eran correctas— pero **la caché no cacheaba**. Medido tras el
@@ -565,7 +769,30 @@ queda **declarado como no medido**, que es lo que corresponde.
     pudrirse en silencio: cualquier cambio en `viewer/app/**` o en el propio
     laboratorio hace que `run_bench.py` se niegue a medir hasta recalibrar.
     Meterla en CI toca ficheros compartidos con los carriles L y M.
-14. El coste de la política con un lector no-admin sigue sin medirse.
+14. El coste de la política con un lector no-admin sigue sin medirse. **Y ahora
+    está declarado por qué**: `arnes.contexto_del_banco()` es `admin_full`, que
+    es bypass total en `policies/engine.py`. Es la misma condición de medida que
+    antes de `46af55a` —por eso las cifras siguen siendo comparables al dígito—
+    pero significa que el banco mide el visor **sin** el coste de evaluar la
+    política. Medirlo pide un segundo perfil de contexto y su propia
+    calibración; no se hace aquí (§0.2).
+14b. La **prueba de regresión** de §0.2 sí está en CI (vive en `viewer/tests/`),
+    pero el resto del banco sigue siendo puerta manual: ver deuda 13.
+14c. **SUPERVIVIENTE: el guardia del arnés muestrea un representante por nivel.**
+    `comprobar_visibilidad_completa` pide **un** id por cada uno de los cuatro
+    niveles, así que **por construcción no detecta un recorte que deje al menos
+    un nodo de cada nivel** — si la política ocultara el 90 % de cada nivel, los
+    cuatro representantes seguirían dando 200 y el banco mediría tan tranquilo.
+    El control que sí lo caza es el **conteo** (`len(nodes) == len(nodos del
+    dataset)`), y vive **sólo en pytest**: **ninguna corrida del banco lo
+    ejecuta**. Es una elección de coste (el conteo pide una petición del tamaño
+    del grafo en cada montaje), y queda escrita aquí y en el docstring del
+    guardia en vez de esperar a que la descubra el siguiente.
+14d. **Narrativa obsoleta en registro congelado, NO tocada**:
+    `docs/measurements/72-saturacion-grafo/harness_http.py:82` sigue anunciando
+    `admin_full=True` para un contexto anónimo — falso desde `46af55a`. Está en
+    un registro congelado que CI no ejecuta, así que **no se corrige aquí**: se
+    anota para que nadie lo lea como descripción del sistema de hoy.
 15. **El rendimiento en el navegador no se mide** (§6.4). Es la limitación más
     grande de este carril y no se cierra aquí: exige otro instrumento.
 16. **La huella de la caché sólo detecta manipulación incoherente.** Si alguien

@@ -1,18 +1,18 @@
 {
-  "generado": "2026-08-13T11:56:37+0200",
+  "generado": "2026-08-14T11:32:46+0200",
   "entorno": {
-    "commit": "a550188fe6e0700134e2aee56770970796826e38",
-    "rama": "HEAD",
+    "commit": "d28b658dde0784fa79a86fee4383a6266e230562",
+    "rama": "fix/banco-perf-404",
     "arbol_limpio": true,
     "python": "3.13.5",
     "cpu": "8",
     "modelo_cpu": "Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz",
     "ram_total": "MemTotal:        9156844 kB",
-    "carga": "0.78 0.70 0.83 1/471 1747950",
+    "carga": "2.05 2.01 2.24 1/606 3405816",
     "so": "Linux 6.12.90+deb13.1-amd64",
     "advertencia": "Máquina de desarrollo compartida, proveedor mock en memoria, cliente en proceso. NO es rendimiento de producción: no hay Neo4j, ni red, ni nginx, ni concurrencia."
   },
-  "sha_del_instrumento": "2d3255e6ddf1e3ce6404050ae8a54dfa3e8e069665d2326ed87d24b5053c796d",
+  "sha_del_instrumento": "9007ec141d607b4cdbf86834cc795dfa70d9287d28c8dfb9b047ad0188aaefaf",
   "modulos_cubiertos_por_el_hash": [
     "arnes.py",
     "cache.py",
@@ -24,7 +24,7 @@
     "instrumentation.py",
     "run_bench.py"
   ],
-  "sha_del_sistema_medido": "23a5b1cafd33ff2516f23900dc65bfc806622e09501227a9a237ecd065982954",
+  "sha_del_sistema_medido": "f118e4b71afcabb0373daa47eaf38209f86b1c51bae7f3b241f2099e6bfa3839",
   "criterio_del_detector": {
     "regla": "crecimiento total > 0 y monótono => N+1; plano => constante; no monótono => no concluyente",
     "crecimiento_minimo": 2,
@@ -477,38 +477,38 @@
       "retardo_inyectado_ms": 5.0,
       "base": {
         "n": 40,
-        "mediana_ms": 8.1228,
-        "mad_ms": 0.1258,
-        "iqr_ms": 0.2379,
-        "p05_ms": 7.8842,
-        "p95_ms": 8.7141,
-        "min_ms": 7.7161,
-        "max_ms": 12.3259,
-        "media_ms": 8.2721,
-        "dispersion_relativa": 0.0155
+        "mediana_ms": 7.7148,
+        "mad_ms": 0.1753,
+        "iqr_ms": 0.3078,
+        "p05_ms": 7.4059,
+        "p95_ms": 8.2844,
+        "min_ms": 7.3084,
+        "max_ms": 8.6023,
+        "media_ms": 7.7764,
+        "dispersion_relativa": 0.0227
       },
       "misma_medida_repetida": {
-        "base_mediana_ms": 8.1228,
-        "otra_mediana_ms": 8.2149,
-        "efecto_ms": 0.0921,
-        "ruido_ms": 0.2443,
-        "factor_efecto_ruido": 0.38,
+        "base_mediana_ms": 7.7148,
+        "otra_mediana_ms": 7.816,
+        "efecto_ms": 0.1012,
+        "ruido_ms": 0.2924,
+        "factor_efecto_ruido": 0.35,
         "veredicto": "indistinguible del ruido"
       },
       "con_retardo": {
-        "base_mediana_ms": 8.1228,
-        "otra_mediana_ms": 13.6563,
-        "efecto_ms": 5.5335,
-        "ruido_ms": 0.3772,
-        "factor_efecto_ruido": 14.67,
+        "base_mediana_ms": 7.7148,
+        "otra_mediana_ms": 12.9519,
+        "efecto_ms": 5.2371,
+        "ruido_ms": 0.3426,
+        "factor_efecto_ruido": 15.29,
         "veredicto": "peor"
       },
       "tras_revertir": {
-        "base_mediana_ms": 8.1228,
-        "otra_mediana_ms": 8.361,
-        "efecto_ms": 0.2382,
-        "ruido_ms": 0.2781,
-        "factor_efecto_ruido": 0.86,
+        "base_mediana_ms": 7.7148,
+        "otra_mediana_ms": 7.888,
+        "efecto_ms": 0.1732,
+        "ruido_ms": 0.2762,
+        "factor_efecto_ruido": 0.63,
         "veredicto": "indistinguible del ruido"
       }
     },
@@ -855,17 +855,17 @@
       "nombre": "C10 HASH DEL SISTEMA: mutar static/js/graph.js invalida la calibración",
       "superada": true,
       "fichero_mutado": "viewer/app/static/js/graph.js",
-      "sha_antes": "23a5b1cafd33ff25",
-      "sha_con_mutacion": "e2e1489ef2cb122a",
-      "sha_tras_revertir": "23a5b1cafd33ff25",
+      "sha_antes": "f118e4b71afcabb0",
+      "sha_con_mutacion": "69c6bd291de1d325",
+      "sha_tras_revertir": "f118e4b71afcabb0",
       "el_hash_se_movio": true,
-      "ficheros_cubiertos": 119,
+      "ficheros_cubiertos": 124,
       "por_extension": {
-        ".py": 70,
+        ".py": 72,
         ".json": 9,
         ".css": 3,
         ".js": 4,
-        ".html": 33
+        ".html": 36
       },
       "invisibles_para_v20": [
         "viewer/app/services/review_console_fixtures/candidates/src_demo_01/cand_a1.json",
