@@ -260,6 +260,34 @@ lo que se perdía era **defensa en profundidad, no una puerta abierta**.
 
 **N3 — la dirección que faltaba.** Ver arriba, en la ablación.
 
+### Y una verificación independiente del guardián por AST, con su tropiezo
+
+La auditoría afirmó que «ningún `role ==` nuevo aguas abajo» **no es una promesa
+mía sino algo IMPUESTO**: sustituir la capacidad por `ctx.role == "anonymous"`
+—hoy conductualmente equivalente— lo caza la red inversa del registro. Eso hay
+que verlo, no creérselo, así que lo reproduje.
+
+**Primer intento, fallido, y se apunta porque el error es el clásico de aquí:**
+corrí la mutación contra `test_registro_de_autorizacion.py` y
+`test_registro_es_especificacion_ejecutable.py`, **no mordió**, y estuve a punto
+de anotar «el guardián no muerde». No mordía porque **el guardián no vive ahí**:
+vive en `test_provider_authz_fields_contract.py`, que es quien usa
+`authz_lecturas.dimensiones_de_contexto_consumidas`. **Un rojo que no aparece
+porque no has ejecutado al guardián no es un guardián dormido: es una medición
+mal apuntada**, y desde fuera las dos se parecen muchísimo.
+
+Con la selección correcta muerde, y dice exactamente lo que debe:
+
+```
+FAILED test_provider_authz_fields_contract.py::
+       test_ninguna_dimension_del_contexto_que_el_motor_consulta_queda_sin_declarar_AST
+       AssertionError: el motor decide con ['role'] y el registro no la declara
+```
+
+`c896051c659af3e8` → `bd4870c6c2f57acc` → `c896051c659af3e8`. Confirmado: la
+cadena de autoridad única está **impuesta por el sistema**, no sostenida por mi
+disciplina.
+
 ---
 
 ## 6. Prueba HTTP de extremo a extremo
