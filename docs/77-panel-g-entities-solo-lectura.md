@@ -85,32 +85,54 @@ autorización real atravesada entera** (`get_filtered_provider` →
 `get_visibility_context` → `build_viewer_context` → `PolicyFilteredProvider` →
 `VisibilityPolicy`). Workspace del visor: `alpha`.
 
-| Entidad de la matriz | Barrera que la gobierna | ¿En la lista? | ¿Cuenta? | Ficha por ID |
+> **ACTUALIZADO — decisión del operador, 2026-08-14 (V3 RC).**
+> **LORE_ANÓNIMO = DENEGADO.** La medida de abajo era **1 de 11**; ahora es
+> **0 de 11**. Lo que cambió es la política, no el panel: la capa juego dejó de
+> concederse por la AUSENCIA de partida y pasó a exigir llave propia
+> (`can_view_lore`, declarada en el registro M5b). Ver `docs/81`.
+
+| Entidad de la matriz | Barrera que la gobierna | Anónimo: ¿en la lista? | Anónimo: ficha por ID | Lector legítimo |
 |---|---|---|---|---|
-| `lore-player` (`scope=juego`, `visibility=player`) | ninguna: lore compartido | **sí** | **sí** | **200, con el texto completo** |
-| `lore-secreto` (`visibility=secret`) | regla 3 · `can_view_secret=False` | no | no | 404 |
-| `lore-narrador` (`visibility=narrator`) | regla 3 · capa GM | no | no | 404 |
-| `lore-referencia` (`visibility=reference`) | regla 3 · `can_view_reference=False` en anónimo | no | no | 404 |
-| `lore-futuro` (`known_from_session=3`) | regla 4 · tope `NOT_APPLICABLE` | no | no | 404 |
-| `partida-A` (`scope=partida`) | regla 2b · `allowed_partida_ids` vacío | no | no | 404 |
-| `workspace-ajeno` (`workspace=beta`) | regla 2 · workspace | no | no | 404 |
-| `sin-scope` (sin `scope`) | regla 2b · ámbito no declarado | no | no | 404 |
-| `visibilidad-rara` (`visibility=publico`) | regla 0 · vocabulario cerrado | no | no | 404 |
-| `visibilidad-deny` (`visibility=deny`) | regla 0 · estado terminal | no | no | 404 |
-| `known-by-malformado` (`known_by="PJ01"`) | regla 2c · campo de autorización ilegible | no | no | 404 |
-| | | | **total 1 de 11** | |
+| `lore-player` (`scope=juego`, `visibility=player`) | **regla 2b-bis · `can_view_lore=False`** | **no** *(antes sí)* | **404** *(antes 200 con el texto)* | **sí** |
+| `lore-secreto` (`visibility=secret`) | regla 3 · `can_view_secret=False` | no | 404 | no |
+| `lore-narrador` (`visibility=narrator`) | regla 3 · capa GM | no | 404 | no |
+| `lore-referencia` (`visibility=reference`) | 2b-bis, y antes regla 3 · `can_view_reference` | no | 404 | **sí** |
+| `lore-futuro` (`known_from_session=3`) | 2b-bis, y antes regla 4 · tope `NOT_APPLICABLE` | no | 404 | **sí** (tope 5) |
+| `partida-A` (`scope=partida`) | regla 2b · `allowed_partida_ids` vacío | no | 404 | **sí** (partida activa) |
+| `workspace-ajeno` (`workspace=beta`) | regla 2 · workspace | no | 404 | no |
+| `sin-scope` (sin `scope`) | regla 2b · ámbito no declarado | no | 404 | no |
+| `visibilidad-rara` (`visibility=publico`) | regla 0 · vocabulario cerrado | no | 404 | no |
+| `visibilidad-deny` (`visibility=deny`) | regla 0 · estado terminal | no | 404 | no |
+| `known-by-malformado` (`known_by="PJ01"`) | 2b-bis, y antes 2c · campo ilegible | no | 404 | no |
+| | | **total 0 de 11** | | **4 de 11** |
 
-Lo que esta tabla dice, en una frase: **con auth desactivada un anónimo SÍ ve
-lore de capa juego, y su ficha responde 200 con el contenido**. Todo lo demás
-—incluido, y esto es lo importante, todo el material con `partida_id`— queda
-fuera de la lista, fuera de los contadores y fuera del acceso por ID.
+Lo que esta tabla dice, en una frase: **con auth desactivada un anónimo no
+recibe nada**, ni en la lista, ni en los contadores, ni por ID. Sin principal no
+hay autoridad, y la ausencia de partida tampoco es una.
 
-Y lo que **no** dice: no es una vía reabierta por este carril. Es la política
-heredada aplicada de forma consistente, y el mutante **G3** lo confirma —leer
-por el proveedor crudo en vez del filtrado pone en rojo cinco pruebas—. Tampoco
-se ha «arreglado» por cuenta propia: se ha medido, se ha declarado y se ha
-fijado como test (`test_tabla_de_lo_que_ve_un_anonimo_con_auth_desactivada`,
-once celdas, bidireccional).
+Dos precisiones para que no se lea de más:
+
+* **La columna «barrera» cambió de significado en varias filas.** La regla
+  2b-bis se evalúa antes que la de nivel y que `known_by`, así que para un
+  anónimo hoy deniegan por `lore_not_allowed` filas que antes denegaban por
+  `reference_not_allowed`, `future_session` o `known_by_invalid`. Esas barreras
+  **siguen existiendo y siguen midiéndose** —sobre el lector legítimo, que es
+  quien llega hasta ellas—, pero para el anónimo la primera que muerde es la
+  nueva. Un rojo por el motivo equivocado es más peligroso que un verde, así que
+  se dice en vez de dejar la columna como estaba.
+* **La segunda columna no es adorno.** Una tabla de once «no» se satisface con
+  un panel roto que no pinta nada, que es la forma más fácil de aprobar una
+  prueba de aislamiento. El test es ahora bidireccional en las dos mitades:
+  `test_tabla_de_lo_que_ve_un_anonimo_con_auth_desactivada` (once filas, todas
+  «no») y `test_tabla_la_misma_fila_para_un_lector_legitimo` (las mismas once
+  filas, cuatro «sí»). Si algún día se ocultara de más, la segunda se pone roja
+  y dice qué fila se perdió.
+
+Y lo que la medida anterior **no** decía: aquel `1 de 11` no era una vía
+reabierta por el carril G. Era la política heredada aplicada de forma
+consistente —el carril F la midió por separado, sobre otro hueco, con el mismo
+veredicto y la misma proporción—, y se declaró en vez de arreglarse por lo bajo.
+La decisión del operador es la que la cierra.
 
 ### La `visibility` SÍ se normaliza, y la normalización es SIMÉTRICA
 

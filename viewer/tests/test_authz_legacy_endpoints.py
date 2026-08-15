@@ -56,6 +56,7 @@ def _viewer_ctx() -> ViewerContext:
         can_view_secret=False,
         can_view_future=False,
         can_view_reference=True,
+        can_view_lore=True,  # LORE-ANONIMO-DENEGADO: lector autenticado
         session_public=True,
     )
 
@@ -66,6 +67,7 @@ def _admin_ctx() -> ViewerContext:
 
 def _viewer_bryn() -> ViewerContext:
     return ViewerContext(
+        can_view_lore=True,  # LORE-ANONIMO-DENEGADO: lector autenticado
         role="viewer",
         allowed_workspaces=frozenset({RICH_WS}),
         active_character="pc_bryn",

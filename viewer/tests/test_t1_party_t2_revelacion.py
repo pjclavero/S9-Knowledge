@@ -35,7 +35,11 @@ def _nodo(**extra):
 
 def _jugador(**extra):
     base = {"role": "viewer", "allowed_workspaces": frozenset({"ws"}),
-            "max_visible_session": 5}
+            "max_visible_session": 5,
+            # LORE-ANONIMO-DENEGADO: un jugador AUTENTICADO si tiene la llave de
+            # la capa juego. Sin ella, estos casos medirian la barrera nueva en
+            # vez de la revelacion, y se pondrian rojos por el motivo equivocado.
+            "can_view_lore": True}
     base.update(extra)
     return ViewerContext(**base)
 

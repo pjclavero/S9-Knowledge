@@ -73,6 +73,11 @@ def _ctx(**over) -> ViewerContext:
         # la referencia, quitarlas no cambiaria nada y el subconjunto se
         # cumpliria siempre.
         character_knowledge=frozenset({"secreto_por_id"}),
+        # LORE-ANONIMO-DENEGADO: la referencia es un lector AUTENTICADO, y la
+        # capa juego (`lore`, `manual`) es suya. Sin esta llave el corpus de
+        # referencia perderia esos dos nodos y el contraveneno de mas abajo
+        # --que exige `lore` visible-- se pondria rojo por la razon equivocada.
+        can_view_lore=True,
     )
     base.update(over)
     return ViewerContext(**base)
@@ -197,6 +202,11 @@ AUSENCIAS: dict[str, list] = {
     # por cada una de sus tres vias. Declararlo aqui, en vez de cobrarse este
     # caso como cobertura, es la diferencia entre medir y aparentar.
     "admin_full": [False],
+    # LORE-ANONIMO-DENEGADO. Su ausencia es `False` y retira la capa juego
+    # entera (`lore`, `manual`, `denegado`): a diferencia de `admin_full`, este
+    # caso NO es debil -- la referencia SI ejerce la dimension, porque tres
+    # nodos del corpus son de `scope=juego` y solo esta llave los abre.
+    "can_view_lore": [False],
 }
 
 

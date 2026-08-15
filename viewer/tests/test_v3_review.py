@@ -281,7 +281,7 @@ def test_undo_is_a_new_superseding_entry_and_restores_pending(review_files):
     assert [item["proposal_id"] for item in service.queue("alpha").items] == ["p1", "p2"]
 
 
-def test_html_contains_exact_mark_and_unknown_reason(monkeypatch, tmp_path):
+def test_html_contains_exact_mark_and_unknown_reason(monkeypatch, tmp_path, lector_por_dependencia):
     proposals_dir = tmp_path / "proposals"
     proposals_dir.mkdir()
     (proposals_dir / "one.json").write_text(
@@ -291,8 +291,19 @@ def test_html_contains_exact_mark_and_unknown_reason(monkeypatch, tmp_path):
     service = ReviewService(proposals_dir, tmp_path / "decisions.jsonl")
     monkeypatch.setattr(router_module, "_service", lambda: service)
 
+    # `chassis_nav` lo instala el chasis en el entorno Jinja compartido al
+    # construirse la app real. Esta prueba monta un router suelto, asi que sin
+    # importar `app.main` la plantilla se queda sin ese global. Antes no se
+    # notaba porque la respuesta era un 404 y la plantilla no llegaba a
+    # renderizarse; ahora que el lector legitimo SI recibe la cola, si.
+    import app.main  # noqa: F401
+
     app = FastAPI()
     app.include_router(router_module.router)
+    # LORE-ANONIMO-DENEGADO (V3 RC, 2026-08-14): sin principal ya no se entrega
+    # la capa juego, y esta prueba mide la FORMA de la pantalla. El ayudante va
+    # DESPUES de crear la app porque aqui la app es local del test.
+    lector_por_dependencia(app)
     response = TestClient(app).get("/v3/review?workspace=alpha")
     assert response.status_code == 200
     assert "<mark>protege la ciudad de Bruma</mark>" in response.text
@@ -300,12 +311,17 @@ def test_html_contains_exact_mark_and_unknown_reason(monkeypatch, tmp_path):
     assert "semantic-local" in response.text
 
 
-def test_post_reload_does_not_duplicate_decision(monkeypatch, review_files):
+def test_post_reload_does_not_duplicate_decision(monkeypatch, review_files, lector_por_dependencia):
     proposals_dir, decisions = review_files
     service = ReviewService(proposals_dir, decisions)
     monkeypatch.setattr(router_module, "_service", lambda: service)
     app = FastAPI()
     app.include_router(router_module.router)
+    # LORE-ANONIMO-DENEGADO (V3 RC, 2026-08-14): la propuesta `p1` es capa juego
+    # (sin `partida_id`) y sin principal ya no se entrega, asi que la ruta de
+    # decision la rechazaria por no verla. Lo que esta prueba mide es la
+    # IDEMPOTENCIA del reenvio, no la autorizacion: pide con un lector legitimo.
+    lector_por_dependencia(app)
     client = TestClient(app)
     item = next(i for i in service.queue("alpha").items if i["proposal_id"] == "p1")
     form = {

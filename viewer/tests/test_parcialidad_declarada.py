@@ -360,6 +360,7 @@ def _sin_referencia() -> ViewerContext:
         role="viewer",
         allowed_workspaces=frozenset({"leyenda"}),
         can_view_reference=False,
+        can_view_lore=True,  # LORE-ANONIMO-DENEGADO: lector autenticado
         admin_full=False,
     )
 
@@ -415,9 +416,13 @@ def test_calibracion_contar_ANTES_de_filtrar_pone_el_gate_ROJO(tmp_path):
         _exige_totales_autorizados(view_fugado, nodos=10, relaciones=9)
 
 
-def test_api_graph_http_declara_la_vista():
+def test_api_graph_http_declara_la_vista(lector_por_dependencia):
     """Extremo a extremo por HTTP con el grafo de ejemplo: el bloque `view`
     llega de verdad al cliente, no sólo a la función."""
+    # LORE-ANONIMO-DENEGADO (V3 RC, 2026-08-14): sin principal ya no se
+    # entrega la capa juego, asi que esta prueba de FORMA necesita un lector
+    # con derecho. Lo instala por las dependencias que si muerden.
+    lector_por_dependencia(app)
     r = client.get("/api/graph", params={"workspace": "leyenda", "limit": 2000})
     assert r.status_code == 200
     _exige_declaracion_de_parcialidad(r.json(), truncada=False)

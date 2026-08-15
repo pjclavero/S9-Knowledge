@@ -391,12 +391,21 @@ def test_con_la_autenticacion_desactivada_no_hay_potestad_total(entorno, tmp_pat
     datos = r.json()
     items = datos.get("items", datos) if isinstance(datos, dict) else datos
     ids = {i.get("id") for i in items}
-    assert "lore" in ids, (
-        "el visor abierto ha dejado de servir el lore de su workspace: la "
-        "degradacion a minimo privilegio no puede convertirse en apagon"
+    # LORE-ANONIMO-DENEGADO (decision del operador, V3 RC, 2026-08-14).
+    # Aqui vivia `assert "lore" in ids`: el contexto anonimo SI recibia el lore
+    # de capa juego, y lo unico que se lo daba era NO TENER PARTIDA. Es decir,
+    # una ausencia concediendo -- la misma inferencia permisiva que M5c arranco
+    # del dato, sobreviviendo en el lector, y justo donde ya se habia decidido
+    # que "auth desactivada != acceso total".
+    #
+    # El apagon que aquella linea temia se sigue vigilando, pero donde
+    # corresponde: en el CONTROL DE COLAPSO
+    # (`test_un_lector_legitimo_sigue_viendo_su_lore_por_HTTP`), donde un
+    # `viewer` autenticado sobre este mismo corpus SI recibe `lore`. Que el
+    # anonimo no lo reciba es autorizacion; que no lo reciba NADIE seria una
+    # averia, y por eso las dos mitades se miden por separado.
+    assert not ids, (
+        f"con la autenticacion desactivada el visor sigue entregando {sorted(ids)}: "
+        f"sin principal no hay autoridad, y la ausencia de partida no concede "
+        f"visibilidad adicional"
     )
-    for fuga in ("secreto_ajeno", "otro_ws", "denegado", "manual"):
-        assert fuga not in ids, (
-            f"FUGA: '{fuga}' entregado con la autenticacion desactivada. "
-            f"Desactivar la autenticacion NO significa acceso total."
-        )

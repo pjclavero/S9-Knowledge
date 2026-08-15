@@ -1,10 +1,10 @@
 """Modelos del motor de política de visibilidad.
 
-`ViewerContext` reúne las DIEZ dimensiones de política del slice RC6 E2:
+`ViewerContext` reúne las ONCE dimensiones de política:
 
     allowed_workspaces, active_character, max_visible_session, can_view_secret,
-    can_view_future, can_view_reference, party_membership, character_knowledge,
-    session_public, admin_full
+    can_view_future, can_view_reference, can_view_lore, party_membership,
+    character_knowledge, session_public, admin_full
 
 Es inmutable (``frozen=True``) para que una decisión nunca dependa de estado
 mutable compartido entre peticiones.
@@ -161,6 +161,23 @@ class ViewerContext:
     can_view_secret: bool = False
     can_view_future: bool = False
     can_view_reference: bool = False
+    # LORE-ANÓNIMO-DENEGADO. Llave de la CAPA JUEGO (`scope=juego`): el lore
+    # compartido del workspace. Existe porque hasta aquí la capa juego no tenía
+    # llave ninguna -- se entregaba a cualquiera que superase workspace, y un
+    # contexto anónimo supera workspace porque el workspace por defecto del
+    # despliegue entra en `allowed_workspaces`. El efecto medido era que con
+    # `S9K_AUTH_ENABLED` ausente/false el lore `player` salía en lista, contaba
+    # y su ficha respondía 200 con el texto completo (docs/77 §3, docs/78 §3).
+    #
+    # La ausencia de partida NO puede seguir siendo la concesión: sería una vía
+    # permisiva implícita justo donde ya se decidió que «auth desactivada ≠
+    # acceso total». Por eso la capa juego pasa a exigir una llave POSITIVA, y
+    # el valor por defecto es no conceder: una dimensión booleana de concesión
+    # no puede fallar abierta si su defecto es `False`.
+    #
+    # Si algún día se quiere lore público, se concede aquí explícitamente y con
+    # sus pruebas propias; no se recupera como fallback del sistema.
+    can_view_lore: bool = False
     party_membership: frozenset[str] = field(default_factory=frozenset)
     # IDs de nodo que el personaje activo conoce (character_knowledge precomputado).
     character_knowledge: frozenset[str] = field(default_factory=frozenset)

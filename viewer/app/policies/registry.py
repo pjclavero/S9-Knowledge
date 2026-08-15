@@ -467,6 +467,70 @@ CAMPOS_DEL_CONTEXTO: tuple[PolicyField, ...] = (
             "una tenia cadena."
         ),
     ),
+    # -----------------------------------------------------------------------
+    # LORE-ANONIMO-DENEGADO. La capa juego era la unica rama del ambito sin
+    # ninguna condicion sobre el LECTOR: su llave era no tener partida, es
+    # decir, una AUSENCIA. Aqui se declara la llave positiva que la sustituye.
+    # -----------------------------------------------------------------------
+    PolicyField(
+        name="can_view_lore",
+        prueba_negativa=(
+            "tests/test_registro_es_especificacion_ejecutable.py::test_una_dimension_de_contexto_ausente_nunca_amplia_lo_visible[can_view_lore]"
+        ),
+        prueba_http=(
+            "tests/test_lore_anonimo_denegado_http.py::test_el_lore_de_capa_juego_exige_can_view_lore_por_HTTP"
+        ),
+        authority="servidor (rol del principal AUTENTICADO, releido en cada peticion)",
+        producer="viewer/app/authz/context.py (build_viewer_context)",
+        storage="derivado del rol; no persistido como dato de contenido",
+        consumer=(
+            "policies/engine.py (can_view regla 2b-bis, `scope=juego`) + "
+            "policies/engine.py (partida_in_scope, registro SIN dimension de partida)"
+        ),
+        missing=MINIMO,
+        malformed=MINIMO,
+        revocation="inmediata (cambio de rol; el rol se relee de auth.db en cada peticion)",
+        in_projection=False,
+        applies_to=frozenset(),
+        notes=(
+            "FAIL-CLOSED, con las DOS mitades probadas por separado (auditoria "
+            "independiente). La `prueba_negativa` de arriba mide MONOTONIA -- "
+            "que un contexto sin la llave no vea mas que uno con ella-- y esa "
+            "es OTRA propiedad: se cumple con cualquier valor por defecto, "
+            "porque lo pasa explicitamente. El argumento 'una dimension "
+            "booleana de concesion no puede fallar abierta si su defecto es no "
+            "conceder' hay que probarlo SOBRE EL CAMPO, y lo hace "
+            "`tests/test_lore_anonimo_denegado_invariantes.py::"
+            "test_el_defecto_del_campo_es_no_conceder` (invertir el defecto del "
+            "dataclass dejaba 1539 pruebas en verde). El defecto y las lineas "
+            "explicitas del productor son mutuamente redundantes: cada una "
+            "tiene ahora su propia prueba. "
+            "LLAVE DE LA CAPA JUEGO (`scope=juego`), y de los registros que no "
+            "viven en el grafo y no declaran partida (propuestas V3, contratos "
+            "de revision, cola de trabajos), que se acotan con "
+            "`VisibilityScope.partida_only()`. "
+            "DECISION DEL OPERADOR (V3 RC, 2026-08-14): LORE_ANONIMO = DENEGADO. "
+            "Auth desactivada produce contexto anonimo sin privilegios, y la "
+            "AUSENCIA DE PARTIDA NO CONCEDE VISIBILIDAD ADICIONAL. Lo medido "
+            "antes de esta dimension: con `S9K_AUTH_ENABLED` ausente/false el "
+            "lore `player` de capa juego salia en la lista, contaba en los "
+            "contadores y su ficha respondia 200 con el texto completo -- 1 de "
+            "11 casos visibles, medido por dos carriles independientes sobre "
+            "huecos distintos (docs/77 §3 y docs/78 §3). "
+            "NO es una dimension de NIVEL como `can_view_reference`: es de "
+            "AMBITO, hermana de `allowed_workspaces` y `allowed_partida_ids`, y "
+            "por eso NO la salta `known_by` ni `character_knowledge` --que si "
+            "saltan la regla de nivel--. Esa distincion tampoco estaba fijada "
+            "por nada (mover la comprobacion dentro del bloque `if not knows` "
+            "dejaba todo verde) y ahora la fija "
+            "`test_el_conocimiento_de_personaje_NO_salta_la_barrera_de_capa_juego`. "
+            "Ausente/invalido = False = no conceder, "
+            "que es el minimo por construccion. "
+            "Exponer lore publicamente en el futuro se hace concediendo ESTA "
+            "dimension de forma explicita y con pruebas propias; recuperarlo "
+            "como fallback del sistema es justo lo que se cerro."
+        ),
+    ),
     PolicyField(
         name="character_knowledge",
         prueba_negativa=(

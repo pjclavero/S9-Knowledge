@@ -38,6 +38,7 @@ def _ctx(active_partida=None, **over) -> ViewerContext:
         # sesion 0, y el material de la fixture declara `known_from_session: 0`.
         max_visible_session=0,
         can_view_reference=True,
+        can_view_lore=True,  # LORE-ANONIMO-DENEGADO: lector autenticado
         session_public=True,
     )
     base.update(over)

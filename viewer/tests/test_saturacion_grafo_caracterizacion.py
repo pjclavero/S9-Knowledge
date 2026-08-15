@@ -54,6 +54,7 @@ def _viewer() -> ViewerContext:
         role="reviewer",
         allowed_workspaces=frozenset({"leyenda"}),
         can_view_reference=True,
+        can_view_lore=True,  # LORE-ANONIMO-DENEGADO: lector autenticado
         admin_full=False,
     )
 

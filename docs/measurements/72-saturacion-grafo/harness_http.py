@@ -64,8 +64,10 @@ def _pide(app, ctx=None):
 
 def _reviewer(**kw):
     from app.policies.models import ViewerContext
+    # LORE-ANONIMO-DENEGADO (V3 RC, 2026-08-14): ver nota en `harness_gsat.py`.
+    # Sin `can_view_lore` este banco contaria CERO en silencio.
     base = dict(role="reviewer", allowed_workspaces=frozenset({"leyenda"}),
-                can_view_reference=True, admin_full=False)
+                can_view_reference=True, can_view_lore=True, admin_full=False)
     base.update(kw)
     return ViewerContext(**base)
 

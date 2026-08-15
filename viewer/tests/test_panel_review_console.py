@@ -180,6 +180,23 @@ def anon_scope(**kwargs) -> VisibilityScope:
     ))
 
 
+def lector_scope() -> VisibilityScope:
+    """Ámbito de un LECTOR LEGÍTIMO (`viewer` autenticado, sin partida activa).
+
+    LORE-ANÓNIMO-DENEGADO (V3 RC, 2026-08-14). Las pruebas de PINTADO de esta
+    consola se servían de `anon_scope()` como si fuera un ámbito sin
+    restricciones. Lo era por accidente: una propuesta sin `partida_id` es capa
+    juego, y "sin partida" era precisamente lo que concedía visibilidad.
+    Cerrada esa vía, un anónimo no ve ninguna fila, y una prueba de pantalla que
+    no llega a pintar nada pasa por no morder.
+
+    Este ámbito ve exactamente lo que veía el anónimo antes, así que esas
+    pruebas siguen midiendo lo que medían. Las de AUTORIZACIÓN siguen usando
+    `anon_scope()`: allí la anonimia es el sujeto, no el andamio.
+    """
+    return player_scope(None)
+
+
 def player_scope(partida: str | None) -> VisibilityScope:
     return VisibilityScope(build_viewer_context(
         role="viewer", auth_enabled=True, default_workspace="alpha",
@@ -409,24 +426,28 @@ def test_sin_auth_no_reaparece_el_comportamiento_permisivo(
     assert ficha.status_code == 404
 
 
-def test_sin_auth_la_capa_juego_SI_es_visible_y_eso_tambien_es_la_politica(
+def test_sin_auth_la_capa_juego_TAMPOCO_es_visible(
     real_app, panel_on, with_service, with_scope
 ):
-    """El matiz que un lector puede entender al revés, medido y fijado.
+    """El matiz que un lector podía entender al revés — INVERTIDO por decisión.
 
-    "Con auth desactivada la consola sale vacía" es CONTINGENTE, no absoluto:
-    depende de que el material tenga partida. La barrera que aplica al corpus
-    de revisión es la de PARTIDA (`ReviewService` acota con
-    `scope.partida_only()`), y una propuesta SIN `partida_id` es capa juego
-    compartida — lore, no material de una partida ajena—, así que se entrega:
-    aparece en la lista, cuenta en los contadores y su ficha responde 200 con
-    el texto del episodio.
+    Aquí se afirmaba lo contrario, y con razón: "con auth desactivada la consola
+    sale vacía" era CONTINGENTE. La barrera que aplica a este corpus es la de
+    PARTIDA (`ReviewService` acota con `scope.partida_only()`), y una propuesta
+    SIN `partida_id` era capa juego compartida, así que se entregaba: aparecía
+    en la lista, contaba y su ficha respondía 200 con el texto del episodio.
+    Estaba medido y declarado, no disimulado.
 
-    Eso NO es una vía reabierta por este carril: es la política heredada
-    aplicada de forma consistente, y el mutante M3 lo confirma (usar
-    `UNRESTRICTED` en vez del ámbito de la petición pone rojo el test de al
-    lado). Se escribe aquí para que nadie lea "la consola sale vacía" como una
-    garantía de que el anónimo no ve nada.
+    Decisión del operador (V3 RC, 2026-08-14): LORE_ANÓNIMO = DENEGADO. La
+    ausencia de partida no concede visibilidad adicional, porque lo contrario
+    reintroduce una vía permisiva implícita justo donde ya se decidió que «auth
+    desactivada ≠ acceso total». `partida_in_scope(None, ctx)` devolvía `True`
+    incondicionalmente; ahora pide la misma llave que la capa juego pide en
+    `can_view`.
+
+    El contrapeso que este test aportaba se traslada al de debajo: si nadie
+    viera nunca esa propuesta, "la consola sale vacía" volvería a ser
+    compatible con una consola rota.
     """
     with_service([
         make_proposal("con-partida", partida_id="partida-A"),
@@ -434,14 +455,49 @@ def test_sin_auth_la_capa_juego_SI_es_visible_y_eso_tambien_es_la_politica(
     ])
     ambito = anon_scope()
     assert ambito.ctx.admin_full is False
+    assert ambito.ctx.can_view_lore is False
     with_scope(ambito)
     cliente = client(real_app)
 
     lista = cliente.get(SLOT.prefix)
+    assert _ids_de_la_lista(lista.text) == [], (
+        "el anónimo sigue recibiendo material: la ausencia de partida ha "
+        "vuelto a conceder visibilidad"
+    )
+    assert '<span data-count="visible">0</span>' in lista.text
+
+    # Ni por ID: la barrera no depende de por dónde se entre.
+    for pid in ("con-partida", "capa-juego"):
+        r = cliente.get(f"{SLOT.prefix}/item/{pid}")
+        assert r.status_code == 404, f"{pid}: {r.status_code}"
+        assert LITERAL not in r.text
+
+
+def test_pero_un_lector_legitimo_SI_ve_esa_propuesta(
+    real_app, panel_on, with_service, with_scope
+):
+    """CONTROL DE COLAPSO: el mismo corpus, la misma ruta, con principal.
+
+    Lo único distinto entre este ámbito y el de arriba es que hay alguien
+    autenticado — ninguno de los dos tiene partida activa. Si la capa juego
+    siguiera concediéndose por la ausencia de partida, los dos verían lo mismo;
+    y si la denegación se hubiera aplicado de más, éste no vería nada.
+    """
+    with_service([
+        make_proposal("con-partida", partida_id="partida-A"),
+        make_proposal("capa-juego"),
+    ])
+    with_scope(lector_scope())
+    cliente = client(real_app)
+
+    lista = cliente.get(SLOT.prefix)
     ids = _ids_de_la_lista(lista.text)
-    assert ids == ["capa-juego"], ids
+    assert ids == ["capa-juego"], (
+        f"el lector legítimo no recibe la capa juego (o recibe de más): {ids}"
+    )
     assert '<span data-count="visible">1</span>' in lista.text
 
+    # Y sigue sin ver la partida ajena: no se ha abierto nada de paso.
     assert cliente.get(f"{SLOT.prefix}/item/con-partida").status_code == 404
     ficha = cliente.get(f"{SLOT.prefix}/item/capa-juego")
     assert ficha.status_code == 200
@@ -660,7 +716,7 @@ def test_la_ficha_es_la_de_la_fila_que_se_abrio(
     real_app, panel_on, with_service, with_scope
 ):
     with_service([make_proposal(f"p{i}", subject=f"Sujeto{i}") for i in range(1, 6)])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     lista = client(real_app).get(SLOT.prefix)
     assert lista.status_code == 200
     ids = _ids_de_la_lista(lista.text)
@@ -682,7 +738,7 @@ def test_los_vecinos_siguen_el_orden_filtrado(real_app, panel_on, with_service, 
         make_proposal("bajo", decision="REVIEW", confidence=0.1),
         make_proposal("abstiene", decision="ABSTAIN", confidence=0.5),
     ])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     orden = _ids_de_la_lista(client(real_app).get(SLOT.prefix).text)
     assert orden == ["bajo", "alto", "abstiene"], orden
     ficha = client(real_app).get(f"{SLOT.prefix}/item/alto")
@@ -706,7 +762,7 @@ def test_los_contadores_son_del_conjunto_filtrado_no_de_la_pagina(
         for i in range(30)
     ]
     with_service(documentos)
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = client(real_app).get(
         SLOT.prefix, params={"reason_code": "LOW_CONFIDENCE", "page_size": 5}
     )
@@ -730,7 +786,7 @@ def test_la_ficha_no_se_limita_a_la_primera_pagina(
     """Un elemento de la última página tiene ficha: la ficha busca en el
     conjunto filtrado ENTERO, no en la página."""
     with_service([make_proposal(f"p{i:02d}") for i in range(30)])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = client(real_app).get(f"{SLOT.prefix}/item/p29")
     assert r.status_code == 200
     assert "<span data-total>30</span>" in r.text
@@ -750,7 +806,7 @@ def test_not_available_no_se_pinta_en_la_pantalla(
     real_app, panel_on, with_service, with_scope
 ):
     with_service([make_proposal("p1", subject="not_available")])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = client(real_app).get(SLOT.prefix)
     assert "not_available" not in r.text
     assert "no disponible" in r.text
@@ -799,7 +855,7 @@ def test_un_estado_desconocido_se_marca_en_la_pantalla(
 ):
     """No se pinta como una decisión buena: la pantalla lo dice."""
     with_service([make_proposal("p1", decision="APROBADA_POR_LA_CASA")])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = client(real_app).get(SLOT.prefix)
     assert 'data-decision-known="false"' in r.text
     assert "estado no reconocido" in r.text
@@ -870,7 +926,7 @@ def test_paquete_ilegible_da_503_sin_filtrar_rutas(
 ):
     with_service([make_proposal("p1")])
     (tmp_path / "proposals" / "package.json").write_text("{ esto no es json", encoding="utf-8")
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = client(real_app).get(SLOT.prefix)
     assert r.status_code == 503
     assert 'data-state="error"' in r.text
@@ -883,7 +939,7 @@ def test_un_filtro_invalido_da_400_con_el_nombre_del_parametro(
     real_app, panel_on, with_service, with_scope
 ):
     with_service([make_proposal("p1")])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = client(real_app).get(SLOT.prefix, params={"min_confidence": 2.0})
     assert r.status_code == 400
     assert "min_confidence" in r.text
@@ -891,7 +947,7 @@ def test_un_filtro_invalido_da_400_con_el_nombre_del_parametro(
 
 def test_un_orden_desconocido_se_rechaza(real_app, panel_on, with_service, with_scope):
     with_service([make_proposal("p1")])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     assert client(real_app).get(SLOT.prefix, params={"sort": "magia"}).status_code == 400
 
 
@@ -928,7 +984,7 @@ def test_sin_material_se_pinta_el_estado_vacio_no_una_excepcion(
     real_app, panel_on, with_service, with_scope
 ):
     with_service([])
-    with_scope(anon_scope())
+    with_scope(lector_scope())
     r = client(real_app).get(SLOT.prefix)
     assert r.status_code == 200
     assert 'data-state="empty"' in r.text

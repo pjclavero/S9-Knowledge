@@ -238,6 +238,23 @@ def auth_on(tmp_path):
     return db_path
 
 
+def cliente_lector(app, auth_db_path):
+    """Cliente de un LECTOR LEGÍTIMO (`viewer` autenticado, sin partida).
+
+    LORE-ANÓNIMO-DENEGADO (V3 RC, 2026-08-14). Hasta aquí las pruebas de
+    PINTADO de este panel pedían como anónimo, y funcionaban porque el material
+    de capa juego se le entregaba: la llave de la capa juego era no tener
+    partida. Cerrada esa vía, un anónimo no pinta ninguna fila y esas pruebas
+    habrían seguido en VERDE sin renderizar nada — un panel que no muestra nada
+    pasa cualquier prueba de que no muestra de más.
+
+    El lector legítimo ve exactamente lo mismo que veía el anónimo antes, así
+    que estas pruebas siguen midiendo lo que medían: el pintado, no la
+    autorización. Las pruebas de AUTORIZACIÓN siguen pidiendo como anónimas.
+    """
+    return client(app, login_cookie(auth_db_path, "f_lector_legitimo", SLOT.role))
+
+
 def login_cookie(db_path: Path, username: str, role: str) -> str:
     from app.auth import db as auth_db_mod
     from app.auth.passwords import hash_password
@@ -274,10 +291,10 @@ def _etiquetas(html: str) -> list[str]:
 # 0. El arnés muerde. Sin esto, todo lo demás es adorno.
 # ===========================================================================
 
-def test_el_arnes_no_pasa_con_cero_casos(real_app, panel_on, con_base):
+def test_el_arnes_no_pasa_con_cero_casos(real_app, auth_on, panel_on, con_base):
     """Un arnés que pasa con 0 casos está roto: aquí se exige material."""
     con_base([nodo("a", source="uno"), nodo("b", source="dos"), nodo("c", source="dos")])
-    html = client(real_app).get(SLOT.prefix).text
+    html = cliente_lector(real_app, auth_on).get(SLOT.prefix).text
     assert len(_asas(html)) == 2, html
     assert '<span data-count="entities">3</span>' in html
 
@@ -308,7 +325,9 @@ def test_la_sustitucion_del_proveedor_muerde(real_app, panel_on):
     )
 
 
-def test_sustituir_get_visibility_context_es_inerte(real_app, panel_on, con_base):
+def test_sustituir_get_visibility_context_es_inerte(
+    real_app, auth_on, panel_on, con_base
+):
     """CONTROL NEGATIVO CONOCIDO del punto de inyección congelado.
 
     `get_visibility_context` NO entra por `Depends` en el camino de este panel:
@@ -316,19 +335,25 @@ def test_sustituir_get_visibility_context_es_inerte(real_app, panel_on, con_base
     VERDE sin morder, y por eso no se usa para nada en esta suite. Se demuestra
     aquí en vez de advertirlo en un comentario: si algún día pasara a entrar por
     `Depends`, este test se pone rojo y habrá que revisar qué más cambió.
+
+    LORE-ANÓNIMO-DENEGADO: quien pide es ahora un lector legítimo. Con un
+    anónimo no se vería nada ni antes ni después de sustituir, y "no ha
+    cambiado nada" sería cierto por vacío — la demostración de que el punto es
+    inerte exige que haya algo que hubiera podido desaparecer.
     """
     from app.authz.context import build_viewer_context
     from app.authz.dependencies import get_visibility_context
 
     con_base([nodo("a", source="visible-igualmente")])
-    antes = client(real_app).get(SLOT.prefix).text
+    cliente = cliente_lector(real_app, auth_on)
+    antes = cliente.get(SLOT.prefix).text
 
     # Un contexto que, si mordiera, no dejaría ver NADA (workspace ajeno).
     real_app.dependency_overrides[get_visibility_context] = lambda: build_viewer_context(
         role=None, auth_enabled=True, default_workspace="workspace-inexistente",
     )
     try:
-        despues = client(real_app).get(SLOT.prefix).text
+        despues = cliente.get(SLOT.prefix).text
     finally:
         real_app.dependency_overrides.pop(get_visibility_context, None)
 
@@ -475,16 +500,23 @@ def test_sin_auth_no_reaparece_el_comportamiento_permisivo(
     assert client(real_app).get(f"{SLOT.prefix}/ficha/{asa}").status_code == 404
 
 
-def test_sin_auth_la_capa_juego_SI_es_visible_y_eso_tambien_es_la_politica(
-    real_app, panel_on, con_base
-):
-    """EL TEST DE ESTE CARRIL, dirección 2. El matiz que se lee al revés.
+def test_sin_auth_la_capa_juego_TAMPOCO_es_visible(real_app, panel_on, con_base):
+    """EL TEST DE ESTE CARRIL, dirección 2 — INVERTIDO por decisión del operador.
 
-    "Sin auth el panel sale vacío" es CONTINGENTE, no absoluto: depende de que
-    el material tenga partida. La capa juego es lore compartido del workspace y
-    SÍ se entrega. Sin este contrapeso, el test de al lado seguiría verde
-    aunque el panel se hubiera roto y no mostrara nunca nada — que es la forma
-    más fácil de "aprobar" una prueba de aislamiento.
+    Aquí se afirmaba lo contrario, y se afirmaba con razón: "sin auth el panel
+    sale vacío" era CONTINGENTE, dependía de que el material tuviera partida, y
+    la capa juego SÍ se entregaba. Era la política heredada aplicada de forma
+    consistente, y se midió y se declaró en vez de arreglarse por lo bajo.
+
+    El operador decidió (V3 RC, 2026-08-14): LORE_ANÓNIMO = DENEGADO. La
+    ausencia de partida no concede visibilidad adicional. Lo contrario
+    reintroduce una vía permisiva implícita justo donde ya se decidió que «auth
+    desactivada ≠ acceso total»: si algún día se quiere lore público, tendrá que
+    ser una capacidad explícita y diseñada como tal, no un fallback del sistema.
+
+    El contrapeso que este test aportaba NO se pierde, porque sin él "el panel
+    sale vacío" volvería a ser compatible con un panel roto: se traslada al test
+    de debajo, que exige que un lector legítimo SÍ vea ese mismo lore.
     """
     con_base([
         nodo("de-partida", source="fuente-de-partida", scope="partida",
@@ -492,7 +524,35 @@ def test_sin_auth_la_capa_juego_SI_es_visible_y_eso_tambien_es_la_politica(
         nodo("lore", source="lore-compartido"),
     ])
     html = client(real_app).get(SLOT.prefix).text
-    assert "lore-compartido" in html
+    assert "lore-compartido" not in html, (
+        "el lore de capa juego se sigue entregando a un anónimo: la ausencia "
+        "de partida ha vuelto a conceder visibilidad"
+    )
+    assert "fuente-de-partida" not in html
+    assert '<span data-count="sources">0</span>' in html
+
+
+def test_pero_un_lector_legitimo_SI_ve_ese_mismo_lore(
+    real_app, auth_on, panel_on, con_base
+):
+    """CONTROL DE COLAPSO, y el contrapeso que el test de arriba ya no puede dar.
+
+    El mismo material, la misma ruta, lo único distinto es que hay principal.
+    Si la denegación al anónimo se hubiera llevado por delante a quien sí tiene
+    derecho, este test se pone rojo — y ocultar de más es el modo de fallo que
+    más fácilmente se confunde con seguridad.
+    """
+    con_base([
+        nodo("de-partida", source="fuente-de-partida", scope="partida",
+             partida="partida-A", known_from_session=1),
+        nodo("lore", source="lore-compartido"),
+    ])
+    html = cliente_lector(real_app, auth_on).get(SLOT.prefix).text
+    assert "lore-compartido" in html, (
+        "el lector legítimo ha PERDIDO el lore de capa juego: la denegación al "
+        "anónimo se ha aplicado de más"
+    )
+    # Y sigue sin ver la partida ajena: no se ha abierto nada de paso.
     assert "fuente-de-partida" not in html
     assert '<span data-count="sources">1</span>' in html
 
@@ -526,66 +586,115 @@ def test_la_barrera_de_partida_es_real_no_un_panel_siempre_vacio(
     )
 
 
-#: TABLA MEDIDA del anónimo con la autenticación desactivada. No es una cita de
-#: la política: es lo que ESTE panel entrega, caso por caso, medido contra la
-#: app real con el proveedor base sustituido. Coincide con la tabla que midió el
-#: carril G sobre su propio hueco, y eso importa: dos huecos distintos sobre la
-#: misma autorización tienen que dar el mismo veredicto, o uno de los dos está
-#: aplicando una política suya.
+#: TABLA MEDIDA, caso por caso, contra la app real con el proveedor base
+#: sustituido. No es una cita de la política: es lo que ESTE panel entrega.
 #:
-#: Si mañana aparece aquí un `True` nuevo, NO se "arregla" cambiando el panel:
-#: se mide, se declara y se pregunta.
-TABLA_ANONIMO_SIN_AUTH: tuple[tuple[str, dict[str, Any], bool], ...] = (
-    ("capa juego, player", dict(scope="juego", visibility="player"), True),
-    ("capa juego, reference", dict(scope="juego", visibility="reference"), False),
-    ("capa juego, secret", dict(scope="juego", visibility="secret"), False),
-    ("capa juego, narrator", dict(scope="juego", visibility="narrator"), False),
-    ("capa juego, deny", dict(scope="juego", visibility="deny"), False),
-    ("visibilidad invalida", dict(scope="juego", visibility="verde"), False),
-    ("sin ambito declarado", dict(scope=None, visibility="player"), False),
+#:      (nombre, atributos del material, la ve un ANÓNIMO, la ve un LECTOR)
+#:
+#: LORE-ANÓNIMO-DENEGADO (decisión del operador, V3 RC, 2026-08-14). La columna
+#: del anónimo era 1 de 11 —"capa juego, player"—: el lore compartido se le
+#: entregaba, y lo único que se lo concedía era no tener partida. El carril G lo
+#: midió por separado sobre otro hueco, con el mismo veredicto y la misma
+#: proporción, y esa coincidencia es la que decía que no era un defecto de un
+#: panel sino la política. Cerrada la vía, la columna del anónimo es 0 de 11.
+#:
+#: La tabla NO se queda con una sola columna de "no": eso la volvería
+#: satisfactible por un panel roto que no pinta nada. La segunda columna es lo
+#: que ve un lector legítimo (rol del hueco, autenticado, sin partida activa) y
+#: es la que se pone roja si algún día se oculta de más.
+#:
+#: Si mañana aparece un `True` nuevo en la columna del anónimo, NO se "arregla"
+#: cambiando el panel: se mide, se declara y se pregunta.
+TABLA_ANONIMO_VS_LECTOR: tuple[tuple[str, dict[str, Any], bool, bool], ...] = (
+    ("capa juego, player", dict(scope="juego", visibility="player"), False, True),
+    ("capa juego, reference", dict(scope="juego", visibility="reference"), False, True),
+    ("capa juego, secret", dict(scope="juego", visibility="secret"), False, False),
+    ("capa juego, narrator", dict(scope="juego", visibility="narrator"), False, False),
+    ("capa juego, deny", dict(scope="juego", visibility="deny"), False, False),
+    ("visibilidad invalida", dict(scope="juego", visibility="verde"), False, False),
+    ("sin ambito declarado", dict(scope=None, visibility="player"), False, False),
     ("partida ajena", dict(scope="partida", partida="p-A",
-                           known_from_session=1, visibility="player"), False),
+                           known_from_session=1, visibility="player"), False, False),
     ("partida sin sesion de revelacion", dict(scope="partida", partida="p-A",
-                                              visibility="player"), False),
+                                              visibility="player"), False, False),
     ("sesion futura", dict(scope="juego", visibility="player",
-                           known_from_session=9), False),
+                           known_from_session=9), False, True),
     ("workspace ajeno", dict(scope="juego", visibility="player",
-                             workspace="otro-workspace"), False),
+                             workspace="otro-workspace"), False, False),
 )
 
 
-@pytest.mark.parametrize(
-    "nombre,atributos,visible", TABLA_ANONIMO_SIN_AUTH, ids=[c[0] for c in TABLA_ANONIMO_SIN_AUTH]
-)
-def test_tabla_medida_del_anonimo_con_auth_desactivada(
-    real_app, panel_on, con_base, nombre, atributos, visible
-):
-    """Caso por caso, y con los dos veredictos representados.
-
-    Una tabla de once "no visible" se satisfaría con un panel roto que no
-    pintara nunca nada; una de once "visible", con un panel que no filtrara. La
-    tabla trae los dos, y el test de abajo exige que la proporción sea la
-    medida y no otra.
-    """
+def _material(nombre: str, atributos: dict) -> tuple[str, dict]:
     fuente = f"fuente-{nombre}"
     n = nodo("n1", source=fuente, **atributos)
     if atributos.get("scope") is None:
         n.pop("scope", None)
+    return fuente, n
+
+
+@pytest.mark.parametrize(
+    "nombre,atributos,visible_anon,visible_lector", TABLA_ANONIMO_VS_LECTOR,
+    ids=[c[0] for c in TABLA_ANONIMO_VS_LECTOR],
+)
+def test_tabla_medida_del_anonimo_con_auth_desactivada(
+    real_app, panel_on, con_base, nombre, atributos, visible_anon, visible_lector
+):
+    """Caso por caso: qué recibe un anónimo con la autenticación desactivada.
+
+    Once de once: nada. La otra dirección —que el material existe y alguien lo
+    ve— la lleva el test de debajo, sobre las MISMAS filas.
+    """
+    fuente, n = _material(nombre, atributos)
     con_base([n])
     html = client(real_app).get(SLOT.prefix).text
-    assert (fuente in html) is visible, (
-        f"{nombre}: el panel {'oculta' if visible else 'entrega'} este material "
-        "con la autenticación desactivada, y la tabla medida dice lo contrario"
+    assert (fuente in html) is visible_anon, (
+        f"{nombre}: el panel {'oculta' if visible_anon else 'entrega'} este "
+        "material con la autenticación desactivada, y la tabla medida dice lo "
+        "contrario"
     )
 
 
-def test_la_tabla_del_anonimo_no_es_unanime():
-    """Suelo de la tabla: si todos los casos apuntaran al mismo lado, el
-    parametrizado de arriba no distinguiría un panel correcto de uno roto."""
-    veredictos = {c[2] for c in TABLA_ANONIMO_SIN_AUTH}
-    assert veredictos == {True, False}
-    visibles = [c[0] for c in TABLA_ANONIMO_SIN_AUTH if c[2]]
-    assert visibles == ["capa juego, player"], visibles
+@pytest.mark.parametrize(
+    "nombre,atributos,visible_anon,visible_lector", TABLA_ANONIMO_VS_LECTOR,
+    ids=[c[0] for c in TABLA_ANONIMO_VS_LECTOR],
+)
+def test_tabla_la_misma_fila_para_un_lector_legitimo(
+    real_app, auth_on, panel_on, con_base, nombre, atributos, visible_anon,
+    visible_lector
+):
+    """La segunda columna de la MISMA tabla: el control de colapso, fila a fila.
+
+    Sin esto, "0 de 11" no distinguiría una autorización de una pantalla
+    averiada. Con esto, ocultar de más también se pone rojo, y dice qué fila.
+    """
+    fuente, n = _material(nombre, atributos)
+    con_base([n])
+    html = cliente_lector(real_app, auth_on).get(SLOT.prefix).text
+    assert (fuente in html) is visible_lector, (
+        f"{nombre}: el lector legítimo lo ve={fuente in html}, "
+        f"esperado={visible_lector}"
+    )
+
+
+def test_la_tabla_tiene_las_dos_direcciones_representadas():
+    """Suelo de la tabla, y NO autocumplido.
+
+    La columna del anónimo es unánime a propósito —esa es la decisión— así que
+    el suelo no puede ser "que no sea unánime": se exige que sea cero, y que la
+    otra columna no sea ni cero ni todo. Si alguien "arreglara" un fallo futuro
+    apagando el panel, la segunda condición cae.
+    """
+    anonimo = [c[0] for c in TABLA_ANONIMO_VS_LECTOR if c[2]]
+    lector = [c[0] for c in TABLA_ANONIMO_VS_LECTOR if c[3]]
+    assert anonimo == [], (
+        f"la tabla concede algo a un anónimo: {anonimo}. LORE_ANÓNIMO = "
+        f"DENEGADO (V3 RC): la ausencia de partida no concede visibilidad"
+    )
+    assert 0 < len(lector) < len(TABLA_ANONIMO_VS_LECTOR), (
+        "el lector legítimo no ve nada, o lo ve todo: en ninguno de los dos "
+        "casos la tabla distingue una autorización de una pantalla averiada"
+    )
+    assert len(TABLA_ANONIMO_VS_LECTOR) == 11, "la tabla dejó de ser 1 fila por caso"
 
 
 def test_el_panel_no_declara_vocabulario_propio_de_autorizacion():
@@ -842,9 +951,9 @@ def test_la_pantalla_declara_que_los_recuentos_son_de_lo_visible(
 # 6. Rutas y nombres de fichero: dato sensible que no sale del servidor
 # ===========================================================================
 
-def test_la_ruta_de_origen_no_aparece_nunca_en_el_html(real_app, panel_on, con_base):
+def test_la_ruta_de_origen_no_aparece_nunca_en_el_html(real_app, auth_on, panel_on, con_base):
     con_base([nodo("a", source=RUTA_SENSIBLE)])
-    cliente = client(real_app)
+    cliente = cliente_lector(real_app, auth_on)
     listado = cliente.get(SLOT.prefix)
     ficha = cliente.get(f"{SLOT.prefix}/ficha/{panel.asa_de(RUTA_SENSIBLE)}")
     for r in (listado, ficha):
@@ -858,25 +967,25 @@ def test_la_ruta_de_origen_no_aparece_nunca_en_el_html(real_app, panel_on, con_b
         assert 'data-path-redacted="true"' in r.text
 
 
-def test_la_url_de_la_ficha_no_lleva_la_ruta(real_app, panel_on, con_base):
+def test_la_url_de_la_ficha_no_lleva_la_ruta(real_app, auth_on, panel_on, con_base):
     """El asa es opaca: la ruta no viaja en la URL, ni al historial, ni a los
     logs de acceso de un proxy."""
     con_base([nodo("a", source=RUTA_SENSIBLE)])
-    html = client(real_app).get(SLOT.prefix).text
+    html = cliente_lector(real_app, auth_on).get(SLOT.prefix).text
     asas = _asas(html)
     assert asas == [panel.asa_de(RUTA_SENSIBLE)]
     assert all(RUTA_SENSIBLE not in a and NOMBRE_SENSIBLE not in a for a in asas)
     assert re.fullmatch(r"[0-9a-f]{16}", asas[0])
 
 
-def test_una_fuente_sin_ruta_no_se_marca_como_redactada(real_app, panel_on, con_base):
+def test_una_fuente_sin_ruta_no_se_marca_como_redactada(real_app, auth_on, panel_on, con_base):
     """Falso positivo del marcador: un nombre suelto no lleva ruta que ocultar.
 
     Sin esto, marcar SIEMPRE "ruta oculta" pasaría el test de arriba mientras el
     aviso pierde todo significado.
     """
     con_base([nodo("a", source="Sesión 4 - transcripción")])
-    html = client(real_app).get(SLOT.prefix).text
+    html = cliente_lector(real_app, auth_on).get(SLOT.prefix).text
     assert 'data-path-redacted="false"' in html
     assert "Sesión 4 - transcripción" in html
 
@@ -905,7 +1014,7 @@ def test_un_identificador_que_es_solo_directorio_no_se_pinta_entero():
 
 
 def test_dos_fuentes_distintas_con_el_mismo_nombre_no_comparten_asa(
-    real_app, panel_on, con_base
+    real_app, auth_on, panel_on, con_base
 ):
     """El asa se deriva del identificador COMPLETO, no del nombre que se pinta.
 
@@ -925,7 +1034,7 @@ def test_dos_fuentes_distintas_con_el_mismo_nombre_no_comparten_asa(
 
     assert panel.asa_de(a) != panel.asa_de(b)
 
-    cliente = client(real_app)
+    cliente = cliente_lector(real_app, auth_on)
     asas = _asas(cliente.get(SLOT.prefix).text)
     assert len(set(asas)) == 2, f"las dos fuentes comparten asa: {asas}"
 
@@ -958,11 +1067,11 @@ def test_la_fila_publicada_no_contiene_el_identificador_crudo():
 # 7. Ausencia ≠ cero
 # ===========================================================================
 
-def test_las_entidades_sin_fuente_se_declaran_no_se_pierden(real_app, panel_on, con_base):
+def test_las_entidades_sin_fuente_se_declaran_no_se_pierden(real_app, auth_on, panel_on, con_base):
     """Descartarlas en silencio haría que la suma de las filas no cuadrase con
     la realidad y nadie se enteraría."""
     con_base([nodo("a", source="con-nombre"), nodo("b", source=None)])
-    html = client(real_app).get(SLOT.prefix).text
+    html = cliente_lector(real_app, auth_on).get(SLOT.prefix).text
     assert "sin fuente declarada" in html
     assert 'data-source-declared="false"' in html
     assert '<span data-count="sources">2</span>' in html
@@ -980,24 +1089,24 @@ def test_un_identificador_de_fuente_que_no_es_texto_va_al_cubo_de_ausencia():
     assert filas[0]["entity_count"] == 3
 
 
-def test_una_procedencia_ausente_se_dice_no_se_inventa(real_app, panel_on, con_base):
+def test_una_procedencia_ausente_se_dice_no_se_inventa(real_app, auth_on, panel_on, con_base):
     con_base([nodo("a", source="x", source_kind=None)])
-    html = client(real_app).get(SLOT.prefix).text
+    html = cliente_lector(real_app, auth_on).get(SLOT.prefix).text
     assert panel.NO_DISPONIBLE in html
 
 
-def test_una_procedencia_presente_si_se_muestra(real_app, panel_on, con_base):
+def test_una_procedencia_presente_si_se_muestra(real_app, auth_on, panel_on, con_base):
     """Contrapeso: sin esto, escribir "no disponible" siempre pasaría el test
     de arriba."""
     con_base([nodo("a", source="x", source_kind="manuscrito")])
-    html = client(real_app).get(SLOT.prefix).text
+    html = cliente_lector(real_app, auth_on).get(SLOT.prefix).text
     assert "manuscrito" in html
 
 
-def test_un_estado_de_revision_ausente_no_se_funde_con_otro(real_app, panel_on, con_base):
+def test_un_estado_de_revision_ausente_no_se_funde_con_otro(real_app, auth_on, panel_on, con_base):
     con_base([nodo("a", source="x", review_status=None),
               nodo("b", source="x", review_status="reviewed")])
-    html = client(real_app).get(SLOT.prefix).text
+    html = cliente_lector(real_app, auth_on).get(SLOT.prefix).text
     assert "no declarado (1)" in html
     assert "Revisado (1)" in html
 
@@ -1023,11 +1132,11 @@ def test_los_estados_canonicos_si_se_reconocen():
         assert filas[0]["estados"][0]["conocido"] is True, valor
 
 
-def test_un_estado_desconocido_se_marca_en_la_pantalla(real_app, panel_on, con_base):
+def test_un_estado_desconocido_se_marca_en_la_pantalla(real_app, auth_on, panel_on, con_base):
     """No se pinta con el aspecto de un estado bueno, ni agregado como si lo
     fuera: la pantalla lo dice."""
     con_base([nodo("a", source="x", review_status="aprobada_por_la_casa")])
-    html = client(real_app).get(SLOT.prefix).text
+    html = cliente_lector(real_app, auth_on).get(SLOT.prefix).text
     assert 'data-status-known="false"' in html
     assert "no reconocido (aprobada_por_la_casa)" in html
 
@@ -1108,10 +1217,10 @@ def test_sin_material_se_pinta_el_estado_vacio_no_una_excepcion(
     assert 'data-state="error"' not in r.text
 
 
-def test_con_material_se_pinta_el_estado_listo(real_app, panel_on, con_base):
+def test_con_material_se_pinta_el_estado_listo(real_app, auth_on, panel_on, con_base):
     """Contrapeso del vacío: una pantalla que sale siempre vacía también pasaría
     el test de arriba."""
     con_base([nodo("a", source="x")])
-    r = client(real_app).get(SLOT.prefix)
+    r = cliente_lector(real_app, auth_on).get(SLOT.prefix)
     assert 'data-state="ready"' in r.text
     assert 'data-state="empty"' not in r.text

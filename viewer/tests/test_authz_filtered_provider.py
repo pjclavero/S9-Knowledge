@@ -44,6 +44,7 @@ def _viewer_bryn() -> ViewerContext:
         active_character="pc_bryn",
         max_visible_session=3,
         can_view_reference=True,
+        can_view_lore=True,  # LORE-ANONIMO-DENEGADO: lector autenticado
         party_membership=frozenset({"grupo_alfa"}),
         session_public=True,
     )
@@ -122,6 +123,7 @@ def test_otro_personaje_no_accede_a_secreto_ajeno(base):
     assert bryn.entity("secret_conocido_por_arden") is None
     # Arden SÍ (character_knowledge vía known_by).
     arden_ctx = ViewerContext(
+        can_view_lore=True,  # LORE-ANONIMO-DENEGADO: lector autenticado
         role="viewer", allowed_workspaces=frozenset({WS}),
         active_character="pc_arden", max_visible_session=3,
         can_view_reference=True, party_membership=frozenset({"grupo_alfa"}),
