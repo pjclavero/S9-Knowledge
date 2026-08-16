@@ -100,6 +100,29 @@ FUENTE_COMUN = "/srv/material/libros/comun.pdf"
 
 TEXTO_DESCRIPCION = "La torre de Vela guarda el ultimo faro encendido"
 
+#: Etiqueta de la relacion sembrada. TIENE que ser distinta de lo que
+#: `relation_label()` deriva del TIPO (`CUSTODIA` -> "custodia"), o la ablacion
+#: de `relation_label_es` no puede observarse: el respaldo devolveria exactamente
+#: la misma cadena y el contrato saldria VERDE con el campo destruido.
+#:
+#: Ese fue un FALSO NEGATIVO real de la primera version de este fichero: la
+#: semilla decia `relation_label_es:'custodia'` sobre un tipo `CUSTODIA`, asi que
+#: quitar el campo no cambiaba ni un byte del HTML. El defecto no estaba en la
+#: asercion, estaba en el MATERIAL: un fixture cuyo valor coincide con el del
+#: degradado no puede distinguir "llego el dato" de "se aplico el respaldo".
+ETIQUETA_RELACION = "guarda el faro de"
+TIPO_RELACION = "CUSTODIA"
+
+
+def _respaldo_de_relacion() -> str:
+    """Lo que `relation_label()` deriva del tipo cuando NO hay etiqueta propia.
+
+    Se calcula con la funcion real, no se escribe a mano: si el respaldo
+    cambiara, el degradado esperado cambia con el.
+    """
+    from app.labels import relation_label
+    return relation_label(TIPO_RELACION, None)
+
 #: Cada entrada es un nodo con TODAS sus propiedades explicitas. Nada se hereda
 #: ni se completa por defecto: un fixture que rellena huecos no puede demostrar
 #: que la ausencia de un campo se propaga.
@@ -200,7 +223,23 @@ class DriverEspia:
     No simula nada: la consulta se ejecuta contra Neo4j igual que sin espia. Lo
     unico que anade es el registro, que es lo que permite afirmar "ningun GET
     escribio" mirando lo emitido y no la prosa del modulo.
+
+    DOS VIAS, NO UNA. El driver de Neo4j permite ejecutar Cypher por dos caminos
+    independientes: `driver.session().run(...)` y `driver.execute_query(...)`.
+    La primera version de este espia solo envolvia `session`, y `__getattr__`
+    reenviaba `execute_query` AL DRIVER REAL sin registrarlo. Combinado con una
+    foto acotada a los workspaces sembrados, una escritura por esa via evadia
+    los DOS controles a la vez -- y se midio: decenas de nodos creados desde
+    peticiones GET con la suite en verde.
+
+    Un espia con un agujero es peor que no tener espia: publica un "cero
+    escrituras" que nadie va a volver a comprobar.
     """
+
+    #: Todo lo que ejecuta Cypher tiene que pasar por el registro. Se enumera
+    #: explicitamente para que anadir un metodo nuevo del driver sea una
+    #: decision consciente y no un reenvio silencioso de `__getattr__`.
+    EJECUTAN_CYPHER = ("execute_query",)
 
     def __init__(self, real):
         self._real, self.consultas = real, []
@@ -208,7 +247,15 @@ class DriverEspia:
     def session(self, *a, **kw):
         return SesionEspia(self._real.session(*a, **kw), self.consultas)
 
+    def execute_query(self, query, *a, **kw):
+        self.consultas.append(str(query))
+        return self._real.execute_query(query, *a, **kw)
+
     def __getattr__(self, nombre):
+        # Red de seguridad: si el driver expusiera manana otra via de ejecucion
+        # y alguien la usara, este espia NO debe reenviarla en silencio.
+        if nombre in self.EJECUTAN_CYPHER:  # pragma: no cover - ya envuelto arriba
+            raise AttributeError(nombre)
         return getattr(self._real, nombre)
 
 
@@ -242,9 +289,10 @@ def semilla(driver):
         for nodo in SEMILLA:
             s.run("CREATE (n:Entity $props)", {"props": dict(nodo)})
         s.run(
-            "MATCH (a:Entity {entity_id:'abl'}), (t:Entity {entity_id:'testigo'}) "
-            "CREATE (a)-[:CUSTODIA {visibility:'player', workspace:$ws, scope:'juego', "
-            "relation_label_es:'custodia'}]->(t)", {"ws": WS})
+            f"MATCH (a:Entity {{entity_id:'abl'}}), (t:Entity {{entity_id:'testigo'}}) "
+            f"CREATE (a)-[:{TIPO_RELACION} {{visibility:'player', workspace:$ws, "
+            f"scope:'juego', relation_label_es:$etiqueta}}]->(t)",
+            {"ws": WS, "etiqueta": ETIQUETA_RELACION})
     yield
     _limpiar(driver)
 
@@ -463,7 +511,10 @@ def test_la_ficha_del_panel_G_entrega_descripcion_y_relaciones(app_real, proveed
     r = c.get(f"{SLOT_G.prefix}/item/{elemento['abl']}")
     assert r.status_code == 200
     assert TEXTO_DESCRIPCION in r.text, "`description` no viaja de Neo4j a la ficha"
-    assert 'data-relation="CUSTODIA"' in r.text, "la relacion real no llego"
+    assert f'data-relation="{TIPO_RELACION}"' in r.text, "la relacion real no llego"
+    assert ETIQUETA_RELACION in r.text, (
+        "`relation_label_es` no viaja de Neo4j a la ficha: la pantalla estaria "
+        "pintando el respaldo derivado del tipo sin que nada lo dijera")
     assert "Testigo inmovil" in r.text, "el otro extremo de la relacion no se resolvio"
 
 
@@ -578,6 +629,62 @@ def test_quitar_un_campo_que_el_panel_consume_pone_algo_ROJO(
     # el testigo no se movio: la ablacion mide lo suyo y nada mas.
     restaurada = observar("restaurada")
     assert restaurada == antes, f"la restauracion de `{campo}` no dejo la pantalla igual"
+
+
+def test_quitar_la_etiqueta_de_la_relacion_pone_algo_ROJO(driver, app_real, proveedor,
+                                                          entorno, elemento):
+    """El ULTIMO campo del grafo que consume una plantilla: `e.label` en la ficha G.
+
+    Se ablaciona sobre la RELACION, no sobre un nodo, que es la razon por la que
+    no cabe en la parametrizacion de arriba.
+
+    DEGRADADO DECLARADO: aqui la pantalla NO dice "no disponible". Cae al
+    respaldo de `relation_label()`, que deriva una etiqueta del TIPO de la
+    relacion. Se exige EXACTAMENTE eso -- que es lo que hace de esta prueba un
+    contrato y no un "cambio algo": se afirma el VALOR del degradado, no su mera
+    diferencia.
+
+    Que el respaldo sea razonable no lo hace inocuo: la pantalla pasa de mostrar
+    la etiqueta CURADA del dominio a mostrar una derivada del identificador
+    tecnico, y no lo declara en ninguna parte. Queda anotado en docs/82 como
+    degradado silencioso; corregirlo tocaria plantilla de producto, que este
+    carril no toca.
+    """
+    def ficha() -> str:
+        c = cliente(app_real, usuario(entorno, f"rel_{ficha.n}", ROL["G"]))
+        ficha.n += 1
+        r = c.get(f"{SLOT_G.prefix}/item/{elemento['abl']}")
+        assert r.status_code == 200
+        m = re.search(r'<li data-relation="[^"]*">(.*?)</li>', r.text, re.S)
+        return m.group(1).strip() if m else "(RELACION AUSENTE)"
+    ficha.n = 0
+
+    respaldo = _respaldo_de_relacion()
+    assert respaldo != ETIQUETA_RELACION, (
+        "la semilla usa una etiqueta que coincide con el respaldo derivado del "
+        "tipo: asi la ablacion NO puede observarse y el caso seria decorativo")
+
+    antes = ficha()
+    assert ETIQUETA_RELACION in antes, f"el arnes parte sin la etiqueta: {antes!r}"
+
+    with driver.session() as s:
+        s.run(f"MATCH ()-[r:{TIPO_RELACION}]->() REMOVE r.relation_label_es")
+    try:
+        despues = ficha()
+    finally:
+        with driver.session() as s:
+            s.run(f"MATCH ()-[r:{TIPO_RELACION}]->() SET r.relation_label_es = $e",
+                  {"e": ETIQUETA_RELACION})
+
+    assert despues != antes, (
+        "ROJO NO PRODUCIDO: quitar `relation_label_es` de Neo4j no cambia la "
+        "ficha del panel G. El contrato para ese campo seria DECORATIVO.")
+    assert ETIQUETA_RELACION not in despues, despues[:200]
+    assert respaldo in despues, (
+        f"el degradado no es el declarado: se esperaba el respaldo {respaldo!r} "
+        f"derivado del tipo, y se obtuvo {despues[:200]!r}")
+
+    assert ficha() == antes, "la restauracion no dejo la ficha igual"
 
 
 def test_quitar_source_document_manda_la_entidad_al_cubo_de_ausencia(
@@ -840,20 +947,25 @@ def test_el_panel_apagado_es_indistinguible_de_una_ruta_inexistente(app_real, pr
 # ===========================================================================
 
 def _foto(driver) -> list:
-    """Estado COMPLETO de lo sembrado: nodos con todas sus propiedades y aristas.
+    """Estado COMPLETO de LA BASE ENTERA: todo nodo y toda arista, con sus props.
 
     No es un conteo. Un conteo no ve un `SET` que cambie un valor sin crear
     nada, que es justo la escritura mas facil de colar desde un GET.
+
+    Y NO se acota a los workspaces sembrados. Acotarla era el segundo agujero
+    del par: una escritura que creara nodos con otra ETIQUETA -- o sin
+    `workspace` -- caia fuera del `WHERE` y la foto salia identica. Fotografiar
+    la base entera cuesta lo mismo en una base efimera de diez nodos y no deja
+    esa puerta. Si algo aparece en la base durante un GET, esto lo ve, se llame
+    como se llame.
     """
     with driver.session() as s:
         nodos = s.run(
-            "MATCH (n:Entity) WHERE n.workspace IN $ws "
-            "RETURN elementId(n) AS elid, properties(n) AS p ORDER BY elid",
-            {"ws": [WS, WS_AJENO]}).data()
+            "MATCH (n) RETURN elementId(n) AS elid, labels(n) AS l, "
+            "properties(n) AS p ORDER BY elid").data()
         rels = s.run(
-            "MATCH (a:Entity)-[r]->(b:Entity) WHERE a.workspace IN $ws "
-            "RETURN elementId(r) AS elid, type(r) AS t, properties(r) AS p ORDER BY elid",
-            {"ws": [WS, WS_AJENO]}).data()
+            "MATCH ()-[r]->() RETURN elementId(r) AS elid, type(r) AS t, "
+            "properties(r) AS p ORDER BY elid").data()
     return [nodos, rels]
 
 
@@ -920,6 +1032,48 @@ def test_el_detector_de_escritura_MUERDE(app_real, proveedor, entorno, driver):
     culpables = [q for q in proveedor.espia.consultas if ESCRITURA.search(q)]
     assert len(culpables) == 2, (
         "el detector de escritura NO muerde: dejaria pasar un CREATE de verdad")
+
+
+def test_el_espia_ve_TAMBIEN_la_via_de_execute_query(app_real, proveedor, entorno):
+    """CONTROL NEGATIVO de la SEGUNDA via de ejecucion. El agujero que hubo.
+
+    `driver.execute_query(...)` ejecuta Cypher sin pasar por `session().run`.
+    Mientras el espia solo envolvia `session`, esta via se reenviaba intacta al
+    driver real y no quedaba registrada; con la foto acotada ademas a los
+    workspaces sembrados, una escritura por aqui con otra etiqueta evadia los
+    DOS controles a la vez. Se midio antes de arreglarlo: decenas de nodos
+    creados desde peticiones GET, con la suite en VERDE.
+
+    Esta prueba exige que la via quede cubierta. Si alguien vuelve a dejar que
+    `__getattr__` la reenvie, se pone roja.
+    """
+    proveedor.espia.consultas.clear()
+    proveedor._driver.execute_query("CREATE (n:CanarioExecuteQuery {marca:'calibracion'})")
+    proveedor._driver.execute_query("MATCH (n:CanarioExecuteQuery) DELETE n")
+    culpables = [q for q in proveedor.espia.consultas if ESCRITURA.search(q)]
+    assert len(culpables) == 2, (
+        "el espia NO registra `execute_query`: hay una via de escritura que "
+        f"ningun control ve. Registradas: {proveedor.espia.consultas}")
+
+
+def test_la_foto_ve_un_nodo_creado_FUERA_de_los_workspaces_sembrados(driver, semilla):
+    """CONTROL NEGATIVO del acotado de la foto.
+
+    Un nodo con otra etiqueta y sin `workspace` caia fuera del `WHERE` de la
+    version anterior y la foto salia identica. Ahora la foto es de la base
+    entera y esto se ve.
+    """
+    antes = _foto(driver)
+    with driver.session() as s:
+        s.run("CREATE (n:RastroFueraDeAmbito {marca:'calibracion'})")
+    try:
+        assert _foto(driver) != antes, (
+            "la foto NO ve un nodo creado fuera de los workspaces sembrados: "
+            "una escritura con otra etiqueta pasaria inadvertida")
+    finally:
+        with driver.session() as s:
+            s.run("MATCH (n:RastroFueraDeAmbito) DELETE n")
+    assert _foto(driver) == antes, "la limpieza no dejo la base igual"
 
 
 def test_la_foto_de_la_base_MUERDE(driver, semilla):

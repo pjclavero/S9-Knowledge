@@ -34,7 +34,8 @@ aunque esté en la base. El riesgo no era teórico.
 
 ## 2. Qué se ha construido
 
-`viewer/tests/test_contrato_paneles_neo4j.py` — **43 pruebas** de integración que:
+`viewer/tests/test_contrato_paneles_neo4j.py` — **46 pruebas** de integración (43
+en la primera versión; las tres restantes cierran los huecos de §3.2 y §5.1) que:
 
 - escriben en un **Neo4j efímero real** (nunca producción: ver §7);
 - leen con el **`Neo4jGraphProvider` real**, instalado como proveedor **BASE**
@@ -90,6 +91,40 @@ idéntica, y que el **testigo** (un nodo que ninguna ablación toca) no se movi�
 | `source_kind` | F | reparto de procedencia | «no disponible» |
 | `source_document` | F | **clave de agrupación** | la fuente desaparece y la entidad se cuenta en el cubo «sin fuente declarada» |
 | `review_status` | F | reparto de estados | «no declarado», `data-status-known="false"` |
+| `relation_label_es` (en la **relación**) | G (ficha) | etiqueta de cada relación | **respaldo derivado del TIPO** (§3.1) |
+
+La lista se cerró por **enumeración exhaustiva** de los accesos a atributos de
+las cuatro plantillas del chasis, no por muestreo. Los campos del grafo que
+alguna plantilla consume son `id, label, type, description, confidence,
+review_status, source_document, visibility, source_kind` más, en las relaciones,
+`e.type`, `e.other_entity` y `e.label`. **Todos están cubiertos.**
+
+### 3.1 Un caso donde el degradado NO es «no disponible»
+
+`relation_label_es` es la excepción, y se declara como tal en vez de forzarla al
+molde de las demás: cuando falta, `relation_label()` **deriva una etiqueta del
+TIPO** de la relación (`CUSTODIA` → «custodia»). La prueba exige **ese valor
+exacto**, calculado con la función real — no una diferencia cualquiera.
+
+Que el respaldo sea razonable no lo hace inocuo: **la pantalla pasa de mostrar la
+etiqueta curada del dominio a mostrar una derivada del identificador técnico, y
+no lo declara en ninguna parte**. Queda anotado como **degradado silencioso**;
+corregirlo tocaría plantilla de producto, fuera del alcance de este carril.
+
+### 3.2 El falso negativo que escondía este caso, y por qué era del material
+
+En la primera versión la semilla creaba la relación con
+`relation_label_es: 'custodia'` sobre un tipo `CUSTODIA`. El respaldo derivado
+del tipo produce **exactamente esa misma cadena**, así que destruir el campo **no
+cambiaba ni un byte del HTML** y el contrato salía 43/43 **VERDE** con el campo
+aniquilado.
+
+El defecto **no estaba en la aserción, estaba en el MATERIAL**: un fixture cuyo
+valor coincide con el del degradado no puede distinguir *«llegó el dato»* de
+*«se aplicó el respaldo»*. La semilla usa ahora una etiqueta deliberadamente
+distinta (`guarda el faro de`), y la prueba **verifica que no coinciden** antes
+de medir nada — si alguien vuelve a elegir un valor que colisione, se pone roja
+por esa razón y no por otra.
 
 ---
 
@@ -119,20 +154,57 @@ de ver el defecto**.
 
 ## 5. Ningún GET escribe — dos controles independientes, ambos calibrados
 
+**Alcance de la garantía, hoy**: ninguna petición GET de los cuatro paneles
+escribe en la base, **por ninguna de las dos vías de ejecución del driver**
+(`session().run` y `execute_query`) y **en ninguna parte del grafo** (no sólo en
+los workspaces sembrados). Esto es más de lo que la primera versión podía
+afirmar; el §5.1 explica exactamente qué faltaba.
+
 1. **Foto del estado** (`test_recorrer_los_cuatro_paneles_no_cambia_el_estado_de_la_base`):
-   nodos y aristas **con todas sus propiedades** antes y después de recorrer los
-   cuatro paneles. No es un conteo: un conteo no ve un `SET` que cambie un valor
-   sin crear nada.
+   **todos** los nodos y **todas** las aristas de la base, con **todas** sus
+   propiedades y etiquetas, antes y después de recorrer los cuatro paneles. No es
+   un conteo: un conteo no ve un `SET` que cambie un valor sin crear nada.
 2. **Espía de Cypher** (`test_ningun_get_emite_una_sola_clausula_de_escritura`):
-   envuelve el driver real y registra **cada consulta emitida**; se rechaza
-   cualquiera con `CREATE|MERGE|DELETE|DETACH|SET|REMOVE|DROP|LOAD CSV`. Ve una
-   escritura idempotente que la foto no vería.
+   envuelve el driver real y registra **cada consulta emitida por cualquiera de
+   las dos vías**; se rechaza cualquiera con
+   `CREATE|MERGE|DELETE|DETACH|SET|REMOVE|DROP|LOAD CSV`. Ve una escritura
+   idempotente que la foto no vería.
 
 Cada uno lleva **su control negativo dentro de la propia suite**:
-`test_el_detector_de_escritura_MUERDE` (emite un `CREATE` a propósito y exige que
-lo cace) y `test_la_foto_de_la_base_MUERDE` (cambia una propiedad y exige que la
-foto lo note). Y con un `SET` inyectado en el GET de la ficha del panel G, **los
-dos controles se ponen rojos**.
+`test_el_detector_de_escritura_MUERDE`, `test_el_espia_ve_TAMBIEN_la_via_de_execute_query`,
+`test_la_foto_de_la_base_MUERDE` y
+`test_la_foto_ve_un_nodo_creado_FUERA_de_los_workspaces_sembrados`.
+
+Con un `SET` inyectado en el GET de la ficha del panel **G** los dos controles
+enrojecen; con el mismo `SET` inyectado en el panel **F**, también (verificado por
+la revisión independiente).
+
+### 5.1 El par de agujeros que hacía falsa la afirmación general
+
+Los dos controles tenían un hueco **cada uno**, y sólo eran peligrosos
+**combinados**:
+
+| control | hueco |
+|---|---|
+| espía | `DriverEspia.__getattr__` **reenviaba `execute_query` al driver real sin registrarlo**. Sólo se envolvía `session()`. |
+| foto | se acotaba a `WHERE n.workspace IN [WS, WS_AJENO]`, así que un nodo con **otra etiqueta** o **sin `workspace`** caía fuera del `WHERE`. |
+
+Una escritura que usara `execute_query` **y** creara nodos con etiqueta ajena
+evadía **los dos a la vez**. **Medido**: decenas de nodos `:Rastro` creados desde
+peticiones GET **con la suite en verde**.
+
+Un espía con un agujero es peor que no tener espía: publica un «cero escrituras»
+que nadie va a volver a comprobar.
+
+**Cierre**: el espía envuelve `execute_query` explícitamente y `__getattr__` ahora
+**se niega a reenviar** cualquier método de la lista `EJECUTAN_CYPHER` — añadir una
+vía nueva tiene que ser una decisión consciente, no un reenvío silencioso. La foto
+fotografía **la base entera**. Calibrado con **MUT-4** (`execute_query("CREATE …")`
+dentro de un GET): suite pre-arreglo **VERDE**, suite actual **ROJO** (§9.4).
+
+**Hasta ese arreglo, la afirmación honesta era más estrecha que el título**:
+*«ningún GET emite escritura por sesión ni altera los workspaces sembrados»*.
+Ahora sí se sostiene la general.
 
 ---
 
@@ -160,7 +232,9 @@ Este suelo ya se ganó el sueldo: `main@993db1a` introdujo
 que dejó a cuatro bancos de medida del repo midiendo cero en silencio. Al rebasar,
 el suelo 2 habría gritado antes que ninguna otra cosa. (No hizo falta: los
 lectores de esta suite son **autenticados con rol legítimo**, y reciben la llave
-por `build_viewer_context`. Las 43 pruebas siguen verdes sobre `993db1a`.)
+por `build_viewer_context`. La suite entera sigue verde sobre `993db1a`.) La
+revisión independiente lo confirmó por el otro lado: **revocar esa llave pone 14
+pruebas en rojo**, así que la llave no está actuando de adorno.
 
 ---
 
@@ -237,6 +311,11 @@ contra Neo4j community **5.26.0** efímero en `bolt://localhost:7699`, con purga
 | paneles (`test_panel_*.py`, los cuatro) | **257 passed** |
 | authz (`test_neo4j_integration_authz.py`) | **19 passed** |
 
+> La tabla §9.1 se midió sobre la versión de **43** pruebas. Las tres añadidas
+> después (§3.2, §5.1) no cambian ninguna de sus filas: ablacionan la proyección
+> de **nodos**, y las tres nuevas miran relaciones y escritura. La tabla §9.4 sí
+> es de la versión de **46**.
+
 ### 9.1 Ablación de la proyección Cypher — **totales, suites completas**
 
 Se borra una línea de `_node_to_dict` y se ejecutan **las tres suites enteras**.
@@ -282,6 +361,24 @@ también en authz** — esos seis (`type`, `description`, `review_status`,
 
 Es la comprobación que más importa de toda la tabla: con el grafo vacío la suite
 **no puede** salir verde.
+
+### 9.4 Cierre de los dos huecos — **totales, transición VERDE → ROJO**
+
+Cada mutación se corre con **dos versiones de la suite**: la de antes del arreglo
+(recuperada por hash, `ffb0767`) y la actual. Lo que se exige no es «ROJO», es la
+**transición**: si la versión previa ya estuviera roja, el arreglo no probaría
+nada.
+
+| mutación | suite `ffb0767` | suite actual | |
+|---|---|---|---|
+| **MUT-1** — la proyección pierde `relation_label_es` (`_rel_to_dict`) | **VERDE** (43 passed) | **ROJO** (2 failed, 44 passed) | hueco cerrado |
+| **MUT-4** — un GET escribe vía `execute_query` con etiqueta ajena | **VERDE** (43 passed) | **ROJO** (2 failed, 44 passed) | hueco cerrado |
+
+En MUT-4 los **dos** fallos son los dos controles de escritura: la foto y el
+espía. En MUT-1, la ablación de la relación y la prueba de campos de la ficha.
+
+Línea base con producción intacta: suite actual **46 passed**, suite `ffb0767`
+**43 passed**.
 
 ---
 
@@ -343,6 +440,34 @@ subconjunto (`-k`, `-x`), se declara como **muestra o cota**, nunca como total.
 > autorización se dio por «no muerde» usando un `-k` que seleccionaba **otras**
 > pruebas. Con el filtro correcto, muerde. Un `-k` mal puesto es un bucle vacío
 > con buena presentación.
+
+### 10.1 Segunda lección de arnés: no restaures con un comando que descarta
+
+El mismo arnés de mutación cometió después un error distinto y peor: para
+«restaurar» el fichero de pruebas ejecutaba
+
+```bash
+git checkout -- viewer/tests/test_contrato_paneles_neo4j.py
+```
+
+Eso no restaura: **descarta**. El fichero tenía trabajo sin commitear —
+justamente el arreglo que se estaba calibrando— y `git checkout --` lo borró sin
+avisar. El síntoma fue desconcertante y del mismo género que el del bytecode: la
+tabla decía **«suite ACTUAL: 43 passed»** cuando la suite actual tenía 46
+pruebas. La medición estaba comparando la versión vieja contra sí misma, y por
+eso las dos mutaciones salían VERDE/VERDE.
+
+**Reglas que se derivan, y que este fichero ya aplica:**
+
+- un arnés de medida **restaura desde una copia propia en disco**, nunca con un
+  comando de VCS que descarte cambios locales;
+- la versión «de antes» se materializa en un **fichero aparte** (`git show
+  <hash>:<ruta>` a un temporal), no sobrescribiendo el árbol de trabajo;
+- al terminar, el arnés **comprueba y publica** que la suite viva conserva sus
+  cambios (`ETIQUETA_RELACION presente: True`, `execute_query en el espía: True`),
+  porque «el árbol está limpio» no distingue *restaurado* de *destruido*;
+- y **committea antes de calibrar**: el trabajo sin respaldo es el único que un
+  arnés puede perder.
 
 ---
 
