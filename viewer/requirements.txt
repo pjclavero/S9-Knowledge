@@ -2,7 +2,7 @@ fastapi>=0.141.1,<1.0
 uvicorn[standard]>=0.30,<1.0
 jinja2>=3.1.6,<4.0
 pydantic>=2.13.4,<3.0
-pydantic-settings>=2.14.2,<3.0
+pydantic-settings>=2.15.0,<3.0
 neo4j>=5.20,<6.0
 # Sin cota superior, `pip install` traia manana una version mayor sin cambiar
 # una linea del repositorio: la instalada dejaba de ser la probada.
