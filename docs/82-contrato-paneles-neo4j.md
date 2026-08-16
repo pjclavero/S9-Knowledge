@@ -1,6 +1,12 @@
 # 82 — Contrato paneles ↔ Neo4j: los cuatro huecos contra una base efímera
 
-**Rama**: `test/contrato-paneles-neo4j` · **Base**: `main@993db1a` · **Estado**: contrato implementado y calibrado; **pendiente de cablear en CI** (ver §8).
+**Rama**: `test/contrato-paneles-neo4j` · **Base**: `main@993db1a` · **Estado**: contrato implementado, calibrado y **cableado en CI** (§8).
+
+> **Aviso de alcance — no leas el título como si cubriera los cuatro paneles por
+> igual.** Está **medido** que **B y C no consultan el grafo**: cero consultas
+> Cypher durante sus peticiones. La superficie real del contrato con Neo4j es
+> **F y G**. Los cuatro se *recorren* (lista y ficha, para la prueba de que
+> ningún GET escribe), pero sólo dos tienen campos que contratar. Ver §2.
 
 ---
 
@@ -170,24 +176,28 @@ del proveedor — no en un único punto que alguien pueda esquivar.
 
 ---
 
-## 8. Hace falta cablear esto en CI (BLOQUEANTE)
+## 8. Cableado en CI, y por qué sin él esto no valía nada
 
-**Medido sobre la ejecución `31916319923` (CI verde, 14 checks del workflow CI +
-1 de Supply Chain = 15 identidades únicas):**
+### 8.1 El estado del que se parte, medido
+
+Sobre la ejecución `31916319923` (**CI verde**, 15 identidades únicas de check):
 
 ```
 viewer/tests/test_contrato_paneles_neo4j.py::test_la_base_efimera... SKIPPED
 … (las 43, SKIPPED)
 ```
 
-Las 43 pruebas **se saltan en silencio** y CI sale **verde**. El job
-`Integridad de gates (… skips críticos)` **no lo detecta**. Hoy este fichero
-aporta **cero señal en CI**: es exactamente el peor instrumento posible, un test
-de integración que se salta sin decirlo.
+Las 43 pruebas **se saltaban en silencio** y CI salía **verde**. El job
+`Integridad de gates (… skips críticos)` **no lo detecta**. Un fichero de
+integración que se salta sin decirlo es el peor instrumento posible: ocupa el
+sitio de una barrera y no es ninguna.
 
-`ci.yml` es zona de otro carril, así que **no se ha tocado**. El cambio necesario
-es de una línea, en el job `test-neo4j-authz`, que ya tiene el contenedor
-`neo4j:5.26.0`, las variables y los guardas anti-skip y anti-cero-tests:
+### 8.2 El cambio: una línea, en el job que ya existía
+
+Autorizado expresamente por el operador y **limitado a eso**. No se ha tocado
+nada más de `ci.yml`, ni se ha añadido ningún job. El job `test-neo4j-authz` ya
+tenía el contenedor `neo4j:5.26.0`, las variables y los tres guardas
+(`rc != 0`, `grep skipped`, `grep 'N passed'`):
 
 ```yaml
 out="$(python -m pytest viewer/tests/test_neo4j_integration_authz.py \
@@ -195,8 +205,21 @@ out="$(python -m pytest viewer/tests/test_neo4j_integration_authz.py \
                         -v --no-header 2>&1)"
 ```
 
-Los tres guardas existentes (`rc != 0`, `grep skipped`, `grep 'N passed'`) cubren
-el fichero nuevo sin más cambios.
+Los dos ficheros van en **una sola invocación** a propósito: los guardas miran la
+salida **combinada**, así que cubren el fichero nuevo sin duplicar lógica.
+
+### 8.3 Las cinco comprobaciones, medidas — no supuestas
+
+| # | Qué se exigía | Cómo se midió | Resultado |
+|---|---|---|---|
+| 1 | Sólo esa línea, nada más en `ci.yml` | `git diff` | **1 invocación modificada**, 0 jobs añadidos |
+| 2 | Los guardas anti-skip cubren **también** el fichero nuevo | se replicó el bloque `run:` del job **sin** `NEO4J_TEST_*` | **ROJO** — «la suite se ha OMITIDO». Con las variables: **62 passed** (19 + 43) |
+| 3 | No se rompe el carril L | `check_ci_config.py` y `calibra_gate_integrity.py`, **antes y después** | antes: OK + **30/30**; después: OK + **30/30** |
+| 4 | No se pierde ningún job | `yaml.safe_load` de los dos workflows | **antes 14 + 1 = 15; después 14 + 1 = 15**. `ci_jobs_running: 15` sigue siendo correcto: **no procede refrescarlo** |
+| 5 | Con el grafo roto el job se pone **ROJO**, no verde-por-salto | semilla vaciada + bloque `run:` real | **ROJO** — «la suite ha FALLADO» |
+
+La fila 5 es la que importa: distingue *«el contrato pasó»* de *«el contrato no
+llegó a correr»*, que es la confusión que hace inútil a un test de integración.
 
 ---
 
@@ -333,12 +356,17 @@ subconjunto (`-k`, `-x`), se declara como **muestra o cota**, nunca como total.
   ablación puede enrojecer. Se congela como límite medido
   (`test_la_proyeccion_cypher_NO_entrega_entity_id_y_eso_esta_medido`).
 - **`short_summary` tampoco viaja**, con el mismo patrón. Congelado igual.
-- **La identidad que viaja en las URLs de los paneles es el `elementId`**, que el
-  propio comentario de `app/serializers.py` declara **no durable** (se regenera al
-  restaurar un dump). El contrato comprueba que es **estable entre peticiones** y
-  que lista y ficha coinciden, pero **no puede comprobar durabilidad entre
-  restauraciones**: haría falta volcar y restaurar la base. **Deuda declarada**,
-  con impacto real (todo enlace guardado a una ficha se rompe tras un restore).
+- **⚠️ La identidad que viaja en las URLs de los paneles es el `elementId`**, que
+  el propio comentario de `app/serializers.py` declara **NO DURABLE**: se regenera
+  al restaurar un dump. El contrato comprueba que es **estable entre peticiones**
+  y que lista y ficha resuelven el mismo objeto, pero **no puede comprobar
+  durabilidad entre restauraciones**: haría falta volcar y restaurar la base
+  dentro de la prueba.
+  **Impacto real**: tras cualquier `restore`, **todo enlace guardado a una ficha
+  deja de resolver**, y el panel responde 404 — indistinguible de «no existe»,
+  porque esa indistinguibilidad es precisamente lo que exige la política. Es
+  decir: el modo de fallo es **silencioso**. **Deuda declarada; va a decisión del
+  operador**, no la cierra este carril.
 
 ### Límites
 
