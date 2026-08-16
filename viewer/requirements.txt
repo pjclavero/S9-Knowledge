@@ -10,7 +10,7 @@ python-multipart>=0.0.9,<0.1
 # Se IMPORTA directamente en viewer/app/auth/middleware.py. Hasta ahora llegaba
 # solo como dependencia transitiva de FastAPI: el dia que FastAPI cambie de
 # rango, el fallo aparece en ejecucion y no al instalar. Se declara explicito.
-starlette>=0.46.0,<2.0
+starlette>=1.6.0,<2.0
 # pytest 9.0.3+ resuelve PYSEC-2026-1845 (pip-audit) y alinea con data-engine (9.1.1)
 pytest>=9.1.1,<10.0
 httpx>=0.28.1,<1.0
