@@ -358,21 +358,56 @@ def semilla(driver):
 
 @pytest.fixture(scope="module")
 def elemento(driver, semilla) -> dict[str, str]:
-    """``entity_id`` -> ``elementId``, que es el id con el que hablan los paneles.
+    """``entity_id`` -> el id con el que hablan los paneles.
 
-    Se resuelve UNA vez y desde la base: escribirlo a mano seria inventarse la
+    Se resuelve UNA vez y DESDE LA BASE: escribirlo a mano seria inventarse la
     identidad que precisamente se quiere comprobar que es estable.
+
+    CAMBIO DE IDENTIDAD (carril «identificador durable», P0 de RC)
+    --------------------------------------------------------------
+    Este mapa devolvia el ``elementId``. Ya no: los paneles hablan ahora el
+    ``entity_id``, el identificador canonico del modelo V3. El motivo esta
+    medido en la seccion 9 de este mismo fichero, que antes congelaba la
+    carencia y ahora congela su cierre: el ``elementId`` es la direccion FISICA
+    del store y ``dump``/``restore`` la reasigna, asi que todo enlace guardado
+    dejaba de resolver tras una restauracion -- con un 404 que, por diseno de la
+    politica, es indistinguible de «no existe».
+
+    Lo que NO cambia es la regla de este fixture: el valor se lee de la base.
+    Se lee ``n.entity_id``, que es una propiedad real del nodo, no una constante
+    del test. Y se comprueba abajo que ese valor NO coincide con el fisico, para
+    que ninguna prueba de este fichero pueda pasar por confundirlos.
     """
     with driver.session() as s:
         filas = s.run(
             "MATCH (n:Entity) WHERE n.workspace IN $ws "
             "RETURN n.entity_id AS eid, elementId(n) AS elid", {"ws": [WS, WS_AJENO]}
         ).data()
-    mapa = {f["eid"]: f["elid"] for f in filas}
+    mapa = {f["eid"]: f["eid"] for f in filas}
     assert len(mapa) == len(SEMILLA), (
         f"la semilla no cuajo: {len(mapa)} nodos en la base, {len(SEMILLA)} esperados"
     )
+    # NO-COLISION, comprobada antes de que ningun test la use. Si el `entity_id`
+    # y el `elementId` pudieran confundirse, este fichero entero seria incapaz
+    # de distinguir «viaja la identidad de dominio» de «viaja la fisica».
+    fisicos = {f["elid"] for f in filas}
+    assert not (set(mapa) & fisicos), "entity_id y elementId colisionan en la semilla"
     return mapa
+
+
+@pytest.fixture(scope="module")
+def elemento_fisico(driver, semilla) -> dict[str, str]:
+    """``entity_id`` -> ``elementId``. El identificador FISICO, para NEGARLO.
+
+    Existe para poder afirmar que este valor NO aparece en ninguna pantalla.
+    Sin el, «el elementId ya no viaja» seria una afirmacion sin testigo.
+    """
+    with driver.session() as s:
+        filas = s.run(
+            "MATCH (n:Entity) WHERE n.workspace IN $ws "
+            "RETURN n.entity_id AS eid, elementId(n) AS elid", {"ws": [WS, WS_AJENO]}
+        ).data()
+    return {f["eid"]: f["elid"] for f in filas}
 
 
 @pytest.fixture
@@ -1221,29 +1256,30 @@ def test_los_cuatro_paneles_responden_en_un_estado_declarado(app_real, proveedor
 # 9. LO QUE NEO4J NO ENTREGA. Medido, para que no se descubra en produccion.
 # ===========================================================================
 
-def test_la_proyeccion_cypher_NO_entrega_entity_id_y_eso_esta_medido(proveedor, semilla):
-    """LIMITE CONOCIDO Y MEDIDO, no una sorpresa.
+def test_la_proyeccion_cypher_SI_entrega_entity_id_LIMITE_CERRADO(proveedor, semilla):
+    """LIMITE CERRADO. Este test decia lo contrario, y decia bien.
 
-    `_node_to_dict` es una LISTA BLANCA de propiedades, no `dict(n)`: lo que no
-    esta en esa lista no llega, aunque este en la base. `entity_id` no esta.
-    Consecuencia real: `serialize_node` publica `entity_id` = "" para TODO nodo
-    que venga de Neo4j, y la identidad que viaja en las URLs de los paneles es
-    el `elementId`, que la propia nota de `app/serializers.py` declara NO
-    durable (se regenera al restaurar un dump).
+    Su version anterior congelaba la carencia: `_node_to_dict` es una LISTA
+    BLANCA y `entity_id` no estaba en ella, asi que `serialize_node` publicaba
+    `entity_id` = "" para TODO nodo venido de Neo4j y la identidad que viajaba
+    en las URLs era el `elementId` -- que `app/serializers.py` ya declaraba NO
+    durable. Aquel test pedia literalmente «actualiza este limite documentado»
+    el dia que dejara de ser cierto. Ese dia es este.
 
-    Ninguno de los cuatro paneles pinta `entity_id` hoy, asi que esto no rompe
-    ninguna pantalla; se congela aqui para que el dia que alguien lo pinte,
-    o el dia que se restaure un dump y los enlaces guardados dejen de resolver,
-    exista una prueba que ya lo decia.
+    Se invierte la afirmacion en vez de borrarla: la carencia y su cierre son
+    la misma medida, y dejarla escrita es lo que impide que vuelva sin ruido.
     """
     from app.serializers import serialize_node
 
     items, total = proveedor.list_entities(WS, limit=100)
     assert total >= 6, f"la lectura directa del proveedor devolvio {total}: arnes vacio"
-    assert all("entity_id" not in n for n in items), (
-        "la proyeccion SI entrega `entity_id`: actualiza este limite documentado")
-    assert all(serialize_node(n)["entity_id"] == "" for n in items)
-    assert all(n["id"] and n["id"] == n["id"] for n in items)
+    assert all(n.get("entity_id") for n in items), (
+        "la proyeccion ha DEJADO de entregar `entity_id`: la identidad de las "
+        "URLs vuelve a ser el identificador fisico y los enlaces guardados "
+        "moriran en la proxima restauracion")
+    assert all(serialize_node(n)["entity_id"] for n in items)
+    # La identidad publicada ES la de dominio, no la fisica.
+    assert all(n["id"] == n["entity_id"] for n in items)
 
     # Lo que si entrega, y de lo que viven los paneles.
     imprescindibles = ("id", "label", "type", "workspace", "visibility", "scope",
@@ -1268,3 +1304,122 @@ def test_short_summary_no_viaja_desde_neo4j(proveedor, semilla, driver):
     finally:
         with driver.session() as s:
             s.run("MATCH (n:Entity {entity_id:'abl'}) REMOVE n.short_summary")
+
+
+# ===========================================================================
+# 10. IDENTIDAD DURABLE: el identificador FISICO no sale a ninguna pantalla
+# ===========================================================================
+#
+# La seccion 9 mide lo que la proyeccion ENTREGA. Esta mide lo que las
+# pantallas PUBLICAN, que es lo que el operador guarda en un marcador. Son dos
+# medidas distintas: una proyeccion correcta con una plantilla que pinte
+# `elementId` volveria a romper los enlaces guardados, y la seccion 9 seguiria
+# verde.
+
+
+def test_el_element_id_no_aparece_en_ninguno_de_los_cuatro_paneles(
+        app_real, entorno, elemento, elemento_fisico):
+    """Barrido negativo sobre el HTML REAL de los cuatro huecos.
+
+    Se buscan los `elementId` de VERDAD, leidos de la base, no un patron: un
+    patron podria no casar con el formato que use esta version del driver y el
+    test pasaria sin haber mirado nada.
+    """
+    fisicos = [v for v in elemento_fisico.values() if v]
+    assert len(fisicos) == len(SEMILLA), "el mapa de ids fisicos no cuajo"
+
+    paginas: dict[str, str] = {}
+    for clave, slot in (("C", SLOT_C), ("B", SLOT_B), ("F", SLOT_F), ("G", SLOT_G)):
+        c = cliente(app_real, usuario(entorno, f"nofis_{clave}", ROL[clave]))
+        paginas[f"lista-{clave}"] = c.get(slot.prefix, params={"workspace": WS}).text
+    g = cliente(app_real, usuario(entorno, "nofis_ficha", ROL["G"]))
+    for eid in ("abl", "testigo"):
+        paginas[f"ficha-{eid}"] = g.get(f"{SLOT_G.prefix}/item/{elemento[eid]}").text
+
+    # SUELO: si las paginas vinieran vacias, el barrido no encontraria nada y
+    # esto pasaria sin ejercer una sola pantalla.
+    assert all(len(t) > 500 for t in paginas.values()), (
+        f"alguna pantalla vino vacia: { {k: len(v) for k, v in paginas.items()} }")
+    assert "Nodo de ablacion" in paginas["ficha-abl"], "la ficha no es la del objeto"
+
+    culpables = {
+        nombre: [f for f in fisicos if f in html]
+        for nombre, html in paginas.items()
+        if any(f in html for f in fisicos)
+    }
+    assert not culpables, (
+        f"el identificador FISICO de Neo4j se publica en {culpables}: no es "
+        "durable y todo enlace guardado hacia el morira en la proxima "
+        "restauracion"
+    )
+
+
+def test_la_ficha_no_abre_por_identificador_fisico(app_real, entorno, elemento_fisico):
+    """CONTRAPESO del test anterior. Que no se pinte no basta: no debe abrir.
+
+    Si el `elementId` siguiera siendo una llave valida, la identidad no habria
+    migrado -- solo se habria duplicado, y la puerta no durable seguiria ahi
+    para cualquiera que tuviera un enlace viejo.
+    """
+    c = cliente(app_real, usuario(entorno, "nofis_llave", ROL["G"]))
+    # Contrapeso: lo durable SI abre. Sin esta linea, «todo da 404» pasaria.
+    assert c.get(f"{SLOT_G.prefix}/item/abl").status_code == 200
+    assert c.get(f"{SLOT_G.prefix}/item/{elemento_fisico['abl']}").status_code == 404
+
+
+# ===========================================================================
+# 11. SIN IDENTIDAD DURABLE NO HAY FILA -- Y EL RECUENTO LO SABE
+# ===========================================================================
+
+
+def test_un_nodo_sin_entity_id_no_se_lista_y_el_TOTAL_no_lo_cuenta(
+        app_real, proveedor, entorno, driver, semilla):
+    """FUGA POR DIFERENCIA: el defecto que este test existe para impedir.
+
+    Un nodo sin `entity_id` no es direccionable, asi que no se lista. Si aun
+    asi entrara en el `count(n)`, el panel diria «1 de 8» mostrando 7 filas, y
+    esa diferencia es informacion: revela que existe algo que no se puede ver.
+    El visor ya tiene precedente de fugas por diferencia, por eso el filtro va
+    en el propio Cypher y no en un recorte posterior en Python.
+
+    Se mide con el nodo REALMENTE creado en la base, no con un doble.
+    """
+    antes_items, antes_total = proveedor.list_entities(WS, limit=100)
+    assert antes_total >= 6, "arnes vacio: la lectura base no devolvio nada"
+
+    with driver.session() as s:
+        s.run(
+            "CREATE (n:Entity $props)",
+            {"props": {"canonical_name": "Huerfano sin identidad",
+                       "entity_type": "LUGAR", "workspace": WS, "scope": "juego",
+                       "visibility": "player", "review_status": "reviewed"}},
+        )
+    try:
+        # SUELO: el nodo existe de verdad en la base. Sin esto, un CREATE que
+        # fallara en silencio haria pasar el test por ausencia.
+        with driver.session() as s:
+            assert s.run(
+                "MATCH (n:Entity {workspace:$ws}) WHERE n.entity_id IS NULL "
+                "RETURN count(n) AS c", {"ws": WS}).single()["c"] == 1
+
+        items, total = proveedor.list_entities(WS, limit=100)
+        assert total == antes_total, (
+            f"el TOTAL subio de {antes_total} a {total} por un nodo que no se "
+            "lista: fuga de informacion por diferencia entre recuento y pagina"
+        )
+        assert len(items) == len(antes_items)
+        assert total == len(items), (
+            f"recuento ({total}) y pagina ({len(items)}) divergen"
+        )
+        assert all(n["label"] != "Huerfano sin identidad" for n in items)
+
+        # Y en la pantalla: ni fila, ni cifra.
+        c = cliente(app_real, usuario(entorno, "huerfano", ROL["G"]))
+        html = G(c)
+        assert "Huerfano sin identidad" not in html
+        assert len(ids_g(html)) >= 5, "la lista quedo vacia: no discrimina nada"
+        assert "" not in ids_g(html), "hay una fila con identidad vacia"
+    finally:
+        with driver.session() as s:
+            s.run("MATCH (n:Entity {workspace:$ws}) WHERE n.entity_id IS NULL "
+                  "DETACH DELETE n", {"ws": WS})
