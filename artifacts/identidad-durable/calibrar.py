@@ -46,6 +46,16 @@ SUITE_AMPLIA = "viewer/tests/test_serializers.py"
 SUITE_NEO4J = "viewer/tests/test_neo4j_integration_authz.py"
 SUITE_CONTRATO = "viewer/tests/test_contrato_paneles_neo4j.py"
 MINIMO_TESTS = 10
+#: SUELO DE LAS MUTACIONES, hermano de `MINIMO_TESTS`. Sin el, un arnes al que
+#: alguien vaciara `MUTACIONES` -- o al que se le quedaran todas sin objetivo --
+#: imprimiria `ejercidas=0 enrojecidas=0 declaradas_sin_ejercer=0` y
+#: `veredicto=CALIBRADO`, saldria con rc=0 y estaria MUDO Y VERDE: exactamente
+#: el fallo que este fichero existe para impedir, un nivel mas arriba.
+MINIMO_MUTACIONES = 12
+#: Las que no necesitan Neo4j. Se ejercen SIEMPRE, tambien en un portatil sin
+#: contenedores, asi que este suelo se puede exigir incondicionalmente. El suelo
+#: de las 12 (con base efimera) lo impone el paso de CI, que sabe si hay Neo4j.
+MINIMO_EJERCIDAS = 4
 
 
 def sha256(p: Path) -> str:
@@ -152,8 +162,17 @@ MUTACIONES = [
         [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
     ),
     (
+        # El ancla corta («AND n.entity_id IS NOT NULL / RETURN n / LIMIT
+        # $limit») aparecia DOS veces: en `search()` y en `graph()/node_query`.
+        # Acertaba por orden de fichero, no por construccion: si `search()` se
+        # moviera por debajo de `graph()`, MR6 mutaria `node_query` y su rojo
+        # seria PRESTADO de MR5. Se ancla con la linea del CONTAINS, que es
+        # suya y de nadie mas. La asercion de unicidad de mas abajo impide que
+        # esto vuelva a colarse.
         "MR6: `search()` deja de exigir entity_id",
+        "OR toLower(coalesce(n.description,'')) CONTAINS toLower($q))\n"
         "          AND n.entity_id IS NOT NULL\n        RETURN n\n        LIMIT $limit",
+        "OR toLower(coalesce(n.description,'')) CONTAINS toLower($q))\n"
         "        RETURN n\n        LIMIT $limit",
         [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
     ),
@@ -182,6 +201,29 @@ def main() -> int:
     print(f"HEAD ................ {subprocess.run(['git','rev-parse','--short','HEAD'],cwd=RAIZ,capture_output=True,text=True).stdout.strip()}")
     print(f"proveedor sha256 .... {hash_original}")
     print(f"__pycache__ purgados  {purgar_pycache()}")
+
+    # SUELO DEL PROPIO ARNES, antes de tocar nada. Un arnes sin mutaciones no
+    # es un arnes verde: es un arnes mudo.
+    if len(MUTACIONES) < MINIMO_MUTACIONES:
+        print(f"ABORTA: suelo de mutaciones ({len(MUTACIONES)} < {MINIMO_MUTACIONES}): "
+              "un arnes sin casos saldria «sin fallos» sin haber ejercido nada.")
+        return 2
+
+    # UNICIDAD DE LAS ANCLAS. Una ancla que aparece dos veces muta la PRIMERA
+    # por orden de fichero, no la que dice su nombre: el dia que dos consultas
+    # se intercambien de sitio, esa mutacion enrojeceria con el rojo PRESTADO de
+    # su vecina y nadie se enteraria. Afirmarlo aqui vale mas que revisarlo a
+    # mano hoy: la comprobacion viaja con el fichero.
+    repetidas = [
+        f"«{nombre}»: {original.count(viejo)} ocurrencias"
+        for nombre, viejo, _, _ in MUTACIONES
+        if original.count(viejo) != 1
+    ]
+    if repetidas:
+        print("ABORTA: hay anclas que no son unicas (rojo prestado posible):")
+        for r in repetidas:
+            print("  " + r)
+        return 2
 
     rc, pasados, fallados = pytest([SUITE, SUITE_AMPLIA])
     print(f"\nLINEA BASE: rc={rc} pasados={pasados} fallados={fallados}")
@@ -225,6 +267,22 @@ def main() -> int:
     purgar_pycache()
     rc_f, pas_f, _ = pytest([SUITE, SUITE_AMPLIA])
     print(f"\nVUELTA A VERDE: rc={rc_f} pasados={pas_f} sha256_ok={sha256(PROVEEDOR)==hash_original}")
+
+    # SUELO DE LO EJERCIDO. `fallos` esta vacio tanto si todas enrojecieron
+    # como si NO SE EJERCIO NINGUNA (todas declaradas, o la lista vaciada). Sin
+    # esta comprobacion el veredicto CALIBRADO seria compatible con no haber
+    # medido nada.
+    if ejercidas < MINIMO_EJERCIDAS:
+        fallos.append(
+            f"SUELO DE EJERCIDAS: {ejercidas} < {MINIMO_EJERCIDAS}. Las mutaciones "
+            "que no necesitan Neo4j se ejercen SIEMPRE; si no se ejercio ninguna, "
+            "este arnes no ha medido nada."
+        )
+    if ejercidas + declaradas != len(MUTACIONES):
+        fallos.append(
+            f"CONTABILIDAD: {ejercidas}+{declaradas} != {len(MUTACIONES)}: hay "
+            "mutaciones que se han perdido por el camino."
+        )
 
     ok = not fallos and rc_f == 0 and pas_f == pasados
     for f in fallos:

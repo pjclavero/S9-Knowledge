@@ -207,7 +207,31 @@ jobs:
             echo "::error::la calibracion no emitio veredicto CALIBRADO"
             exit 1
           fi
-          if echo "$out" | grep -qE 'declaradas_sin_ejercer=[1-9]'; then
+          # SUELO, no ausencia. La version anterior de esta guarda buscaba
+          # `declaradas_sin_ejercer=[1-9]`, es decir, comprobaba que ALGO no
+          # aparece: una salida `ejercidas=0 ... declaradas_sin_ejercer=0
+          # veredicto=CALIBRADO` la pasaba entera, y un renombrado del campo la
+          # dejaba sin vigilar EN SILENCIO. Ahora se EXTRAEN los tres numeros:
+          # si el campo desaparece o cambia de nombre, la extraccion sale vacia
+          # y el paso se pone rojo por eso mismo.
+          ejercidas="$(echo "$out" | grep -oE 'ejercidas=[0-9]+' | head -1 | cut -d= -f2)"
+          enrojecidas="$(echo "$out" | grep -oE 'enrojecidas=[0-9]+' | head -1 | cut -d= -f2)"
+          declaradas="$(echo "$out" | grep -oE 'declaradas_sin_ejercer=[0-9]+' | head -1 | cut -d= -f2)"
+          echo "ejercidas=$ejercidas enrojecidas=$enrojecidas declaradas=$declaradas"
+          if [ -z "$ejercidas" ] || [ -z "$enrojecidas" ] || [ -z "$declaradas" ]; then
+            echo "::error::el RESUMEN no trae ejercidas/enrojecidas/declaradas_sin_ejercer: el arnes ha cambiado de formato y esta guarda ya no vigila nada"
+            exit 1
+          fi
+          # Con la base efimera del job, las DOCE tienen que ejercerse.
+          if [ "$ejercidas" -lt 12 ]; then
+            echo "::error::solo se ejercieron $ejercidas mutaciones (con Neo4j tienen que ser 12): arnes mudo"
+            exit 1
+          fi
+          if [ "$enrojecidas" -ne "$ejercidas" ]; then
+            echo "::error::$enrojecidas de $ejercidas mutaciones enrojecieron"
+            exit 1
+          fi
+          if [ "$declaradas" -ne 0 ]; then
             echo "::error::con Neo4j disponible NINGUNA mutacion puede quedar sin ejercer"
             exit 1
           fi
