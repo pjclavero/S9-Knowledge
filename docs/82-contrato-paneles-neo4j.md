@@ -34,8 +34,9 @@ aunque esté en la base. El riesgo no era teórico.
 
 ## 2. Qué se ha construido
 
-`viewer/tests/test_contrato_paneles_neo4j.py` — **46 pruebas** de integración (43
-en la primera versión; las tres restantes cierran los huecos de §3.2 y §5.1) que:
+`viewer/tests/test_contrato_paneles_neo4j.py` — **47 pruebas** de integración (43 en la
+primera versión; las cuatro restantes cierran los huecos de §3.2, §5.1 y §5.2)
+que:
 
 - escriben en un **Neo4j efímero real** (nunca producción: ver §7);
 - leen con el **`Neo4jGraphProvider` real**, instalado como proveedor **BASE**
@@ -155,10 +156,16 @@ de ver el defecto**.
 ## 5. Ningún GET escribe — dos controles independientes, ambos calibrados
 
 **Alcance de la garantía, hoy**: ninguna petición GET de los cuatro paneles
-escribe en la base, **por ninguna de las dos vías de ejecución del driver**
-(`session().run` y `execute_query`) y **en ninguna parte del grafo** (no sólo en
-los workspaces sembrados). Esto es más de lo que la primera versión podía
-afirmar; el §5.1 explica exactamente qué faltaba.
+escribe en la base, **por ninguna de las cinco vías de ejecución del driver**
+—`session().run`, `driver.execute_query`, `session.execute_write`,
+`session.execute_read` y `session.begin_transaction`— y **en ninguna parte del
+grafo** (no sólo en los workspaces sembrados). Esto es bastante más de lo que la
+primera versión podía afirmar; §5.1 detalla qué faltaba y en qué orden se cerró.
+
+Las cinco vías están **enumeradas explícitamente** en el espía, repartidas entre
+`DriverEspia.EJECUTAN_CYPHER` y `SesionEspia.EJECUTAN_CYPHER`, y en ambos casos
+`__getattr__` **se niega a reenviarlas** en vez de dejarlas pasar. Añadir una vía
+nueva tiene que ser una decisión consciente.
 
 1. **Foto del estado** (`test_recorrer_los_cuatro_paneles_no_cambia_el_estado_de_la_base`):
    **todos** los nodos y **todas** las aristas de la base, con **todas** sus
@@ -166,13 +173,17 @@ afirmar; el §5.1 explica exactamente qué faltaba.
    un conteo: un conteo no ve un `SET` que cambie un valor sin crear nada.
 2. **Espía de Cypher** (`test_ningun_get_emite_una_sola_clausula_de_escritura`):
    envuelve el driver real y registra **cada consulta emitida por cualquiera de
-   las dos vías**; se rechaza cualquiera con
+   las cinco vías**; se rechaza cualquiera con
    `CREATE|MERGE|DELETE|DETACH|SET|REMOVE|DROP|LOAD CSV`. Ve una escritura
-   idempotente que la foto no vería.
+   idempotente que la foto **no puede** ver.
+
+Ese reparto de trabajo no es retórico, está **medido** (§9.5): con una escritura
+idempotente inyectada en un GET, **el único control que enrojece es el espía**.
+La foto sale verde porque el estado no cambió — que es exactamente su límite.
 
 Cada uno lleva **su control negativo dentro de la propia suite**:
 `test_el_detector_de_escritura_MUERDE`, `test_el_espia_ve_TAMBIEN_la_via_de_execute_query`,
-`test_la_foto_de_la_base_MUERDE` y
+`test_el_espia_ve_las_TRES_vias_de_la_sesion`, `test_la_foto_de_la_base_MUERDE` y
 `test_la_foto_ve_un_nodo_creado_FUERA_de_los_workspaces_sembrados`.
 
 Con un `SET` inyectado en el GET de la ficha del panel **G** los dos controles
@@ -196,15 +207,47 @@ peticiones GET **con la suite en verde**.
 Un espía con un agujero es peor que no tener espía: publica un «cero escrituras»
 que nadie va a volver a comprobar.
 
-**Cierre**: el espía envuelve `execute_query` explícitamente y `__getattr__` ahora
-**se niega a reenviar** cualquier método de la lista `EJECUTAN_CYPHER` — añadir una
-vía nueva tiene que ser una decisión consciente, no un reenvío silencioso. La foto
-fotografía **la base entera**. Calibrado con **MUT-4** (`execute_query("CREATE …")`
-dentro de un GET): suite pre-arreglo **VERDE**, suite actual **ROJO** (§9.4).
+**Cierre parcial (primera ronda)**: el espía envuelve `execute_query` y la foto
+pasa a cubrir la base entera. Calibrado con **MUT-4**: suite pre-arreglo
+**VERDE**, suite actual **ROJO** (§9.4).
 
-**Hasta ese arreglo, la afirmación honesta era más estrecha que el título**:
-*«ningún GET emite escritura por sesión ni altera los workspaces sembrados»*.
-Ahora sí se sostiene la general.
+### 5.2 Había una TERCERA vía, y §5 seguía sobrevendiendo
+
+La revisión independiente encontró que el arreglo anterior estaba **en la clase
+equivocada**: `EJECUTAN_CYPHER` vivía en `DriverEspia`, pero el `__getattr__` de
+**`SesionEspia`** seguía reenviando `execute_write`, `execute_read` y
+`begin_transaction` **sin registrar**.
+
+El caso peor es `execute_write` con una escritura **idempotente**
+(`SET n.confidence = <el mismo valor>`):
+
+- **el espía no la ve**, porque la vía no estaba envuelta;
+- **la foto no la ve**, porque el estado no cambia.
+
+Es decir, la capacidad que este mismo §5 atribuía al espía —*ver lo que la foto
+no puede ver*— **no existía para esas tres vías**. Medido: **MUT-7 dejaba la
+suite 46/46 VERDE**.
+
+Un matiz que importa y que la revisión señaló bien: con un valor **distinto**
+(MUT-7b) sí salía roja, pero **por el contenido, no por los controles** — la vía
+se ejecutaba, la cazaba otra prueba por accidente, y los controles seguían
+ciegos. Un rojo por el motivo equivocado.
+
+**Cierre definitivo**: se añade `TxEspia` —el eslabón que faltaba, porque en
+`execute_write(lambda tx: tx.run(...))` **el Cypher lo emite el `tx`, no la
+sesión**— y `SesionEspia` envuelve las tres vías y declara su propia
+`EJECUTAN_CYPHER`. Calibrado en §9.5.
+
+**Severidad**: baja y no bloqueante. El producto usa hoy **exclusivamente**
+`session().run` (**12 usos, cero** de las otras cuatro, verificado por
+enumeración). Era defecto **de instrumento**, no fallo vivo: el riesgo real era
+que el espía publicara un «cero escrituras» **más ancho de lo que podía
+respaldar**.
+
+**Sólo ahora** se sostiene la afirmación general de §5. Antes de esta ronda la
+honesta era: *«ningún GET escribe por `session().run` ni por `execute_query`, ni
+altera el estado observable del grafo»* — que deja fuera precisamente la
+escritura idempotente por transacción.
 
 ---
 
@@ -380,6 +423,30 @@ espía. En MUT-1, la ablación de la relación y la prueba de campos de la ficha
 Línea base con producción intacta: suite actual **46 passed**, suite `ffb0767`
 **43 passed**.
 
+### 9.5 Tercera vía: `execute_write` / `execute_read` / `begin_transaction`
+
+Suite previa recuperada por hash **`cecd1cb`** (la que ya cubría `execute_query`
+pero no las tres de la sesión). Línea base: actual **47 passed**, previa
+**46 passed**.
+
+| mutación inyectada en un GET | suite `cecd1cb` | suite actual | qué enrojece |
+|---|---|---|---|
+| **MUT-7** `execute_write` con `SET` **idempotente** | **VERDE** (46 passed) | **ROJO** (1 failed) | `test_ningun_get_emite_una_sola_clausula_de_escritura` — **sólo el espía** |
+| **MUT-7b** igual, con valor **distinto** | ROJO (1 failed) | **ROJO** (2 failed) | el espía **+** la ablación de `confidence` |
+| **MUT-8** se borra `execute_query` del espía | n/a (mutación de la propia suite) | **ROJO** (1 failed) | `test_el_espia_ve_TAMBIEN_la_via_de_execute_query` |
+
+Las tres filas dicen cosas distintas y las tres hacían falta:
+
+- **MUT-7** es la transición que cierra el hueco, y además **demuestra el reparto
+  de trabajo entre los dos controles**: la foto no puede ver una escritura
+  idempotente, y el único que enrojece es el espía. Sin esta fila, «dos controles
+  independientes» sería una afirmación sin respaldo.
+- **MUT-7b** es el **control de contraste**: prueba que el rojo de MUT-7 viene
+  del control y no del contenido. En la suite previa esta mutación ya salía roja
+  —por accidente, vía la ablación— y eso era justo lo que enmascaraba el hueco.
+- **MUT-8** confirma que la red de `EJECUTAN_CYPHER` **no es decorativa**:
+  quitar el método no deja una regresión silenciosa, produce un fallo ruidoso.
+
 ---
 
 ## 10. El hallazgo del bytecode obsoleto
@@ -464,10 +531,30 @@ eso las dos mutaciones salían VERDE/VERDE.
 - la versión «de antes» se materializa en un **fichero aparte** (`git show
   <hash>:<ruta>` a un temporal), no sobrescribiendo el árbol de trabajo;
 - al terminar, el arnés **comprueba y publica** que la suite viva conserva sus
-  cambios (`ETIQUETA_RELACION presente: True`, `execute_query en el espía: True`),
-  porque «el árbol está limpio» no distingue *restaurado* de *destruido*;
+  cambios, porque «el árbol está limpio» no distingue *restaurado* de
+  *destruido*;
 - y **committea antes de calibrar**: el trabajo sin respaldo es el único que un
   arnés puede perder.
+
+#### La comprobación de integridad se hace por `sha256`, no por presencia
+
+La primera versión de esa comprobación verificaba **presencia de una cadena**
+(`"execute_query" in fuente`). **Es un guard que puede pasar en vacío**, y la
+revisión independiente lo demostró: `execute_query` aparece **10 veces** en el
+fichero y **sólo 1 es la definición del método**; con MUT-8 —el método borrado—
+**el marcador seguía presente y el chequeo seguía diciendo `True`**. El mismo
+vicio que `ETIQUETA_RELACION`, que aparece 7 veces.
+
+> **Un guard de presencia no distingue «el arreglo está» de «la palabra está».**
+
+Sustituido por comparación de **`sha256` del fichero** contra el hash tomado
+antes de la mutación: exacta, barata y sin falso positivo. Ahora el arnés imprime
+los dos hashes y el veredicto.
+
+Salvedad honesta, que la propia revisión hizo: en este caso **la suite era el
+respaldo real** —MUT-8 sale roja— así que el fallo del arnés no llegó a producir
+ninguna cifra falsa. Pero **el arnés por sí solo no lo garantizaba**, y ése era
+el punto: un control que no puede fallar no es un control.
 
 ---
 

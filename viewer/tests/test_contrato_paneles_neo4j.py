@@ -198,7 +198,15 @@ ESCRITURA = re.compile(
 )
 
 
-class SesionEspia:
+class TxEspia:
+    """Transaccion espiada. Es el eslabon que faltaba.
+
+    `session.execute_write(lambda tx: tx.run(...))` NO pasa por `session.run`:
+    el Cypher lo emite el `tx` que el driver le entrega a la funcion. Si ese
+    `tx` no esta envuelto, la consulta no se registra por mucho que la sesion
+    lo este.
+    """
+
     def __init__(self, real, registro):
         self._real, self._registro = real, registro
 
@@ -207,6 +215,57 @@ class SesionEspia:
         return self._real.run(query, *a, **kw)
 
     def __getattr__(self, nombre):
+        return getattr(self._real, nombre)
+
+    def __enter__(self):
+        self._real.__enter__()
+        return self
+
+    def __exit__(self, *exc):
+        return self._real.__exit__(*exc)
+
+
+class SesionEspia:
+    """Sesion espiada, con TODAS sus vias de ejecucion cubiertas.
+
+    La version anterior solo envolvia `run`, y su `__getattr__` reenviaba
+    `execute_write`, `execute_read` y `begin_transaction` SIN registrar. Una
+    escritura por cualquiera de esas tres era invisible para el espia; si ademas
+    era IDEMPOTENTE (un `SET` al mismo valor), la foto tampoco la veia, porque
+    el estado no cambiaba. Es decir: la capacidad que §5 de docs/82 atribuye al
+    espia --ver lo que la foto no puede ver-- no existia para esas tres vias.
+    """
+
+    #: Toda via de ejecucion de la sesion. Enumerada explicitamente: si el
+    #: driver anade otra manana, `__getattr__` NO la reenvia en silencio.
+    EJECUTAN_CYPHER = ("execute_write", "execute_read", "begin_transaction")
+
+    def __init__(self, real, registro):
+        self._real, self._registro = real, registro
+
+    def run(self, query, *a, **kw):
+        self._registro.append(str(query))
+        return self._real.run(query, *a, **kw)
+
+    def _envuelto(self, fn):
+        registro = self._registro
+
+        def envoltorio(tx, *a, **kw):
+            return fn(TxEspia(tx, registro), *a, **kw)
+        return envoltorio
+
+    def execute_write(self, fn, *a, **kw):
+        return self._real.execute_write(self._envuelto(fn), *a, **kw)
+
+    def execute_read(self, fn, *a, **kw):
+        return self._real.execute_read(self._envuelto(fn), *a, **kw)
+
+    def begin_transaction(self, *a, **kw):
+        return TxEspia(self._real.begin_transaction(*a, **kw), self._registro)
+
+    def __getattr__(self, nombre):
+        if nombre in self.EJECUTAN_CYPHER:  # pragma: no cover - ya envueltos arriba
+            raise AttributeError(nombre)
         return getattr(self._real, nombre)
 
     def __enter__(self):
@@ -1054,6 +1113,40 @@ def test_el_espia_ve_TAMBIEN_la_via_de_execute_query(app_real, proveedor, entorn
     assert len(culpables) == 2, (
         "el espia NO registra `execute_query`: hay una via de escritura que "
         f"ningun control ve. Registradas: {proveedor.espia.consultas}")
+
+
+def test_el_espia_ve_las_TRES_vias_de_la_sesion(proveedor, semilla):
+    """CONTROL NEGATIVO de `execute_write`, `execute_read` y `begin_transaction`.
+
+    Las tres emiten Cypher SIN pasar por `session.run`, y las tres se reenviaban
+    sin registrar. La peor era `execute_write` con una escritura IDEMPOTENTE
+    (`SET n.confidence = <el mismo valor>`): invisible para el espia por no estar
+    envuelta, e invisible para la foto por no cambiar el estado. Justo la
+    combinacion que §5 de docs/82 dice cubrir.
+
+    Se ejercitan las tres de verdad contra la base y se exige que las tres
+    queden registradas.
+    """
+    espia = proveedor.espia
+    espia.consultas.clear()
+
+    with proveedor._driver.session() as s:
+        # 1. escritura IDEMPOTENTE: la foto no la veria.
+        s.execute_write(
+            lambda tx: tx.run("MATCH (n:Entity {entity_id:'abl'}) SET n.confidence = 0.91"))
+        # 2. lectura por su propia via.
+        s.execute_read(lambda tx: tx.run("MATCH (n:Entity) RETURN count(n) AS c").single())
+        # 3. transaccion explicita.
+        with s.begin_transaction() as tx:
+            tx.run("MATCH (n:Entity {entity_id:'abl'}) SET n.confidence = 0.91")
+            tx.commit()
+
+    assert len(espia.consultas) == 3, (
+        f"el espia no registra las tres vias de la sesion: {espia.consultas}")
+    culpables = [q for q in espia.consultas if ESCRITURA.search(q)]
+    assert len(culpables) == 2, (
+        f"las escrituras idempotentes por `execute_write`/`begin_transaction` no "
+        f"se detectan: {espia.consultas}")
 
 
 def test_la_foto_ve_un_nodo_creado_FUERA_de_los_workspaces_sembrados(driver, semilla):
