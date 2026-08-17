@@ -401,14 +401,17 @@ así que no encontraba nada *ni para el admin*. El índice pasa a ser **nombre �
 alias · tipo · resumen · `entity_id`**, donde `entity_id` es el identificador
 **estable de dominio** que entrega el backend (`serialize_node`, campo nuevo).
 
-> **Ojo:** esto está entregado **con el proveedor `mock`**. Con Neo4j la
-> búsqueda por identificador queda **inerte** hasta que su proyección incluya
-> `entity_id`; ver Limitaciones.
+> **Ojo (histórico):** esto se entregó **sólo con el proveedor `mock`**. Con
+> Neo4j la búsqueda por identificador quedaba **inerte** hasta que su proyección
+> incluyera `entity_id`. **Ya la incluye** desde el carril *IDENTIFICADOR
+> DURABLE*: la búsqueda por identificador está viva con ambos proveedores. Ver
+> Limitaciones.
 
 Lo que **no** entra, y hay una prueba por cada mitad:
 
-- el `elementId` de Neo4j (hoy `node.id` con ese proveedor): no es identidad
-  durable, se regenera al restaurar un dump;
+- el `elementId` de Neo4j (**era** `node.id` con ese proveedor; hoy `node.id` es
+  el `entity_id` y el `elementId` no se proyecta): no es identidad durable, se
+  regenera al restaurar un dump;
 - cualquier identificador que el backend no haya entregado en ese nodo.
 
 **La regla se comprueba en los dos lados.** `graph_core_spec.js` demuestra que
@@ -531,16 +534,20 @@ node : 3 fallidos   ROJO
 
 ## Limitaciones (honestas)
 
-- **La búsqueda por identificador queda inerte con el proveedor de Neo4j.** El
-  índice del visor busca por `entity_id`, y `entity_id` solo existe si el
-  proveedor lo entrega. La proyección de `neo4j_provider._node_to_dict` **no
-  incluye hoy `entity_id`** (pone el `element_id` técnico en `id`, que
-  deliberadamente *no* se indexa), así que contra Neo4j real teclear un
-  identificador no encuentra nada: **la función descrita más arriba como
-  entregada solo está viva con el proveedor `mock`**. Para activarla en
-  producción hace falta añadir `entity_id` a esa proyección —zona congelada en
-  este carril, no tocada—. Mientras tanto, el resultado de seguridad *sí* se
-  mantiene con ambos proveedores: lo que no se entrega, no se encuentra.
+- ~~**La búsqueda por identificador queda inerte con el proveedor de Neo4j.**~~
+  **RESUELTA** por el carril *IDENTIFICADOR DURABLE* (P0 de RC). Esta limitación
+  decía que `neo4j_provider._node_to_dict` no incluía `entity_id` y que activar
+  la búsqueda por identificador en producción exigía añadirlo a esa proyección.
+  Eso es exactamente lo que se hizo: la proyección publica ahora `entity_id`, y
+  `id` dejó de ser el `element_id` técnico para ser el propio `entity_id`.
+
+  **Cambio de comportamiento, declarado:** contra Neo4j real, teclear un
+  identificador **ya encuentra**, donde antes no encontraba nada. No amplía lo
+  visible ni un elemento — el índice se construye en el cliente sobre los nodos
+  que la vista **ya autorizada** contiene, así que sigue valiendo el resultado de
+  seguridad de siempre: *lo que no se entrega, no se encuentra*. Pero es una
+  función que pasa de inerte a viva sin que nadie la pidiera en ese carril, y
+  por eso se escribe aquí en vez de descubrirse en producción.
 - **La huella observable cubre diecisiete canales, no «todo».** La lista exacta
   está en la tabla de más arriba y en el docstring de `_huella_de_busqueda`.
   Fuera quedan, a sabiendas, los detalles de implementación y todo lo que no
@@ -643,6 +650,134 @@ medidos contra el contrato real.
    Antes el mensaje llevaba un número ("Se han añadido N…"); ahora es constante.
    Un indicador de completitud tendría que venir del backend como dato ya
    decidido por la política, y no se ha inventado en el cliente.
+
+### Identidad durable: las CINCO vías, y por qué eran cinco y no cuatro
+
+El carril *IDENTIFICADOR DURABLE* no sólo cambia qué identificador viaja
+(`entity_id` en vez del `elementId` de Neo4j): cierra, **en el Cypher**, todos
+los caminos por los que un nodo sin identidad durable podía asomarse al visor.
+Se cierran en la consulta y no con un filtro posterior a propósito: un filtro
+posterior es código que alguien puede borrar sin que ninguna consulta cambie.
+
+| Vía | Dónde | Qué pasaba sin la exigencia |
+|---|---|---|
+| MR4a | `relations_for_entity` / `out_query` | la ficha lista una relación **saliente** cuyo enlace no abre |
+| MR4b | `relations_for_entity` / `in_query` | ídem con las **entrantes** — el filtro está duplicado |
+| MR5 | `graph()` / `node_query` | el huérfano llega a `/api/graph` con `"id": null` y `nodes_total` sube mientras el panel lista uno menos |
+| MR6 | `search()` | un resultado de búsqueda cuyo enlace no abre |
+| MR7 | `graph()` / `rel_query` | arista colgante contada en `edges_total` antes de recortarla |
+| **MR8** | **`workspaces()`** | **el selector ofrece un workspace que se abre vacío (0 de 0)** |
+
+**MR8 es la quinta vía, y es distinta de las otras cuatro.** `workspaces()` es
+el **único** camino que `PolicyFilteredProvider` no recalcula: su `workspaces()`
+se limita a intersectar con `allowed_workspaces`, no deriva de `list_entities`
+como el resto de métodos. Por eso lo que liste el proveedor base es lo que llega
+al selector, tal cual. **Medido:** sembrando un único nodo sin `entity_id` en un
+workspace propio, el workspace **aparecía** en el listado y luego se **abría
+vacío**.
+
+Severidad **BAJA**: sólo se muestran workspaces ya permitidos, así que no cruza
+inquilinos. Pero es la misma fuga por diferencia un nivel más arriba, y tiene un
+interés muy concreto: **si el bloqueo de despliegue se confirma, así es como se
+presentaría en producción — todos los workspaces en el selector, todos vacíos.**
+Cubierta por `test_MR8_un_workspace_solo_con_nodos_sin_entity_id_no_se_lista`,
+con su control de ablación (el mismo nodo, con `entity_id`, **sí** se lista) y
+con la comprobación de que el workspace en cuestión no entrega nada (`(0, 0)`),
+que es lo que hace que ofrecerlo sea mentir.
+
+#### El superviviente: un filtro duplicado sólo cuenta como una defensa si las dos mitades pueden ponerse rojas
+
+La revisión independiente dejó un superviviente. `relations_for_entity` tiene el
+filtro **duplicado** (`out_query` e `in_query`) y la sección 12 del arnés
+sembraba únicamente una arista **saliente**; el ancla de `calibrar.py` sólo
+casaba con `out_query`. Consecuencia medida: **mutando sólo `in_query` la suite
+quedaba VERDE con el defecto puesto**. Un filtro que ninguna prueba puede poner
+en rojo es código borrable sin que nadie se entere — exactamente lo que este
+carril existe para impedir.
+
+Cerrado así:
+
+- `_sembrar_extra` siembra **las dos** aristas, saliente y entrante
+  (`ARISTAS_EXTRA = 2`);
+- `test_MR4_...` afirma **cada sentido contra su propia cifra**, no el total, y
+  su control de ablación también es por sentido;
+- `calibrar.py` parte MR4 en **MR4a** y **MR4b**, cada una anclada a su línea
+  `MATCH` — sin esa línea los dos textos son idénticos y `replace(..., 1)`
+  mutaría siempre el primero.
+
+#### La calibración ahora se ejerce de verdad, no se declara
+
+Los filtros del proveedor **sólo** se pueden ejercer contra una base real: sin
+Neo4j, `calibrar.py` los *declara* y no los mide, y un control declarado no es
+un control. Por eso el arnés se ejecuta como **un paso más del job
+`Authz integration (Neo4j efímero)`** —no como job nuevo, que sería un check
+requerido nuevo—, con la base efímera del propio job y con tres guardas: rc,
+`veredicto=CALIBRADO`, y `declaradas_sin_ejercer=0` (con Neo4j disponible,
+ninguna mutación puede quedar sin ejercer).
+
+**Medido** (ejecución completa del paso, job `Authz integration (Neo4j
+efímero)`, run `32051250450`, HEAD `8c81722`):
+
+```
+LINEA BASE: rc=0 pasados=19 fallados=0
+[ROJO ok] x12   (incluidas MR4a, MR4b y MR8)
+VUELTA A VERDE: rc=0 pasados=19 sha256_ok=True
+RESUMEN: mutaciones=12 ejercidas=12 enrojecidas=12 declaradas_sin_ejercer=0
+         base=19 final=19 veredicto=CALIBRADO
+```
+
+Antes de este cierre, **ocho** de esas doce quedaban en
+`declaradas_sin_ejercer`. La suite de integración del mismo job pasa de 43 a
+**86 pruebas, 0 omitidas**. Sin Neo4j (portátil, sin contenedores) el arnés sólo
+puede ejercer **4** de las 12 y lo dice en su propia salida: el resto son
+*declaradas*, y eso es una cota, no un total.
+
+#### El arnés tampoco puede quedarse mudo y verde (y sus anclas son únicas)
+
+Dos huecos que encontró la revisión del delta, ambos del mismo tipo que los que
+este carril persigue:
+
+**El paso de CI podía pasar sin ejercer nada.** Sus guardas miraban `rc`,
+`veredicto` y `declaradas_sin_ejercer`; una salida
+`mutaciones=0 ejercidas=0 enrojecidas=0 declaradas_sin_ejercer=0 …
+veredicto=CALIBRADO` **las pasaba las tres**. Y la tercera era un grep de
+**ausencia**: si el campo se renombraba, dejaba de vigilar en silencio. Ahora:
+
+- `MINIMO_MUTACIONES = 12` y `MINIMO_EJERCIDAS = 4` en el arnés, hermanos de
+  `MINIMO_TESTS`, más una comprobación de contabilidad
+  (`ejercidas + declaradas == len(MUTACIONES)`);
+- el paso de CI **extrae** los tres números en vez de comprobar que algo no
+  aparece; si el campo desaparece o cambia de nombre, la extracción sale vacía y
+  eso mismo pone el paso rojo. Con Neo4j exige `ejercidas ≥ 12`,
+  `enrojecidas == ejercidas` y `declaradas == 0`.
+
+**Ningún ancla se repite.** La de MR6 aparecía **dos veces** —en `search()` y en
+`graph()/node_query`— y acertaba por **orden de fichero**: si `search()` bajara
+por debajo de `graph()`, MR6 mutaría `node_query` y su rojo sería **prestado de
+MR5**, la misma trampa que MR4 acaba de pagar. Se ancla ahora a su línea del
+`CONTAINS`, y el arnés **afirma** que cada ancla aparece exactamente una vez —
+una aserción que viaja con el fichero vale más que una revisión a mano de hoy.
+
+**Ambos arreglos con su control negativo** (medido, árbol limpio antes y
+después, mutando `calibrar.py` y revirtiendo por SHA-256):
+
+| Modificación deliberada | Resultado |
+|---|---|
+| `MUTACIONES` vaciada | **rc=2**, «suelo de mutaciones (0 < 12)» |
+| todas las mutaciones sin objetivo (`ejercidas=0`) | **rc=1**, `veredicto=FALLO` |
+| un ancla duplicada | **rc=2**, «MR6…: 2 ocurrencias» |
+
+Y las guardas del paso de CI, alimentadas con salidas sintéticas: el *mudo* que
+pasaba las tres viejas → rojo; campo renombrado → rojo; 11 de 12 → rojo; una que
+no enrojece → rojo; la salida real → verde (control positivo).
+
+Normas del arnés que siguen siendo las mismas: **un proceso por mutación**,
+`__pycache__` purgado y `PYTHONDONTWRITEBYTECODE=1`, **reversión verificada por
+SHA-256** (no por presencia de cadenas), la mutación tiene que **morder** (si el
+texto no aparece, es fallo del arnés) y suelo de plausibilidad en la línea base.
+Las corridas **con mutación** usan `-x`: basta una prueba roja para responder la
+pregunta, y ese ahorro es lo que permite ejercerlas dentro del CI. La línea base
+y la vuelta a verde **no** lo usan: ahí hace falta el recuento completo.
 
 ## Pendientes
 

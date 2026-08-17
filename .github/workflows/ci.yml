@@ -174,6 +174,68 @@ jobs:
             exit 1
           fi
 
+      - name: Calibracion de IDENTIDAD DURABLE (cada defecto tiene que enrojecer)
+        env:
+          NEO4J_TEST_URI: bolt://localhost:7687
+          NEO4J_TEST_USER: neo4j
+          NEO4J_TEST_PASSWORD: testtesttest
+        run: |
+          # Los filtros de identidad durable del proveedor SOLO se pueden
+          # ejercer contra una base real: sin Neo4j, el arnes los declara y no
+          # los mide, y un control declarado no es un control. Aqui, con la
+          # base efimera del propio job, se REINTRODUCE cada defecto uno a uno
+          # y se exige que la suite lo detecte.
+          #
+          # Va en ESTE job, como un paso mas, a proposito: un job nuevo seria
+          # un check requerido nuevo, y esta medida es parte del mismo contrato
+          # que las pruebas de arriba, no una puerta aparte.
+          #
+          # El arnes MUTA `viewer/app/providers/neo4j_provider.py` y lo revierte
+          # verificando SHA-256. Por eso este paso va DESPUES de la suite y no
+          # se paraleliza con nada que lea ese fichero.
+          set +e
+          out="$(python3 artifacts/identidad-durable/calibrar.py 2>&1)"
+          rc=$?
+          set -e
+          echo "$out"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::la calibracion de identidad durable ha FALLADO"
+            exit 1
+          fi
+          # Un arnes que no ejerce nada saldria con rc=0 y estaria mintiendo.
+          if ! echo "$out" | grep -qE 'veredicto=CALIBRADO'; then
+            echo "::error::la calibracion no emitio veredicto CALIBRADO"
+            exit 1
+          fi
+          # SUELO, no ausencia. La version anterior de esta guarda buscaba
+          # `declaradas_sin_ejercer=[1-9]`, es decir, comprobaba que ALGO no
+          # aparece: una salida `ejercidas=0 ... declaradas_sin_ejercer=0
+          # veredicto=CALIBRADO` la pasaba entera, y un renombrado del campo la
+          # dejaba sin vigilar EN SILENCIO. Ahora se EXTRAEN los tres numeros:
+          # si el campo desaparece o cambia de nombre, la extraccion sale vacia
+          # y el paso se pone rojo por eso mismo.
+          ejercidas="$(echo "$out" | grep -oE 'ejercidas=[0-9]+' | head -1 | cut -d= -f2)"
+          enrojecidas="$(echo "$out" | grep -oE 'enrojecidas=[0-9]+' | head -1 | cut -d= -f2)"
+          declaradas="$(echo "$out" | grep -oE 'declaradas_sin_ejercer=[0-9]+' | head -1 | cut -d= -f2)"
+          echo "ejercidas=$ejercidas enrojecidas=$enrojecidas declaradas=$declaradas"
+          if [ -z "$ejercidas" ] || [ -z "$enrojecidas" ] || [ -z "$declaradas" ]; then
+            echo "::error::el RESUMEN no trae ejercidas/enrojecidas/declaradas_sin_ejercer: el arnes ha cambiado de formato y esta guarda ya no vigila nada"
+            exit 1
+          fi
+          # Con la base efimera del job, las DOCE tienen que ejercerse.
+          if [ "$ejercidas" -lt 12 ]; then
+            echo "::error::solo se ejercieron $ejercidas mutaciones (con Neo4j tienen que ser 12): arnes mudo"
+            exit 1
+          fi
+          if [ "$enrojecidas" -ne "$ejercidas" ]; then
+            echo "::error::$enrojecidas de $ejercidas mutaciones enrojecieron"
+            exit 1
+          fi
+          if [ "$declaradas" -ne 0 ]; then
+            echo "::error::con Neo4j disponible NINGUNA mutacion puede quedar sin ejercer"
+            exit 1
+          fi
+
   test-login-browser:
     name: Login browser contract (Playwright)
     runs-on: ubuntu-latest
