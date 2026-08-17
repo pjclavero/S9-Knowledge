@@ -174,6 +174,44 @@ jobs:
             exit 1
           fi
 
+      - name: Calibracion de IDENTIDAD DURABLE (cada defecto tiene que enrojecer)
+        env:
+          NEO4J_TEST_URI: bolt://localhost:7687
+          NEO4J_TEST_USER: neo4j
+          NEO4J_TEST_PASSWORD: testtesttest
+        run: |
+          # Los filtros de identidad durable del proveedor SOLO se pueden
+          # ejercer contra una base real: sin Neo4j, el arnes los declara y no
+          # los mide, y un control declarado no es un control. Aqui, con la
+          # base efimera del propio job, se REINTRODUCE cada defecto uno a uno
+          # y se exige que la suite lo detecte.
+          #
+          # Va en ESTE job, como un paso mas, a proposito: un job nuevo seria
+          # un check requerido nuevo, y esta medida es parte del mismo contrato
+          # que las pruebas de arriba, no una puerta aparte.
+          #
+          # El arnes MUTA `viewer/app/providers/neo4j_provider.py` y lo revierte
+          # verificando SHA-256. Por eso este paso va DESPUES de la suite y no
+          # se paraleliza con nada que lea ese fichero.
+          set +e
+          out="$(python3 artifacts/identidad-durable/calibrar.py 2>&1)"
+          rc=$?
+          set -e
+          echo "$out"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::la calibracion de identidad durable ha FALLADO"
+            exit 1
+          fi
+          # Un arnes que no ejerce nada saldria con rc=0 y estaria mintiendo.
+          if ! echo "$out" | grep -qE 'veredicto=CALIBRADO'; then
+            echo "::error::la calibracion no emitio veredicto CALIBRADO"
+            exit 1
+          fi
+          if echo "$out" | grep -qE 'declaradas_sin_ejercer=[1-9]'; then
+            echo "::error::con Neo4j disponible NINGUNA mutacion puede quedar sin ejercer"
+            exit 1
+          fi
+
   test-login-browser:
     name: Login browser contract (Playwright)
     runs-on: ubuntu-latest

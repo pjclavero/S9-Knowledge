@@ -651,6 +651,78 @@ medidos contra el contrato real.
    Un indicador de completitud tendría que venir del backend como dato ya
    decidido por la política, y no se ha inventado en el cliente.
 
+### Identidad durable: las CINCO vías, y por qué eran cinco y no cuatro
+
+El carril *IDENTIFICADOR DURABLE* no sólo cambia qué identificador viaja
+(`entity_id` en vez del `elementId` de Neo4j): cierra, **en el Cypher**, todos
+los caminos por los que un nodo sin identidad durable podía asomarse al visor.
+Se cierran en la consulta y no con un filtro posterior a propósito: un filtro
+posterior es código que alguien puede borrar sin que ninguna consulta cambie.
+
+| Vía | Dónde | Qué pasaba sin la exigencia |
+|---|---|---|
+| MR4a | `relations_for_entity` / `out_query` | la ficha lista una relación **saliente** cuyo enlace no abre |
+| MR4b | `relations_for_entity` / `in_query` | ídem con las **entrantes** — el filtro está duplicado |
+| MR5 | `graph()` / `node_query` | el huérfano llega a `/api/graph` con `"id": null` y `nodes_total` sube mientras el panel lista uno menos |
+| MR6 | `search()` | un resultado de búsqueda cuyo enlace no abre |
+| MR7 | `graph()` / `rel_query` | arista colgante contada en `edges_total` antes de recortarla |
+| **MR8** | **`workspaces()`** | **el selector ofrece un workspace que se abre vacío (0 de 0)** |
+
+**MR8 es la quinta vía, y es distinta de las otras cuatro.** `workspaces()` es
+el **único** camino que `PolicyFilteredProvider` no recalcula: su `workspaces()`
+se limita a intersectar con `allowed_workspaces`, no deriva de `list_entities`
+como el resto de métodos. Por eso lo que liste el proveedor base es lo que llega
+al selector, tal cual. **Medido:** sembrando un único nodo sin `entity_id` en un
+workspace propio, el workspace **aparecía** en el listado y luego se **abría
+vacío**.
+
+Severidad **BAJA**: sólo se muestran workspaces ya permitidos, así que no cruza
+inquilinos. Pero es la misma fuga por diferencia un nivel más arriba, y tiene un
+interés muy concreto: **si el bloqueo de despliegue se confirma, así es como se
+presentaría en producción — todos los workspaces en el selector, todos vacíos.**
+Cubierta por `test_MR8_un_workspace_solo_con_nodos_sin_entity_id_no_se_lista`,
+con su control de ablación (el mismo nodo, con `entity_id`, **sí** se lista) y
+con la comprobación de que el workspace en cuestión no entrega nada (`(0, 0)`),
+que es lo que hace que ofrecerlo sea mentir.
+
+#### El superviviente: un filtro duplicado sólo cuenta como una defensa si las dos mitades pueden ponerse rojas
+
+La revisión independiente dejó un superviviente. `relations_for_entity` tiene el
+filtro **duplicado** (`out_query` e `in_query`) y la sección 12 del arnés
+sembraba únicamente una arista **saliente**; el ancla de `calibrar.py` sólo
+casaba con `out_query`. Consecuencia medida: **mutando sólo `in_query` la suite
+quedaba VERDE con el defecto puesto**. Un filtro que ninguna prueba puede poner
+en rojo es código borrable sin que nadie se entere — exactamente lo que este
+carril existe para impedir.
+
+Cerrado así:
+
+- `_sembrar_extra` siembra **las dos** aristas, saliente y entrante
+  (`ARISTAS_EXTRA = 2`);
+- `test_MR4_...` afirma **cada sentido contra su propia cifra**, no el total, y
+  su control de ablación también es por sentido;
+- `calibrar.py` parte MR4 en **MR4a** y **MR4b**, cada una anclada a su línea
+  `MATCH` — sin esa línea los dos textos son idénticos y `replace(..., 1)`
+  mutaría siempre el primero.
+
+#### La calibración ahora se ejerce de verdad, no se declara
+
+Los filtros del proveedor **sólo** se pueden ejercer contra una base real: sin
+Neo4j, `calibrar.py` los *declara* y no los mide, y un control declarado no es
+un control. Por eso el arnés se ejecuta como **un paso más del job
+`Authz integration (Neo4j efímero)`** —no como job nuevo, que sería un check
+requerido nuevo—, con la base efímera del propio job y con tres guardas: rc,
+`veredicto=CALIBRADO`, y `declaradas_sin_ejercer=0` (con Neo4j disponible,
+ninguna mutación puede quedar sin ejercer).
+
+Normas del arnés que siguen siendo las mismas: **un proceso por mutación**,
+`__pycache__` purgado y `PYTHONDONTWRITEBYTECODE=1`, **reversión verificada por
+SHA-256** (no por presencia de cadenas), la mutación tiene que **morder** (si el
+texto no aparece, es fallo del arnés) y suelo de plausibilidad en la línea base.
+Las corridas **con mutación** usan `-x`: basta una prueba roja para responder la
+pregunta, y ese ahorro es lo que permite ejercerlas dentro del CI. La línea base
+y la vuelta a verde **no** lo usan: ahí hace falta el recuento completo.
+
 ## Pendientes
 
 - Decidir si los filtros deben empujarse al proveedor para operar sobre el grafo

@@ -60,11 +60,19 @@ def purgar_pycache() -> int:
     return n
 
 
-def pytest(objetivos: list[str]) -> tuple[int, int, int]:
-    """Ejecuta pytest en un proceso NUEVO. Devuelve (rc, pasados, fallados)."""
+def pytest(objetivos: list[str], *, parar_en_el_primero: bool = False) -> tuple[int, int, int]:
+    """Ejecuta pytest en un proceso NUEVO. Devuelve (rc, pasados, fallados).
+
+    ``parar_en_el_primero`` (``-x``) SOLO se usa en las corridas CON MUTACION,
+    nunca en la linea base ni en la vuelta a verde: ahi hace falta el recuento
+    COMPLETO. Con el defecto puesto basta UNA prueba roja para responder la
+    pregunta («¿hay alguna capaz de verlo?»), y ahorrarse el resto es lo que
+    permite ejercer las mutaciones contra la base efimera dentro del CI.
+    """
     entorno = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
     r = subprocess.run(
-        [sys.executable, "-m", "pytest", *objetivos, "-q", "--no-header", "-p", "no:cacheprovider"],
+        [sys.executable, "-m", "pytest", *objetivos, "-q", "--no-header", "-p", "no:cacheprovider",
+         *(["-x"] if parar_en_el_primero else [])],
         cwd=RAIZ, env=entorno, capture_output=True, text=True,
     )
     salida = r.stdout + r.stderr
@@ -119,10 +127,22 @@ MUTACIONES = [
     # codigo de produccion sin una sola prueba capaz de ponerse roja, que es
     # lo mismo que codigo que se puede borrar sin que nadie se entere. Ahora
     # los cubre la seccion 12 del contrato de paneles.
+    # MR4 son DOS mutaciones, no una: el filtro esta DUPLICADO (`out_query` e
+    # `in_query`) y la primera version del arnes solo sembraba una arista
+    # SALIENTE, asi que mutar `in_query` a solas dejaba la suite VERDE con el
+    # defecto puesto (superviviente nº 13 de la revision independiente). El
+    # ancla de cada una incluye su linea MATCH: sin ella los dos textos son
+    # identicos y `replace(..., 1)` mutaria siempre el primero.
     (
-        "MR4: `relations_for_entity` admite extremos sin entity_id",
-        "WHERE n.entity_id = $id AND m.entity_id IS NOT NULL\n        RETURN r, n.entity_id AS desde, m.entity_id AS hacia",
-        "WHERE n.entity_id = $id\n        RETURN r, n.entity_id AS desde, m.entity_id AS hacia",
+        "MR4a: `relations_for_entity`/out_query admite extremos sin entity_id",
+        "MATCH (n:Entity)-[r]->(m:Entity)\n        WHERE n.entity_id = $id AND m.entity_id IS NOT NULL",
+        "MATCH (n:Entity)-[r]->(m:Entity)\n        WHERE n.entity_id = $id",
+        [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
+    ),
+    (
+        "MR4b: `relations_for_entity`/in_query admite extremos sin entity_id",
+        "MATCH (n:Entity)<-[r]-(m:Entity)\n        WHERE n.entity_id = $id AND m.entity_id IS NOT NULL",
+        "MATCH (n:Entity)<-[r]-(m:Entity)\n        WHERE n.entity_id = $id",
         [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
     ),
     (
@@ -141,6 +161,16 @@ MUTACIONES = [
         "MR7: `graph()/rel_query` deja pasar aristas con extremos sin identidad",
         "          AND n.entity_id IS NOT NULL AND m.entity_id IS NOT NULL\n        RETURN n, r, m",
         "        RETURN n, r, m",
+        [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
+    ),
+    # --- MR8: la QUINTA VIA. `workspaces()` es el unico camino que
+    # `PolicyFilteredProvider` no recalcula (solo intersecta con
+    # `allowed_workspaces`), asi que sin exigencia EN LA CONSULTA un workspace
+    # sin identidad durable se ofrece en el selector y se abre vacio.
+    (
+        "MR8: `workspaces()` deja de exigir entity_id (selector lleno, todo vacio)",
+        "        WHERE n.workspace IS NOT NULL AND n.entity_id IS NOT NULL\n        RETURN DISTINCT n.workspace AS workspace",
+        "        WHERE n.workspace IS NOT NULL\n        RETURN DISTINCT n.workspace AS workspace",
         [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
     ),
 ]
@@ -178,7 +208,7 @@ def main() -> int:
         PROVEEDOR.write_text(original.replace(viejo, nuevo, 1), encoding="utf-8")
         assert sha256(PROVEEDOR) != hash_original, "la mutacion no cambio el fichero"
         purgar_pycache()
-        rc_m, pas_m, fal_m = pytest(objetivos)
+        rc_m, pas_m, fal_m = pytest(objetivos, parar_en_el_primero=True)
         # Reversion INMEDIATA y verificada por hash, pase lo que pase.
         PROVEEDOR.write_text(original, encoding="utf-8")
         purgar_pycache()

@@ -1476,9 +1476,28 @@ def test_un_nodo_sin_entity_id_no_se_lista_y_el_TOTAL_no_lo_cuenta(
 # incapaz de discriminar y falla.
 
 NOMBRE_EXTRA = "Nodo extra de la seccion 12"
+#: Workspace que NO existe en la semilla: se crea y se borra dentro del test de
+#: `workspaces()`. Tiene que ser propio para que su aparicion o su ausencia en
+#: el listado sea atribuible a UN solo nodo.
+WS_SIN_IDENTIDAD = "contrato:sin-identidad"
+
+#: Aristas sembradas por `_sembrar_extra(con_arista=True)`: UNA SALIENTE y UNA
+#: ENTRANTE respecto de `abl`.
+#:
+#: POR QUE LAS DOS (superviviente MR4 de la revision independiente)
+#: ---------------------------------------------------------------
+#: `relations_for_entity` tiene el filtro DUPLICADO -- `out_query` e
+#: `in_query` --, y esta seccion sembraba solo la saliente. Consecuencia MEDIDA:
+#: mutando UNICAMENTE `in_query` la suite quedaba VERDE con el defecto puesto.
+#: Un filtro que ningun test puede poner rojo es codigo borrable sin que nadie
+#: se entere: exactamente lo que este carril existe para impedir. Con las dos
+#: aristas, mutar `in_query` sola y mutar `out_query` sola son DOS mutaciones
+#: distintas y AMBAS rojas.
+ARISTAS_EXTRA = 2
 
 
-def _sembrar_extra(driver, *, entity_id: str | None, con_arista: bool) -> None:
+def _sembrar_extra(driver, *, entity_id: str | None, con_arista: bool,
+                   workspace: str = WS) -> None:
     """Crea UN nodo con propiedades identicas salvo por `entity_id`.
 
     Visibilidad `player` y ambito `juego`: la politica lo deja ver. Si no fuera
@@ -1486,7 +1505,7 @@ def _sembrar_extra(driver, *, entity_id: str | None, con_arista: bool) -> None:
     midiendo la barrera de autorizacion, que ya tiene sus propias pruebas.
     """
     props = {"canonical_name": NOMBRE_EXTRA, "entity_type": "LUGAR",
-             "workspace": WS, "scope": "juego", "visibility": "player",
+             "workspace": workspace, "scope": "juego", "visibility": "player",
              "review_status": "reviewed", "confidence": 0.9,
              "source_document": "seccion12.pdf", "source_kind": "manual"}
     if entity_id is not None:
@@ -1498,7 +1517,15 @@ def _sembrar_extra(driver, *, entity_id: str | None, con_arista: bool) -> None:
                 "MATCH (a:Entity {entity_id:'abl'}), (x:Entity {canonical_name:$n}) "
                 "CREATE (a)-[:VENERA {visibility:'player', workspace:$ws, "
                 "scope:'juego', relation_label_es:'venera'}]->(x)",
-                {"n": NOMBRE_EXTRA, "ws": WS},
+                {"n": NOMBRE_EXTRA, "ws": workspace},
+            )
+            # La ENTRANTE: sin ella, `in_query` no tiene ninguna prueba capaz
+            # de ponerse roja (ver ARISTAS_EXTRA).
+            s.run(
+                "MATCH (a:Entity {entity_id:'abl'}), (x:Entity {canonical_name:$n}) "
+                "CREATE (x)-[:SIRVE_A {visibility:'player', workspace:$ws, "
+                "scope:'juego', relation_label_es:'sirve a'}]->(a)",
+                {"n": NOMBRE_EXTRA, "ws": workspace},
             )
 
 
@@ -1585,9 +1612,10 @@ def test_MR7_una_arista_hacia_un_nodo_sin_entity_id_no_entra_en_el_grafo(
     e_base = base["view"]["edges_total"]
 
     _sembrar_extra(driver, entity_id=None, con_arista=True)
-    with driver.session() as s:  # suelo: la arista existe DE VERDAD
-        assert s.run("MATCH (:Entity {entity_id:'abl'})-[r]->(:Entity {canonical_name:$n}) "
-                     "RETURN count(r) AS c", {"n": NOMBRE_EXTRA}).single()["c"] == 1
+    with driver.session() as s:  # suelo: LAS DOS aristas existen DE VERDAD
+        assert s.run("MATCH (:Entity {entity_id:'abl'})-[r]-(:Entity {canonical_name:$n}) "
+                     "RETURN count(r) AS c",
+                     {"n": NOMBRE_EXTRA}).single()["c"] == ARISTAS_EXTRA
 
     datos = _api_graph(c)
     assert datos["view"]["edges_total"] == e_base, (
@@ -1604,8 +1632,8 @@ def test_MR7_una_arista_hacia_un_nodo_sin_entity_id_no_entra_en_el_grafo(
     _borrar_extra(driver)
     _sembrar_extra(driver, entity_id="extra12", con_arista=True)
     con_id = _api_graph(c)
-    assert con_id["view"]["edges_total"] == e_base + 1, (
-        "con `entity_id` la arista tampoco aparece: el test no discrimina"
+    assert con_id["view"]["edges_total"] == e_base + ARISTAS_EXTRA, (
+        "con `entity_id` las aristas tampoco aparecen: el test no discrimina"
     )
 
 
@@ -1648,36 +1676,105 @@ def test_MR4_las_relaciones_de_una_ficha_no_traen_extremos_sin_entity_id(
         app_real, proveedor, entorno, driver, extra):
     """La ficha de `abl` no puede mostrar una relacion que no lleva a ningun
     sitio: su enlace apuntaria a un identificador que no existe.
+
+    LAS DOS DIRECCIONES, POR SEPARADO
+    ---------------------------------
+    `relations_for_entity` tiene DOS consultas con el MISMO filtro (`out_query`
+    e `in_query`). Medir solo el total las trata como una sola defensa: mutando
+    `in_query` a solas la suite quedaba VERDE (superviviente MR4 de la revision
+    independiente). Aqui se afirma cada sentido contra su propia cifra, asi que
+    cada consulta tiene su control negativo propio.
     """
     c = cliente(app_real, usuario(entorno, "mr4", ROL["G"]))
 
-    def _relaciones():
+    def _relaciones() -> tuple[int, int]:
         salientes, entrantes = proveedor.relations_for_entity("abl")
-        return salientes + entrantes
+        for a in salientes + entrantes:
+            assert a.get("from") is not None and a.get("to") is not None, a
+        return len(salientes), len(entrantes)
 
-    base = len(_relaciones())
+    base_out, base_in = _relaciones()
 
     _sembrar_extra(driver, entity_id=None, con_arista=True)
-    rels = _relaciones()
-    assert len(rels) == base, (
-        f"`relations_for_entity` paso de {base} a {len(rels)} relaciones "
-        "incluyendo una con extremo sin identidad"
+    ahora_out, ahora_in = _relaciones()
+    assert ahora_out == base_out, (
+        f"`out_query` paso de {base_out} a {ahora_out} salientes incluyendo una "
+        "con extremo sin identidad"
     )
-    for a in rels:
-        assert a.get("from") is not None and a.get("to") is not None, a
+    assert ahora_in == base_in, (
+        f"`in_query` paso de {base_in} a {ahora_in} entrantes incluyendo una "
+        "con extremo sin identidad"
+    )
 
     # Y en la pantalla: la ficha no menciona al huerfano.
     ficha = c.get(f"{SLOT_G.prefix}/item/abl")
     assert ficha.status_code == 200
     assert NOMBRE_EXTRA not in ficha.text
 
-    # CONTROL DE ABLACION.
+    # CONTROL DE ABLACION, tambien por sentido: si con `entity_id` alguno de los
+    # dos no llegara, ese sentido no estaria midiendo nada.
     _borrar_extra(driver)
     _sembrar_extra(driver, entity_id="extra12", con_arista=True)
-    assert len(_relaciones()) == base + 1, (
-        "con `entity_id` la relacion tampoco llega: el test no discrimina"
+    con_out, con_in = _relaciones()
+    assert con_out == base_out + 1, (
+        "con `entity_id` la relacion SALIENTE tampoco llega: `out_query` no se mide"
+    )
+    assert con_in == base_in + 1, (
+        "con `entity_id` la relacion ENTRANTE tampoco llega: `in_query` no se mide"
     )
     assert NOMBRE_EXTRA in c.get(f"{SLOT_G.prefix}/item/abl").text
+
+
+# --- MR8: `workspaces()`, la quinta via -------------------------------------
+
+def test_MR8_un_workspace_solo_con_nodos_sin_entity_id_no_se_lista(
+        app_real, proveedor, entorno, driver, extra):
+    """El unico camino que `PolicyFilteredProvider` NO recalcula.
+
+    Su `workspaces()` se limita a intersectar con `allowed_workspaces`: no
+    deriva de `list_entities`, asi que lo que el proveedor base liste es lo que
+    llega al selector. Un workspace cuyos nodos no tienen identidad durable
+    aparece y luego se abre VACIO (0 de 0) -- la misma fuga por diferencia de
+    MR4-MR7, un nivel mas arriba.
+
+    Severidad BAJA (solo se muestran workspaces ya permitidos, no cruza
+    inquilinos), pero es la forma EXACTA en que se presentaria en produccion si
+    el bloqueo de despliegue se confirmara: el selector lleno, todo vacio.
+    """
+    with driver.session() as s:  # suelo: el workspace no existe de antes
+        assert s.run("MATCH (n:Entity {workspace:$w}) RETURN count(n) AS c",
+                     {"w": WS_SIN_IDENTIDAD}).single()["c"] == 0
+
+    # --- sin identidad durable: el workspace NO se lista
+    _sembrar_extra(driver, entity_id=None, con_arista=False,
+                   workspace=WS_SIN_IDENTIDAD)
+    with driver.session() as s:  # suelo: el nodo existe DE VERDAD
+        assert s.run("MATCH (n:Entity {workspace:$w}) RETURN count(n) AS c",
+                     {"w": WS_SIN_IDENTIDAD}).single()["c"] == 1
+
+    listado = proveedor.workspaces()
+    assert WS in listado, "arnes vacio: no se lista ni el workspace de la semilla"
+    assert WS_SIN_IDENTIDAD not in listado, (
+        f"`workspaces()` ofrece {WS_SIN_IDENTIDAD!r}, que se abriria vacio: "
+        "fuga por diferencia en el selector de workspaces"
+    )
+
+    # Y la razon por la que ofrecerlo seria mentir: no tiene NADA que entregar.
+    nodos, total = proveedor.list_entities(WS_SIN_IDENTIDAD, limit=10, offset=0)
+    assert (len(nodos), total) == (0, 0), (
+        "el workspace entrega contenido: entonces este test no esta midiendo "
+        "«se ofrece algo vacio», y hay que rehacerlo"
+    )
+
+    # --- CONTROL DE ABLACION: el MISMO nodo, con `entity_id`, SI lo lista.
+    _borrar_extra(driver)
+    _sembrar_extra(driver, entity_id="extra12", con_arista=False,
+                   workspace=WS_SIN_IDENTIDAD)
+    con_id = proveedor.workspaces()
+    assert WS_SIN_IDENTIDAD in con_id, (
+        "con `entity_id` tampoco se lista: este test no sabe distinguir "
+        "«excluido por falta de identidad» de «excluido por cualquier otra cosa»"
+    )
 
 
 # --- EXCEPCION DECLARADA: el `id` de arista en JSON -------------------------

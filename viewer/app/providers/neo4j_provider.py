@@ -185,9 +185,24 @@ class Neo4jGraphProvider(GraphProvider):
             return False
 
     def workspaces(self) -> list[str]:
+        # QUINTA VIA DE LA MISMA FUGA (severidad BAJA, cerrada aqui a proposito).
+        # ------------------------------------------------------------------
+        # Este es el UNICO camino que `PolicyFilteredProvider` no recalcula: su
+        # `workspaces()` se limita a intersectar con `allowed_workspaces`, no
+        # deriva el listado de `list_entities`. Sin exigir identidad durable EN
+        # LA CONSULTA, un workspace cuyos nodos no tengan `entity_id` aparece en
+        # el selector y luego se abre VACIO (0 de 0): la misma fuga por
+        # diferencia que cierran MR4-MR7, un nivel mas arriba. No cruza
+        # inquilinos -- solo se listan workspaces ya permitidos --, pero si el
+        # bloqueo de despliegue se confirma, asi se presentaria en produccion:
+        # todos los workspaces en el selector, todos vacios.
+        #
+        # Se cierra en el Cypher, no filtrando despues, por la misma razon que
+        # las otras cuatro: un filtro posterior es codigo que alguien puede
+        # borrar sin que ninguna consulta cambie.
         query = """
         MATCH (n:Entity)
-        WHERE n.workspace IS NOT NULL
+        WHERE n.workspace IS NOT NULL AND n.entity_id IS NOT NULL
         RETURN DISTINCT n.workspace AS workspace
         ORDER BY workspace
         """
