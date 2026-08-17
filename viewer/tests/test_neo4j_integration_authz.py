@@ -254,9 +254,11 @@ def _ids_visibles(prov, ctx):
     pruebas anteriores sin decir por que."""
     from app.authz.filtered_provider import PolicyFilteredProvider
     items, _ = PolicyFilteredProvider(prov, ctx).list_entities(WS, limit=1000)
-    # El nombre de dominio aflora como `label` (desde `canonical_name`); `id` es
-    # el elementId de Neo4j y `entity_id` no viaja en la proyeccion del visor.
-    # Se usa la misma clave que `_nombres`, que ya funcionaba en este fichero.
+    # El nombre de dominio aflora como `label` (desde `canonical_name`). Se usa
+    # la misma clave que `_nombres`, que ya funcionaba en este fichero.
+    # (Nota historica: aqui decia que `entity_id` no viajaba en la proyeccion
+    # del visor. Era cierto y era el defecto; el carril de identidad durable lo
+    # corrigio y ahora `id` == `entity_id`.)
     return {i.get("label") for i in items}
 
 
@@ -302,8 +304,499 @@ def test_el_acceso_por_id_no_esquiva_la_revelacion(base):
     from app.authz.filtered_provider import PolicyFilteredProvider
 
     prov = PolicyFilteredProvider(base, _jugador_a(5))
-    with base._driver.session() as s:  # type: ignore[attr-defined]
-        eid = s.run(
-            "MATCH (n:Entity {entity_id:'rev_8'}) RETURN elementId(n) AS id"
-        ).single()["id"]
-    assert prov.entity(eid) is None
+    # CONTRAPESO OBLIGATORIO. Desde que la identidad publicada es `entity_id`,
+    # el proveedor devuelve None ante CUALQUIER `elementId`, asi que la version
+    # anterior de esta prueba --que pedia el `elementId` de `rev_8`-- habria
+    # seguido verde por el motivo equivocado: no por la barrera de revelacion,
+    # sino porque ese identificador ya no resuelve nada. Se pide por el
+    # identificador de dominio, y se exige ademas que uno PERMITIDO si resuelva:
+    # sin esa segunda linea, «todo devuelve None» pasaria por exito.
+    assert prov.entity("rev_0") is not None, (
+        "ni siquiera lo permitido resuelve: la prueba no discrimina"
+    )
+    assert prov.entity("rev_8") is None
+
+
+# ===========================================================================
+# IDENTIFICADOR DURABLE (P0 de Release Candidate)
+# ===========================================================================
+#
+# LO QUE SE DEMUESTRA AQUI
+# ------------------------
+# Que un enlace guardado desde el panel SOBREVIVE a una restauracion del
+# grafo. No es un test de conversion: crea la entidad, saca el enlace del HTML
+# del panel, restaura los datos en un store distinto, COMPRUEBA que el
+# identificador fisico de Neo4j cambio, y vuelve a abrir EXACTAMENTE el enlace
+# guardado.
+#
+# El paso de comprobar que el identificador fisico cambio no es ceremonia: sin
+# el, la prueba pasaria igual con un identificador NO durable, y no probaria
+# nada. Por eso vive en su propio test y ademas se reafirma dentro del test
+# del enlace.
+#
+# COMO SE EMULA EL `dump`/`restore` -- Y POR QUE ESTA EMULACION ES HONESTA
+# -----------------------------------------------------------------------
+# `neo4j-admin database dump` exige parar la base y `restore` exige crear otra;
+# la CI levanta un Neo4j Community de servicio, que no admite ninguna de las
+# dos cosas. Lo que se hace es un volcado LOGICO: se exportan etiquetas y
+# propiedades --exactamente lo que un dump preserva y lo unico que un restore
+# reconstruye--, se vacia el ambito y se vuelve a crear desde el volcado.
+#
+# La propiedad que importa es que el `elementId` es una direccion FISICA del
+# store y se reasigna al reconstruirlo. Esta emulacion la reproduce y, lo que
+# es decisivo, la VERIFICA en vez de suponerla. Lo que la emulacion NO cubre
+# --y se declara-- es el formato binario del dump y el `neo4j-admin` real.
+import re as _re
+
+WS_DUR = "juego:durabilidad"
+
+#: `entity_id` con el formato REAL del writer V3: `entity:new:` + 16 hex de
+#: `sha256(workspace \x1f superficie \x1f tipo)`.
+#:
+#: LA TRAMPA QUE ESTO EVITA: si el `entity_id` de prueba pudiera confundirse
+#: con el `canonical_name` o con un `elementId`, la prueba no distinguiria
+#: «llego el identificador durable» de «se aplico el respaldo al degradado».
+#: Los tres espacios de nombres son deliberadamente disjuntos, y
+#: `test_los_identificadores_de_prueba_no_pueden_confundirse` lo comprueba
+#: ANTES de que ninguna otra medida de esta seccion signifique algo.
+ID_DURABLE = "entity:new:0dcb4f1a2e5b7c93"
+ID_VECINO = "entity:new:aa11bb22cc33dd44"
+#: Existe, pero la politica no lo deja ver (secreto de capa juego).
+ID_SECRETO = "entity:new:5150c0ffee123456"
+#: No se siembra JAMAS.
+ID_FANTASMA = "entity:new:ffffffffffffffff"
+
+NOMBRE_DURABLE = "Agasha Tamori"
+
+#: Forma del identificador fisico del driver: `<n>:<uuid>:<id interno>`.
+_FORMA_ELEMENT_ID = _re.compile(r"^\d+:[0-9a-fA-F-]{36}:\d+$")
+
+_SEMILLA_DUR = [
+    (ID_DURABLE, NOMBRE_DURABLE, "player"),
+    (ID_VECINO, "Kitsuki Yaruma", "player"),
+    (ID_SECRETO, "El pacto de la Fosa", "secret"),
+]
+
+
+def _proveedor():
+    from app.providers.neo4j_provider import Neo4jGraphProvider
+
+    return Neo4jGraphProvider(URI, USER, PASSWORD)
+
+
+def _crear_dur(session):
+    for eid, nombre, vis in _SEMILLA_DUR:
+        session.run(
+            "CREATE (n:Entity $props)",
+            {"props": {"entity_id": eid, "canonical_name": nombre,
+                       "entity_type": "Character", "workspace": WS_DUR,
+                       "scope": "juego", "visibility": vis,
+                       "review_status": "reviewed", "confidence": 0.9}},
+        )
+    session.run(
+        "MATCH (a:Entity {entity_id:$a}), (b:Entity {entity_id:$b}) "
+        "CREATE (a)-[:VENERA {visibility:'player', workspace:$ws, scope:'juego', "
+        "relation_label_es:'venera'}]->(b)",
+        {"a": ID_DURABLE, "b": ID_VECINO, "ws": WS_DUR},
+    )
+
+
+def _borrar_dur(session):
+    session.run("MATCH (n:Entity {workspace:$ws}) DETACH DELETE n", {"ws": WS_DUR})
+
+
+@pytest.fixture
+def grafo_dur(driver):
+    """Ambito propio y desechable. NUNCA toca el de las demas pruebas."""
+    with driver.session() as s:
+        _borrar_dur(s)
+        _crear_dur(s)
+    yield driver
+    with driver.session() as s:
+        _borrar_dur(s)
+
+
+def _element_id_de(driver, entity_id):
+    with driver.session() as s:
+        rec = s.run(
+            "MATCH (n:Entity {entity_id:$id}) RETURN elementId(n) AS eid",
+            {"id": entity_id},
+        ).single()
+    return rec["eid"] if rec else None
+
+
+def _restaurar_en_store_nuevo(driver):
+    """Volcado logico + restauracion. Devuelve (nodos, aristas) revividos.
+
+    Devuelve las cifras a proposito: un arnes que restaura 0 nodos dejaria la
+    base vacia y el test del enlace se pondria rojo sin que nadie supiera que
+    el fallo fue del arnes. Quien llama exige un suelo.
+    """
+    with driver.session() as s:
+        nodos = [
+            {"labels": list(r["l"]), "props": dict(r["p"])}
+            for r in s.run(
+                "MATCH (n:Entity {workspace:$ws}) "
+                "RETURN labels(n) AS l, properties(n) AS p", {"ws": WS_DUR})
+        ]
+        aristas = [
+            {"desde": r["d"], "hacia": r["h"], "tipo": r["t"], "props": dict(r["p"])}
+            for r in s.run(
+                "MATCH (a:Entity {workspace:$ws})-[r]->(b:Entity {workspace:$ws}) "
+                "RETURN a.entity_id AS d, b.entity_id AS h, type(r) AS t, "
+                "properties(r) AS p", {"ws": WS_DUR})
+        ]
+
+        # El volcado tiene que parecerse a lo que preserva un dump de verdad:
+        # etiquetas y propiedades. Si aparecieran etiquetas que la restauracion
+        # de abajo no sabe recrear, la emulacion seria infiel y hay que verlo.
+        for n in nodos:
+            assert n["labels"] == ["Entity"], f"etiquetas no previstas: {n['labels']}"
+            assert "entity_id" in n["props"]
+
+        _borrar_dur(s)
+
+        # Relleno: consume los identificadores internos que acaba de liberar el
+        # borrado, para que la reconstruccion NO caiga por casualidad en los
+        # mismos. Es lo que hace un restore de verdad --reasignar-- sin dejarlo
+        # al azar. Aun asi la desigualdad se AFIRMA, no se da por hecha: si
+        # coincidieran, el test tiene que enrojecer, no disimular.
+        s.run("UNWIND range(1,500) AS i CREATE (:RellenoRestore {i:i})")
+
+        for n in nodos:
+            s.run("CREATE (n:Entity $props)", {"props": n["props"]})
+        for a in aristas:
+            assert _re.match(r"^[A-Z][A-Z0-9_]*$", a["tipo"]), a["tipo"]
+            s.run(
+                "MATCH (x:Entity {entity_id:$d}), (y:Entity {entity_id:$h}) "
+                "CREATE (x)-[r:`%s` $props]->(y)" % a["tipo"],
+                {"d": a["desde"], "h": a["hacia"], "props": a["props"]},
+            )
+
+        s.run("MATCH (n:RellenoRestore) DELETE n")
+    return len(nodos), len(aristas)
+
+
+# --- 0. El material discrimina. Sin esto, lo demas no mide nada. ------------
+
+def test_los_identificadores_de_prueba_no_pueden_confundirse(grafo_dur):
+    """No-colision COMPROBADA antes de medir.
+
+    Un fixture cuyo `entity_id` coincidiera con el `canonical_name` o tuviera
+    forma de `elementId` no podria distinguir «llego el dato» de «se aplico el
+    respaldo». Se comprueba contra los valores REALES de la base, no solo
+    contra las constantes.
+    """
+    valores = [ID_DURABLE, ID_VECINO, ID_SECRETO, ID_FANTASMA, NOMBRE_DURABLE]
+    assert len(set(valores)) == len(valores)
+    for v in valores:
+        assert not _FORMA_ELEMENT_ID.match(v), f"«{v}» tiene forma de elementId"
+
+    eid = _element_id_de(grafo_dur, ID_DURABLE)
+    assert eid is not None, "la semilla no se creo: el arnes no ejercio nada"
+    assert _FORMA_ELEMENT_ID.match(eid), f"elementId inesperado: {eid}"
+    assert eid not in valores
+    with grafo_dur.session() as s:
+        assert s.run(
+            "MATCH (n:Entity {entity_id:$id}) RETURN n.canonical_name AS c",
+            {"id": ID_DURABLE}).single()["c"] == NOMBRE_DURABLE
+        assert s.run(
+            "MATCH (n:Entity {entity_id:$id}) RETURN count(n) AS c",
+            {"id": ID_FANTASMA}).single()["c"] == 0, "el fantasma existe"
+
+
+# --- 1. El paso imprescindible: el identificador FISICO cambio --------------
+
+def test_tras_la_restauracion_el_identificador_fisico_de_neo4j_CAMBIO(grafo_dur):
+    """Sin esto, la prueba del enlace no prueba nada.
+
+    Un enlace que sigue funcionando despues de una restauracion que NO reasigno
+    identificadores es un enlace que no ha demostrado ser durable: pasaria
+    exactamente igual con el identificador no durable de antes.
+    """
+    antes = _element_id_de(grafo_dur, ID_DURABLE)
+    nodos, aristas = _restaurar_en_store_nuevo(grafo_dur)
+    assert (nodos, aristas) == (3, 1), (
+        f"el arnes restauro {nodos} nodos y {aristas} aristas; se esperaban 3 y 1"
+    )
+    despues = _element_id_de(grafo_dur, ID_DURABLE)
+
+    assert antes and despues
+    assert despues != antes, (
+        "el identificador fisico NO cambio en la restauracion: la prueba de "
+        f"durabilidad no ejerceria nada ({antes})"
+    )
+    # Y la identidad de dominio, en cambio, es la misma.
+    with grafo_dur.session() as s:
+        assert s.run(
+            "MATCH (n:Entity {entity_id:$id}) RETURN n.canonical_name AS c",
+            {"id": ID_DURABLE}).single()["c"] == NOMBRE_DURABLE
+
+
+# --- 2. El proveedor resuelve por identidad durable, no por la fisica -------
+
+def test_el_proveedor_no_resuelve_por_element_id(grafo_dur):
+    """CONTROL NEGATIVO: el identificador fisico ya no abre nada."""
+    prov = _proveedor()
+    eid = _element_id_de(grafo_dur, ID_DURABLE)
+    assert prov.entity(ID_DURABLE) is not None, "ni lo durable resuelve"
+    assert prov.entity(eid) is None, (
+        "el `elementId` sigue siendo una llave valida: la identidad no ha "
+        "migrado, solo se ha duplicado"
+    )
+
+
+def test_el_entity_id_viaja_en_la_proyeccion_real(grafo_dur):
+    prov = _proveedor()
+    n = prov.entity(ID_DURABLE)
+    assert n["entity_id"] == ID_DURABLE
+    assert n["id"] == ID_DURABLE
+    assert not _FORMA_ELEMENT_ID.match(str(n["id"]))
+    assert _element_id_de(grafo_dur, ID_DURABLE) not in str(n), (
+        "el elementId se cuela en algun campo de la proyeccion real"
+    )
+
+
+def test_las_aristas_llegan_con_extremos_durables(grafo_dur):
+    prov = _proveedor()
+    salientes, _ = prov.relations_for_entity(ID_DURABLE)
+    assert salientes, "sin aristas: el arnes no ejercio el camino de relaciones"
+    e = salientes[0]
+    assert e["from"] == ID_DURABLE and e["to"] == ID_VECINO
+
+
+# --- 3. EL ENLACE DEL PANEL, DE EXTREMO A EXTREMO ---------------------------
+#
+# Aqui se cierra la deuda. Lo anterior mide el proveedor; esto mide lo que el
+# usuario guarda en sus marcadores: el `href` que pinta el panel.
+
+_PASSWORD_DUR = "DurableTest_1234567890!"
+
+
+@pytest.fixture
+def panel_dur(grafo_dur, tmp_path):
+    """Panel G encendido, auth real y el proveedor de Neo4j DE VERDAD detras.
+
+    Se sustituye el proveedor BASE (`app.deps.get_provider`), no el filtrado:
+    asi la peticion atraviesa entera la cadena real
+    `get_filtered_provider -> build_viewer_context -> PolicyFilteredProvider ->
+    VisibilityPolicy`. Sustituir mas arriba dejaria la politica fuera de la
+    medida y el resultado seria un adorno.
+    """
+    from app.auth import db as auth_db_mod
+    from app.auth.config import get_auth_settings
+    from app.auth.passwords import hash_password
+    from app.auth.sessions import create_session
+    from app.chassis import FEATURE_SLOTS, slot_flag_env
+    from app.config import get_settings
+    from fastapi.testclient import TestClient
+
+    slot = next(s for s in FEATURE_SLOTS if s.key == "G")
+    flag = slot_flag_env(slot)
+    claves = ("S9K_AUTH_ENABLED", "S9K_AUTH_DB_PATH", "S9K_DEFAULT_WORKSPACE",
+              "S9K_GRAPH_PROVIDER", flag)
+    previos = {k: os.environ.get(k) for k in claves}
+
+    db_path = tmp_path / "auth.db"
+    os.environ["S9K_AUTH_ENABLED"] = "true"
+    os.environ["S9K_AUTH_DB_PATH"] = str(db_path)
+    os.environ["S9K_DEFAULT_WORKSPACE"] = WS_DUR
+    os.environ[flag] = "true"
+    get_settings.cache_clear()
+    get_auth_settings.cache_clear()
+    auth_db_mod.ensure_migrated(db_path)
+
+    with auth_db_mod.get_conn(db_path) as conn:
+        u = auth_db_mod.create_user(
+            conn, username="jugadora_dur", display_name="Jugadora",
+            password_hash=hash_password(_PASSWORD_DUR), role="viewer",
+        )
+        auth_db_mod.update_user(conn, u.id, must_change_password=False)
+        u = auth_db_mod.get_user_by_id(conn, u.id)
+        token, _ = create_session(conn, u)
+
+    import app.deps as deps
+    from app.main import app
+
+    prov = _proveedor()
+    app.dependency_overrides[deps.get_provider] = lambda: prov
+
+    cliente = TestClient(app, raise_server_exceptions=False, follow_redirects=False)
+    cliente.cookies.set(get_auth_settings().S9K_SESSION_COOKIE_NAME, token)
+    try:
+        yield cliente
+    finally:
+        app.dependency_overrides.pop(deps.get_provider, None)
+        for k, v in previos.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        get_settings.cache_clear()
+        get_auth_settings.cache_clear()
+
+
+def _enlace_del_panel(cliente, entity_id=ID_DURABLE):
+    """Paso 2 del guion: el enlace se saca DEL PANEL, no se construye a mano.
+
+    Construirlo a mano probaria que la ruta funciona, no que el panel la
+    publica. El defecto vivia justo ahi: la plantilla pintaba `row.id`, que era
+    el `elementId`.
+    """
+    r = cliente.get(f"/panel/entities?workspace={WS_DUR}")
+    assert r.status_code == 200, f"el panel no responde: {r.status_code}"
+    enlaces = _re.findall(r'href="(/panel/entities/item/[^"]+)"', r.text)
+    assert enlaces, "el panel no publico ni un enlace de ficha"
+    del_nuestro = [e for e in enlaces if entity_id in e]
+    assert del_nuestro, (
+        f"el panel no publica un enlace hacia «{entity_id}». Enlaces vistos: "
+        f"{enlaces}"
+    )
+    return del_nuestro[0]
+
+
+def test_el_enlace_que_publica_el_panel_lleva_la_identidad_durable(panel_dur, grafo_dur):
+    """El `href` lleva `entity_id` y NO el identificador fisico."""
+    enlace = _enlace_del_panel(panel_dur)
+    eid = _element_id_de(grafo_dur, ID_DURABLE)
+    assert ID_DURABLE in enlace
+    assert eid not in enlace, f"el elementId sigue en la URL: {enlace}"
+    # Y en ningun sitio del HTML del panel, no solo en este `href`.
+    html = panel_dur.get(f"/panel/entities?workspace={WS_DUR}").text
+    assert eid not in html, "el elementId aparece en el HTML del panel"
+
+
+def test_EL_ENLACE_GUARDADO_SOBREVIVE_A_LA_RESTAURACION(panel_dur, grafo_dur):
+    """LA PRUEBA QUE CIERRA LA DEUDA.
+
+    1) entidad con `entity_id` estable  2) enlace sacado DEL PANEL
+    3) enlace guardado                  4)+5) volcado y restauracion
+    6) se COMPRUEBA que el identificador fisico cambio
+    7) se abre EXACTAMENTE el enlace guardado
+    8) resuelve la MISMA entidad autorizada.
+
+    Antes de este carril, el paso 7 devolvia 404 -- y ese 404 era, por diseno de
+    la politica, indistinguible de «no existe». El fallo era silencioso.
+    """
+    # 1-3
+    enlace = _enlace_del_panel(panel_dur)
+    fisico_antes = _element_id_de(grafo_dur, ID_DURABLE)
+    previa = panel_dur.get(enlace)
+    assert previa.status_code == 200, (
+        f"el enlace no funcionaba ni ANTES de restaurar ({previa.status_code}); "
+        "el resto de la prueba no mediria durabilidad"
+    )
+    assert NOMBRE_DURABLE in previa.text
+
+    # 4-5
+    nodos, aristas = _restaurar_en_store_nuevo(grafo_dur)
+    assert (nodos, aristas) == (3, 1), "el arnes no restauro lo que dice"
+
+    # 6 -- IMPRESCINDIBLE. Sin esto la prueba pasaria con un id no durable.
+    fisico_despues = _element_id_de(grafo_dur, ID_DURABLE)
+    assert fisico_despues != fisico_antes, (
+        "el identificador fisico no cambio: esta prueba no demuestra nada"
+    )
+    assert fisico_antes not in enlace and fisico_despues not in enlace
+
+    # 7-8 -- el MISMO enlace, byte a byte.
+    despues = panel_dur.get(enlace)
+    assert despues.status_code == 200, (
+        f"el enlace guardado murio en la restauracion ({despues.status_code}): "
+        "el identificador de la URL no es durable"
+    )
+    assert NOMBRE_DURABLE in despues.text, (
+        "el enlace resuelve, pero no a la misma entidad"
+    )
+
+
+# --- 4. LOS CUATRO CONTROLES NEGATIVOS --------------------------------------
+
+def test_negativo_inexistente_y_no_autorizado_son_INDISTINGUIBLES(panel_dur):
+    """Mismo codigo Y mismo cuerpo. Si difirieran, la URL seria un oraculo de
+    existencia: bastaria pasear identificadores para saber que hay ahi.
+
+    `ID_SECRETO` existe en la base (lo siembra el fixture) y la politica lo
+    niega a esta jugadora; `ID_FANTASMA` no se ha sembrado jamas.
+    """
+    fantasma = panel_dur.get(f"/panel/entities/item/{ID_FANTASMA}")
+    secreto = panel_dur.get(f"/panel/entities/item/{ID_SECRETO}")
+
+    # Contrapeso: si TODO diera 404, la igualdad seria trivial.
+    assert panel_dur.get(f"/panel/entities/item/{ID_DURABLE}").status_code == 200
+
+    assert fantasma.status_code == secreto.status_code == 404, (
+        f"fantasma={fantasma.status_code} secreto={secreto.status_code}"
+    )
+    assert fantasma.content == secreto.content, (
+        "el cuerpo revela cual de los dos existe"
+    )
+
+
+def test_negativo_lo_existente_sin_permiso_no_revela_su_existencia(panel_dur):
+    """Ni el codigo, ni el cuerpo, ni el listado mencionan el secreto."""
+    r = panel_dur.get(f"/panel/entities/item/{ID_SECRETO}")
+    assert r.status_code == 404
+    assert "El pacto de la Fosa" not in r.text
+    listado = panel_dur.get(f"/panel/entities?workspace={WS_DUR}").text
+    assert ID_SECRETO not in listado
+    assert "El pacto de la Fosa" not in listado
+    assert ID_DURABLE in listado, "el listado esta vacio: no discrimina nada"
+
+
+def test_negativo_cambiar_el_ELEMENT_ID_no_rompe_el_enlace(panel_dur, grafo_dur):
+    """Tercer control: se mueve el identificador FISICO y el enlace aguanta.
+
+    Es la restauracion reducida a su esencia. Se hace aparte del test grande
+    para que, si algo falla, se sepa si fallo el volcado o la identidad.
+    """
+    enlace = _enlace_del_panel(panel_dur)
+    antes = _element_id_de(grafo_dur, ID_DURABLE)
+
+    # Recrear el nodo con las MISMAS propiedades le da otro identificador
+    # fisico: es lo unico que un `restore` cambia.
+    with grafo_dur.session() as s:
+        props = dict(s.run(
+            "MATCH (n:Entity {entity_id:$id}) RETURN properties(n) AS p",
+            {"id": ID_DURABLE}).single()["p"])
+        s.run("MATCH (n:Entity {entity_id:$id}) DETACH DELETE n", {"id": ID_DURABLE})
+        s.run("UNWIND range(1,500) AS i CREATE (:RellenoRestore {i:i})")
+        s.run("CREATE (n:Entity $props)", {"props": props})
+        s.run("MATCH (n:RellenoRestore) DELETE n")
+
+    despues = _element_id_de(grafo_dur, ID_DURABLE)
+    assert despues != antes, "el elementId no cambio: el control no ejercio nada"
+    r = panel_dur.get(enlace)
+    assert r.status_code == 200 and NOMBRE_DURABLE in r.text
+
+
+def test_negativo_DECISIVO_cambiar_el_ENTITY_ID_rompe_el_enlace(panel_dur, grafo_dur):
+    """EL CONTROL QUE SOSTIENE TODO LO DEMAS.
+
+    Si mover el identificador de dominio NO rompiera el enlace, entonces el
+    enlace no esta atado a `entity_id` y ninguna de las pruebas de arriba mide
+    durabilidad: mediria que «cualquier cosa resuelve».
+
+    Aqui ese rojo se afirma como comportamiento esperado --404-- para que viva
+    permanentemente en la suite. Su version «la prueba se pone ROJA» es la
+    mutacion homonima del arnes de calibracion.
+    """
+    enlace = _enlace_del_panel(panel_dur)
+    assert panel_dur.get(enlace).status_code == 200, "no partimos de verde"
+
+    otro = "entity:new:0000deadbeef0000"
+    assert otro != ID_DURABLE and not _FORMA_ELEMENT_ID.match(otro)
+    with grafo_dur.session() as s:
+        s.run("MATCH (n:Entity {entity_id:$v}) SET n.entity_id = $n",
+              {"v": ID_DURABLE, "n": otro})
+
+    roto = panel_dur.get(enlace)
+    assert roto.status_code == 404, (
+        "el enlace SIGUE resolviendo despues de cambiarle el `entity_id` a la "
+        f"entidad ({roto.status_code}): no esta atado a la identidad durable, "
+        "asi que las pruebas de durabilidad no miden durabilidad"
+    )
+    # Y con el identificador nuevo si resuelve: el nodo no ha desaparecido, se
+    # ha renombrado. Sin esta linea, «lo borre sin querer» pasaria por exito.
+    nuevo = panel_dur.get(f"/panel/entities/item/{otro}")
+    assert nuevo.status_code == 200 and NOMBRE_DURABLE in nuevo.text
