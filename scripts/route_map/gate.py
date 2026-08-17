@@ -270,7 +270,7 @@ def _claves(filas: list[dict]) -> set[str]:
 # ---------------------------------------------------------------------------
 
 def evaluar(repo: Path, mapa: dict | None, mapa_rc: int | None = None,
-            entorno: dict | None = None) -> dict:
+            entorno: dict | None = None, solo_declaracion: bool = False) -> dict:
     entorno = os.environ if entorno is None else entorno
     hallazgos: dict[str, list[dict]] = {k: [] for k in (
         "configuracion-ausente", "configuracion-vacia", "panel-encendido",
@@ -291,8 +291,12 @@ def evaluar(repo: Path, mapa: dict | None, mapa_rc: int | None = None,
             "fuente": "app.main / app.chassis",
             "detalle": f"no se pudo cargar la configuración canónica: {exc!r}",
         })
-        return _cerrar(repo, hallazgos, {}, mapa, mapa_rc)
+        return _cerrar(repo, hallazgos, {}, mapa, mapa_rc, solo_declaracion)
 
+    # C7 es un DETECTOR PURO, y eso es deliberado: si se ablase, la evaluación
+    # tiene que seguir corriendo (con la declaración degradada) en vez de
+    # reventar. Un control que al quitarlo produce una excepción no se puede
+    # calibrar: no distinguiría «hacía falta» de «rompí el arnés».
     for atributo in ("FEATURE_SLOTS", "NAV", "FLAG_ENV_TEMPLATE", "FLAG_ON_VALUES",
                      "slot_enabled", "slot_flag_env"):
         if not hasattr(ch, atributo):
@@ -301,14 +305,12 @@ def evaluar(repo: Path, mapa: dict | None, mapa_rc: int | None = None,
                 "detalle": ("el chasis es la fuente canónica de esta puerta y ya no "
                             "expone este elemento: sin él no hay nada que exigir"),
             })
-    if hallazgos["configuracion-ausente"]:
-        return _cerrar(repo, hallazgos, {}, mapa, mapa_rc)
 
     routers = descubrir_routers(repo)
     decl, fallos_import = declaracion_de_rutas(routers)
     real = enumerar_app(app)
-    slots = tuple(ch.FEATURE_SLOTS)
-    nav = tuple(ch.NAV)
+    slots = tuple(getattr(ch, "FEATURE_SLOTS", ()) or ())
+    nav = tuple(getattr(ch, "NAV", ()) or ())
 
     # --- C6: y tiene que decir ALGO ---------------------------------------
     # Un arnés que pasa con 0 casos está roto. Aquí el suelo cuenta sólo lo
@@ -342,10 +344,13 @@ def evaluar(repo: Path, mapa: dict | None, mapa_rc: int | None = None,
     # --- C8: los cuatro paneles APAGADOS, comprobado, no confiado ---------
     # El nombre de cada bandera y el criterio de «encendido» los da el chasis.
     encendidos_declarados = set()
+    _flag_env = getattr(ch, "slot_flag_env", lambda s: f"S9K_PANEL_{s.key.upper()}_ENABLED")
+    _encendido = getattr(ch, "slot_enabled", None)
+    _valores_on = frozenset(getattr(ch, "FLAG_ON_VALUES", ()) or ())
     for slot in slots:
-        var = ch.slot_flag_env(slot)
+        var = _flag_env(slot)
         encendidos_declarados.add(var)
-        if ch.slot_enabled(slot, dict(entorno)):
+        if _encendido is not None and _encendido(slot, dict(entorno)):
             hallazgos["panel-encendido"].append({
                 "hueco": slot.key,
                 "variable": var,
@@ -361,7 +366,7 @@ def evaluar(repo: Path, mapa: dict | None, mapa_rc: int | None = None,
     for var, valor in sorted(dict(entorno).items()):
         if not RE_FAMILIA_PANEL.match(var) or var in encendidos_declarados:
             continue
-        if str(valor).strip().lower() in ch.FLAG_ON_VALUES:
+        if str(valor).strip().lower() in _valores_on:
             hallazgos["panel-encendido"].append({
                 "hueco": "(no declarado en FEATURE_SLOTS)",
                 "variable": var,
@@ -509,7 +514,7 @@ def evaluar(repo: Path, mapa: dict | None, mapa_rc: int | None = None,
         "endpoints_declarados": len(decl),
         "entradas_nav": len(nav),
         "huecos": [s.key for s in slots],
-        "banderas_de_panel": {ch.slot_flag_env(s): entorno.get(ch.slot_flag_env(s))
+        "banderas_de_panel": {_flag_env(s): entorno.get(_flag_env(s))
                               for s in slots},
         "rutas_montadas_resolubles": len(resolubles),
         "clasificacion": clasificacion,
@@ -517,7 +522,7 @@ def evaluar(repo: Path, mapa: dict | None, mapa_rc: int | None = None,
         "rutas_sin_declaracion_canonica": sorted(set(sin_declaracion)),
         "claves_vivas": sorted(_claves(real["filas"])),
     }
-    return _cerrar(repo, hallazgos, resumen, mapa, mapa_rc)
+    return _cerrar(repo, hallazgos, resumen, mapa, mapa_rc, solo_declaracion)
 
 
 # ---------------------------------------------------------------------------
@@ -533,7 +538,16 @@ def _head(repo: Path) -> str:
 
 
 def _cerrar(repo: Path, hallazgos: dict, resumen: dict, mapa: dict | None,
-            mapa_rc: int | None) -> dict:
+            mapa_rc: int | None, solo_declaracion: bool = False) -> dict:
+    if solo_declaracion:
+        # MODO CALIBRACIÓN. Evalúa SÓLO C1-C8 (la declaración canónica contra la
+        # app real) y no exige artefacto de censo. Existe para que cada control
+        # se pueda ablar y observar por separado: en modo completo, casi
+        # cualquier mutación de rutas dispara además C9 («el artefacto describe
+        # otras rutas»), y un rojo por el motivo equivocado no calibra nada.
+        # `calibrate_gate.py` comprueba que NINGÚN workflow lo pasa.
+        return {"modo": "solo-declaracion", "hallazgos": hallazgos,
+                "resumen": resumen, "head": _head(repo)}
     if mapa is None:
         hallazgos["censo-no-inspecciono-la-app-real"].append({
             "motivo": "artefacto-ausente",
@@ -646,6 +660,8 @@ def main(argv=None) -> int:
     ap.add_argument("--map-rc", dest="mapa_rc", type=int, default=None,
                     help="código de salida con el que terminó route_map.py")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--solo-declaracion", action="store_true",
+                    help="SÓLO CALIBRACIÓN: evalúa C1-C8 sin exigir artefacto de censo")
     a = ap.parse_args(argv)
     repo = Path(a.repo).resolve()
 
@@ -657,13 +673,16 @@ def main(argv=None) -> int:
             print(f"artefacto de censo ilegible: {exc!r}", file=sys.stderr)
             mapa = None
 
-    res = evaluar(repo, mapa, a.mapa_rc)
+    res = evaluar(repo, mapa, a.mapa_rc, solo_declaracion=a.solo_declaracion)
     texto = json.dumps(res, indent=2, sort_keys=True, ensure_ascii=False, default=str)
     if a.out:
         Path(a.out).parent.mkdir(parents=True, exist_ok=True)
         Path(a.out).write_text(texto, encoding="utf-8")
 
     total = 0
+    if a.solo_declaracion:
+        print("*** MODO CALIBRACION (--solo-declaracion): C9 y C10 NO se evaluan. "
+              "Esta invocacion NO es una puerta. ***")
     print("PUERTA DEL CENSO DE RUTAS")
     print(f"  HEAD: {res.get('head') or '(sin git)'}")
     r = res.get("resumen") or {}

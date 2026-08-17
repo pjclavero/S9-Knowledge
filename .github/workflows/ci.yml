@@ -634,3 +634,95 @@ jobs:
             exit 1
           fi
           echo "OK: sin secretos detectados"
+
+  # ---------------------------------------------------------------------------
+  # Censo de rutas como PUERTA (docs/68 5.quater, docs/83)
+  # ---------------------------------------------------------------------------
+  # La configuracion que dice que rutas y routers deben existir NO es una lista
+  # documental: se deriva del codigo que la propia app ejecuta (routers
+  # descubiertos en `viewer/app/**`, `app.chassis.NAV`, `app.chassis.FEATURE_SLOTS`
+  # y los interruptores del chasis). Ver la cabecera de `scripts/route_map/gate.py`.
+  #
+  # NINGUNA `S9K_PANEL_*_ENABLED` se exporta aqui, y eso NO se confia: la puerta
+  # COMPRUEBA el entorno y sale roja si encuentra alguna encendida. Una puerta que
+  # mide una app y certifica otra nace con el defecto que dice cerrar.
+  route-map-gate:
+    name: Censo de rutas (configuracion canonica en codigo)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: 'viewer/requirements.txt'
+
+      - name: Install viewer dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r viewer/requirements.txt
+
+      # `tested` no es "el nombre de la ruta sale en un test": es "una peticion
+      # atraveso el objeto Route de la app real". Sin esto el censo da rc=3.
+      - name: La sonda es obligatoria (genera --tested atravesando la app real)
+        env:
+          PYTHONPATH: scripts:viewer
+          PYTHONDONTWRITEBYTECODE: '1'
+          S9K_ROUTE_PROBE_OUT: artifacts/route-map/ci-tested_routes.json
+          S9K_ALLOW_REAL_INGEST: ""
+        run: |
+          # Guardia anti-cero (ver `check-ci-config`): un arnes que pasa con 0
+          # casos esta roto, y aqui ademas dejaria el censo sin cobertura.
+          set +e
+          out="$(python -m pytest viewer/tests/ -q --no-header -p route_map.pytest_route_probe 2>&1)"
+          rc=$?
+          set -e
+          echo "$out" | tail -30
+          [ "$rc" -eq 0 ] || exit 1
+          if ! grep -qE '[0-9]+ passed' <<<"$out"; then
+            echo "::error::no se ejecuto ninguna prueba: sin sonda no hay censo"
+            exit 1
+          fi
+
+      - name: Censo + puerta (el codigo de salida del censo se pasa a la puerta)
+        env:
+          PYTHONPATH: scripts
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -uo pipefail
+          mkdir -p artifacts/route-map
+          set +e
+          python3 scripts/route_map/route_map.py --repo . \
+            --tested artifacts/route-map/ci-tested_routes.json \
+            --out artifacts/route-map/ci-route_map.json \
+            --md  artifacts/route-map/ci-route_map.md
+          mapa_rc=$?
+          set -e
+          echo "route_map rc=$mapa_rc"
+          # El rc del censo NO se descarta ni se asume 0: se le entrega a la
+          # puerta, que lo convierte en `censo-en-rojo`. Un censo que salio en
+          # rojo no puede certificar nada aunque el artefacto exista.
+          python3 scripts/route_map/gate.py --repo . \
+            --map artifacts/route-map/ci-route_map.json \
+            --map-rc "$mapa_rc" \
+            --out artifacts/route-map/ci-gate.json
+
+      - name: La puerta se pone ROJA en cada punto del contrato (y VERDE al revertir)
+        env:
+          PYTHONPATH: scripts
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          python3 scripts/route_map/calibrate_gate.py \
+            --out artifacts/route-map/ci-calibracion-gate.json
+
+      - name: Publicar artefactos del censo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: route-map-gate
+          path: artifacts/route-map/ci-*
+          if-no-files-found: warn

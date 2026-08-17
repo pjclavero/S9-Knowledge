@@ -846,26 +846,43 @@ contra la app real), así que el mapa de este repo sale en **verde legítimo**. 
 `--skip-probe` sale rojo, y también es correcto: sin sonda no hay quien tumbe la
 afirmación.
 
-### ¿Debería ser puerta de merge?
+### ¿Debería ser puerta de merge? — SÍ, y ya está cableada (ver `docs/83`)
 
 **Ya es cableable sin ninguna excepción**, que era el obstáculo real: la app sale
 rc=0 porque su único montaje no enumerable está caracterizado, no exento. Y si
-`/static` empezara a servir POST, el mapa se pone rojo solo. **`ci.yml` no se toca
-aquí**: el cableado lo decide el operador. Cuando se decida, ésta es la
-configuración recomendada, y las cinco condiciones importan:
+`/static` empezara a servir POST, el mapa se pone rojo solo.
+
+> **ESTADO ACTUAL.** El operador lo decidió, con una condición: *la configuración
+> que define qué rutas/router deben existir tiene que vivir en CÓDIGO o en una
+> fuente canónica EJECUTABLE, no en una lista documental mantenida aparte*. El
+> carril «censo de rutas como puerta» la cumple con `scripts/route_map/gate.py`
+> —routers descubiertos por enumeración de `viewer/app/**`, rutas y métodos
+> tomados del `import` de esos routers, nombres exigidos por `chassis.NAV` y
+> `chassis.FEATURE_SLOTS`, interruptores delegados en el chasis— y con
+> `scripts/route_map/calibrate_gate.py` (26 casos, 12 ablaciones cobradas). El
+> job es `route-map-gate` en `ci.yml`. **Añadirlo a la protección de rama es del
+> operador**: sería el check exigido nº 16. Todo el detalle, en `docs/83`.
+
+Las cinco condiciones, y cómo quedan:
 
 1. **Los cuatro paneles APAGADOS**: no exportar ninguna `S9K_PANEL_*_ENABLED`.
    `chassis.py:186` falla cerrado ante la ausencia y `chassis.py:166` dice que
    apagados es lo correcto para producción. **La puerta debe medir la
    configuración que se despliega**, no una cómoda.
-2. **La puerta COMPRUEBA la configuración, no la confía.** `_configuracion()` ya
-   escribe los interruptores en el artefacto; el job debe salir **rojo** si
-   aparece alguno encendido. Sin eso, mide una app y certifica otra — el mismo
-   error de altura que este censo venía a cerrar.
+2. **La puerta COMPRUEBA la configuración, no la confía.** **IMPLEMENTADO** en
+   `gate.py` (hallazgo `panel-encendido`): por cada `FeatureSlot` se le pregunta
+   al chasis el nombre de su bandera (`slot_flag_env`) y si está encendida
+   (`slot_enabled`) —el criterio se delega, no se reimplementa—, y además se
+   barre el entorno por si hay una bandera de la familia que el chasis ya no
+   reconoce. Calibrado en G10 y G11, con G0/FP1/FP2/FP3 vigilando el falso
+   positivo. Antes esto sólo existía en prosa, y cablear el job sin implementarlo
+   habría hecho nacer la puerta con el defecto que dice cerrar: mediría una app y
+   certificaría otra.
 3. **La sonda es obligatoria.** Con `--skip-probe` es rc=3 por diseño: el job
    tiene que correr `pytest -p route_map.pytest_route_probe` y pasar `--tested`.
-4. **Presupuesto medido**: el mapa tarda ~4 s; la corrida que genera `--tested`,
-   ~51 s. Cabe en el job que ya corre los tests del visor.
+4. **Presupuesto medido**: el mapa tarda ~4,7 s; la corrida que genera
+   `--tested`, ~57 s; la puerta ~2 s y su calibración 47 s. Total del job
+   `route-map-gate`, ≈110 s más dependencias.
 5. **Un segundo job con los paneles encendidos, informativo**, más adelante: hoy
    el instrumento **no distingue «apagada por bandera» de «muerta»**, así que ese
    job no puede ser bloqueante sin producir hallazgos falsos.

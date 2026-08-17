@@ -1,0 +1,346 @@
+{
+  "hash_arbol_antes": "934ee601f5d1f35945653830dee91595a8af1ab26e6a1dd6bf9e3dce25e560a8",
+  "hash_arbol_despues": "934ee601f5d1f35945653830dee91595a8af1ab26e6a1dd6bf9e3dce25e560a8",
+  "casos": [
+    {
+      "caso": "G0",
+      "desc": "árbol limpio (control de falso positivo)",
+      "esperado": "VERDE",
+      "rc": 0,
+      "motivos": [],
+      "estado": "OK"
+    },
+    {
+      "caso": "G1",
+      "desc": "router desmontado",
+      "esperado": "router-declarado-no-montado",
+      "rc": 1,
+      "motivos": [
+        "nombre-canonico-no-resuelve",
+        "router-declarado-no-montado",
+        "ruta-declarada-no-montada"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G2",
+      "desc": "ruta eliminada (su nombre sigue en NAV)",
+      "esperado": "nombre-canonico-no-resuelve",
+      "rc": 1,
+      "motivos": [
+        "nombre-canonico-no-resuelve"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G3",
+      "desc": "método cambiado en una pantalla de navegación",
+      "esperado": "nombre-canonico-no-resuelve",
+      "rc": 1,
+      "motivos": [
+        "nombre-canonico-no-resuelve"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G4",
+      "desc": "método montado que el router no declara",
+      "esperado": "metodo-declarado-no-coincide",
+      "rc": 1,
+      "motivos": [
+        "metodo-declarado-no-coincide"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G5",
+      "desc": "ruta declarada por un router y no montada",
+      "esperado": "ruta-declarada-no-montada",
+      "rc": 1,
+      "motivos": [
+        "ruta-declarada-no-montada"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G6",
+      "desc": "ruta montada de origen desconocido",
+      "esperado": "ruta-sin-clasificar",
+      "rc": 1,
+      "motivos": [
+        "ruta-sin-clasificar"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G7",
+      "desc": "configuración VACÍA (la declaración de nombres a cero)",
+      "esperado": "configuracion-vacia",
+      "rc": 1,
+      "motivos": [
+        "configuracion-vacia"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G8",
+      "desc": "configuración AUSENTE (falta un elemento del chasis)",
+      "esperado": "configuracion-ausente",
+      "rc": 1,
+      "motivos": [
+        "configuracion-ausente"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G9",
+      "desc": "configuración AUSENTE (no hay chasis)",
+      "esperado": "configuracion-ausente",
+      "rc": 1,
+      "motivos": [
+        "configuracion-ausente"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G10",
+      "desc": "un panel ENCENDIDO cuando debía estar apagado",
+      "esperado": "panel-encendido",
+      "rc": 1,
+      "motivos": [
+        "panel-encendido"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G11",
+      "desc": "bandera de panel encendida que el chasis no declara",
+      "esperado": "panel-encendido",
+      "rc": 1,
+      "motivos": [
+        "panel-encendido"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "FP1",
+      "desc": "bandera de panel APAGADA explícitamente",
+      "esperado": "VERDE",
+      "rc": 0,
+      "motivos": [],
+      "estado": "OK"
+    },
+    {
+      "caso": "FP2",
+      "desc": "bandera de panel con valor ininteligible (el chasis la apaga)",
+      "esperado": "VERDE",
+      "rc": 0,
+      "motivos": [],
+      "estado": "OK"
+    },
+    {
+      "caso": "FP3",
+      "desc": "variable parecida que NO es de la familia",
+      "esperado": "VERDE",
+      "rc": 0,
+      "motivos": [],
+      "estado": "OK"
+    },
+    {
+      "caso": "FP4",
+      "desc": "router declarado y VACÍO (no aporta rutas: nada que exigir)",
+      "esperado": "VERDE",
+      "rc": 0,
+      "motivos": [],
+      "estado": "OK"
+    },
+    {
+      "caso": "A1",
+      "desc": "no hay artefacto de censo",
+      "esperado": "censo-no-inspecciono-la-app-real",
+      "rc": 1,
+      "motivos": [
+        "censo-no-inspecciono-la-app-real"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "A2",
+      "desc": "el artefacto describe otro árbol (HEAD distinto)",
+      "esperado": "censo-no-inspecciono-la-app-real",
+      "rc": 1,
+      "motivos": [
+        "censo-no-inspecciono-la-app-real"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "A3",
+      "desc": "el censo no ejercitó ni una ruta (cobertura cero)",
+      "esperado": "censo-no-inspecciono-la-app-real",
+      "rc": 1,
+      "motivos": [
+        "censo-no-inspecciono-la-app-real"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "A4",
+      "desc": "el censo corrió con --skip-probe (sin sonda)",
+      "esperado": "censo-no-inspecciono-la-app-real",
+      "rc": 1,
+      "motivos": [
+        "censo-no-inspecciono-la-app-real"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "A5",
+      "desc": "el censo no recibió --tested",
+      "esperado": "censo-no-inspecciono-la-app-real",
+      "rc": 1,
+      "motivos": [
+        "censo-no-inspecciono-la-app-real"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "A6",
+      "desc": "el artefacto describe OTRAS rutas que las que sirve la app",
+      "esperado": "censo-no-inspecciono-la-app-real",
+      "rc": 1,
+      "motivos": [
+        "censo-no-inspecciono-la-app-real"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "A7",
+      "desc": "el censo salió con código 3 (incompleto)",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "A8",
+      "desc": "el censo declara entradas opacas",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "A9",
+      "desc": "el censo declara una ruta SIN-AUTH",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "AFP",
+      "desc": "artefacto íntegro (control de falso positivo)",
+      "esperado": "VERDE",
+      "rc": 0,
+      "motivos": [],
+      "estado": "OK"
+    }
+  ],
+  "ablaciones": [
+    {
+      "ablacion": "AB-C2",
+      "caso": "G5",
+      "rc_ablado": 0,
+      "motivos_ablado": [],
+      "estado": "COBRADA"
+    },
+    {
+      "ablacion": "AB-C3",
+      "caso": "G4",
+      "rc_ablado": 0,
+      "motivos_ablado": [],
+      "estado": "COBRADA"
+    },
+    {
+      "ablacion": "AB-C4",
+      "caso": "G6",
+      "rc_ablado": 0,
+      "motivos_ablado": [],
+      "estado": "COBRADA"
+    },
+    {
+      "ablacion": "AB-C5-existe",
+      "caso": "G2",
+      "rc_ablado": 0,
+      "motivos_ablado": [],
+      "estado": "COBRADA"
+    },
+    {
+      "ablacion": "AB-C5-metodo",
+      "caso": "G3",
+      "rc_ablado": 0,
+      "motivos_ablado": [],
+      "estado": "COBRADA"
+    },
+    {
+      "ablacion": "AB-C6",
+      "caso": "G7",
+      "rc_ablado": 0,
+      "motivos_ablado": [],
+      "estado": "COBRADA"
+    },
+    {
+      "ablacion": "AB-C7",
+      "caso": "G8",
+      "rc_ablado": 0,
+      "motivos_ablado": [],
+      "estado": "COBRADA"
+    },
+    {
+      "ablacion": "AB-C8",
+      "caso": "G10",
+      "rc_ablado": 0,
+      "motivos_ablado": [],
+      "estado": "COBRADA"
+    },
+    {
+      "ablacion": "AB-C9-head",
+      "caso": "A2",
+      "rc_ablado": 0,
+      "motivos_ablado": [],
+      "estado": "COBRADA"
+    },
+    {
+      "ablacion": "AB-C9-cobertura",
+      "caso": "A3",
+      "rc_ablado": 0,
+      "motivos_ablado": [],
+      "estado": "COBRADA"
+    },
+    {
+      "ablacion": "AB-C9-conjunto",
+      "caso": "A6",
+      "rc_ablado": 0,
+      "motivos_ablado": [],
+      "estado": "COBRADA"
+    },
+    {
+      "ablacion": "AB-C10",
+      "caso": "A8",
+      "rc_ablado": 0,
+      "motivos_ablado": [],
+      "estado": "COBRADA"
+    }
+  ],
+  "casos_ejecutados": 26,
+  "ablaciones_cobradas": 12,
+  "fallos": [],
+  "veredicto": "OK"
+}
