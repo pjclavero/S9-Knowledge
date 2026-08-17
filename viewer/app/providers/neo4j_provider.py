@@ -13,10 +13,47 @@ from neo4j import GraphDatabase
 from app.providers.base import GraphProvider
 
 
+#: Filtro Cypher que exige IDENTIDAD DURABLE. Un nodo sin `entity_id` no es
+#: direccionable: cualquier enlace hacia el tendria que apoyarse en el
+#: `elementId`, que es justo lo que este carril viene a erradicar. Se aplica en
+#: el propio Cypher --y no filtrando en Python-- para que el `count(n)` de la
+#: paginacion y la lista de items cuenten LO MISMO. Si se filtrara despues, el
+#: total diria 50 y llegarian 47, y esa diferencia se leeria como "faltan
+#: permisos" en vez de "no tienen identidad".
+_CON_IDENTIDAD_DURABLE = "n.entity_id IS NOT NULL"
+
+
 def _node_to_dict(record_node) -> dict[str, Any]:
     props = dict(record_node)
     return {
-        "id": record_node.element_id,
+        # IDENTIDAD DURABLE DE PRODUCTO. Es `entity_id`, la propiedad que
+        # escribe el writer V3 (`create_entity`, derivada de
+        # `sha256(workspace \x1f superficie \x1f tipo)`), y NO el `elementId`
+        # de Neo4j.
+        #
+        # Antes aqui iba `record_node.element_id`, y ese valor viajaba entero
+        # hasta el `href` de las fichas. El `elementId` es el identificador
+        # FISICO del store: `dump`/`restore` lo reasigna, asi que todo enlace
+        # guardado dejaba de resolver despues de una restauracion. Y como la
+        # politica exige que lo no autorizado sea indistinguible de lo
+        # inexistente, ese enlace roto devolvia el mismo 404 que un recurso que
+        # nunca existio: el fallo era SILENCIOSO por diseno.
+        #
+        # `id` y `entity_id` valen aqui lo mismo A PROPOSITO: son el mismo
+        # identificador de dominio. La clave es que ninguno de los dos cae
+        # nunca hacia `element_id` -- ni aqui ni en `serialize_node`, donde
+        # cuatro pruebas congelan la ausencia de ese respaldo. Un nodo sin
+        # `entity_id` sale con `id=None` y NO es direccionable; por eso las
+        # consultas lo excluyen con `_CON_IDENTIDAD_DURABLE` en vez de
+        # regalarle un `elementId` que volveria a romperse.
+        #
+        # El `elementId` sigue existiendo internamente durante la consulta
+        # (`graph()` lo usa para deduplicar y unir aristas dentro de una misma
+        # transaccion), pero NO se proyecta: si saliera en el diccionario,
+        # `serialize_node` lo recogeria por su respaldo `node.get("element_id")`
+        # y volveria a la URL por la puerta de atras.
+        "id": props.get("entity_id"),
+        "entity_id": props.get("entity_id"),
         "label": props.get("display_name") or props.get("canonical_name") or "",
         "type": props.get("entity_type", ""),
         "description": props.get("description", ""),
@@ -56,12 +93,50 @@ def _node_to_dict(record_node) -> dict[str, Any]:
     }
 
 
-def _rel_to_dict(rel) -> dict[str, Any]:
+def _extremo_durable(nodo) -> str | None:
+    """`entity_id` de un extremo de arista. JAMAS su `elementId`.
+
+    Se consulta la propiedad, no el identificador fisico. Si el driver entrego
+    el nodo sin hidratar (devolver solo `r` en el Cypher lo deja sin
+    propiedades), esto vale `None` y la arista queda sin extremo -- que es la
+    respuesta honesta. El respaldo tentador seria `nodo.element_id`, y ese es
+    exactamente el respaldo que reintroduce el defecto: la arista parecerian
+    resolver y el enlace moriria en la siguiente restauracion. Por eso las
+    consultas de este modulo pasan los extremos EXPLICITOS desde Cypher en vez
+    de fiarse de la hidratacion.
+    """
+    if nodo is None:
+        return None
+    try:
+        return dict(nodo).get("entity_id")
+    except Exception:
+        return None
+
+
+def _rel_to_dict(rel, from_entity_id=None, to_entity_id=None) -> dict[str, Any]:
     props = dict(rel)
     return {
+        # Las relaciones del modelo V3 NO tienen identificador durable propio:
+        # `writer/cypher.py::create_relation` no escribe `relation_id` ni
+        # `assertion_id` en la arista y devuelve `elementId(r)`. El objeto de
+        # conocimiento durable de un hecho es el nodo `:V3Assertion` con su
+        # `assertion_id`, no la arista, que es su PROYECCION.
+        #
+        # Asi que este `id` es un identificador FISICO y de un solo viaje: vale
+        # para que vis-network distinga aristas dentro de la respuesta que las
+        # trae, y para nada mas. No se enlaza, no se marca, no se persiste.
+        # Ningun `href` del visor usa el id de una arista (los enlaces salen de
+        # `from`/`to`), y esos dos SI son durables.
         "id": rel.element_id,
-        "from": rel.start_node.element_id,
-        "to": rel.end_node.element_id,
+        # Extremos por IDENTIDAD DE DOMINIO. `PolicyFilteredProvider` --zona que
+        # este carril no toca-- resuelve el otro extremo con
+        # `self._base.entity(edge.get("from"|"to"))` y cruza los nodos visibles
+        # con `{n["id"]}`. O sea: `from`/`to` y el `id` de nodo tienen que vivir
+        # en el MISMO espacio de nombres que resuelve `entity()`. Al pasar los
+        # nodos a `entity_id`, las aristas tienen que acompanarlos o el visor se
+        # queda sin una sola relacion.
+        "from": from_entity_id if from_entity_id is not None else _extremo_durable(getattr(rel, "start_node", None)),
+        "to": to_entity_id if to_entity_id is not None else _extremo_durable(getattr(rel, "end_node", None)),
         "type": rel.type,
         "label": props.get("relation_label_es", ""),
         # --- Campos de AUTORIZACIÓN de la relación (ver nota en _node_to_dict).
@@ -152,9 +227,10 @@ class Neo4jGraphProvider(GraphProvider):
     def search(self, workspace: str, q: str, limit: int = 50) -> list[dict[str, Any]]:
         query = """
         MATCH (n:Entity {workspace:$workspace})
-        WHERE toLower(coalesce(n.canonical_name,'')) CONTAINS toLower($q)
+        WHERE (toLower(coalesce(n.canonical_name,'')) CONTAINS toLower($q)
            OR toLower(coalesce(n.display_name,'')) CONTAINS toLower($q)
-           OR toLower(coalesce(n.description,'')) CONTAINS toLower($q)
+           OR toLower(coalesce(n.description,'')) CONTAINS toLower($q))
+          AND n.entity_id IS NOT NULL
         RETURN n
         LIMIT $limit
         """
@@ -171,20 +247,32 @@ class Neo4jGraphProvider(GraphProvider):
         entity_type: str | None = None,
         q: str | None = None,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        # `n.entity_id IS NOT NULL` en los dos extremos: una arista cuyo extremo
+        # no tenga identidad durable no se puede enlazar, y dejarla pasar solo
+        # produciria una arista colgante que el filtro de politica descartaria
+        # despues por el motivo equivocado ("no visible" en vez de "no
+        # direccionable").
         rel_query = """
         MATCH (n:Entity {workspace:$workspace})-[r]->(m:Entity {workspace:$workspace})
         WHERE ($entity_type IS NULL OR n.entity_type = $entity_type OR m.entity_type = $entity_type)
+          AND n.entity_id IS NOT NULL AND m.entity_id IS NOT NULL
         RETURN n, r, m
         LIMIT $limit
         """
         node_query = """
         MATCH (n:Entity {workspace:$workspace})
         WHERE ($entity_type IS NULL OR n.entity_type = $entity_type)
+          AND n.entity_id IS NOT NULL
         RETURN n
         LIMIT $limit
         """
         params = {"workspace": workspace, "entity_type": entity_type, "limit": limit}
 
+        # OJO: la clave de este diccionario es el `elementId`, no el `id` que se
+        # publica. Es uso INTERNO dentro de una consulta --deduplicar nodos que
+        # llegan por varias aristas-- y ahi el `elementId` es legitimo y ademas
+        # preferible: es unico por definicion. Lo que sale hacia fuera son los
+        # VALORES del diccionario, cuyo `id` ya es el `entity_id`.
         nodes_by_id: dict[str, dict[str, Any]] = {}
         edges: list[dict[str, Any]] = []
 
@@ -192,14 +280,16 @@ class Neo4jGraphProvider(GraphProvider):
             for record in session.run(rel_query, params):
                 n_dict = _node_to_dict(record["n"])
                 m_dict = _node_to_dict(record["m"])
-                nodes_by_id[n_dict["id"]] = n_dict
-                nodes_by_id[m_dict["id"]] = m_dict
-                edges.append(_rel_to_dict(record["r"]))
+                nodes_by_id[record["n"].element_id] = n_dict
+                nodes_by_id[record["m"].element_id] = m_dict
+                edges.append(
+                    _rel_to_dict(record["r"], n_dict["entity_id"], m_dict["entity_id"])
+                )
 
             if len(nodes_by_id) < limit:
                 for record in session.run(node_query, params):
                     n_dict = _node_to_dict(record["n"])
-                    nodes_by_id.setdefault(n_dict["id"], n_dict)
+                    nodes_by_id.setdefault(record["n"].element_id, n_dict)
                     if len(nodes_by_id) >= limit:
                         break
 
@@ -211,12 +301,21 @@ class Neo4jGraphProvider(GraphProvider):
     def entity(
         self, entity_id: str, *, workspaces: frozenset[str] | None = None
     ) -> dict[str, Any] | None:
+        # Se resuelve por IDENTIDAD DURABLE (`n.entity_id`), no por
+        # `elementId(n)`. Este es el metodo al que llega el segmento de la URL,
+        # asi que es el punto exacto donde un enlace guardado sobrevive --o no--
+        # a un `dump`/`restore`. Con `elementId` no sobrevivia.
+        #
+        # Un `entity_id` inexistente devuelve None, igual que uno existente que
+        # la politica no deja ver (`PolicyFilteredProvider.entity` tambien
+        # devuelve None). Las dos ramas acaban en el MISMO 404, que es lo que
+        # exige la politica: lo no autorizado indistinguible de lo inexistente.
         params: dict[str, Any] = {"id": entity_id}
-        query = "MATCH (n:Entity) WHERE elementId(n) = $id RETURN n"
+        query = "MATCH (n:Entity) WHERE n.entity_id = $id RETURN n"
         if workspaces is not None:
             # Acotado en el propio Cypher, no solo en el filtro posterior.
             query = (
-                "MATCH (n:Entity) WHERE elementId(n) = $id "
+                "MATCH (n:Entity) WHERE n.entity_id = $id "
                 "AND n.workspace IN $workspaces RETURN n"
             )
             params["workspaces"] = sorted(workspaces)
@@ -227,15 +326,33 @@ class Neo4jGraphProvider(GraphProvider):
     def relations_for_entity(
         self, entity_id: str
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        # Anclada por `entity_id`, como `entity()`.
+        #
+        # Los extremos viajan EXPLICITOS (`n.entity_id`, `m.entity_id`) en vez
+        # de leerse de `r.start_node`: devolviendo solo `r`, el driver entrega
+        # los nodos extremo SIN propiedades, asi que `_extremo_durable` daria
+        # `None` y `PolicyFilteredProvider` descartaria todas las relaciones al
+        # no poder resolver el otro extremo. Un fallo asi seria mudo: la ficha
+        # simplemente apareceria sin relaciones.
         out_query = """
-        MATCH (n:Entity)-[r]->(m:Entity) WHERE elementId(n) = $id RETURN r
+        MATCH (n:Entity)-[r]->(m:Entity)
+        WHERE n.entity_id = $id AND m.entity_id IS NOT NULL
+        RETURN r, n.entity_id AS desde, m.entity_id AS hacia
         """
         in_query = """
-        MATCH (n:Entity)<-[r]-(m:Entity) WHERE elementId(n) = $id RETURN r
+        MATCH (n:Entity)<-[r]-(m:Entity)
+        WHERE n.entity_id = $id AND m.entity_id IS NOT NULL
+        RETURN r, m.entity_id AS desde, n.entity_id AS hacia
         """
         with self._driver.session() as session:
-            outgoing = [_rel_to_dict(rec["r"]) for rec in session.run(out_query, {"id": entity_id})]
-            incoming = [_rel_to_dict(rec["r"]) for rec in session.run(in_query, {"id": entity_id})]
+            outgoing = [
+                _rel_to_dict(rec["r"], rec["desde"], rec["hacia"])
+                for rec in session.run(out_query, {"id": entity_id})
+            ]
+            incoming = [
+                _rel_to_dict(rec["r"], rec["desde"], rec["hacia"])
+                for rec in session.run(in_query, {"id": entity_id})
+            ]
         return outgoing, incoming
 
     # -----------------------------------------------------------------------
@@ -270,7 +387,9 @@ class Neo4jGraphProvider(GraphProvider):
         sort_field = self._SORT_ALLOWLIST.get(sort, "n.canonical_name")
         order_dir = "DESC" if order == "desc" else "ASC"
 
-        where_parts = ["n.workspace = $workspace"]
+        # `_CON_IDENTIDAD_DURABLE` entra en el WHERE, no en un filtro posterior:
+        # asi `count(n)` y la pagina de items cuentan exactamente lo mismo.
+        where_parts = ["n.workspace = $workspace", _CON_IDENTIDAD_DURABLE]
         params: dict[str, Any] = {"workspace": workspace, "limit": limit, "offset": offset}
 
         if q:
