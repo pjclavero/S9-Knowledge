@@ -149,7 +149,15 @@ jobs:
           # esconde el fallo que deberia explicar es peor que no tenerlo, asi
           # que aqui se captura el codigo aparte y siempre se imprime la salida.
           set +e
-          out="$(python -m pytest viewer/tests/test_neo4j_integration_authz.py -v --no-header 2>&1)"
+          # Dos ficheros, UNA invocacion: los tres guardas de abajo miran la
+          # salida COMBINADA, asi que cubren los dos sin duplicar logica. Si el
+          # contrato de paneles se saltara (contenedor caido, variables sin
+          # definir), el `grep skipped` lo caza igual que al primero -- que es
+          # justo lo que hoy NO pasa: en `test-viewer` estas 43 pruebas salen
+          # SKIPPED y el job sale verde (medido en la ejecucion 31916319923).
+          out="$(python -m pytest viewer/tests/test_neo4j_integration_authz.py \
+                                  viewer/tests/test_contrato_paneles_neo4j.py \
+                                  -v --no-header 2>&1)"
           rc=$?
           set -e
           echo "$out"
