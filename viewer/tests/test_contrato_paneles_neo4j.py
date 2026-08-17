@@ -1318,7 +1318,7 @@ def test_short_summary_no_viaja_desde_neo4j(proveedor, semilla, driver):
 
 
 def test_el_element_id_no_aparece_en_ninguno_de_los_cuatro_paneles(
-        app_real, entorno, elemento, elemento_fisico):
+        app_real, proveedor, entorno, elemento, elemento_fisico):
     """Barrido negativo sobre el HTML REAL de los cuatro huecos.
 
     Se buscan los `elementId` de VERDAD, leidos de la base, no un patron: un
@@ -1329,15 +1329,23 @@ def test_el_element_id_no_aparece_en_ninguno_de_los_cuatro_paneles(
     assert len(fisicos) == len(SEMILLA), "el mapa de ids fisicos no cuajo"
 
     paginas: dict[str, str] = {}
+    codigos: dict[str, int] = {}
     for clave, slot in (("C", SLOT_C), ("B", SLOT_B), ("F", SLOT_F), ("G", SLOT_G)):
         c = cliente(app_real, usuario(entorno, f"nofis_{clave}", ROL[clave]))
-        paginas[f"lista-{clave}"] = c.get(slot.prefix, params={"workspace": WS}).text
+        r = c.get(slot.prefix, params={"workspace": WS})
+        paginas[f"lista-{clave}"], codigos[f"lista-{clave}"] = r.text, r.status_code
     g = cliente(app_real, usuario(entorno, "nofis_ficha", ROL["G"]))
     for eid in ("abl", "testigo"):
-        paginas[f"ficha-{eid}"] = g.get(f"{SLOT_G.prefix}/item/{elemento[eid]}").text
+        r = g.get(f"{SLOT_G.prefix}/item/{elemento[eid]}")
+        paginas[f"ficha-{eid}"], codigos[f"ficha-{eid}"] = r.text, r.status_code
 
-    # SUELO: si las paginas vinieran vacias, el barrido no encontraria nada y
-    # esto pasaria sin ejercer una sola pantalla.
+    # SUELO: un barrido negativo sobre paginas vacias no encuentra nada y pasa
+    # sin haber mirado una sola pantalla. Se exige 200 Y cuerpo, y el codigo se
+    # publica en el mensaje: la primera version de este test fallo porque le
+    # faltaba el fixture `proveedor` --la app servia el proveedor por defecto,
+    # no Neo4j-- y sin el codigo a la vista eso se lee como «pantalla vacia»
+    # en vez de como «arnes mal cableado».
+    assert all(v == 200 for v in codigos.values()), f"codigos: {codigos}"
     assert all(len(t) > 500 for t in paginas.values()), (
         f"alguna pantalla vino vacia: { {k: len(v) for k, v in paginas.items()} }")
     assert "Nodo de ablacion" in paginas["ficha-abl"], "la ficha no es la del objeto"
@@ -1354,7 +1362,8 @@ def test_el_element_id_no_aparece_en_ninguno_de_los_cuatro_paneles(
     )
 
 
-def test_la_ficha_no_abre_por_identificador_fisico(app_real, entorno, elemento_fisico):
+def test_la_ficha_no_abre_por_identificador_fisico(app_real, proveedor, entorno,
+                                                   elemento_fisico):
     """CONTRAPESO del test anterior. Que no se pinte no basta: no debe abrir.
 
     Si el `elementId` siguiera siendo una llave valida, la identidad no habria
