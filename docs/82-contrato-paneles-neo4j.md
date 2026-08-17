@@ -64,6 +64,12 @@ contrato campo a campo sólo puede existir donde hay campos. Que B y C no toquen
 el grafo es ahora un **hecho con prueba**: si alguien los conectara, el test se
 pone rojo y habría que ampliar el contrato.
 
+> **Acotación de esa medida** (misma que la de §5, por la misma razón): el «cero
+> consultas» se observa sobre el **driver del proveedor inyectado**. Léase «B y C
+> no consultan el grafo **a través del proveedor**». Un driver que el código se
+> fabricara por su cuenta quedaría fuera del espía — hoy no existe ninguno en el
+> camino de estos paneles, verificado por enumeración en §5.3.
+
 ---
 
 ## 3. El contrato, campo a campo, y su calibración
@@ -155,12 +161,20 @@ de ver el defecto**.
 
 ## 5. Ningún GET escribe — dos controles independientes, ambos calibrados
 
-**Alcance de la garantía, hoy**: ninguna petición GET de los cuatro paneles
-escribe en la base, **por ninguna de las cinco vías de ejecución del driver**
-—`session().run`, `driver.execute_query`, `session.execute_write`,
-`session.execute_read` y `session.begin_transaction`— y **en ninguna parte del
-grafo** (no sólo en los workspaces sembrados). Esto es bastante más de lo que la
-primera versión podía afirmar; §5.1 detalla qué faltaba y en qué orden se cerró.
+**Alcance de la garantía, hoy** — leída con su acotación, que forma parte de la
+afirmación y no es letra pequeña:
+
+> Ninguna petición GET de los cuatro paneles escribe en la base **a través del
+> driver del proveedor inyectado**, por ninguna de sus **cinco vías de
+> ejecución** —`session().run`, `driver.execute_query`, `session.execute_write`,
+> `session.execute_read` y `session.begin_transaction`—; y **ninguna petición
+> GET altera el estado del grafo**, venga de donde venga la escritura, **en
+> ninguna parte de la base**.
+
+Son **dos afirmaciones con dos alcances distintos**, y conviene no fundirlas: el
+espía cubre *toda vía* pero *sólo ese driver*; la foto cubre *cualquier driver*
+pero *sólo lo que cambia estado*. §5.3 explica qué cae exactamente en el hueco
+que dejan las dos, y por qué es un borde de la técnica y no un descuido.
 
 Las cinco vías están **enumeradas explícitamente** en el espía, repartidas entre
 `DriverEspia.EJECUTAN_CYPHER` y `SesionEspia.EJECUTAN_CYPHER`, y en ambos casos
@@ -244,10 +258,43 @@ enumeración). Era defecto **de instrumento**, no fallo vivo: el riesgo real era
 que el espía publicara un «cero escrituras» **más ancho de lo que podía
 respaldar**.
 
-**Sólo ahora** se sostiene la afirmación general de §5. Antes de esta ronda la
-honesta era: *«ningún GET escribe por `session().run` ni por `execute_query`, ni
-altera el estado observable del grafo»* — que deja fuera precisamente la
-escritura idempotente por transacción.
+**Sólo ahora** se sostiene la afirmación de §5 **para el driver del proveedor**.
+Antes de esta ronda la honesta era: *«ningún GET escribe por `session().run` ni
+por `execute_query`, ni altera el estado observable del grafo»* — que deja fuera
+precisamente la escritura idempotente por transacción.
+
+### 5.3 El residuo: un driver que el propio código se fabrica
+
+**MUT-9**: un GET que construye **su propio** `GraphDatabase.driver(...)` y hace
+una escritura **idempotente** → **47/47 VERDE**. Que la vía se ejecuta de verdad
+se comprueba con **MUT-9b** (mismo sitio, valor `0.777`): **ROJO, 2 failed — y
+ninguno de los dos es un control de escritura**, sólo aserciones de contenido.
+
+**Esto no es un descuido: es el borde de la técnica.** Los cinco huecos
+anteriores eran vías que el espía *decía* cubrir y no cubría. Ésta es distinta:
+**no se puede envolver un driver que el código se fabrica**, porque nunca pasa
+por la inyección de dependencias. Ningún envoltorio alcanza ahí; haría falta otro
+instrumento (parchear `GraphDatabase.driver`, o mirar el registro de consultas
+del propio servidor).
+
+**Lo que queda cubierto pese a todo**: la foto fotografía **la base entera**, así
+que **cualquier escritura que cambie el estado** —desde el driver que sea— se ve.
+El residuo real es sólo la intersección de tres condiciones:
+
+> **idempotente** ∧ **por un driver auto-construido** ∧ **desde un GET de panel**
+
+**Y no es alcanzable hoy**, verificado por enumeración: en todo `viewer/app` hay
+**dos** llamadas a `GraphDatabase.driver` — la del propio proveedor
+(`providers/neo4j_provider.py:100`, que es la que el espía envuelve) y la de
+`check_neo4j` (`health/checks.py:94`). El panel B **no ejecuta healthchecks**:
+lee el último informe guardado (`health_storage.load_last()`), y su propio
+docstring ya señala `/admin/health` —que **no es un panel**— como el camino que
+sí los ejecuta.
+
+**El mismo matiz alcanza a «B y C emiten 0 Cypher»** (§2): también se mide sobre
+el driver del proveedor inyectado. Lo correcto es leerlo como **«B y C no
+consultan el grafo a través del proveedor»**, que es lo que sostiene la medida —
+y, con la enumeración de arriba, tampoco por ningún otro camino existente hoy.
 
 ---
 
@@ -444,6 +491,10 @@ Las tres filas dicen cosas distintas y las tres hacían falta:
 - **MUT-7b** es el **control de contraste**: prueba que el rojo de MUT-7 viene
   del control y no del contenido. En la suite previa esta mutación ya salía roja
   —por accidente, vía la ablación— y eso era justo lo que enmascaraba el hueco.
+  *El número de rojos de MUT-7b depende del PUNTO DE INYECCIÓN: 2 inyectando en
+  el GET de la **ficha** (el sitio que documenta §5), 3 inyectando en el de la
+  **lista**, porque el daño colateral sobre las aserciones de contenido es mayor.
+  Al comparar cifras de esta fila hay que decir dónde se inyectó.*
 - **MUT-8** confirma que la red de `EJECUTAN_CYPHER` **no es decorativa**:
   quitar el método no deja una regresión silenciosa, produce un fallo ruidoso.
 
@@ -555,6 +606,32 @@ Salvedad honesta, que la propia revisión hizo: en este caso **la suite era el
 respaldo real** —MUT-8 sale roja— así que el fallo del arnés no llegó a producir
 ninguna cifra falsa. Pero **el arnés por sí solo no lo garantizaba**, y ése era
 el punto: un control que no puede fallar no es un control.
+
+#### Y el `sha256` verifica PRESERVACIÓN, no CORRECCIÓN
+
+Conviene no salir de aquí con la idea equivocada, porque es seductora: **este
+guard no habría cazado el incidente original**. Si al arnés se le entrega ya la
+versión equivocada —que es **literalmente** lo que pasó con `git checkout --`,
+porque el descarte ocurrió *antes* de tomar el hash— el guard **preservará
+fielmente el fichero destruido e imprimirá `INTACTA`**. Comparar un fichero
+consigo mismo no puede decir si ese fichero era el bueno.
+
+Lo que sí caza ese fallo es lo otro que el arnés ya hace, y por eso se conserva:
+
+- **declarar la línea base de CUENTAS** antes de mutar («suite actual 47, suite
+  previa 46» en §9.5). Un «suite ACTUAL: 43 passed» cuando la actual tiene 47 es
+  una discrepancia visible **en la propia tabla**, y fue así como se detectó;
+- **materializar la versión previa con `git show <hash>:<ruta>` en un fichero
+  aparte**, de modo que la identidad de cada versión venga de un **hash de
+  commit**, no de qué haya en el árbol en ese momento.
+
+> El `sha256` protege contra que el arnés **rompa** el fichero. La cuenta y el
+> hash del commit protegen contra que el arnés **mida el fichero equivocado**.
+> Son dos fallos distintos y hacen falta los dos controles.
+
+La lección queda cerrada, pero **por la cuenta declarada y el hash del commit**,
+no por el `sha256` del fichero. Escribirlo al revés sería creerse protegido por
+el control que no protege.
 
 ---
 
