@@ -42,8 +42,9 @@ SUITE = "viewer/tests/test_identidad_durable.py"
 #: La suite entera del visor tambien tiene que enrojecer con el defecto puesto:
 #: si solo enrojeciera el fichero nuevo, el gate seria un apendice.
 SUITE_AMPLIA = "viewer/tests/test_serializers.py"
-#: Solo corre con `NEO4J_TEST_URI` definido (en CI, el job de Neo4j efimero).
+#: Solo corren con `NEO4J_TEST_URI` definido (en CI, el job de Neo4j efimero).
 SUITE_NEO4J = "viewer/tests/test_neo4j_integration_authz.py"
+SUITE_CONTRATO = "viewer/tests/test_contrato_paneles_neo4j.py"
 MINIMO_TESTS = 10
 
 
@@ -112,6 +113,35 @@ MUTACIONES = [
         "RETURN r, n.entity_id AS desde, m.entity_id AS hacia",
         "RETURN r, elementId(n) AS desde, elementId(m) AS hacia",
         [SUITE_NEO4J] if os.environ.get("NEO4J_TEST_URI") else [],
+    ),
+    # --- MR4-MR7: los CUATRO filtros de identidad durable del proveedor.
+    # Los cuatro sobrevivieron a la primera revision independiente: eran
+    # codigo de produccion sin una sola prueba capaz de ponerse roja, que es
+    # lo mismo que codigo que se puede borrar sin que nadie se entere. Ahora
+    # los cubre la seccion 12 del contrato de paneles.
+    (
+        "MR4: `relations_for_entity` admite extremos sin entity_id",
+        "WHERE n.entity_id = $id AND m.entity_id IS NOT NULL\n        RETURN r, n.entity_id AS desde, m.entity_id AS hacia",
+        "WHERE n.entity_id = $id\n        RETURN r, n.entity_id AS desde, m.entity_id AS hacia",
+        [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
+    ),
+    (
+        "MR5: `graph()/node_query` deja pasar nodos sin entity_id",
+        "WHERE ($entity_type IS NULL OR n.entity_type = $entity_type)\n          AND n.entity_id IS NOT NULL\n        RETURN n",
+        "WHERE ($entity_type IS NULL OR n.entity_type = $entity_type)\n        RETURN n",
+        [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
+    ),
+    (
+        "MR6: `search()` deja de exigir entity_id",
+        "          AND n.entity_id IS NOT NULL\n        RETURN n\n        LIMIT $limit",
+        "        RETURN n\n        LIMIT $limit",
+        [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
+    ),
+    (
+        "MR7: `graph()/rel_query` deja pasar aristas con extremos sin identidad",
+        "          AND n.entity_id IS NOT NULL AND m.entity_id IS NOT NULL\n        RETURN n, r, m",
+        "        RETURN n, r, m",
+        [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
     ),
 ]
 

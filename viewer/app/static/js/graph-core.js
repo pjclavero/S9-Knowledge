@@ -81,10 +81,20 @@
    *
    * Sobre el identificador, tres reglas que no son cosmética:
    *
-   *  1. Se indexa `entity_id` y NADA MÁS. `node.id` NO entra: en el proveedor
-   *     Neo4j ese campo es el `elementId`, que no es identidad durable —se
-   *     regenera al restaurar un dump—, y hacerlo buscable convertiría un
-   *     detalle del almacén en una clave de búsqueda del producto.
+   *  1. Se indexa `entity_id` y NADA MÁS. `node.id` NO entra.
+   *
+   *     Cuando se escribió esta regla, `node.id` era el `elementId` de Neo4j
+   *     —identidad NO durable, se regenera al restaurar un dump— y la regla
+   *     existía para que ese detalle del almacén no se volviera una clave de
+   *     búsqueda del producto. Desde el carril de IDENTIFICADOR DURABLE, el
+   *     proveedor de Neo4j ya publica `entity_id` en `id`, así que hoy los dos
+   *     campos valen lo mismo.
+   *
+   *     La regla NO se relaja por eso, y la distinción no es teórica: `id` es
+   *     "lo que el backend use como identidad", y `entity_id` es "el
+   *     identificador estable de dominio". Indexar `id` ataría el buscador a
+   *     lo primero, y bastaría un proveedor futuro que volviera a poner ahí un
+   *     identificador físico para reintroducir el defecto en silencio.
    *  2. Solo se indexa lo que el BACKEND HA ENTREGADO en este nodo. Este
    *     módulo no compone, deriva ni adivina identificadores.
    *  3. Por lo tanto, y esto es el resultado que se congela: solo se puede

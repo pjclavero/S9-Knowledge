@@ -401,14 +401,17 @@ así que no encontraba nada *ni para el admin*. El índice pasa a ser **nombre �
 alias · tipo · resumen · `entity_id`**, donde `entity_id` es el identificador
 **estable de dominio** que entrega el backend (`serialize_node`, campo nuevo).
 
-> **Ojo:** esto está entregado **con el proveedor `mock`**. Con Neo4j la
-> búsqueda por identificador queda **inerte** hasta que su proyección incluya
-> `entity_id`; ver Limitaciones.
+> **Ojo (histórico):** esto se entregó **sólo con el proveedor `mock`**. Con
+> Neo4j la búsqueda por identificador quedaba **inerte** hasta que su proyección
+> incluyera `entity_id`. **Ya la incluye** desde el carril *IDENTIFICADOR
+> DURABLE*: la búsqueda por identificador está viva con ambos proveedores. Ver
+> Limitaciones.
 
 Lo que **no** entra, y hay una prueba por cada mitad:
 
-- el `elementId` de Neo4j (hoy `node.id` con ese proveedor): no es identidad
-  durable, se regenera al restaurar un dump;
+- el `elementId` de Neo4j (**era** `node.id` con ese proveedor; hoy `node.id` es
+  el `entity_id` y el `elementId` no se proyecta): no es identidad durable, se
+  regenera al restaurar un dump;
 - cualquier identificador que el backend no haya entregado en ese nodo.
 
 **La regla se comprueba en los dos lados.** `graph_core_spec.js` demuestra que
@@ -531,16 +534,20 @@ node : 3 fallidos   ROJO
 
 ## Limitaciones (honestas)
 
-- **La búsqueda por identificador queda inerte con el proveedor de Neo4j.** El
-  índice del visor busca por `entity_id`, y `entity_id` solo existe si el
-  proveedor lo entrega. La proyección de `neo4j_provider._node_to_dict` **no
-  incluye hoy `entity_id`** (pone el `element_id` técnico en `id`, que
-  deliberadamente *no* se indexa), así que contra Neo4j real teclear un
-  identificador no encuentra nada: **la función descrita más arriba como
-  entregada solo está viva con el proveedor `mock`**. Para activarla en
-  producción hace falta añadir `entity_id` a esa proyección —zona congelada en
-  este carril, no tocada—. Mientras tanto, el resultado de seguridad *sí* se
-  mantiene con ambos proveedores: lo que no se entrega, no se encuentra.
+- ~~**La búsqueda por identificador queda inerte con el proveedor de Neo4j.**~~
+  **RESUELTA** por el carril *IDENTIFICADOR DURABLE* (P0 de RC). Esta limitación
+  decía que `neo4j_provider._node_to_dict` no incluía `entity_id` y que activar
+  la búsqueda por identificador en producción exigía añadirlo a esa proyección.
+  Eso es exactamente lo que se hizo: la proyección publica ahora `entity_id`, y
+  `id` dejó de ser el `element_id` técnico para ser el propio `entity_id`.
+
+  **Cambio de comportamiento, declarado:** contra Neo4j real, teclear un
+  identificador **ya encuentra**, donde antes no encontraba nada. No amplía lo
+  visible ni un elemento — el índice se construye en el cliente sobre los nodos
+  que la vista **ya autorizada** contiene, así que sigue valiendo el resultado de
+  seguridad de siempre: *lo que no se entrega, no se encuentra*. Pero es una
+  función que pasa de inerte a viva sin que nadie la pidiera en ese carril, y
+  por eso se escribe aquí en vez de descubrirse en producción.
 - **La huella observable cubre diecisiete canales, no «todo».** La lista exacta
   está en la tabla de más arriba y en el docstring de `_huella_de_busqueda`.
   Fuera quedan, a sabiendas, los detalles de implementación y todo lo que no

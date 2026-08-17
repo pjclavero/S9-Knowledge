@@ -1447,3 +1447,277 @@ def test_un_nodo_sin_entity_id_no_se_lista_y_el_TOTAL_no_lo_cuenta(
         with driver.session() as s:
             s.run("MATCH (n:Entity {workspace:$ws}) WHERE n.entity_id IS NULL "
                   "DETACH DELETE n", {"ws": WS})
+
+
+# ===========================================================================
+# 12. LOS OTROS CUATRO CAMINOS DEL GRAFO: SIN IDENTIDAD DURABLE NO SE ENTREGA
+# ===========================================================================
+#
+# POR QUE EXISTE ESTA SECCION
+# ---------------------------
+# La seccion 11 cubre `list_entities`. El proveedor tiene CUATRO caminos mas
+# que filtran por identidad durable y ninguno tenia una prueba capaz de
+# ponerse roja: `relations_for_entity` (extremos), `graph()/node_query`,
+# `graph()/rel_query` y `search()`. Cuatro filtros de produccion sin gate es
+# lo mismo que cuatro filtros que se pueden borrar sin que nadie se entere.
+#
+# La consecuencia del que faltaba en `graph()` esta MEDIDA, no deducida: sin
+# ese filtro el huerfano llega a `GET /api/graph` con `"id": null` y
+# `nodes_total` sube mientras el panel G lista uno menos. Es EXACTAMENTE la
+# fuga por diferencia que la seccion 11 existe para impedir, por otra puerta.
+#
+# CADA TEST LLEVA SU CONTROL DE ABLACION
+# --------------------------------------
+# Medir «el huerfano no aparece» no demuestra nada por si solo: podria no
+# aparecer porque la POLITICA lo esconde, o porque el arnes no lo creo, o
+# porque la consulta no devuelve nada. Por eso cada test mide DOS VECES el
+# mismo nodo, con las MISMAS propiedades, cambiando UNA sola cosa: que tenga o
+# no `entity_id`. Si con `entity_id` tampoco apareciera, el test se declara
+# incapaz de discriminar y falla.
+
+NOMBRE_EXTRA = "Nodo extra de la seccion 12"
+
+
+def _sembrar_extra(driver, *, entity_id: str | None, con_arista: bool) -> None:
+    """Crea UN nodo con propiedades identicas salvo por `entity_id`.
+
+    Visibilidad `player` y ambito `juego`: la politica lo deja ver. Si no fuera
+    visible, su ausencia no probaria nada sobre la identidad durable -- estaria
+    midiendo la barrera de autorizacion, que ya tiene sus propias pruebas.
+    """
+    props = {"canonical_name": NOMBRE_EXTRA, "entity_type": "LUGAR",
+             "workspace": WS, "scope": "juego", "visibility": "player",
+             "review_status": "reviewed", "confidence": 0.9,
+             "source_document": "seccion12.pdf", "source_kind": "manual"}
+    if entity_id is not None:
+        props["entity_id"] = entity_id
+    with driver.session() as s:
+        s.run("CREATE (n:Entity $props)", {"props": props})
+        if con_arista:
+            s.run(
+                "MATCH (a:Entity {entity_id:'abl'}), (x:Entity {canonical_name:$n}) "
+                "CREATE (a)-[:VENERA {visibility:'player', workspace:$ws, "
+                "scope:'juego', relation_label_es:'venera'}]->(x)",
+                {"n": NOMBRE_EXTRA, "ws": WS},
+            )
+
+
+def _borrar_extra(driver) -> None:
+    with driver.session() as s:
+        s.run("MATCH (n:Entity {canonical_name:$n}) DETACH DELETE n",
+              {"n": NOMBRE_EXTRA})
+
+
+@pytest.fixture
+def extra(driver, semilla):
+    """Deja la base como estaba pase lo que pase."""
+    _borrar_extra(driver)
+    yield
+    _borrar_extra(driver)
+
+
+def _api_graph(c) -> dict:
+    r = c.get("/api/graph", params={"workspace": WS, "limit": 2000})
+    assert r.status_code == 200, f"/api/graph respondio {r.status_code}"
+    return r.json()
+
+
+# --- MR5: `graph()` / `node_query` ------------------------------------------
+
+def test_MR5_un_nodo_sin_entity_id_no_entra_en_el_grafo_ni_en_su_TOTAL(
+        app_real, proveedor, entorno, driver, extra):
+    """FUGA POR DIFERENCIA en `/api/graph`, la puerta que la seccion 11 no ve.
+
+    Sin el filtro en `node_query`, el huerfano llega con `"id": null` y
+    `nodes_total` sube mientras el panel G lista uno menos. Esa diferencia es
+    informacion: revela que existe algo que no se puede ver.
+    """
+    c = cliente(app_real, usuario(entorno, "mr5", ROL["G"]))
+    base = _api_graph(c)
+    n_base = base["view"]["nodes_total"]
+    filas_base = len(ids_g(G(c)))
+    assert n_base >= 5 and filas_base >= 5, "arnes vacio: ni grafo ni panel"
+
+    # --- sin identidad durable: no entra, y el TOTAL no lo cuenta
+    _sembrar_extra(driver, entity_id=None, con_arista=False)
+    with driver.session() as s:  # suelo: existe DE VERDAD en la base
+        assert s.run("MATCH (n:Entity {canonical_name:$n}) RETURN count(n) AS c",
+                     {"n": NOMBRE_EXTRA}).single()["c"] == 1
+
+    datos = _api_graph(c)
+    assert datos["view"]["nodes_total"] == n_base, (
+        f"`nodes_total` subio de {n_base} a {datos['view']['nodes_total']} por un "
+        "nodo que no se entrega: fuga por diferencia en /api/graph"
+    )
+    assert datos["view"]["nodes_shown"] == datos["view"]["nodes_total"], (
+        "recuento y pagina divergen en /api/graph"
+    )
+    assert all(n.get("id") is not None for n in datos["nodes"]), (
+        "un nodo llego con `id: null`: identidad ausente publicada como nodo"
+    )
+    assert all(n.get("label") != NOMBRE_EXTRA for n in datos["nodes"])
+    assert len(ids_g(G(c))) == filas_base, "el panel G tampoco debe moverse"
+
+    # --- CONTROL DE ABLACION: el MISMO nodo, con `entity_id`, SI entra.
+    # Sin esta mitad, «no aparece» podria deberse a la politica o al arnes.
+    _borrar_extra(driver)
+    _sembrar_extra(driver, entity_id="extra12", con_arista=False)
+    con_id = _api_graph(c)
+    assert con_id["view"]["nodes_total"] == n_base + 1, (
+        "con `entity_id` tampoco aparece: este test no sabe distinguir "
+        "«excluido por falta de identidad» de «excluido por cualquier otra cosa»"
+    )
+    assert any(n.get("label") == NOMBRE_EXTRA for n in con_id["nodes"])
+
+
+# --- MR7: `graph()` / `rel_query` -------------------------------------------
+
+def test_MR7_una_arista_hacia_un_nodo_sin_entity_id_no_entra_en_el_grafo(
+        app_real, proveedor, entorno, driver, extra):
+    """Una arista cuyo extremo no es direccionable no se puede enlazar.
+
+    Dejarla pasar produce una arista colgante que el recorte posterior tirara
+    -- pero contandola antes en `edges_total`, que es la misma fuga por
+    diferencia un nivel mas abajo.
+    """
+    c = cliente(app_real, usuario(entorno, "mr7", ROL["G"]))
+    base = _api_graph(c)
+    e_base = base["view"]["edges_total"]
+
+    _sembrar_extra(driver, entity_id=None, con_arista=True)
+    with driver.session() as s:  # suelo: la arista existe DE VERDAD
+        assert s.run("MATCH (:Entity {entity_id:'abl'})-[r]->(:Entity {canonical_name:$n}) "
+                     "RETURN count(r) AS c", {"n": NOMBRE_EXTRA}).single()["c"] == 1
+
+    datos = _api_graph(c)
+    assert datos["view"]["edges_total"] == e_base, (
+        f"`edges_total` subio de {e_base} a {datos['view']['edges_total']} por una "
+        "arista con un extremo sin identidad"
+    )
+    assert datos["view"]["edges_shown"] == datos["view"]["edges_total"]
+    for a in datos["edges"]:
+        assert a.get("from") is not None and a.get("to") is not None, (
+            f"arista con extremo nulo publicada: {a}"
+        )
+
+    # CONTROL DE ABLACION: con `entity_id`, la arista SI entra.
+    _borrar_extra(driver)
+    _sembrar_extra(driver, entity_id="extra12", con_arista=True)
+    con_id = _api_graph(c)
+    assert con_id["view"]["edges_total"] == e_base + 1, (
+        "con `entity_id` la arista tampoco aparece: el test no discrimina"
+    )
+
+
+# --- MR6: `search()` --------------------------------------------------------
+
+def test_MR6_la_busqueda_no_devuelve_nodos_sin_entity_id(
+        app_real, proveedor, entorno, driver, extra):
+    """`/api/search` publica `id`: sin identidad durable no hay resultado.
+
+    Devolverlo seria peor que inutil: un resultado cuyo enlace no abre.
+    """
+    c = cliente(app_real, usuario(entorno, "mr6", ROL["G"]))
+
+    def _buscar():
+        r = c.get("/api/search", params={"workspace": WS, "q": "seccion 12"})
+        assert r.status_code == 200, r.status_code
+        return r.json()["results"]
+
+    _sembrar_extra(driver, entity_id=None, con_arista=False)
+    sin_id = _buscar()
+    assert all(n.get("label") != NOMBRE_EXTRA for n in sin_id), (
+        "la busqueda devuelve un nodo sin identidad durable: su enlace no abre"
+    )
+    assert all(n.get("id") for n in sin_id), "resultado con `id` vacio"
+
+    # CONTROL DE ABLACION.
+    _borrar_extra(driver)
+    _sembrar_extra(driver, entity_id="extra12", con_arista=False)
+    con_id = _buscar()
+    assert any(n.get("label") == NOMBRE_EXTRA for n in con_id), (
+        "con `entity_id` tampoco lo encuentra: el test no discrimina (revisa "
+        "que el termino de busqueda case con `canonical_name`)"
+    )
+    assert all(n.get("entity_id") for n in con_id)
+
+
+# --- MR4: `relations_for_entity()` ------------------------------------------
+
+def test_MR4_las_relaciones_de_una_ficha_no_traen_extremos_sin_entity_id(
+        app_real, proveedor, entorno, driver, extra):
+    """La ficha de `abl` no puede mostrar una relacion que no lleva a ningun
+    sitio: su enlace apuntaria a un identificador que no existe.
+    """
+    c = cliente(app_real, usuario(entorno, "mr4", ROL["G"]))
+
+    def _relaciones():
+        salientes, entrantes = proveedor.relations_for_entity("abl")
+        return salientes + entrantes
+
+    base = len(_relaciones())
+
+    _sembrar_extra(driver, entity_id=None, con_arista=True)
+    rels = _relaciones()
+    assert len(rels) == base, (
+        f"`relations_for_entity` paso de {base} a {len(rels)} relaciones "
+        "incluyendo una con extremo sin identidad"
+    )
+    for a in rels:
+        assert a.get("from") is not None and a.get("to") is not None, a
+
+    # Y en la pantalla: la ficha no menciona al huerfano.
+    ficha = c.get(f"{SLOT_G.prefix}/item/abl")
+    assert ficha.status_code == 200
+    assert NOMBRE_EXTRA not in ficha.text
+
+    # CONTROL DE ABLACION.
+    _borrar_extra(driver)
+    _sembrar_extra(driver, entity_id="extra12", con_arista=True)
+    assert len(_relaciones()) == base + 1, (
+        "con `entity_id` la relacion tampoco llega: el test no discrimina"
+    )
+    assert NOMBRE_EXTRA in c.get(f"{SLOT_G.prefix}/item/abl").text
+
+
+# --- EXCEPCION DECLARADA: el `id` de arista en JSON -------------------------
+
+def test_EXCEPCION_el_id_de_arista_en_api_graph_SI_es_el_element_id(
+        app_real, proveedor, entorno, elemento_fisico):
+    """EXCEPCION EXPLICITA, no un olvido de la seccion 10.
+
+    La seccion 10 barre el HTML de F y G. `GET /api/graph` publica ademas
+    `edges[].id`, y ese valor SI es el `elementId` de la relacion. Se declara
+    aqui, con su razon, en vez de dejarlo fuera del barrido sin decirlo:
+
+    * las relaciones NO tienen identificador durable en el modelo V3
+      (`writer/cypher.py::create_relation` no escribe `relation_id` ni
+      `assertion_id`; el objeto durable de un hecho es el nodo `:V3Assertion`);
+    * ningun `href` del visor usa el id de una arista: los enlaces salen de
+      `from`/`to`, y esos dos SI son durables -- lo afirma la linea de abajo;
+    * es un valor de un solo viaje para que vis-network distinga aristas dentro
+      de la misma respuesta. No se marca, no se enlaza, no se persiste.
+
+    Si algun dia el modelo diera identidad durable a las relaciones, este test
+    se pone rojo y hay que cerrar tambien esta puerta.
+    """
+    c = cliente(app_real, usuario(entorno, "exc_json", ROL["G"]))
+    datos = _api_graph(c)
+    assert datos["edges"], "sin aristas no se esta midiendo nada"
+
+    # Lo que SI es durable en una arista: sus extremos.
+    fisicos = set(elemento_fisico.values())
+    for a in datos["edges"]:
+        assert a["from"] not in fisicos and a["to"] not in fisicos, (
+            f"un EXTREMO de arista viaja como elementId: {a}")
+
+    # Y la excepcion, afirmada: el `id` de arista es fisico y se acepta.
+    assert any(re.match(r"^\d+:[0-9a-fA-F-]{36}:\d+$", str(a.get("id")))
+               for a in datos["edges"]), (
+        "el `id` de arista ha dejado de ser el elementId. Si es porque el "
+        "modelo ya da identidad durable a las relaciones, ACTUALIZA esta "
+        "excepcion y haz que viaje ese identificador")
+
+    # Ningun NODO, en cambio, admite excepcion.
+    for n in datos["nodes"]:
+        assert n["id"] not in fisicos, f"un nodo viaja como elementId: {n['id']}"
