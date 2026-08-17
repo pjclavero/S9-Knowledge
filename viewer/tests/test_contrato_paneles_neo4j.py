@@ -1317,20 +1317,35 @@ def test_short_summary_no_viaja_desde_neo4j(proveedor, semilla, driver):
 # verde.
 
 
-def test_el_element_id_no_aparece_en_ninguno_de_los_cuatro_paneles(
+def test_el_element_id_no_aparece_en_las_pantallas_que_leen_del_grafo(
         app_real, proveedor, entorno, elemento, elemento_fisico):
-    """Barrido negativo sobre el HTML REAL de los cuatro huecos.
+    """Barrido negativo sobre el HTML REAL de las pantallas que leen del grafo.
 
     Se buscan los `elementId` de VERDAD, leidos de la base, no un patron: un
     patron podria no casar con el formato que use esta version del driver y el
     test pasaria sin haber mirado nada.
+
+    POR QUE F Y G Y NO LOS CUATRO
+    -----------------------------
+    Porque un control que no puede cambiar ningun resultado no se cobra. Los
+    huecos B y C no tienen NINGUNA superficie contra Neo4j -- lo demuestra en
+    este mismo fichero `test_los_paneles_B_y_C_no_consultan_neo4j_en_absoluto`,
+    que exige
+    cero Cypher emitido durante sus peticiones. Un identificador que solo puede
+    llegar del grafo no puede aparecer en una pantalla que no lee del grafo, asi
+    que incluirlas aqui seria inflar la cobertura con dos casos que nunca podran
+    enrojecer. La primera version de este test si las incluia y el panel C
+    respondio 404: un caso que ni siquiera se renderizaba.
+
+    Si algun dia B o C se conectaran al grafo, aquel test se pondria rojo y hay
+    que ampliar TAMBIEN este barrido.
     """
     fisicos = [v for v in elemento_fisico.values() if v]
     assert len(fisicos) == len(SEMILLA), "el mapa de ids fisicos no cuajo"
 
     paginas: dict[str, str] = {}
     codigos: dict[str, int] = {}
-    for clave, slot in (("C", SLOT_C), ("B", SLOT_B), ("F", SLOT_F), ("G", SLOT_G)):
+    for clave, slot in (("F", SLOT_F), ("G", SLOT_G)):
         c = cliente(app_real, usuario(entorno, f"nofis_{clave}", ROL[clave]))
         r = c.get(slot.prefix, params={"workspace": WS})
         paginas[f"lista-{clave}"], codigos[f"lista-{clave}"] = r.text, r.status_code
