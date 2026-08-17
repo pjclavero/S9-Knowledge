@@ -149,6 +149,39 @@ los cazó porque comprueba **la clave del hallazgo**, no el código de salida.
 - **Suelos:** mínimo 16 casos ejecutados y 8 ablaciones cobradas. Un arnés que
   pasa con 0 casos está roto.
 
+## 3.bis Lo que encontró la primera corrida en CI
+
+La primera vez que el job corrió de verdad, **el censo murió antes de emitir una
+fila**:
+
+```
+File "scripts/route_map/route_map.py", line 502, in collect_mounted
+    from fastapi.dependencies.utils import get_flat_dependant
+ImportError: cannot import name 'get_flat_dependant' from 'fastapi.dependencies.utils'
+```
+
+`get_flat_dependant` era **API privada del framework y ha desaparecido**.
+`viewer/requirements.txt` declara `fastapi>=0.141.1,<1.0`; el entorno local donde
+se venía ejecutando el censo tenía **0.139.0**, una versión que el repositorio ya
+no declara. Es decir: **el instrumento llevaba tiempo sin poder correr contra las
+dependencias reales del proyecto, y nadie se enteraba porque ningún job lo
+ejecutaba**. Ése es, literalmente, el argumento de este carril.
+
+Dos cosas que conviene subrayar:
+
+- **La puerta se comportó bien.** No dio verde: el censo salió con rc distinto de
+  0 y sin artefacto, y la puerta lo dijo — `censo-no-inspecciono-la-app-real`,
+  motivo `artefacto-ausente`. El caso A1 de la calibración es exactamente ése.
+- **El arreglo elimina la dependencia de API privada** en vez de fijarla a una
+  versión: `_dependants_planos()` recorre el árbol de `Dependant` y deduplica por
+  identidad del invocable, que es lo único que el censo consumía.
+
+Re-medido con el FastAPI **declarado** (0.141.1): mismo resultado que con 0.139
+—70 rutas montadas, 70 probadas, 68 denegaciones atribuibles, **0 SIN-AUTH, 0
+opacas**—, puerta VERDE y calibración OK (26 casos, 12 ablaciones). La
+calibración previa del censo (`calibrate_censo.py`, 17 casos y 12 ablaciones)
+también sigue en OK con las dos versiones.
+
 ## 4. La condición 2, implementada (no en prosa)
 
 `docs/68 §5.quater` pedía que la puerta **comprobara** que los cuatro paneles
