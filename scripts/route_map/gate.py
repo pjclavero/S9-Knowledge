@@ -74,13 +74,65 @@ tiempo de arranque —si `NAV` apuntara a una ruta inexistente, `chassis.nav_for
 levanta y el visor no pinta el menú—. Quedarse obsoleta exigiría que el código
 que la app ejecuta divergiese del código que la app ejecuta.
 
-LO QUE ESTA PUERTA **NO** PUEDE AFIRMAR (declarado, no disimulado)
--------------------------------------------------------------------
-Borrar una ruta a la que **nada canónico apunta** (ni `NAV`, ni un hueco, ni
-otra ruta) no pone la puerta roja: no hay declaración que quede incumplida.
-Cubrirlo exigiría enumerar las rutas en una lista, que es exactamente lo
-prohibido. Se declara, se nombran las rutas afectadas en el artefacto
-(`rutas_sin_declaracion_canonica`) y se cuentan sólo las que sí lo están.
+LO QUE ESTA PUERTA AFIRMA, EXACTAMENTE
+--------------------------------------
+> **Lo declarado existe, y sólo lo clasificable está montado.**
+> **NO** afirma «no hay rutas de más».
+
+La diferencia importa y está medida. Una ruta NUEVA, no declarada por nada pero
+**bien autenticada**, pasa en verde: no incumple ninguna declaración y su
+endpoint se clasifica sin problema (vive en `viewer/app`). Cubrir eso exigiría
+enumerar las rutas en una lista, que es exactamente lo prohibido. Lo mismo con
+**borrar** una ruta a la que nada canónico apunta: no hay declaración
+incumplida. Se declara, y las rutas afectadas se **nombran una a una** en el
+artefacto (`resumen.rutas_sin_declaracion_canonica`) en vez de resumirse en un
+número; se cuentan sólo las que sí tienen declaración.
+
+Lo que sí se cierra, y no por C4 sino por el censo: una ruta de más que además
+**se salte la autorización** —por ejemplo un alias de una ruta `/api` que
+esquiva el `Depends` del `include_router`— acaba en `rutas_sin_auth`, que esta
+puerta trata como hallazgo DURO. Medido en modo completo con sonda.
+
+ALCANCE REAL DE C4 (`ruta-sin-clasificar`), sin sobrevender
+------------------------------------------------------------
+C4 **sólo se pone roja para endpoints de FUERA de `viewer/app`**. Dos casos que
+suenan a «ruta inesperada» y que **pasan la clasificación**, comprobados:
+
+* un **alias** del mismo objeto endpoint montado en un segundo path — es el
+  mismo endpoint de un router declarado, luego se clasifica;
+* una **función suelta** de un módulo de `viewer/app` montada con
+  `add_api_route` — su fichero fuente está dentro del árbol, luego se clasifica.
+
+A los dos, cuando importan de verdad, los caza el censo por falta de
+autorización, no C4. Lo que C4 cierra es la procedencia desconocida: una ruta
+inyectada por una librería o generada en ejecución. Es menos de lo que el nombre
+sugiere, y por eso está escrito aquí.
+
+API PRIVADA QUE QUEDA, Y QUÉ PASA SI DESAPARECE
+------------------------------------------------
+El censo se apoya todavía en internos de FastAPI y Starlette. No es paranoia:
+`get_flat_dependant` ya desapareció y tumbó el censo entero en su primera
+corrida de CI. Lo que queda, y su modo de fallo:
+
+* `_IncludedRouter.effective_route_contexts()` / `.effective_low_priority_routes()`
+  y `ctx.original_route` / `ctx.starlette_route` (`route_map._nodo`/`_nodo_ctx`).
+  Se acceden con `getattr(..., None)`, así que **si desaparecen no revientan:
+  DEGRADAN** — y degradan a la vez el censo y esta puerta, con lo cual
+  `conjunto-de-rutas-distinto` (C9) **no lo vería**: los dos mirarían lo mismo,
+  y lo mismo estaría mal.
+* `starlette.routing.compile_path`: no documentado, pero estable.
+* `calibrate_censo.py:77` importa `_IncludedRouter` bajo `try/ImportError` con
+  fallback `()`. Si el símbolo desaparece, **el control negativo se queda mudo
+  en silencio**, que es peor que romperse.
+
+**Detector, y es barato porque ya está.** D2 llega a las rutas por una vía que
+**no usa ninguna API privada**: importa el módulo del router y lee
+`router.routes`. Si el enumerador degrada y deja de descender por los
+`_IncludedRouter`, los 53 endpoints declarados desaparecen del censo y **C2 se
+pone roja en masa**. O sea: la degradación silenciosa del enumerador es
+detectable porque hay DOS caminos independientes hasta las mismas rutas, y sólo
+uno depende de los internos. Calibrado en el caso **G13**, que rompe a propósito
+el descenso por contextos efectivos.
 
 CONTRATO (cada punto tiene un caso ROJO en `calibrate_gate.py`)
 ----------------------------------------------------------------
@@ -128,6 +180,68 @@ from route_map.route_map import (  # noqa: E402
 #: el criterio de «encendido» y el nombre de las banderas vivas los da el
 #: chasis, no esta expresión.
 RE_FAMILIA_PANEL = re.compile(r"^S9K_PANEL_[A-Z0-9_]+_ENABLED$")
+
+#: VOCABULARIO DE HALLAZGOS DEL CENSO, clasificado por completo.
+#:
+#: Aquí hubo un defecto REAL y medido, y por eso esto está escrito así. La
+#: versión anterior enumeraba los hallazgos duros por su nombre y **no miraba el
+#: resto**: renombrando `rutas_sin_auth` a `rutas_sin_auth_v2` en el artefacto,
+#: la puerta pasaba de `rc=1 censo-en-rojo` a **rc=0 VERDE con la fuga intacta**.
+#: El arnés tampoco lo veía, porque inyectaba el nombre literal en un artefacto
+#: sintético en vez de contrastarlo con lo que el censo emite de verdad.
+#:
+#: La forma correcta es la INVERSA y es fail-closed: se clasifica el vocabulario
+#: ENTERO, y **lo que no esté clasificado es rojo**. Un hallazgo renombrado deja
+#: de casar con su clase y cae en `hallazgo-desconocido`; un hallazgo nuevo del
+#: censo obliga a decidir si es duro o informativo, en vez de entrar gratis.
+#:
+#: Ojo con leer esto como la lista blanca que este carril prohíbe: no lo es. Una
+#: lista blanca es aquella en la que **escribir un nombre quita vigilancia**.
+#: Aquí escribir un nombre en `FINDINGS_DUROS` o en `FINDINGS_CENSO_INCOMPLETO`
+#: **añade** una causa de rojo, y la única lista que relaja —`FINDINGS_INFORMATIVOS`—
+#: está calibrada elemento a elemento y justificada abajo. Además, el caso G14
+#: comprueba que estos nombres siguen existiendo en el censo REAL.
+
+#: Hallazgos con los que el censo declara que NO puede sostener sus garantías.
+FINDINGS_CENSO_INCOMPLETO = (
+    "censo_opaco", "censo_vacio", "caracterizacion_estatica_fallida",
+    "control_positivo_csrf_fallido", "barrido_contamino_la_db",
+)
+
+#: Hallazgos DUROS: si aparecen, la puerta es roja.
+#:
+#: `route_map.py` sale con `rc=0` aun con `rutas_sin_auth` no vacío —lo verificó
+#: una revisión independiente—, así que quien convierte una fuga en un rojo de
+#: CI es exactamente esta tupla. No es un envoltorio del censo.
+FINDINGS_DUROS = (
+    "enlaces_rotos", "rutas_sin_auth", "rutas_capturadas",
+    "guardian_declarado_pero_no_aplicado", "contradiccion_deniega_y_sirve",
+    # La denegación existe pero NO es atribuible al control de acceso: la
+    # garantía «deniega al anónimo» no se sostiene sobre estas filas. Son 0 en
+    # esta base, así que exigirlas sale gratis y cierra el cubo.
+    "rutas_denegacion_404_ambigua", "rutas_denegacion_no_atribuible",
+    "sondas_inconcluyentes",
+)
+
+#: Hallazgos INFORMATIVOS: no vacíos hoy y no bloqueantes. Cada uno, justificado.
+#:
+#:  `rutas_muertas`      3 en esta base y las TRES son falsos positivos del
+#:                       enumerador AST, que compone el path sin el prefijo del
+#:                       `include_router` (`/item/{entity_id}`,
+#:                       `/item/{proposal_id}`, `/ficha/{handle}` están vivas y
+#:                       montadas). La puerta mide lo mismo por identidad de
+#:                       endpoint (C2), que es donde sí se puede exigir.
+#:  `rutas_no_probadas`  cobertura, no seguridad; C9 ya exige que NO sea todo.
+#:  `rutas_huerfanas`    39: casi todas APIs consumidas por `fetch`, legítimo.
+#:  `rutas_sin_guardian_estatico`  1, con denegación dinámica medida.
+#:  `rutas_servidas_a_viewer`      23: es el reparto de roles, no un defecto.
+FINDINGS_INFORMATIVOS = (
+    "rutas_muertas", "rutas_no_probadas", "rutas_huerfanas",
+    "rutas_sin_guardian_estatico", "rutas_servidas_a_viewer",
+)
+
+FINDINGS_CONOCIDOS = frozenset(
+    FINDINGS_CENSO_INCOMPLETO + FINDINGS_DUROS + FINDINGS_INFORMATIVOS)
 
 #: Métodos que un enlace de navegación puede ejercer. Un `<a href>` y una
 #: pantalla de panel son GET; no es una convención de esta puerta, es lo que
@@ -297,6 +411,10 @@ def evaluar(repo: Path, mapa: dict | None, mapa_rc: int | None = None,
     # tiene que seguir corriendo (con la declaración degradada) en vez de
     # reventar. Un control que al quitarlo produce una excepción no se puede
     # calibrar: no distinguiría «hacía falta» de «rompí el arnés».
+    # `FLAG_ENV_TEMPLATE` se exige aunque la puerta no lo invoque: es de donde el
+    # chasis DERIVA `slot_flag_env`, o sea la fuente del nombre que sí se usa. Y
+    # esta tupla no es el antipatrón de la lista blanca, es su contrario:
+    # escribir un nombre aquí AÑADE una exigencia, nunca quita vigilancia.
     for atributo in ("FEATURE_SLOTS", "NAV", "FLAG_ENV_TEMPLATE", "FLAG_ON_VALUES",
                      "slot_enabled", "slot_flag_env"):
         if not hasattr(ch, atributo):
@@ -565,9 +683,12 @@ def _cerrar(repo: Path, hallazgos: dict, resumen: dict, mapa: dict | None,
                         "2 = control positivo del CSRF fallido)"),
         })
 
-    for nombre in ("censo_opaco", "censo_vacio", "caracterizacion_estatica_fallida",
-                   "control_positivo_csrf_fallido", "barrido_contamino_la_db"):
-        items = (mapa.get("findings") or {}).get(nombre) or []
+    # El VOCABULARIO de hallazgos del censo, clasificado por completo y
+    # FAIL-CLOSED. Ver `FINDINGS_*` arriba: lo que no está clasificado es rojo,
+    # así que renombrar un hallazgo duro no lo apaga, lo delata.
+    emitidos = dict(mapa.get("findings") or {})
+    for nombre in FINDINGS_CENSO_INCOMPLETO:
+        items = emitidos.get(nombre) or []
         if items:
             hallazgos["censo-en-rojo"].append({
                 "motivo": nombre,
@@ -575,12 +696,8 @@ def _cerrar(repo: Path, hallazgos: dict, resumen: dict, mapa: dict | None,
                 "ejemplos": [i.get("path") or i.get("key") for i in items[:5]],
                 "detalle": "el propio censo se declara incompleto o no creíble",
             })
-
-    # Duros del mapa: si aparecen, la puerta es roja igual que el censo.
-    for nombre in ("enlaces_rotos", "rutas_sin_auth", "rutas_capturadas",
-                   "guardian_declarado_pero_no_aplicado",
-                   "contradiccion_deniega_y_sirve"):
-        items = (mapa.get("findings") or {}).get(nombre) or []
+    for nombre in FINDINGS_DUROS:
+        items = emitidos.get(nombre) or []
         if items:
             hallazgos["censo-en-rojo"].append({
                 "motivo": nombre,
@@ -588,6 +705,20 @@ def _cerrar(repo: Path, hallazgos: dict, resumen: dict, mapa: dict | None,
                 "ejemplos": [i.get("key") or i.get("raw") for i in items[:5]],
                 "detalle": "hallazgo duro del censo",
             })
+    # Cualquier hallazgo que el censo emita y esta puerta NO haya clasificado.
+    # Un nombre nuevo puede ser una garantía nueva o el mismo agujero con otro
+    # nombre, y la puerta no puede saberlo: lo dice y se pone roja.
+    for nombre in sorted(emitidos):
+        if nombre in FINDINGS_CONOCIDOS:
+            continue
+        hallazgos["censo-en-rojo"].append({
+            "motivo": "hallazgo-desconocido",
+            "nombre": nombre,
+            "n": len(emitidos.get(nombre) or []),
+            "detalle": ("el censo emite un hallazgo que esta puerta no tiene "
+                        "clasificado: o es una garantía nueva sin cablear, o es "
+                        "un hallazgo duro renombrado. Clasifícalo en `FINDINGS_*`"),
+        })
 
     counts = mapa.get("counts") or {}
     head_repo = _head(repo)

@@ -7,6 +7,15 @@
 **Qué NO hace este carril:** añadirlo a la protección de rama. Sería el check
 exigido nº 16 y lo decide el operador.
 
+> **Lo que la puerta afirma, exactamente: «lo declarado existe, y sólo lo
+> clasificable está montado».** NO afirma «no hay rutas de más». Una ruta nueva,
+> no declarada por nada pero **bien autenticada**, pasa en verde, y cubrirlo
+> exigiría la lista que este carril tiene prohibida. Lo que sí se cierra: una
+> ruta de más que además **se salte la autorización** —un alias de una `/api` que
+> esquiva el `Depends` del `include_router`, por ejemplo— acaba en
+> `rutas_sin_auth`, que la puerta trata como hallazgo DURO. Medido en modo
+> completo con sonda.
+
 ---
 
 ## 1. La condición que había que cumplir
@@ -74,7 +83,7 @@ que mantener nada para que eso se detecte.
 
 ## 3. El contrato, punto por punto, con la evidencia de cada ROJO
 
-Calibración: `python3 scripts/route_map/calibrate_gate.py`. **26 casos y 12
+Calibración: `python3 scripts/route_map/calibrate_gate.py`. **31 casos y 14
 ablaciones cobradas**, un subproceso por mutación, sobre **copias** del árbol.
 
 | punto del contrato | caso | mutación real | motivo que sale |
@@ -91,6 +100,10 @@ ablaciones cobradas**, un subproceso por mutación, sobre **copias** del árbol.
 | **censo que no inspeccionó la app real → ROJO** | **A1–A6** | sin artefacto · `head` de otro árbol · cobertura cero · `--skip-probe` · sin `--tested` · el artefacto describe otras rutas que las que sirve la app | `censo-no-inspecciono-la-app-real` |
 | censo en rojo → ROJO | **A7–A9** | `rc=3` del censo · `censo_opaco` no vacío · `rutas_sin_auth` no vacío | `censo-en-rojo` |
 | **un panel encendido cuando debía estar apagado** | **G10** / **G11** | `S9K_PANEL_C_ENABLED=true` · bandera de la familia que el chasis ya no declara | `panel-encendido` |
+| router declarado y **no importable** | **G12** | módulo con `router = APIRouter()` y un `import` inexistente | `router-declarado-no-montado` / `modulo-no-importable` |
+| el **enumerador degrada** al desaparecer una API privada | **G13** | desaparece `effective_route_contexts` | `ruta-declarada-no-montada` (en masa) |
+| **hallazgo duro RENOMBRADO** en el artefacto | **A10** | `rutas_sin_auth` → `rutas_sin_auth_v2`, con la fuga dentro | `censo-en-rojo` / `hallazgo-desconocido` |
+| el vocabulario de la puerta **es el que el censo emite** | **G14** + **G14-neg** | contraste contra las claves reales de `findings`; control negativo con un duro renombrado | desajuste nombrado en las dos direcciones |
 
 **Falsos positivos vigilados (tienen que salir VERDES):** árbol limpio (**G0**);
 bandera apagada explícitamente (**FP1**); bandera con valor ininteligible, que el
@@ -106,16 +119,21 @@ se declara como tal en vez de fingir aislamiento.
 ### Ablaciones (necesidad)
 
 Se cobra una ablación **sólo si vuelve VERDE un caso que estaba ROJO**. Un
-control que al quitarlo no cambia ningún resultado no se cobra. **12 cobradas**:
+control que al quitarlo no cambia ningún resultado no se cobra. **14 cobradas**:
 `AB-C2`(G5), `AB-C3`(G4), `AB-C4`(G6), `AB-C5-existe`(G2), `AB-C5-metodo`(G3),
-`AB-C6`(G7), `AB-C7`(G8), `AB-C8`(G10), `AB-C9-head`(A2),
-`AB-C9-cobertura`(A3), `AB-C9-conjunto`(A6), `AB-C10`(A8).
+`AB-C6`(G7), `AB-C7`(G8), `AB-C8`(G10), `AB-C1`(G12),
+`AB-C9-head`(A2), `AB-C9-cobertura`(A3), `AB-C9-conjunto`(A6), `AB-C10`(A8),
+`AB-C10-desconocido`(A10).
 
-**Superviviente declarado:** el control de nivel *router* (C1) **no se cobra**.
-Al quitarlo, G1 sigue rojo por C2 y C5: es un refinamiento de diagnóstico —dice
-«nadie incluyó este router» en vez de listar sus rutas una a una—, no el control
-que sostiene el rojo. Se deja porque el mensaje vale, y se declara que no es
-carga probatoria.
+**Corrección: C1 SÍ es necesario, y la versión anterior de este documento se
+equivocaba.** Se declaró «superviviente, diagnóstico y no carga probatoria»
+porque en G1 (router desmontado) ablar C1 deja el caso rojo por C2 y C5 — cierto,
+pero **G1 no era el caso que lo cobraba**. Lo es **G12**, un módulo de router
+**no importable**: ahí D2 no llega a ver ni una ruta, así que C2 y C5 no tienen
+nada que decir y **C1 es el único control que actúa**; con `AB-C1` el caso pasa a
+**VERDE con un router roto en el árbol**. Es lo que se pagaba por juzgar la
+necesidad de un control desde un solo caso: *no cobrado* no era *innecesario*,
+era *no medido*.
 
 ### Dos casos que hubo que rehacer, y por qué constan
 
@@ -182,6 +200,80 @@ opacas**—, puerta VERDE y calibración OK (26 casos, 12 ablaciones). La
 calibración previa del censo (`calibrate_censo.py`, 17 casos y 12 ablaciones)
 también sigue en OK con las dos versiones.
 
+## 3.ter Un renombrado desarmaba el control de SIN-AUTH (cerrado)
+
+Una revisión independiente midió el defecto más serio de la primera versión, y
+merece constar entero porque es **el acoplamiento por nombre que este proyecto
+lleva toda la ronda cazando**:
+
+- con una ruta `/api` sin auth, el censo emite `rutas_sin_auth: ['GET /api/alias-fuga']`
+  y la puerta da **rc=1 `censo-en-rojo`**;
+- **renombrando esa clave a `rutas_sin_auth_v2` en el artefacto: rc=0, VERDE, con
+  la fuga intacta.**
+
+Y la calibración no lo veía, porque A8/A9 **inyectaban el nombre literal en un
+artefacto sintético**: eso comprueba que la puerta reacciona a un nombre, no que
+ese nombre siga siendo el que el censo produce.
+
+**Arreglo, en dos capas, las dos calibradas:**
+
+1. **En ejecución, se invierte el criterio.** La puerta ya no enumera los duros y
+   se desentiende del resto: clasifica el **vocabulario entero** del censo en tres
+   tuplas (`FINDINGS_CENSO_INCOMPLETO`, `FINDINGS_DUROS`, `FINDINGS_INFORMATIVOS`)
+   y **lo que no esté clasificado es rojo** (`hallazgo-desconocido`). Un duro
+   renombrado deja de casar con su clase y cae ahí. Caso **A10**, ablación
+   `AB-C10-desconocido`.
+2. **En el arnés, se contrasta contra el censo real.** El caso **G14** ejecuta
+   `route_map --skip-probe` sobre el árbol, le pregunta al censo cuáles son sus
+   claves de `findings`, y las compara con las que la puerta clasifica —leídas
+   **de la puerta**, no copiadas— en las **dos direcciones**: un nombre que la
+   puerta clasifica y el censo ya no emite (la clase apunta al vacío), y un nombre
+   que el censo emite y la puerta no clasifica. **G14-neg** es su control
+   negativo: con `rutas_sin_auth` renombrado, el contraste tiene que señalar las
+   dos caras — si no puede ponerse rojo, no comprueba nada.
+
+**Aviso de altura sobre las tres tuplas:** no son la lista blanca que este carril
+prohíbe. Una lista blanca es aquella en la que **escribir un nombre quita
+vigilancia**; escribir un nombre en `FINDINGS_DUROS` o en
+`FINDINGS_CENSO_INCOMPLETO` **añade** una causa de rojo. La única que relaja es
+`FINDINGS_INFORMATIVOS`, y va justificada elemento a elemento en el código (los 3
+`rutas_muertas` son los falsos positivos conocidos del enumerador AST; los 39
+`rutas_huerfanas`, APIs consumidas por `fetch`; etc.). De paso se **endurecieron**
+tres hallazgos que estaban a 0 y no se exigían: `rutas_denegacion_404_ambigua`,
+`rutas_denegacion_no_atribuible` y `sondas_inconcluyentes`.
+
+**Dato que sube el valor de la puerta**, de la misma revisión: `route_map.py` sale
+con **rc=0 aun con `rutas_sin_auth` no vacío**. Quien convierte una fuga en un
+rojo de CI es `FINDINGS_DUROS`. La puerta no es un envoltorio del censo.
+
+## 3.quater API privada que queda, y el detector de su degradación
+
+`get_flat_dependant` ya desapareció y tumbó el censo (§3.bis). Lo que queda:
+
+| interno | dónde | modo de fallo |
+|---|---|---|
+| `_IncludedRouter.effective_route_contexts()` · `.effective_low_priority_routes()` · `ctx.original_route` · `ctx.starlette_route` | `route_map._nodo` / `_nodo_ctx` | acceso con `getattr(..., None)`: **no revienta, DEGRADA** |
+| `starlette.routing.compile_path` | `route_map` (2 usos) | no documentado, pero estable |
+| `from fastapi.routing import _IncludedRouter` bajo `try/ImportError` con fallback `()` | `calibrate_censo.py:77` | si desaparece, **el control negativo se queda mudo en silencio** |
+
+La primera fila es la peligrosa, y su peligro es concreto: degradaría **a la vez
+el censo y la puerta**, así que `conjunto-de-rutas-distinto` (C9) **no lo vería**
+— los dos mirarían lo mismo mal mirado.
+
+**Detector, y sale gratis porque ya estaba.** D2 llega a las rutas por una vía que
+**no usa ninguna API privada**: importa el módulo del router y lee
+`router.routes`. Si el enumerador deja de descender por los `_IncludedRouter`,
+los 53 endpoints declarados desaparecen del censo y **C2 se pone roja en masa**.
+Hay **dos caminos independientes** hasta las mismas rutas y sólo uno depende de
+los internos. Calibrado en **G13**, que hace desaparecer
+`effective_route_contexts` a propósito: la puerta sale roja con
+`ruta-declarada-no-montada`, `router-declarado-no-montado` y
+`nombre-canonico-no-resuelve`.
+
+Queda **declarado como riesgo del próximo bump de FastAPI**; el fallback mudo de
+`calibrate_censo.py:77` no se toca en este carril (no es fichero de esta puerta),
+pero queda escrito aquí.
+
 ## 4. La condición 2, implementada (no en prosa)
 
 `docs/68 §5.quater` pedía que la puerta **comprobara** que los cuatro paneles
@@ -212,8 +304,8 @@ Implementación (`gate.py`, hallazgo `panel-encendido`):
 | suite del visor con la sonda (`-p route_map.pytest_route_probe`), genera `--tested` | **57 s** (1565 passed, 191 skipped) |
 | censo (`route_map.py` con sonda) | **4,7 s** |
 | puerta (`gate.py`) | **~2 s** |
-| calibración (`calibrate_gate.py`, 26 casos + 12 ablaciones, un subproceso cada uno) | **47 s** |
-| **total del job** | **≈ 110 s** más la instalación de dependencias |
+| calibración (`calibrate_gate.py`, 31 casos + 14 ablaciones, un subproceso cada uno) | **~60 s** |
+| **total del job** | **≈ 125 s** más la instalación de dependencias |
 
 ## 6. Recuento de jobs
 
@@ -238,6 +330,14 @@ verdes las dos veces (30/30 casos de la calibración de gates).
   una** en el artefacto (`resumen.rutas_sin_declaracion_canonica`), no se resumen
   en un número. Los **14 nombres canónicos exigidos** están en
   `resumen.nombres_canonicos_exigidos`.
+- **C4 sólo se pone roja para endpoints de FUERA de `viewer/app`.** Dos casos que
+  suenan a «ruta inesperada» **pasan la clasificación**: un **alias** del mismo
+  objeto endpoint montado en un segundo path (es el mismo endpoint de un router
+  declarado) y una **función suelta** de un módulo de `viewer/app` montada con
+  `add_api_route` (su fichero fuente está dentro del árbol). A los dos, cuando
+  importan de verdad, los caza el **censo por falta de autorización**, no C4. Lo
+  que C4 cierra es la **procedencia desconocida**: una ruta inyectada por una
+  librería o generada en ejecución. Es menos de lo que el nombre sugiere.
 - **La puerta hereda todas las limitaciones del censo** (§5.quater de `docs/68`):
   los tri-estados disparan ante la ausencia de dato, no ante su incorrección; un
   `Mount` opaco sigue siendo opaco; la superficie estática se comprueba sobre una

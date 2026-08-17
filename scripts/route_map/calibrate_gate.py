@@ -48,8 +48,8 @@ REPO = Path(__file__).resolve().parents[2]
 
 #: Suelos del arnés. Si la carga real baja de aquí, el arnés se declara roto en
 #: vez de salir verde por no haber probado nada.
-MINIMO_CASOS = 16
-MINIMO_ABLACIONES = 8
+MINIMO_CASOS = 20
+MINIMO_ABLACIONES = 12
 
 
 # ---------------------------------------------------------------------------
@@ -237,6 +237,45 @@ def m_configuracion_ausente_modulo(raiz: Path) -> None:
     raiz.joinpath(*CHASIS).unlink()
 
 
+def m_router_no_importable(raiz: Path) -> None:
+    """Un modulo de router que declara `router` y NO se puede importar.
+
+    Es el caso que demuestra que C1 **no** es un adorno de diagnostico: aqui D2
+    no llega a ver ni una ruta (el `import` falla), asi que ni C2 ni C5 tienen
+    nada que decir, y el UNICO control que se pone rojo es C1
+    (`modulo-no-importable`). Con C1 ablado, esto sale VERDE con un router roto
+    en el arbol.
+    """
+    (raiz / "viewer" / "app" / "routers" / "roto_calibracion.py").write_text(
+        "from fastapi import APIRouter\n"
+        "from app.modulo_que_no_existe import nada  # noqa: F401\n\n"
+        "router = APIRouter()\n\n\n"
+        '@router.get("/roto-calibracion")\n'
+        "async def _roto():\n"
+        "    return {}\n",
+        encoding="utf-8")
+
+
+def m_enumerador_degradado(raiz: Path) -> None:
+    """Desaparece la API privada por la que el censo desciende a los routers.
+
+    Simula el sucesor natural del defecto ya pagado (`get_flat_dependant`):
+    `_IncludedRouter.effective_route_contexts()` se accede con
+    `getattr(..., None)`, asi que si desaparece **no revienta, DEGRADA** — y
+    degrada A LA VEZ el censo y la puerta, con lo que C9
+    (`conjunto-de-rutas-distinto`) no lo veria, porque los dos mirarian lo mismo
+    mal mirado.
+
+    Quien si lo ve es C2, y por una razon estructural: D2 llega a las rutas
+    importando el modulo del router y leyendo `router.routes`, una via que **no
+    usa ninguna API privada**. Hay dos caminos independientes hasta las mismas
+    rutas y solo uno depende de los internos del framework.
+    """
+    sustituir(raiz / "scripts" / "route_map" / "route_map.py",
+              'ctxs = getattr(r, "effective_route_contexts", None)',
+              'ctxs = getattr(r, "effective_route_contexts_QUE_YA_NO_EXISTE", None)')
+
+
 def _apendice(raiz: Path, texto: str) -> None:
     f = raiz.joinpath(*MAIN)
     f.write_text(f.read_text(encoding="utf-8") + texto, encoding="utf-8")
@@ -271,6 +310,10 @@ CASOS_DECLARACION = [
      {"S9K_PANEL_C_ENABLED": "true"}),
     ("G11", "bandera de panel encendida que el chasis no declara", None,
      "panel-encendido", {"S9K_PANEL_Z_ENABLED": "1"}),
+    ("G12", "módulo de router declarado y NO importable", m_router_no_importable,
+     "router-declarado-no-montado", {}),
+    ("G13", "el enumerador DEGRADA al desaparecer una API privada de FastAPI",
+     m_enumerador_degradado, "ruta-declarada-no-montada", {}),
     # Falsos positivos vigilados: ninguno de éstos puede poner la puerta roja.
     ("FP1", "bandera de panel APAGADA explícitamente", None, None,
      {"S9K_PANEL_C_ENABLED": "false"}),
@@ -342,8 +385,98 @@ CASOS_ARTEFACTO = [
     ("A9", "el censo declara una ruta SIN-AUTH",
      lambda m: {**m, "findings": {"rutas_sin_auth": [{"key": "GET /fuga"}]}},
      "censo-en-rojo", 0),
+    # M11: el defecto que encontró la revisión. Con el nombre literal la puerta
+    # daba rc=1; RENOMBRANDO la clave a `rutas_sin_auth_v2` daba rc=0 VERDE con
+    # la fuga intacta. Hoy cae en `hallazgo-desconocido` y vuelve a ser roja.
+    ("A10", "un hallazgo DURO renombrado en el artefacto (la fuga sigue ahí)",
+     lambda m: {**m, "findings": {"rutas_sin_auth_v2": [{"key": "GET /api/alias-fuga"}]}},
+     "censo-en-rojo", 0),
     ("AFP", "artefacto íntegro (control de falso positivo)", lambda m: m, None, 0),
 ]
+
+
+# ---------------------------------------------------------------------------
+# G14 — el vocabulario de la puerta, contrastado con lo que el censo EMITE
+# ---------------------------------------------------------------------------
+# El defecto que cierra este control (M11): la puerta nombra los hallazgos duros
+# del censo, y el arnés los verificaba **inyectando el nombre literal en un
+# artefacto sintético**. Eso comprueba que la puerta reacciona a un nombre, no
+# que ese nombre siga siendo el que el censo produce. Medido: renombrando
+# `rutas_sin_auth` a `rutas_sin_auth_v2`, la puerta pasaba de rc=1 a **rc=0
+# VERDE con la fuga intacta**, y la calibración seguía diciendo OK.
+#
+# Aquí se contrasta contra el censo REAL, en las dos direcciones:
+#   - un nombre que la puerta clasifica y el censo ya no emite  -> acoplamiento
+#     roto: la clase quedó apuntando al vacío;
+#   - un nombre que el censo emite y la puerta no clasifica     -> es lo que en
+#     ejecución cae en `hallazgo-desconocido`; aquí se detecta antes.
+
+def vocabulario_del_censo(raiz: Path) -> set[str]:
+    """Las claves de `findings` que produce `route_map` sobre el árbol real.
+
+    Con `--skip-probe`: el censo sale con rc=3 por diseño (sin sonda no hay
+    garantía), pero **escribe el artefacto igual**, y las claves de `findings`
+    se emiten todas, vacías o no. Es la vía barata de preguntarle al censo cuál
+    es su vocabulario, en vez de copiarlo a mano.
+    """
+    salida = raiz / "vocabulario.json"
+    env = dict(os.environ)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env["PYTHONPATH"] = str(raiz / "scripts")
+    for k in list(env):
+        if k.startswith("S9K_"):
+            env.pop(k)
+    subprocess.run([sys.executable, str(raiz / "scripts" / "route_map" / "route_map.py"),
+                    "--repo", str(raiz), "--skip-probe", "--out", str(salida)],
+                   capture_output=True, text=True, env=env, cwd=str(raiz))
+    if not salida.exists():
+        return set()
+    return set((json.loads(salida.read_text(encoding="utf-8")).get("findings") or {}))
+
+
+def constantes_de_la_puerta(raiz: Path) -> dict:
+    """Los nombres que la puerta clasifica, LEÍDOS DE LA PUERTA, no copiados."""
+    salida = raiz / "constantes.json"
+    guion = raiz / "leer_constantes.py"
+    guion.write_text(
+        "import json, sys\n"
+        "sys.path.insert(0, %r)\n"
+        "from route_map import gate\n"
+        "json.dump({'duros': list(gate.FINDINGS_DUROS),\n"
+        "           'incompleto': list(gate.FINDINGS_CENSO_INCOMPLETO),\n"
+        "           'informativos': list(gate.FINDINGS_INFORMATIVOS),\n"
+        "           'conocidos': sorted(gate.FINDINGS_CONOCIDOS)},\n"
+        "          open(%r, 'w'))\n" % (str(raiz / "scripts"), str(salida)),
+        encoding="utf-8")
+    env = dict(os.environ)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env["PYTHONPATH"] = str(raiz / "scripts")
+    subprocess.run([sys.executable, str(guion)], capture_output=True, text=True,
+                   env=env, cwd=str(raiz))
+    if not salida.exists():
+        return {}
+    return json.loads(salida.read_text(encoding="utf-8"))
+
+
+def contraste_vocabulario(emitidos: set[str], consts: dict) -> list[str]:
+    """Los desajustes entre lo que la puerta clasifica y lo que el censo emite."""
+    problemas = []
+    conocidos = set(consts.get("conocidos") or [])
+    if not emitidos:
+        return ["el censo no emitió ninguna clave de `findings`: no hay nada que "
+                "contrastar, y un contraste sin datos no comprueba nada"]
+    if not conocidos:
+        return ["la puerta no expone ningún nombre clasificado"]
+    for nombre in sorted(conocidos - emitidos):
+        problemas.append(
+            f"la puerta clasifica `{nombre}`, que el censo YA NO EMITE: el "
+            f"acoplamiento por nombre se ha roto y esa clase apunta al vacío "
+            f"(si era un hallazgo DURO, dejó de vigilarse en silencio)")
+    for nombre in sorted(emitidos - conocidos):
+        problemas.append(
+            f"el censo emite `{nombre}` y la puerta no lo clasifica: en ejecución "
+            f"caería en `hallazgo-desconocido`; decide si es duro o informativo")
+    return problemas
 
 
 # ---------------------------------------------------------------------------
@@ -375,12 +508,16 @@ ABLACIONES = [
     ("AB-C8", "G10",
      'hallazgos["panel-encendido"].append({\n                "hueco": slot.key,',
      'None and hallazgos["panel-encendido"].append({\n                "hueco": slot.key,'),
+    # Abla la emisión de C1 que atiende a los módulos NO IMPORTABLES, que es la
+    # única que puede hablar en G12: cuando el `import` falla, D2 no ve ni una
+    # ruta, así que C2 y C5 no tienen nada que decir.
+    ("AB-C1", "G12", "for f in fallos_import:", "for f in []:"),
+    ("AB-C10-desconocido", "A10", "if nombre in FINDINGS_CONOCIDOS:", "if True:"),
     ("AB-C9-head", "A2", 'if head_repo and head_mapa and head_mapa != head_repo:',
      'if False:'),
     ("AB-C9-cobertura", "A3", 'elif not counts.get("probadas"):', 'elif False:'),
     ("AB-C9-conjunto", "A6", 'if vivas and del_mapa and vivas != del_mapa:', 'if False:'),
-    ("AB-C10", "A8", 'for nombre in ("censo_opaco", "censo_vacio",',
-     'for nombre in ("_ninguno_", "censo_vacio_",'),
+    ("AB-C10", "A8", "for nombre in FINDINGS_CENSO_INCOMPLETO:", "for nombre in ():"),
 ]
 
 
@@ -484,6 +621,43 @@ def main(argv=None) -> int:
             ablaciones.append({"ablacion": aid, "caso": caso, "rc_ablado": r["rc"],
                                "motivos_ablado": r["motivos"],
                                "estado": "COBRADA" if cobrada else "NO-COBRADA"})
+
+    # --- G14: el vocabulario de la puerta contra el que el censo EMITE ----
+    with tempfile.TemporaryDirectory(prefix="calib-gate-voc-") as tmp:
+        raiz_voc = copia(Path(tmp))
+        emitidos = vocabulario_del_censo(raiz_voc)
+        consts = constantes_de_la_puerta(raiz_voc)
+        problemas = contraste_vocabulario(emitidos, consts)
+        fallos.extend(f"G14: {x}" for x in problemas)
+        resultados.append({
+            "caso": "G14",
+            "desc": ("el vocabulario que la puerta clasifica es el que el censo "
+                     "emite de verdad"),
+            "esperado": "VERDE", "rc": 1 if problemas else 0,
+            "motivos": problemas,
+            "emitidos_por_el_censo": sorted(emitidos),
+            "clasificados_por_la_puerta": sorted(consts.get("conocidos") or []),
+            "estado": "FALLO" if problemas else "OK",
+        })
+        # Control negativo del propio contraste: si no puede ponerse rojo, no
+        # comprueba nada. Se le da un censo con un hallazgo DURO renombrado y
+        # tiene que señalar las DOS caras (el nombre que falta y el que sobra).
+        renombrado = (emitidos - {"rutas_sin_auth"}) | {"rutas_sin_auth_v2"}
+        detectado = contraste_vocabulario(renombrado, consts)
+        ok_neg = (any("rutas_sin_auth`" in x and "YA NO EMITE" in x for x in detectado)
+                  and any("rutas_sin_auth_v2" in x for x in detectado))
+        if not ok_neg:
+            fallos.append(
+                "G14-neg: el contraste de vocabulario NO detecta un hallazgo duro "
+                f"renombrado. Un control que no puede ponerse rojo no comprueba "
+                f"nada. Detectado: {detectado}")
+        resultados.append({
+            "caso": "G14-neg",
+            "desc": "el contraste detecta un hallazgo DURO renombrado (M11)",
+            "esperado": "detecta el renombrado", "rc": 1 if ok_neg else 0,
+            "motivos": detectado,
+            "estado": "OK" if ok_neg else "FALLO",
+        })
 
     # --- la puerta no puede venir con el modo de calibración cableado -----
     for wf in sorted((REPO / ".github" / "workflows").glob("*.yml")):
