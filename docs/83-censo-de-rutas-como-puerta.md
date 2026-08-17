@@ -83,7 +83,7 @@ que mantener nada para que eso se detecte.
 
 ## 3. El contrato, punto por punto, con la evidencia de cada ROJO
 
-Calibración: `python3 scripts/route_map/calibrate_gate.py`. **31 casos y 14
+Calibración: `python3 scripts/route_map/calibrate_gate.py`. **44 casos y 15
 ablaciones cobradas**, un subproceso por mutación, sobre **copias** del árbol.
 
 | punto del contrato | caso | mutación real | motivo que sale |
@@ -119,10 +119,11 @@ se declara como tal en vez de fingir aislamiento.
 ### Ablaciones (necesidad)
 
 Se cobra una ablación **sólo si vuelve VERDE un caso que estaba ROJO**. Un
-control que al quitarlo no cambia ningún resultado no se cobra. **14 cobradas**:
+control que al quitarlo no cambia ningún resultado no se cobra. **15 cobradas**:
 `AB-C2`(G5), `AB-C3`(G4), `AB-C4`(G6), `AB-C5-existe`(G2), `AB-C5-metodo`(G3),
 `AB-C6`(G7), `AB-C7`(G8), `AB-C8`(G10), `AB-C1`(G12),
-`AB-C9-head`(A2), `AB-C9-cobertura`(A3), `AB-C9-conjunto`(A6), `AB-C10`(A8),
+`AB-C9-head`(A2), `AB-C9-cobertura`(A3), `AB-C9-conjunto`(A6),
+`AB-C10`(AD-censo_opaco), `AB-C10-duros`(AD-rutas_sin_auth) y
 `AB-C10-desconocido`(A10).
 
 **Corrección: C1 SÍ es necesario, y la versión anterior de este documento se
@@ -274,6 +275,103 @@ Queda **declarado como riesgo del próximo bump de FastAPI**; el fallback mudo d
 `calibrate_censo.py:77` no se toca en este carril (no es fichero de esta puerta),
 pero queda escrito aquí.
 
+## 3.quinquies La asignación duro/informativo, derivada de una medida (O4)
+
+Con la puerta ya **requerida**, una revisión midió el hueco que quedaba (**M16**):
+la asignación de cada hallazgo a *duro* o *informativo* estaba escrita a mano y
+**sólo dos de los trece nombres duros tenían un caso que los cubriera**
+(`censo_opaco` y `rutas_sin_auth`). Mover `rutas_denegacion_404_ambigua` o
+`rutas_denegacion_no_atribuible` a `FINDINGS_INFORMATIVOS` **pasaba la
+calibración**. Es decir: la inversión de O1 protegía el vocabulario contra
+renombrados, pero no contra **degradaciones de la asignación**.
+
+Cerrado en dos piezas que se necesitan mutuamente:
+
+### 1) Los casos se GENERAN, uno por nombre duro
+
+`casos_por_hallazgo_duro()` itera `gate.FINDINGS_DUROS` y
+`gate.FINDINGS_CENSO_INCOMPLETO` —**leídos de `gate.py` en un subproceso**, no
+copiados— y produce un caso sintético por nombre: **13 casos `AD-<nombre>`** que
+antes eran dos escritos a mano. La protección **crece sola** al endurecer un
+hallazgo nuevo, igual que D1 crece sola al aparecer un router.
+
+**Lo que esto solo NO prueba, y hay que decirlo:** estos casos se derivan de la
+misma lista que vigilan. Si alguien mueve un nombre a informativos, **su caso
+desaparece con él** y ninguno se pone rojo. Es exactamente el suelo que se
+autocumple contra el que este proyecto lleva toda la ronda avisando.
+
+### 2) La pertenencia se DERIVA de dos medidas, no de una opinión
+
+`G15` toma **dos medidas de referencia sobre el árbol limpio** —el censo con
+sonda y el censo con `--skip-probe`— y exige que **todo hallazgo vacío en LAS DOS
+sea duro**.
+
+Por qué las dos y no una, que es donde está el criterio:
+
+| medida | qué falsearía usarla sola |
+|---|---|
+| sólo **con sonda** | `rutas_no_probadas` sale vacío (70/70 ejercitadas) y el criterio exigiría endurecer la **cobertura de tests**, que es otra política y no la de esta puerta |
+| sólo **`--skip-probe`** | `rutas_servidas_a_viewer` sale vacío porque **la medida no se ha hecho**, no porque no haya nada que contar |
+
+> Un cubo que sigue vacío **tanto si debilitas la medida como si la refuerzas** no
+> depende de la configuración: es un cubo que debería estar siempre vacío, y ése
+> es el que tiene que ser duro. Uno que se llena en alguna de las dos está
+> describiendo el estado del árbol, no una garantía rota, y queda libre.
+
+El criterio es **de una sola dirección** (vacío ⇒ duro; no vacío ⇒ libre), así que
+endurecer de más nunca lo viola: `caracterizacion_estatica_fallida` se llena con
+`--skip-probe` y es duro igualmente, y está bien.
+
+**Medido en este árbol:** la intersección son **12 nombres**, y los 12 están hoy
+en las tuplas duras (la puerta declara 13: los 12 más
+`caracterizacion_estatica_fallida`).
+
+**Control negativo, nombre a nombre (`G15-neg`):** mover **cada uno** de los 12 a
+`FINDINGS_INFORMATIVOS` tiene que detectarse, y se comprueban los 12, no el
+conjunto en bloque — que era justo el defecto.
+
+**Y verificado en vivo:** aplicada la mutación M16 sobre el árbol real (los dos
+hallazgos movidos a informativos), la calibración sale **ROJA nombrando los dos**:
+
+```
+G15: `rutas_denegacion_404_ambigua` esta VACIO en las dos medidas de referencia,
+     o sea que deberia estar siempre vacio, y sin embargo la puerta lo tiene en
+     `FINDINGS_INFORMATIVOS`: si se llena, la puerta no se pondra roja
+G15: `rutas_denegacion_no_atribuible` ...
+```
+
+Reversión **verificada por hash SHA-256** de `gate.py`
+(`5e63bf25…` antes y después), no por presencia de cadenas.
+
+**Total tras O4: 44 casos y 15 ablaciones cobradas.**
+
+### El coste: `--mapa-completo` es obligatorio
+
+G15 necesita la medida con sonda. El job le pasa el artefacto que acaba de
+producir (se reutilizan los ~60 s de sonda en vez de repetirlos). Si falta, o si
+se tomó con `--skip-probe`, **G15 se pone ROJO**: no hay modo degradado, porque
+un control que se salta a sí mismo cuando le falta un dato es un control mudo.
+
+## 3.sexies Dos cosas que hay que leer como coste, no como avería
+
+**Un hallazgo nuevo del censo pone este job ROJO hasta que alguien lo clasifique.**
+Medido (**M14**): una clave nueva **con lista vacía** ya lo enrojece, porque el
+bucle de `hallazgo-desconocido` **no filtra por contenido**. Es **deliberado** y
+es el precio de la inversión de O1: la alternativa —ignorar lo que no se conoce—
+es precisamente el agujero por el que un hallazgo duro renombrado pasaba en
+verde. Ahora que la puerta es un check **requerido**, conviene tenerlo escrito:
+si estrenas un hallazgo en `route_map.py`, **clasifícalo en `FINDINGS_DUROS`,
+`FINDINGS_CENSO_INCOMPLETO` o `FINDINGS_INFORMATIVOS` en el mismo commit**. Son
+dos líneas, y el mensaje de error dice exactamente qué falta.
+
+**`calibrate_gate` ejecutado desde una copia sin `.git` falla `A2` por
+construcción.** `_head()` devuelve cadena vacía y la comparación de HEAD se salta,
+así que el caso **no puede ponerse rojo**. Por eso los casos de artefacto apuntan
+al repositorio real (`repo=REPO`) y no a la copia. En CI corre desde el repo real
+y no afecta. Queda anotado porque **un A2 rojo desde una copia sin `.git` sería un
+artefacto del arnés, no una detección de la puerta**, y ése es exactamente el
+género de confusión que ya costó una ronda aquí.
+
 ## 4. La condición 2, implementada (no en prosa)
 
 `docs/68 §5.quater` pedía que la puerta **comprobara** que los cuatro paneles
@@ -304,8 +402,8 @@ Implementación (`gate.py`, hallazgo `panel-encendido`):
 | suite del visor con la sonda (`-p route_map.pytest_route_probe`), genera `--tested` | **57 s** (1565 passed, 191 skipped) |
 | censo (`route_map.py` con sonda) | **4,7 s** |
 | puerta (`gate.py`) | **~2 s** |
-| calibración (`calibrate_gate.py`, 31 casos + 14 ablaciones, un subproceso cada uno) | **~60 s** |
-| **total del job** | **≈ 125 s** más la instalación de dependencias |
+| calibración (`calibrate_gate.py`, 44 casos + 15 ablaciones, un subproceso cada uno) | **~90 s** |
+| **total del job** | **≈ 155 s** más la instalación de dependencias |
 
 ## 6. Recuento de jobs
 
