@@ -715,6 +715,23 @@ requerido nuevo—, con la base efímera del propio job y con tres guardas: rc,
 `veredicto=CALIBRADO`, y `declaradas_sin_ejercer=0` (con Neo4j disponible,
 ninguna mutación puede quedar sin ejercer).
 
+**Medido** (ejecución completa del paso, job `Authz integration (Neo4j
+efímero)`, run `32051250450`, HEAD `8c81722`):
+
+```
+LINEA BASE: rc=0 pasados=19 fallados=0
+[ROJO ok] x12   (incluidas MR4a, MR4b y MR8)
+VUELTA A VERDE: rc=0 pasados=19 sha256_ok=True
+RESUMEN: mutaciones=12 ejercidas=12 enrojecidas=12 declaradas_sin_ejercer=0
+         base=19 final=19 veredicto=CALIBRADO
+```
+
+Antes de este cierre, **ocho** de esas doce quedaban en
+`declaradas_sin_ejercer`. La suite de integración del mismo job pasa de 43 a
+**86 pruebas, 0 omitidas**. Sin Neo4j (portátil, sin contenedores) el arnés sólo
+puede ejercer **4** de las 12 y lo dice en su propia salida: el resto son
+*declaradas*, y eso es una cota, no un total.
+
 Normas del arnés que siguen siendo las mismas: **un proceso por mutación**,
 `__pycache__` purgado y `PYTHONDONTWRITEBYTECODE=1`, **reversión verificada por
 SHA-256** (no por presencia de cadenas), la mutación tiene que **morder** (si el
