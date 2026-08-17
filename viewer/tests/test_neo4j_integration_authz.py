@@ -645,9 +645,20 @@ def _enlace_del_panel(cliente, entity_id=ID_DURABLE):
     """
     r = cliente.get(f"/panel/entities?workspace={WS_DUR}")
     assert r.status_code == 200, f"el panel no responde: {r.status_code}"
-    enlaces = _re.findall(r'href="(/panel/entities/item/[^"]+)"', r.text)
+    # `url_for` de Starlette devuelve la URL ABSOLUTA
+    # (`http://testserver/panel/entities/item/...`), asi que el esquema y el
+    # host son opcionales en el patron. Con el patron anclado a `/panel` esto
+    # no encontraba ni un enlace y las cuatro pruebas de esta seccion morian
+    # por un fallo del ARNES: rojo, si, pero por el motivo equivocado.
+    enlaces = _re.findall(r'href="([^"]*/panel/entities/item/[^"]+)"', r.text)
     assert enlaces, "el panel no publico ni un enlace de ficha"
-    del_nuestro = [e for e in enlaces if entity_id in e]
+    # Se compara sobre el enlace DESCODIFICADO: `url_for` puede escapar los
+    # `:` del `entity_id` como `%3A`, y comparar sobre el texto crudo daria un
+    # "no aparece" falso. El enlace se DEVUELVE tal cual viene, sin descodificar:
+    # lo que se reabre despues tiene que ser exactamente lo que publico el panel.
+    from urllib.parse import unquote
+
+    del_nuestro = [e for e in enlaces if entity_id in unquote(e)]
     assert del_nuestro, (
         f"el panel no publica un enlace hacia «{entity_id}». Enlaces vistos: "
         f"{enlaces}"
@@ -657,10 +668,12 @@ def _enlace_del_panel(cliente, entity_id=ID_DURABLE):
 
 def test_el_enlace_que_publica_el_panel_lleva_la_identidad_durable(panel_dur, grafo_dur):
     """El `href` lleva `entity_id` y NO el identificador fisico."""
+    from urllib.parse import unquote
+
     enlace = _enlace_del_panel(panel_dur)
     eid = _element_id_de(grafo_dur, ID_DURABLE)
-    assert ID_DURABLE in enlace
-    assert eid not in enlace, f"el elementId sigue en la URL: {enlace}"
+    assert ID_DURABLE in unquote(enlace)
+    assert eid not in unquote(enlace), f"el elementId sigue en la URL: {enlace}"
     # Y en ningun sitio del HTML del panel, no solo en este `href`.
     html = panel_dur.get(f"/panel/entities?workspace={WS_DUR}").text
     assert eid not in html, "el elementId aparece en el HTML del panel"
@@ -697,7 +710,12 @@ def test_EL_ENLACE_GUARDADO_SOBREVIVE_A_LA_RESTAURACION(panel_dur, grafo_dur):
     assert fisico_despues != fisico_antes, (
         "el identificador fisico no cambio: esta prueba no demuestra nada"
     )
-    assert fisico_antes not in enlace and fisico_despues not in enlace
+    # Descodificado a proposito: si el enlace viniera escapado, comparar sobre
+    # el texto crudo haria pasar esta linea por construccion.
+    from urllib.parse import unquote
+
+    assert fisico_antes not in unquote(enlace)
+    assert fisico_despues not in unquote(enlace)
 
     # 7-8 -- el MISMO enlace, byte a byte.
     despues = panel_dur.get(enlace)
