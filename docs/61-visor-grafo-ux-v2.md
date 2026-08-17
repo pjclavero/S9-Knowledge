@@ -732,6 +732,45 @@ Antes de este cierre, **ocho** de esas doce quedaban en
 puede ejercer **4** de las 12 y lo dice en su propia salida: el resto son
 *declaradas*, y eso es una cota, no un total.
 
+#### El arnés tampoco puede quedarse mudo y verde (y sus anclas son únicas)
+
+Dos huecos que encontró la revisión del delta, ambos del mismo tipo que los que
+este carril persigue:
+
+**El paso de CI podía pasar sin ejercer nada.** Sus guardas miraban `rc`,
+`veredicto` y `declaradas_sin_ejercer`; una salida
+`mutaciones=0 ejercidas=0 enrojecidas=0 declaradas_sin_ejercer=0 …
+veredicto=CALIBRADO` **las pasaba las tres**. Y la tercera era un grep de
+**ausencia**: si el campo se renombraba, dejaba de vigilar en silencio. Ahora:
+
+- `MINIMO_MUTACIONES = 12` y `MINIMO_EJERCIDAS = 4` en el arnés, hermanos de
+  `MINIMO_TESTS`, más una comprobación de contabilidad
+  (`ejercidas + declaradas == len(MUTACIONES)`);
+- el paso de CI **extrae** los tres números en vez de comprobar que algo no
+  aparece; si el campo desaparece o cambia de nombre, la extracción sale vacía y
+  eso mismo pone el paso rojo. Con Neo4j exige `ejercidas ≥ 12`,
+  `enrojecidas == ejercidas` y `declaradas == 0`.
+
+**Ningún ancla se repite.** La de MR6 aparecía **dos veces** —en `search()` y en
+`graph()/node_query`— y acertaba por **orden de fichero**: si `search()` bajara
+por debajo de `graph()`, MR6 mutaría `node_query` y su rojo sería **prestado de
+MR5**, la misma trampa que MR4 acaba de pagar. Se ancla ahora a su línea del
+`CONTAINS`, y el arnés **afirma** que cada ancla aparece exactamente una vez —
+una aserción que viaja con el fichero vale más que una revisión a mano de hoy.
+
+**Ambos arreglos con su control negativo** (medido, árbol limpio antes y
+después, mutando `calibrar.py` y revirtiendo por SHA-256):
+
+| Modificación deliberada | Resultado |
+|---|---|
+| `MUTACIONES` vaciada | **rc=2**, «suelo de mutaciones (0 < 12)» |
+| todas las mutaciones sin objetivo (`ejercidas=0`) | **rc=1**, `veredicto=FALLO` |
+| un ancla duplicada | **rc=2**, «MR6…: 2 ocurrencias» |
+
+Y las guardas del paso de CI, alimentadas con salidas sintéticas: el *mudo* que
+pasaba las tres viejas → rojo; campo renombrado → rojo; 11 de 12 → rojo; una que
+no enrojece → rojo; la salida real → verde (control positivo).
+
 Normas del arnés que siguen siendo las mismas: **un proceso por mutación**,
 `__pycache__` purgado y `PYTHONDONTWRITEBYTECODE=1`, **reversión verificada por
 SHA-256** (no por presencia de cadenas), la mutación tiene que **morder** (si el
