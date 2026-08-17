@@ -178,6 +178,40 @@ def _criterios():
         ) from exc
 
 
+def _dependants_planos(dependant):
+    """El `Dependant` raíz y TODOS sus descendientes, sin repetir por `call`.
+
+    Antes esto era `fastapi.dependencies.utils.get_flat_dependant(...,
+    skip_repeats=True)`. Se sustituye por un recorrido propio de siete líneas
+    porque aquella era **API privada del framework y desapareció**: con el
+    FastAPI que este repositorio DECLARA (`viewer/requirements.txt`:
+    `fastapi>=0.141.1`) el import levanta `ImportError` y el censo entero muere
+    antes de emitir una sola fila.
+
+    No es una hipótesis: lo midió la primera corrida de este censo dentro de la
+    CI. En local pasaba porque el entorno tenía FastAPI 0.139 —una versión que
+    el propio repositorio ya no declara—, así que el instrumento llevaba tiempo
+    sin poder correr contra las dependencias reales del proyecto y **nadie se
+    enteraba, porque ningún job lo ejecutaba**. Es exactamente el argumento para
+    hacerlo puerta.
+
+    Sólo se consume `.call` de cada nodo, así que aplanar es recorrer
+    `dependencies` en profundidad. La deduplicación es por identidad del
+    invocable, igual que hacía `skip_repeats`.
+    """
+    vistos: set[int] = set()
+    pila = [dependant]
+    salida = []
+    while pila:
+        d = pila.pop()
+        if d is None or id(d) in vistos:
+            continue
+        vistos.add(id(d))
+        salida.append(d)
+        pila.extend(getattr(d, "dependencies", None) or [])
+    return salida
+
+
 def _tipos_http():
     from fastapi.routing import APIRoute
     from starlette.routing import Route
@@ -499,10 +533,7 @@ def collect_mounted(app) -> list[dict]:
             src = f"{code.co_filename}:{code.co_firstlineno}"
         deps, scoping = [], []
         if dependant is not None:
-            from fastapi.dependencies.utils import get_flat_dependant
-
-            flat = get_flat_dependant(dependant, skip_repeats=True)
-            for d in flat.dependencies + [flat]:
+            for d in _dependants_planos(dependant):
                 call = getattr(d, "call", None)
                 if call is None:
                     continue

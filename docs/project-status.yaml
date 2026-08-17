@@ -69,7 +69,12 @@ development:
   # `.github/workflows/*.y*ml`: `ci.yml` 14 + `supply-chain.yml` 1 = **15**.
   # Sin cambio respecto al refresco anterior: los 11 PR fusionados desde
   # entonces no añaden ni quitan ningún job.
-  ci_jobs_running: 15
+  #
+  # REFRESCADO al cablear el censo de rutas como puerta (carril «censo de rutas
+  # como puerta», docs/82). Medido con `yaml.safe_load`, no con un grep:
+  # `ci.yml` 15 + `supply-chain.yml` 1 = **16**. El job nuevo es
+  # `route-map-gate` / «Censo de rutas (configuracion canonica en codigo)».
+  ci_jobs_running: 16
   #
   # CAMBIO REAL, medido con `gh api .../branches/main/protection` el
   # 2026-08-13: la protección de `main` devuelve **15** contextos, y el cruce
@@ -85,7 +90,15 @@ development:
   # `ci_jobs_running − len(lista) == ci_checks_required`, así que la lista
   # sigue siendo la que hace cuadrar la aritmética, y si mañana vuelve a haber
   # un job no exigido tiene que anotarse aquí o la cuenta se pone roja.
-  ci_running_but_not_required: []
+  #
+  # Y hoy vuelve a haberlo, exactamente por ese motivo: `route-map-gate` CORRE
+  # desde este commit pero **todavía no bloquea**. Añadirlo a la protección de
+  # rama —sería el check exigido nº 16— es del operador, no del carril; hasta
+  # que lo haga, la aritmética es 16 − 1 = 15 y esta lista es lo que la sostiene.
+  # El nombre que va aquí es el `name:` del job, que es lo que compara
+  # `check_docs_consistency.py`.
+  ci_running_but_not_required:
+    - "Censo de rutas (configuracion canonica en codigo)"
 
   # UMBRAL DE AVISO del desfase. NO es un umbral de error (rediseñado el
   # 2026-08-13): a partir de aquí el gate ANUNCIA cuántos commits han entrado
