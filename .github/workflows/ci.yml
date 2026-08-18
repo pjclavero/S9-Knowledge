@@ -795,9 +795,14 @@ jobs:
           set -euo pipefail
           # `--mapa-completo` es la medida de referencia CON sonda que necesita
           # G15 para DERIVAR que hallazgos tienen que ser duros. Se reutiliza el
-          # artefacto del paso anterior en vez de repetir los ~60 s de sonda. Si
-          # faltara, o si se hubiera tomado con `--skip-probe`, G15 se pone ROJO:
-          # no hay modo degradado.
+          # artefacto del paso anterior en vez de repetir los ~60 s de sonda.
+          #
+          # OJO, porque este comentario decia lo contrario y era FALSO: si la
+          # bandera faltara, esto NO se pondria rojo. La referencia se generaria
+          # sola, tardando mas. Es un atajo de tiempo, no una condicion de
+          # validez, y quitarla de aqui no lo delata nada. Lo que si es rojo es
+          # apuntar a un artefacto INVALIDO (tomado con `--skip-probe`, o sin
+          # `--tested`): derivar sobre una medida falseada es peor que no derivar.
           python3 scripts/route_map/calibrate_gate.py \
             --mapa-completo artifacts/route-map/ci-route_map.json \
             --out artifacts/route-map/ci-calibracion-gate.json

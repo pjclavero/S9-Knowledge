@@ -628,13 +628,25 @@ def contraste_asignacion(exigidos: set, consts: dict) -> list[str]:
 # `return` distinto de 0. Si manana el censo declara fatal un hallazgo nuevo,
 # entra solo; si deja de serlo, el criterio se afloja solo y con motivo.
 
-def hallazgos_fatales_del_censo(raiz: Path) -> tuple[set, list[str]]:
-    """Nombres de `findings` que hacen salir a `route_map` con codigo != 0."""
-    fuente = raiz / "scripts" / "route_map" / "route_map.py"
+def _fatales_en_fuente(texto: str) -> tuple[set, list[str]]:
+    """Nombres de `findings` por los que el censo termina con codigo != 0.
+
+    LA SALIDA ROJA SE RECONOCE DE TRES FORMAS, y no es celo de mas: una revision
+    midio que reconociendo solo `return <n>` esta derivacion **se degradaba en
+    silencio ante un refactor inocuo**. Medido sobre este arbol: reescribiendo
+    los `return 3` como `sys.exit(3)` los fatales pasaban de **4 a 0**, y con
+    `rc = 3; return rc` pasaban de **4 a 1** sin emitir un solo problema. Un
+    control cuyo alcance encoge sin avisar es peor que no tenerlo, porque nadie
+    mira un numero que no ha cambiado de color.
+
+    Se reconocen: `return <n>`, `sys.exit(<n>)` / `exit(<n>)`,
+    `raise SystemExit(<n>)`, y el valor devuelto a traves de una variable local
+    asignada a una constante dentro de la misma rama.
+    """
     try:
-        arbol = ast.parse(fuente.read_text(encoding="utf-8"))
+        arbol = ast.parse(texto)
     except Exception as exc:
-        return set(), [f"no se pudo leer el censo para derivar sus fatales: {exc!r}"]
+        return set(), [f"no se pudo parsear el censo para derivar sus fatales: {exc!r}"]
 
     principal = None
     for nodo in arbol.body:
@@ -656,20 +668,94 @@ def hallazgos_fatales_del_censo(raiz: Path) -> tuple[set, list[str]]:
                 salida.add(arg.value)
         return salida
 
+    def _entero(nodo, constantes: dict):
+        """El valor entero de una expresion, si se puede saber sin ejecutar."""
+        if isinstance(nodo, ast.Constant) and isinstance(nodo.value, int):
+            return nodo.value
+        if isinstance(nodo, ast.Name):
+            return constantes.get(nodo.id)
+        return None
+
+    def sale_en_rojo(cuerpo) -> bool:
+        # Constantes locales de la rama: `rc = 3` seguido de `return rc`.
+        constantes: dict = {}
+        for x in ast.walk(ast.Module(body=list(cuerpo), type_ignores=[])):
+            if isinstance(x, ast.Assign) and len(x.targets) == 1 \
+                    and isinstance(x.targets[0], ast.Name) \
+                    and isinstance(x.value, ast.Constant) \
+                    and isinstance(x.value.value, int):
+                constantes[x.targets[0].id] = x.value.value
+        for x in ast.walk(ast.Module(body=list(cuerpo), type_ignores=[])):
+            if isinstance(x, ast.Return):
+                valor = _entero(x.value, constantes)
+                if valor is not None and valor != 0:
+                    return True
+            if isinstance(x, ast.Raise) and isinstance(x.exc, ast.Call) \
+                    and isinstance(x.exc.func, ast.Name) \
+                    and x.exc.func.id == "SystemExit" and x.exc.args:
+                valor = _entero(x.exc.args[0], constantes)
+                if valor is not None and valor != 0:
+                    return True
+            if isinstance(x, ast.Call):
+                fn = x.func
+                nombre = (fn.attr if isinstance(fn, ast.Attribute)
+                          else fn.id if isinstance(fn, ast.Name) else "")
+                if nombre in ("exit", "_exit") and x.args:
+                    valor = _entero(x.args[0], constantes)
+                    if valor is not None and valor != 0:
+                        return True
+        return False
+
     fatales = set()
     for nodo in ast.walk(principal):
-        if not isinstance(nodo, ast.If):
-            continue
-        devuelve_rojo = any(
-            isinstance(x, ast.Return) and isinstance(x.value, ast.Constant)
-            and isinstance(x.value.value, int) and x.value.value != 0
-            for x in nodo.body)
-        if devuelve_rojo:
+        if isinstance(nodo, ast.If) and sale_en_rojo(nodo.body):
             fatales |= nombres_en(nodo.test)
     if not fatales:
         return set(), ["el censo no declara NINGUN hallazgo fatal: o cambio su "
                        "logica de codigos de salida o la derivacion esta rota"]
     return fatales, []
+
+
+def hallazgos_fatales_del_censo(raiz: Path) -> tuple[set, list[str]]:
+    """Los fatales del censo tal y como esta en `raiz`."""
+    fuente = raiz / "scripts" / "route_map" / "route_map.py"
+    try:
+        texto = fuente.read_text(encoding="utf-8")
+    except Exception as exc:
+        return set(), [f"no se pudo leer el censo para derivar sus fatales: {exc!r}"]
+    return _fatales_en_fuente(texto)
+
+
+def fatales_en_la_base() -> tuple[set, list[str]]:
+    """Los fatales del censo en la base de comparacion (merge-base)."""
+    base, problemas = _merge_base()
+    if problemas:
+        return set(), problemas
+    ruta = "scripts/route_map/route_map.py"
+    crudo, problemas = _fichero_de_la_base(base, ruta)
+    if problemas:
+        return set(), problemas
+    if crudo is None:
+        return set(), []          # el censo no existia en la base
+    return _fatales_en_fuente(crudo)
+
+
+def contraste_fatales_no_encogen(base: set, actuales: set) -> list[str]:
+    """Los fatales tampoco pueden ENCOGER, por la misma razon que los duros.
+
+    El guardarrail anterior -«si no hay ninguno, rojo»- solo disparaba con el
+    conjunto VACIO, no con un encogimiento PARCIAL, que es justo lo que produce
+    un refactor de los codigos de salida. Aqui se aplica el mismo trinquete que
+    en G17: la derivacion puede reconocer MAS que antes, nunca menos, y si
+    reconoce menos hay que mirarlo, no descubrirlo seis semanas despues.
+    """
+    return [
+        f"`{nombre}` era un hallazgo FATAL del censo en la base y esta derivacion "
+        f"ya no lo ve: o el censo dejo de tratarlo como fatal -y entonces hay que "
+        f"decirlo- o la derivacion se ha degradado ante un refactor de los codigos "
+        f"de salida y esta midiendo menos de lo que cree"
+        for nombre in sorted(base - actuales)
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -698,6 +784,51 @@ def hallazgos_fatales_del_censo(raiz: Path) -> tuple[set, list[str]]:
 # el ataque en dos pasos. Aflojar la vigilancia deja de poder hacerse callando:
 # hay que hacerlo discutiendolo.
 
+def _merge_base() -> tuple[str, list[str]]:
+    """El commit contra el que se comprueba que nada ha encogido."""
+    r = subprocess.run(["git", "-C", str(REPO), "merge-base", "HEAD", "origin/main"],
+                       capture_output=True, text=True)
+    base = r.stdout.strip()
+    if not base:
+        return "", ["no hay `origin/main` con el que comparar: sin base, este "
+                    "control no puede afirmar que nada ha encogido"]
+    return base, []
+
+
+def _fichero_de_la_base(base: str, ruta: str) -> tuple[str | None, list[str]]:
+    """El contenido de `ruta` en `base`. Distingue AUSENTE de ILEGIBLE.
+
+    Aqui hubo un fallo abierto, medido por una revision: se trataba **cualquier**
+    rc != 0 de `git show` como «el fichero no existia en la base», y eso incluye
+    un objeto no traido, una ruta renombrada o un repositorio a medio clonar. El
+    unico «no» legitimo -no habia nada que pudiera encoger- es que el fichero
+    REALMENTE no este alli.
+
+    La existencia se resuelve con `git ls-tree`, que responde con la LISTA de lo
+    que hay (vacia si no hay nada) y **rc = 0 en los dos casos**. Es a proposito
+    y vale la pena decirlo: el primer intento uso `git cat-file -e` y clasifico
+    por el texto de su error, que en esta maquina llega traducido («no existe en»
+    en vez de «does not exist»), asi que una ruta legitimamente ausente salia
+    ROJA. **Comparar cadenas de un mensaje de herramienta es depender del idioma
+    del que ejecuta**; `ls-tree` da un dato, no una frase.
+    """
+    listado = subprocess.run(
+        ["git", "-C", str(REPO), "ls-tree", "--name-only", base, "--", ruta],
+        capture_output=True, text=True)
+    if listado.returncode != 0:
+        return None, [f"no se puede leer el arbol de la base ({base[:12]}) para "
+                      f"`{ruta}`: {listado.stderr.strip()[:200]!r}. Sin poder leer "
+                      f"la base, este control NO puede dar verde"]
+    if not listado.stdout.strip():
+        return None, []       # ausente de verdad: no habia nada que encoger
+    crudo = subprocess.run(["git", "-C", str(REPO), "show", f"{base}:{ruta}"],
+                           capture_output=True, text=True)
+    if crudo.returncode != 0:
+        return None, [f"`{ruta}` existe en la base ({base[:12]}) pero no se ha "
+                      f"podido leer: {crudo.stderr.strip()[:200]!r}"]
+    return crudo.stdout, []
+
+
 def constantes_en_la_base(raiz: Path) -> tuple[dict, list[str]]:
     """Las tuplas duras tal y como estan en la base de comparacion.
 
@@ -706,19 +837,17 @@ def constantes_en_la_base(raiz: Path) -> tuple[dict, list[str]]:
     por bueno es como se convierte una capacidad ajena en verdad falsa del
     producto.
     """
-    base = subprocess.run(["git", "-C", str(REPO), "merge-base", "HEAD", "origin/main"],
-                          capture_output=True, text=True).stdout.strip()
-    if not base:
-        return {}, ["no hay `origin/main` con el que comparar: sin base, este "
-                    "control no puede afirmar que el conjunto duro no ha encogido"]
-    ruta = "scripts/route_map/gate.py"
-    crudo = subprocess.run(["git", "-C", str(REPO), "show", f"{base}:{ruta}"],
-                           capture_output=True, text=True)
-    if crudo.returncode != 0:
+    base, problemas = _merge_base()
+    if problemas:
+        return {}, problemas
+    crudo, problemas = _fichero_de_la_base(base, "scripts/route_map/gate.py")
+    if problemas:
+        return {}, problemas
+    if crudo is None:
         # La puerta no existia en la base: no hay nada que pueda haber encogido.
         return {"__sin_base__": True}, []
     try:
-        arbol = ast.parse(crudo.stdout)
+        arbol = ast.parse(crudo)
     except Exception as exc:
         return {}, [f"la puerta de la base no se puede parsear: {exc!r}"]
     fuera = {}
@@ -1083,6 +1212,12 @@ def main(argv=None) -> int:
                 f"`{nombre}` hace salir al CENSO con codigo != 0 -es fatal para el "
                 f"censo- y la puerta lo tiene en {donde}: la puerta certificaria "
                 f"un censo que se declara a si mismo no citable")
+        # TRINQUETE de los fatales. El guardarrail «si no hay ninguno, rojo»
+        # solo disparaba con el conjunto VACIO; un refactor de los codigos de
+        # salida encoge el conjunto PARCIALMENTE y se lo llevaba en silencio.
+        fatales_base, problemas_base_f = fatales_en_la_base()
+        problemas_f += problemas_base_f
+        problemas_f += contraste_fatales_no_encogen(fatales_base, fatales)
         fallos.extend(f"G16: {x}" for x in problemas_f)
         resultados.append({
             "caso": "G16",
@@ -1091,7 +1226,48 @@ def main(argv=None) -> int:
             "esperado": "VERDE", "rc": 1 if problemas_f else 0,
             "motivos": problemas_f,
             "fatales_declarados_por_el_censo": sorted(fatales),
+            "fatales_en_la_base": sorted(fatales_base),
             "estado": "FALLO" if problemas_f else "OK",
+        })
+
+        # G16-neg: la derivacion no puede encoger en silencio ante un refactor
+        # de los codigos de salida. Se reescribe `main()` de VERDAD -tres
+        # formas distintas- y se comprueba que ninguna baja el conteo sin que
+        # algo se ponga rojo. Medido antes de este arreglo: `sys.exit(3)` dejaba
+        # los fatales en 0 y `rc = 3; return rc` los dejaba en 1, de 4.
+        censo_sano = (raiz_f / "scripts" / "route_map" / "route_map.py").read_text(
+            encoding="utf-8")
+        refactores = {
+            "sys.exit(n)": censo_sano.replace("        return 3\n", "        sys.exit(3)\n")
+                                     .replace("        return 2\n", "        sys.exit(2)\n"),
+            "rc = n; return rc": censo_sano.replace(
+                "        return 3\n", "        rc = 3\n        return rc\n"),
+            "raise SystemExit(n)": censo_sano.replace(
+                "        return 3\n", "        raise SystemExit(3)\n"),
+        }
+        ciegos, detalle_ref = [], {}
+        for etiqueta, texto in refactores.items():
+            if texto == censo_sano:
+                ciegos.append(f"{etiqueta} (el refactor no se pudo aplicar)")
+                continue
+            vistos, _ = _fatales_en_fuente(texto)
+            detalle_ref[etiqueta] = sorted(vistos)
+            perdidos = fatales - vistos
+            # Aceptable: que los siga viendo todos. Inaceptable: que pierda
+            # alguno Y nadie se entere.
+            if perdidos and not contraste_fatales_no_encogen(fatales, vistos):
+                ciegos.append(f"{etiqueta} pierde {sorted(perdidos)} sin avisar")
+        if ciegos:
+            fallos.append(
+                "G16-neg: la derivacion de fatales encoge EN SILENCIO ante un "
+                f"refactor legitimo de los codigos de salida: {ciegos}")
+        resultados.append({
+            "caso": "G16-neg",
+            "desc": ("un refactor de los codigos de salida del censo no encoge la "
+                     "derivacion de fatales en silencio"),
+            "esperado": "VERDE", "rc": 1 if ciegos else 0, "motivos": ciegos,
+            "fatales_vistos_por_refactor": detalle_ref,
+            "estado": "FALLO" if ciegos else "OK",
         })
 
     # --- G17: el conjunto duro no puede ENCOGER respecto a la base --------
@@ -1195,8 +1371,8 @@ def main(argv=None) -> int:
     # `calibra_gate_integrity.py` vigila `check_ci_config.py`, no este arnés.
     # Esta tupla es de EXIGENCIAS, no de exenciones: escribir un nombre aquí
     # añade un control obligatorio, y quitarlo es lo que hay que hacer a la vista.
-    CONTROLES_OBLIGATORIOS = ("G0", "G13", "G14", "G14-neg", "G15", "G16", "G17",
-                              "Gneg", "AFP")
+    CONTROLES_OBLIGATORIOS = ("G0", "G13", "G14", "G14-neg", "G15", "G16",
+                              "G16-neg", "G17", "Gneg", "AFP")
     ejecutados_id = {r["caso"] for r in resultados}
     for cid in CONTROLES_OBLIGATORIOS:
         if cid not in ejecutados_id:

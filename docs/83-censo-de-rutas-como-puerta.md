@@ -83,7 +83,7 @@ que mantener nada para que eso se detecte.
 
 ## 3. El contrato, punto por punto, con la evidencia de cada ROJO
 
-Calibración: `python3 scripts/route_map/calibrate_gate.py`. **46 casos y 15
+Calibración: `python3 scripts/route_map/calibrate_gate.py`. **47 casos y 15
 ablaciones cobradas**, un subproceso por mutación, sobre **copias** del árbol.
 
 | punto del contrato | caso | mutación real | motivo que sale |
@@ -343,7 +343,7 @@ G15: `rutas_denegacion_no_atribuible` ...
 Reversión **verificada por hash SHA-256** de `gate.py`
 (`5e63bf25…` antes y después), no por presencia de cadenas.
 
-**Total tras O4 y el cierre de S1/S2: 46 casos y 15 ablaciones cobradas.**
+**Total tras O4 y el cierre de S1/S2/G16: 47 casos y 15 ablaciones cobradas.**
 
 ### `--mapa-completo` es un atajo de tiempo, NO una condición de validez
 
@@ -422,6 +422,68 @@ en vez de callarse.
 Si algún día hay que quitar un hallazgo de los duros con razón, el job se pone
 rojo y hay que discutirlo. Eso es lo que se quiere de un check requerido.
 
+> **G17 es un TRINQUETE RELATIVO, no un ancla absoluta.** La formulación es del
+> revisor y es mejor que la nuestra: protege contra la **deriva rama a rama**,
+> que es por donde entra el aflojamiento; **quien pueda escribir en `main` lo
+> desactiva en dos commits** (relajar en `main`, y a partir de ahí toda rama
+> hereda la base ya relajada). No es un defecto del control, es su alcance, y
+> conviene tenerlo dicho para no confundir un trinquete con una garantía
+> absoluta.
+
+### G16 se degradaba EN SILENCIO ante un refactor inocuo (cerrado)
+
+Tercer hallazgo de la misma revisión, y el más instructivo de los tres porque
+**el control no fallaba: encogía**. `hallazgos_fatales_del_censo` reconocía la
+salida roja del censo sólo como `return <n>`. Medido sobre este árbol:
+
+| refactor de `route_map.main()` | fatales derivados (de 4) | ¿avisaba? |
+|---|---|---|
+| `sys.exit(3)` en vez de `return 3` | **0** | sólo por el guardarraíl de conjunto vacío |
+| `rc = 3; return rc` | **1** | **no** |
+
+El guardarraíl «si no hay ninguno, rojo» **sólo dispara con el conjunto vacío, no
+con un encogimiento parcial**. Y G16 es el *único* control específico de S1, así
+que un refactor perfectamente legítimo lo dejaba midiendo un cuarto de lo que
+creía, sin cambiar de color. Un control cuyo alcance encoge sin avisar es peor
+que no tenerlo, porque nadie mira un número que no ha cambiado de color.
+
+Cerrado en dos capas, como S1 y S2:
+
+1. **La derivación reconoce las tres formas de salir en rojo:** `return <n>`,
+   `sys.exit(<n>)` / `exit(<n>)`, `raise SystemExit(<n>)`, y el valor devuelto a
+   través de una variable local asignada a una constante en la misma rama.
+   Medido tras el arreglo: **los tres refactores derivan los 4 fatales**.
+2. **Trinquete, el mismo truco que G17:** los fatales tampoco pueden encoger
+   respecto a la base. La derivación puede reconocer **más** que antes, nunca
+   menos. Cierra el caso general —cualquier forma de salir que no se nos haya
+   ocurrido— en vez de la lista de las tres que sí.
+
+**`G16-neg`** aplica los tres refactores de verdad sobre el texto del censo y
+falla si alguno pierde un fatal **sin que nada se ponga rojo**.
+
+**Verificado en vivo** sobre el árbol real: quitando `caracterizacion_estatica_fallida`
+de la condición de `rc=3`, la calibración sale **ROJA sólo por G16**, con el
+motivo correcto. Reversión comprobada por hash SHA-256 de `route_map.py`
+(`0b03252c…` idéntico antes y después).
+
+### G17 confundía «no existía» con «no se pudo leer» (cerrado)
+
+`constantes_en_la_base` devolvía «no había base» ante **cualquier** rc != 0 de
+`git show`: objeto no traído, ruta renombrada, clon a medias. El único «no»
+legítimo —no había nada que pudiera encoger— es que el fichero **realmente** no
+esté allí; todo lo demás es no poder leer la base, y eso no puede dar verde.
+
+La existencia se resuelve ahora con **`git ls-tree`**, que responde con la lista
+de lo que hay (vacía si no hay nada) y **rc = 0 en los dos casos**. Y esto tiene
+una historia que vale la pena dejar escrita: el primer intento usó
+`git cat-file -e` y clasificaba **por el texto de su mensaje de error**, que en la
+máquina donde se midió llega **traducido** (`no existe en` en vez de
+`does not exist`), así que una ruta legítimamente ausente salía **ROJA**. Lo cazó
+la propia verificación del arreglo.
+
+> **Comparar cadenas del mensaje de una herramienta es depender del idioma de
+> quien ejecuta.** `ls-tree` da un dato, no una frase.
+
 ### La cuenta honesta de quién protege a quién
 
 `Gneg` muta **`gate.py` de verdad** —antes simulaba pasándole diccionarios
@@ -447,6 +509,15 @@ SHA-256 de `gate.py` (`5e63bf25…` idéntico antes y después):
 - **ataque S1** (mover `caracterizacion_estatica_fallida`) ⇒ ROJO por **G16 y G17**;
 - **ataque S2** (mover `contradiccion_deniega_y_sirve`) ⇒ ROJO por **G15 y G17**.
 
+**Cota de la verificación independiente, declarada por quien la hizo:** la
+calibración completa end-to-end se ejecutó para **2 de los 13** nombres; los 11
+restantes se verificaron **por la propiedad** —diferencia de conjuntos contra la
+base, con una lectura AST del merge-base **propia del revisor**, sin usar
+`contraste_no_encoge`— que es agnóstica al nombre. Resultado de ese barrido:
+**13/13, `SIN PROTECCION: []`**, y los 4 fatales coincidiendo. Queda escrito así
+para que nadie lea «13/13 end-to-end» donde hay «2 end-to-end + 11 por
+propiedad».
+
 ### Lo que sigue sin tener detector (dicho, no disimulado)
 
 - **G17 protege contra encoger, no contra no crecer.** Un hallazgo nuevo del censo
@@ -463,7 +534,7 @@ SHA-256 de `gate.py` (`5e63bf25…` idéntico antes y después):
 **Nada guardaba a `calibrate_gate.py`**: borrar el bloque de G15 dejaba 42 casos
 —por encima de `MINIMO_CASOS`— y todo verde. `calibra_gate_integrity.py` vigila
 `check_ci_config.py`, no este arnés. Ahora hay una tupla `CONTROLES_OBLIGATORIOS`
-(`G0`, `G13`, `G14`, `G14-neg`, `G15`, `G16`, `G17`, `Gneg`, `AFP`) y la
+(`G0`, `G13`, `G14`, `G14-neg`, `G15`, `G16`, `G16-neg`, `G17`, `Gneg`, `AFP`) y la
 calibración falla si alguno no se ha ejecutado. Es de **exigencias**: escribir un
 nombre ahí añade un control obligatorio.
 
@@ -525,7 +596,7 @@ Implementación (`gate.py`, hallazgo `panel-encendido`):
 | suite del visor con la sonda (`-p route_map.pytest_route_probe`), genera `--tested` | **57 s** (1565 passed, 191 skipped) |
 | censo (`route_map.py` con sonda) | **4,7 s** |
 | puerta (`gate.py`) | **~2 s** |
-| calibración (`calibrate_gate.py`, 46 casos + 15 ablaciones, un subproceso cada uno) | **~120 s** |
+| calibración (`calibrate_gate.py`, 47 casos + 15 ablaciones, un subproceso cada uno) | **~120 s** |
 | **total del job** | **≈ 185 s** más la instalación de dependencias |
 
 ## 6. Recuento de jobs

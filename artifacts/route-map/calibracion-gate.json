@@ -1,6 +1,6 @@
 {
-  "hash_arbol_antes": "f51eb4b6b0bccc8db2a022b392ff7c0a9e0828c3061fdde8400faca0197c4657",
-  "hash_arbol_despues": "f51eb4b6b0bccc8db2a022b392ff7c0a9e0828c3061fdde8400faca0197c4657",
+  "hash_arbol_antes": "1aea4b73f9eb51be7616e65afa2aaf106c7694cedce1eb48e7b0c5b340cef3e5",
+  "hash_arbol_despues": "1aea4b73f9eb51be7616e65afa2aaf106c7694cedce1eb48e7b0c5b340cef3e5",
   "casos": [
     {
       "caso": "G0",
@@ -502,6 +502,40 @@
         "censo_vacio",
         "control_positivo_csrf_fallido"
       ],
+      "fatales_en_la_base": [
+        "caracterizacion_estatica_fallida",
+        "censo_opaco",
+        "censo_vacio",
+        "control_positivo_csrf_fallido"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G16-neg",
+      "desc": "un refactor de los codigos de salida del censo no encoge la derivacion de fatales en silencio",
+      "esperado": "VERDE",
+      "rc": 0,
+      "motivos": [],
+      "fatales_vistos_por_refactor": {
+        "sys.exit(n)": [
+          "caracterizacion_estatica_fallida",
+          "censo_opaco",
+          "censo_vacio",
+          "control_positivo_csrf_fallido"
+        ],
+        "rc = n; return rc": [
+          "caracterizacion_estatica_fallida",
+          "censo_opaco",
+          "censo_vacio",
+          "control_positivo_csrf_fallido"
+        ],
+        "raise SystemExit(n)": [
+          "caracterizacion_estatica_fallida",
+          "censo_opaco",
+          "censo_vacio",
+          "control_positivo_csrf_fallido"
+        ]
+      },
       "estado": "OK"
     },
     {
@@ -715,7 +749,7 @@
       "estado": "COBRADA"
     }
   ],
-  "casos_ejecutados": 46,
+  "casos_ejecutados": 47,
   "ablaciones_cobradas": 15,
   "fallos": [],
   "veredicto": "OK"
