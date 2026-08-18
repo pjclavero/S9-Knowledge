@@ -38,6 +38,15 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 PROVEEDOR = RAIZ / "viewer" / "app" / "providers" / "neo4j_provider.py"
+#: Segunda superficie mutable: el DDL de las restricciones de unicidad. Vive en
+#: el modulo de esquema del writer porque esa es la UNICA fuente normativa del
+#: esquema del grafo; el arnes lo muta desde aqui para que la barrera 1 tenga
+#: su control negativo igual que la barrera 2. Sin esto, «la restriccion
+#: existe» seria un test que nunca ha estado rojo.
+ESQUEMA = RAIZ / "data-engine" / "app" / "knowledge_v3" / "writer" / "schema.py"
+#: Todos los ficheros que este arnes puede tocar. Se leen enteros ANTES de
+#: mutar nada y se restauran verificando SHA-256.
+MUTABLES = (PROVEEDOR, ESQUEMA)
 SUITE = "viewer/tests/test_identidad_durable.py"
 #: La suite entera del visor tambien tiene que enrojecer con el defecto puesto:
 #: si solo enrojeciera el fichero nuevo, el gate seria un apendice.
@@ -51,7 +60,7 @@ MINIMO_TESTS = 10
 #: imprimiria `ejercidas=0 enrojecidas=0 declaradas_sin_ejercer=0` y
 #: `veredicto=CALIBRADO`, saldria con rc=0 y estaria MUDO Y VERDE: exactamente
 #: el fallo que este fichero existe para impedir, un nivel mas arriba.
-MINIMO_MUTACIONES = 12
+MINIMO_MUTACIONES = 15
 #: Las que no necesitan Neo4j. Se ejercen SIEMPRE, tambien en un portatil sin
 #: contenedores, asi que este suelo se puede exigir incondicionalmente. El suelo
 #: de las 12 (con base efimera) lo impone el paso de CI, que sabe si hay Neo4j.
@@ -91,36 +100,41 @@ def pytest(objetivos: list[str], *, parar_en_el_primero: bool = False) -> tuple[
     return r.returncode, pasados, fallados
 
 
-#: (nombre, texto original, texto mutado, objetivos que deben enrojecer)
+#: (nombre, FICHERO, texto original, texto mutado, objetivos que deben enrojecer)
 MUTACIONES = [
     (
         "El defecto original: `id` vuelve a ser el elementId",
+        PROVEEDOR,
         '        "id": props.get("entity_id"),\n        "entity_id": props.get("entity_id"),',
         '        "id": record_node.element_id,\n        "entity_id": props.get("entity_id"),',
         [SUITE],
     ),
     (
         "`entity_id` deja de viajar (la lista blanca lo olvida)",
+        PROVEEDOR,
         '        "entity_id": props.get("entity_id"),\n',
         "",
         [SUITE],
     ),
     (
         "El respaldo prohibido: el extremo de arista cae al elementId",
+        PROVEEDOR,
         '        return dict(nodo).get("entity_id")',
         '        return dict(nodo).get("entity_id") or nodo.element_id',
         [SUITE],
     ),
     (
         "El elementId se publica en una clave extra (puerta de atras de serialize_node)",
+        PROVEEDOR,
         '        "id": props.get("entity_id"),',
         '        "id": props.get("entity_id"),\n        "element_id": record_node.element_id,',
         [SUITE],
     ),
     (
         "`entity()` vuelve a resolver por identificador fisico",
-        'query = "MATCH (n:Entity) WHERE n.entity_id = $id RETURN n"',
-        'query = "MATCH (n:Entity) WHERE elementId(n) = $id RETURN n"',
+        PROVEEDOR,
+        'query = "MATCH (n:Entity) WHERE n.entity_id = $id RETURN n LIMIT $sonda"',
+        'query = "MATCH (n:Entity) WHERE elementId(n) = $id RETURN n LIMIT $sonda"',
         # Este solo lo puede ver Neo4j de verdad. Con `NEO4J_TEST_URI` definido
         # se EJERCE contra la suite de integracion; sin el se DECLARA y se
         # cuenta aparte. Lo que no se hace es fingir que se midio.
@@ -128,6 +142,7 @@ MUTACIONES = [
     ),
     (
         "El extremo de arista vuelve a ser el elementId (Cypher)",
+        PROVEEDOR,
         "RETURN r, n.entity_id AS desde, m.entity_id AS hacia",
         "RETURN r, elementId(n) AS desde, elementId(m) AS hacia",
         [SUITE_NEO4J] if os.environ.get("NEO4J_TEST_URI") else [],
@@ -145,18 +160,21 @@ MUTACIONES = [
     # identicos y `replace(..., 1)` mutaria siempre el primero.
     (
         "MR4a: `relations_for_entity`/out_query admite extremos sin entity_id",
+        PROVEEDOR,
         "MATCH (n:Entity)-[r]->(m:Entity)\n        WHERE n.entity_id = $id AND m.entity_id IS NOT NULL",
         "MATCH (n:Entity)-[r]->(m:Entity)\n        WHERE n.entity_id = $id",
         [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
     ),
     (
         "MR4b: `relations_for_entity`/in_query admite extremos sin entity_id",
+        PROVEEDOR,
         "MATCH (n:Entity)<-[r]-(m:Entity)\n        WHERE n.entity_id = $id AND m.entity_id IS NOT NULL",
         "MATCH (n:Entity)<-[r]-(m:Entity)\n        WHERE n.entity_id = $id",
         [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
     ),
     (
         "MR5: `graph()/node_query` deja pasar nodos sin entity_id",
+        PROVEEDOR,
         "WHERE ($entity_type IS NULL OR n.entity_type = $entity_type)\n          AND n.entity_id IS NOT NULL\n        RETURN n",
         "WHERE ($entity_type IS NULL OR n.entity_type = $entity_type)\n        RETURN n",
         [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
@@ -170,6 +188,7 @@ MUTACIONES = [
         # suya y de nadie mas. La asercion de unicidad de mas abajo impide que
         # esto vuelva a colarse.
         "MR6: `search()` deja de exigir entity_id",
+        PROVEEDOR,
         "OR toLower(coalesce(n.description,'')) CONTAINS toLower($q))\n"
         "          AND n.entity_id IS NOT NULL\n        RETURN n\n        LIMIT $limit",
         "OR toLower(coalesce(n.description,'')) CONTAINS toLower($q))\n"
@@ -178,6 +197,7 @@ MUTACIONES = [
     ),
     (
         "MR7: `graph()/rel_query` deja pasar aristas con extremos sin identidad",
+        PROVEEDOR,
         "          AND n.entity_id IS NOT NULL AND m.entity_id IS NOT NULL\n        RETURN n, r, m",
         "        RETURN n, r, m",
         [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
@@ -188,18 +208,55 @@ MUTACIONES = [
     # sin identidad durable se ofrece en el selector y se abre vacio.
     (
         "MR8: `workspaces()` deja de exigir entity_id (selector lleno, todo vacio)",
+        PROVEEDOR,
         "        WHERE n.workspace IS NOT NULL AND n.entity_id IS NOT NULL\n        RETURN DISTINCT n.workspace AS workspace",
         "        WHERE n.workspace IS NOT NULL\n        RETURN DISTINCT n.workspace AS workspace",
         [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
+    ),
+    # --- MU1-MU3: UNICIDAD DURABLE. Las dos barreras, cada una con su
+    # ablacion. La regla que defienden es dura: para cada URL durable, 0 o 1
+    # objetos, NUNCA 2+. Si estas tres no pudieran ponerse rojas, el carril
+    # entero seria una declaracion.
+    (
+        "MU1: `entity()` vuelve al desempate implicito (el primero que devuelva Neo4j)",
+        PROVEEDOR,
+        """        if len(records) > 1:
+            # FAIL-CLOSED. No se escoge ninguno y se GRITA""",
+        """        if False:  # MUTACION: el fail-closed desaparece
+            # FAIL-CLOSED. No se escoge ninguno y se GRITA""",
+        [SUITE_NEO4J] if os.environ.get("NEO4J_TEST_URI") else [],
+    ),
+    (
+        "MU2: `relations_for_entity()` sirve la UNION de dos anclas ambiguas",
+        PROVEEDOR,
+        "        if self._identidad_ambigua(entity_id):\n            return [], []",
+        "        if False and self._identidad_ambigua(entity_id):\n            return [], []",
+        [SUITE_NEO4J] if os.environ.get("NEO4J_TEST_URI") else [],
+    ),
+    (
+        # ABLACION DE LA BARRERA 1, en el fichero del ESQUEMA. Es la unica
+        # mutacion que no toca el proveedor, y por eso el arnes admite varios
+        # ficheros: una barrera cuya desaparicion no cambia ningun resultado no
+        # se puede cobrar como defensa.
+        "MU3: la restriccion de unicidad deja de caer sobre la clave derivada",
+        ESQUEMA,
+        '"REQUIRE (n.workspace, n.entity_id, n.partida_id) IS UNIQUE"\n)\n\n#: Gemela',
+        '"REQUIRE (n.entity_id) IS UNIQUE"\n)\n\n#: Gemela',
+        [SUITE_NEO4J] if os.environ.get("NEO4J_TEST_URI") else [],
     ),
 ]
 
 
 def main() -> int:
-    original = PROVEEDOR.read_text(encoding="utf-8")
-    hash_original = sha256(PROVEEDOR)
+    # Se leen TODOS los ficheros mutables antes de tocar nada, con su hash. La
+    # reversion se verifica contra estos hashes, no contra la presencia de una
+    # cadena: que el texto original reaparezca no demuestra que el fichero sea
+    # el original.
+    original_de = {f: f.read_text(encoding="utf-8") for f in MUTABLES}
+    hash_de = {f: sha256(f) for f in MUTABLES}
     print(f"HEAD ................ {subprocess.run(['git','rev-parse','--short','HEAD'],cwd=RAIZ,capture_output=True,text=True).stdout.strip()}")
-    print(f"proveedor sha256 .... {hash_original}")
+    for f in MUTABLES:
+        print(f"sha256 {f.relative_to(RAIZ)} = {hash_de[f]}")
     print(f"__pycache__ purgados  {purgar_pycache()}")
 
     # SUELO DEL PROPIO ARNES, antes de tocar nada. Un arnes sin mutaciones no
@@ -215,9 +272,9 @@ def main() -> int:
     # su vecina y nadie se enteraria. Afirmarlo aqui vale mas que revisarlo a
     # mano hoy: la comprobacion viaja con el fichero.
     repetidas = [
-        f"«{nombre}»: {original.count(viejo)} ocurrencias"
-        for nombre, viejo, _, _ in MUTACIONES
-        if original.count(viejo) != 1
+        f"«{nombre}» en {fichero.name}: {original_de[fichero].count(viejo)} ocurrencias"
+        for nombre, fichero, viejo, _, _ in MUTACIONES
+        if original_de[fichero].count(viejo) != 1
     ]
     if repetidas:
         print("ABORTA: hay anclas que no son unicas (rojo prestado posible):")
@@ -237,9 +294,11 @@ def main() -> int:
     ejercidas = enrojecidas = declaradas = 0
     fallos: list[str] = []
 
-    for nombre, viejo, nuevo, objetivos in MUTACIONES:
-        if viejo not in original:
-            fallos.append(f"ARNES ROTO: el texto de «{nombre}» no aparece en el proveedor")
+    for nombre, fichero, viejo, nuevo, objetivos in MUTACIONES:
+        if viejo not in original_de[fichero]:
+            fallos.append(
+                f"ARNES ROTO: el texto de «{nombre}» no aparece en {fichero.name}"
+            )
             continue
         if not objetivos:
             declaradas += 1
@@ -247,14 +306,16 @@ def main() -> int:
             continue
 
         ejercidas += 1
-        PROVEEDOR.write_text(original.replace(viejo, nuevo, 1), encoding="utf-8")
-        assert sha256(PROVEEDOR) != hash_original, "la mutacion no cambio el fichero"
+        fichero.write_text(
+            original_de[fichero].replace(viejo, nuevo, 1), encoding="utf-8"
+        )
+        assert sha256(fichero) != hash_de[fichero], "la mutacion no cambio el fichero"
         purgar_pycache()
         rc_m, pas_m, fal_m = pytest(objetivos, parar_en_el_primero=True)
         # Reversion INMEDIATA y verificada por hash, pase lo que pase.
-        PROVEEDOR.write_text(original, encoding="utf-8")
+        fichero.write_text(original_de[fichero], encoding="utf-8")
         purgar_pycache()
-        assert sha256(PROVEEDOR) == hash_original, "REVERSION FALLIDA (hash)"
+        assert sha256(fichero) == hash_de[fichero], "REVERSION FALLIDA (hash)"
 
         if rc_m != 0 and fal_m > 0:
             enrojecidas += 1
@@ -266,7 +327,10 @@ def main() -> int:
     # Vuelta a verde sobre el arbol restaurado.
     purgar_pycache()
     rc_f, pas_f, _ = pytest([SUITE, SUITE_AMPLIA])
-    print(f"\nVUELTA A VERDE: rc={rc_f} pasados={pas_f} sha256_ok={sha256(PROVEEDOR)==hash_original}")
+    todos_ok = all(sha256(f) == hash_de[f] for f in MUTABLES)
+    print(f"\nVUELTA A VERDE: rc={rc_f} pasados={pas_f} sha256_ok={todos_ok}")
+    if not todos_ok:
+        fallos.append("REVERSION FALLIDA: algun fichero mutable no volvio a su hash")
 
     # SUELO DE LO EJERCIDO. `fallos` esta vacio tanto si todas enrojecieron
     # como si NO SE EJERCIO NINGUNA (todas declaradas, o la lista vaciada). Sin

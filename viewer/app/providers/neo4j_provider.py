@@ -6,6 +6,7 @@ se activa poniendo ``S9K_GRAPH_PROVIDER=neo4j`` en ``.env``.
 """
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from neo4j import GraphDatabase
@@ -21,6 +22,28 @@ from app.providers.base import GraphProvider
 #: total diria 50 y llegarian 47, y esa diferencia se leeria como "faltan
 #: permisos" en vez de "no tienen identidad".
 _CON_IDENTIDAD_DURABLE = "n.entity_id IS NOT NULL"
+
+_log = logging.getLogger(__name__)
+
+#: SONDA DE AMBIGUEDAD, no desempate. `LIMIT 2` no sirve para «coger el
+#: primero»: sirve para que la consulta pueda RESPONDER «hay mas de uno» sin
+#: traerse un grafo entero. Con 2 filas no se escoge ninguna.
+#:
+#: POR QUE ESTO ES UNA BARRERA DE AUTORIDAD Y NO HIGIENE DE DATOS
+#: -------------------------------------------------------------
+#: `/entities/{entity_id}` es una URL DURABLE: un marcador, un enlace entre
+#: paneles, una referencia guardada. Si dos nodos comparten `entity_id` dentro
+#: del ambito autorizado del lector, «el primero que devuelva Neo4j» decide a
+#: que objeto apunta esa URL. Eso no es un empate estetico: se midio como
+#: SECUESTRO DE URL --12/12 peticiones devolvieron el duplicado y la entidad
+#: legitima se convirtio en un 404 indistinguible de «no existe»--. Un objeto
+#: que llega por una URL que no le pertenece ha esquivado la identidad, y con
+#: ella todo lo que se decide a partir de la identidad.
+#:
+#: Por eso la regla es dura: para cada URL durable, 0 o 1 objetos, NUNCA 2+.
+#: Con 2+ no se escoge ninguno (FAIL-CLOSED) y se registra el suceso: preferir
+#: uno seria elegir victima.
+_LIMITE_SONDA_AMBIGUEDAD = 2
 
 
 def _node_to_dict(record_node) -> dict[str, Any]:
@@ -325,18 +348,73 @@ class Neo4jGraphProvider(GraphProvider):
         # la politica no deja ver (`PolicyFilteredProvider.entity` tambien
         # devuelve None). Las dos ramas acaban en el MISMO 404, que es lo que
         # exige la politica: lo no autorizado indistinguible de lo inexistente.
-        params: dict[str, Any] = {"id": entity_id}
-        query = "MATCH (n:Entity) WHERE n.entity_id = $id RETURN n"
+        # UNICIDAD DURABLE (barrera 2, la del resolver). La restriccion de
+        # esquema impide CREAR el estado invalido de hoy en adelante; no dice
+        # nada de los datos historicos, de una restauracion defectuosa, de una
+        # importacion anterior ni de un retro-relleno de `entity_id` con una
+        # derivacion imperfecta. Cualquiera de esos caminos deja dos nodos con
+        # la misma identidad durable, y es AQUI --el punto exacto al que llega
+        # el segmento de la URL-- donde eso deja de ser un dato sucio y pasa a
+        # ser un secuestro silencioso. Por eso esta barrera no es redundante:
+        # es la unica que cubre el pasado.
+        params: dict[str, Any] = {"id": entity_id, "sonda": _LIMITE_SONDA_AMBIGUEDAD}
+        query = "MATCH (n:Entity) WHERE n.entity_id = $id RETURN n LIMIT $sonda"
         if workspaces is not None:
             # Acotado en el propio Cypher, no solo en el filtro posterior.
             query = (
                 "MATCH (n:Entity) WHERE n.entity_id = $id "
-                "AND n.workspace IN $workspaces RETURN n"
+                "AND n.workspace IN $workspaces RETURN n LIMIT $sonda"
             )
             params["workspaces"] = sorted(workspaces)
         with self._driver.session() as session:
-            record = session.run(query, params).single()
-            return _node_to_dict(record["n"]) if record else None
+            # `list(...)`, no `.single()`. `.single()` de este driver devuelve
+            # LA PRIMERA fila y se limita a avisar por `warnings` cuando hay
+            # mas: ese aviso no cambia el resultado, no llega al operador y es
+            # exactamente el desempate implicito que este carril prohibe.
+            records = list(session.run(query, params))
+        if len(records) > 1:
+            # FAIL-CLOSED. No se escoge ninguno y se GRITA: un duplicado en la
+            # base es un incidente de identidad, no una anecdota. Se registra
+            # el `entity_id` --que es lo que ya viaja en la URL-- y nada del
+            # contenido de los nodos, que puede ser material no autorizado.
+            _log.error(
+                "IDENTIDAD DURABLE AMBIGUA: %d nodos comparten entity_id=%r "
+                "en el ambito consultado; no se resuelve ninguno (fail-closed)",
+                len(records), entity_id,
+            )
+            return None
+        return _node_to_dict(records[0]["n"]) if records else None
+
+    def _identidad_ambigua(self, entity_id: str) -> bool:
+        """¿Hay 2+ nodos con este `entity_id`? Sonda acotada, sin desempate.
+
+        Deliberadamente SIN acotar por workspace: quien llama a
+        `relations_for_entity` no trae ambito, y para una pregunta de
+        AMBIGUEDAD el fallo seguro es el conservador --si hay dos anclas en
+        cualquier parte del grafo, no se sirven relaciones--. Lo contrario
+        seria descubrir la ambiguedad solo cuando ya es tarde.
+        """
+        with self._driver.session() as session:
+            # `RETURN 1`, no `RETURN n`: la pregunta es CUANTAS anclas hay, y
+            # traerse las propiedades de nodos que quiza no esten autorizados
+            # para acabar tirandolos seria material sensible paseado sin
+            # motivo. Ademas hace el texto de esta consulta distinto del de
+            # `entity()`, y por tanto anclable a solas por el arnes de
+            # mutaciones (dos consultas identicas se mutan la primera, y el
+            # rojo de una seria el rojo PRESTADO de la otra).
+            records = list(session.run(
+                "MATCH (n:Entity) WHERE n.entity_id = $id RETURN 1 AS ancla "
+                "LIMIT $sonda",
+                {"id": entity_id, "sonda": _LIMITE_SONDA_AMBIGUEDAD},
+            ))
+        if len(records) > 1:
+            _log.error(
+                "IDENTIDAD DURABLE AMBIGUA en relaciones: %d nodos comparten "
+                "entity_id=%r; no se sirve ninguna relacion (fail-closed)",
+                len(records), entity_id,
+            )
+            return True
+        return False
 
     def relations_for_entity(
         self, entity_id: str
@@ -349,6 +427,14 @@ class Neo4jGraphProvider(GraphProvider):
         # `None` y `PolicyFilteredProvider` descartaria todas las relaciones al
         # no poder resolver el otro extremo. Un fallo asi seria mudo: la ficha
         # simplemente apareceria sin relaciones.
+        #
+        # UNICIDAD DURABLE, misma barrera que en `entity()` y por el mismo
+        # motivo: con dos anclas del mismo `entity_id`, este metodo devolveria
+        # la UNION de las relaciones de ambas, es decir, las relaciones de un
+        # objeto pintadas en la ficha de otro. Fail-closed: sin ancla unica no
+        # hay relaciones que mostrar.
+        if self._identidad_ambigua(entity_id):
+            return [], []
         out_query = """
         MATCH (n:Entity)-[r]->(m:Entity)
         WHERE n.entity_id = $id AND m.entity_id IS NOT NULL

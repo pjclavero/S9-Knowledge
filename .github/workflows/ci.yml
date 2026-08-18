@@ -222,9 +222,12 @@ jobs:
             echo "::error::el RESUMEN no trae ejercidas/enrojecidas/declaradas_sin_ejercer: el arnes ha cambiado de formato y esta guarda ya no vigila nada"
             exit 1
           fi
-          # Con la base efimera del job, las DOCE tienen que ejercerse.
-          if [ "$ejercidas" -lt 12 ]; then
-            echo "::error::solo se ejercieron $ejercidas mutaciones (con Neo4j tienen que ser 12): arnes mudo"
+          # Con la base efimera del job, las QUINCE tienen que ejercerse.
+          # (12 de identidad durable + 3 de UNICIDAD DURABLE: MU1 el
+          # fail-closed de `entity()`, MU2 el de `relations_for_entity()`,
+          # MU3 la ablacion de la restriccion de esquema.)
+          if [ "$ejercidas" -lt 15 ]; then
+            echo "::error::solo se ejercieron $ejercidas mutaciones (con Neo4j tienen que ser 15): arnes mudo"
             exit 1
           fi
           if [ "$enrojecidas" -ne "$ejercidas" ]; then
