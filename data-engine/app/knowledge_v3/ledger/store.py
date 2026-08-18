@@ -20,6 +20,9 @@ comprueban.
 """
 from __future__ import annotations
 
+from coded_errors import coded
+from knowledge_v3.ledger.codes import LedgerCodes
+
 import json
 import os
 from abc import ABC, abstractmethod
@@ -58,10 +61,10 @@ class LedgerStore(ABC):
     @staticmethod
     def _check_seq(entry: LedgerEntry, expected_seq: int) -> None:
         if entry.seq != expected_seq:
-            raise ValueError(
+            raise coded(ValueError(
                 f"seq {entry.seq} fuera de orden: el almacen espera {expected_seq}. "
                 "Un ledger con huecos o saltos no es una cadena."
-            )
+            ), LedgerCodes.STORE_SEQ_OUT_OF_ORDER)
 
 
 class InMemoryLedgerStore(LedgerStore):
@@ -118,9 +121,9 @@ class JsonlLedgerStore(LedgerStore):
                 try:
                     data = json.loads(line)
                 except json.JSONDecodeError as exc:
-                    raise ValueError(
+                    raise coded(ValueError(
                         f"{self.path}:{lineno + 1}: linea de ledger ilegible: {exc}"
-                    ) from exc
+                    ), LedgerCodes.STORE_LINE_UNREADABLE) from exc
                 out.append(LedgerEntry.from_dict(data))
         return out
 

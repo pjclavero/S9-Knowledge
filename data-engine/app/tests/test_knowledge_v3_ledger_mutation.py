@@ -19,6 +19,9 @@ import json
 
 import pytest
 
+from tests.exception_codes import raises_code
+from knowledge_v3.ledger.codes import LedgerCodes
+
 pytest.importorskip("jsonschema")
 
 from knowledge_v3.contracts import AssertionStatus, V3ContractError  # noqa: E402
@@ -80,7 +83,7 @@ def test_editing_an_old_entry_breaks_the_verification(jsonl_ledger):
     rows = _lines(jsonl_ledger)
     rows[0]["assertion"]["confidence"] = 0.99
     _write(jsonl_ledger, rows)
-    with pytest.raises(LedgerIntegrityError, match="entry_hash no corresponde"):
+    with raises_code(LedgerIntegrityError, LedgerCodes.ENTRY_HASH_MISMATCH):
         TemporalLedger(WORKSPACE, JsonlLedgerStore(jsonl_ledger))
 
 
@@ -91,7 +94,7 @@ def test_editing_an_old_entry_and_resealing_it_breaks_the_next_link(jsonl_ledger
     body = {k: v for k, v in rows[0].items() if k != "entry_hash"}
     rows[0]["entry_hash"] = compute_entry_hash(body)
     _write(jsonl_ledger, rows)
-    with pytest.raises(LedgerIntegrityError, match="no enlaza"):
+    with raises_code(LedgerIntegrityError, LedgerCodes.CHAIN_PREV_HASH_BROKEN):
         TemporalLedger(WORKSPACE, JsonlLedgerStore(jsonl_ledger))
 
 
@@ -151,7 +154,7 @@ def test_reordering_entries_breaks_the_chain(jsonl_ledger):
 def test_an_unreadable_line_is_not_silently_skipped(jsonl_ledger):
     with jsonl_ledger.open("a", encoding="utf-8") as fh:
         fh.write("{esto no es json}\n")
-    with pytest.raises(ValueError, match="ilegible"):
+    with raises_code(ValueError, LedgerCodes.STORE_LINE_UNREADABLE):
         TemporalLedger(WORKSPACE, JsonlLedgerStore(jsonl_ledger))
 
 
@@ -159,7 +162,7 @@ def test_an_entry_with_unknown_fields_is_rejected(jsonl_ledger):
     rows = _lines(jsonl_ledger)
     rows[0]["firmado_por"] = "nvidia"
     _write(jsonl_ledger, rows)
-    with pytest.raises(ValueError, match="campos desconocidos"):
+    with raises_code(ValueError, LedgerCodes.ENTRY_UNKNOWN_FIELDS):
         TemporalLedger(WORKSPACE, JsonlLedgerStore(jsonl_ledger))
 
 
@@ -190,7 +193,7 @@ def test_a_forged_entry_going_back_in_transaction_time_is_caught():
         store, prev_hash=store.last().entry_hash, seq=1,
         recorded_at=b["recorded_at"], assertion=b,
     )
-    with pytest.raises(LedgerIntegrityError, match="retrocede"):
+    with raises_code(LedgerIntegrityError, LedgerCodes.RECORDED_AT_REGRESSION):
         TemporalLedger(WORKSPACE, store)
 
 
@@ -212,7 +215,7 @@ def test_a_forged_revision_number_is_caught():
         store, prev_hash=GENESIS_HASH, seq=0, recorded_at=a["recorded_at"],
         assertion=a, revision=7,
     )
-    with pytest.raises(LedgerIntegrityError, match="revision"):
+    with raises_code(LedgerIntegrityError, LedgerCodes.REVISION_MISMATCH):
         TemporalLedger(WORKSPACE, store)
 
 
@@ -232,7 +235,7 @@ def test_entry_and_document_cannot_disagree_on_the_transaction_time():
     store = InMemoryLedgerStore()
     a = make_assertion(recorded_at="2026-01-10T09:00:00Z")
     _forge(store, prev_hash=GENESIS_HASH, seq=0, recorded_at="2026-05-05T09:00:00Z", assertion=a)
-    with pytest.raises(LedgerIntegrityError, match="dos tiempos de transaccion"):
+    with raises_code(LedgerIntegrityError, LedgerCodes.RECORDED_AT_DOC_MISMATCH):
         TemporalLedger(WORKSPACE, store)
 
 
@@ -249,7 +252,7 @@ def test_entry_and_document_cannot_disagree_on_the_assertion_id():
         **{**forged.to_dict(), "entry_hash": compute_entry_hash(forged.body())}
     )
     store.append(forged)
-    with pytest.raises(LedgerIntegrityError, match="no coinciden"):
+    with raises_code(LedgerIntegrityError, LedgerCodes.ASSERTION_ID_MISMATCH):
         TemporalLedger(WORKSPACE, store)
 
 
@@ -465,14 +468,14 @@ def test_a_forged_ledger_with_an_illegal_transition_does_not_verify():
             (make_assertion(recorded_at="2026-03-10T09:00:00Z", status="ASSERTED"), 3),
         ],
     )
-    with pytest.raises(LedgerIntegrityError, match="historia imposible"):
+    with raises_code(LedgerIntegrityError, LedgerCodes.IMPOSSIBLE_HISTORY):
         TemporalLedger(WORKSPACE, store)
 
 
 def test_a_forged_ledger_whose_assertion_is_born_confirmed_does_not_verify():
     store = InMemoryLedgerStore()
     _chain(store, [(make_assertion(status="CONFIRMED"), 1)])
-    with pytest.raises(LedgerIntegrityError, match="historia imposible"):
+    with raises_code(LedgerIntegrityError, LedgerCodes.IMPOSSIBLE_HISTORY):
         TemporalLedger(WORKSPACE, store)
 
 
@@ -492,7 +495,7 @@ def test_a_forged_ledger_that_resurrects_a_superseded_version_does_not_verify():
             (make_assertion(recorded_at="2026-03-10T09:00:00Z", status="CONFIRMED"), 3),
         ],
     )
-    with pytest.raises(LedgerIntegrityError, match="historia imposible"):
+    with raises_code(LedgerIntegrityError, LedgerCodes.IMPOSSIBLE_HISTORY):
         TemporalLedger(WORKSPACE, store)
 
 
@@ -564,7 +567,7 @@ def test_the_store_rejects_a_seq_that_jumps_forward(seq):
     `!=` seguiria rechazando los `seq` bajos y dejaria pasar estos.
     """
     store = InMemoryLedgerStore()
-    with pytest.raises(ValueError, match="fuera de orden"):
+    with raises_code(ValueError, LedgerCodes.STORE_SEQ_OUT_OF_ORDER):
         store.append(_entry_with_seq(seq))
     assert len(store) == 0
 
@@ -583,7 +586,7 @@ def test_the_store_rejects_a_seq_that_repeats_or_skips_on_a_non_empty_log(seq):
             prev_hash=store.last().entry_hash,
         )
     )
-    with pytest.raises(ValueError, match="espera 2"):
+    with raises_code(ValueError, LedgerCodes.STORE_SEQ_OUT_OF_ORDER):
         store.append(_entry_with_seq(seq))
     assert len(store) == 2
 
