@@ -1041,17 +1041,29 @@ def test_la_capa_juego_y_una_partida_TAMPOCO_pueden_compartir_entity_id(con_cons
     ficha legitima. `_assert_absent` ya lo prohibe en el writer ("dos ambitos
     jamas comparten el mismo id"); ahora tambien lo prohibe el esquema.
 
-    Mientras este test siga verde, ningun estado que el esquema admita puede
-    hacer que el resolver falle cerrado.
+    ALCANCE EXACTO DE LO QUE ESTE TEST DEMUESTRA, que no es lo que decia antes
+    esta frase: DENTRO DE UN MISMO WORKSPACE, ningun estado que el esquema
+    admita hace que el resolver falle cerrado. Eso es lo que se mide aqui
+    --capa juego contra `partida:X`, mismo `workspace`-- y ni una coma mas.
+    La version anterior afirmaba "ningun estado que el esquema admita", sin
+    acotar, y era FALSA: el limite conocido esta un poco mas abajo, en
+    `test_LIMITE_CONOCIDO_...`, con su porque y su medida.
     """
     from neo4j.exceptions import ClientError
 
     with con_constraints.session() as s:
         s.run("CREATE (n:Entity $props)", {"props": _GEMELAS[0]})  # capa juego
-        with pytest.raises(ClientError):
+        with pytest.raises(ClientError) as exc:
             s.run("CREATE (n:Entity $props)",
                   {"props": dict(_GEMELAS[1], scope="partida",
                                  partida_id="partida:X")}).consume()
+        # El CODIGO, no la clase: este es el test que carga la afirmacion mas
+        # fuerte del carril, y sin esta linea cualquier `ClientError`
+        # --sintaxis mala, sesion muerta-- lo daba por bueno. Es exactamente el
+        # defecto que se corrige en sus tres hermanos.
+        assert "ConstraintValidationFailed" in (exc.value.code or ""), (
+            f"murio por otro motivo, no por la restriccion: {exc.value.code}"
+        )
 
 
 def test_la_restriccion_NO_cubre_EL_PASADO_HUECO_DECLARADO(grafo_dur):
@@ -1291,6 +1303,43 @@ def test_un_id_AUTORADO_repetido_en_otra_boveda_NO_tumba_las_relaciones(grafo_id
             "visibility": "player", "review_status": "reviewed", "confidence": 0.9}})
     assert prov.entity(ID_AUTORADO, workspaces=ws) is None
     assert prov.relations_for_entity(ID_AUTORADO, workspaces=ws) == ([], [])
+
+
+def test_LIMITE_CONOCIDO_con_ambito_NULO_un_id_autorado_cruzado_cierra_en_falso(
+    grafo_id_autorado,
+):
+    """EL LIMITE, medido y escrito. No es secuestro; es indisponibilidad.
+
+    `PolicyFilteredProvider._scope_workspaces()` devuelve `None` para
+    `admin_full`: un lector sin ambito. Con ambito nulo, dos entidades de
+    workspaces DISTINTOS que compartan un identificador AUTORADO --que no lleva
+    el workspace dentro, al contrario que los derivados-- son dos claves
+    legales y distintas bajo el esquema `(workspace, entity_id)`, y aun asi el
+    resolver ve dos filas y cierra.
+
+    POR QUE NO SE "ARREGLA" AQUI. Con ambito nulo la URL de verdad nombra dos
+    objetos: no hay dimension en la peticion que permita elegir, y elegir es
+    justo lo que este carril prohibe. Cerrar es aplicar la norma, no
+    incumplirla. Acotarlo de verdad exigiria que el resolver dedujera un
+    workspace que el lector no ha declarado --inventar identidad-- o tocar el
+    modelo de ambito de `authz/**` mas alla de la unica llamada ya declarada.
+    Se documenta y se mide.
+
+    LO QUE SI SE AFIRMA, y es lo que impide que esto sea un P0: las DOS
+    barreras coinciden. No hay ninguna combinacion en la que una resuelva y la
+    otra no, que era el defecto O2. Falla hacia cerrado, con `log.error`.
+    """
+    prov = _proveedor()
+
+    # Contrapeso: con ambito, las dos son resolubles y cada una es la suya.
+    a = prov.entity(ID_AUTORADO, workspaces=frozenset({WS_DUR}))
+    b = prov.entity(ID_AUTORADO, workspaces=frozenset({WS_VECINO}))
+    assert a is not None and b is not None
+    assert a["workspace"] != b["workspace"], "el material no discrimina"
+
+    # Sin ambito (`admin_full`): las dos barreras cierran, y cierran JUNTAS.
+    assert prov.entity(ID_AUTORADO, workspaces=None) is None
+    assert prov.relations_for_entity(ID_AUTORADO, workspaces=None) == ([], [])
 
 
 def test_el_camino_REAL_por_HTTP_conserva_las_relaciones(panel_dur, grafo_id_autorado):

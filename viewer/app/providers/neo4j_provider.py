@@ -403,6 +403,16 @@ class Neo4jGraphProvider(GraphProvider):
         con TODAS sus relaciones caidas. No era una fuga --fallaba hacia
         cerrado y dejaba `log.error`-- pero si un defecto de disponibilidad
         provocado por la propia defensa. Misma pregunta, mismo ambito.
+
+        LIMITE CONOCIDO (medido en
+        `test_LIMITE_CONOCIDO_con_ambito_NULO_un_id_autorado_cruzado_cierra_en_falso`):
+        con `workspaces=None` --que es lo que `_scope_workspaces()` devuelve
+        para `admin_full`-- dos entidades de workspaces distintos que compartan
+        un id AUTORADO cierran las dos barreras a la vez, aunque bajo el
+        esquema `(workspace, entity_id)` sean dos claves legales. No se
+        "arregla" aqui: con ambito nulo la URL nombra de verdad dos objetos y
+        elegir uno es justo lo prohibido. Indisponibilidad para el admin, no
+        secuestro, y las dos barreras siguen coincidiendo.
         """
         params: dict[str, Any] = {"id": entity_id, "sonda": _LIMITE_SONDA_AMBIGUEDAD}
         filtro = ""
