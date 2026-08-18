@@ -204,10 +204,98 @@ def test_empty_csrf_secret_blocks_startup():
         enforce_auth_security(_auth_settings(S9K_CSRF_SECRET=""))
 
 
+# ---------------------------------------------------------------------------
+# V3.1 carril 3 — CSRF: longitud mínima y entropía mínima son DOS propiedades
+# INDEPENDIENTES. Cada una tiene su positivo y su negativo, y ninguno de los
+# negativos puede pasar por culpa de la otra regla (rojo prestado).
+#
+# Ninguno de estos valores es un secreto real: son cadenas sintéticas cuya
+# única propiedad relevante es su longitud y su número de caracteres distintos.
+# ---------------------------------------------------------------------------
+
+# 31 caracteres, 10 distintos -> SÓLO viola la longitud.
+CSRF_CORTO_PERO_VARIADO = "abcdefghij" * 3 + "a"
+# 32 caracteres, 10 distintos -> no viola ninguna de las dos.
+CSRF_LARGO_Y_VARIADO = "abcdefghij" * 3 + "ab"
+# 40 caracteres, 7 distintos -> SÓLO viola la entropía.
+CSRF_LARGO_PERO_POBRE = "abcdefg" * 5 + "abcde"
+# 40 caracteres, 8 distintos -> no viola ninguna de las dos.
+CSRF_LARGO_Y_SUFICIENTE = "abcdefgh" * 5
+
+
+def test_csrf_longitud_invariantes_del_fixture():
+    """El fixture es la prueba: si estas cifras cambian, las cuatro medidas de
+    abajo dejan de ser independientes y hay que rehacerlas."""
+    from app.auth import security as sec
+    assert (len(CSRF_CORTO_PERO_VARIADO), len(set(CSRF_CORTO_PERO_VARIADO))) == (31, 10)
+    assert (len(CSRF_LARGO_Y_VARIADO), len(set(CSRF_LARGO_Y_VARIADO))) == (32, 10)
+    assert (len(CSRF_LARGO_PERO_POBRE), len(set(CSRF_LARGO_PERO_POBRE))) == (40, 7)
+    assert (len(CSRF_LARGO_Y_SUFICIENTE), len(set(CSRF_LARGO_Y_SUFICIENTE))) == (40, 8)
+    # Los fixtures "sólo longitud" y "sólo entropía" satisfacen la OTRA regla
+    # con el mínimo declarado: por eso el rojo de cada medida no es prestado.
+    assert len(set(CSRF_CORTO_PERO_VARIADO)) >= sec._MIN_CSRF_UNIQUE_CHARS
+    assert len(CSRF_LARGO_PERO_POBRE) >= sec._MIN_CSRF_SECRET_LEN
+
+
+def test_csrf_longitud_negativo_secreto_corto_es_rechazado():
+    """PROPIEDAD 1 (negativo): 31 caracteres con entropía de sobra -> se
+    rechaza POR LONGITUD y sólo por longitud."""
+    from app.auth import security as sec
+    codes = [p.code for p in sec.validate_csrf_secret(CSRF_CORTO_PERO_VARIADO)]
+    assert sec.CSRF_SECRET_TOO_SHORT in codes
+    assert sec.CSRF_SECRET_LOW_ENTROPY not in codes
+
+
+def test_csrf_longitud_positivo_un_caracter_mas_ya_pasa():
+    """PROPIEDAD 1 (positivo): el mismo alfabeto con un carácter más (32) pasa."""
+    from app.auth import security as sec
+    assert sec.validate_csrf_secret(CSRF_LARGO_Y_VARIADO) == []
+
+
+def test_csrf_entropia_negativo_alfabeto_pobre_es_rechazado():
+    """PROPIEDAD 2 (negativo): 40 caracteres (longitud de sobra) pero sólo 7
+    distintos -> se rechaza POR ENTROPÍA y sólo por entropía."""
+    from app.auth import security as sec
+    codes = [p.code for p in sec.validate_csrf_secret(CSRF_LARGO_PERO_POBRE)]
+    assert sec.CSRF_SECRET_LOW_ENTROPY in codes
+    assert sec.CSRF_SECRET_TOO_SHORT not in codes
+
+
+def test_csrf_entropia_positivo_un_caracter_distinto_mas_ya_pasa():
+    """PROPIEDAD 2 (positivo): misma longitud, un carácter distinto más (8)."""
+    from app.auth import security as sec
+    assert sec.validate_csrf_secret(CSRF_LARGO_Y_SUFICIENTE) == []
+
+
+def test_csrf_ambas_reglas_a_la_vez_declaran_dos_codigos():
+    """El caso histórico ("corto123": 8 caracteres, 7 distintos) violaba las
+    dos reglas a la vez. Se conserva, pero declarando AMBOS códigos: así ya no
+    puede prestarle el rojo a ninguna de las dos medidas de arriba."""
+    from app.auth import security as sec
+    codes = [p.code for p in sec.validate_csrf_secret("corto123")]
+    assert sec.CSRF_SECRET_TOO_SHORT in codes
+    assert sec.CSRF_SECRET_LOW_ENTROPY in codes
+
+
 def test_short_csrf_secret_blocks_startup():
-    from app.auth.security import AuthSecurityError, enforce_auth_security
-    with pytest.raises(AuthSecurityError):
-        enforce_auth_security(_auth_settings(S9K_CSRF_SECRET="corto123"))
+    """Fail-closed de arranque: el rechazo llega hasta `enforce_auth_security`
+    y viaja con CÓDIGO estable, no con una redacción concreta."""
+    from app.auth.security import (
+        CSRF_SECRET_TOO_SHORT, AuthSecurityError, enforce_auth_security,
+    )
+    with pytest.raises(AuthSecurityError) as exc:
+        enforce_auth_security(_auth_settings(S9K_CSRF_SECRET=CSRF_CORTO_PERO_VARIADO))
+    assert CSRF_SECRET_TOO_SHORT in exc.value.codes
+
+
+def test_low_entropy_csrf_secret_blocks_startup():
+    """Fail-closed de arranque, propiedad 2, por código estable."""
+    from app.auth.security import (
+        CSRF_SECRET_LOW_ENTROPY, AuthSecurityError, enforce_auth_security,
+    )
+    with pytest.raises(AuthSecurityError) as exc:
+        enforce_auth_security(_auth_settings(S9K_CSRF_SECRET=CSRF_LARGO_PERO_POBRE))
+    assert CSRF_SECRET_LOW_ENTROPY in exc.value.codes
 
 
 def test_strong_csrf_secret_allows_startup(tmp_path):
