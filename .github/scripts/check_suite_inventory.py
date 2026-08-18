@@ -654,7 +654,34 @@ def modulos_delegados() -> tuple[set[str], list[str]]:
     datos = yaml.safe_load(CI.read_text(encoding="utf-8"))
     fallos = [f"la delegacion en check_ci_config no cubre: {e}"
               for e in cci.comprueba_skips_criticos(datos, CI.name)]
-    return set(cci.ficheros_con_skip_critico()), fallos
+    directos = set(cci.ficheros_con_skip_critico())
+
+    # La delegacion se HEREDA por `conftest.py`, y esto no es un detalle: en
+    # `viewer/tests/browser` solo `test_login_browser.py` nombra Playwright; los
+    # otros cinco modulos lo reciben del `conftest.py` del directorio. Sin esta
+    # herencia, esos cinco aparecian como DESAPARECIDOS en cualquier job sin
+    # Playwright —lo detecto CI, no una suposicion— y el gate se ponia rojo por
+    # una cobertura que SI existe: `test-login-browser` los ejecuta por nombre
+    # de directorio y falla si ve `skipped`.
+    #
+    # Se DERIVA recorriendo los `conftest.py` que pytest aplicaria a cada
+    # modulo, no con una lista de directorios.
+    directorios = {Path(rel).parent.as_posix()
+                   for rel in directos if Path(rel).name == "conftest.py"}
+    heredados = set()
+    for raiz in raices_invocadas():
+        base = raiz if raiz.is_dir() else raiz.parent
+        for py in base.rglob("test_*.py"):
+            rel = py.relative_to(REPO).as_posix()
+            padre = Path(rel).parent
+            while True:
+                if padre.as_posix() in directorios:
+                    heredados.add(rel)
+                    break
+                if padre.as_posix() in (".", ""):
+                    break
+                padre = padre.parent
+    return directos | heredados, fallos
 
 
 # --------------------------------------------------------------------------
@@ -743,10 +770,10 @@ def main() -> int:
               "no hay inventario que valga")
         return 1
 
-    inventario, salida = inventario_recolectado(raices)
+    inventario_bruto, salida = inventario_recolectado(raices)
     en_disco = modulos_en_disco(raices)
-    print(f"\n=== F2: {len(inventario)} modulos recolectados, "
-          f"{sum(inventario.values())} tests; {len(en_disco)} ficheros "
+    print(f"\n=== F2: {len(inventario_bruto)} modulos recolectados, "
+          f"{sum(inventario_bruto.values())} tests; {len(en_disco)} ficheros "
           f"`test_*.py` en disco bajo esas raices")
 
     por_calibrador = criticos_por_calibrador()
@@ -758,6 +785,15 @@ def main() -> int:
 
     delegados, fallos_delegacion = modulos_delegados()
     exigidas = dependencias_exigidas(en_disco)
+
+    # El inventario que se compara y se publica EXCLUYE los delegados: si se
+    # colaran, la misma rama daria un inventario distinto en una maquina con
+    # Playwright y en un runner sin el, y el trinquete se volveria un generador
+    # de rojos falsos. Su trinquete es de presencia (C-bis), no de recuento.
+    inventario = {k: v for k, v in inventario_bruto.items() if k not in delegados}
+    if len(inventario) != len(inventario_bruto):
+        print(f"    ({len(inventario_bruto) - len(inventario)} modulos delegados "
+              f"excluidos del recuento; su trinquete es de presencia)")
 
     # --- E: preflight de dependencias -------------------------------------
     # E1 (ENTORNO): lo que un modulo necesita para no auto-omitirse tiene que
@@ -858,6 +894,27 @@ def main() -> int:
     print(f"\n=== F5: {nota}")
     if base is not None:
         bajas = bajas_declaradas()
+        # C-bis: los modulos DELEGADOS (Node, Chromium) no se recolectan en el
+        # entorno de este job, asi que su trinquete no puede ser de coleccion
+        # —seria rojo en un job y verde en otro, que es medir una cosa y
+        # certificar otra—. El suyo es de PRESENCIA: el fichero tiene que
+        # seguir existiendo. Sin esto quedaba un hueco real: borrar uno de los
+        # cinco `viewer/tests/browser/test_browser_*.py` no lo veia nadie,
+        # porque `check_ci_config` exige que el job los ejecute por NOMBRE DE
+        # DIRECTORIO y un directorio con un fichero menos sigue pasando.
+        # El silenciado de un delegado si lo ve el control A, que es AST y no
+        # necesita entorno.
+        if ABLACION != "C":
+            for rel in sorted(datos_base.get("delegados") or []):
+                if (REPO / rel).is_file() or rel in bajas:
+                    continue
+                errores.append(
+                    f"BORRADO DE SUITE DELEGADA: `{rel}` estaba en el inventario "
+                    f"de la base y ya no existe en el arbol. Sus pruebas solo "
+                    f"corren en el job que instala su herramienta externa, que "
+                    f"las ejecuta por directorio: un fichero menos ahi no baja "
+                    f"ningun recuento que nadie vigile."
+                )
         # A2: el conjunto de modulos silenciados no puede CRECER. Aqui es donde
         # muere el `skipif` sobre una condicion inventada, que A1 no ve.
         if ABLACION != "A":
@@ -913,6 +970,7 @@ def main() -> int:
             "raices": [r.relative_to(REPO).as_posix() for r in raices],
             "criticos": sorted(criticos),
             "silenciados": dict(sorted(silenciados_ahora.items())),
+            "delegados": sorted(delegados & en_disco),
             "total": sum(inventario.values()),
             "modulos": dict(sorted(inventario.items())),
         }, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

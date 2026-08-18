@@ -65,9 +65,14 @@ IDENTIDAD = REPO / "viewer" / "tests" / "test_identidad_durable.py"
 CHASIS = REPO / "viewer" / "tests" / "test_chassis_mount_contract.py"
 TRES_DEL_RC = (PARCIALIDAD, IDENTIDAD, CHASIS)
 
+# Una suite DELEGADA: sus pruebas solo corren en el job que instala Chromium, y
+# ese job las ejecuta por DIRECTORIO. Un fichero menos ahi no baja ningun
+# recuento que nadie vigile, asi que su trinquete es de PRESENCIA (C-bis).
+NAVEGADOR = REPO / "viewer" / "tests" / "browser" / "test_browser_navigation.py"
+
 # Cualquier fichero que una mutacion pueda tocar. Se salvan enteros y se
 # restauran verificando el SHA-256.
-TOCABLES = TRES_DEL_RC
+TOCABLES = TRES_DEL_RC + (NAVEGADOR,)
 
 VERDE, ROJO = "VERDE", "ROJO"
 
@@ -268,6 +273,8 @@ CASOS = [
     ("RC-2c: borrar test_chassis_mount_contract.py", m_borra(CHASIS), None, None, ROJO),
     ("caida anormal del recuento (5 tests menos en UN modulo)",
      m_caida_de_recuento, None, None, ROJO),
+    ("borrar una suite DELEGADA (trinquete de presencia, C-bis)",
+     m_borra(NAVEGADOR), None, None, ROJO),
     ("RC-3a: `jsonschema` ausente (30+ modulos con importorskip)",
      None, "jsonschema", None, ROJO),
     ("RC-3b: `PyYAML` ausente", None, "yaml", None, ROJO),

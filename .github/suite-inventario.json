@@ -41,7 +41,16 @@
     "viewer/tests/test_contrato_paneles_neo4j.py": "CONDICIONAL",
     "viewer/tests/test_neo4j_integration_authz.py": "CONDICIONAL"
   },
-  "total": 8199,
+  "delegados": [
+    "viewer/tests/browser/test_browser_accessibility.py",
+    "viewer/tests/browser/test_browser_auth_flows.py",
+    "viewer/tests/browser/test_browser_backend_down.py",
+    "viewer/tests/browser/test_browser_graph_ux.py",
+    "viewer/tests/browser/test_browser_navigation.py",
+    "viewer/tests/browser/test_login_browser.py",
+    "viewer/tests/test_graph_ux_v2.py"
+  ],
+  "total": 7961,
   "modulos": {
     "contracts/knowledge-v3/v1/tests/test_contracts_v3.py": 526,
     "contracts/review-ingest/v1/tests/test_contracts_v1.py": 38,
@@ -239,12 +248,6 @@
     "tests/wave2b/test_observability_real.py": 4,
     "tests/wave2b/test_pipeline_e2e_real.py": 15,
     "tests/wave2b/test_syntax_real.py": 4,
-    "viewer/tests/browser/test_browser_accessibility.py": 61,
-    "viewer/tests/browser/test_browser_auth_flows.py": 22,
-    "viewer/tests/browser/test_browser_backend_down.py": 10,
-    "viewer/tests/browser/test_browser_graph_ux.py": 21,
-    "viewer/tests/browser/test_browser_navigation.py": 33,
-    "viewer/tests/browser/test_login_browser.py": 24,
     "viewer/tests/test_acotado_por_workspace_en_cypher.py": 5,
     "viewer/tests/test_admin_panel_concesiones.py": 7,
     "viewer/tests/test_api.py": 4,
@@ -267,7 +270,6 @@
     "viewer/tests/test_contrato_paneles_neo4j.py": 56,
     "viewer/tests/test_dependencias_fail_closed.py": 9,
     "viewer/tests/test_fixtures_sin_referencias_a_material_restringido.py": 5,
-    "viewer/tests/test_graph_ux_v2.py": 67,
     "viewer/tests/test_health.py": 33,
     "viewer/tests/test_health_backups.py": 26,
     "viewer/tests/test_health_unit.py": 14,
