@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pytest
 
+from exception_codes import raises_code
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -283,9 +285,8 @@ def test_short_csrf_secret_blocks_startup():
     from app.auth.security import (
         CSRF_SECRET_TOO_SHORT, AuthSecurityError, enforce_auth_security,
     )
-    with pytest.raises(AuthSecurityError) as exc:
+    with raises_code(AuthSecurityError, CSRF_SECRET_TOO_SHORT):
         enforce_auth_security(_auth_settings(S9K_CSRF_SECRET=CSRF_CORTO_PERO_VARIADO))
-    assert CSRF_SECRET_TOO_SHORT in exc.value.codes
 
 
 def test_low_entropy_csrf_secret_blocks_startup():
@@ -293,9 +294,8 @@ def test_low_entropy_csrf_secret_blocks_startup():
     from app.auth.security import (
         CSRF_SECRET_LOW_ENTROPY, AuthSecurityError, enforce_auth_security,
     )
-    with pytest.raises(AuthSecurityError) as exc:
+    with raises_code(AuthSecurityError, CSRF_SECRET_LOW_ENTROPY):
         enforce_auth_security(_auth_settings(S9K_CSRF_SECRET=CSRF_LARGO_PERO_POBRE))
-    assert CSRF_SECRET_LOW_ENTROPY in exc.value.codes
 
 
 def test_strong_csrf_secret_allows_startup(tmp_path):
