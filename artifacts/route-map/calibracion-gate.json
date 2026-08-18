@@ -1,6 +1,6 @@
 {
-  "hash_arbol_antes": "9d69f12d74e899d847a85e42a943b3140e43bac00fcd50663a88aee6d3f3960a",
-  "hash_arbol_despues": "9d69f12d74e899d847a85e42a943b3140e43bac00fcd50663a88aee6d3f3960a",
+  "hash_arbol_antes": "1aea4b73f9eb51be7616e65afa2aaf106c7694cedce1eb48e7b0c5b340cef3e5",
+  "hash_arbol_despues": "1aea4b73f9eb51be7616e65afa2aaf106c7694cedce1eb48e7b0c5b340cef3e5",
   "casos": [
     {
       "caso": "G0",
@@ -247,26 +247,6 @@
       "estado": "OK"
     },
     {
-      "caso": "A8",
-      "desc": "el censo declara entradas opacas",
-      "esperado": "censo-en-rojo",
-      "rc": 1,
-      "motivos": [
-        "censo-en-rojo"
-      ],
-      "estado": "OK"
-    },
-    {
-      "caso": "A9",
-      "desc": "el censo declara una ruta SIN-AUTH",
-      "esperado": "censo-en-rojo",
-      "rc": 1,
-      "motivos": [
-        "censo-en-rojo"
-      ],
-      "estado": "OK"
-    },
-    {
       "caso": "A10",
       "desc": "un hallazgo DURO renombrado en el artefacto (la fuga sigue ahí)",
       "esperado": "censo-en-rojo",
@@ -282,6 +262,136 @@
       "esperado": "VERDE",
       "rc": 0,
       "motivos": [],
+      "estado": "OK"
+    },
+    {
+      "caso": "AD-enlaces_rotos",
+      "desc": "el censo emite el hallazgo DURO `enlaces_rotos`",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "AD-rutas_sin_auth",
+      "desc": "el censo emite el hallazgo DURO `rutas_sin_auth`",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "AD-rutas_capturadas",
+      "desc": "el censo emite el hallazgo DURO `rutas_capturadas`",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "AD-guardian_declarado_pero_no_aplicado",
+      "desc": "el censo emite el hallazgo DURO `guardian_declarado_pero_no_aplicado`",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "AD-contradiccion_deniega_y_sirve",
+      "desc": "el censo emite el hallazgo DURO `contradiccion_deniega_y_sirve`",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "AD-rutas_denegacion_404_ambigua",
+      "desc": "el censo emite el hallazgo DURO `rutas_denegacion_404_ambigua`",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "AD-rutas_denegacion_no_atribuible",
+      "desc": "el censo emite el hallazgo DURO `rutas_denegacion_no_atribuible`",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "AD-sondas_inconcluyentes",
+      "desc": "el censo emite el hallazgo DURO `sondas_inconcluyentes`",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "AD-censo_opaco",
+      "desc": "el censo emite el hallazgo DURO `censo_opaco`",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "AD-censo_vacio",
+      "desc": "el censo emite el hallazgo DURO `censo_vacio`",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "AD-caracterizacion_estatica_fallida",
+      "desc": "el censo emite el hallazgo DURO `caracterizacion_estatica_fallida`",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "AD-control_positivo_csrf_fallido",
+      "desc": "el censo emite el hallazgo DURO `control_positivo_csrf_fallido`",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "AD-barrido_contamino_la_db",
+      "desc": "el censo emite el hallazgo DURO `barrido_contamino_la_db`",
+      "esperado": "censo-en-rojo",
+      "rc": 1,
+      "motivos": [
+        "censo-en-rojo"
+      ],
       "estado": "OK"
     },
     {
@@ -341,6 +451,194 @@
         "la puerta clasifica `rutas_sin_auth`, que el censo YA NO EMITE: el acoplamiento por nombre se ha roto y esa clase apunta al vacío (si era un hallazgo DURO, dejó de vigilarse en silencio)",
         "el censo emite `rutas_sin_auth_v2` y la puerta no lo clasifica: en ejecución caería en `hallazgo-desconocido`; decide si es duro o informativo"
       ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G15",
+      "desc": "la asignación duro/informativo se deriva de dos medidas, no de una opinión escrita",
+      "esperado": "VERDE",
+      "rc": 0,
+      "motivos": [],
+      "duros_exigidos_por_la_medida": [
+        "barrido_contamino_la_db",
+        "censo_opaco",
+        "censo_vacio",
+        "contradiccion_deniega_y_sirve",
+        "control_positivo_csrf_fallido",
+        "enlaces_rotos",
+        "guardian_declarado_pero_no_aplicado",
+        "rutas_capturadas",
+        "rutas_denegacion_404_ambigua",
+        "rutas_denegacion_no_atribuible",
+        "rutas_sin_auth",
+        "sondas_inconcluyentes"
+      ],
+      "duros_declarados_por_la_puerta": [
+        "barrido_contamino_la_db",
+        "caracterizacion_estatica_fallida",
+        "censo_opaco",
+        "censo_vacio",
+        "contradiccion_deniega_y_sirve",
+        "control_positivo_csrf_fallido",
+        "enlaces_rotos",
+        "guardian_declarado_pero_no_aplicado",
+        "rutas_capturadas",
+        "rutas_denegacion_404_ambigua",
+        "rutas_denegacion_no_atribuible",
+        "rutas_sin_auth",
+        "sondas_inconcluyentes"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G16",
+      "desc": "lo que el censo declara fatal (rc != 0) la puerta no lo trata como informativo",
+      "esperado": "VERDE",
+      "rc": 0,
+      "motivos": [],
+      "fatales_declarados_por_el_censo": [
+        "caracterizacion_estatica_fallida",
+        "censo_opaco",
+        "censo_vacio",
+        "control_positivo_csrf_fallido"
+      ],
+      "fatales_en_la_base": [
+        "caracterizacion_estatica_fallida",
+        "censo_opaco",
+        "censo_vacio",
+        "control_positivo_csrf_fallido"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G16-neg",
+      "desc": "un refactor de los codigos de salida del censo no encoge la derivacion de fatales en silencio",
+      "esperado": "VERDE",
+      "rc": 0,
+      "motivos": [],
+      "fatales_vistos_por_refactor": {
+        "sys.exit(n)": [
+          "caracterizacion_estatica_fallida",
+          "censo_opaco",
+          "censo_vacio",
+          "control_positivo_csrf_fallido"
+        ],
+        "rc = n; return rc": [
+          "caracterizacion_estatica_fallida",
+          "censo_opaco",
+          "censo_vacio",
+          "control_positivo_csrf_fallido"
+        ],
+        "raise SystemExit(n)": [
+          "caracterizacion_estatica_fallida",
+          "censo_opaco",
+          "censo_vacio",
+          "control_positivo_csrf_fallido"
+        ]
+      },
+      "estado": "OK"
+    },
+    {
+      "caso": "G17",
+      "desc": "el conjunto de hallazgos duros no ha encogido respecto a la base",
+      "esperado": "VERDE",
+      "rc": 0,
+      "motivos": [],
+      "duros_en_la_base": [
+        "barrido_contamino_la_db",
+        "caracterizacion_estatica_fallida",
+        "censo_opaco",
+        "censo_vacio",
+        "contradiccion_deniega_y_sirve",
+        "control_positivo_csrf_fallido",
+        "enlaces_rotos",
+        "guardian_declarado_pero_no_aplicado",
+        "rutas_capturadas",
+        "rutas_denegacion_404_ambigua",
+        "rutas_denegacion_no_atribuible",
+        "rutas_sin_auth",
+        "sondas_inconcluyentes"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "Gneg",
+      "desc": "el ataque en DOS PASOS -llenar el cubo y mover el nombre a informativos- se detecta para cada hallazgo duro, mutando `gate.py` de verdad",
+      "esperado": "detecta los 13",
+      "rc": 1,
+      "motivos": [],
+      "comprobados": [
+        "barrido_contamino_la_db",
+        "caracterizacion_estatica_fallida",
+        "censo_opaco",
+        "censo_vacio",
+        "contradiccion_deniega_y_sirve",
+        "control_positivo_csrf_fallido",
+        "enlaces_rotos",
+        "guardian_declarado_pero_no_aplicado",
+        "rutas_capturadas",
+        "rutas_denegacion_404_ambigua",
+        "rutas_denegacion_no_atribuible",
+        "rutas_sin_auth",
+        "sondas_inconcluyentes"
+      ],
+      "quien_lo_caza": {
+        "barrido_contamino_la_db": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "caracterizacion_estatica_fallida": [
+          "G16",
+          "G17"
+        ],
+        "censo_opaco": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G16",
+          "G17"
+        ],
+        "censo_vacio": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G16",
+          "G17"
+        ],
+        "contradiccion_deniega_y_sirve": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "control_positivo_csrf_fallido": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G16",
+          "G17"
+        ],
+        "enlaces_rotos": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "guardian_declarado_pero_no_aplicado": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "rutas_capturadas": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "rutas_denegacion_404_ambigua": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "rutas_denegacion_no_atribuible": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "rutas_sin_auth": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "sondas_inconcluyentes": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ]
+      },
       "estado": "OK"
     }
   ],
@@ -438,14 +736,21 @@
     },
     {
       "ablacion": "AB-C10",
-      "caso": "A8",
+      "caso": "AD-censo_opaco",
+      "rc_ablado": 0,
+      "motivos_ablado": [],
+      "estado": "COBRADA"
+    },
+    {
+      "ablacion": "AB-C10-duros",
+      "caso": "AD-rutas_sin_auth",
       "rc_ablado": 0,
       "motivos_ablado": [],
       "estado": "COBRADA"
     }
   ],
-  "casos_ejecutados": 31,
-  "ablaciones_cobradas": 14,
+  "casos_ejecutados": 47,
+  "ablaciones_cobradas": 15,
   "fallos": [],
   "veredicto": "OK"
 }

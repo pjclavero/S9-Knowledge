@@ -35,6 +35,7 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import os
@@ -48,8 +49,9 @@ REPO = Path(__file__).resolve().parents[2]
 
 #: Suelos del arnés. Si la carga real baja de aquí, el arnés se declara roto en
 #: vez de salir verde por no haber probado nada.
-MINIMO_CASOS = 20
-MINIMO_ABLACIONES = 12
+MINIMO_CASOS = 30
+#: Y ademas, controles concretos que TIENEN que haber corrido (ver `main`).
+MINIMO_ABLACIONES = 13
 
 
 # ---------------------------------------------------------------------------
@@ -112,6 +114,14 @@ def ejecutar(raiz: Path, mapa: Path | None = None, mapa_rc: int | None = None,
     `repo` de dónde sale el ÁRBOL AUDITADO. Los casos de artefacto (C9/C10)
     apuntan al repositorio real, sin mutar: necesitan un `git rev-parse` que
     responda, y un temporal no es un repositorio git.
+
+    ARTEFACTO DEL ARNÉS, ANOTADO PARA QUE NADIE LO CONFUNDA CON UNA DETECCIÓN:
+    si estos casos se ejecutaran contra la copia (que no tiene `.git`), **A2
+    fallaría por construcción** —`_head()` devuelve cadena vacía y la
+    comparación de HEAD se salta, así que el caso no puede ponerse rojo—. Por eso
+    apuntan a `REPO`. Un A2 rojo desde una copia sin `.git` sería un defecto del
+    arnés, no una detección de la puerta; es exactamente el género de confusión
+    que ya costó una ronda en este proyecto.
     """
     salida = raiz / "gate_out.json"
     cmd = [sys.executable, str(raiz / "scripts" / "route_map" / "gate.py"),
@@ -379,12 +389,15 @@ CASOS_ARTEFACTO = [
      lambda m: {**m, "routes": m["routes"][:-3] + [{"key": "GET /inventada"}]},
      "censo-no-inspecciono-la-app-real", 0),
     ("A7", "el censo salió con código 3 (incompleto)", lambda m: m, "censo-en-rojo", 3),
-    ("A8", "el censo declara entradas opacas",
-     lambda m: {**m, "findings": {"censo_opaco": [{"path": "/opaca"}]}},
-     "censo-en-rojo", 0),
-    ("A9", "el censo declara una ruta SIN-AUTH",
-     lambda m: {**m, "findings": {"rutas_sin_auth": [{"key": "GET /fuga"}]}},
-     "censo-en-rojo", 0),
+    # A8/A9 —«el censo declara entradas opacas» y «declara una ruta SIN-AUTH»—
+    # ya NO se escriben aquí: se GENERAN, uno por cada nombre de
+    # `gate.FINDINGS_DUROS` y `gate.FINDINGS_CENSO_INCOMPLETO`
+    # (`casos_por_hallazgo_duro`). Escribirlos a mano dejaba seis de los ocho
+    # duros sin ningún caso que los cubriera —medido: `rutas_denegacion_404_ambigua`
+    # y `rutas_denegacion_no_atribuible` se podían mover a informativos y la
+    # calibración pasaba—, y además la protección no crecía al endurecer un
+    # hallazgo nuevo. Generándolos, crece sola, igual que D1 crece sola al
+    # aparecer un router.
     # M11: el defecto que encontró la revisión. Con el nombre literal la puerta
     # daba rc=1; RENOMBRANDO la clave a `rutas_sin_auth_v2` daba rc=0 VERDE con
     # la fuga intacta. Hoy cae en `hallazgo-desconocido` y vuelve a ser roja.
@@ -480,6 +493,430 @@ def contraste_vocabulario(emitidos: set[str], consts: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Casos de artefacto GENERADOS: uno por cada hallazgo que la puerta llama duro
+# ---------------------------------------------------------------------------
+
+def casos_por_hallazgo_duro(consts: dict) -> list[tuple]:
+    """Un caso sintetico por NOMBRE duro, leido de `gate.py`, no escrito aqui.
+
+    Defecto que cierra (M16): con A8 y A9 escritos a mano, solo dos de los trece
+    nombres duros tenian caso. Medido: mover `rutas_denegacion_404_ambigua` o
+    `rutas_denegacion_no_atribuible` a `FINDINGS_INFORMATIVOS` **pasaba la
+    calibracion**. Generando un caso por nombre, endurecer un hallazgo nuevo
+    trae su proteccion consigo y no hay que acordarse de nada.
+
+    OJO CON LO QUE ESTO SOLO NO PRUEBA: estos casos se derivan de la MISMA lista
+    que vigilan, asi que si alguien mueve un nombre a informativos, su caso
+    desaparece con el y ninguno se pone rojo. Eso lo cubre `G15`, que deriva la
+    pertenencia de una medida y no de la lista.
+    """
+    salida = []
+    duros = list(consts.get("duros") or [])
+    incompleto = list(consts.get("incompleto") or [])
+    for nombre in duros + incompleto:
+        salida.append((
+            f"AD-{nombre}",
+            f"el censo emite el hallazgo DURO `{nombre}`",
+            (lambda n: lambda m: {**m, "findings": {n: [{"key": f"__caso__ {n}"}]}})(nombre),
+            "censo-en-rojo",
+            0,
+        ))
+    return salida
+
+
+# ---------------------------------------------------------------------------
+# G15 - la asignacion duro/informativo se DERIVA de una medida, no se escribe
+# ---------------------------------------------------------------------------
+# El problema real: `FINDINGS_DUROS` y `FINDINGS_INFORMATIVOS` reparten el
+# vocabulario del censo, y mover un nombre de la primera a la segunda **apaga
+# una garantia**. Los casos generados arriba no lo detectan por si solos porque
+# se derivan de la misma lista.
+#
+# CRITERIO DERIVADO, y esta es la parte que importa: se toman DOS medidas de
+# referencia sobre el arbol limpio -el censo con sonda y el censo con
+# `--skip-probe`- y se exige que **todo hallazgo vacio en LAS DOS sea duro**.
+#
+# Por que las dos y no una:
+#   - solo con sonda, `rutas_no_probadas` sale vacio (70/70 ejercitadas) y el
+#     criterio exigiria endurecer la COBERTURA de tests, que es otra politica y
+#     no la de esta puerta;
+#   - solo con `--skip-probe`, `rutas_servidas_a_viewer` sale vacio porque la
+#     medida no se ha hecho, no porque no haya nada que contar.
+#
+# Un cubo que sigue vacio **tanto si debilitas la medida como si la refuerzas**
+# no depende de la configuracion: es un cubo que deberia estar siempre vacio, y
+# ese es exactamente el que tiene que ser duro. Uno que se llena en alguna de
+# las dos esta describiendo el estado del arbol, no una garantia rota, y queda
+# libre. Medido sobre este arbol: la interseccion son 12 nombres y los 12 estan
+# hoy en las tuplas duras.
+#
+# El criterio es de una sola direccion (vacio => duro; no vacio => libre), asi
+# que endurecer de mas nunca lo viola: `caracterizacion_estatica_fallida` se
+# llena con `--skip-probe` y es duro igualmente, y esta bien.
+
+def _findings_de(artefacto: Path) -> dict:
+    try:
+        return json.loads(artefacto.read_text(encoding="utf-8")).get("findings") or {}
+    except Exception:
+        return {}
+
+
+def censo_de_referencia(raiz: Path, sufijo: str, extra: list[str]) -> dict:
+    """Ejecuta el censo sobre la copia limpia y devuelve sus `findings`."""
+    salida = raiz / f"referencia-{sufijo}.json"
+    env = dict(os.environ)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env["PYTHONPATH"] = str(raiz / "scripts")
+    for k in list(env):
+        if k.startswith("S9K_"):
+            env.pop(k)
+    subprocess.run([sys.executable, str(raiz / "scripts" / "route_map" / "route_map.py"),
+                    "--repo", str(raiz), "--out", str(salida)] + extra,
+                   capture_output=True, text=True, env=env, cwd=str(raiz))
+    return _findings_de(salida)
+
+
+def duros_exigidos(sin_sonda: dict, con_sonda: dict) -> tuple[set, list[str]]:
+    """Los nombres que la medida obliga a que sean duros, y por que."""
+    problemas = []
+    if not sin_sonda:
+        problemas.append("la medida de referencia SIN sonda no produjo hallazgos")
+    if not con_sonda:
+        problemas.append("la medida de referencia CON sonda no produjo hallazgos")
+    if problemas:
+        return set(), problemas
+    vacios_sin = {k for k, v in sin_sonda.items() if not v}
+    vacios_con = {k for k, v in con_sonda.items() if not v}
+    return vacios_sin & vacios_con, []
+
+
+def contraste_asignacion(exigidos: set, consts: dict) -> list[str]:
+    """Los duros que la medida exige y la puerta NO declara duros."""
+    declarados = set(consts.get("duros") or []) | set(consts.get("incompleto") or [])
+    informativos = set(consts.get("informativos") or [])
+    problemas = []
+    for nombre in sorted(exigidos - declarados):
+        donde = "`FINDINGS_INFORMATIVOS`" if nombre in informativos else "ninguna tupla"
+        problemas.append(
+            f"`{nombre}` esta VACIO en las dos medidas de referencia, o sea que "
+            f"deberia estar siempre vacio, y sin embargo la puerta lo tiene en "
+            f"{donde}: si se llena, la puerta no se pondra roja")
+    return problemas
+
+
+# ---------------------------------------------------------------------------
+# G16 - lo que el CENSO declara fatal, la puerta no puede llamarlo informativo
+# ---------------------------------------------------------------------------
+# Superviviente S1, medido por una revision: `caracterizacion_estatica_fallida`
+# era el nombre que sobraba en el 13 contra 12 de G15 y **no tenia cobertura
+# ninguna**. Movido a `FINDINGS_INFORMATIVOS`, la calibracion salia VERDE: G15
+# no lo exige (no esta vacio en las dos medidas, se llena con `--skip-probe`) y
+# su caso `AD-` desaparecia con el. Y el hueco era real: con ese hallazgo lleno
+# y `--map-rc 0`, la puerta sana da rc=1 y la mutada da rc=0.
+#
+# El atenuante que encontro la revision es tambien la solucion: en el pipeline
+# real el censo YA sale con rc=3 si ese hallazgo no esta vacio, y CI le pasa el
+# rc a la puerta, asi que la garantia se sostenia **por otra capa**. Era una capa
+# que se podia quitar en silencio. Aqui se convierte esa coincidencia en un
+# ACOPLAMIENTO EXIGIDO:
+#
+#   todo hallazgo por el que el censo sale con codigo distinto de 0 es FATAL
+#   PARA EL CENSO, y la puerta no puede tratarlo como informativo.
+#
+# Y no se copia la lista: se DERIVA del AST de `route_map.main()`, leyendo que
+# nombres aparecen en `findings.get(...)` dentro de las ramas que terminan en un
+# `return` distinto de 0. Si manana el censo declara fatal un hallazgo nuevo,
+# entra solo; si deja de serlo, el criterio se afloja solo y con motivo.
+
+def _fatales_en_fuente(texto: str) -> tuple[set, list[str]]:
+    """Nombres de `findings` por los que el censo termina con codigo != 0.
+
+    LA SALIDA ROJA SE RECONOCE DE TRES FORMAS, y no es celo de mas: una revision
+    midio que reconociendo solo `return <n>` esta derivacion **se degradaba en
+    silencio ante un refactor inocuo**. Medido sobre este arbol: reescribiendo
+    los `return 3` como `sys.exit(3)` los fatales pasaban de **4 a 0**, y con
+    `rc = 3; return rc` pasaban de **4 a 1** sin emitir un solo problema. Un
+    control cuyo alcance encoge sin avisar es peor que no tenerlo, porque nadie
+    mira un numero que no ha cambiado de color.
+
+    Se reconocen: `return <n>`, `sys.exit(<n>)` / `exit(<n>)`,
+    `raise SystemExit(<n>)`, y el valor devuelto a traves de una variable local
+    asignada a una constante dentro de la misma rama.
+    """
+    try:
+        arbol = ast.parse(texto)
+    except Exception as exc:
+        return set(), [f"no se pudo parsear el censo para derivar sus fatales: {exc!r}"]
+
+    principal = None
+    for nodo in arbol.body:
+        if isinstance(nodo, ast.FunctionDef) and nodo.name == "main":
+            principal = nodo
+    if principal is None:
+        return set(), ["`route_map.main` no existe: no se puede derivar que "
+                       "hallazgos declara fatales el censo"]
+
+    def nombres_en(test) -> set:
+        salida = set()
+        for n in ast.walk(test):
+            if not isinstance(n, ast.Call) or not isinstance(n.func, ast.Attribute):
+                continue
+            if n.func.attr != "get" or not n.args:
+                continue
+            arg = n.args[0]
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                salida.add(arg.value)
+        return salida
+
+    def _entero(nodo, constantes: dict):
+        """El valor entero de una expresion, si se puede saber sin ejecutar."""
+        if isinstance(nodo, ast.Constant) and isinstance(nodo.value, int):
+            return nodo.value
+        if isinstance(nodo, ast.Name):
+            return constantes.get(nodo.id)
+        return None
+
+    def sale_en_rojo(cuerpo) -> bool:
+        # Constantes locales de la rama: `rc = 3` seguido de `return rc`.
+        constantes: dict = {}
+        for x in ast.walk(ast.Module(body=list(cuerpo), type_ignores=[])):
+            if isinstance(x, ast.Assign) and len(x.targets) == 1 \
+                    and isinstance(x.targets[0], ast.Name) \
+                    and isinstance(x.value, ast.Constant) \
+                    and isinstance(x.value.value, int):
+                constantes[x.targets[0].id] = x.value.value
+        for x in ast.walk(ast.Module(body=list(cuerpo), type_ignores=[])):
+            if isinstance(x, ast.Return):
+                valor = _entero(x.value, constantes)
+                if valor is not None and valor != 0:
+                    return True
+            if isinstance(x, ast.Raise) and isinstance(x.exc, ast.Call) \
+                    and isinstance(x.exc.func, ast.Name) \
+                    and x.exc.func.id == "SystemExit" and x.exc.args:
+                valor = _entero(x.exc.args[0], constantes)
+                if valor is not None and valor != 0:
+                    return True
+            if isinstance(x, ast.Call):
+                fn = x.func
+                nombre = (fn.attr if isinstance(fn, ast.Attribute)
+                          else fn.id if isinstance(fn, ast.Name) else "")
+                if nombre in ("exit", "_exit") and x.args:
+                    valor = _entero(x.args[0], constantes)
+                    if valor is not None and valor != 0:
+                        return True
+        return False
+
+    fatales = set()
+    for nodo in ast.walk(principal):
+        if isinstance(nodo, ast.If) and sale_en_rojo(nodo.body):
+            fatales |= nombres_en(nodo.test)
+    if not fatales:
+        return set(), ["el censo no declara NINGUN hallazgo fatal: o cambio su "
+                       "logica de codigos de salida o la derivacion esta rota"]
+    return fatales, []
+
+
+def hallazgos_fatales_del_censo(raiz: Path) -> tuple[set, list[str]]:
+    """Los fatales del censo tal y como esta en `raiz`."""
+    fuente = raiz / "scripts" / "route_map" / "route_map.py"
+    try:
+        texto = fuente.read_text(encoding="utf-8")
+    except Exception as exc:
+        return set(), [f"no se pudo leer el censo para derivar sus fatales: {exc!r}"]
+    return _fatales_en_fuente(texto)
+
+
+def fatales_en_la_base() -> tuple[set, list[str]]:
+    """Los fatales del censo en la base de comparacion (merge-base)."""
+    base, problemas = _merge_base()
+    if problemas:
+        return set(), problemas
+    ruta = "scripts/route_map/route_map.py"
+    crudo, problemas = _fichero_de_la_base(base, ruta)
+    if problemas:
+        return set(), problemas
+    if crudo is None:
+        return set(), []          # el censo no existia en la base
+    return _fatales_en_fuente(crudo)
+
+
+def contraste_fatales_no_encogen(base: set, actuales: set) -> list[str]:
+    """Los fatales tampoco pueden ENCOGER, por la misma razon que los duros.
+
+    El guardarrail anterior -«si no hay ninguno, rojo»- solo disparaba con el
+    conjunto VACIO, no con un encogimiento PARCIAL, que es justo lo que produce
+    un refactor de los codigos de salida. Aqui se aplica el mismo trinquete que
+    en G17: la derivacion puede reconocer MAS que antes, nunca menos, y si
+    reconoce menos hay que mirarlo, no descubrirlo seis semanas despues.
+    """
+    return [
+        f"`{nombre}` era un hallazgo FATAL del censo en la base y esta derivacion "
+        f"ya no lo ve: o el censo dejo de tratarlo como fatal -y entonces hay que "
+        f"decirlo- o la derivacion se ha degradado ante un refactor de los codigos "
+        f"de salida y esta midiendo menos de lo que cree"
+        for nombre in sorted(base - actuales)
+    ]
+
+
+# ---------------------------------------------------------------------------
+# G17 - el conjunto duro NO PUEDE ENCOGER
+# ---------------------------------------------------------------------------
+# Superviviente S2, y es un limite ESTRUCTURAL de G15, no un descuido: la regla
+# «vacio en las dos medidas => duro» no puede proteger un cubo que YA ESTA
+# LLENO. Medido por la revision: si el mismo commit **introduce el defecto**
+# (p. ej. `contradiccion_deniega_y_sirve` no vacio) **y** mueve ese nombre a
+# informativos, entonces `duros_exigidos` ya no lo incluye, `contraste_asignacion`
+# no dice nada, el caso `AD-` desaparece con el nombre y el suelo se cumple de
+# sobra: todo VERDE. Solo se salvaban `rutas_sin_auth` y `censo_opaco`, y **por
+# accidente**: estaban fijados a mano como objetivo de dos ablaciones.
+#
+# Ninguna regla que mire SOLO el arbol actual puede cerrar esto, porque en el
+# arbol actual el nombre ya no es duro y su cubo ya no esta vacio: no queda
+# rastro de la relajacion. Hace falta un punto de comparacion que el commit
+# atacante no controle, y el unico que hay es **el estado anterior del codigo**.
+#
+#   el conjunto duro de HEAD tiene que contener al conjunto duro de la BASE
+#   (merge-base con `origin/main`).
+#
+# No es una lista que nadie mantiene: es el commit de antes. Un nombre puede
+# ANADIRSE cuando se quiera; quitarlo pone la puerta roja **aunque su cubo este
+# lleno y aunque su caso generado haya desaparecido con el**, que es exactamente
+# el ataque en dos pasos. Aflojar la vigilancia deja de poder hacerse callando:
+# hay que hacerlo discutiendolo.
+
+def _merge_base() -> tuple[str, list[str]]:
+    """El commit contra el que se comprueba que nada ha encogido."""
+    r = subprocess.run(["git", "-C", str(REPO), "merge-base", "HEAD", "origin/main"],
+                       capture_output=True, text=True)
+    base = r.stdout.strip()
+    if not base:
+        return "", ["no hay `origin/main` con el que comparar: sin base, este "
+                    "control no puede afirmar que nada ha encogido"]
+    return base, []
+
+
+def _fichero_de_la_base(base: str, ruta: str) -> tuple[str | None, list[str]]:
+    """El contenido de `ruta` en `base`. Distingue AUSENTE de ILEGIBLE.
+
+    Aqui hubo un fallo abierto, medido por una revision: se trataba **cualquier**
+    rc != 0 de `git show` como «el fichero no existia en la base», y eso incluye
+    un objeto no traido, una ruta renombrada o un repositorio a medio clonar. El
+    unico «no» legitimo -no habia nada que pudiera encoger- es que el fichero
+    REALMENTE no este alli.
+
+    La existencia se resuelve con `git ls-tree`, que responde con la LISTA de lo
+    que hay (vacia si no hay nada) y **rc = 0 en los dos casos**. Es a proposito
+    y vale la pena decirlo: el primer intento uso `git cat-file -e` y clasifico
+    por el texto de su error, que en esta maquina llega traducido («no existe en»
+    en vez de «does not exist»), asi que una ruta legitimamente ausente salia
+    ROJA. **Comparar cadenas de un mensaje de herramienta es depender del idioma
+    del que ejecuta**; `ls-tree` da un dato, no una frase.
+    """
+    listado = subprocess.run(
+        ["git", "-C", str(REPO), "ls-tree", "--name-only", base, "--", ruta],
+        capture_output=True, text=True)
+    if listado.returncode != 0:
+        return None, [f"no se puede leer el arbol de la base ({base[:12]}) para "
+                      f"`{ruta}`: {listado.stderr.strip()[:200]!r}. Sin poder leer "
+                      f"la base, este control NO puede dar verde"]
+    if not listado.stdout.strip():
+        return None, []       # ausente de verdad: no habia nada que encoger
+    crudo = subprocess.run(["git", "-C", str(REPO), "show", f"{base}:{ruta}"],
+                           capture_output=True, text=True)
+    if crudo.returncode != 0:
+        return None, [f"`{ruta}` existe en la base ({base[:12]}) pero no se ha "
+                      f"podido leer: {crudo.stderr.strip()[:200]!r}"]
+    return crudo.stdout, []
+
+
+def constantes_en_la_base(raiz: Path) -> tuple[dict, list[str]]:
+    """Las tuplas duras tal y como estan en la base de comparacion.
+
+    Se leen con `git show <base>:<ruta>` y se parsean con AST -no con `grep`, y
+    no importando el fichero de otra rama-: leer un esquema de otra rama y darlo
+    por bueno es como se convierte una capacidad ajena en verdad falsa del
+    producto.
+    """
+    base, problemas = _merge_base()
+    if problemas:
+        return {}, problemas
+    crudo, problemas = _fichero_de_la_base(base, "scripts/route_map/gate.py")
+    if problemas:
+        return {}, problemas
+    if crudo is None:
+        # La puerta no existia en la base: no hay nada que pueda haber encogido.
+        return {"__sin_base__": True}, []
+    try:
+        arbol = ast.parse(crudo)
+    except Exception as exc:
+        return {}, [f"la puerta de la base no se puede parsear: {exc!r}"]
+    fuera = {}
+    for nodo in arbol.body:
+        if not isinstance(nodo, ast.Assign) or len(nodo.targets) != 1:
+            continue
+        destino = nodo.targets[0]
+        if not isinstance(destino, ast.Name) or not destino.id.startswith("FINDINGS_"):
+            continue
+        try:
+            fuera[destino.id] = list(ast.literal_eval(nodo.value))
+        except Exception:
+            continue
+    return fuera, []
+
+
+def contraste_no_encoge(base: dict, consts: dict) -> list[str]:
+    """Nombres que eran duros en la base y ya no lo son en HEAD."""
+    if base.get("__sin_base__"):
+        return []
+    duros_base = set(base.get("FINDINGS_DUROS") or []) | set(
+        base.get("FINDINGS_CENSO_INCOMPLETO") or [])
+    if not duros_base:
+        return ["la base no declara ningun hallazgo duro: o la puerta cambio de "
+                "forma o la lectura de la base esta rota, y en cualquier caso "
+                "este control no esta comprobando nada"]
+    duros_head = set(consts.get("duros") or []) | set(consts.get("incompleto") or [])
+    informativos = set(consts.get("informativos") or [])
+    problemas = []
+    for nombre in sorted(duros_base - duros_head):
+        donde = ("`FINDINGS_INFORMATIVOS`" if nombre in informativos
+                 else "ninguna tupla (ha desaparecido del vocabulario)")
+        problemas.append(
+            f"`{nombre}` era un hallazgo DURO en la base y en este arbol esta en "
+            f"{donde}: el conjunto duro ha ENCOGIDO. Da igual que su cubo este "
+            f"lleno o vacio y que su caso generado haya desaparecido con el; "
+            f"aflojar una garantia no puede hacerse en silencio")
+    return problemas
+
+
+# ---------------------------------------------------------------------------
+# Mutacion REAL de la puerta (no simulacion en memoria)
+# ---------------------------------------------------------------------------
+# `G15-neg` simulaba llamando a `contraste_asignacion` con diccionarios
+# degradados: eso calibra la FUNCION, no el sistema. Aqui se muta `gate.py` de
+# verdad y las constantes se releen **en un subproceso**, que es el camino que
+# recorre el arnes cuando calibra.
+
+def mover_a_informativos(raiz: Path, nombre: str) -> None:
+    """Muta la puerta para que `nombre` deje de ser duro y pase a informativo."""
+    fichero = raiz / "scripts" / "route_map" / "gate.py"
+    texto = fichero.read_text(encoding="utf-8")
+    guarda = 'if __name__ == "__main__":'
+    if guarda not in texto:
+        raise AssertionError("la puerta no tiene guarda `__main__`: no se sabe "
+                             "donde insertar la mutacion")
+    parche = (
+        "\n# --- MUTACION DE CALIBRACION ---\n"
+        f"FINDINGS_DUROS = tuple(x for x in FINDINGS_DUROS if x != {nombre!r})\n"
+        "FINDINGS_CENSO_INCOMPLETO = tuple(\n"
+        f"    x for x in FINDINGS_CENSO_INCOMPLETO if x != {nombre!r})\n"
+        f"FINDINGS_INFORMATIVOS = FINDINGS_INFORMATIVOS + ({nombre!r},)\n"
+        "FINDINGS_CONOCIDOS = frozenset(\n"
+        "    FINDINGS_CENSO_INCOMPLETO + FINDINGS_DUROS + FINDINGS_INFORMATIVOS)\n\n"
+    )
+    fichero.write_text(texto.replace(guarda, parche + guarda, 1), encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
 # ablaciones: se cobran sólo si vuelven VERDE un caso que estaba ROJO
 # ---------------------------------------------------------------------------
 
@@ -517,7 +954,11 @@ ABLACIONES = [
      'if False:'),
     ("AB-C9-cobertura", "A3", 'elif not counts.get("probadas"):', 'elif False:'),
     ("AB-C9-conjunto", "A6", 'if vivas and del_mapa and vivas != del_mapa:', 'if False:'),
-    ("AB-C10", "A8", "for nombre in FINDINGS_CENSO_INCOMPLETO:", "for nombre in ():"),
+    # El caso ya no se llama `A8`: se GENERA a partir del nombre del hallazgo.
+    ("AB-C10", "AD-censo_opaco",
+     "for nombre in FINDINGS_CENSO_INCOMPLETO:", "for nombre in ():"),
+    ("AB-C10-duros", "AD-rutas_sin_auth",
+     "for nombre in FINDINGS_DUROS:", "for nombre in ():"),
 ]
 
 
@@ -530,7 +971,27 @@ def ablar(raiz: Path, viejo: str, nuevo: str) -> None:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=None)
+    # G15 necesita la medida de referencia CON sonda. `--mapa-completo` acepta el
+    # artefacto que el job acaba de producir y así no se repiten sus ~60 s.
+    #
+    # AVISO, porque la versión anterior de este comentario decía lo contrario y
+    # era FALSO: **si no se pasa la bandera, esto NO se pone rojo**. Se genera la
+    # referencia aquí mismo, ejecutando el censo con sonda. La bandera es un
+    # atajo de tiempo, no una condición de validez, y quitarla de `ci.yml` no
+    # rompe nada ni lo delata: sólo hace el job más lento.
+    #
+    # Lo que sí es rojo es pasar una referencia INVÁLIDA: un artefacto tomado con
+    # `--skip-probe`, o sin `--tested`, no sirve como medida con sonda y G15 lo
+    # rechaza en vez de derivar sobre datos falseados.
+    ap.add_argument("--mapa-completo", dest="mapa_completo", default=None,
+                    help="artefacto de route_map generado CON sonda (referencia de G15)")
+    ap.add_argument("--tested-ref", dest="tested_ref", default=None,
+                    help="fichero --tested con el que generar la referencia si no "
+                         "se pasa --mapa-completo")
     a = ap.parse_args(argv)
+
+    mapa_completo = Path(a.mapa_completo).resolve() if a.mapa_completo else None
+    tested_ref = Path(a.tested_ref).resolve() if a.tested_ref else None
 
     raices = [REPO / "viewer", REPO / "scripts" / "route_map", REPO / "contracts"]
     hash_antes = hash_arbol(raices)
@@ -561,12 +1022,19 @@ def main(argv=None) -> int:
                                "rc": r["rc"], "motivos": r["motivos"],
                                "estado": "OK" if ok else "FALLO"})
 
-    # --- casos de artefacto (C9/C10) --------------------------------------
+    # --- casos de artefacto (C9/C10) + uno GENERADO por hallazgo duro -----
     with tempfile.TemporaryDirectory(prefix="calib-gate-art-") as tmp:
         raiz_art = copia(Path(tmp))
         base = _mapa_valido(raiz_art)
         base.pop("_gate_rc_declaracion", None)
-        for cid, desc, doctor, motivo, rc in CASOS_ARTEFACTO:
+        consts_art = constantes_de_la_puerta(raiz_art)
+        casos_art = CASOS_ARTEFACTO + casos_por_hallazgo_duro(consts_art)
+        if len(casos_art) <= len(CASOS_ARTEFACTO):
+            fallos.append(
+                "no se generó ningún caso por hallazgo duro: o la puerta no "
+                "expone `FINDINGS_DUROS`, o no se pudo leer. Un arnés que pasa "
+                "con 0 casos generados está roto")
+        for cid, desc, doctor, motivo, rc in casos_art:
             mapa = doctor(base)
             ruta_mapa = None
             if mapa is not None:
@@ -585,7 +1053,7 @@ def main(argv=None) -> int:
 
     # --- ablaciones --------------------------------------------------------
     por_id = {c[0]: c for c in CASOS_DECLARACION}
-    art_por_id = {c[0]: c for c in CASOS_ARTEFACTO}
+    art_por_id = {c[0]: c for c in casos_art}
     ablaciones: list[dict] = []
     for aid, caso, viejo, nuevo in ABLACIONES:
         with tempfile.TemporaryDirectory(prefix=f"calib-abl-{aid}-") as tmp:
@@ -602,6 +1070,21 @@ def main(argv=None) -> int:
                 if mut is not None:
                     mut(raiz)
                 r = ejecutar(raiz, entorno_extra=entorno)
+            elif caso not in art_por_id:
+                # Ocurre cuando una ablación apunta a un caso GENERADO cuyo
+                # nombre ya no existe: vaciar `FINDINGS_DUROS` o renombrar un
+                # duro se lleva por delante su caso `AD-<nombre>`. Falla cerrado
+                # igual, pero antes lo hacía con un `KeyError` en bruto, y una
+                # traza no le dice al operador lo que ha pasado.
+                fallos.append(
+                    f"{aid}: la ablación apunta al caso `{caso}`, que YA NO SE "
+                    f"GENERA. Ese caso sale de `gate.FINDINGS_DUROS` / "
+                    f"`FINDINGS_CENSO_INCOMPLETO`, así que el hallazgo se ha "
+                    f"renombrado, se ha movido a informativos o ha desaparecido "
+                    f"del vocabulario. Mira G14, G15, G16 y G17")
+                ablaciones.append({"ablacion": aid, "caso": caso,
+                                   "estado": "CASO-INEXISTENTE"})
+                continue
             else:
                 _, desc, doctor, motivo, rc = art_por_id[caso]
                 base2 = _mapa_valido(raiz)
@@ -658,6 +1141,245 @@ def main(argv=None) -> int:
             "motivos": detectado,
             "estado": "OK" if ok_neg else "FALLO",
         })
+
+    # --- G15: la asignación duro/informativo, DERIVADA de dos medidas -----
+    with tempfile.TemporaryDirectory(prefix="calib-gate-asig-") as tmp:
+        raiz_as = copia(Path(tmp))
+        consts_as = constantes_de_la_puerta(raiz_as)
+        sin_sonda = censo_de_referencia(raiz_as, "sin-sonda", ["--skip-probe"])
+        con_sonda = {}
+        if mapa_completo is not None:
+            # Que exista no basta: si se tomó con `--skip-probe`, la mitad de los
+            # cubos están vacíos porque nadie los llenó, no porque estén bien, y
+            # el criterio de G15 saldría falseado hacia MÁS exigencia (que no es
+            # inocuo: pondría el arnés rojo por el motivo equivocado).
+            crudo = {}
+            try:
+                crudo = json.loads(mapa_completo.read_text(encoding="utf-8"))
+            except Exception as exc:
+                problemas_ref = [f"artefacto de referencia ilegible: {exc!r}"]
+            else:
+                problemas_ref = []
+                if crudo.get("sondas_estaticas") is None:
+                    problemas_ref.append(
+                        "el artefacto de referencia se tomó con `--skip-probe`: "
+                        "no sirve como medida CON sonda")
+                if not crudo.get("tested_source"):
+                    problemas_ref.append(
+                        "el artefacto de referencia no recibió `--tested`")
+            fallos.extend(f"G15: {x}" for x in problemas_ref)
+            con_sonda = {} if problemas_ref else (crudo.get("findings") or {})
+        else:
+            con_sonda = censo_de_referencia(raiz_as, "con-sonda",
+                                            ["--tested", str(tested_ref)] if tested_ref
+                                            else [])
+        exigidos, problemas = duros_exigidos(sin_sonda, con_sonda)
+        problemas += contraste_asignacion(exigidos, consts_as)
+        # Suelo: si la intersección sale ridícula, el criterio no ha medido nada
+        # y no puede conceder un OK. 12 es lo medido en este árbol; se exige la
+        # mayoría de los duros declarados, no un número mágico.
+        minimo = max(2, len(set(consts_as.get("duros") or [])) // 2)
+        if not problemas and len(exigidos) < minimo:
+            problemas.append(
+                f"sólo {len(exigidos)} hallazgos salen vacíos en las dos medidas "
+                f"de referencia (mínimo {minimo}): las medidas no se han hecho "
+                f"bien y este control no está comprobando la asignación")
+        fallos.extend(f"G15: {x}" for x in problemas)
+        resultados.append({
+            "caso": "G15",
+            "desc": ("la asignación duro/informativo se deriva de dos medidas, "
+                     "no de una opinión escrita"),
+            "esperado": "VERDE", "rc": 1 if problemas else 0, "motivos": problemas,
+            "duros_exigidos_por_la_medida": sorted(exigidos),
+            "duros_declarados_por_la_puerta": sorted(
+                set(consts_as.get("duros") or []) | set(consts_as.get("incompleto") or [])),
+            "estado": "FALLO" if problemas else "OK",
+        })
+    # --- G16: lo que el censo declara FATAL tiene que ser duro ------------
+    # Cierra S1: `caracterizacion_estatica_fallida` no lo exigia G15 (no esta
+    # vacio en las dos medidas) y su caso `AD-` desaparecia al moverlo.
+    with tempfile.TemporaryDirectory(prefix="calib-gate-fatal-") as tmp:
+        raiz_f = copia(Path(tmp))
+        consts_f = constantes_de_la_puerta(raiz_f)
+        fatales, problemas_f = hallazgos_fatales_del_censo(raiz_f)
+        declarados_f = set(consts_f.get("duros") or []) | set(
+            consts_f.get("incompleto") or [])
+        informativos_f = set(consts_f.get("informativos") or [])
+        for nombre in sorted(fatales - declarados_f):
+            donde = ("`FINDINGS_INFORMATIVOS`" if nombre in informativos_f
+                     else "ninguna tupla")
+            problemas_f.append(
+                f"`{nombre}` hace salir al CENSO con codigo != 0 -es fatal para el "
+                f"censo- y la puerta lo tiene en {donde}: la puerta certificaria "
+                f"un censo que se declara a si mismo no citable")
+        # TRINQUETE de los fatales. El guardarrail «si no hay ninguno, rojo»
+        # solo disparaba con el conjunto VACIO; un refactor de los codigos de
+        # salida encoge el conjunto PARCIALMENTE y se lo llevaba en silencio.
+        fatales_base, problemas_base_f = fatales_en_la_base()
+        problemas_f += problemas_base_f
+        problemas_f += contraste_fatales_no_encogen(fatales_base, fatales)
+        fallos.extend(f"G16: {x}" for x in problemas_f)
+        resultados.append({
+            "caso": "G16",
+            "desc": ("lo que el censo declara fatal (rc != 0) la puerta no lo "
+                     "trata como informativo"),
+            "esperado": "VERDE", "rc": 1 if problemas_f else 0,
+            "motivos": problemas_f,
+            "fatales_declarados_por_el_censo": sorted(fatales),
+            "fatales_en_la_base": sorted(fatales_base),
+            "estado": "FALLO" if problemas_f else "OK",
+        })
+
+        # G16-neg: la derivacion no puede encoger en silencio ante un refactor
+        # de los codigos de salida. Se reescribe `main()` de VERDAD -tres
+        # formas distintas- y se comprueba que ninguna baja el conteo sin que
+        # algo se ponga rojo. Medido antes de este arreglo: `sys.exit(3)` dejaba
+        # los fatales en 0 y `rc = 3; return rc` los dejaba en 1, de 4.
+        censo_sano = (raiz_f / "scripts" / "route_map" / "route_map.py").read_text(
+            encoding="utf-8")
+        refactores = {
+            "sys.exit(n)": censo_sano.replace("        return 3\n", "        sys.exit(3)\n")
+                                     .replace("        return 2\n", "        sys.exit(2)\n"),
+            "rc = n; return rc": censo_sano.replace(
+                "        return 3\n", "        rc = 3\n        return rc\n"),
+            "raise SystemExit(n)": censo_sano.replace(
+                "        return 3\n", "        raise SystemExit(3)\n"),
+        }
+        ciegos, detalle_ref = [], {}
+        for etiqueta, texto in refactores.items():
+            if texto == censo_sano:
+                ciegos.append(f"{etiqueta} (el refactor no se pudo aplicar)")
+                continue
+            vistos, _ = _fatales_en_fuente(texto)
+            detalle_ref[etiqueta] = sorted(vistos)
+            perdidos = fatales - vistos
+            # Aceptable: que los siga viendo todos. Inaceptable: que pierda
+            # alguno Y nadie se entere.
+            if perdidos and not contraste_fatales_no_encogen(fatales, vistos):
+                ciegos.append(f"{etiqueta} pierde {sorted(perdidos)} sin avisar")
+        if ciegos:
+            fallos.append(
+                "G16-neg: la derivacion de fatales encoge EN SILENCIO ante un "
+                f"refactor legitimo de los codigos de salida: {ciegos}")
+        resultados.append({
+            "caso": "G16-neg",
+            "desc": ("un refactor de los codigos de salida del censo no encoge la "
+                     "derivacion de fatales en silencio"),
+            "esperado": "VERDE", "rc": 1 if ciegos else 0, "motivos": ciegos,
+            "fatales_vistos_por_refactor": detalle_ref,
+            "estado": "FALLO" if ciegos else "OK",
+        })
+
+    # --- G17: el conjunto duro no puede ENCOGER respecto a la base --------
+    # Cierra S2, que es un limite ESTRUCTURAL de G15 y no un descuido: ninguna
+    # regla que mire solo el arbol actual puede ver una relajacion cuyo rastro
+    # el propio commit ha borrado. El unico punto de comparacion que el commit
+    # atacante no controla es el estado ANTERIOR del codigo.
+    with tempfile.TemporaryDirectory(prefix="calib-gate-base-") as tmp:
+        raiz_b = copia(Path(tmp))
+        consts_b = constantes_de_la_puerta(raiz_b)
+        base, problemas_b = constantes_en_la_base(raiz_b)
+        problemas_b = list(problemas_b) + contraste_no_encoge(base, consts_b)
+        fallos.extend(f"G17: {x}" for x in problemas_b)
+        resultados.append({
+            "caso": "G17",
+            "desc": "el conjunto de hallazgos duros no ha encogido respecto a la base",
+            "esperado": "VERDE", "rc": 1 if problemas_b else 0,
+            "motivos": problemas_b,
+            "duros_en_la_base": sorted(
+                set(base.get("FINDINGS_DUROS") or [])
+                | set(base.get("FINDINGS_CENSO_INCOMPLETO") or [])),
+            "estado": "FALLO" if problemas_b else "OK",
+        })
+
+    # --- controles negativos POR NOMBRE, con MUTACION REAL de la puerta ---
+    # Antes esto se simulaba pasandole diccionarios degradados a
+    # `contraste_asignacion`: eso calibra la funcion, no el sistema. Ahora se
+    # muta `gate.py` de verdad, se releen las constantes **en un subproceso** y
+    # se comprueba que ALGUNO de los tres controles (G15, G16, G17) lo caza.
+    #
+    # El criterio de aceptacion es el de la revision: el ataque en dos pasos
+    # -llenar el cubo y mover el nombre- tiene que ponerse ROJO para LOS TRECE,
+    # no para dos. G17 no mira el contenido del cubo, asi que lo cubre entero;
+    # G15 y G16 se quedan como razones independientes y mejor diagnosticadas.
+    nombres_a_proteger = sorted(
+        set(consts_b.get("duros") or []) | set(consts_b.get("incompleto") or []))
+    if len(nombres_a_proteger) < 2:
+        fallos.append(
+            "Gneg: la puerta declara menos de 2 hallazgos duros, asi que este "
+            "control negativo no comprueba nada. Un conjunto vacio no pasa")
+    sin_proteccion = []
+    detalle_neg = {}
+    for nombre in nombres_a_proteger:
+        with tempfile.TemporaryDirectory(prefix="calib-neg-") as tmp:
+            raiz_n = copia(Path(tmp))
+            try:
+                mover_a_informativos(raiz_n, nombre)
+            except AssertionError as exc:
+                sin_proteccion.append(f"{nombre} (mutacion no aplicada: {exc})")
+                continue
+            consts_n = constantes_de_la_puerta(raiz_n)
+            if nombre in (set(consts_n.get("duros") or [])
+                          | set(consts_n.get("incompleto") or [])):
+                sin_proteccion.append(f"{nombre} (la mutacion NO llego a la puerta)")
+                continue
+            # EL ATAQUE EN DOS PASOS (S2), simulado en su peor caso. Si el
+            # mismo commit LLENA el cubo y mueve el nombre, la medida de
+            # referencia ya no lo ve vacio y G15 deja de exigirlo: por eso el
+            # veredicto se toma con `exigidos` SIN este nombre. Creditarle a G15
+            # una proteccion que el ataque real le quita seria contarse un
+            # control que no actua.
+            exigidos_s2 = set(exigidos) - {nombre}
+            razones = []
+            if any(f"`{nombre}`" in x
+                   for x in contraste_asignacion(exigidos_s2, consts_n)):
+                razones.append("G15")
+            if any(f"`{nombre}`" in x for x in contraste_asignacion(exigidos, consts_n)):
+                razones.append("G15-si-el-cubo-sigue-vacio")
+            fat_n, _ = hallazgos_fatales_del_censo(raiz_n)
+            if nombre in fat_n - (set(consts_n.get("duros") or [])
+                                  | set(consts_n.get("incompleto") or [])):
+                razones.append("G16")
+            if any(f"`{nombre}`" in x for x in contraste_no_encoge(base, consts_n)):
+                razones.append("G17")
+            detalle_neg[nombre] = razones
+            # Se exige proteccion en el PEOR caso: controles que siguen actuando
+            # aunque el cubo este lleno.
+            if not [x for x in razones if x != "G15-si-el-cubo-sigue-vacio"]:
+                sin_proteccion.append(nombre)
+    if sin_proteccion:
+        fallos.append(
+            "Gneg: mover estos hallazgos duros a `FINDINGS_INFORMATIVOS` NO lo "
+            f"detecta ningun control: {sin_proteccion}. Un control que no puede "
+            "ponerse rojo no comprueba nada")
+    resultados.append({
+        "caso": "Gneg",
+        "desc": ("el ataque en DOS PASOS -llenar el cubo y mover el nombre a "
+                 "informativos- se detecta para cada hallazgo duro, mutando "
+                 "`gate.py` de verdad"),
+        "esperado": f"detecta los {len(nombres_a_proteger)}",
+        "rc": 0 if sin_proteccion else 1,
+        "motivos": sin_proteccion,
+        "comprobados": nombres_a_proteger,
+        "quien_lo_caza": detalle_neg,
+        "estado": "FALLO" if sin_proteccion else "OK",
+    })
+
+    # --- el propio arnés tiene que seguir teniendo sus controles ----------
+    # Nada guardaba a `calibrate_gate.py`: borrar el bloque de G15 dejaba 42
+    # casos, por encima de `MINIMO_CASOS`, y todo verde.
+    # `calibra_gate_integrity.py` vigila `check_ci_config.py`, no este arnés.
+    # Esta tupla es de EXIGENCIAS, no de exenciones: escribir un nombre aquí
+    # añade un control obligatorio, y quitarlo es lo que hay que hacer a la vista.
+    CONTROLES_OBLIGATORIOS = ("G0", "G13", "G14", "G14-neg", "G15", "G16",
+                              "G16-neg", "G17", "Gneg", "AFP")
+    ejecutados_id = {r["caso"] for r in resultados}
+    for cid in CONTROLES_OBLIGATORIOS:
+        if cid not in ejecutados_id:
+            fallos.append(
+                f"el control `{cid}` no se ha ejecutado: o se ha borrado del "
+                f"arnés o ha reventado antes de registrarse. Un arnés al que le "
+                f"faltan controles pasa igual de verde y no comprueba lo mismo")
 
     # --- la puerta no puede venir con el modo de calibración cableado -----
     for wf in sorted((REPO / ".github" / "workflows").glob("*.yml")):
