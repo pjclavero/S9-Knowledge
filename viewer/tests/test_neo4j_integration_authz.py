@@ -818,3 +818,585 @@ def test_negativo_DECISIVO_cambiar_el_ENTITY_ID_rompe_el_enlace(panel_dur, grafo
     # ha renombrado. Sin esta linea, «lo borre sin querer» pasaria por exito.
     nuevo = panel_dur.get(f"/panel/entities/item/{otro}")
     assert nuevo.status_code == 200 and NOMBRE_DURABLE in nuevo.text
+
+
+# =============================================================================
+# 5. UNICIDAD DURABLE: para cada URL, 0 o 1 objetos. NUNCA 2+.
+# =============================================================================
+#
+# POR QUE ESTA SECCION NO ES HIGIENE DE DATOS
+# -------------------------------------------
+# Si dos nodos comparten `entity_id`, `/entities/{entity_id}` deja de nombrar
+# un objeto y pasa a nombrar un CONJUNTO. Quien elige entonces es el orden de
+# devolucion de Neo4j. Medido: 12/12 peticiones devolvieron el duplicado y la
+# entidad legitima se volvio un 404 indistinguible de «no existe». Un objeto
+# servido por una URL que no le pertenece ha esquivado la identidad, y todo lo
+# que se decide a partir de la identidad va detras.
+#
+# LA CLAVE DE UNICIDAD SE DERIVA, NO SE ELIGE
+# -------------------------------------------
+# `data-engine/app/knowledge_v3/writer/cypher.py::_scoped_match` define la
+# identidad de almacenamiento como `{id_field, workspace, partida_id}` ("MATCH
+# exacto de un nodo en SU propio ambito declarado (...) Nunca un comodin"). Esa
+# terna es la clave. El DDL vive en `writer/schema.py` y se IMPORTA aqui: una
+# sola fuente normativa, no una copia que pueda divergir.
+#
+# LAS DOS BARRERAS
+# ----------------
+# 1. Restriccion de esquema: impide CREAR el estado invalido. No cubre la capa
+#    juego (Neo4j no aplica compuestas con propiedades ausentes) ni cubre el
+#    pasado. Ambos huecos se MIDEN aqui abajo en vez de suponerse.
+# 2. Resolver fail-closed: con 2+ no se escoge ninguno. Es la unica que cubre
+#    datos historicos, una restauracion defectuosa o un retro-relleno de
+#    `entity_id` con una derivacion imperfecta.
+
+#: COLISION REALISTA, no dos copias del mismo nodo. Son dos entidades DISTINTAS
+#: y legitimas --dos personajes con el mismo nombre canonico en el mismo
+#: workspace-- que una derivacion apoyada en el nombre haria colisionar en el
+#: mismo `entity_id`. Es el escenario que casi ocurre en la base real: alli
+#: `canonical_name` YA colisiona (4 claves, mayor grupo 3, 9 nodos), asi que el
+#: dia que se retro-rellene `entity_id` con una derivacion por nombre esto no
+#: sera hipotetico. Dos copias identicas habrian sido un test mas facil y una
+#: medida peor: con descripciones distintas se puede ver CUAL se habria servido.
+ID_COLISION = "entity:new:c0111510dcafe001"
+NOMBRE_COLISION = "Doji Hotaru"
+_GEMELAS = [
+    {"entity_id": ID_COLISION, "canonical_name": NOMBRE_COLISION,
+     "entity_type": "Character", "workspace": WS_DUR, "scope": "juego",
+     "visibility": "player", "review_status": "reviewed", "confidence": 0.9,
+     "description": "La duelista de la Grulla, sesion 3"},
+    {"entity_id": ID_COLISION, "canonical_name": NOMBRE_COLISION,
+     "entity_type": "Character", "workspace": WS_DUR, "scope": "juego",
+     "visibility": "player", "review_status": "reviewed", "confidence": 0.9,
+     "description": "La cartografa de Toshi Ranbo, sesion 11"},
+]
+
+
+def _constraints_vigentes(driver) -> dict:
+    with driver.session() as s:
+        return {
+            r["name"]: (r["type"], r["labelsOrTypes"], r["properties"])
+            for r in s.run(
+                "SHOW CONSTRAINTS YIELD name, type, labelsOrTypes, properties "
+                "RETURN name, type, labelsOrTypes, properties"
+            )
+        }
+
+
+def _aplicar_constraints(driver):
+    from knowledge_v3.writer.schema import DURABLE_IDENTITY_CONSTRAINTS
+
+    with driver.session() as s:
+        for _, _, _, ddl in DURABLE_IDENTITY_CONSTRAINTS:
+            s.run(ddl).consume()
+
+
+def _retirar_constraints(driver):
+    from knowledge_v3.writer.schema import (
+        ENTITY_DURABLE_IDENTITY_CONSTRAINT,
+        V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT,
+        V3_ENTITY_DURABLE_IDENTITY_CONSTRAINT,
+    )
+
+    with driver.session() as s:
+        for nombre in (ENTITY_DURABLE_IDENTITY_CONSTRAINT,
+                       V3_ENTITY_DURABLE_IDENTITY_CONSTRAINT,
+                       V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT):
+            s.run(f"DROP CONSTRAINT {nombre} IF EXISTS").consume()
+
+
+@pytest.fixture
+def con_constraints(grafo_dur):
+    """Barrera 1 puesta, y RETIRADA al salir.
+
+    Se retira a proposito: estas restricciones son globales a la base y el job
+    corre mas suites detras. Una barrera que se queda puesta convertiria un
+    fallo de OTRA suite en un misterio.
+    """
+    _aplicar_constraints(grafo_dur)
+    yield grafo_dur
+    _retirar_constraints(grafo_dur)
+
+
+# --- 5.1 Barrera 1: la restriccion de esquema -------------------------------
+
+def test_la_restriccion_de_unicidad_existe_y_es_de_UNICIDAD(con_constraints):
+    """Existe, es de tipo UNIQUENESS y cae sobre la clave DERIVADA.
+
+    Se comprueban las propiedades una a una: una restriccion con el nombre
+    correcto sobre las columnas equivocadas pasaria un test de presencia y no
+    protegeria nada.
+    """
+    from knowledge_v3.writer.schema import (
+        ENTITY_DURABLE_IDENTITY_CONSTRAINT,
+        V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT,
+        V3_ENTITY_DURABLE_IDENTITY_CONSTRAINT,
+    )
+
+    vigentes = _constraints_vigentes(con_constraints)
+    esperado = {
+        # La clave es la de `_assert_absent`: `(workspace, <id>)`. Sin
+        # `partida_id`, a proposito -- meterlo la haria mas laxa que el writer
+        # y dejaria la capa juego sin cubrir.
+        ENTITY_DURABLE_IDENTITY_CONSTRAINT:
+            (["Entity"], ["workspace", "entity_id"]),
+        V3_ENTITY_DURABLE_IDENTITY_CONSTRAINT:
+            (["V3Entity"], ["workspace", "entity_id"]),
+        V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT:
+            (["V3Assertion"], ["workspace", "assertion_id"]),
+    }
+    for nombre, (etiquetas, props) in esperado.items():
+        assert nombre in vigentes, f"no existe la restriccion {nombre}: {sorted(vigentes)}"
+        tipo, labels, propiedades = vigentes[nombre]
+        assert "UNIQUE" in tipo.upper(), f"{nombre} no es de unicidad: {tipo}"
+        assert labels == etiquetas, f"{nombre} sobre {labels}, se esperaba {etiquetas}"
+        assert propiedades == props, f"{nombre} sobre {propiedades}, se esperaba {props}"
+
+
+def test_la_restriccion_IMPIDE_crear_el_duplicado_en_capa_partida(con_constraints):
+    """El estado invalido no se puede CREAR: el segundo CREATE muere en la base."""
+    from neo4j.exceptions import ClientError
+
+    with con_constraints.session() as s:
+        s.run("CREATE (n:Entity $props)",
+              {"props": dict(_GEMELAS[0], scope="partida", partida_id="partida:X")})
+        with pytest.raises(ClientError) as exc:
+            s.run("CREATE (n:Entity $props)",
+                  {"props": dict(_GEMELAS[1], scope="partida",
+                                 partida_id="partida:X")}).consume()
+        # Se afirma el CODIGO de Neo4j, no una subcadena del mensaje: un
+        # `ClientError` cualquiera --sintaxis mala, sesion muerta-- pasaria una
+        # comprobacion por texto y este test daria por cortada una restriccion
+        # que no corto nada.
+        assert "ConstraintValidationFailed" in (exc.value.code or ""), (
+            f"murio por otro motivo, no por la restriccion: {exc.value.code}"
+        )
+        cuantos = s.run(
+            "MATCH (n:Entity {entity_id:$id, workspace:$ws}) RETURN count(n) AS c",
+            {"id": ID_COLISION, "ws": WS_DUR}).single()["c"]
+    assert cuantos == 1, f"quedaron {cuantos} nodos: la barrera no fue la que corto"
+
+
+def test_ABLACION_sin_la_restriccion_el_duplicado_SI_se_crea(grafo_dur):
+    """NECESIDAD POR ABLACION -- control negativo de la barrera 1.
+
+    Sin esto, la restriccion podria estar prohibiendo algo que de todas formas
+    nadie iba a crear, y se cobraria como defensa sin serlo. Se quita la
+    barrera y se comprueba que el duplicado ENTRA: era lo unico que lo impedia.
+    """
+    _retirar_constraints(grafo_dur)
+    with grafo_dur.session() as s:
+        for g in _GEMELAS:
+            s.run("CREATE (n:Entity $props)",
+                  {"props": dict(g, scope="partida", partida_id="partida:X")})
+        cuantos = s.run(
+            "MATCH (n:Entity {entity_id:$id, workspace:$ws}) RETURN count(n) AS c",
+            {"id": ID_COLISION, "ws": WS_DUR}).single()["c"]
+    assert cuantos == 2, (
+        f"sin la restriccion solo se crearon {cuantos} nodos: algo mas los "
+        "estaba frenando y la restriccion no es la defensa que se cobra"
+    )
+
+
+def test_la_restriccion_SI_cubre_la_capa_juego(con_constraints):
+    """LA CAPA JUEGO TAMBIEN QUEDA CUBIERTA, y por eso la clave es la que es.
+
+    La primera version de este carril uso `(workspace, entity_id, partida_id)`
+    y este mismo test afirmaba lo CONTRARIO: que la capa juego quedaba fuera,
+    porque el lore se escribe con `partida_id: None` --Neo4j lo guarda como
+    ausencia-- y una restriccion compuesta no se aplica a un nodo al que le
+    falta una propiedad. Aquello era cierto y era un agujero enorme: el lore es
+    justo donde vive casi todo.
+
+    Con la clave que el writer REALMENTE aplica (`_assert_absent`:
+    `(workspace, entity_id)`, sin filtro de partida) las dos propiedades estan
+    siempre presentes en un nodo direccionable y el agujero desaparece. Se
+    afirma como comportamiento MEDIDO, no como consecuencia razonada.
+    """
+    from neo4j.exceptions import ClientError
+
+    with con_constraints.session() as s:
+        s.run("CREATE (n:Entity $props)", {"props": _GEMELAS[0]})  # sin partida_id
+        with pytest.raises(ClientError) as exc:
+            s.run("CREATE (n:Entity $props)", {"props": _GEMELAS[1]}).consume()
+        # Se afirma el CODIGO de Neo4j, no una subcadena del mensaje: un
+        # `ClientError` cualquiera --sintaxis mala, sesion muerta-- pasaria una
+        # comprobacion por texto y este test daria por cortada una restriccion
+        # que no corto nada.
+        assert "ConstraintValidationFailed" in (exc.value.code or ""), (
+            f"murio por otro motivo, no por la restriccion: {exc.value.code}"
+        )
+        cuantos = s.run(
+            "MATCH (n:Entity {entity_id:$id, workspace:$ws}) RETURN count(n) AS c",
+            {"id": ID_COLISION, "ws": WS_DUR}).single()["c"]
+    assert cuantos == 1, f"quedaron {cuantos} nodos: la barrera no fue la que corto"
+
+
+def test_la_capa_juego_y_una_partida_TAMPOCO_pueden_compartir_entity_id(con_constraints):
+    """La coherencia entre las dos barreras, afirmada como test.
+
+    Este es el caso que la clave anterior admitia A PROPOSITO --capa juego y
+    `partida:Y` con el mismo `entity_id`-- y que el resolver del visor, que no
+    filtra por `partida_id`, habria leido como AMBIGUO cerrando en falso una
+    ficha legitima. `_assert_absent` ya lo prohibe en el writer ("dos ambitos
+    jamas comparten el mismo id"); ahora tambien lo prohibe el esquema.
+
+    ALCANCE EXACTO DE LO QUE ESTE TEST DEMUESTRA, que no es lo que decia antes
+    esta frase: DENTRO DE UN MISMO WORKSPACE, ningun estado que el esquema
+    admita hace que el resolver falle cerrado. Eso es lo que se mide aqui
+    --capa juego contra `partida:X`, mismo `workspace`-- y ni una coma mas.
+    La version anterior afirmaba "ningun estado que el esquema admita", sin
+    acotar, y era FALSA: el limite conocido esta un poco mas abajo, en
+    `test_LIMITE_CONOCIDO_...`, con su porque y su medida.
+    """
+    from neo4j.exceptions import ClientError
+
+    with con_constraints.session() as s:
+        s.run("CREATE (n:Entity $props)", {"props": _GEMELAS[0]})  # capa juego
+        with pytest.raises(ClientError) as exc:
+            s.run("CREATE (n:Entity $props)",
+                  {"props": dict(_GEMELAS[1], scope="partida",
+                                 partida_id="partida:X")}).consume()
+        # El CODIGO, no la clase: este es el test que carga la afirmacion mas
+        # fuerte del carril, y sin esta linea cualquier `ClientError`
+        # --sintaxis mala, sesion muerta-- lo daba por bueno. Es exactamente el
+        # defecto que se corrige en sus tres hermanos.
+        assert "ConstraintValidationFailed" in (exc.value.code or ""), (
+            f"murio por otro motivo, no por la restriccion: {exc.value.code}"
+        )
+
+
+def test_la_restriccion_NO_cubre_EL_PASADO_HUECO_DECLARADO(grafo_dur):
+    """EL HUECO QUE QUEDA, medido: una base SIN la restriccion admite el
+    duplicado, y la restriccion no se puede crear despues sobre datos que ya la
+    violan.
+
+    No es teorico: el preflight de solo lectura midio que la base real no tiene
+    NI UNA restriccion. Este es exactamente el estado en el que llegaria una
+    colision historica, una restauracion defectuosa o un retro-relleno de
+    `entity_id` derivado del nombre canonico --que en esa base YA colisiona--.
+
+    Por eso la barrera del resolver no es redundante: es la unica que cubre
+    este escenario, y el ultimo `assert` lo demuestra sobre el mismo estado.
+    """
+    from neo4j.exceptions import Neo4jError
+
+    _retirar_constraints(grafo_dur)
+    with grafo_dur.session() as s:
+        for g in _GEMELAS:
+            s.run("CREATE (n:Entity $props)", {"props": g})
+        cuantos = s.run(
+            "MATCH (n:Entity {entity_id:$id, workspace:$ws}) RETURN count(n) AS c",
+            {"id": ID_COLISION, "ws": WS_DUR}).single()["c"]
+        assert cuantos == 2, "sin restriccion el duplicado tenia que entrar"
+
+        # Y ya no se puede poner la barrera: los datos la violan. Neo4j lo
+        # senala como `Neo.DatabaseError.Schema.ConstraintCreationFailed` --un
+        # `DatabaseError`, NO un `ClientError`: la primera version de este test
+        # esperaba la clase equivocada y fallo en CI--. Se afirma el CODIGO, no
+        # la clase: cualquier otro fallo de base (contenedor caido, sesion
+        # muerta) daria el mismo tipo y este test lo daria por bueno.
+        with pytest.raises(Neo4jError) as exc:
+            _aplicar_constraints(grafo_dur)
+        assert "ConstraintCreationFailed" in (exc.value.code or ""), (
+            f"fallo por otra cosa, no por los datos que la violan: {exc.value.code}"
+        )
+
+    # El unico que sigue defendiendo la URL en este estado es el resolver.
+    assert _proveedor().entity(ID_COLISION) is None
+
+
+# --- 5.1bis Aserciones: la garantia se EJERCE, no solo se declara -----------
+
+ID_ASERCION_COLISION = "assertion:c0111510dcafe002"
+
+
+def test_la_restriccion_de_ASERCIONES_corta_la_colision_de_verdad(con_constraints):
+    """O3: la garantia de aserciones deja de estar cobrada sin prueba.
+
+    Antes se verificaba la FORMA de la restriccion (nombre, tipo, columnas) y
+    se declaraba que su colision no se ejercia. Una laguna no es una garantia,
+    asi que aqui se provoca: dos aserciones DISTINTAS con el mismo
+    `assertion_id` en el mismo workspace. La segunda muere en la base.
+
+    Lo que sigue SIN existir --y se declara-- es una barrera de resolver para
+    aserciones, porque el visor no expone ninguna ruta `/assertions/{id}`: no
+    hay URL durable de asercion que secuestrar. El dia que la haya, hara falta
+    su fail-closed, igual que el de `entity()`.
+    """
+    from neo4j.exceptions import ClientError
+
+    comun = {"assertion_id": ID_ASERCION_COLISION, "workspace": WS_DUR,
+             "scope": "juego", "visibility": "player"}
+    with con_constraints.session() as s:
+        s.run("CREATE (n:V3Assertion $props)",
+              {"props": dict(comun, predicate="VENERA")})
+        with pytest.raises(ClientError) as exc:
+            s.run("CREATE (n:V3Assertion $props)",
+                  {"props": dict(comun, predicate="TRAICIONA")}).consume()
+        # Se afirma el CODIGO de Neo4j, no una subcadena del mensaje: un
+        # `ClientError` cualquiera --sintaxis mala, sesion muerta-- pasaria una
+        # comprobacion por texto y este test daria por cortada una restriccion
+        # que no corto nada.
+        assert "ConstraintValidationFailed" in (exc.value.code or ""), (
+            f"murio por otro motivo, no por la restriccion: {exc.value.code}"
+        )
+        cuantas = s.run(
+            "MATCH (n:V3Assertion {assertion_id:$id}) RETURN count(n) AS c",
+            {"id": ID_ASERCION_COLISION}).single()["c"]
+        s.run("MATCH (n:V3Assertion {assertion_id:$id}) DETACH DELETE n",
+              {"id": ID_ASERCION_COLISION})
+    assert cuantas == 1, f"quedaron {cuantas} aserciones: no corto la restriccion"
+
+
+def test_ABLACION_sin_la_restriccion_la_colision_de_ASERCIONES_entra(grafo_dur):
+    """Control negativo de la anterior: sin la restriccion, las dos entran."""
+    _retirar_constraints(grafo_dur)
+    comun = {"assertion_id": ID_ASERCION_COLISION, "workspace": WS_DUR,
+             "scope": "juego", "visibility": "player"}
+    with grafo_dur.session() as s:
+        s.run("CREATE (n:V3Assertion $props)",
+              {"props": dict(comun, predicate="VENERA")})
+        s.run("CREATE (n:V3Assertion $props)",
+              {"props": dict(comun, predicate="TRAICIONA")})
+        cuantas = s.run(
+            "MATCH (n:V3Assertion {assertion_id:$id}) RETURN count(n) AS c",
+            {"id": ID_ASERCION_COLISION}).single()["c"]
+        s.run("MATCH (n:V3Assertion {assertion_id:$id}) DETACH DELETE n",
+              {"id": ID_ASERCION_COLISION})
+    assert cuantas == 2, (
+        f"sin la restriccion solo entro {cuantas}: algo mas lo frenaba y la "
+        "restriccion no es la defensa que se cobra"
+    )
+
+
+# --- 5.2 Barrera 2: el resolver no escoge -----------------------------------
+
+@pytest.fixture
+def grafo_colision(grafo_dur):
+    """Dos entidades legitimas y DISTINTAS con la misma identidad durable.
+
+    Se siembran en capa juego a proposito: es el unico camino por el que la
+    barrera 1 las dejaria pasar, y es exactamente la forma en que llegaria una
+    colision historica o un retro-relleno mal derivado.
+    """
+    with grafo_dur.session() as s:
+        for g in _GEMELAS:
+            s.run("CREATE (n:Entity $props)", {"props": g})
+        assert s.run(
+            "MATCH (n:Entity {entity_id:$id}) RETURN count(n) AS c",
+            {"id": ID_COLISION}).single()["c"] == 2, "el arnes no sembro la colision"
+        # Una arista desde la gemela: sin ella, `relations_for_entity`
+        # devolveria vacio por no haber nada, y el fail-closed no se
+        # distinguiria de «no habia relaciones».
+        s.run(
+            "MATCH (a:Entity {entity_id:$c}), (b:Entity {entity_id:$v}) "
+            "CREATE (a)-[:VENERA {visibility:'player', workspace:$ws, scope:'juego', "
+            "relation_label_es:'venera'}]->(b)",
+            {"c": ID_COLISION, "v": ID_VECINO, "ws": WS_DUR})
+    return grafo_dur
+
+
+def test_DOS_objetos_con_la_misma_identidad_durable_FAIL_CLOSED(grafo_colision):
+    """LA REGLA DURA. Con 2+ no se escoge NINGUNO.
+
+    Con el contrapeso dentro del mismo test: la entidad unica del fixture SI
+    resuelve. Sin el, un proveedor que devolviera `None` para todo pasaria.
+    """
+    prov = _proveedor()
+    assert prov.entity(ID_DURABLE) is not None, "no partimos de verde: nada resuelve"
+    assert prov.entity(ID_FANTASMA) is None, "un id inexistente no puede resolver"
+
+    resuelto = prov.entity(ID_COLISION)
+    assert resuelto is None, (
+        "el resolver ESCOGIO uno de los dos objetos que comparten identidad "
+        f"durable ({resuelto.get('description') if resuelto else None}): eso es "
+        "el secuestro de URL, no un empate"
+    )
+
+
+def test_el_fail_closed_tambien_con_el_ambito_de_workspace_puesto(grafo_colision):
+    """El acotado por workspace no puede convertirse en un desempate.
+
+    Es la ruta REAL: `PolicyFilteredProvider` siempre llama con el ambito del
+    lector. Si el fail-closed solo viviera en la rama sin ambito, en produccion
+    no protegeria nunca.
+    """
+    prov = _proveedor()
+    ws = frozenset({WS_DUR})
+    assert prov.entity(ID_DURABLE, workspaces=ws) is not None, "no partimos de verde"
+    assert prov.entity(ID_COLISION, workspaces=ws) is None
+
+
+def test_las_relaciones_tambien_fallan_cerradas_con_ancla_ambigua(grafo_colision):
+    """Con dos anclas, `relations_for_entity` devolveria la UNION: relaciones de
+    un objeto pintadas en la ficha de otro. Fail-closed."""
+    prov = _proveedor()
+    salientes, _ = prov.relations_for_entity(ID_DURABLE)
+    assert salientes, "no partimos de verde: la entidad unica no trae relaciones"
+
+    out, inc = prov.relations_for_entity(ID_COLISION)
+    assert (out, inc) == ([], []), (
+        f"se sirvieron relaciones de un ancla ambigua: {out} {inc}"
+    )
+
+
+# --- 5.2bis O2: las dos barreras preguntan sobre EL MISMO ambito ------------
+
+#: Identificador AUTORADO, del estilo que ya existe en el repositorio
+#: (`entity:ambar:corte-resina`): NO lleva el workspace dentro, al contrario que
+#: los derivados por `resolution/provisional.py`. Dos bovedas pueden tener uno
+#: igual sin que eso sea una colision de nada.
+ID_AUTORADO = "entity:ambar:corte-resina"
+WS_VECINO = "juego:otra-boveda"
+
+
+@pytest.fixture
+def grafo_id_autorado(grafo_dur):
+    """El mismo id autorado en DOS workspaces distintos. No es una colision:
+    son dos entidades legitimas de dos juegos que no se conocen."""
+    with grafo_dur.session() as s:
+        s.run("MATCH (n:Entity {workspace:$ws}) DETACH DELETE n", {"ws": WS_VECINO})
+        for ws in (WS_DUR, WS_VECINO):
+            s.run("CREATE (n:Entity $props)", {"props": {
+                "entity_id": ID_AUTORADO, "canonical_name": f"Corte de resina ({ws})",
+                "entity_type": "Object", "workspace": ws, "scope": "juego",
+                "visibility": "player", "review_status": "reviewed", "confidence": 0.9}})
+        s.run(
+            "MATCH (a:Entity {entity_id:$a, workspace:$ws}), "
+            "(b:Entity {entity_id:$b, workspace:$ws}) "
+            "CREATE (a)-[:VENERA {visibility:'player', workspace:$ws, scope:'juego', "
+            "relation_label_es:'venera'}]->(b)",
+            {"a": ID_AUTORADO, "b": ID_VECINO, "ws": WS_DUR})
+    yield grafo_dur
+    with grafo_dur.session() as s:
+        s.run("MATCH (n:Entity {workspace:$ws}) DETACH DELETE n", {"ws": WS_VECINO})
+
+
+def test_un_id_AUTORADO_repetido_en_otra_boveda_NO_tumba_las_relaciones(grafo_id_autorado):
+    """O2. Las dos barreras tienen que preguntar sobre el MISMO conjunto.
+
+    Con la sonda de ambigüedad sin acotar por workspace, aqui pasaba esto:
+    `entity()` resolvia la ficha (su Cypher SI filtra por workspace) y
+    `relations_for_entity` declaraba el ancla ambigua --porque veia las dos
+    bovedas-- y devolvia `[], []`. Ficha legitima con TODAS sus relaciones
+    caidas. No era una fuga; era un defecto de disponibilidad causado por la
+    propia defensa, y una incoherencia entre las dos barreras.
+    """
+    prov = _proveedor()
+    ws = frozenset({WS_DUR})
+    assert prov.entity(ID_AUTORADO, workspaces=ws) is not None, "la ficha ya no resuelve"
+
+    salientes, _ = prov.relations_for_entity(ID_AUTORADO, workspaces=ws)
+    assert salientes, (
+        "la ficha resuelve pero llega sin relaciones: la sonda de ambigüedad "
+        "esta mirando un ambito distinto del que uso el resolver"
+    )
+
+    # Y el fail-closed NO se ha aflojado: dentro de UN solo workspace, dos
+    # anclas siguen siendo ambiguas. Sin esta linea, «acotar» podria haberse
+    # convertido en «dejar de comprobar».
+    with grafo_id_autorado.session() as s:
+        s.run("CREATE (n:Entity $props)", {"props": {
+            "entity_id": ID_AUTORADO, "canonical_name": "Corte de resina (bis)",
+            "entity_type": "Object", "workspace": WS_DUR, "scope": "juego",
+            "visibility": "player", "review_status": "reviewed", "confidence": 0.9}})
+    assert prov.entity(ID_AUTORADO, workspaces=ws) is None
+    assert prov.relations_for_entity(ID_AUTORADO, workspaces=ws) == ([], [])
+
+
+def test_LIMITE_CONOCIDO_con_ambito_NULO_un_id_autorado_cruzado_cierra_en_falso(
+    grafo_id_autorado,
+):
+    """EL LIMITE, medido y escrito. No es secuestro; es indisponibilidad.
+
+    `PolicyFilteredProvider._scope_workspaces()` devuelve `None` para
+    `admin_full`: un lector sin ambito. Con ambito nulo, dos entidades de
+    workspaces DISTINTOS que compartan un identificador AUTORADO --que no lleva
+    el workspace dentro, al contrario que los derivados-- son dos claves
+    legales y distintas bajo el esquema `(workspace, entity_id)`, y aun asi el
+    resolver ve dos filas y cierra.
+
+    POR QUE NO SE "ARREGLA" AQUI. Con ambito nulo la URL de verdad nombra dos
+    objetos: no hay dimension en la peticion que permita elegir, y elegir es
+    justo lo que este carril prohibe. Cerrar es aplicar la norma, no
+    incumplirla. Acotarlo de verdad exigiria que el resolver dedujera un
+    workspace que el lector no ha declarado --inventar identidad-- o tocar el
+    modelo de ambito de `authz/**` mas alla de la unica llamada ya declarada.
+    Se documenta y se mide.
+
+    LO QUE SI SE AFIRMA, y es lo que impide que esto sea un P0: las DOS
+    barreras coinciden. No hay ninguna combinacion en la que una resuelva y la
+    otra no, que era el defecto O2. Falla hacia cerrado, con `log.error`.
+    """
+    prov = _proveedor()
+
+    # Contrapeso: con ambito, las dos son resolubles y cada una es la suya.
+    a = prov.entity(ID_AUTORADO, workspaces=frozenset({WS_DUR}))
+    b = prov.entity(ID_AUTORADO, workspaces=frozenset({WS_VECINO}))
+    assert a is not None and b is not None
+    assert a["workspace"] != b["workspace"], "el material no discrimina"
+
+    # Sin ambito (`admin_full`): las dos barreras cierran, y cierran JUNTAS.
+    assert prov.entity(ID_AUTORADO, workspaces=None) is None
+    assert prov.relations_for_entity(ID_AUTORADO, workspaces=None) == ([], [])
+
+
+def test_el_camino_REAL_por_HTTP_conserva_las_relaciones(panel_dur, grafo_id_autorado):
+    """El mismo caso, pero por la cadena real: `PolicyFilteredProvider` tiene
+    que pasar a la sonda EL MISMO ambito que le paso a `entity()`."""
+    # CONTRAPESO PRIMERO: `ID_DURABLE` tiene una relacion hacia el MISMO
+    # vecino, y su ficha si se pinta. Eso fija el marcador que hay que buscar;
+    # sin el, un `not in` podria significar «la plantilla no pinta vecinos».
+    control = panel_dur.get(f"/panel/entities/item/{ID_DURABLE}")
+    assert control.status_code == 200
+    assert "Kitsuki Yaruma" in control.text, (
+        "el marcador de vecino no se pinta ni en el caso bueno: este test no "
+        "puede distinguir nada"
+    )
+
+    r = panel_dur.get(f"/panel/entities/item/{ID_AUTORADO}")
+    assert r.status_code == 200, f"la ficha no abre: {r.status_code}"
+    assert "Kitsuki Yaruma" in r.text, (
+        "la ficha abre sin su relacion: por el camino real, la sonda sigue "
+        "preguntando sobre un ambito distinto del que uso el resolver"
+    )
+
+
+# --- 5.3 El secuestro, por HTTP y sobre la URL durable ----------------------
+
+def test_EL_SECUESTRO_DE_URL_NO_OCURRE_POR_HTTP(panel_dur, grafo_dur):
+    """De extremo a extremo: se inyecta la colision y la URL durable deja de
+    resolver EN VEZ de resolver al objeto equivocado.
+
+    El orden importa: primero se comprueba que la URL resuelve (verde de
+    partida), luego se inyecta, y solo entonces se exige el 404. Sin el primer
+    paso, un 404 podria significar «esta ruta nunca funciono».
+    """
+    url = f"/panel/entities/item/{ID_COLISION}"
+    with grafo_dur.session() as s:
+        s.run("CREATE (n:Entity $props)", {"props": _GEMELAS[0]})
+    antes = panel_dur.get(url)
+    assert antes.status_code == 200, f"no partimos de verde: {antes.status_code}"
+    assert _GEMELAS[0]["description"] in antes.text
+
+    with grafo_dur.session() as s:
+        s.run("CREATE (n:Entity $props)", {"props": _GEMELAS[1]})
+
+    despues = panel_dur.get(url)
+    assert despues.status_code == 404, (
+        f"la URL sigue sirviendo un objeto con la identidad duplicada "
+        f"({despues.status_code}): eso es el secuestro"
+    )
+    for g in _GEMELAS:
+        assert g["description"] not in despues.text, (
+            "el cuerpo revela cual de las dos gemelas se habria servido"
+        )
+    # E indistinguible de «no existe»: mismo codigo y mismo cuerpo que un
+    # identificador que no se ha sembrado jamas.
+    fantasma = panel_dur.get(f"/panel/entities/item/{ID_FANTASMA}")
+    assert fantasma.status_code == 404
+    assert fantasma.content == despues.content, (
+        "la ambiguedad se distingue de la inexistencia: la URL vuelve a ser un "
+        "oraculo, ahora de duplicados"
+    )

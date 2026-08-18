@@ -700,7 +700,7 @@ def _sin_datos_de_grafo(real_app):
         def entity(self, entity_id, *, workspaces=None):
             return None
 
-        def relations_for_entity(self, entity_id):
+        def relations_for_entity(self, entity_id, **kw):
             return [], []
 
         def list_entities(self, workspace, **kwargs):

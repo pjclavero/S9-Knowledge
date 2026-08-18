@@ -193,7 +193,7 @@ class ProveedorFalso:
                 return n
         return None
 
-    def relations_for_entity(self, entity_id):
+    def relations_for_entity(self, entity_id, **kw):
         self._apunta("relations_for_entity")
         return (
             [e for e in self.aristas if e["from"] == entity_id],

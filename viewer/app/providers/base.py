@@ -59,9 +59,16 @@ class GraphProvider(ABC):
 
     @abstractmethod
     def relations_for_entity(
-        self, entity_id: str
+        self, entity_id: str, *, workspaces: frozenset[str] | None = None
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        """Devuelve (relaciones_salientes, relaciones_entrantes) de un nodo."""
+        """Devuelve (relaciones_salientes, relaciones_entrantes) de un nodo.
+
+        ``workspaces`` acota igual que en ``entity()``. No esta para filtrar
+        las aristas --de eso ya se encarga la politica-- sino para que la
+        comprobacion de UNICIDAD del ancla se haga sobre EL MISMO conjunto que
+        uso el resolver. Con dos ambitos distintos, una barrera puede declarar
+        ambiguo lo que la otra resolvio sin problema.
+        """
 
     @abstractmethod
     def list_entities(

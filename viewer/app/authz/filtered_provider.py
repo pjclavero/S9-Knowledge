@@ -124,12 +124,19 @@ class PolicyFilteredProvider(GraphProvider):
         return node
 
     def relations_for_entity(
-        self, entity_id: str
+        self, entity_id: str, *, workspaces: frozenset[str] | None = None
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         # El propio nodo debe ser visible; si no, no exponemos sus relaciones.
         if self.entity(entity_id) is None:
             return [], []
-        outgoing, incoming = self._base.relations_for_entity(entity_id)
+        # El ambito sale del contexto del servidor, nunca de la peticion, y es
+        # EL MISMO que se le paso a `entity()` unas lineas mas arriba: si las
+        # dos llamadas usaran conjuntos distintos, la comprobacion de unicidad
+        # del ancla podria declarar ambiguo lo que el resolver acaba de
+        # resolver, y la ficha saldria sin relaciones.
+        outgoing, incoming = self._base.relations_for_entity(
+            entity_id, workspaces=self._scope_workspaces()
+        )
 
         def _edge_ok(edge: dict[str, Any], other_key: str) -> bool:
             if not self._policy.can_view(edge, self._ctx).visible:
