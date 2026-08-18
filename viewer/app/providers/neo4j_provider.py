@@ -385,15 +385,30 @@ class Neo4jGraphProvider(GraphProvider):
             return None
         return _node_to_dict(records[0]["n"]) if records else None
 
-    def _identidad_ambigua(self, entity_id: str) -> bool:
+    def _identidad_ambigua(
+        self, entity_id: str, workspaces: frozenset[str] | None = None
+    ) -> bool:
         """¿Hay 2+ nodos con este `entity_id`? Sonda acotada, sin desempate.
 
-        Deliberadamente SIN acotar por workspace: quien llama a
-        `relations_for_entity` no trae ambito, y para una pregunta de
-        AMBIGUEDAD el fallo seguro es el conservador --si hay dos anclas en
-        cualquier parte del grafo, no se sirven relaciones--. Lo contrario
-        seria descubrir la ambiguedad solo cuando ya es tarde.
+        ACOTA POR WORKSPACE EXACTAMENTE IGUAL QUE `entity()`, y esto no es un
+        detalle: `entity_id` NO siempre lleva el workspace dentro. La
+        derivacion de `resolution/provisional.py` si lo mete en el digest, pero
+        los contratos admiten identificadores AUTORADOS --los hay en este mismo
+        repositorio, p.ej. `entity:ambar:corte-resina`-- que no pasan por ella.
+        Dos juegos distintos pueden compartir uno.
+
+        Con la sonda sin acotar, ese caso daba una incoherencia entre las dos
+        barreras: `entity()` resolvia la ficha (su consulta si filtra por
+        workspace) y esta declaraba el ancla ambigua, asi que la ficha salia
+        con TODAS sus relaciones caidas. No era una fuga --fallaba hacia
+        cerrado y dejaba `log.error`-- pero si un defecto de disponibilidad
+        provocado por la propia defensa. Misma pregunta, mismo ambito.
         """
+        params: dict[str, Any] = {"id": entity_id, "sonda": _LIMITE_SONDA_AMBIGUEDAD}
+        filtro = ""
+        if workspaces is not None:
+            filtro = "AND n.workspace IN $workspaces "
+            params["workspaces"] = sorted(workspaces)
         with self._driver.session() as session:
             # `RETURN 1`, no `RETURN n`: la pregunta es CUANTAS anclas hay, y
             # traerse las propiedades de nodos que quiza no esten autorizados
@@ -403,9 +418,9 @@ class Neo4jGraphProvider(GraphProvider):
             # mutaciones (dos consultas identicas se mutan la primera, y el
             # rojo de una seria el rojo PRESTADO de la otra).
             records = list(session.run(
-                "MATCH (n:Entity) WHERE n.entity_id = $id RETURN 1 AS ancla "
-                "LIMIT $sonda",
-                {"id": entity_id, "sonda": _LIMITE_SONDA_AMBIGUEDAD},
+                "MATCH (n:Entity) WHERE n.entity_id = $id "
+                f"{filtro}RETURN 1 AS ancla LIMIT $sonda",
+                params,
             ))
         if len(records) > 1:
             _log.error(
@@ -417,7 +432,7 @@ class Neo4jGraphProvider(GraphProvider):
         return False
 
     def relations_for_entity(
-        self, entity_id: str
+        self, entity_id: str, *, workspaces: frozenset[str] | None = None
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         # Anclada por `entity_id`, como `entity()`.
         #
@@ -433,7 +448,7 @@ class Neo4jGraphProvider(GraphProvider):
         # la UNION de las relaciones de ambas, es decir, las relaciones de un
         # objeto pintadas en la ficha de otro. Fail-closed: sin ancla unica no
         # hay relaciones que mostrar.
-        if self._identidad_ambigua(entity_id):
+        if self._identidad_ambigua(entity_id, workspaces):
             return [], []
         out_query = """
         MATCH (n:Entity)-[r]->(m:Entity)

@@ -131,7 +131,7 @@ class BaseFalso(GraphProvider):
         self._reg("entity")
         return None
 
-    def relations_for_entity(self, entity_id: str):
+    def relations_for_entity(self, entity_id: str, **kw):
         self._reg("relations_for_entity")
         return ([], [])
 

@@ -112,7 +112,7 @@ class MockGraphProvider(GraphProvider):
         return node if node.get("workspace") in workspaces else None
 
     def relations_for_entity(
-        self, entity_id: str
+        self, entity_id: str, *, workspaces: frozenset[str] | None = None
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         outgoing = [e for e in self._edges if e.get("from") == entity_id]
         incoming = [e for e in self._edges if e.get("to") == entity_id]

@@ -60,7 +60,7 @@ MINIMO_TESTS = 10
 #: imprimiria `ejercidas=0 enrojecidas=0 declaradas_sin_ejercer=0` y
 #: `veredicto=CALIBRADO`, saldria con rc=0 y estaria MUDO Y VERDE: exactamente
 #: el fallo que este fichero existe para impedir, un nivel mas arriba.
-MINIMO_MUTACIONES = 15
+MINIMO_MUTACIONES = 16
 #: Las que no necesitan Neo4j. Se ejercen SIEMPRE, tambien en un portatil sin
 #: contenedores, asi que este suelo se puede exigir incondicionalmente. El suelo
 #: de las 12 (con base efimera) lo impone el paso de CI, que sabe si hay Neo4j.
@@ -229,19 +229,43 @@ MUTACIONES = [
     (
         "MU2: `relations_for_entity()` sirve la UNION de dos anclas ambiguas",
         PROVEEDOR,
-        "        if self._identidad_ambigua(entity_id):\n            return [], []",
-        "        if False and self._identidad_ambigua(entity_id):\n            return [], []",
+        "        if self._identidad_ambigua(entity_id, workspaces):\n            return [], []",
+        "        if False and self._identidad_ambigua(entity_id, workspaces):\n"
+        "            return [], []",
         [SUITE_NEO4J] if os.environ.get("NEO4J_TEST_URI") else [],
     ),
     (
-        # ABLACION DE LA BARRERA 1, en el fichero del ESQUEMA. Es la unica
-        # mutacion que no toca el proveedor, y por eso el arnes admite varios
-        # ficheros: una barrera cuya desaparicion no cambia ningun resultado no
-        # se puede cobrar como defensa.
-        "MU3: la restriccion de unicidad deja de caer sobre la clave derivada",
+        # ABLACION DE CAPACIDAD de la barrera 1, en el fichero del ESQUEMA. Es
+        # la unica mutacion que no toca el proveedor, y por eso el arnes admite
+        # varios ficheros.
+        #
+        # LA PRIMERA VERSION DE MU3 NO ERA UNA ABLACION y hay que decirlo: se
+        # mutaba la clave a `REQUIRE (n.entity_id) IS UNIQUE`, que es
+        # ESTRICTAMENTE MAS ESTRICTA. Eso ancla la FORMA de la clave --util,
+        # pero es otra cosa-- y no demuestra capacidad protectora: una
+        # restriccion mas dura no deja pasar nada que la buena dejara pasar.
+        #
+        # Esta si ensancha: al meter `partida_id` en la clave, Neo4j deja de
+        # aplicarla a los nodos que no tienen esa propiedad, es decir, a TODA
+        # la capa juego (`scope_props` escribe `partida_id: None`, que Neo4j
+        # guarda como ausencia). La barrera sigue existiendo, con el mismo
+        # nombre y el mismo tipo, y deja de proteger el lore. Es exactamente la
+        # clave que tenia la primera version de este carril, y la prueba que se
+        # pone roja es la que mide que el duplicado de capa juego NO entra.
+        "MU3: la clave se ensancha con `partida_id` y deja de cubrir la capa juego",
         ESQUEMA,
+        '"REQUIRE (n.workspace, n.entity_id) IS UNIQUE"\n)\n\n#: Gemela',
         '"REQUIRE (n.workspace, n.entity_id, n.partida_id) IS UNIQUE"\n)\n\n#: Gemela',
-        '"REQUIRE (n.entity_id) IS UNIQUE"\n)\n\n#: Gemela',
+        [SUITE_NEO4J] if os.environ.get("NEO4J_TEST_URI") else [],
+    ),
+    (
+        # Y la ablacion de la barrera de ASERCIONES, que hasta la segunda
+        # ronda era una garantia COBRADA SIN PRUEBA: se verificaba la forma de
+        # la restriccion y no se ejercia su colision.
+        "MU4: la restriccion de aserciones deja de exigir unicidad del assertion_id",
+        ESQUEMA,
+        '"REQUIRE (n.workspace, n.assertion_id) IS UNIQUE"',
+        '"REQUIRE (n.workspace, n.assertion_id, n.scope, n.predicate) IS UNIQUE"',
         [SUITE_NEO4J] if os.environ.get("NEO4J_TEST_URI") else [],
     ),
 ]

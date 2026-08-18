@@ -40,14 +40,16 @@ barrera del resolver (`Neo4jGraphProvider.entity`, fail-closed con 2+) es la
    Neo4j rechaza crear una restricción de unicidad que los datos ya violan: el
    `CREATE CONSTRAINT` es, él mismo, el verificador. Si falla, el relleno estaba
    mal y no hay que forzarlo.
-4. **`partida_id` declarado en todos los nodos rellenados**, o la restricción
-   compuesta no los cubrirá (Neo4j no aplica una restricción compuesta a un nodo
-   al que le falte una de las propiedades — medido en
-   `test_la_restriccion_NO_cubre_la_capa_juego_HUECO_DECLARADO`). Hoy la capa
-   juego se escribe con `partida_id: None`, que Neo4j guarda como ausencia.
-   Cerrar ese hueco exige un discriminador de ámbito **siempre presente**, y eso
-   es un cambio del camino de escritura y de todos los predicados
-   `partida_id IS NULL` que hoy lo leen. No es gratis y no es de este carril.
+4. **`workspace` presente en todo nodo direccionable.** La clave es
+   `(workspace, entity_id)` — la que `writer/executor.py::_assert_absent` aplica
+   ya en cada creación ("la identidad de un `entity_id`/`assertion_id` es única
+   en todo el workspace, cruzando capa juego y todas sus partidas"). Ambas
+   propiedades están siempre presentes en un nodo direccionable, así que la
+   restricción cubre también la capa juego; lo que **no** cubre es un nodo sin
+   `workspace`, que tampoco es direccionable. (La primera versión de este carril
+   usó la terna con `partida_id` y dejaba la capa juego entera sin cubrir,
+   porque Neo4j no aplica una restricción compuesta a un nodo al que le falta
+   una propiedad y el lore se escribe con `partida_id: None`.)
 5. **Ninguna URL durable puede cambiar de destino sin que alguien lo decida.**
    Un relleno que reasigne `entity_id` a un nodo ya enlazado rompe marcadores.
    Con la base actual esto no aplica (no hay `entity_id` que romper), pero el
