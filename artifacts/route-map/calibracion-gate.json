@@ -1,6 +1,6 @@
 {
-  "hash_arbol_antes": "7ecea6de028f3351d4ab6e0983be0452a8129366ad5be513961e65c49146de68",
-  "hash_arbol_despues": "7ecea6de028f3351d4ab6e0983be0452a8129366ad5be513961e65c49146de68",
+  "hash_arbol_antes": "f51eb4b6b0bccc8db2a022b392ff7c0a9e0828c3061fdde8400faca0197c4657",
+  "hash_arbol_despues": "f51eb4b6b0bccc8db2a022b392ff7c0a9e0828c3061fdde8400faca0197c4657",
   "casos": [
     {
       "caso": "G0",
@@ -491,13 +491,28 @@
       "estado": "OK"
     },
     {
-      "caso": "G15-neg",
-      "desc": "mover CUALQUIERA de los duros exigidos a informativos se detecta, nombre a nombre",
-      "esperado": "detecta los 12",
-      "rc": 1,
+      "caso": "G16",
+      "desc": "lo que el censo declara fatal (rc != 0) la puerta no lo trata como informativo",
+      "esperado": "VERDE",
+      "rc": 0,
       "motivos": [],
-      "comprobados": [
+      "fatales_declarados_por_el_censo": [
+        "caracterizacion_estatica_fallida",
+        "censo_opaco",
+        "censo_vacio",
+        "control_positivo_csrf_fallido"
+      ],
+      "estado": "OK"
+    },
+    {
+      "caso": "G17",
+      "desc": "el conjunto de hallazgos duros no ha encogido respecto a la base",
+      "esperado": "VERDE",
+      "rc": 0,
+      "motivos": [],
+      "duros_en_la_base": [
         "barrido_contamino_la_db",
+        "caracterizacion_estatica_fallida",
         "censo_opaco",
         "censo_vacio",
         "contradiccion_deniega_y_sirve",
@@ -510,6 +525,86 @@
         "rutas_sin_auth",
         "sondas_inconcluyentes"
       ],
+      "estado": "OK"
+    },
+    {
+      "caso": "Gneg",
+      "desc": "el ataque en DOS PASOS -llenar el cubo y mover el nombre a informativos- se detecta para cada hallazgo duro, mutando `gate.py` de verdad",
+      "esperado": "detecta los 13",
+      "rc": 1,
+      "motivos": [],
+      "comprobados": [
+        "barrido_contamino_la_db",
+        "caracterizacion_estatica_fallida",
+        "censo_opaco",
+        "censo_vacio",
+        "contradiccion_deniega_y_sirve",
+        "control_positivo_csrf_fallido",
+        "enlaces_rotos",
+        "guardian_declarado_pero_no_aplicado",
+        "rutas_capturadas",
+        "rutas_denegacion_404_ambigua",
+        "rutas_denegacion_no_atribuible",
+        "rutas_sin_auth",
+        "sondas_inconcluyentes"
+      ],
+      "quien_lo_caza": {
+        "barrido_contamino_la_db": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "caracterizacion_estatica_fallida": [
+          "G16",
+          "G17"
+        ],
+        "censo_opaco": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G16",
+          "G17"
+        ],
+        "censo_vacio": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G16",
+          "G17"
+        ],
+        "contradiccion_deniega_y_sirve": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "control_positivo_csrf_fallido": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G16",
+          "G17"
+        ],
+        "enlaces_rotos": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "guardian_declarado_pero_no_aplicado": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "rutas_capturadas": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "rutas_denegacion_404_ambigua": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "rutas_denegacion_no_atribuible": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "rutas_sin_auth": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ],
+        "sondas_inconcluyentes": [
+          "G15-si-el-cubo-sigue-vacio",
+          "G17"
+        ]
+      },
       "estado": "OK"
     }
   ],
@@ -620,7 +715,7 @@
       "estado": "COBRADA"
     }
   ],
-  "casos_ejecutados": 44,
+  "casos_ejecutados": 46,
   "ablaciones_cobradas": 15,
   "fallos": [],
   "veredicto": "OK"

@@ -712,7 +712,22 @@ jobs:
     name: Censo de rutas (configuracion canonica en codigo)
     runs-on: ubuntu-latest
     steps:
+      # `fetch-depth: 0` NO es decorativo: G17 comprueba que el conjunto de
+      # hallazgos DUROS no ha encogido respecto a la base, y para eso necesita
+      # leer `gate.py` en el merge-base con `origin/main`. Con el checkout
+      # superficial por defecto no hay historia con la que comparar y G17 se
+      # pone ROJO en vez de callarse.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: La base de comparacion tiene que existir (G17)
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          base="$(git merge-base HEAD origin/main)"
+          echo "merge-base con origin/main: $base"
+          test -n "$base"
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v7

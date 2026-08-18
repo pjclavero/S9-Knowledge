@@ -83,7 +83,7 @@ que mantener nada para que eso se detecte.
 
 ## 3. El contrato, punto por punto, con la evidencia de cada ROJO
 
-Calibración: `python3 scripts/route_map/calibrate_gate.py`. **44 casos y 15
+Calibración: `python3 scripts/route_map/calibrate_gate.py`. **46 casos y 15
 ablaciones cobradas**, un subproceso por mutación, sobre **copias** del árbol.
 
 | punto del contrato | caso | mutación real | motivo que sale |
@@ -343,14 +343,137 @@ G15: `rutas_denegacion_no_atribuible` ...
 Reversión **verificada por hash SHA-256** de `gate.py`
 (`5e63bf25…` antes y después), no por presencia de cadenas.
 
-**Total tras O4: 44 casos y 15 ablaciones cobradas.**
+**Total tras O4 y el cierre de S1/S2: 46 casos y 15 ablaciones cobradas.**
 
-### El coste: `--mapa-completo` es obligatorio
+### `--mapa-completo` es un atajo de tiempo, NO una condición de validez
 
-G15 necesita la medida con sonda. El job le pasa el artefacto que acaba de
-producir (se reutilizan los ~60 s de sonda en vez de repetirlos). Si falta, o si
-se tomó con `--skip-probe`, **G15 se pone ROJO**: no hay modo degradado, porque
-un control que se salta a sí mismo cuando le falta un dato es un control mudo.
+**Corrección de una afirmación falsa** que esta sección hizo antes («si falta
+`--mapa-completo`, G15 es ROJO; no hay modo degradado»). Medido por una revisión:
+**sin la bandera la calibración sale VERDE**, porque la rama `else` genera la
+referencia con sonda por su cuenta. De fondo no degrada nada —sólo cuesta ~60 s
+más—, pero la frase escrita era falsa y **quitar la bandera de `ci.yml` no lo
+delataba**. Así que se escribe como es:
+
+- **falta la bandera** ⇒ la referencia se genera aquí mismo; el arnés tarda más y
+  mide lo mismo;
+- **la bandera apunta a un artefacto INVÁLIDO** (tomado con `--skip-probe`, o sin
+  `--tested`) ⇒ **ROJO**, porque derivar sobre una medida falseada es peor que no
+  derivar.
+
+## 3.septies Los dos supervivientes de O4, y por qué hacían falta dos controles más
+
+Una revisión independiente andó dos huecos reales del cierre anterior. Los dos
+tenían la misma forma: **el arnés protegía la asignación duro/informativo con
+controles que se derivaban de la propia asignación**, así que el ataque que
+borraba el rastro se llevaba también al vigilante.
+
+### S1 — `caracterizacion_estatica_fallida` no tenía cobertura
+
+Era el nombre que sobraba en el «13 contra 12» de G15. Movido a
+`FINDINGS_INFORMATIVOS`, la calibración salía **VERDE**: G15 no lo exige (no está
+vacío en las dos medidas, se llena con `--skip-probe`) y su caso `AD-`
+**desaparecía con él**. Y el hueco era real en la puerta: con ese hallazgo lleno y
+`--map-rc 0`, la puerta sana da rc=1 y la mutada da **rc=0**.
+
+El atenuante que encontró la revisión resultó ser también la solución: en el
+pipeline real el censo **ya sale con rc=3** si ese hallazgo no está vacío, y CI le
+pasa el rc a la puerta. La garantía se sostenía **por otra capa**… que se podía
+quitar en silencio. **`G16` convierte esa coincidencia en un acoplamiento
+exigido:**
+
+> Todo hallazgo por el que el censo sale con código distinto de 0 es **fatal para
+> el censo**, y la puerta no puede tratarlo como informativo.
+
+Y no se copia la lista: se **deriva del AST de `route_map.main()`**, leyendo qué
+nombres aparecen en `findings.get(...)` dentro de las ramas que terminan en un
+`return` distinto de 0. **Medido: 4 fatales** (`censo_opaco`, `censo_vacio`,
+`caracterizacion_estatica_fallida`, `control_positivo_csrf_fallido`). Si mañana el
+censo declara fatal un hallazgo nuevo, entra solo.
+
+### S2 — un cubo que YA está lleno no lo protege ninguna regla local
+
+Éste **no es un descuido: es un límite estructural de G15**, y conviene que quede
+escrito porque es la clase de defecto que vuelve. Si el mismo commit
+**introduce el defecto** (deja `contradiccion_deniega_y_sirve` no vacío) **y**
+mueve ese nombre a informativos, entonces `duros_exigidos` ya no lo incluye,
+`contraste_asignacion` no dice nada, el caso `AD-` desaparece con el nombre y el
+suelo se cumple de sobra ⇒ **todo verde**. Sólo se salvaban `rutas_sin_auth` y
+`censo_opaco`, y **por accidente**: estaban fijados a mano como objetivo de dos
+ablaciones (y se «salvaban» con un `KeyError`, no con un diagnóstico).
+
+**Ninguna regla que mire sólo el árbol actual puede cerrarlo**, porque en el árbol
+actual el nombre ya no es duro y su cubo ya no está vacío: **el commit atacante ha
+borrado su propio rastro**. Hace falta un punto de comparación que ese commit no
+controle, y el único que hay es **el estado anterior del código**. De ahí `G17`:
+
+> El conjunto duro de HEAD tiene que **contener** al conjunto duro de la base
+> (merge-base con `origin/main`). Un nombre puede **añadirse** cuando se quiera;
+> **quitarlo es ROJO**, da igual que su cubo esté lleno o vacío y que su caso
+> generado haya desaparecido con él.
+
+No es una lista que nadie mantiene: **es el commit de antes**, leído con
+`git show <base>:scripts/route_map/gate.py` y parseado con AST — no con `grep`, y
+no importando el fichero de otra rama, que es como una capacidad ajena se
+convierte en verdad falsa del producto. En CI el job hace `fetch-depth: 0` y
+comprueba que el merge-base existe **antes** de medir: sin base, G17 se pone rojo
+en vez de callarse.
+
+**Consecuencia deliberada:** aflojar una garantía deja de poder hacerse callando.
+Si algún día hay que quitar un hallazgo de los duros con razón, el job se pone
+rojo y hay que discutirlo. Eso es lo que se quiere de un check requerido.
+
+### La cuenta honesta de quién protege a quién
+
+`Gneg` muta **`gate.py` de verdad** —antes simulaba pasándole diccionarios
+degradados a `contraste_asignacion`, que es calibrar la función y no el sistema— y
+relee las constantes **en un subproceso**, uno por nombre. Y toma el veredicto en
+el **peor caso de S2**: con `exigidos` **sin** ese nombre, que es lo que pasa
+cuando el cubo se llena. Creditarle a G15 una protección que el ataque real le
+quita sería contarse un control que no actúa.
+
+| hallazgo | quién lo caza **bajo el ataque de dos pasos** |
+|---|---|
+| `caracterizacion_estatica_fallida` | **G16 · G17** |
+| `censo_opaco`, `censo_vacio`, `control_positivo_csrf_fallido` | **G16 · G17** |
+| los otros nueve | **G17** |
+
+**Los 13, no 2.** G15 sigue apareciendo en el informe como
+`G15-si-el-cubo-sigue-vacio`: es protección real mientras nadie llene el cubo, y
+mentira contarla como protección frente a S2.
+
+**Verificado en vivo sobre el árbol real**, con reversión comprobada por hash
+SHA-256 de `gate.py` (`5e63bf25…` idéntico antes y después):
+
+- **ataque S1** (mover `caracterizacion_estatica_fallida`) ⇒ ROJO por **G16 y G17**;
+- **ataque S2** (mover `contradiccion_deniega_y_sirve`) ⇒ ROJO por **G15 y G17**.
+
+### Lo que sigue sin tener detector (dicho, no disimulado)
+
+- **G17 protege contra encoger, no contra no crecer.** Un hallazgo nuevo del censo
+  que debiera ser duro y se clasifique como informativo **desde el primer
+  commit** no lo ve G17 (nunca estuvo en la base). Lo ven G15 —si su cubo está
+  vacío en las dos medidas— y G16 —si el censo lo declara fatal—. Fuera de esos
+  dos casos, no hay detector.
+- **La base es `origin/main`.** Si alguien relajase la asignación **en `main`**,
+  las ramas siguientes heredarían la base ya relajada y G17 no diría nada. La
+  protección es contra la deriva rama a rama, que es por donde entra.
+
+## 3.octies El arnés ya no está desprotegido
+
+**Nada guardaba a `calibrate_gate.py`**: borrar el bloque de G15 dejaba 42 casos
+—por encima de `MINIMO_CASOS`— y todo verde. `calibra_gate_integrity.py` vigila
+`check_ci_config.py`, no este arnés. Ahora hay una tupla `CONTROLES_OBLIGATORIOS`
+(`G0`, `G13`, `G14`, `G14-neg`, `G15`, `G16`, `G17`, `Gneg`, `AFP`) y la
+calibración falla si alguno no se ha ejecutado. Es de **exigencias**: escribir un
+nombre ahí añade un control obligatorio.
+
+Y dos diagnósticos que eran trazas:
+
+- vaciar `FINDINGS_DUROS` o renombrar `rutas_sin_auth` daba `KeyError:
+  'AD-rutas_sin_auth'`. Fallaba cerrado, pero el operador veía una traza. Ahora
+  dice que el caso **ya no se genera** y remite a G14, G15, G16 y G17;
+- `Gneg` con un conjunto vacío decía «OK» habiendo comprobado **0 nombres**. Un
+  conjunto vacío ya no pasa.
 
 ## 3.sexies Dos cosas que hay que leer como coste, no como avería
 
@@ -402,8 +525,8 @@ Implementación (`gate.py`, hallazgo `panel-encendido`):
 | suite del visor con la sonda (`-p route_map.pytest_route_probe`), genera `--tested` | **57 s** (1565 passed, 191 skipped) |
 | censo (`route_map.py` con sonda) | **4,7 s** |
 | puerta (`gate.py`) | **~2 s** |
-| calibración (`calibrate_gate.py`, 44 casos + 15 ablaciones, un subproceso cada uno) | **~90 s** |
-| **total del job** | **≈ 155 s** más la instalación de dependencias |
+| calibración (`calibrate_gate.py`, 46 casos + 15 ablaciones, un subproceso cada uno) | **~120 s** |
+| **total del job** | **≈ 185 s** más la instalación de dependencias |
 
 ## 6. Recuento de jobs
 
