@@ -34,41 +34,69 @@ LOS TRES SALTOS DE LA DERIVACION
      (``_NODE_TECHNICAL_FIELDS``), que es como ``updated_at`` llega a la
      pantalla.
 
-FALLO CERRADO ANTE UN PINTOR NUEVO
-==================================
-La primera version fallaba ABIERTA: la deteccion de pintores solo casaba
-``ast.Name``, asi que ``serializers.serialize_node(n)``, un alias o un helper no
-se detectaban, y la resolucion de plantillas no cubria f-strings ni ``DIC['k']``.
-Una plantilla nueva escrita con cualquiera de esas formas traia campos sin
-ablacion y NADIE enrojecia: desaparecia del conjunto en silencio. Ahora:
+FALLO CERRADO ANTE UN PINTOR NUEVO: LOS DOS LADOS
+=================================================
+Un pintor puede escaparse por dos sitios, y hay que cerrar LOS DOS. La primera
+version solo cerro uno, y el revisor lo midio con un pintor escrito con
+``functools.partial``::
 
-* los nombres que valen como ``serialize_node`` se resuelven por alias de
-  importacion y por atributo (``serializers.serialize_node``);
-* el «llama a un pintor» es TRANSITIVO y ATRAVIESA MODULOS: se calcula el punto
-  fijo de «funciones que llaman a una funcion sembradora», asi que delegar la
-  serializacion en un helper no esconde nada;
-* cuando el valor no se puede fijar pero SI se conoce el dominio, se ENSANCHA en
-  vez de estrechar: ``chassis_slot.py`` renderiza ``slot.template`` con ``slot``
-  como PARAMETRO --una linea que sirve las cuatro pantallas de hueco-- y ahi se
-  toman las CUATRO plantillas del contrato del chasis. Estrechar pierde
-  pintores; ensanchar solo puede sobrar;
-* y toda funcion que renderice con un nombre de plantilla que NO se puede
-  resolver ni acotar sale en ``renderizadores_no_clasificables()``, que un test
-  pone ROJO. No desaparece del conjunto: grita.
+    partial -> pintadas={}   no_clasificables=[]
 
-COSTE MEDIDO del fallo cerrado: sobre los 51 puntos de render de ``viewer/app``,
-la primera version de esta guarda senalo DOS (ambos la misma linea de
-``chassis_slot.py``, vista desde la funcion externa y desde la interna). Con el
-ensanchamiento por dominio, la lista queda VACIA: cero falsos positivos, y
-ninguna exencion escrita a mano.
+El pintor DESAPARECIA sin gritar: el nombre de la plantilla si resolvia, asi
+que el unico fallo cerrado que habia no se activaba, y como el sembrado no se
+reconocia, la funcion se descartaba en silencio. Un caso silencioso, no
+ruidoso, que es exactamente el defecto que este fichero existe para impedir.
 
-COTA QUE QUEDA (declarada, no implicita)
-----------------------------------------
+* **Lado A -- la plantilla.** Una funcion que renderiza un nombre que no se
+  puede resolver ni acotar sale como no clasificable.
+* **Lado B -- el sembrado.** Una funcion que renderiza y NO se reconoce como
+  pintora, pero en la que ha quedado algo sin resolver, sale TAMBIEN como no
+  clasificable. La respuesta honesta ahi no es «no pinta»: es «no lo se».
+
+Lo que si se RESUELVE (y por tanto no cuesta un falso positivo): llamada
+directa, alias de importacion (``... as sn``), uso por atributo
+(``serializers.serialize_node``), helper en otro modulo (punto fijo transitivo
+a->b->c), render bajo condicional, **alias encadenado** (``sn2 = sn``, incluido
+el de ambito de modulo) y **envoltorio** (``partial(sn)``) cuando su argumento
+es un nombre. Lo que se DENUNCIA: dict-dispatch (``FUNCS['s'](x)``) y cualquier
+invocado que no sea ``Name`` ni ``Attribute``, y los envoltorios sobre algo que
+no es un nombre. Las NUEVE formas estan en ``FORMAS_DE_PINTOR`` y cada una se
+ejerce: o reconocida, o denunciada. Ninguna puede desaparecer.
+
+ENSANCHAR SOLO DONDE CONSTA EL TIPO
+-----------------------------------
+``chassis_slot.py`` renderiza ``slot.template`` con ``slot`` como PARAMETRO: una
+linea que sirve las cuatro pantallas de hueco. Ahi se toman las CUATRO
+plantillas del chasis... **pero solo porque el parametro esta ANOTADO como
+``FeatureSlot``** (la anotacion se busca tambien en los ambitos externos, que es
+donde vive: el render esta en el cierre ``slot_screen``).
+
+La cautela es del revisor y hay que decirla con sus palabras: de los 11 renders
+de ``<x>.template`` de ``viewer/app``, 10 tienen base resoluble y solo ese es
+irresoluble, y ahi ``pinta=False``, asi que **el ensanchamiento no aporta hoy ni
+una plantilla**. Sin atarlo al tipo, su unico efecto seria evitar que esa linea
+saliera como no clasificable --funcionalmente una EXENCION-- y, peor, cualquier
+futuro ``x.template`` que NO fuera del chasis se le atribuiria en vez de gritar:
+ahi ensanchar no «solo sobra», **SUSTITUYE**. Con la anotacion exigida, un
+``x.template`` sin tipo declarado no se ensancha: se denuncia.
+
+COTA QUE QUEDA (declarada, y ahora RUIDOSA)
+------------------------------------------
 El punto fijo empareja por NOMBRE de funcion, no por resolucion completa de
-imports: un helper importado con ``as`` y con un nombre distinto en cada modulo
-seguiria sin verse. Cerrar eso exige un grafo de llamadas de verdad. Lo que NO
-queda abierto es el caso silencioso: si ese helper renderiza, su plantilla
-tendra un nombre resoluble o caera en ``renderizadores_no_clasificables()``.
+imports: un helper importado con ``as`` bajo otro nombre en cada modulo seguiria
+sin reconocerse COMO PINTOR. Lo que ya no ocurre es que se pierda en silencio:
+si esa funcion renderiza y su sembrado no se resuelve, cae en el lado B. La cota
+que queda es de PRECISION (puede denunciar de mas), no de SILENCIO.
+
+COSTE MEDIDO de los dos fallos cerrados: sobre los 51 puntos de render de
+``viewer/app``, ``renderizadores_no_clasificables()`` esta VACIO. Cero falsos
+positivos y ninguna exencion escrita a mano.
+
+MIS PROPIOS CONTROLES, ABLACIONADOS
+-----------------------------------
+Quitar el lado B (``if not pinta and motivos`` -> ``if False``): **2 failed**.
+Quitar la atadura del ensanchamiento a la anotacion: **1 failed**. Los dos son
+load-bearing; medido con reversion por SHA-256.
 
 POR QUE HAY DOS REDES Y LAS DOS SON NECESARIAS
 ==============================================
@@ -157,6 +185,110 @@ def _llamadas(nodo: ast.AST) -> set[str]:
                         if isinstance(c, ast.Call)) if n}
 
 
+#: Nombres que envuelven una funcion sin llamarla: `partial(f)` es `f` diferido.
+_ENVOLTORIOS = {"partial", "singledispatch", "wraps", "lru_cache", "cache"}
+
+
+def _expandir(nodo: ast.AST, sembradoras_: set[str]) -> tuple[set[str], list[str]]:
+    """``(siembra, motivos por los que NO se puede afirmar que no siembre)``.
+
+    ESTE ES EL AGUJERO QUE CIERRA (revision de `9217381`)
+    ------------------------------------------------------
+    La version anterior contestaba con un `bool` y punto: si no reconocia la
+    llamada, la funcion se descartaba EN SILENCIO. Medido por el revisor con un
+    pintor escrito con `functools.partial`::
+
+        partial -> pintadas={}   no_clasificables=[]
+
+    El pintor desaparecia sin gritar. El fallo cerrado de entonces solo cubria
+    «no se que plantilla renderiza»; este cubre el otro lado, «no se si
+    siembra», que es el que producia casos SILENCIOSOS en vez de ruidosos.
+
+    Devuelve motivos --no un `bool`-- para que quien no se pueda clasificar
+    acabe en `renderizadores_no_clasificables()` y ponga un test ROJO:
+
+    * **alias encadenado** (`sn2 = sn`): se RESUELVE, propagando por
+      asignaciones `Name = Name` hasta punto fijo.
+    * **envoltorio** (`partial(sn)`): se RESUELVE si el argumento es un nombre;
+      si no lo es, es motivo de no clasificable.
+    * **dict-dispatch** (`FUNCS['s'](x)`): NO se puede resolver, y por eso es
+      motivo. Cualquier llamada cuyo invocado no sea `Name` ni `Attribute`
+      cuenta igual: `(lambda...)()`, `f()()`, `objs[i].m()`.
+    """
+    motivos: list[str] = []
+
+    # (a) alias encadenados y envoltorios, por punto fijo dentro de este ambito.
+    locales: set[str] = set()
+    cambio = True
+    while cambio:
+        cambio = False
+        for a in ast.walk(nodo):
+            if not (isinstance(a, ast.Assign) and len(a.targets) == 1
+                    and isinstance(a.targets[0], ast.Name)):
+                continue
+            destino = a.targets[0].id
+            if destino in locales:
+                continue
+            v = a.value
+            origen = None
+            if isinstance(v, (ast.Name, ast.Attribute)):
+                origen = v.id if isinstance(v, ast.Name) else v.attr
+            elif isinstance(v, ast.Call) and _nombre_llamado(v) in _ENVOLTORIOS:
+                primero = v.args[0] if v.args else None
+                if isinstance(primero, (ast.Name, ast.Attribute)):
+                    origen = (primero.id if isinstance(primero, ast.Name)
+                              else primero.attr)
+                else:
+                    motivos.append(
+                        f"envoltorio `{_nombre_llamado(v)}` sobre algo que no es "
+                        f"un nombre (linea {v.lineno})")
+                    continue
+            if origen and (origen in sembradoras_ or origen in locales):
+                locales.add(destino)
+                cambio = True
+    # (b) invocados irresolubles: no se puede afirmar que NO siembren.
+    for c in ast.walk(nodo):
+        if isinstance(c, ast.Call) and not isinstance(c.func, (ast.Name, ast.Attribute)):
+            motivos.append(
+                f"invocado irresoluble `{type(c.func).__name__}` (linea {c.lineno})")
+
+    return sembradoras_ | locales, motivos
+
+
+def _sembrado(nodo: ast.AST, sembradoras_: set[str]) -> tuple[bool, list[str]]:
+    """``(siembra, motivos)`` para UNA funcion, con los nombres ya extendidos."""
+    nombres, motivos = _expandir(nodo, sembradoras_)
+    return bool(_llamadas(nodo) & nombres), motivos
+
+
+def _anotaciones(pila) -> dict[str, str]:
+    """``parametro -> nombre del tipo anotado``, incluidos los ambitos externos.
+
+    Hace falta el ambito externo porque el caso real vive en un cierre:
+    `build_slot_router(slot: FeatureSlot)` define `slot` y la anotacion, y quien
+    renderiza es la funcion interna `slot_screen`.
+    """
+    out: dict[str, str] = {}
+    for fn in pila:
+        args = fn.args
+        for a in list(args.posonlyargs) + list(args.args) + list(args.kwonlyargs):
+            if isinstance(a.annotation, ast.Name):
+                out[a.arg] = a.annotation.id
+            elif isinstance(a.annotation, ast.Attribute):
+                out[a.arg] = a.annotation.attr
+    return out
+
+
+def _funciones_con_pila(nodo, pila=()):
+    """Cada funcion con la PILA de funciones que la contienen."""
+    for hijo in ast.iter_child_nodes(nodo):
+        if isinstance(hijo, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            yield hijo, pila + (hijo,)
+            yield from _funciones_con_pila(hijo, pila + (hijo,))
+        else:
+            yield from _funciones_con_pila(hijo, pila)
+
+
 def _funciones(arbol: ast.AST):
     for n in ast.walk(arbol):
         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -205,7 +337,7 @@ def _plantillas_del_chasis() -> list[str]:
     return [s.template for s in FEATURE_SLOTS]
 
 
-def _nombres_de_plantilla(nodo, modulo) -> list[str]:
+def _nombres_de_plantilla(nodo, modulo, anotaciones=None) -> list[str]:
     """Nombres a los que PUEDE resolver ese argumento. Lista vacia = no se sabe.
 
     Devuelve una LISTA, no un nombre, porque hay un caso real en el que el valor
@@ -228,9 +360,14 @@ def _nombres_de_plantilla(nodo, modulo) -> list[str]:
             v = getattr(base, nodo.attr, None)
             if isinstance(v, str) and v.endswith(".html"):
                 return [v]
-        # `<algo>.template` sin base resoluble: es el contrato del chasis y su
-        # dominio son los cuatro huecos.
-        if nodo.attr == "template":
+        # `<x>.template` con `x` ANOTADO como `FeatureSlot`: el valor no se puede
+        # fijar pero el DOMINIO si, y son los cuatro huecos. El ensanchamiento va
+        # ATADO A LA ANOTACION a proposito (ver la nota «ENSANCHAR SOLO DONDE
+        # CONSTA EL TIPO» en la cabecera): sin ella, un `x.template` de otra cosa
+        # se atribuiria al chasis en vez de gritar, y ensanchar dejaria de
+        # «sobrar» para pasar a SUSTITUIR.
+        if nodo.attr == "template" and isinstance(nodo.value, ast.Name) \
+           and (anotaciones or {}).get(nodo.value.id) == "FeatureSlot":
             return _plantillas_del_chasis()
     return []
 
@@ -249,32 +386,62 @@ def _analizar() -> tuple[dict[str, set[str]], list[str]]:
     no_clasificables: list[str] = []
 
     for py, arbol in arboles.items():
-        modulo = None
-        for fn in _funciones(arbol):
-            renders = _renders(fn)
-            if not renders:
+        p, nc = _analizar_arbol(arbol, nombres, py.relative_to(VIEWER_ROOT),
+                                lambda py=py: _modulo_importado(py))
+        for k, v in p.items():
+            pintadas.setdefault(k, set()).update(v)
+        no_clasificables.extend(nc)
+    return pintadas, no_clasificables
+
+
+def _analizar_arbol(arbol, nombres, ruta, dame_modulo):
+    """El analisis de UN arbol. Se separa para poder CALIBRARLO con codigo
+    sintetico: es la unica forma de demostrar que un pintor escrito con
+    `partial` o con dict-dispatch enrojece en vez de desaparecer."""
+    pintadas: dict[str, set[str]] = {}
+    no_clasificables: list[str] = []
+    modulo = None
+    # Los alias de ESTE modulo y los encadenados de su ambito global: `sn2 = sn`
+    # vive fuera de la funcion que lo usa, asi que mirar solo dentro de la
+    # funcion lo perdia -- y perderlo era, otra vez, un pintor en silencio.
+    nombres, motivos_modulo = _expandir(arbol, nombres | _alias_de_la_semilla(arbol))
+    for fn, pila in _funciones_con_pila(arbol):
+        renders = _renders(fn)
+        if not renders:
+            continue
+        if modulo is None:
+            modulo = dame_modulo()
+        donde = f"{ruta}::{fn.name}"
+        anot = _anotaciones(pila)
+        pinta, motivos = _sembrado(fn, nombres)
+
+        for c in renders:
+            candidatos = [
+                n
+                for a in list(c.args) + [k.value for k in c.keywords]
+                for n in _nombres_de_plantilla(a, modulo, anot)
+            ]
+            resueltas = [n for n in candidatos
+                         if (PLANTILLAS_DIR / n).is_file()]
+            if not resueltas:
+                # FALLO CERRADO (1): no se sabe QUE se renderiza aqui, asi
+                # que tampoco se puede afirmar que no pinte nodos.
+                no_clasificables.append(
+                    f"{donde}: plantilla irresoluble (linea {c.lineno})")
                 continue
-            if modulo is None:
-                modulo = _modulo_importado(py)
-            pinta = bool(_llamadas(fn) & nombres)
-            for c in renders:
-                candidatos = [
-                    n
-                    for a in list(c.args) + [k.value for k in c.keywords]
-                    for n in _nombres_de_plantilla(a, modulo)
-                ]
-                resueltas = [n for n in candidatos
-                             if (PLANTILLAS_DIR / n).is_file()]
-                if not resueltas:
-                    # FALLO CERRADO: no se sabe QUE se renderiza aqui, asi que
-                    # tampoco se puede afirmar que no pinte nodos. Grita en vez
-                    # de desaparecer del conjunto.
-                    no_clasificables.append(
-                        f"{py.relative_to(VIEWER_ROOT)}::{fn.name} (linea {c.lineno})")
-                    continue
-                if pinta:
-                    for n in resueltas:
-                        pintadas.setdefault(n, set()).add(f"{py.name}::{fn.name}")
+            if pinta:
+                for n in resueltas:
+                    pintadas.setdefault(n, set()).add(
+                        f"{Path(str(ruta)).name}::{fn.name}")
+
+        # FALLO CERRADO (2): el sembrado. Si la funcion NO se reconoce como
+        # pintora pero hay algo que no se ha podido resolver, la respuesta
+        # honesta no es «no pinta»: es «no lo se». Sin esto, un pintor
+        # escrito con `partial` o con dict-dispatch DESAPARECIA en silencio
+        # -- medido: `partial -> pintadas={} no_clasificables=[]`.
+        if not pinta and motivos:
+            no_clasificables.append(f"{donde}: sembrado sin resolver -- "
+                                    + "; ".join(sorted(set(motivos))))
     return pintadas, no_clasificables
 
 
@@ -560,6 +727,138 @@ def test_el_fallo_cerrado_MUERDE():
     assert not candidatos, (
         "una f-string NO puede resolverse a un nombre de plantilla; si esto pasa, "
         "el fallo cerrado estaria clasificando lo que no puede leer")
+
+
+#: Las SIETE formas con las que el revisor atacó el descubrimiento sobre
+#: `9217381`. Cada una es un modulo sintetico que pinta `entity.html` -- el
+#: nombre de la plantilla SI resuelve en todas, que es lo que hacia peligrosas a
+#: las tres ultimas: al no reconocerse el sembrado, la funcion se descartaba en
+#: SILENCIO en vez de gritar.
+#:
+#: `esperado` es lo unico que se admite: o se RECONOCE como pintora, o sale como
+#: NO CLASIFICABLE. Lo que ninguna puede hacer es desaparecer.
+FORMAS_DE_PINTOR = (
+    ("directa", "reconocida", """
+from app.serializers import serialize_node
+def v(request, n):
+    return templates.TemplateResponse(request, "entity.html", {"e": serialize_node(n)})
+"""),
+    ("alias de importacion", "reconocida", """
+from app.serializers import serialize_node as sn
+def v(request, n):
+    return templates.TemplateResponse(request, "entity.html", {"e": sn(n)})
+"""),
+    ("por atributo", "reconocida", """
+from app import serializers
+def v(request, n):
+    return templates.TemplateResponse(request, "entity.html", {"e": serializers.serialize_node(n)})
+"""),
+    ("helper de otro modulo", "reconocida", """
+from app.routers.readonly import _with_other
+def v(request, e):
+    return templates.TemplateResponse(request, "entity.html", {"e": _with_other(e, "to")})
+"""),
+    ("bajo condicional", "reconocida", """
+from app.serializers import serialize_node
+def v(request, n, quiere):
+    ctx = {}
+    if quiere:
+        ctx["e"] = serialize_node(n)
+    return templates.TemplateResponse(request, "entity.html", ctx)
+"""),
+    ("alias encadenado", "reconocida", """
+from app.serializers import serialize_node as sn
+sn2 = sn
+def v(request, n):
+    return templates.TemplateResponse(request, "entity.html", {"e": sn2(n)})
+"""),
+    ("envoltorio partial", "reconocida", """
+from functools import partial
+from app.serializers import serialize_node
+pintar = partial(serialize_node)
+def v(request, n):
+    return templates.TemplateResponse(request, "entity.html", {"e": pintar(n)})
+"""),
+    ("dict-dispatch", "no clasificable", """
+from app.serializers import serialize_node
+FUNCS = {"s": serialize_node}
+def v(request, n):
+    return templates.TemplateResponse(request, "entity.html", {"e": FUNCS["s"](n)})
+"""),
+    ("envoltorio sobre algo que no es un nombre", "no clasificable", """
+from functools import partial
+FUNCS = {"s": None}
+def v(request, n):
+    pintar = partial(FUNCS["s"])
+    return templates.TemplateResponse(request, "entity.html", {"e": pintar(n)})
+"""),
+)
+
+
+@pytest.mark.parametrize("nombre,esperado,fuente", FORMAS_DE_PINTOR,
+                         ids=[n for n, _, _ in FORMAS_DE_PINTOR])
+def test_ningun_pintor_DESAPARECE_en_silencio(nombre, esperado, fuente):
+    """EL ARREGLO DE FONDO. Medido por el revisor sobre `9217381`::
+
+        partial -> pintadas={}   no_clasificables=[]
+
+    Un pintor que no se reconoce y tampoco se denuncia es un campo sin ablacion
+    y sin nadie que enrojezca: el mismo defecto que este carril existe para
+    impedir, un nivel mas arriba. Aqui se exige que CADA forma acabe en uno de
+    los dos cajones honestos -- reconocida o no clasificable -- y NUNCA en el
+    tercero, que es el silencio.
+    """
+    pintadas, sueltos = _analizar_arbol(
+        ast.parse(fuente), sembradoras(), Path("sintetico.py"), lambda: None)
+
+    if esperado == "reconocida":
+        assert "entity.html" in pintadas, (
+            f"la forma «{nombre}» NO se reconoce como pintora y TAMPOCO sale "
+            f"como no clasificable: {sueltos}. Desaparece en silencio.")
+        assert not sueltos, f"reconocida y ademas denunciada: {sueltos}"
+    else:
+        assert "entity.html" not in pintadas
+        assert sueltos, (
+            f"la forma «{nombre}» ni se reconoce ni se denuncia: DESAPARECE en "
+            f"silencio, que es exactamente el defecto que este control cierra")
+
+    # En los dos casos hay respuesta. El silencio se comprueba explicitamente.
+    assert pintadas or sueltos, f"la forma «{nombre}» no produjo NINGUNA respuesta"
+
+
+def test_el_ensanchamiento_esta_ATADO_a_la_anotacion():
+    """El ensanchamiento por dominio (`<x>.template` -> las cuatro del chasis)
+    solo vale cuando CONSTA que `x` es un `FeatureSlot`.
+
+    Por que importa, con la medida del revisor: de 11 renders de `<x>.template`
+    en `viewer/app`, 10 tienen base resoluble y solo la de `chassis_slot.py` no,
+    y ahi `pinta=False`, asi que hoy el ensanchamiento NO aporta ni una
+    plantilla. Su unico efecto seria evitar que esa linea salga como no
+    clasificable -- funcionalmente, una exencion. Y sin la anotacion, un
+    `x.template` de OTRA cosa se atribuiria al chasis en vez de gritar:
+    ensanchar dejaria de «sobrar» para SUSTITUIR. Con la anotacion exigida,
+    ensanchar solo puede sobrar.
+    """
+    con = """
+from app.chassis import FeatureSlot
+from app.serializers import serialize_node
+def v(request, slot: FeatureSlot, n):
+    return templates.TemplateResponse(request, slot.template, {"e": serialize_node(n)})
+"""
+    sin = con.replace("slot: FeatureSlot", "slot")
+
+    pintadas, sueltos = _analizar_arbol(ast.parse(con), sembradoras(),
+                                        Path("sintetico.py"), lambda: None)
+    assert set(pintadas) == set(_plantillas_del_chasis()), (
+        f"con la anotacion, el dominio son los cuatro huecos: {sorted(pintadas)}")
+    assert not sueltos
+
+    pintadas, sueltos = _analizar_arbol(ast.parse(sin), sembradoras(),
+                                        Path("sintetico.py"), lambda: None)
+    assert not pintadas, (
+        "sin anotacion NO se puede afirmar que ese `.template` sea del chasis: "
+        "atribuirselo seria SUSTITUIR, no sobrar")
+    assert sueltos, "y sin anotacion tiene que GRITAR, no callarse"
 
 
 def test_el_descubrimiento_de_pintores_ve_las_formas_INDIRECTAS():
