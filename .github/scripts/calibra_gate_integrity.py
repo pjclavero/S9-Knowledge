@@ -323,6 +323,24 @@ def m_neutraliza_con_dospuntos() -> None:
     )
 
 
+def m_borra_gate_exigido() -> None:
+    """Se deja de invocar el gate de inventario de suites.
+
+    El job sigue existiendo, el fichero sigue en el arbol, y el gate no se
+    ejecuta nunca. `JOBS_EXIGIDOS` no ve esto: protege jobs, no pasos.
+    """
+    _sustituye(
+        CI,
+        "          python3 .github/scripts/check_suite_inventory.py --escribir-inventario >/dev/null\n",
+        "          echo 'el gate ya no se invoca'\n",
+    )
+    _sustituye(
+        CI,
+        "          python3 .github/scripts/check_suite_inventory.py\n",
+        "          echo 'el gate ya no se invoca'\n",
+    )
+
+
 def m_borra_job_exigido() -> None:
     """Un gate desaparece en una resolucion de conflicto y nada se pone rojo."""
     _sustituye(CI, "  check-env-reproducibility:\n", "  check-env-reproducibility-desactivado:\n")
@@ -450,6 +468,7 @@ CASOS = [
     ("`|| true` tras un gate dentro del `run:`", m_neutraliza_con_true, ROJO),
     ("`|| :` (builtin nulo) tras un gate dentro del `run:`", m_neutraliza_con_dospuntos, ROJO),
     ("job exigido que desaparece de ci.yml", m_borra_job_exigido, ROJO),
+    ("gate exigido que deja de INVOCARSE (el job sigue)", m_borra_gate_exigido, ROJO),
     ("`if ! GATE` sin fallo en el bloque (apagado condicional)", m_if_negado_sin_fallo, ROJO),
     ("control positivo: `if ! GATE` que termina en `exit 1` (guardia)", m_if_negado_con_exit, VERDE),
     ("A4: gate invocado por VARIABLE (indireccion)", m_gate_por_variable, ROJO),

@@ -205,6 +205,20 @@ JOBS_EXIGIDOS = {
     ),
 }
 
+# Gates cuya INVOCACION tiene que seguir existiendo en `ci.yml`. `JOBS_EXIGIDOS`
+# protege el job; esto protege el PASO. Son cosas distintas y la diferencia ya
+# ha mordido: un job puede sobrevivir a una fusion con uno de sus pasos menos, y
+# entonces el gate esta en el arbol, en verde, sin ejecutarse nunca.
+#
+# Los dos de aqui abajo son la respuesta al ejercicio RC 1, donde silenciar un
+# fichero de test entero dejaba CI en verde. Si desaparecen, vuelve el agujero.
+GATES_EXIGIDOS = {
+    "ci.yml": (
+        ".github/scripts/check_suite_inventory.py",
+        ".github/scripts/calibra_suite_inventory.py",
+    ),
+}
+
 # Ramas efimeras de maquina: no se les EXIGE CI. Con la politica universal
 # `**` de todas formas la tienen, y esto solo evita que su ausencia se pueda
 # alegar como excusa; la exencion sigue siendo EXPLICITA y esta a la vista.
@@ -769,6 +783,31 @@ def comprueba_jobs_exigidos(datos: dict, nombre: str) -> list[str]:
     ]
 
 
+def comprueba_gates_exigidos(datos: dict, nombre: str) -> list[str]:
+    """Un gate que puede dejar de INVOCARSE sin ponerse rojo no es un gate."""
+    exigidos = GATES_EXIGIDOS.get(nombre, ())
+    if not exigidos:
+        return []
+    # Solo cuentan las lineas que EJECUTAN el gate. Nombrarlo en un comentario
+    # o dentro de un `echo` no lo ejecuta, y la primera version de esta
+    # comprobacion se daba por satisfecha con eso: su propia calibracion la
+    # cazo saliendo VERDE con las dos invocaciones sustituidas por `echo`.
+    lineas = []
+    for job in (datos.get("jobs") or {}).values():
+        for _, cuerpo in pasos_run(job):
+            lineas += cuerpo.splitlines()
+    invocadas = [l for l in lineas
+                 if re.match(r"\s*(sudo\s+)?python[0-9.]*\s+\S*\.py\b", l)]
+    texto = "\n".join(invocadas)
+    return [
+        f"{nombre}: ningun paso invoca `{gate}`. El fichero puede seguir en el "
+        f"arbol y no ejecutarse NUNCA: el gate estaria en verde sin comprobar "
+        f"nada, que es justo el fallo que ese gate existe para cerrar."
+        for gate in exigidos
+        if gate not in texto
+    ]
+
+
 def ficheros_con_skip_critico() -> dict[str, list[str]]:
     """Tests que se auto-omiten si falta una herramienta -> herramientas."""
     hallazgos: dict[str, list[str]] = {}
@@ -888,6 +927,7 @@ def main() -> int:
         errores += comprueba_neutralizacion(datos, ruta.name)
         errores += comprueba_if_negado(datos, ruta.name)
         errores += comprueba_jobs_exigidos(datos, ruta.name)
+        errores += comprueba_gates_exigidos(datos, ruta.name)
 
     if CI.name in parseados:
         errores += comprueba_skips_criticos(parseados[CI.name], CI.name)

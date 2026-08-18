@@ -1,0 +1,384 @@
+#!/usr/bin/env python3
+"""Calibracion de `check_suite_inventory.py`: tiene que PONERSE ROJO.
+
+Regla del operador: «Una afirmacion no constituye evidencia porque exista un
+test verde. La evidencia aparece cuando: sabes que comportamiento afirma;
+calibras el mecanismo que lo mide; introduces una violacion; el sistema se pone
+rojo; reviertes; vuelve a verde.»
+
+Este arnes NO simula. Escribe los ficheros de verdad —incluidos los tres que el
+revisor adversarial del ejercicio RC 1 silencio uno por uno—, ejecuta el gate,
+lee el codigo de retorno y restaura. La reversion se verifica por HASH SHA-256
+de cada fichero tocado, no por la presencia de una cadena: comprobar que «ya no
+esta el `pytestmark`» no demuestra que el fichero haya vuelto a ser el mismo.
+
+    ┌───────────────────────────────────────────────────────────────────────┐
+    │  AVISO: ESTE SCRIPT MUTA FICHEROS REALES DEL ARBOL, EN EL SITIO.      │
+    │  Borra ficheros de test durante unos segundos por caso. Cualquier     │
+    │  otra cosa que lea el repositorio a la vez vera esa mutacion y dara   │
+    │  un resultado FALSO. Toma un CERROJO y se niega a arrancar si ya hay  │
+    │  otra copia corriendo. Restaura SIEMPRE en `finally`.                 │
+    └───────────────────────────────────────────────────────────────────────┘
+
+DOS FAMILIAS DE CASOS
+=====================
+1. CONTROLES NEGATIVOS. Cada ataque demostrado vivo en el ejercicio RC, mas los
+   que el operador exigio: silenciar cada uno de los tres ficheros, borrarlos,
+   una caida anormal del recuento, y una dependencia ausente (`jsonschema`,
+   `PyYAML`). Todos tienen que salir ROJOS.
+
+   La dependencia ausente NO se finge con una bandera: se bloquea de verdad el
+   import mediante un `sitecustomize.py` en `PYTHONPATH` que instala un
+   `MetaPathFinder` que rechaza ese modulo. El gate y el pytest que el gate
+   lanza lo heredan, asi que el modulo desaparece de la coleccion exactamente
+   igual que si no estuviera instalado. Ver `_entorno_sin(paquete)`.
+
+2. ABLACION. Para cada control (A, B, C, D, E) se aplica la mutacion que ese
+   control caza y se ejecuta el gate CON ESE CONTROL DESACTIVADO
+   (`S9K_INVENTARIO_ABLACION`). El resultado tiene que volverse VERDE. Si sale
+   rojo igual, el control no es el que estaba sujetando ese caso; si TODOS los
+   casos siguen rojos sin el, el control sobra. Un control que puede
+   desaparecer sin que ningun resultado empeore no cuenta como defensa.
+
+Uso:  python3 .github/scripts/calibra_suite_inventory.py
+Sale 0 si TODOS los casos dan el veredicto esperado.
+"""
+from __future__ import annotations
+
+import fcntl
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+GATE = REPO / ".github" / "scripts" / "check_suite_inventory.py"
+BASE = REPO / ".github" / "suite-inventario.json"
+
+# Los TRES ficheros del ejercicio RC 1, textualmente. No se eligen por bonitos:
+# son los que el revisor adversarial silencio uno por uno viendo CI en verde.
+PARCIALIDAD = REPO / "viewer" / "tests" / "test_parcialidad_declarada.py"
+IDENTIDAD = REPO / "viewer" / "tests" / "test_identidad_durable.py"
+CHASIS = REPO / "viewer" / "tests" / "test_chassis_mount_contract.py"
+TRES_DEL_RC = (PARCIALIDAD, IDENTIDAD, CHASIS)
+
+# Cualquier fichero que una mutacion pueda tocar. Se salvan enteros y se
+# restauran verificando el SHA-256.
+TOCABLES = TRES_DEL_RC
+
+VERDE, ROJO = "VERDE", "ROJO"
+
+CERROJO = (REPO / ".git" / "s9k-calibra-inventario.lock") if (REPO / ".git").is_dir() \
+    else Path(tempfile.gettempdir()) / "s9k-calibra-inventario.lock"
+
+SILENCIADOR = (
+    "\nimport pytest as _pytest_silenciador  # INYECTADO POR LA CALIBRACION\n"
+    "pytestmark = _pytest_silenciador.mark.skip(reason='calibracion')\n"
+)
+
+
+def toma_cerrojo():
+    fh = open(CERROJO, "w")
+    try:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        fh.close()
+        raise SystemExit(
+            f"ERROR: ya hay otra calibracion corriendo ({CERROJO}). Este script "
+            f"MUTA y BORRA ficheros de test en el sitio; dos a la vez se pisan y "
+            f"producen rojos falsos."
+        )
+    return fh
+
+
+def sha(datos: bytes) -> str:
+    return hashlib.sha256(datos).hexdigest()
+
+
+# --------------------------------------------------------------------------
+# Bloqueo REAL de un paquete (no una bandera que finja su ausencia)
+# --------------------------------------------------------------------------
+
+def _entorno_sin(paquete: str) -> tuple[dict, str]:
+    """Entorno en el que `paquete` NO se puede importar, de verdad.
+
+    Un `sitecustomize.py` en `PYTHONPATH` instala un `MetaPathFinder` que
+    rechaza ese nombre. Lo heredan el gate Y el `pytest` que el gate lanza como
+    subproceso, asi que los modulos con `importorskip(paquete)` desaparecen de
+    la coleccion igual que si el paquete no estuviera instalado. Es el mismo
+    efecto que midio el revisor adversarial desinstalando PyYAML, sin tocar el
+    entorno de la maquina.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix=f"sin-{paquete}-"))
+    (tmp / "sitecustomize.py").write_text(
+        "import sys\n"
+        f"_BLOQUEADO = {paquete!r}\n"
+        "class _Veto:\n"
+        "    def find_module(self, nombre, ruta=None):\n"
+        "        return None\n"
+        "    def find_spec(self, nombre, ruta=None, destino=None):\n"
+        "        if nombre == _BLOQUEADO or nombre.startswith(_BLOQUEADO + '.'):\n"
+        "            raise ModuleNotFoundError(f'bloqueado por la calibracion: {nombre}')\n"
+        "        return None\n"
+        "sys.meta_path.insert(0, _Veto())\n"
+        "for _n in [m for m in sys.modules if m == _BLOQUEADO or m.startswith(_BLOQUEADO + '.')]:\n"
+        "    del sys.modules[_n]\n",
+        encoding="utf-8")
+    entorno = dict(os.environ)
+    previo = entorno.get("PYTHONPATH", "")
+    entorno["PYTHONPATH"] = f"{tmp}{os.pathsep}{previo}" if previo else str(tmp)
+    return entorno, str(tmp)
+
+
+def ejecuta_gate(entorno: dict | None = None) -> tuple[int, str]:
+    ent = dict(entorno or os.environ)
+    ent["PYTHONDONTWRITEBYTECODE"] = "1"
+    p = subprocess.run(
+        [sys.executable, str(GATE), "--base-fichero", str(BASE)],
+        cwd=REPO, capture_output=True, text=True, timeout=2400, env=ent,
+    )
+    return p.returncode, p.stdout + p.stderr
+
+
+# --------------------------------------------------------------------------
+# Mutaciones
+# --------------------------------------------------------------------------
+
+def m_silencia(ruta: Path):
+    def mutacion():
+        ruta.write_text(ruta.read_text(encoding="utf-8") + SILENCIADOR, encoding="utf-8")
+    return mutacion
+
+
+def m_borra(ruta: Path):
+    def mutacion():
+        ruta.unlink()
+    return mutacion
+
+
+def m_skipif_disfrazado():
+    """`skipif(True, ...)`: tiene forma de condicional y es un apagado total."""
+    PARCIALIDAD.write_text(
+        PARCIALIDAD.read_text(encoding="utf-8")
+        + "\nimport pytest as _p_cal  # INYECTADO POR LA CALIBRACION\n"
+          "pytestmark = _p_cal.mark.skipif(True, reason='calibracion')\n",
+        encoding="utf-8")
+
+
+def m_skipif_condicional():
+    """`skipif` sobre una condicion inventada: A1 no lo ve, A2 (trinquete) si."""
+    PARCIALIDAD.write_text(
+        PARCIALIDAD.read_text(encoding="utf-8")
+        + "\nimport os as _os_cal, pytest as _p_cal  # INYECTADO POR LA CALIBRACION\n"
+          "pytestmark = _p_cal.mark.skipif(\n"
+          "    not _os_cal.environ.get('S9K_UNA_CONDICION_INVENTADA'),\n"
+          "    reason='calibracion')\n",
+        encoding="utf-8")
+
+
+def m_caida_de_recuento():
+    """Se vacian los tests de un modulo sin borrarlo: el recuento cae.
+
+    No se toca ningun otro modulo, a proposito: asi se demuestra que el
+    trinquete es POR MODULO y que anadir tests en otro sitio no lo compensa,
+    que es la objecion del operador a un simple minimo N por job.
+    """
+    lineas = CHASIS.read_text(encoding="utf-8").splitlines(keepends=True)
+    salida, saltando = [], False
+    quitados = 0
+    for linea in lineas:
+        if linea.startswith("def test_"):
+            if quitados < 5:
+                saltando, quitados = True, quitados + 1
+                continue
+            saltando = False
+        elif saltando and (linea.startswith(("def ", "class ", "@")) or
+                           (linea.strip() and not linea[0].isspace())):
+            saltando = False
+        if not saltando:
+            salida.append(linea)
+    if quitados == 0:
+        raise SystemExit("MUTACION IMPOSIBLE: no se encontraron `def test_` en el chasis")
+    CHASIS.write_text("".join(salida), encoding="utf-8")
+
+
+# Ficheros que la calibracion CREA. Se borran en `finally` pasen las cosas
+# como pasen: un fichero de calibracion olvidado en `viewer/tests` seria
+# basura ejecutandose en CI.
+NUEVO_ROTO = REPO / "viewer" / "tests" / "test_calibracion_modulo_que_no_colecciona.py"
+NUEVO_SIN_DECLARAR = REPO / "viewer" / "tests" / "test_calibracion_dependencia_no_declarada.py"
+CREADOS = (NUEVO_ROTO, NUEVO_SIN_DECLARAR)
+
+
+def m_modulo_no_recolecta():
+    """Modulo NUEVO que define tests y no llega a coleccionarse.
+
+    Aisla el control B: como no estaba en la base, C y D no lo miran; no
+    silencia nada, asi que A no lo ve; y no usa `importorskip`, asi que E
+    tampoco. Si al quitar B esto sale VERDE, B es el unico que lo sujetaba.
+    """
+    NUEVO_ROTO.write_text(
+        "# Creado por calibra_suite_inventory.py; se borra al terminar.\n"
+        "raise ImportError('la coleccion de este modulo falla a proposito')\n"
+        "\n"
+        "def test_que_nunca_se_recolecta():\n"
+        "    assert True\n", encoding="utf-8")
+
+
+def m_dependencia_no_declarada():
+    """Modulo NUEVO con `importorskip` de un paquete instalado y NO declarado.
+
+    Aisla el control E (mitad DECLARACION): el paquete importa, asi que el
+    modulo SI se recolecta y B no lo ve; no silencia nada (A); es nuevo, asi
+    que C y D no lo miran. Lo unico que puede ponerse rojo aqui es E.
+    """
+    NUEVO_SIN_DECLARAR.write_text(
+        "# Creado por calibra_suite_inventory.py; se borra al terminar.\n"
+        "import pytest\n"
+        # `certifi` esta instalado (llega con `requests`/`httpx`) y NO figura en
+        # `viewer/requirements.txt`, que es lo unico que instalan `test-viewer` y
+        # `route-map-gate`. Es el caso real: hoy importa, y el dia que deje de
+        # llegar por transitividad estas pruebas se vuelven skips verdes.
+        "certifi = pytest.importorskip('certifi')\n"
+        "\n"
+        "def test_usa_una_dependencia_no_declarada():\n"
+        "    assert certifi is not None\n", encoding="utf-8")
+
+
+CASOS = [
+    # (titulo, mutacion, paquete_bloqueado, ablacion, esperado)
+    ("estado correcto (control positivo)", None, None, None, VERDE),
+
+    # --- controles negativos exigidos por el operador -------------------
+    ("RC-1a: `pytestmark = skip` en test_parcialidad_declarada.py",
+     m_silencia(PARCIALIDAD), None, None, ROJO),
+    ("RC-1b: `pytestmark = skip` en test_identidad_durable.py",
+     m_silencia(IDENTIDAD), None, None, ROJO),
+    ("RC-1c: `pytestmark = skip` en test_chassis_mount_contract.py",
+     m_silencia(CHASIS), None, None, ROJO),
+    ("`skipif(True, ...)`: skip disfrazado de condicional",
+     m_skipif_disfrazado, None, None, ROJO),
+    ("`skipif` sobre condicion inventada (lo caza el trinquete A2)",
+     m_skipif_condicional, None, None, ROJO),
+    ("RC-2a: borrar test_parcialidad_declarada.py", m_borra(PARCIALIDAD), None, None, ROJO),
+    ("RC-2b: borrar test_identidad_durable.py", m_borra(IDENTIDAD), None, None, ROJO),
+    ("RC-2c: borrar test_chassis_mount_contract.py", m_borra(CHASIS), None, None, ROJO),
+    ("caida anormal del recuento (5 tests menos en UN modulo)",
+     m_caida_de_recuento, None, None, ROJO),
+    ("RC-3a: `jsonschema` ausente (30+ modulos con importorskip)",
+     None, "jsonschema", None, ROJO),
+    ("RC-3b: `PyYAML` ausente", None, "yaml", None, ROJO),
+
+    # --- casos que AISLAN un control (previos a su ablacion) ------------
+    ("modulo nuevo que no llega a coleccionarse (aisla B)",
+     m_modulo_no_recolecta, None, None, ROJO),
+    ("dependencia usada y NO declarada en el job (aisla E)",
+     m_dependencia_no_declarada, None, None, ROJO),
+
+    # --- ablacion: quitar el control tiene que EMPEORAR el resultado -----
+    ("ABLACION A: silenciar con el anti-silenciado quitado",
+     m_silencia(PARCIALIDAD), None, "A", VERDE),
+    ("ABLACION B: modulo que no colecciona con la anti-desaparicion quitada",
+     m_modulo_no_recolecta, None, "B", VERDE),
+    ("ABLACION C: borrar el fichero con el anti-borrado quitado",
+     m_borra(IDENTIDAD), None, "C", VERDE),
+    ("ABLACION D: caida de recuento con el trinquete de recuento quitado",
+     m_caida_de_recuento, None, "D", VERDE),
+    ("ABLACION E: dependencia no declarada con el preflight quitado",
+     m_dependencia_no_declarada, None, "E", VERDE),
+
+    ("restaurado (control positivo final)", None, None, None, VERDE),
+]
+
+
+def main() -> int:
+    if not BASE.exists():
+        print(f"ERROR: falta {BASE.relative_to(REPO)}; sin base no hay trinquete "
+              f"que calibrar. Generalo con `--escribir-inventario`.")
+        return 1
+
+    cerrojo = toma_cerrojo()
+    print(f"(cerrojo tomado: {CERROJO}; este script MUTA Y BORRA ficheros de "
+          f"test en el sitio, no lo ejecutes en paralelo con nada)")
+
+    respaldo = {f: f.read_bytes() for f in TOCABLES}
+    hashes = {f: sha(datos) for f, datos in respaldo.items()}
+    print("\nSHA-256 de los ficheros tocables ANTES de calibrar:")
+    for f, h in hashes.items():
+        print(f"  {h}  {f.relative_to(REPO)}")
+
+    filas, fallos, temporales = [], 0, []
+    try:
+        for titulo, mutacion, bloqueado, ablacion, esperado in CASOS:
+            # Estado limpio ANTES de cada caso: el arbol que se mide no puede
+            # arrastrar la mutacion del caso anterior.
+            for f, datos in respaldo.items():
+                f.write_bytes(datos)
+            for f in CREADOS:
+                f.unlink(missing_ok=True)
+            entorno = dict(os.environ)
+            entorno.pop("S9K_INVENTARIO_ABLACION", None)
+            if bloqueado:
+                entorno, tmp = _entorno_sin(bloqueado)
+                temporales.append(tmp)
+            if ablacion:
+                entorno["S9K_INVENTARIO_ABLACION"] = ablacion
+            print(f"\n########## {titulo}  (esperado: {esperado})")
+            if mutacion is not None:
+                mutacion()
+            rc, salida = ejecuta_gate(entorno)
+            obtenido = VERDE if rc == 0 else ROJO
+            print("\n".join(salida.splitlines()[-25:]))
+            print(f"RC={rc}  ->  {obtenido}")
+            ok = obtenido == esperado
+            fallos += 0 if ok else 1
+            motivo = "sin errores"
+            for linea in salida.splitlines():
+                if linea.startswith("::error::"):
+                    motivo = linea[len("::error::"):].strip().replace("|", "/")[:110]
+                    break
+            filas.append((titulo, esperado, rc, obtenido,
+                          "OK" if ok else "**DESVIACION**", motivo))
+    finally:
+        # Restaurar SIEMPRE, tambien ante Ctrl-C: dejar un fichero de test
+        # borrado en el arbol seria peor que no haber calibrado.
+        for f, datos in respaldo.items():
+            f.write_bytes(datos)
+        for f in CREADOS:
+            f.unlink(missing_ok=True)
+        for tmp in temporales:
+            subprocess.run(["rm", "-rf", tmp], timeout=30)
+        fcntl.flock(cerrojo, fcntl.LOCK_UN)
+        cerrojo.close()
+
+    print("\n===== REVERSION VERIFICADA POR SHA-256 =====")
+    desvios = 0
+    for f, esperado_h in hashes.items():
+        real = sha(f.read_bytes())
+        marca = "OK" if real == esperado_h else "**NO COINCIDE**"
+        desvios += 0 if real == esperado_h else 1
+        print(f"  {marca}  {real}  {f.relative_to(REPO)}")
+    if desvios:
+        print("FALLO: la reversion no devolvio los ficheros a su contenido exacto")
+        fallos += desvios
+
+    print("\n\n===== TABLA DE CALIBRACION =====\n")
+    print("| Caso | Esperado | RC | Obtenido | Veredicto | Primer error |")
+    print("|---|---|---|---|---|---|")
+    for fila in filas:
+        print("| {} | {} | {} | {} | {} | {} |".format(*fila))
+
+    if fallos:
+        print(f"\nCALIBRACION FALLIDA: {fallos} desviacion(es)")
+        return 1
+    print(f"\nCALIBRACION SUPERADA: {len(filas)}/{len(filas)} casos con el "
+          f"veredicto esperado, y los {len(hashes)} ficheros tocados restaurados "
+          f"con el MISMO SHA-256")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

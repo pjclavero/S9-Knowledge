@@ -331,6 +331,53 @@ jobs:
             exit 1
           fi
 
+      # -----------------------------------------------------------------
+      # Inventario de suites como PUERTA (ejercicio RC 1)
+      # -----------------------------------------------------------------
+      # `N passed` comprueba que se ejecuto ALGO, jamas que se ejecuto LO QUE
+      # TENIA QUE EJECUTARSE. Un revisor adversarial lo demostro VIVO: puso
+      # `pytestmark = skip` en `test_parcialidad_declarada.py`, en
+      # `test_identidad_durable.py` y en `test_chassis_mount_contract.py`, uno
+      # por uno, y este job siguio VERDE (1554 / 1565 / 1488 passed). Y sin
+      # PyYAML, 293 -> 215 passed sin que nada avisara.
+      #
+      # Este paso vive AQUI y no en un job propio a proposito: un job nuevo
+      # cambiaria el recuento de checks requeridos (hoy 16 del proyecto) y eso
+      # es decision del operador, no efecto colateral de un carril. Ademas este
+      # es el unico job con TODAS las dependencias instaladas y con
+      # `fetch-depth: 0`, que es lo que el trinquete necesita para leer el
+      # inventario del merge-base.
+      #
+      # La lista de suites obligatorias NO se escribe aqui ni en ningun sitio:
+      # se DERIVA de lo que los jobs invocan, de la coleccion real, de los
+      # arneses de calibracion y del inventario de la base. Ver la cabecera de
+      # `.github/scripts/check_suite_inventory.py`.
+      - name: Ninguna suite critica puede desaparecer ni silenciarse
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/check_suite_inventory.py
+
+      # El inventario es una MEDIDA, no una lista: se regenera. Si el commit no
+      # trae el inventario actualizado, la base del trinquete del PR siguiente
+      # seria la de antes y el trinquete afloja solo.
+      - name: El inventario publicado tiene que estar al dia
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/check_suite_inventory.py --escribir-inventario >/dev/null
+          if ! git diff --quiet -- .github/suite-inventario.json; then
+            echo "::error::.github/suite-inventario.json esta desactualizado."
+            echo "Regeneralo:  python3 .github/scripts/check_suite_inventory.py --escribir-inventario"
+            git --no-pager diff --stat -- .github/suite-inventario.json
+            exit 1
+          fi
+          echo "OK: el inventario publicado coincide con la medida"
+
   review-ingest-contracts:
     name: Contratos review/ingest v1 (JSON Schema)
     runs-on: ubuntu-latest
@@ -347,7 +394,12 @@ jobs:
           # Sin `|| true`: si falta jsonschema el gate falla, no pasa en verde.
           set -euo pipefail
           python -m pip install --upgrade pip
-          pip install "jsonschema>=4.18,<5.0" "pytest>=8.2,<9.0"
+          # `referencing` se IMPORTA con `importorskip` en los tests de
+          # contratos. Hasta ahora llegaba solo como dependencia transitiva de
+          # `jsonschema`: el dia que jsonschema cambie de rango, esas pruebas se
+          # convierten en skips VERDES y nadie se entera. Lo detecto
+          # el preflight de `check_suite_inventory.py` y se declara explicito.
+          pip install "jsonschema>=4.18,<5.0" "referencing>=0.36,<1.0" "pytest>=8.2,<9.0"
           python -c "import jsonschema, referencing; print('jsonschema', jsonschema.__version__)"
 
       - name: Validate contracts (schemas + examples + semantics)
@@ -380,7 +432,12 @@ jobs:
           # Sin `|| true`: si falta jsonschema el gate falla, no pasa en verde.
           set -euo pipefail
           python -m pip install --upgrade pip
-          pip install "jsonschema>=4.18,<5.0" "pytest>=8.2,<9.0"
+          # `referencing` se IMPORTA con `importorskip` en los tests de
+          # contratos. Hasta ahora llegaba solo como dependencia transitiva de
+          # `jsonschema`: el dia que jsonschema cambie de rango, esas pruebas se
+          # convierten en skips VERDES y nadie se entera. Lo detecto
+          # el preflight de `check_suite_inventory.py` y se declara explicito.
+          pip install "jsonschema>=4.18,<5.0" "referencing>=0.36,<1.0" "pytest>=8.2,<9.0"
           python -c "import jsonschema, referencing; print('jsonschema ok')"
 
       - name: Validate V3 contracts (roundtrip + mutacion)
@@ -481,6 +538,21 @@ jobs:
         env:
           S9K_ALLOW_REAL_INGEST: ""
         run: python3 scripts/calibracion/mutaciones_calidad_datos.py
+
+      # Mismo principio, tercer gate: el inventario de suites. Introduce de
+      # VERDAD cada ataque del ejercicio RC —silenciar los tres ficheros,
+      # borrarlos, tumbar el recuento, quitar `jsonschema` y `PyYAML`—, exige
+      # el ROJO, y ADEMAS hace la ablacion de cada control: con el control
+      # quitado el caso tiene que volver a VERDE. Un control que puede
+      # desaparecer sin que ningun resultado empeore no es un control.
+      #
+      # La reversion se verifica por SHA-256 de cada fichero tocado, no por la
+      # ausencia de una cadena.
+      - name: El inventario de suites se pone ROJO ante cada ataque (y ablacion)
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 .github/scripts/calibra_suite_inventory.py
 
   # Instalado desde .github/ci-fragments/check-env-reproducibility.yml. Si un
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
