@@ -46,7 +46,15 @@ PROVEEDOR = RAIZ / "viewer" / "app" / "providers" / "neo4j_provider.py"
 ESQUEMA = RAIZ / "data-engine" / "app" / "knowledge_v3" / "writer" / "schema.py"
 #: Todos los ficheros que este arnes puede tocar. Se leen enteros ANTES de
 #: mutar nada y se restauran verificando SHA-256.
-MUTABLES = (PROVEEDOR, ESQUEMA)
+#: Tercera superficie mutable (carril 4 de V3.1): el modulo que redacta la
+#: DECLARACION DE PARCIALIDAD. Entra aqui porque su superviviente no se podia
+#: ver de ninguna otra forma: mutar `"limit": limit` a `"limit": 999999` dejaba
+#: la suite del visor entera en verde (1576 passed sobre main=aaf9695). Un
+#: metadato cuyo VALOR nadie comprueba es una clave, no una declaracion.
+VISTA = RAIZ / "viewer" / "app" / "graph_view.py"
+#: Todos los ficheros que este arnes puede tocar. Se leen enteros ANTES de
+#: mutar nada y se restauran verificando SHA-256.
+MUTABLES = (PROVEEDOR, ESQUEMA, VISTA)
 SUITE = "viewer/tests/test_identidad_durable.py"
 #: La suite entera del visor tambien tiene que enrojecer con el defecto puesto:
 #: si solo enrojeciera el fichero nuevo, el gate seria un apendice.
@@ -54,17 +62,23 @@ SUITE_AMPLIA = "viewer/tests/test_serializers.py"
 #: Solo corren con `NEO4J_TEST_URI` definido (en CI, el job de Neo4j efimero).
 SUITE_NEO4J = "viewer/tests/test_neo4j_integration_authz.py"
 SUITE_CONTRATO = "viewer/tests/test_contrato_paneles_neo4j.py"
+#: Parcialidad declarada. NO necesita Neo4j (usa el proveedor mock), asi que sus
+#: mutaciones se ejercen SIEMPRE, tambien en un portatil sin contenedores.
+SUITE_PARCIALIDAD = "viewer/tests/test_parcialidad_declarada.py"
 MINIMO_TESTS = 10
 #: SUELO DE LAS MUTACIONES, hermano de `MINIMO_TESTS`. Sin el, un arnes al que
 #: alguien vaciara `MUTACIONES` -- o al que se le quedaran todas sin objetivo --
 #: imprimiria `ejercidas=0 enrojecidas=0 declaradas_sin_ejercer=0` y
 #: `veredicto=CALIBRADO`, saldria con rc=0 y estaria MUDO Y VERDE: exactamente
 #: el fallo que este fichero existe para impedir, un nivel mas arriba.
-MINIMO_MUTACIONES = 16
+#: Sube a 21 con el carril 4 de V3.1: +3 de PARCIALIDAD POR VALOR (offline) y
+#: +2 de CONTRATO DE PANELES (los dos campos que la tabla `ABLACIONES` no
+#: cubria: `aliases` y `updated_at`).
+MINIMO_MUTACIONES = 21
 #: Las que no necesitan Neo4j. Se ejercen SIEMPRE, tambien en un portatil sin
 #: contenedores, asi que este suelo se puede exigir incondicionalmente. El suelo
 #: de las 12 (con base efimera) lo impone el paso de CI, que sabe si hay Neo4j.
-MINIMO_EJERCIDAS = 4
+MINIMO_EJERCIDAS = 7
 
 
 def sha256(p: Path) -> str:
@@ -267,6 +281,57 @@ MUTACIONES = [
         '"REQUIRE (n.workspace, n.assertion_id) IS UNIQUE"',
         '"REQUIRE (n.workspace, n.assertion_id, n.scope, n.predicate) IS UNIQUE"',
         [SUITE_NEO4J] if os.environ.get("NEO4J_TEST_URI") else [],
+    ),
+    # --- MV1-MV3: PARCIALIDAD POR VALOR (carril 4 de V3.1).
+    #
+    # MV1 es EL SUPERVIVIENTE: medido sobre `main=aaf9695`, con `"limit":
+    # 999999` publicado en el bloque `view` la suite del visor entera seguia
+    # verde (1576 passed). La clave estaba, el valor mentia y NINGUN
+    # instrumento lo miraba. Las tres conservan la clave a proposito: borrarla
+    # ya lo cazaba `CLAVES_DE_VISTA`; lo que no se cazaba era el VALOR.
+    (
+        "MV1: `view.limit` publica un tope que nadie pidio (la clave sigue ahi)",
+        VISTA,
+        '        "limit": limit,',
+        '        "limit": 999999,',
+        [SUITE_PARCIALIDAD],
+    ),
+    (
+        "MV2: `nodes_total` cuenta el RECORTE en vez del conjunto autorizado",
+        VISTA,
+        '        "nodes_total": len(nodes),',
+        '        "nodes_total": len(mostrados),',
+        [SUITE_PARCIALIDAD],
+    ),
+    (
+        "MV3: `edges_shown` cuenta lo que NO se entrego",
+        VISTA,
+        '        "edges_shown": len(relaciones),',
+        '        "edges_shown": len(edges),',
+        [SUITE_PARCIALIDAD],
+    ),
+    # --- MC1-MC2: CONTRATO DE PANELES, los dos campos que sobrevivian.
+    #
+    # `aliases` y `updated_at` los consumen las plantillas (`entity.html` los
+    # pinta: el primero en su propio campo, el segundo dentro del bloque
+    # «Datos tecnicos») y NO aparecian en la tabla `ABLACIONES` ni en ninguna
+    # otra prueba. Con la proyeccion mutilada, el panel salia igual de verde.
+    # Ahora la seccion 2-bis del contrato los ablaciona nombre a nombre; estas
+    # dos mutaciones lo comprueban desde el otro lado, en el PROVEEDOR: si
+    # alguien vacia esa seccion, aqui se ve.
+    (
+        "MC1: `aliases` deja de viajar desde Neo4j (la proyeccion lo olvida)",
+        PROVEEDOR,
+        '        "aliases": props.get("aliases", []),\n',
+        "",
+        [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
+    ),
+    (
+        "MC2: `updated_at` deja de viajar desde Neo4j (bloque tecnico mutilado)",
+        PROVEEDOR,
+        '        "updated_at": props.get("updated_at"),\n',
+        "",
+        [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
     ),
 ]
 

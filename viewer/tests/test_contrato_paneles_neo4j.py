@@ -36,10 +36,15 @@ NUNCA PRODUCCION. Solo contenedor/instancia efimera y local.
 """
 from __future__ import annotations
 
+import ast
+import importlib
 import os
 import re
 from pathlib import Path
 from urllib.parse import urlparse
+
+import jinja2
+from jinja2 import nodes as JN
 
 import pytest
 from fastapi.testclient import TestClient
@@ -129,9 +134,20 @@ def _respaldo_de_relacion() -> str:
 SEMILLA: tuple[dict, ...] = (
     # --- el nodo que se ablaciona. Completo a proposito: es el unico sobre el
     #     que se mide, y necesita tener TODO para poder perderlo.
+    #     Los campos de ANCLA (carril 4 de V3.1) llevan valores unicos y
+    #     reconocibles a proposito: ver `ANCLAS_DE_LA_FICHA` mas abajo. Un
+    #     fixture cuyo valor coincide con el respaldo de la plantilla no puede
+    #     distinguir «llego el dato» de «se aplico el degradado» -- el falso
+    #     negativo que ya se pago con `relation_label_es`.
     dict(entity_id="abl", canonical_name="Nodo de ablacion", entity_type="PERSONAJE",
          description=TEXTO_DESCRIPCION, confidence=0.91, review_status="reviewed",
          source_document=FUENTE_ABL, source_kind="pdf",
+         aliases=["Alias unico de ablacion"], source_pages=[4242],
+         created_at="2019-01-01T00:00:00Z-creado-abl",
+         updated_at="2020-02-02T00:00:00Z-actualizado-abl",
+         extractor_version="extractor-9.9.9-abl",
+         prompt_version="prompt-8.8.8-abl",
+         source_hash="hash-de-ablacion-7777",
          workspace=WS, scope="juego", visibility="player"),
     # --- testigo: NUNCA se toca. Si una ablacion lo moviera, la ablacion no
     #     estaria midiendo lo que dice medir.
@@ -1818,3 +1834,507 @@ def test_EXCEPCION_el_id_de_arista_en_api_graph_SI_es_el_element_id(
     # Ningun NODO, en cambio, admite excepcion.
     for n in datos["nodes"]:
         assert n["id"] not in fisicos, f"un nodo viaja como elementId: {n['id']}"
+
+
+# ===========================================================================
+# 2-bis. LA LISTA DE CAMPOS SE DERIVA, NO SE ESCRIBE (carril 4 de V3.1)
+#
+# EL HUECO QUE ESTO CIERRA
+# ------------------------
+# Sobre `main=aaf9695`, `aliases` y `updated_at` de `_node_to_dict` los
+# consumen las plantillas y NO aparecian en `ABLACIONES` ni en ninguna otra
+# prueba: quitarlos de la proyeccion dejaba todo verde. No fue un descuido
+# puntual, fue el metodo: la tabla `ABLACIONES` era una lista DOCUMENTAL
+# mantenida a mano, y una lista a mano se queda corta el dia que alguien pinta
+# un campo nuevo en una plantilla.
+#
+# Aqui la lista de campos a proteger se DERIVA de codigo ejecutable, en tres
+# saltos, cada uno leido con AST (o con el AST de Jinja), nunca con `grep`:
+#
+#   1. QUE PLANTILLAS PINTAN NODOS. Se buscan las funciones de `viewer/app`
+#      que llaman a `serialize_node` Y renderizan una plantilla, y se resuelve
+#      el nombre de esa plantilla -- incluso cuando no es una cadena literal
+#      (`SLOT.template`, `ITEM_TEMPLATE`), importando el modulo y leyendo el
+#      valor real. Asi el panel G entra por su contrato del chasis y no porque
+#      alguien escriba su nombre aqui.
+#   2. QUE ATRIBUTOS CONSUME CADA PLANTILLA. Se parsea la plantilla con el
+#      parser de Jinja y se recogen los `Getattr`/`Getitem`. `{{ entity.foo }}`
+#      cuenta; un comentario que mencione `foo`, no.
+#   3. DE QUE PROPIEDAD DE NEO4J SALE CADA ATRIBUTO. Se compone el diccionario
+#      devuelto por `serialize_node` (atributo -> claves del nodo crudo) con el
+#      devuelto por `_node_to_dict` (clave -> `props.get("...")`). El bloque
+#      `technical` se expande por su constante real (`_NODE_TECHNICAL_FIELDS`),
+#      que es como llegan `updated_at` y compania a la pantalla.
+#
+# EL COSTE, DECLARADO Y DELIBERADO
+# --------------------------------
+# La proteccion NO crece sola: un campo nuevo consumido por una plantilla pone
+# ROJO `test_la_lista_de_campos_se_DERIVA_de_las_plantillas` hasta que alguien
+# lo CLASIFICA en `CAMPOS_CLASIFICADOS`. Se elige asi porque una ablacion no es
+# solo un nombre: necesita una semilla con valor de ancla, una superficie donde
+# observarse y un DEGRADADO DECLARADO. Generar eso automaticamente produciria
+# ablaciones que «pasan» sin medir nada -- exactamente la clase de verde vacio
+# que este fichero existe para impedir. El precio es una parada; la alternativa
+# era volver a la lista a mano.
+# ===========================================================================
+
+VIEWER_ROOT = Path(__file__).resolve().parents[1]
+APP_DIR = VIEWER_ROOT / "app"
+PLANTILLAS_DIR = APP_DIR / "templates"
+
+
+def _modulo_de(ruta: Path):
+    """El modulo YA IMPORTADO que corresponde a ese fichero.
+
+    Hace falta para resolver `SLOT.template` e `ITEM_TEMPLATE`: son valores,
+    no literales, y leerlos del texto seria adivinar.
+    """
+    punteado = ".".join(ruta.relative_to(VIEWER_ROOT).with_suffix("").parts)
+    try:
+        return importlib.import_module(punteado)
+    except Exception:
+        return None
+
+
+def _nombre_de_plantilla(nodo, modulo):
+    if isinstance(nodo, ast.Constant) and isinstance(nodo.value, str) \
+       and nodo.value.endswith(".html"):
+        return nodo.value
+    if modulo is None:
+        return None
+    if isinstance(nodo, ast.Name):
+        v = getattr(modulo, nodo.id, None)
+        return v if isinstance(v, str) and v.endswith(".html") else None
+    if isinstance(nodo, ast.Attribute) and isinstance(nodo.value, ast.Name):
+        base = getattr(modulo, nodo.value.id, None)
+        v = getattr(base, nodo.attr, None)
+        return v if isinstance(v, str) and v.endswith(".html") else None
+    return None
+
+
+def _llama_a(fn, nombre: str) -> bool:
+    return any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+               and c.func.id == nombre for c in ast.walk(fn))
+
+
+def plantillas_que_pintan_nodos() -> dict[str, set[str]]:
+    """``plantilla -> {fichero::funcion}`` que la renderiza pintando un nodo."""
+    salida: dict[str, set[str]] = {}
+    for py in sorted(APP_DIR.rglob("*.py")):
+        texto = py.read_text(encoding="utf-8")
+        if "serialize_node" not in texto:
+            continue
+        try:
+            arbol = ast.parse(texto)
+        except SyntaxError:
+            continue
+        modulo = None
+        for fn in ast.walk(arbol):
+            if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if not _llama_a(fn, "serialize_node"):
+                continue
+            if modulo is None:
+                modulo = _modulo_de(py)
+            for c in ast.walk(fn):
+                if not (isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
+                        and c.func.attr == "TemplateResponse"):
+                    continue
+                for arg in list(c.args) + [k.value for k in c.keywords]:
+                    n = _nombre_de_plantilla(arg, modulo)
+                    if n and (PLANTILLAS_DIR / n).is_file():
+                        salida.setdefault(n, set()).add(f"{py.name}::{fn.name}")
+    return salida
+
+
+def atributos_de_plantilla(plantilla: str) -> set[str]:
+    """Atributos que la plantilla CONSUME, por el AST de Jinja."""
+    arbol = jinja2.Environment().parse(
+        (PLANTILLAS_DIR / plantilla).read_text(encoding="utf-8"))
+    out = set()
+    for g in arbol.find_all(JN.Getattr):
+        out.add(g.attr)
+    for g in arbol.find_all(JN.Getitem):
+        if isinstance(g.arg, JN.Const) and isinstance(g.arg.value, str):
+            out.add(g.arg.value)
+    return out
+
+
+def _lecturas(expr, var: str) -> set[str]:
+    """`var.get("x")` y `var["x"]` dentro de una expresion."""
+    out = set()
+    for c in ast.walk(expr):
+        if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute) \
+           and c.func.attr == "get" and isinstance(c.func.value, ast.Name) \
+           and c.func.value.id == var and c.args and isinstance(c.args[0], ast.Constant):
+            out.add(c.args[0].value)
+        if isinstance(c, ast.Subscript) and isinstance(c.value, ast.Name) \
+           and c.value.id == var and isinstance(c.slice, ast.Constant):
+            out.add(c.slice.value)
+    return out
+
+
+def _dict_devuelto(ruta: Path, funcion: str, var: str) -> dict[str, set[str]]:
+    """``clave del dict devuelto -> claves de entrada que la alimentan``.
+
+    Se resuelven tambien las variables locales (`technical`, `entity_type`,
+    `name`, `confidence`) y las constantes de modulo en MAYUSCULAS que
+    contengan cadenas: asi `technical` se expande por `_NODE_TECHNICAL_FIELDS`
+    de verdad y no por una copia escrita aqui.
+    """
+    arbol = ast.parse(ruta.read_text(encoding="utf-8"))
+    fn = next(n for n in ast.walk(arbol)
+              if isinstance(n, ast.FunctionDef) and n.name == funcion)
+    ret = next(n for n in ast.walk(fn) if isinstance(n, ast.Return))
+    assert isinstance(ret.value, ast.Dict), (
+        f"{funcion} ya no devuelve un diccionario literal: la derivacion no "
+        f"puede leerlo y esta prueba tiene que detenerse, no adivinar")
+    modulo = _modulo_de(ruta)
+    locales: dict[str, set[str]] = {}
+    for n in fn.body:
+        if isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name):
+            leidas = _lecturas(n.value, var)
+            for c in ast.walk(n.value):
+                if isinstance(c, ast.Name) and c.id.upper() == c.id:
+                    v = getattr(modulo, c.id, None)
+                    if isinstance(v, (tuple, list, set, frozenset)) and \
+                       all(isinstance(x, str) for x in v):
+                        leidas |= set(v)
+            locales[n.targets[0].id] = leidas
+    mapa: dict[str, set[str]] = {}
+    for k, v in zip(ret.value.keys, ret.value.values):
+        leidas = _lecturas(v, var)
+        for c in ast.walk(v):
+            if isinstance(c, ast.Name) and c.id in locales:
+                leidas |= locales[c.id]
+        mapa[k.value] = leidas
+    return mapa
+
+
+def _propiedades_desde(pares) -> dict[str, set[tuple[str, str]]]:
+    """``propiedad de Neo4j -> {(plantilla, atributo) que la consume}``.
+
+    Se separa de `propiedades_neo4j_consumidas` para poder CALIBRAR la
+    derivacion: se le pueden pasar pares inventados y comprobar que la cadena
+    de composicion los sigue hasta la propiedad.
+    """
+    ser = _dict_devuelto(APP_DIR / "serializers.py", "serialize_node", "node")
+    prov = _dict_devuelto(APP_DIR / "providers" / "neo4j_provider.py",
+                          "_node_to_dict", "props")
+    evidencia: dict[str, set[tuple[str, str]]] = {}
+    for plantilla, attr in pares:
+        for clave in ser.get(attr, ()):
+            for prop in prov.get(clave, ()):
+                evidencia.setdefault(prop, set()).add((plantilla, attr))
+    return evidencia
+
+
+def propiedades_neo4j_consumidas() -> dict[str, set[tuple[str, str]]]:
+    return _propiedades_desde(
+        (plantilla, attr)
+        for plantilla in plantillas_que_pintan_nodos()
+        for attr in atributos_de_plantilla(plantilla)
+    )
+
+
+# ---------------------------------------------------------------------------
+# Ablacion en la FICHA `/entity/{id}` (`entity.html`)
+#
+# Los ocho campos de aqui NO se ven en el panel G ni en el F: viven en la ficha
+# de solo lectura. `aliases` y `updated_at` son los dos supervivientes medidos;
+# los otros seis entraron con ellos porque la derivacion los senala y ninguno
+# tenia ablacion.
+#
+# `ancla` es el texto EXACTO que el valor produce en el HTML. Ninguno coincide
+# con el respaldo de la plantilla (`'-'` para alias y paginas, la desaparicion
+# de la clave para el bloque tecnico), que es la condicion que hace observable
+# la ablacion.
+# ---------------------------------------------------------------------------
+#: (campo, ancla en el HTML, degradado declarado)
+ABLACIONES_FICHA = (
+    ("aliases", "Alias unico de ablacion", "el campo Alias cae al guion"),
+    ("source_pages", "4242", "el campo Paginas cae al guion"),
+    ("description", TEXTO_DESCRIPCION, "el parrafo de descripcion desaparece"),
+    ("created_at", "2019-01-01T00:00:00Z-creado-abl", "sale del bloque tecnico"),
+    ("updated_at", "2020-02-02T00:00:00Z-actualizado-abl", "sale del bloque tecnico"),
+    ("extractor_version", "extractor-9.9.9-abl", "sale del bloque tecnico"),
+    ("prompt_version", "prompt-8.8.8-abl", "sale del bloque tecnico"),
+    ("source_hash", "hash-de-ablacion-7777", "sale del bloque tecnico"),
+)
+
+#: Valor sembrado de cada campo de la ficha, para poder RESTAURARLO. Sale de
+#: la propia semilla, no de una segunda copia escrita a mano: si la semilla
+#: cambiara, la restauracion la sigue.
+_ABL = next(n for n in SEMILLA if n["entity_id"] == "abl")
+VALOR_SEMBRADO = {campo: _ABL[campo] for campo, _, _ in ABLACIONES_FICHA}
+
+
+#: LA CLASIFICACION. Cada propiedad de Neo4j que las plantillas consumen dice
+#: DONDE se ablaciona. No es la lista de campos --esa se deriva-- sino la
+#: respuesta a «¿como se mide este?», que es lo unico que no se puede derivar.
+CAMPOS_CLASIFICADOS: dict[str, str] = {
+    # Panel G (lista), tabla `ABLACIONES`.
+    "canonical_name": "ABLACIONES:G",
+    "entity_type": "ABLACIONES:G",
+    "confidence": "ABLACIONES:G",
+    "review_status": "ABLACIONES:G",
+    "source_document": "ABLACIONES:G",
+    "visibility": "ABLACIONES:G",
+    "workspace": "ABLACIONES:G",
+    # Panel F (fuentes), misma tabla.
+    "source_kind": "ABLACIONES:F",
+    # Ficha `/entity/{id}`, tabla `ABLACIONES_FICHA`.
+    "aliases": "ABLACIONES_FICHA",
+    "source_pages": "ABLACIONES_FICHA",
+    "description": "ABLACIONES_FICHA",
+    "created_at": "ABLACIONES_FICHA",
+    "updated_at": "ABLACIONES_FICHA",
+    "extractor_version": "ABLACIONES_FICHA",
+    "prompt_version": "ABLACIONES_FICHA",
+    "source_hash": "ABLACIONES_FICHA",
+    # Dos que no caben en ninguna tabla y tienen prueba propia, NOMBRADA:
+    # `display_name` no esta sembrado (el respaldo es `canonical_name`), asi
+    # que su ablacion necesita ponerlo primero; y quitar `entity_id` deja al
+    # nodo sin la clave por la que se le busca, asi que hay que restaurarlo
+    # por otra.
+    "display_name": "test:test_ablacion_de_display_name_devuelve_el_nombre_canonico",
+    "entity_id": "test:test_ablacion_de_entity_id_retira_la_entidad_de_los_paneles",
+}
+
+
+def _ficha(app_real, entorno, elid: str, nombre_usuario: str) -> str:
+    """La ficha `/entity/{id}` renderizada, que es donde se pintan estos ocho."""
+    c = cliente(app_real, usuario(entorno, nombre_usuario, ROL["G"]))
+    r = c.get(f"/entity/{elid}")
+    assert r.status_code == 200, (
+        f"la ficha /entity/{elid} respondio {r.status_code}: sin observacion no "
+        f"hay ablacion que medir (esta suite no puede pasar por no mirar)")
+    return r.text
+
+
+def test_la_ficha_de_solo_lectura_es_una_superficie_OBSERVABLE(app_real, proveedor,
+                                                               entorno, elemento):
+    """SUELO de la seccion. Antes de ablacionar nada: las ocho anclas estan, y
+    cada una aparece UNA SOLA VEZ.
+
+    La unicidad no es cosmetica: si dos campos compartieran ancla, el rojo de
+    uno seria el rojo del otro y uno de los dos estaria sin cubrir sin que se
+    notara. Es la misma regla que el arnes de mutaciones impone a sus anclas.
+    """
+    html = _ficha(app_real, entorno, elemento["abl"], "ficha_suelo")
+    anclas = [ancla for _, ancla, _ in ABLACIONES_FICHA]
+    assert len(set(anclas)) == len(anclas), "hay anclas repetidas en ABLACIONES_FICHA"
+    for campo, ancla, _ in ABLACIONES_FICHA:
+        assert html.count(ancla) == 1, (
+            f"el ancla de `{campo}` aparece {html.count(ancla)} veces en la ficha; "
+            f"tiene que aparecer exactamente 1 para que su rojo sea suyo")
+
+
+@pytest.mark.parametrize("campo,ancla,degradado", ABLACIONES_FICHA,
+                         ids=[c for c, _, _ in ABLACIONES_FICHA])
+def test_quitar_un_campo_que_la_FICHA_consume_pone_algo_ROJO(
+    driver, app_real, proveedor, entorno, elemento, campo, ancla, degradado
+):
+    """CALIBRACION, una por campo, sobre `entity.html`.
+
+    Se exige (a) que el ancla del campo DESAPAREZCA, (b) que la ficha siga
+    respondiendo (el degradado es una ausencia declarada, no un 500) y (c) que
+    las anclas de los OTROS SIETE sigan intactas: sin eso, un cambio global
+    --la ficha en blanco, un error, otra plantilla-- se cobraria como rojo de
+    este campo. Es la comprobacion de que ningun rojo es PRESTADO.
+    """
+    elid = elemento["abl"]
+    antes = _ficha(app_real, entorno, elid, f"fic_{campo}_antes")
+    assert ancla in antes, f"el caso `{campo}` parte sin su ancla: no mide nada"
+
+    try:
+        _quitar(driver, "abl", campo)
+        despues = _ficha(app_real, entorno, elid, f"fic_{campo}_despues")
+    finally:
+        _poner(driver, "abl", campo, VALOR_SEMBRADO[campo])
+
+    assert ancla not in despues, (
+        f"ROJO NO PRODUCIDO: quitar `{campo}` de Neo4j no borra su valor de la "
+        f"ficha. El contrato para ese campo seria DECORATIVO. Degradado "
+        f"declarado: {degradado}")
+    # (b) la ficha sigue viva y sigue siendo la del mismo objeto.
+    assert "Nodo de ablacion" in despues, (
+        f"quitar `{campo}` no degrado la ficha: la tumbo entera")
+    # (c) ninguna otra ancla se movio -> el rojo es de este campo y de nadie mas.
+    for otro, ancla_otro, _ in ABLACIONES_FICHA:
+        if otro == campo:
+            continue
+        assert ancla_otro in despues, (
+            f"quitar `{campo}` tambien borro el ancla de `{otro}`: el rojo de "
+            f"`{otro}` podria estar PRESTADO de este")
+
+    restaurada = _ficha(app_real, entorno, elid, f"fic_{campo}_restaurada")
+    assert ancla in restaurada, f"la restauracion de `{campo}` no volvio a dejar el dato"
+
+
+def test_ablacion_de_display_name_devuelve_el_nombre_canonico(driver, app_real,
+                                                              proveedor, entorno,
+                                                              elemento):
+    """`display_name` gana a `canonical_name` en `serialize_node`. Aqui se mide
+    ese orden, que es la razon por la que este campo no cabe en las tablas: hay
+    que PONERLO primero (la semilla no lo trae, justo para que la ablacion de
+    `canonical_name` sea observable) y quitarlo despues.
+
+    DEGRADADO DECLARADO: no es «no disponible». Es el nombre canonico. Se exige
+    ese valor exacto, no un cambio cualquiera.
+    """
+    elid = elemento["abl"]
+    mostrado = "Nombre mostrado de ablacion"
+    try:
+        _poner(driver, "abl", "display_name", mostrado)
+        con = _ficha(app_real, entorno, elid, "dn_con")
+        assert mostrado in con, (
+            "`display_name` no llega a la pantalla: el orden de respaldo de "
+            "`serialize_node` no se esta ejerciendo y la ablacion no mediria nada")
+        _quitar(driver, "abl", "display_name")
+        sin = _ficha(app_real, entorno, elid, "dn_sin")
+    finally:
+        _quitar(driver, "abl", "display_name")
+
+    assert mostrado not in sin, "quitar `display_name` no cambio el nombre pintado"
+    assert "Nodo de ablacion" in sin, (
+        "quitar `display_name` no cayo al `canonical_name`: la ficha se quedo "
+        "sin nombre, que es un degradado DISTINTO del declarado")
+
+
+def test_ablacion_de_entity_id_retira_la_entidad_de_los_paneles(driver, app_real,
+                                                                proveedor, entorno,
+                                                                elemento):
+    """`entity_id` es la identidad durable: sin ella la entidad no es
+    direccionable y las consultas la excluyen (`_CON_IDENTIDAD_DURABLE`).
+
+    No cabe en la tabla porque `_quitar`/`_poner` buscan el nodo POR
+    `entity_id`: al quitarlo se pierde el asa. Aqui se busca y se restaura por
+    `canonical_name`, que en la semilla es unico.
+
+    DEGRADADO DECLARADO: fila ausente en el panel G y ficha inaccesible. Fallo
+    CERRADO: nada de servir el nodo con un identificador fisico prestado.
+    """
+    elid = elemento["abl"]
+    obs = _obs_g(app_real, entorno, elid, "eid_antes")
+    fila_antes, _ = obs()
+    assert fila_antes != "(FILA AUSENTE)", "el caso parte de una observacion vacia"
+
+    try:
+        with driver.session() as s:
+            s.run("MATCH (n:Entity {canonical_name:'Nodo de ablacion'}) REMOVE n.entity_id")
+        fila_despues, _ = _obs_g(app_real, entorno, elid, "eid_despues")()
+        c = cliente(app_real, usuario(entorno, "eid_ficha", ROL["G"]))
+        r = c.get(f"/entity/{elid}")
+    finally:
+        with driver.session() as s:
+            s.run("MATCH (n:Entity {canonical_name:'Nodo de ablacion'}) "
+                  "SET n.entity_id = 'abl'")
+
+    assert fila_despues == "(FILA AUSENTE)", (
+        f"un nodo SIN identidad durable sigue listado en el panel G: {fila_despues[:200]}")
+    assert r.status_code == 404, (
+        f"la ficha de un nodo sin `entity_id` respondio {r.status_code}: tenia que "
+        f"ser indistinguible de inexistente")
+
+    fila_restaurada, _ = _obs_g(app_real, entorno, elid, "eid_restaurada")()
+    assert fila_restaurada == fila_antes, "la restauracion no dejo el panel igual"
+
+
+# ---------------------------------------------------------------------------
+# La guarda: la lista DERIVADA y la CLASIFICACION tienen que coincidir
+# ---------------------------------------------------------------------------
+
+def test_la_lista_de_campos_se_DERIVA_de_las_plantillas():
+    """LA PIEZA CENTRAL DEL CARRIL. Si una plantilla empieza a consumir un
+    campo nuevo, esto se pone ROJO hasta que alguien decida COMO se ablaciona.
+
+    Y al reves: si un campo deja de consumirse, sobra de la clasificacion y
+    tambien enrojece -- una ablacion de algo que ya nadie pinta es una prueba
+    que mide una pantalla que no existe.
+    """
+    derivadas = propiedades_neo4j_consumidas()
+    assert derivadas, (
+        "la derivacion no encontro NI UN campo: la cadena plantilla -> "
+        "serializador -> proveedor se ha roto y esta guarda estaria muda")
+
+    faltan = set(derivadas) - set(CAMPOS_CLASIFICADOS)
+    assert not faltan, (
+        "campos que una plantilla CONSUME y nadie ablaciona: "
+        + ", ".join(f"{c} (lo pinta {sorted(derivadas[c])[0]})" for c in sorted(faltan))
+        + ". Clasificalos en CAMPOS_CLASIFICADOS y anadeles su ablacion: "
+        "esta parada es el coste declarado de no mantener la lista a mano.")
+
+    sobran = set(CAMPOS_CLASIFICADOS) - set(derivadas)
+    assert not sobran, (
+        f"campos clasificados que ninguna plantilla consume ya: {sorted(sobran)}")
+
+
+def test_cada_campo_clasificado_tiene_su_ablacion_DE_VERDAD():
+    """La clasificacion no puede ser una etiqueta: cada campo tiene que
+    aparecer donde dice aparecer. Sin esto, poner `"loquesea": "ABLACIONES:G"`
+    silenciaria la guarda de arriba sin medir nada.
+    """
+    en_g = {c for c, _, p, _ in ABLACIONES if p == "G"}
+    en_f = {c for c, _, p, _ in ABLACIONES if p == "F"}
+    en_ficha = {c for c, _, _ in ABLACIONES_FICHA}
+
+    for campo, donde in sorted(CAMPOS_CLASIFICADOS.items()):
+        if donde == "ABLACIONES:G":
+            assert campo in en_g, f"`{campo}` se declara en el panel G y no esta en ABLACIONES"
+        elif donde == "ABLACIONES:F":
+            assert campo in en_f, f"`{campo}` se declara en el panel F y no esta en ABLACIONES"
+        elif donde == "ABLACIONES_FICHA":
+            assert campo in en_ficha, f"`{campo}` no esta en ABLACIONES_FICHA"
+        elif donde.startswith("test:"):
+            nombre = donde.split(":", 1)[1]
+            fn = globals().get(nombre)
+            assert callable(fn), (
+                f"`{campo}` dice medirse en `{nombre}`, que no existe en este modulo")
+        else:
+            raise AssertionError(f"clasificacion desconocida para `{campo}`: {donde!r}")
+
+
+def test_la_derivacion_MUERDE():
+    """CALIBRACION DE LA DERIVACION. Un derivador que no reacciona a un campo
+    nuevo seria la lista a mano otra vez, con mas lineas.
+
+    Se le pasa un par inventado --una plantilla ficticia que consumiria
+    `knowledge_layer`, que HOY ninguna pinta (`entity.html` lo omite a
+    proposito)-- y se exige (a) que la cadena lo siga hasta la propiedad de
+    Neo4j y (b) que ese campo NO este clasificado, es decir, que la guarda de
+    arriba se habria puesto roja.
+    """
+    inventado = _propiedades_desde([("ficticia.html", "knowledge_layer_label")])
+    assert "knowledge_layer" in inventado, (
+        "la composicion serializador->proveedor no sigue un atributo nuevo: la "
+        "derivacion no derivaria nada")
+    assert "knowledge_layer" not in CAMPOS_CLASIFICADOS, (
+        "el ejemplo de calibracion ya esta clasificado; hace falta otro campo "
+        "consumible que hoy no se pinte")
+
+    derivadas = dict(propiedades_neo4j_consumidas())
+    derivadas.update(inventado)
+    faltan = set(derivadas) - set(CAMPOS_CLASIFICADOS)
+    assert faltan == {"knowledge_layer"}, (
+        f"con un campo nuevo consumido, la guarda tendria que senalarlo a el y "
+        f"solo a el; senala {sorted(faltan)}")
+
+
+def test_las_plantillas_que_pintan_nodos_se_ENCUENTRAN_solas():
+    """Suelo de la derivacion. Si el descubrimiento devolviera un conjunto
+    vacio --o perdiera el panel G, que llega por `SLOT.template` y no por una
+    cadena literal-- la lista derivada saldria corta y la guarda pasaria en
+    verde sin cubrir nada.
+    """
+    encontradas = plantillas_que_pintan_nodos()
+    assert SLOT_G.template in encontradas, (
+        "el panel G no se descubrio: su plantilla llega por el contrato del "
+        "chasis (`SLOT.template`), no como literal, y resolverla es justo lo "
+        "que hace que este carril no sea una lista escrita a mano")
+    for esperada in ("entity.html", "entities.html", "chassis/entities_item.html"):
+        assert esperada in encontradas, f"no se descubrio {esperada}"
+    # Y ninguna de ellas se descubre «porque si»: cada una viene de una funcion
+    # que llama a `serialize_node`.
+    for plantilla, funciones in encontradas.items():
+        assert funciones, f"{plantilla} descubierta sin funcion que la pinte"
