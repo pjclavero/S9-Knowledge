@@ -935,12 +935,15 @@ def test_la_restriccion_de_unicidad_existe_y_es_de_UNICIDAD(con_constraints):
 
     vigentes = _constraints_vigentes(con_constraints)
     esperado = {
+        # La clave es la de `_assert_absent`: `(workspace, <id>)`. Sin
+        # `partida_id`, a proposito -- meterlo la haria mas laxa que el writer
+        # y dejaria la capa juego sin cubrir.
         ENTITY_DURABLE_IDENTITY_CONSTRAINT:
-            (["Entity"], ["workspace", "entity_id", "partida_id"]),
+            (["Entity"], ["workspace", "entity_id"]),
         V3_ENTITY_DURABLE_IDENTITY_CONSTRAINT:
-            (["V3Entity"], ["workspace", "entity_id", "partida_id"]),
+            (["V3Entity"], ["workspace", "entity_id"]),
         V3_ASSERTION_DURABLE_IDENTITY_CONSTRAINT:
-            (["V3Assertion"], ["workspace", "assertion_id", "partida_id"]),
+            (["V3Assertion"], ["workspace", "assertion_id"]),
     }
     for nombre, (etiquetas, props) in esperado.items():
         assert nombre in vigentes, f"no existe la restriccion {nombre}: {sorted(vigentes)}"
@@ -961,8 +964,12 @@ def test_la_restriccion_IMPIDE_crear_el_duplicado_en_capa_partida(con_constraint
             s.run("CREATE (n:Entity $props)",
                   {"props": dict(_GEMELAS[1], scope="partida",
                                  partida_id="partida:X")}).consume()
-        assert "onstraint" in str(exc.value) or "onstraint" in type(exc.value).__name__, (
-            f"murio por otro motivo, no por la restriccion: {exc.value}"
+        # Se afirma el CODIGO de Neo4j, no una subcadena del mensaje: un
+        # `ClientError` cualquiera --sintaxis mala, sesion muerta-- pasaria una
+        # comprobacion por texto y este test daria por cortada una restriccion
+        # que no corto nada.
+        assert "ConstraintValidationFailed" in (exc.value.code or ""), (
+            f"murio por otro motivo, no por la restriccion: {exc.value.code}"
         )
         cuantos = s.run(
             "MATCH (n:Entity {entity_id:$id, workspace:$ws}) RETURN count(n) AS c",
@@ -1012,8 +1019,12 @@ def test_la_restriccion_SI_cubre_la_capa_juego(con_constraints):
         s.run("CREATE (n:Entity $props)", {"props": _GEMELAS[0]})  # sin partida_id
         with pytest.raises(ClientError) as exc:
             s.run("CREATE (n:Entity $props)", {"props": _GEMELAS[1]}).consume()
-        assert "onstraint" in str(exc.value) or "onstraint" in type(exc.value).__name__, (
-            f"murio por otro motivo, no por la restriccion: {exc.value}"
+        # Se afirma el CODIGO de Neo4j, no una subcadena del mensaje: un
+        # `ClientError` cualquiera --sintaxis mala, sesion muerta-- pasaria una
+        # comprobacion por texto y este test daria por cortada una restriccion
+        # que no corto nada.
+        assert "ConstraintValidationFailed" in (exc.value.code or ""), (
+            f"murio por otro motivo, no por la restriccion: {exc.value.code}"
         )
         cuantos = s.run(
             "MATCH (n:Entity {entity_id:$id, workspace:$ws}) RETURN count(n) AS c",
@@ -1056,7 +1067,7 @@ def test_la_restriccion_NO_cubre_EL_PASADO_HUECO_DECLARADO(grafo_dur):
     Por eso la barrera del resolver no es redundante: es la unica que cubre
     este escenario, y el ultimo `assert` lo demuestra sobre el mismo estado.
     """
-    from neo4j.exceptions import ClientError
+    from neo4j.exceptions import Neo4jError
 
     _retirar_constraints(grafo_dur)
     with grafo_dur.session() as s:
@@ -1067,9 +1078,17 @@ def test_la_restriccion_NO_cubre_EL_PASADO_HUECO_DECLARADO(grafo_dur):
             {"id": ID_COLISION, "ws": WS_DUR}).single()["c"]
         assert cuantos == 2, "sin restriccion el duplicado tenia que entrar"
 
-        # Y ya no se puede poner la barrera: los datos la violan.
-        with pytest.raises(ClientError):
+        # Y ya no se puede poner la barrera: los datos la violan. Neo4j lo
+        # senala como `Neo.DatabaseError.Schema.ConstraintCreationFailed` --un
+        # `DatabaseError`, NO un `ClientError`: la primera version de este test
+        # esperaba la clase equivocada y fallo en CI--. Se afirma el CODIGO, no
+        # la clase: cualquier otro fallo de base (contenedor caido, sesion
+        # muerta) daria el mismo tipo y este test lo daria por bueno.
+        with pytest.raises(Neo4jError) as exc:
             _aplicar_constraints(grafo_dur)
+        assert "ConstraintCreationFailed" in (exc.value.code or ""), (
+            f"fallo por otra cosa, no por los datos que la violan: {exc.value.code}"
+        )
 
     # El unico que sigue defendiendo la URL en este estado es el resolver.
     assert _proveedor().entity(ID_COLISION) is None
@@ -1103,8 +1122,12 @@ def test_la_restriccion_de_ASERCIONES_corta_la_colision_de_verdad(con_constraint
         with pytest.raises(ClientError) as exc:
             s.run("CREATE (n:V3Assertion $props)",
                   {"props": dict(comun, predicate="TRAICIONA")}).consume()
-        assert "onstraint" in str(exc.value) or "onstraint" in type(exc.value).__name__, (
-            f"murio por otro motivo, no por la restriccion: {exc.value}"
+        # Se afirma el CODIGO de Neo4j, no una subcadena del mensaje: un
+        # `ClientError` cualquiera --sintaxis mala, sesion muerta-- pasaria una
+        # comprobacion por texto y este test daria por cortada una restriccion
+        # que no corto nada.
+        assert "ConstraintValidationFailed" in (exc.value.code or ""), (
+            f"murio por otro motivo, no por la restriccion: {exc.value.code}"
         )
         cuantas = s.run(
             "MATCH (n:V3Assertion {assertion_id:$id}) RETURN count(n) AS c",
