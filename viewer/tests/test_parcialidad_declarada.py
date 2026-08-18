@@ -156,16 +156,34 @@ def _exige_contadores_por_valor(
 ) -> None:
     """Las SEIS cifras comprobadas por VALOR contra números de fuera del bloque.
 
-    `_exige_declaracion_de_parcialidad` compara los contadores con la propia
-    respuesta (`nodes_shown` contra `len(payload["nodes"])`). Eso deja fuera
-    justo los dos que no se pueden contar en la respuesta —`nodes_total` y
-    `edges_total`, que hablan del conjunto AUTORIZADO COMPLETO, no del trozo
-    entregado—, y para ésos «la clave está» era todo lo que se exigía en la
-    trayectoria general. Aquí las cifras se traen calculadas por otro camino
-    (el proveedor filtrado pedido SIN TOPE) y se comparan una a una.
+    QUÉ APORTA ESTO, MEDIDO Y NO SUPUESTO
+    -------------------------------------
+    **Atribución, no cobertura.** La primera redacción de este carril daba a
+    entender que los totales estaban sin comprobar, y eso era una garantía
+    cobrada más ancha de lo que la medida sostiene. Mutando
+    `viewer/app/graph_view.py` una a una contra el fichero de pruebas de
+    `main=aaf9695` (reversión verificada por SHA-256):
 
-    Cada aserción nombra su clave: es lo que permite demostrar, en la
-    calibración, que el rojo de cada falseo es SUYO.
+        limit       -> 999999        aaf9695: 22 passed  <- ÚNICO SUPERVIVIENTE
+        nodes_total -> recorte       aaf9695:  4 failed
+        edges_total -> recorte       aaf9695:  5 failed
+        edges_shown -> todas         aaf9695:  8 failed
+        nodes_shown -> todos         aaf9695:  9 failed
+        truncated   -> sólo nodos    aaf9695:  2 failed
+
+    Los cinco contadores YA enrojecían — no dentro de
+    `_exige_declaracion_de_parcialidad`, sino repartidos por los casos
+    saturados. Lo que faltaba, y es lo que añade esta función, es que el rojo
+    **diga de quién es**: cada aserción nombra su clave (`_QUEJA`) y la
+    calibración exige que falsear `nodes_total` produzca la queja de
+    `nodes_total`, no la de su vecina. Sin eso, una clave puede quedarse sin
+    vigilancia propia viviendo del rojo prestado de otra y nadie lo nota.
+
+    El único superviviente genuino era `limit`.
+
+    Las cifras se traen calculadas por otro camino (el proveedor filtrado
+    pedido SIN TOPE): derivarlas del `view` que se quiere comprobar sería una
+    tautología.
     """
     assert view["limit"] == limite, (
         f"{_QUEJA['limit']} publica {view['limit']!r}, tope real {limite!r}")
@@ -641,12 +659,18 @@ def test_el_cliente_no_calcula_cifras_propias():
 # ===========================================================================
 # CARRIL 4 de V3.1: PARCIALIDAD POR VALOR
 #
-# El superviviente que cierra esta sección, medido sobre `main=aaf9695`:
-# mutando `viewer/app/graph_view.py` (`"limit": limit` -> `"limit": 999999`)
-# la suite entera seguía VERDE (1576 passed). Causa: `CLAVES_DE_VISTA`
-# comprobaba la PRESENCIA de la clave y jamás su valor, y el cliente tampoco
-# la consume. Una clave presente con el valor equivocado no es una
-# declaración: es un adorno con nombre de declaración.
+# EL SUPERVIVIENTE, y sólo él: mutando `viewer/app/graph_view.py`
+# (`"limit": limit` -> `"limit": 999999`) la suite entera seguía VERDE
+# (1576 passed sobre `main=aaf9695`). Causa: `CLAVES_DE_VISTA` comprobaba la
+# PRESENCIA de la clave y jamás su valor, y el cliente tampoco la consume. Una
+# clave presente con el valor equivocado no es una declaración: es un adorno
+# con nombre de declaración.
+#
+# Los otros cinco contadores NO eran supervivientes: falsear cualquiera de
+# ellos ya ponía roja la suite de `aaf9695` (la tabla está medida en el
+# docstring de `_exige_contadores_por_valor`). Lo que esta sección les añade no
+# es cobertura sino ATRIBUCIÓN: que cada rojo nombre su clave, para que ninguna
+# viva del rojo prestado de otra.
 # ===========================================================================
 
 def _cifras_reales(path: Path, *, limit: int, ctx: ViewerContext | None = None):

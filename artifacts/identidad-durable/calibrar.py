@@ -52,9 +52,15 @@ ESQUEMA = RAIZ / "data-engine" / "app" / "knowledge_v3" / "writer" / "schema.py"
 #: la suite del visor entera en verde (1576 passed sobre main=aaf9695). Un
 #: metadato cuyo VALOR nadie comprueba es una clave, no una declaracion.
 VISTA = RAIZ / "viewer" / "app" / "graph_view.py"
+#: Cuarta superficie mutable: una PLANTILLA. La guarda central del carril 4
+#: --«un campo nuevo consumido por una plantilla pone ROJO hasta que alguien lo
+#: clasifique»-- solo se puede ejercer tocando una plantilla, que es de donde
+#: sale la lista derivada. Sin esta mutacion, esa guarda seria un control
+#: declarado y no medido.
+FICHA_HTML = RAIZ / "viewer" / "app" / "templates" / "entity.html"
 #: Todos los ficheros que este arnes puede tocar. Se leen enteros ANTES de
 #: mutar nada y se restauran verificando SHA-256.
-MUTABLES = (PROVEEDOR, ESQUEMA, VISTA)
+MUTABLES = (PROVEEDOR, ESQUEMA, VISTA, FICHA_HTML)
 SUITE = "viewer/tests/test_identidad_durable.py"
 #: La suite entera del visor tambien tiene que enrojecer con el defecto puesto:
 #: si solo enrojeciera el fichero nuevo, el gate seria un apendice.
@@ -65,20 +71,25 @@ SUITE_CONTRATO = "viewer/tests/test_contrato_paneles_neo4j.py"
 #: Parcialidad declarada. NO necesita Neo4j (usa el proveedor mock), asi que sus
 #: mutaciones se ejercen SIEMPRE, tambien en un portatil sin contenedores.
 SUITE_PARCIALIDAD = "viewer/tests/test_parcialidad_declarada.py"
+#: Derivacion de la lista de campos del contrato de paneles. Es AST puro: NO
+#: necesita Neo4j y por eso vive fuera de `test_contrato_paneles_neo4j.py`,
+#: que se salta entero sin base. Sus mutaciones se ejercen SIEMPRE.
+SUITE_DERIVACION = "viewer/tests/test_contrato_paneles_derivacion.py"
 MINIMO_TESTS = 10
 #: SUELO DE LAS MUTACIONES, hermano de `MINIMO_TESTS`. Sin el, un arnes al que
 #: alguien vaciara `MUTACIONES` -- o al que se le quedaran todas sin objetivo --
 #: imprimiria `ejercidas=0 enrojecidas=0 declaradas_sin_ejercer=0` y
 #: `veredicto=CALIBRADO`, saldria con rc=0 y estaria MUDO Y VERDE: exactamente
 #: el fallo que este fichero existe para impedir, un nivel mas arriba.
-#: Sube a 21 con el carril 4 de V3.1: +3 de PARCIALIDAD POR VALOR (offline) y
+#: Sube a 22 con el carril 4 de V3.1: +3 de PARCIALIDAD POR VALOR (offline),
 #: +2 de CONTRATO DE PANELES (los dos campos que la tabla `ABLACIONES` no
-#: cubria: `aliases` y `updated_at`).
-MINIMO_MUTACIONES = 21
+#: cubria: `aliases` y `updated_at`) y +1 de DERIVACION (offline: una plantilla
+#: empieza a consumir un campo nuevo).
+MINIMO_MUTACIONES = 22
 #: Las que no necesitan Neo4j. Se ejercen SIEMPRE, tambien en un portatil sin
 #: contenedores, asi que este suelo se puede exigir incondicionalmente. El suelo
 #: de las 12 (con base efimera) lo impone el paso de CI, que sabe si hay Neo4j.
-MINIMO_EJERCIDAS = 7
+MINIMO_EJERCIDAS = 8
 
 
 def sha256(p: Path) -> str:
@@ -325,6 +336,20 @@ MUTACIONES = [
         '        "aliases": props.get("aliases", []),\n',
         "",
         [SUITE_CONTRATO] if os.environ.get("NEO4J_TEST_URI") else [],
+    ),
+    (
+        # --- MD1: LA GUARDA CENTRAL DEL CARRIL 4, ejercida.
+        #
+        # Se anade a `entity.html` el consumo de un campo que HOY ninguna
+        # plantilla pinta (`knowledge_layer`, omitido a proposito de la ficha).
+        # La derivacion tiene que verlo, no encontrarlo en `CAMPOS_CLASIFICADOS`
+        # y ponerse roja. Si esta mutacion no enrojeciera, la lista «derivada»
+        # seria otra vez una lista a mano: no reaccionaria a un campo nuevo.
+        "MD1: una plantilla empieza a consumir un campo sin ablacion",
+        FICHA_HTML,
+        "    <h1>{{ entity.label }}</h1>",
+        "    <h1>{{ entity.label }}</h1>\n    <p>{{ entity.knowledge_layer_label }}</p>",
+        [SUITE_DERIVACION],
     ),
     (
         "MC2: `updated_at` deja de viajar desde Neo4j (bloque tecnico mutilado)",

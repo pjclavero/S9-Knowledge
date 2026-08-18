@@ -36,15 +36,10 @@ NUNCA PRODUCCION. Solo contenedor/instancia efimera y local.
 """
 from __future__ import annotations
 
-import ast
-import importlib
 import os
 import re
 from pathlib import Path
 from urllib.parse import urlparse
-
-import jinja2
-from jinja2 import nodes as JN
 
 import pytest
 from fastapi.testclient import TestClient
@@ -1837,205 +1832,17 @@ def test_EXCEPCION_el_id_de_arista_en_api_graph_SI_es_el_element_id(
 
 
 # ===========================================================================
-# 2-bis. LA LISTA DE CAMPOS SE DERIVA, NO SE ESCRIBE (carril 4 de V3.1)
+# 2-bis. ABLACION DE LOS CAMPOS QUE SOLO SE VEN EN LA FICHA `/entity/{id}`
 #
-# EL HUECO QUE ESTO CIERRA
-# ------------------------
-# Sobre `main=aaf9695`, `aliases` y `updated_at` de `_node_to_dict` los
-# consumen las plantillas y NO aparecian en `ABLACIONES` ni en ninguna otra
-# prueba: quitarlos de la proyeccion dejaba todo verde. No fue un descuido
-# puntual, fue el metodo: la tabla `ABLACIONES` era una lista DOCUMENTAL
-# mantenida a mano, y una lista a mano se queda corta el dia que alguien pinta
-# un campo nuevo en una plantilla.
+# La LISTA de campos a ablacionar no se escribe: se DERIVA de lo que las
+# plantillas consumen de verdad. Esa derivacion y sus guardas viven en
+# `tests/test_contrato_paneles_derivacion.py`, que es AST puro y por tanto NO
+# puede vivir aqui: este modulo lleva `pytestmark = skipif(sin Neo4j)` y las
+# guardas saldrian SKIPPED en local -- la pieza central del carril, muda fuera
+# del job de Neo4j.
 #
-# Aqui la lista de campos a proteger se DERIVA de codigo ejecutable, en tres
-# saltos, cada uno leido con AST (o con el AST de Jinja), nunca con `grep`:
-#
-#   1. QUE PLANTILLAS PINTAN NODOS. Se buscan las funciones de `viewer/app`
-#      que llaman a `serialize_node` Y renderizan una plantilla, y se resuelve
-#      el nombre de esa plantilla -- incluso cuando no es una cadena literal
-#      (`SLOT.template`, `ITEM_TEMPLATE`), importando el modulo y leyendo el
-#      valor real. Asi el panel G entra por su contrato del chasis y no porque
-#      alguien escriba su nombre aqui.
-#   2. QUE ATRIBUTOS CONSUME CADA PLANTILLA. Se parsea la plantilla con el
-#      parser de Jinja y se recogen los `Getattr`/`Getitem`. `{{ entity.foo }}`
-#      cuenta; un comentario que mencione `foo`, no.
-#   3. DE QUE PROPIEDAD DE NEO4J SALE CADA ATRIBUTO. Se compone el diccionario
-#      devuelto por `serialize_node` (atributo -> claves del nodo crudo) con el
-#      devuelto por `_node_to_dict` (clave -> `props.get("...")`). El bloque
-#      `technical` se expande por su constante real (`_NODE_TECHNICAL_FIELDS`),
-#      que es como llegan `updated_at` y compania a la pantalla.
-#
-# EL COSTE, DECLARADO Y DELIBERADO
-# --------------------------------
-# La proteccion NO crece sola: un campo nuevo consumido por una plantilla pone
-# ROJO `test_la_lista_de_campos_se_DERIVA_de_las_plantillas` hasta que alguien
-# lo CLASIFICA en `CAMPOS_CLASIFICADOS`. Se elige asi porque una ablacion no es
-# solo un nombre: necesita una semilla con valor de ancla, una superficie donde
-# observarse y un DEGRADADO DECLARADO. Generar eso automaticamente produciria
-# ablaciones que «pasan» sin medir nada -- exactamente la clase de verde vacio
-# que este fichero existe para impedir. El precio es una parada; la alternativa
-# era volver a la lista a mano.
+# Aqui se queda lo que SI necesita una base real: las ablaciones.
 # ===========================================================================
-
-VIEWER_ROOT = Path(__file__).resolve().parents[1]
-APP_DIR = VIEWER_ROOT / "app"
-PLANTILLAS_DIR = APP_DIR / "templates"
-
-
-def _modulo_de(ruta: Path):
-    """El modulo YA IMPORTADO que corresponde a ese fichero.
-
-    Hace falta para resolver `SLOT.template` e `ITEM_TEMPLATE`: son valores,
-    no literales, y leerlos del texto seria adivinar.
-    """
-    punteado = ".".join(ruta.relative_to(VIEWER_ROOT).with_suffix("").parts)
-    try:
-        return importlib.import_module(punteado)
-    except Exception:
-        return None
-
-
-def _nombre_de_plantilla(nodo, modulo):
-    if isinstance(nodo, ast.Constant) and isinstance(nodo.value, str) \
-       and nodo.value.endswith(".html"):
-        return nodo.value
-    if modulo is None:
-        return None
-    if isinstance(nodo, ast.Name):
-        v = getattr(modulo, nodo.id, None)
-        return v if isinstance(v, str) and v.endswith(".html") else None
-    if isinstance(nodo, ast.Attribute) and isinstance(nodo.value, ast.Name):
-        base = getattr(modulo, nodo.value.id, None)
-        v = getattr(base, nodo.attr, None)
-        return v if isinstance(v, str) and v.endswith(".html") else None
-    return None
-
-
-def _llama_a(fn, nombre: str) -> bool:
-    return any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
-               and c.func.id == nombre for c in ast.walk(fn))
-
-
-def plantillas_que_pintan_nodos() -> dict[str, set[str]]:
-    """``plantilla -> {fichero::funcion}`` que la renderiza pintando un nodo."""
-    salida: dict[str, set[str]] = {}
-    for py in sorted(APP_DIR.rglob("*.py")):
-        texto = py.read_text(encoding="utf-8")
-        if "serialize_node" not in texto:
-            continue
-        try:
-            arbol = ast.parse(texto)
-        except SyntaxError:
-            continue
-        modulo = None
-        for fn in ast.walk(arbol):
-            if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            if not _llama_a(fn, "serialize_node"):
-                continue
-            if modulo is None:
-                modulo = _modulo_de(py)
-            for c in ast.walk(fn):
-                if not (isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
-                        and c.func.attr == "TemplateResponse"):
-                    continue
-                for arg in list(c.args) + [k.value for k in c.keywords]:
-                    n = _nombre_de_plantilla(arg, modulo)
-                    if n and (PLANTILLAS_DIR / n).is_file():
-                        salida.setdefault(n, set()).add(f"{py.name}::{fn.name}")
-    return salida
-
-
-def atributos_de_plantilla(plantilla: str) -> set[str]:
-    """Atributos que la plantilla CONSUME, por el AST de Jinja."""
-    arbol = jinja2.Environment().parse(
-        (PLANTILLAS_DIR / plantilla).read_text(encoding="utf-8"))
-    out = set()
-    for g in arbol.find_all(JN.Getattr):
-        out.add(g.attr)
-    for g in arbol.find_all(JN.Getitem):
-        if isinstance(g.arg, JN.Const) and isinstance(g.arg.value, str):
-            out.add(g.arg.value)
-    return out
-
-
-def _lecturas(expr, var: str) -> set[str]:
-    """`var.get("x")` y `var["x"]` dentro de una expresion."""
-    out = set()
-    for c in ast.walk(expr):
-        if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute) \
-           and c.func.attr == "get" and isinstance(c.func.value, ast.Name) \
-           and c.func.value.id == var and c.args and isinstance(c.args[0], ast.Constant):
-            out.add(c.args[0].value)
-        if isinstance(c, ast.Subscript) and isinstance(c.value, ast.Name) \
-           and c.value.id == var and isinstance(c.slice, ast.Constant):
-            out.add(c.slice.value)
-    return out
-
-
-def _dict_devuelto(ruta: Path, funcion: str, var: str) -> dict[str, set[str]]:
-    """``clave del dict devuelto -> claves de entrada que la alimentan``.
-
-    Se resuelven tambien las variables locales (`technical`, `entity_type`,
-    `name`, `confidence`) y las constantes de modulo en MAYUSCULAS que
-    contengan cadenas: asi `technical` se expande por `_NODE_TECHNICAL_FIELDS`
-    de verdad y no por una copia escrita aqui.
-    """
-    arbol = ast.parse(ruta.read_text(encoding="utf-8"))
-    fn = next(n for n in ast.walk(arbol)
-              if isinstance(n, ast.FunctionDef) and n.name == funcion)
-    ret = next(n for n in ast.walk(fn) if isinstance(n, ast.Return))
-    assert isinstance(ret.value, ast.Dict), (
-        f"{funcion} ya no devuelve un diccionario literal: la derivacion no "
-        f"puede leerlo y esta prueba tiene que detenerse, no adivinar")
-    modulo = _modulo_de(ruta)
-    locales: dict[str, set[str]] = {}
-    for n in fn.body:
-        if isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name):
-            leidas = _lecturas(n.value, var)
-            for c in ast.walk(n.value):
-                if isinstance(c, ast.Name) and c.id.upper() == c.id:
-                    v = getattr(modulo, c.id, None)
-                    if isinstance(v, (tuple, list, set, frozenset)) and \
-                       all(isinstance(x, str) for x in v):
-                        leidas |= set(v)
-            locales[n.targets[0].id] = leidas
-    mapa: dict[str, set[str]] = {}
-    for k, v in zip(ret.value.keys, ret.value.values):
-        leidas = _lecturas(v, var)
-        for c in ast.walk(v):
-            if isinstance(c, ast.Name) and c.id in locales:
-                leidas |= locales[c.id]
-        mapa[k.value] = leidas
-    return mapa
-
-
-def _propiedades_desde(pares) -> dict[str, set[tuple[str, str]]]:
-    """``propiedad de Neo4j -> {(plantilla, atributo) que la consume}``.
-
-    Se separa de `propiedades_neo4j_consumidas` para poder CALIBRAR la
-    derivacion: se le pueden pasar pares inventados y comprobar que la cadena
-    de composicion los sigue hasta la propiedad.
-    """
-    ser = _dict_devuelto(APP_DIR / "serializers.py", "serialize_node", "node")
-    prov = _dict_devuelto(APP_DIR / "providers" / "neo4j_provider.py",
-                          "_node_to_dict", "props")
-    evidencia: dict[str, set[tuple[str, str]]] = {}
-    for plantilla, attr in pares:
-        for clave in ser.get(attr, ()):
-            for prop in prov.get(clave, ()):
-                evidencia.setdefault(prop, set()).add((plantilla, attr))
-    return evidencia
-
-
-def propiedades_neo4j_consumidas() -> dict[str, set[tuple[str, str]]]:
-    return _propiedades_desde(
-        (plantilla, attr)
-        for plantilla in plantillas_que_pintan_nodos()
-        for attr in atributos_de_plantilla(plantilla)
-    )
-
 
 # ---------------------------------------------------------------------------
 # Ablacion en la FICHA `/entity/{id}` (`entity.html`)
@@ -2067,39 +1874,6 @@ ABLACIONES_FICHA = (
 #: cambiara, la restauracion la sigue.
 _ABL = next(n for n in SEMILLA if n["entity_id"] == "abl")
 VALOR_SEMBRADO = {campo: _ABL[campo] for campo, _, _ in ABLACIONES_FICHA}
-
-
-#: LA CLASIFICACION. Cada propiedad de Neo4j que las plantillas consumen dice
-#: DONDE se ablaciona. No es la lista de campos --esa se deriva-- sino la
-#: respuesta a «¿como se mide este?», que es lo unico que no se puede derivar.
-CAMPOS_CLASIFICADOS: dict[str, str] = {
-    # Panel G (lista), tabla `ABLACIONES`.
-    "canonical_name": "ABLACIONES:G",
-    "entity_type": "ABLACIONES:G",
-    "confidence": "ABLACIONES:G",
-    "review_status": "ABLACIONES:G",
-    "source_document": "ABLACIONES:G",
-    "visibility": "ABLACIONES:G",
-    "workspace": "ABLACIONES:G",
-    # Panel F (fuentes), misma tabla.
-    "source_kind": "ABLACIONES:F",
-    # Ficha `/entity/{id}`, tabla `ABLACIONES_FICHA`.
-    "aliases": "ABLACIONES_FICHA",
-    "source_pages": "ABLACIONES_FICHA",
-    "description": "ABLACIONES_FICHA",
-    "created_at": "ABLACIONES_FICHA",
-    "updated_at": "ABLACIONES_FICHA",
-    "extractor_version": "ABLACIONES_FICHA",
-    "prompt_version": "ABLACIONES_FICHA",
-    "source_hash": "ABLACIONES_FICHA",
-    # Dos que no caben en ninguna tabla y tienen prueba propia, NOMBRADA:
-    # `display_name` no esta sembrado (el respaldo es `canonical_name`), asi
-    # que su ablacion necesita ponerlo primero; y quitar `entity_id` deja al
-    # nodo sin la clave por la que se le busca, asi que hay que restaurarlo
-    # por otra.
-    "display_name": "test:test_ablacion_de_display_name_devuelve_el_nombre_canonico",
-    "entity_id": "test:test_ablacion_de_entity_id_retira_la_entidad_de_los_paneles",
-}
 
 
 def _ficha(app_real, entorno, elid: str, nombre_usuario: str) -> str:
@@ -2239,102 +2013,3 @@ def test_ablacion_de_entity_id_retira_la_entidad_de_los_paneles(driver, app_real
 
     fila_restaurada, _ = _obs_g(app_real, entorno, elid, "eid_restaurada")()
     assert fila_restaurada == fila_antes, "la restauracion no dejo el panel igual"
-
-
-# ---------------------------------------------------------------------------
-# La guarda: la lista DERIVADA y la CLASIFICACION tienen que coincidir
-# ---------------------------------------------------------------------------
-
-def test_la_lista_de_campos_se_DERIVA_de_las_plantillas():
-    """LA PIEZA CENTRAL DEL CARRIL. Si una plantilla empieza a consumir un
-    campo nuevo, esto se pone ROJO hasta que alguien decida COMO se ablaciona.
-
-    Y al reves: si un campo deja de consumirse, sobra de la clasificacion y
-    tambien enrojece -- una ablacion de algo que ya nadie pinta es una prueba
-    que mide una pantalla que no existe.
-    """
-    derivadas = propiedades_neo4j_consumidas()
-    assert derivadas, (
-        "la derivacion no encontro NI UN campo: la cadena plantilla -> "
-        "serializador -> proveedor se ha roto y esta guarda estaria muda")
-
-    faltan = set(derivadas) - set(CAMPOS_CLASIFICADOS)
-    assert not faltan, (
-        "campos que una plantilla CONSUME y nadie ablaciona: "
-        + ", ".join(f"{c} (lo pinta {sorted(derivadas[c])[0]})" for c in sorted(faltan))
-        + ". Clasificalos en CAMPOS_CLASIFICADOS y anadeles su ablacion: "
-        "esta parada es el coste declarado de no mantener la lista a mano.")
-
-    sobran = set(CAMPOS_CLASIFICADOS) - set(derivadas)
-    assert not sobran, (
-        f"campos clasificados que ninguna plantilla consume ya: {sorted(sobran)}")
-
-
-def test_cada_campo_clasificado_tiene_su_ablacion_DE_VERDAD():
-    """La clasificacion no puede ser una etiqueta: cada campo tiene que
-    aparecer donde dice aparecer. Sin esto, poner `"loquesea": "ABLACIONES:G"`
-    silenciaria la guarda de arriba sin medir nada.
-    """
-    en_g = {c for c, _, p, _ in ABLACIONES if p == "G"}
-    en_f = {c for c, _, p, _ in ABLACIONES if p == "F"}
-    en_ficha = {c for c, _, _ in ABLACIONES_FICHA}
-
-    for campo, donde in sorted(CAMPOS_CLASIFICADOS.items()):
-        if donde == "ABLACIONES:G":
-            assert campo in en_g, f"`{campo}` se declara en el panel G y no esta en ABLACIONES"
-        elif donde == "ABLACIONES:F":
-            assert campo in en_f, f"`{campo}` se declara en el panel F y no esta en ABLACIONES"
-        elif donde == "ABLACIONES_FICHA":
-            assert campo in en_ficha, f"`{campo}` no esta en ABLACIONES_FICHA"
-        elif donde.startswith("test:"):
-            nombre = donde.split(":", 1)[1]
-            fn = globals().get(nombre)
-            assert callable(fn), (
-                f"`{campo}` dice medirse en `{nombre}`, que no existe en este modulo")
-        else:
-            raise AssertionError(f"clasificacion desconocida para `{campo}`: {donde!r}")
-
-
-def test_la_derivacion_MUERDE():
-    """CALIBRACION DE LA DERIVACION. Un derivador que no reacciona a un campo
-    nuevo seria la lista a mano otra vez, con mas lineas.
-
-    Se le pasa un par inventado --una plantilla ficticia que consumiria
-    `knowledge_layer`, que HOY ninguna pinta (`entity.html` lo omite a
-    proposito)-- y se exige (a) que la cadena lo siga hasta la propiedad de
-    Neo4j y (b) que ese campo NO este clasificado, es decir, que la guarda de
-    arriba se habria puesto roja.
-    """
-    inventado = _propiedades_desde([("ficticia.html", "knowledge_layer_label")])
-    assert "knowledge_layer" in inventado, (
-        "la composicion serializador->proveedor no sigue un atributo nuevo: la "
-        "derivacion no derivaria nada")
-    assert "knowledge_layer" not in CAMPOS_CLASIFICADOS, (
-        "el ejemplo de calibracion ya esta clasificado; hace falta otro campo "
-        "consumible que hoy no se pinte")
-
-    derivadas = dict(propiedades_neo4j_consumidas())
-    derivadas.update(inventado)
-    faltan = set(derivadas) - set(CAMPOS_CLASIFICADOS)
-    assert faltan == {"knowledge_layer"}, (
-        f"con un campo nuevo consumido, la guarda tendria que senalarlo a el y "
-        f"solo a el; senala {sorted(faltan)}")
-
-
-def test_las_plantillas_que_pintan_nodos_se_ENCUENTRAN_solas():
-    """Suelo de la derivacion. Si el descubrimiento devolviera un conjunto
-    vacio --o perdiera el panel G, que llega por `SLOT.template` y no por una
-    cadena literal-- la lista derivada saldria corta y la guarda pasaria en
-    verde sin cubrir nada.
-    """
-    encontradas = plantillas_que_pintan_nodos()
-    assert SLOT_G.template in encontradas, (
-        "el panel G no se descubrio: su plantilla llega por el contrato del "
-        "chasis (`SLOT.template`), no como literal, y resolverla es justo lo "
-        "que hace que este carril no sea una lista escrita a mano")
-    for esperada in ("entity.html", "entities.html", "chassis/entities_item.html"):
-        assert esperada in encontradas, f"no se descubrio {esperada}"
-    # Y ninguna de ellas se descubre «porque si»: cada una viene de una funcion
-    # que llama a `serialize_node`.
-    for plantilla, funciones in encontradas.items():
-        assert funciones, f"{plantilla} descubierta sin funcion que la pinte"
