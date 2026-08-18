@@ -856,6 +856,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r viewer/requirements.txt
 
+      # ATENCION, y no es un fallo del instrumento: sobre esta base el paso sale
+      # ROJO. La especificacion encuentra DOS `lectura-que-escribe` reales
+      # (`GET /admin/health` y `GET /api/admin/health` escriben un fichero
+      # dentro del propio GET, ver docs/84 y health_admin.py:28,40). Arreglarlo
+      # cambia el comportamiento del panel de operaciones y es decision del
+      # operador, no de este carril. El job NO es exigido todavia; promoverlo va
+      # en el mismo commit que cierre eso.
       - name: Especificacion ejecutable de escritura
         env:
           PYTHONPATH: scripts
@@ -867,6 +874,7 @@ jobs:
             --out artifacts/route-map/ci-write_spec.json
 
       - name: Control negativo (metodo cambiado y alias GET, endpoint a endpoint)
+        if: always()   # la calibracion se publica aunque la espec salga roja
         env:
           PYTHONPATH: scripts
           PYTHONDONTWRITEBYTECODE: '1'

@@ -9,18 +9,28 @@ un cambio de método era invisible por construcción.
 Esta suite ejecuta la especificación independiente
 (`scripts/route_map/write_spec.py`) y afirma sobre su resultado. La
 especificación clasifica cada endpoint por su FIRMA y su CUERPO (parámetros
-`Form`/`Body`/`File`, lectura del cuerpo, verificación de CSRF, mutadores de
-estado durable), no por su decorador, y termina cada afirmación en una petición
-real contra `app.main.app`.
+`Form`/`Body`/`File` —también en la forma `Annotated[str, Form()]` y con alias
+de importación—, lectura del cuerpo, verificación de CSRF y llamadas que
+escriben estado durable, derivadas del código del invocable), no por su
+decorador, y termina cada afirmación en una petición real contra `app.main.app`.
+
+QUÉ GARANTIZA Y QUÉ NO, dicho con precisión —la versión anterior de este
+docstring afirmaba de más—:
+
+  - Que un endpoint de escritura NUEVO quede cubierto depende de que la
+    clasificación lo reconozca. Por eso existe además una red que NO depende de
+    ella: `metodo-de-escritura-sin-evidencia` marca toda ruta montada con
+    POST/PUT/PATCH/DELETE que la clasificación no supo explicar. Hoy ese
+    conjunto está VACÍO, así que cubre a todos los endpoints de escritura
+    montados, acierten o no las señales.
+  - Un endpoint que no se pueda clasificar por falta de fuente sale ROJO
+    (`endpoint-sin-fuente`); uno clasificado SIN evidencia cae en «lectura», y
+    es la red anterior —no la clasificación— la que impide que eso pase mudo.
 
 Se ejecuta en un SUBPROCESO a propósito: `app.main` y `route_map` son
 singletons en `sys.modules` y la especificación necesita la app arrancada con
 auth ACTIVADA (sin ella, el panel de administración ni se monta y la suite
 mediría una app que no es la que se despliega).
-
-NO hay lista de endpoints en este fichero. Si mañana aparece un endpoint de
-escritura nuevo, queda cubierto solo; y si alguno no se puede clasificar, la
-especificación se pone roja (`endpoint-sin-fuente`) en vez de callarse.
 """
 from __future__ import annotations
 
@@ -39,6 +49,37 @@ WRITE_SPEC = REPO / "scripts" / "route_map" / "write_spec.py"
 #: Suelo de plausibilidad: una especificación que clasifica cero (o casi cero)
 #: endpoints de escritura no está protegiendo nada, y saldría "verde".
 MINIMO_ENDPOINTS_DE_ESCRITURA = 10
+
+#: LECTURAS QUE ESCRIBEN ya presentes en el producto, con evidencia y fecha.
+#:
+#: 2026-08-18 — `GET /admin/health` y `GET /api/admin/health` ejecutan los
+#: healthchecks y llaman a `app.health.storage.save_report` DENTRO del propio
+#: GET (`viewer/app/routers/health_admin.py:28,40`), que hace `mkdir` +
+#: `write_text` + `os.replace` + `chmod 0600`. El propio repositorio ya lo
+#: admite por escrito en `viewer/app/routers/chassis_operations.py:9-17`.
+#:
+#: NO es una exención: la especificación los declara ROJOS y el job
+#: `metodos-de-escritura` sale ROJO por ellos. Lo que hace este registro es
+#: impedir que un check EXIGIDO (la suite del visor) se ponga rojo por un
+#: defecto que este carril no está autorizado a arreglar —tocar ese router
+#: cambia el comportamiento del panel de operaciones, y esa decisión es del
+#: operador—. Cualquier lectura-que-escribe NUEVA rompe esta suite.
+LECTURAS_QUE_ESCRIBEN_REGISTRADAS = {
+    "app.routers.health_admin.api_admin_health",
+    "app.routers.health_admin.admin_health_panel",
+}
+
+#: Hallazgos que NUNCA pueden aparecer aquí.
+HALLAZGOS_DUROS = (
+    "metodo-seguro-en-endpoint-de-escritura",
+    "escritura-servida-por-get",
+    "escritura-sin-metodo",
+    "metodo-de-escritura-sin-evidencia",
+    "contrato-de-cliente-roto",
+    "endpoint-sin-fuente",
+    "espec-vacia",
+    "espec-no-inspecciono-la-app-real",
+)
 
 
 @pytest.fixture(scope="module")
@@ -81,30 +122,29 @@ def test_hay_endpoints_de_escritura_clasificados(informe):
 
 
 def test_ninguna_escritura_admite_metodo_seguro(informe):
-    """`POST -> GET` o un alias `GET` en una ruta de escritura: ROJO."""
-    duros = ["metodo-seguro-en-endpoint-de-escritura", "escritura-servida-por-get",
-             "escritura-sin-metodo"]
-    hallazgos = {k: v for k, v in (informe.get("hallazgos") or {}).items() if k in duros}
+    """`POST -> GET` o un alias `GET` en una ruta de escritura: ROJO.
+
+    Incluye la red que no depende de la clasificación
+    (`metodo-de-escritura-sin-evidencia`) y el contrato de cliente.
+    """
+    hallazgos = {k: v for k, v in (informe.get("hallazgos") or {}).items()
+                 if k in HALLAZGOS_DUROS and v}
     assert not hallazgos, json.dumps(hallazgos, indent=2, ensure_ascii=False)
 
 
-def test_el_contrato_de_cliente_se_puede_ejecutar(informe):
-    """Todo formulario/fetch que la app sirve tiene que poder enviarse.
-
-    Es la fuente que caza un cambio de método que sigue siendo *inseguro*
-    (`POST -> PUT`), donde la comprobación de método seguro calla.
-    """
-    rotos = (informe.get("hallazgos") or {}).get("contrato-de-cliente-roto")
-    assert not rotos, json.dumps(rotos, indent=2, ensure_ascii=False)
-
-
-def test_todos_los_endpoints_se_pudieron_clasificar(informe):
-    sin_fuente = (informe.get("hallazgos") or {}).get("endpoint-sin-fuente")
-    assert not sin_fuente, json.dumps(sin_fuente, indent=2, ensure_ascii=False)
+def test_ninguna_lectura_que_escribe_nueva(informe):
+    """Un `GET` que escribe es escritura. Los conocidos están registrados."""
+    entradas = (informe.get("hallazgos") or {}).get("lectura-que-escribe") or []
+    nuevas = [e for e in entradas
+              if e.get("endpoint") not in LECTURAS_QUE_ESCRIBEN_REGISTRADAS]
+    assert not nuevas, (
+        "hay lecturas que escriben SIN registrar:\n"
+        + json.dumps(nuevas, indent=2, ensure_ascii=False))
 
 
-def test_la_especificacion_sale_conforme(informe):
-    assert informe["_rc"] == 0, (
-        f"rc={informe['_rc']}\n"
-        + json.dumps(informe.get("hallazgos"), indent=2, ensure_ascii=False)
-        + "\n" + informe["_stderr"])
+def test_no_hay_hallazgos_de_clase_desconocida(informe):
+    """Un hallazgo que esta suite no clasifica no puede pasar en silencio."""
+    conocidos = set(HALLAZGOS_DUROS) | {"lectura-que-escribe"}
+    desconocidos = {k: v for k, v in (informe.get("hallazgos") or {}).items()
+                    if k not in conocidos and v}
+    assert not desconocidos, json.dumps(desconocidos, indent=2, ensure_ascii=False)

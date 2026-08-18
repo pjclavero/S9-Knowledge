@@ -87,13 +87,12 @@ LECTORES_DE_CUERPO = {"form", "json", "body", "stream"}
 RE_CSRF_VERIFICA = re.compile(r"(check|valid|verif).*csrf|csrf.*(check|valid|verif)",
                               re.IGNORECASE)
 
-#: Mutadores de ESTADO DURABLE. El prefijo de módulo se resuelve por los
-#: `import` del módulo del manejador, no por el nombre suelto.
-RE_MUTADOR = re.compile(
-    r"^(create|update|delete|insert|save|revoke|grant|unlock|reset|remove|purge|"
-    r"rotate|write|store|upsert|commit|set)(_|$)", re.IGNORECASE)
-MODULOS_DE_ESTADO_DURABLE = ("app.auth", "app.services", "app.providers",
-                             "app.policies", "app.authz")
+#: NOTA HISTÓRICA, porque el defecto importa: aquí vivía
+#: `MODULOS_DE_ESTADO_DURABLE`, una tupla de prefijos de módulo mantenida A
+#: MANO. Era la lista documental que el operador prohibió, un nivel más arriba:
+#: bastaba que la escritura viviera en un módulo no listado (`app.health`) para
+#: que el endpoint saliera VERDE. La sustituye `_escribe_de_verdad()`, que lee
+#: el código del invocable y busca primitivas de escritura.
 RE_SQL_ESCRITURA = re.compile(r"\b(INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|MERGE)\b",
                               re.IGNORECASE)
 
@@ -172,15 +171,151 @@ def _arbol_del_manejador(fn) -> ast.AST | None:
         return None
 
 
-def _es_modelo_de_cuerpo(anotacion) -> bool:
+def _resolver(nombre_local: str, importaciones: dict[str, str]) -> str:
+    """Nombre CANÓNICO de un símbolo local, resuelto por los `import` del módulo.
+
+    `from fastapi import Form as _Form` ⇒ `_Form` -> `fastapi.Form`. Sin esto,
+    un alias de importación deja muda a la clasificación, que es una de las
+    formas de que la lista de endpoints de escritura salga corta EN SILENCIO.
+    """
+    if not nombre_local:
+        return ""
+    raiz, _, resto = nombre_local.partition(".")
+    canon = importaciones.get(raiz, raiz)
+    return f"{canon}.{resto}" if resto else canon
+
+
+def _es_declarador_de_cuerpo(canon: str) -> str:
+    """`Form`/`Body`/`File`/`UploadFile` venga como venga (alias incluido)."""
+    hoja = canon.rsplit(".", 1)[-1]
+    if hoja in DECLARADORES_DE_CUERPO or hoja in ANOTACIONES_DE_CUERPO:
+        return hoja
+    return ""
+
+
+def _evidencia_en_anotacion(anot, importaciones: dict[str, str]) -> set[str]:
+    """Recorre la ANOTACIÓN buscando declaradores de cuerpo.
+
+    Aquí vivía el superviviente: `nombre: Annotated[str, Form()]` —la forma que
+    la documentación de FastAPI recomienda hoy— no deja nada en
+    `args.defaults`, así que la versión anterior no veía el cuerpo y el endpoint
+    caía en `lectura` **sin ruido**. Se recorre el árbol entero de la anotación,
+    no su texto, y cada nombre se resuelve por los `import` del módulo.
+    """
+    ev: set[str] = set()
+    if anot is None:
+        return ev
+    for nodo in ast.walk(anot):
+        if isinstance(nodo, ast.Call):
+            objetivo = nodo.func
+        elif isinstance(nodo, (ast.Name, ast.Attribute)):
+            objetivo = nodo
+        else:
+            continue
+        try:
+            texto = ast.unparse(objetivo)
+        except Exception:  # pragma: no cover
+            continue
+        hoja = _es_declarador_de_cuerpo(_resolver(texto, importaciones))
+        if hoja:
+            ev.add(f"parametro-de-cuerpo:{hoja}")
+    return ev
+
+
+def _es_modelo_de_cuerpo(canon: str) -> bool:
+    """¿La anotación nombra un `BaseModel` de pydantic?
+
+    Se resuelve el símbolo por `sys.modules` a partir del nombre canónico, NO
+    por `inspect.signature`: los routers usan `from __future__ import
+    annotations`, así que en ejecución las anotaciones son CADENAS y la
+    comprobación por `issubclass` estaba muerta en toda la app.
+    """
     try:
         from pydantic import BaseModel
-    except ImportError:  # pragma: no cover - pydantic es dependencia de FastAPI
+    except ImportError:  # pragma: no cover
         return False
-    return isinstance(anotacion, type) and issubclass(anotacion, BaseModel)
+    if "." not in canon:
+        return False
+    modulo, _, atributo = canon.rpartition(".")
+    obj = getattr(sys.modules.get(modulo), atributo, None)
+    return isinstance(obj, type) and issubclass(obj, BaseModel)
 
 
-def evidencias_de_escritura(fn) -> tuple[list[str], bool] | tuple[None, bool]:
+#: Primitivas que dejan un cambio DURADERO fuera del proceso. Es vocabulario de
+#: la biblioteca estándar y del driver, no una lista de módulos del proyecto.
+RE_PRIMITIVA_DURABLE = re.compile(
+    r"^(write_text|write_bytes|writelines|rmtree|mkdir|makedirs|touch|commit|"
+    r"executemany)$")
+
+#: Primitivas cuyo NOMBRE es ambiguo (`"x".replace(...)` no escribe nada): sólo
+#: cuentan invocadas sobre `os`/`shutil`. Medido: sin esta distinción,
+#: `serialize_edge` y `jobs_db_status` salían "mutadores" y 12 rutas de lectura
+#: se declaraban escritura. Un rojo por el motivo equivocado es peor que un verde.
+RE_PRIMITIVA_AMBIGUA = re.compile(r"^(replace|rename|remove|unlink|chmod)$")
+MODULOS_DE_SISTEMA_DE_FICHEROS = {"os", "shutil", "os.path"}
+
+
+def _escribe_de_verdad(canon: str, visto: set[str] | None = None) -> str:
+    """¿La función `canon` escribe estado durable? Se mira SU CÓDIGO.
+
+    Sustituye a la tupla de prefijos de módulo que había antes, que era
+    exactamente la lista mantenida a mano que el operador prohibió, un nivel más
+    arriba: bastaba que una escritura viviera en un módulo no listado
+    (`app.health`) para que el endpoint saliera verde. Ahora la durabilidad se
+    DERIVA del cuerpo del invocable: se resuelve por `sys.modules`, se lee su
+    fuente y se buscan primitivas de escritura (fichero, `os.replace`, SQL de
+    escritura, `commit`). Un salto de profundidad, para no recorrer la
+    biblioteca estándar entera.
+    """
+    visto = visto or set()
+    if canon in visto or "." not in canon or len(visto) > 3:
+        return ""
+    visto.add(canon)
+    modulo, _, atributo = canon.rpartition(".")
+    mod = sys.modules.get(modulo)
+    fn = getattr(mod, atributo, None)
+    if fn is None:
+        return ""
+    try:
+        arbol = ast.parse(textwrap.dedent(inspect.getsource(inspect.unwrap(fn))))
+    except (OSError, TypeError, SyntaxError, ValueError):
+        return ""
+    imp = _importaciones_del_modulo(getattr(fn, "__module__", "") or modulo)
+    for nodo in ast.walk(arbol):
+        if not isinstance(nodo, ast.Call):
+            continue
+        f = nodo.func
+        hoja = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
+        base = ast.unparse(f.value) if isinstance(f, ast.Attribute) else ""
+        if RE_PRIMITIVA_DURABLE.match(hoja or ""):
+            return hoja
+        if RE_PRIMITIVA_AMBIGUA.match(hoja or "") and base in MODULOS_DE_SISTEMA_DE_FICHEROS:
+            return f"{base}.{hoja}"
+        if hoja in ("execute", "run", "executescript"):
+            for arg in nodo.args:
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str) \
+                        and RE_SQL_ESCRITURA.search(arg.value):
+                    return f"{hoja}:sql-de-escritura"
+        if hoja == "open":
+            for arg in nodo.args[1:]:
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str) \
+                        and any(c in arg.value for c in "wax+"):
+                    return "open:escritura"
+        # un salto más: el manejador llama a un servicio que llama al escritor
+        if isinstance(f, (ast.Name, ast.Attribute)):
+            try:
+                sub = _resolver(ast.unparse(f), imp)
+            except Exception:  # pragma: no cover
+                continue
+            # Sólo se desciende a código DEL PROYECTO: seguir a `pathlib.Path`
+            # o a la biblioteca estándar declara "escritura" cualquier cosa.
+            if sub != canon and sub.startswith("app.") \
+                    and _escribe_de_verdad(sub, visto):
+                return f"{hoja}(indirecto)"
+    return ""
+
+
+def evidencias_de_escritura(fn) -> tuple[list[str] | None, bool]:
     """Evidencia INDEPENDIENTE del decorador. `(evidencias, clasificado)`."""
     arbol = _arbol_del_manejador(fn)
     if arbol is None or not arbol.body or not isinstance(
@@ -188,26 +323,23 @@ def evidencias_de_escritura(fn) -> tuple[list[str], bool] | tuple[None, bool]:
         return None, False
     fd = arbol.body[0]
     ev: set[str] = set()
+    importaciones = _importaciones_del_modulo(getattr(fn, "__module__", "") or "")
 
-    # -- firma: parámetros que sólo existen si hay cuerpo de petición
+    # -- firma: cualquier forma de declarar que hay CUERPO de petición
     for d in list(fd.args.defaults) + [d for d in fd.args.kw_defaults if d is not None]:
         if isinstance(d, ast.Call):
-            n = d.func.attr if isinstance(d.func, ast.Attribute) else getattr(d.func, "id", "")
-            if n in DECLARADORES_DE_CUERPO:
-                ev.add(f"parametro-de-cuerpo:{n}")
-    for a in list(fd.args.args) + list(fd.args.kwonlyargs):
+            hoja = _es_declarador_de_cuerpo(_resolver(ast.unparse(d.func), importaciones))
+            if hoja:
+                ev.add(f"parametro-de-cuerpo:{hoja}")
+    for a in list(fd.args.args) + list(fd.args.posonlyargs) + list(fd.args.kwonlyargs):
+        ev |= _evidencia_en_anotacion(a.annotation, importaciones)
         if a.annotation is not None:
-            txt = ast.unparse(a.annotation)
-            if any(t in txt for t in ANOTACIONES_DE_CUERPO):
-                ev.add("parametro-de-cuerpo:UploadFile")
-    try:
-        for nombre, par in inspect.signature(inspect.unwrap(fn)).parameters.items():
-            if _es_modelo_de_cuerpo(par.annotation):
-                ev.add(f"modelo-de-cuerpo:{nombre}")
-    except (TypeError, ValueError):
-        pass
-
-    importaciones = _importaciones_del_modulo(getattr(fn, "__module__", "") or "")
+            try:
+                canon = _resolver(ast.unparse(a.annotation), importaciones)
+            except Exception:  # pragma: no cover
+                canon = ""
+            if _es_modelo_de_cuerpo(canon):
+                ev.add(f"modelo-de-cuerpo:{a.arg}")
 
     for nodo in ast.walk(fd):
         if not isinstance(nodo, ast.Call):
@@ -217,19 +349,20 @@ def evidencias_de_escritura(fn) -> tuple[list[str], bool] | tuple[None, bool]:
         base = ast.unparse(f.value) if isinstance(f, ast.Attribute) else ""
         if base == "request" and nombre in LECTORES_DE_CUERPO:
             ev.add(f"lee-el-cuerpo:request.{nombre}")
-        if RE_CSRF_VERIFICA.search(nombre):
+        if RE_CSRF_VERIFICA.search(nombre or ""):
             ev.add(f"verifica-csrf:{nombre}")
-        if nombre == "execute":
+        if nombre in ("execute", "executescript", "run"):
             for arg in nodo.args:
                 if isinstance(arg, ast.Constant) and isinstance(arg.value, str) \
                         and RE_SQL_ESCRITURA.search(arg.value):
                     ev.add("sql-de-escritura")
-        if RE_MUTADOR.match(nombre):
-            origen = importaciones.get(base.split(".")[0], "") if base else \
-                importaciones.get(nombre, "")
-            if origen.startswith(MODULOS_DE_ESTADO_DURABLE):
-                ev.add(f"mutador-de-estado-durable:{origen}.{nombre}"
-                       if base else f"mutador-de-estado-durable:{origen}")
+        try:
+            canon = _resolver(ast.unparse(f), importaciones)
+        except Exception:  # pragma: no cover
+            continue
+        primitiva = _escribe_de_verdad(canon)
+        if primitiva:
+            ev.add(f"mutador-de-estado-durable:{canon} ({primitiva})")
     return sorted(ev), True
 
 
@@ -276,6 +409,30 @@ def rutas_montadas(app) -> list[dict[str, Any]]:
 # --------------------------------------------------------------------------
 # F3 — ejecución contra la app real
 # --------------------------------------------------------------------------
+def _especificidad(path: str) -> tuple[int, int]:
+    """Menos parámetros gana; a igualdad, más literal gana."""
+    return (-path.count("{"), len(re.sub(r"\{[^}]+\}", "", path)))
+
+
+def _ruta_mas_especifica(filas: list[dict[str, Any]], url: str) -> dict | None:
+    """La ruta que DEBE atender `url`, derivada del enrutador.
+
+    Starlette elige por orden de declaración; aquí se pregunta cuál es la que
+    describe esa URL con menos comodines, que es la que el autor del formulario
+    tenía en mente. Es una derivación, no una lista.
+    """
+    from starlette.routing import compile_path
+
+    candidatas = []
+    for f in filas:
+        rx, _, _ = compile_path(f["path"])
+        if rx.fullmatch(url):
+            candidatas.append(f)
+    if not candidatas:
+        return None
+    return max(candidatas, key=lambda f: _especificidad(f["path"]))
+
+
 def _url_concreta(path: str) -> str:
     return re.sub(r"\{([^}]+)\}", "1", path)
 
@@ -450,6 +607,7 @@ def construir(repo: Path) -> dict[str, Any]:
     #: Endpoints con capacidad de escritura, por su identidad de manejador. La
     #: atribución del sondeo se hace contra ESTE conjunto, no contra el path.
     claves_de_escritura = {f["endpoint"] for f in escritura}
+    filas_vivas = escritura + lectura
     contratos = contratos_de_cliente(repo, app)
 
     # ---- sondeo HTTP (F3): un GET a cada ruta de escritura + cada contrato
@@ -457,8 +615,21 @@ def construir(repo: Path) -> dict[str, Any]:
     urls += [(c["metodo"], c["url"]) for c in contratos]
     sondas = sondear(app, urls, registro)
 
+    #: Un endpoint SIN ningún método de escritura cuya única evidencia es que
+    #: muta estado durable no es «una escritura mal montada»: es una LECTURA QUE
+    #: ESCRIBE, y se nombra así. Sin esta distinción los dos endpoints de health
+    #: disparaban cuatro hallazgos que decían lo mismo de cuatro maneras, y la
+    #: atribución («cada rojo, un motivo») se perdía.
+    def _lectura_que_escribe(f) -> bool:
+        durables = [e for e in f["evidencias"]
+                    if e.startswith("mutador-de-estado-durable") or e == "sql-de-escritura"]
+        return bool(durables) and not (set(f["metodos"]) & METODOS_DE_ESCRITURA) \
+            and len(durables) == len(f["evidencias"])
+
     # ---- C1 (enumeración): ningún endpoint de escritura montado con GET/HEAD
     for f in escritura:
+        if _lectura_que_escribe(f):
+            continue
         seguros = sorted(set(f["metodos"]) & METODOS_SEGUROS)
         if seguros:
             anota("metodo-seguro-en-endpoint-de-escritura", {
@@ -472,12 +643,42 @@ def construir(repo: Path) -> dict[str, Any]:
                 "metodos_montados": f["metodos"], "evidencias": f["evidencias"],
             })
 
+    # ---- C1bis (la red que no depende de que F1 acierte): una ruta montada
+    #      con POST/PUT/PATCH/DELETE clasificada como LECTURA. Hoy el conjunto
+    #      es VACÍO, así que entra en verde y cubre a TODO endpoint de escritura
+    #      montado, acierte o no la clasificación. Es la comprobación que hace
+    #      innecesario confiar en F1: si mañana un refactor de estilo dejara muda
+    #      a la clasificación, el endpoint no desaparece del enrutador.
+    for f in lectura:
+        inseguros = sorted(set(f["metodos"]) & METODOS_DE_ESCRITURA)
+        if inseguros:
+            anota("metodo-de-escritura-sin-evidencia", {
+                "path": f["path"], "endpoint": f["endpoint"],
+                "metodos_montados": f["metodos"], "metodos_de_escritura": inseguros,
+                "detalle": ("la app sirve escritura en esta ruta pero la "
+                            "clasificación no encontró NI UNA evidencia: o el "
+                            "endpoint no debería aceptar ese método, o la "
+                            "clasificación se ha quedado muda"),
+            })
+
+    # ---- C1ter: un método SEGURO que escribe estado durable. `GET` que
+    #      escribe es escritura, y este carril existe justamente para no dejar
+    #      eso invisible.
+    for f in escritura:
+        if _lectura_que_escribe(f):
+            anota("lectura-que-escribe", {
+                "path": f["path"], "endpoint": f["endpoint"],
+                "metodos_montados": f["metodos"], "evidencias": f["evidencias"],
+            })
+
     # ---- C2 (ejecución): un GET a la URL de una escritura no puede acabar
     #      ATENDIDO por el manejador de escritura. Que la app sirva GET ahí es
     #      legítimo si lo atiende OTRO manejador de lectura montado en el mismo
     #      path (`GET /login` pinta el formulario que `POST /login` procesa);
     #      lo que no es legítimo es que conteste el que escribe.
     for f in escritura:
+        if _lectura_que_escribe(f):
+            continue
         url = _url_concreta(f["path"])
         sonda = sondas.get(f"GET {url}") or {}
         atendido = sonda.get("atendido_por")
@@ -490,11 +691,33 @@ def construir(repo: Path) -> dict[str, Any]:
                 "evidencias": f["evidencias"],
             })
 
-    # ---- C3: el contrato de cliente (plantillas/JS) se puede ejecutar
+    # ---- C3: el contrato de cliente (plantillas/JS) se puede ejecutar Y LO
+    #      ATIENDE QUIEN DEBE. Comprobar sólo «no da 405» dejaba pasar el
+    #      `POST -> PUT` de `/admin/users/new`: al mutar, la petición la recoge
+    #      `POST /admin/users/{user_id}` (que casa con `user_id="new"`) y
+    #      responde 422, así que no había 405 que ver. La ruta que DEBE atender
+    #      es la más específica de las que casan con la URL —menos parámetros
+    #      gana, y a igualdad, la de literal más largo—, y eso se deriva del
+    #      enrutador, sin escribir el nombre de ningún endpoint.
     for c in contratos:
         sonda = sondas.get(f"{c['metodo']} {c['url']}") or {}
-        if sonda.get("estado") in (404, 405, -1, None):
-            anota("contrato-de-cliente-roto", {**c, "estado": sonda.get("estado")})
+        estado = sonda.get("estado")
+        if estado in (404, 405, -1, None):
+            anota("contrato-de-cliente-roto", {**c, "estado": estado,
+                                               "motivo": "la app no sirve ese metodo"})
+            continue
+        debe = _ruta_mas_especifica(filas_vivas, c["url"])
+        if debe is None:
+            continue
+        atendido = sonda.get("atendido_por")
+        if c["metodo"] not in set(debe["metodos"]):
+            anota("contrato-de-cliente-roto", {
+                **c, "estado": estado, "motivo": "el metodo no lo acepta la ruta que manda",
+                "ruta_que_manda": debe["path"], "metodos_de_esa_ruta": debe["metodos"]})
+        elif atendido is not None and atendido != debe["endpoint"]:
+            anota("contrato-de-cliente-roto", {
+                **c, "estado": estado, "motivo": "lo atendio otro manejador",
+                "esperado": debe["endpoint"], "atendido_por": atendido})
 
     # ---- C4: suelos (una espec que no afirma nada no protege nada)
     escrituras_cliente = [c for c in contratos if c["metodo"] not in METODOS_SEGUROS]
