@@ -23,15 +23,10 @@ from review.codes import PreflightFindings, SupersedeCodes, WriterCodes  # noqa:
 from tests import carril5_deuda  # noqa: E402
 from tests.exception_codes import raises_code  # noqa: E402
 
-#: Modulos de producto sellados por el carril.
-SOURCES = [
-    "knowledge_v3/ledger/assertions.py",
-    "knowledge_v3/ledger/supersession.py",
-    "knowledge_v3/ledger/store.py",
-    "knowledge_v3/ledger/entries.py",
-    "review/ingest_approved.py",
-    "review/supersede_review.py",
-]
+#: Modulos de producto sellados por el carril. Fuente unica en `carril5_deuda`:
+#: dos listas separadas acabarian divergiendo y el censo mediria otra cosa que
+#: la deuda declarada.
+SOURCES = list(carril5_deuda.MODULOS_SELLADOS)
 
 REGISTRIES = (LedgerCodes, PreflightFindings, SupersedeCodes, WriterCodes)
 
@@ -136,6 +131,91 @@ def test_todo_raise_sellado_usa_una_constante_del_registro(rel):
 REGISTRIES_BY_NAME = {r.__name__: r for r in REGISTRIES}
 
 
+def _todas_las_llamadas_coded(raiz: Path):
+    """`(fichero, linea, nodo)` de TODA llamada a `coded(...)` bajo `raiz`."""
+    for path in sorted(raiz.rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), str(path))
+        except SyntaxError:
+            continue
+        for n in ast.walk(tree):
+            if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                    and n.func.id == "coded"):
+                yield str(path.relative_to(_APP)), n.lineno, n
+
+
+def test_ningun_coded_del_data_engine_lleva_un_codigo_inventado():
+    """MENOR CERRADO. `coded()` acepta cualquier cadena no vacia, y la guarda
+    AST anterior solo miraba los 6 ficheros sellados: bastaba sellar un `raise`
+    en cualquier OTRO modulo con `coded(exc, "LO_QUE_SEA")` para tener un codigo
+    fuera de registro sin que nada se quejase.
+
+    Ahora el barrido es TODO `data-engine/app/`, tests incluidos. Se admiten dos
+    formas y ninguna mas: una constante de registro, o el parametro de una
+    funcion del propio instrumento (donde el codigo llega de fuera y lo valida
+    quien lo pasa).
+    """
+    conocidos = _registry_values()
+    ofensores = []
+    for rel, lineno, call in _todas_las_llamadas_coded(_APP):
+        if len(call.args) != 2:
+            ofensores.append(f"{rel}:{lineno}: coded() espera (exc, codigo)")
+            continue
+        node = call.args[1]
+        if isinstance(node, ast.Attribute):
+            reg = REGISTRIES_BY_NAME.get(getattr(node.value, "id", None))
+            if reg is None or getattr(reg, node.attr, None) not in conocidos:
+                ofensores.append(f"{rel}:{lineno}: {ast.unparse(node)} no es de registro")
+        elif isinstance(node, ast.Name):
+            continue  # variable: `coded(exc, code)` dentro del propio helper
+        else:
+            ofensores.append(
+                f"{rel}:{lineno}: codigo {ast.unparse(node)!r} no es constante de registro")
+    assert not ofensores, "codigos fuera de registro:\n  " + "\n  ".join(ofensores)
+
+
+def test_ninguna_excepcion_declara_el_sello_como_atributo_de_clase():
+    """MENOR CERRADO. `code_of()` leia con `getattr`, que recorre la MRO: una
+    clase con `s9k_code` DE CLASE haria pasar por sellada una instancia que
+    nadie sello. `code_of()` ya lee el diccionario de instancia; esto comprueba
+    ademas que nadie introduzca esa clase.
+    """
+    culpables = []
+    for path in sorted(_APP.rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), str(path))
+        except SyntaxError:
+            continue
+        for n in ast.walk(tree):
+            if not isinstance(n, ast.ClassDef):
+                continue
+            for stmt in n.body:
+                dianas = (stmt.targets if isinstance(stmt, ast.Assign)
+                          else [stmt.target] if isinstance(stmt, ast.AnnAssign) else [])
+                if any(isinstance(t, ast.Name) and t.id == CODE_ATTR for t in dianas):
+                    culpables.append(f"{path.relative_to(_APP)}:{stmt.lineno} {n.name}")
+    assert not culpables, (
+        f"{CODE_ATTR} como atributo de CLASE en: {culpables}. El sello debe "
+        "significar 'este raise concreto puso el codigo'.")
+
+
+def test_code_of_no_hereda_el_sello_de_la_clase():
+    """Control positivo del menor anterior: una clase que declare el sello no
+    debe sellar a sus instancias."""
+
+    class _Impostora(Exception):
+        pass
+
+    setattr(_Impostora, CODE_ATTR, WriterCodes.PREFLIGHT_UNSAFE)
+    assert code_of(_Impostora("nadie me sello")) is None
+    assert code_of(coded(_Impostora("a mi si"), WriterCodes.PACKAGE_REJECTED)) == \
+        WriterCodes.PACKAGE_REJECTED
+
+
 # --------------------------------------------------------------------------
 # Las pruebas en alcance ya no miden redaccion
 # --------------------------------------------------------------------------
@@ -145,31 +225,109 @@ IN_SCOPE_TESTS = [
     "tests/test_safe_writer.py",
     "tests/test_supersede_review.py",
     "tests/test_use_existing.py",
+    "tests/test_carril5_anclas_rc.py",
 ]
 
 
 @pytest.mark.parametrize("rel", IN_SCOPE_TESTS)
 def test_ninguna_prueba_en_alcance_vuelve_a_medir_subcadenas(rel):
-    """Regresion: si alguien reintroduce `pytest.raises(..., match=...)` en un
-    fichero que sostiene garantias RC, esto se pone rojo."""
-    tree = ast.parse((_APP / rel).read_text(encoding="utf-8"), rel)
-    ofensores = []
-    for n in ast.walk(tree):
-        if (isinstance(n, ast.Call) and ast.unparse(n.func).endswith("raises")
-                and any(kw.arg == "match" for kw in n.keywords)):
-            ofensores.append(n.lineno)
-    assert not ofensores, f"{rel}: comprobaciones por subcadena en {ofensores}"
+    """Regresion: si alguien reintroduce una comprobacion por subcadena en un
+    fichero que sostiene garantias RC, esto se pone rojo.
+
+    MENOR CERRADO: antes solo miraba `pytest.raises(..., match=...)`. Un
+    `"literal" in str(exc)` nuevo --la otra mitad EXACTA del inventario, 50 de
+    177 en la base-- entraba sin que nada chistase. Se reutiliza el detector
+    entregado en vez de reimplementarlo aqui: dos copias del mismo criterio
+    acaban divergiendo y una de las dos deja de morder.
+    """
+    inventario = carril5_deuda.censo_inventario("data-engine")
+    clave = f"data-engine/app/{rel}"
+    hallazgos = inventario["por_fichero"].get(clave, {})
+    ofensores = (hallazgos.get("estricto_match", [])
+                 + hallazgos.get("estricto_in_str", []))
+    assert not ofensores, (
+        f"{rel}: comprobaciones por subcadena en las lineas {sorted(ofensores)}. "
+        "En estos ficheros se mide CONDUCTA: usa `raises_code(tipo, codigo)`.")
 
 
-def test_la_deuda_declarada_cuadra_con_lo_convertido():
-    total_fuera = sum(item[2] for item in carril5_deuda.DEUDA_FUERA_DE_ALCANCE)
-    assert carril5_deuda.CONVERTIDAS + total_fuera == carril5_deuda.INVENTARIO_TOTAL
-    assert (carril5_deuda.INVENTARIO_MATCH + carril5_deuda.INVENTARIO_IN_STR
-            == carril5_deuda.INVENTARIO_TOTAL)
+# --------------------------------------------------------------------------
+# Las cifras se DERIVAN de un censo; declararlas mal se pone rojo
+# --------------------------------------------------------------------------
+def test_el_numero_de_raises_sellados_es_el_declarado():
+    sellados = sum(len(_coded_calls(_APP / rel)) for rel in SOURCES)
+    assert sellados == carril5_deuda.SITIOS_SELLADOS
+
+
+def test_el_reparto_con_ancla_sin_ancla_se_mide_no_se_declara():
+    """LA PRUEBA QUE FALTABA.
+
+    Antes solo `SITIOS_SELLADOS` estaba fijado por censo. `SITIOS_CON_ANCLA` y
+    `SIN_ANCLA_MEDIDA` eran parametros libres: bastaba con que sumasen 71. Se
+    demostro poniendo `SITIOS_CON_ANCLA = 71` y `SIN_ANCLA_MEDIDA = 0` --la
+    deuda entera borrada de un plumazo-- y la suite seguia verde (21 passed).
+    Ahora cada mitad se compara contra el censo.
+    """
+    censo = carril5_deuda.censo_anclas()
+    assert censo["sellados"] == carril5_deuda.SITIOS_SELLADOS
+    assert censo["con_ancla"] == carril5_deuda.SITIOS_CON_ANCLA
+    assert censo["sin_ancla"] == carril5_deuda.SIN_ANCLA_MEDIDA
     assert (carril5_deuda.SITIOS_CON_ANCLA + carril5_deuda.SIN_ANCLA_MEDIDA
             == carril5_deuda.SITIOS_SELLADOS)
 
 
-def test_el_numero_de_raises_sellados_es_el_declarado():
-    sellados = sum(len(_coded_calls(_APP / rel)) for rel in SOURCES)
-    assert sellados == carril5_deuda.SITIOS_SELLADOS
+def test_los_sitios_sin_ancla_estan_nombrados_uno_a_uno():
+    """Un numero no es una declaracion. La entrega anterior decia "31 sin ancla"
+    y en el repo no habia manera de saber CUALES: solo existia el 31."""
+    censo = carril5_deuda.censo_anclas()
+    assert list(carril5_deuda.SIN_ANCLA_NOMINAL) == censo["nominal_sin_ancla"], (
+        "la lista nominal no coincide con la medida.\n"
+        "  medida:    " + "\n             ".join(censo["nominal_sin_ancla"]))
+
+
+def test_el_inventario_actual_es_el_declarado():
+    """Cifra TOTAL, no muestra: censo AST completo del ambito `data-engine`."""
+    c = carril5_deuda.censo_inventario("data-engine")
+    assert c["estricto"]["total"] == carril5_deuda.INVENTARIO_ACTUAL_ESTRICTO
+    assert c["estricto"]["match"] == carril5_deuda.INVENTARIO_ACTUAL_ESTRICTO_MATCH
+    assert c["estricto"]["in_str"] == carril5_deuda.INVENTARIO_ACTUAL_ESTRICTO_IN_STR
+    assert c["amplio"]["total"] == carril5_deuda.INVENTARIO_ACTUAL_AMPLIO
+
+
+def _hay_ref(ref: str) -> bool:
+    import subprocess
+    raiz = _APP.parents[1]
+    return subprocess.run(["git", "-C", str(raiz), "cat-file", "-e", ref + "^{commit}"],
+                          capture_output=True).returncode == 0
+
+
+def test_el_inventario_de_la_base_y_la_conversion_cuadran():
+    """Comprobacion cruzada, derivada: convertidas = base - actual + guardas.
+
+        177 - 127 + 2 = 52        (total ESTRICTO)
+        127 -  52 + 2 = 77        (solo `match=`)
+
+    Se omite --y se dice-- si el arbol no tiene el commit base: en un clon
+    superficial la medida no existe, y fingirla seria peor que no darla.
+    """
+    if not _hay_ref("aaf9695"):
+        pytest.skip("aaf9695 no esta en este arbol (clon superficial)")
+    b = carril5_deuda.censo_inventario("data-engine", "aaf9695")
+    assert b["estricto"]["total"] == carril5_deuda.INVENTARIO_BASE_ESTRICTO
+    assert b["estricto"]["match"] == carril5_deuda.INVENTARIO_BASE_ESTRICTO_MATCH
+    assert b["amplio"]["total"] == carril5_deuda.INVENTARIO_BASE_AMPLIO
+    assert (carril5_deuda.INVENTARIO_BASE_ESTRICTO
+            - carril5_deuda.INVENTARIO_ACTUAL_ESTRICTO
+            + carril5_deuda.GUARDAS_NUEVAS == carril5_deuda.CONVERTIDAS)
+    assert (carril5_deuda.INVENTARIO_BASE_ESTRICTO_MATCH
+            - carril5_deuda.CONVERTIDAS
+            + carril5_deuda.GUARDAS_NUEVAS
+            == carril5_deuda.INVENTARIO_ACTUAL_ESTRICTO_MATCH)
+
+
+def test_la_deuda_por_familias_suma_el_censo_y_no_deja_huerfanos():
+    """Las cuatro cifras de familia eran enteros libres. Ahora las deriva el
+    censo, y las familias particionan: la suma TIENE que dar el total."""
+    censo = carril5_deuda.censo_inventario("data-engine")
+    conteo = carril5_deuda.deuda_por_familia(censo)
+    assert sum(conteo.values()) == censo["estricto"]["total"]
+    assert set(conteo) == {f for f, _, _ in carril5_deuda.DEUDA_FUERA_DE_ALCANCE}

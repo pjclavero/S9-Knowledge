@@ -57,9 +57,41 @@ TESTS = [
     "app/tests/test_safe_writer.py",
     "app/tests/test_supersede_review.py",
     "app/tests/test_use_existing.py",
+    "app/tests/test_carril5_anclas_rc.py",
 ]
 
 MUTATED_MESSAGE = "mensaje reescrito por el control negativo del carril 5"
+
+#: Ficheros que NO se pueden recolectar dentro del arbol copiado del arnes
+#: (buscan runners congelados y datos por ruta absoluta del repo real). Se
+#: excluyen SOLO en el modo `--full`, y el `baseline_sin_mutar` demuestra que su
+#: exclusion no depende de ninguna mutacion. Ninguno toca las guardas medidas.
+SANDBOX_INCOLECTABLES = [
+    "test_agreement_shadow.py",
+    "test_gate4_b1_ocr_adversarial.py",
+    "test_gate4_b1_ocr_lane.py",
+    "test_gate4_b1_ocr_real.py",
+    "test_gate4_b3_adversarial.py",
+    "test_gate4_b3_nvidia_shadow.py",
+    "test_gate4_b5_final.py",
+    "test_gate6_measure_b1.py",
+]
+
+#: Las OCHO guardas de garantía RC que la revisión encontró INDEFENSAS: se podía
+#: neutralizar el `raise` (envolviéndolo en `if False:`, que preserva el censo AST
+#: de sitios sellados) y los 5255 tests seguían verdes. Cada una lleva ahora su
+#: ancla de conducta en `app/tests/test_carril5_anclas_rc.py`, y el modo `guards`
+#: mide que neutralizarla pone roja ESA prueba y sólo ésa.
+GUARDS = [
+    ("app/knowledge_v3/ledger/assertions.py", "CHAIN_SEQ_GAP"),
+    ("app/knowledge_v3/ledger/assertions.py", "SUPERSEDE_TARGET_EXISTS"),
+    ("app/knowledge_v3/ledger/supersession.py", "VALIDITY_INVERTED"),
+    ("app/knowledge_v3/ledger/supersession.py", "SUPERSESSION_CYCLE"),
+    ("app/review/ingest_approved.py", "WRITE_PROVENANCE_INCOMPLETE"),
+    ("app/review/supersede_review.py", "SOURCE_MODIFIED_DURING"),
+    ("app/review/supersede_review.py", "WRITTEN_SHA_MISMATCH"),
+    ("app/review/supersede_review.py", "SOURCE_MODIFIED_AFTER"),
+]
 
 
 def sha256(path: Path) -> str:
@@ -211,10 +243,64 @@ def ablate_code_control(root: Path, code_suffix: str) -> int:
     return n
 
 
-def run_tests(root: Path, only: list[str] | None = None):
+def neutralize_guard(root: Path, rel: str, code_suffix: str) -> tuple[int, str]:
+    """Neutraliza la guarda cuyo `coded(..., X.<code_suffix>)` la sella.
+
+    Reproduce EXACTAMENTE la mutación del revisor: envuelve el `raise` en
+    `if False:`. Se elige esa forma, y no borrar la línea, porque preserva el
+    censo AST de sitios sellados: la guarda desaparece de la conducta sin que la
+    prueba de censo (`test_el_numero_de_raises_sellados_es_el_declarado`) se
+    entere. Ése es justo el escenario que las anclas deben detectar.
+
+    Devuelve `(linea, sha256 del fichero mutado)`.
+    """
+    p = root / rel
+    raw = p.read_bytes()
+    tree = ast.parse(raw.decode("utf-8"), rel)
+    targets = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.Raise) and isinstance(n.exc, ast.Call)
+        and isinstance(n.exc.func, ast.Name) and n.exc.func.id == "coded"
+        and len(n.exc.args) == 2
+        and ast.unparse(n.exc.args[1]).split(".")[-1] == code_suffix
+    ]
+    assert len(targets) == 1, f"{rel}: {code_suffix} aparece {len(targets)} veces"
+    node = targets[0]
+    lines = raw.decode("utf-8").splitlines(keepends=True)
+    first, last = node.lineno - 1, node.end_lineno  # [first, last)
+    indent = " " * node.col_offset
+    block = [indent + "if False:\n"] + ["    " + ln for ln in lines[first:last]]
+    out = "".join(lines[:first] + block + lines[last:])
+    ast.parse(out, rel)
+    p.write_bytes(out.encode("utf-8"))
+    return node.lineno, sha256(p)
+
+
+def restore(root: Path, rels) -> None:
+    """Devuelve `rels` a su contenido real. Sustituye a recopiar el arbol entero:
+    la copia completa de `data-engine` tarda minutos en este disco y el arnes se
+    volvia inejecutable. El contenido restaurado se verifica por SHA-256 contra
+    el arbol real, asi que la reversion es demostrable, no confiada."""
+    for rel in rels:
+        shutil.copyfile(DE / rel, root / rel)
+        assert sha256(root / rel) == sha256(DE / rel), f"reversion fallida en {rel}"
+
+
+def run_tests(root: Path, only: list[str] | None = None, timeout: int | None = None):
+    """Devuelve `(returncode, salida)`. `returncode` es -1 si expiro el plazo.
+
+    El plazo existe por un hallazgo real: neutralizar `SUPERSESSION_CYCLE` no
+    deja la suite verde, la deja COLGADA --sin esa guarda, `chain_from` recorre
+    un ciclo para siempre--. Sin timeout el arnes se queda esperando y un
+    colgado se confunde con "sigue corriendo"."""
     args = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
             "--no-header", "--tb=no", "-rf", "--color=no", *(only or [t.split("app/", 1)[1] for t in TESTS])]
-    r = subprocess.run(args, cwd=root / "app", capture_output=True, text=True)
+    try:
+        r = subprocess.run(args, cwd=root / "app", capture_output=True, text=True,
+                           timeout=timeout)
+    except subprocess.TimeoutExpired as e:
+        salida = (e.stdout or b"").decode("utf-8", "replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+        return -1, salida + f"\nPLAZO AGOTADO ({timeout}s): la suite no termina."
     return r.returncode, r.stdout + r.stderr
 
 
@@ -230,8 +316,13 @@ def purge_pycache(root: Path) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["text", "code", "baseline", "ablation", "all"])
+    ap.add_argument("mode", choices=["text", "code", "baseline", "ablation", "guards", "all"])
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--full", action="store_true",
+                    help="corre TODA la suite del data-engine, no sólo las de alcance: "
+                         "es lo que permite afirmar 'sin rojos prestados'")
+    ap.add_argument("--timeout", type=int, default=900,
+                    help="plazo por ejecucion de pytest; un colgado NO es un verde")
     args = ap.parse_args()
 
     before = tree_hashes(DE, SOURCES + TESTS)
@@ -288,6 +379,53 @@ def main() -> int:
                 "detectado": rc != 0,
             })
 
+
+    if args.mode in ("guards", "all"):
+        # `--full` corre TODA la suite del data-engine. Ocho ficheros no se
+        # pueden RECOLECTAR dentro del arbol copiado: buscan runners congelados
+        # y datos por ruta absoluta del repo real. Eso no lo causa ninguna
+        # mutacion --se demuestra con la linea `baseline` de mas abajo, sin
+        # mutar-- y sin excluirlos pytest devuelve 2 (error de recoleccion), que
+        # se confundiria con "la mutacion se detecto". Es exactamente el falso
+        # hallazgo de medir contra el propio montaje.
+        scope = None
+        if args.full:
+            scope = ["tests"] + [f"--ignore=tests/{f}" for f in SANDBOX_INCOLECTABLES]
+            root0 = fresh_copy()
+            purge_pycache(root0)
+            rc0, out0 = run_tests(root0, only=scope, timeout=args.timeout)
+            report["results"].append({
+                "control": "baseline_sin_mutar",
+                "alcance": "suite completa del data-engine (menos incolectables)",
+                "returncode": rc0,
+                "failed": failing_tests(out0),
+                "tail": out0.strip().splitlines()[-1:],
+                "veredicto": "OK (verde de partida)" if rc0 == 0 else "ARNES INVALIDO",
+            })
+        # UNA sola copia del arbol, y entre mutaciones se restauran SOLO los
+        # ficheros de producto (6). Recopiar 25 MB por mutacion tardaba minutos.
+        root = root0 if args.full else fresh_copy()
+        for rel, code_suffix in GUARDS:
+            restore(root, SOURCES)
+            purge_pycache(root)
+            lineno, h = neutralize_guard(root, rel, code_suffix)
+            rc, out = run_tests(root, only=scope, timeout=args.timeout)
+            failed = failing_tests(out)
+            report["results"].append({
+                "control": "guard_neutralizada",
+                "site": f"{rel}:{lineno}",
+                "code": code_suffix,
+                "mutacion": "raise envuelto en `if False:` (el censo AST no se entera)",
+                "hash_mutado": h,
+                "alcance": "suite completa del data-engine" if args.full else "pruebas en alcance",
+                "returncode": rc,
+                "failed": failed,
+                "detectado": rc != 0,
+                "como": ("colgado: la guarda era lo unico que acotaba el bucle"
+                         if rc == -1 else "rojo" if rc != 0 else "NADA: guarda indefensa"),
+                "ancla_unica": len(failed) == 1,
+            })
+        restore(root, SOURCES)
 
     if args.mode in ("ablation", "all"):
         base = fresh_copy()

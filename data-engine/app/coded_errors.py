@@ -44,8 +44,15 @@ def code_of(exc: BaseException) -> Optional[str]:
 
     Deliberadamente NO inspecciona `str(exc)`: si el codigo se dedujese del
     texto, seguiriamos midiendo redaccion.
+
+    Y lee el diccionario de la INSTANCIA, no `getattr`. `getattr` recorre la MRO:
+    una clase de excepcion que declarase `s9k_code` como atributo DE CLASE haria
+    pasar por sellada a cualquier instancia suya, incluidas las que nadie sello
+    nunca. Hoy no existe ninguna clase asi --se comprueba en
+    `test_carril5_exception_codes.py`--, pero el sello tiene que significar "este
+    `raise` concreto puso el codigo", y eso solo lo garantiza la instancia.
     """
-    value = getattr(exc, CODE_ATTR, None)
+    value = exc.__dict__.get(CODE_ATTR) if hasattr(exc, "__dict__") else None
     return value if isinstance(value, str) and value else None
 
 
