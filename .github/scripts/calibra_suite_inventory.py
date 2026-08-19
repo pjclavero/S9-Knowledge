@@ -72,7 +72,13 @@ NAVEGADOR = REPO / "viewer" / "tests" / "browser" / "test_browser_navigation.py"
 
 # Cualquier fichero que una mutacion pueda tocar. Se salvan enteros y se
 # restauran verificando el SHA-256.
-TOCABLES = TRES_DEL_RC + (NAVEGADOR,)
+AUTHZ_NEO4J = REPO / "viewer" / "tests" / "test_neo4j_integration_authz.py"
+TOCABLES = TRES_DEL_RC + (
+    NAVEGADOR,
+    AUTHZ_NEO4J,
+    REPO / ".github" / "workflows" / "ci.yml",
+    REPO / ".github" / "suite-bajas.txt",
+)
 
 VERDE, ROJO = "VERDE", "ROJO"
 
@@ -253,6 +259,120 @@ def m_dependencia_no_declarada():
         "    assert certifi is not None\n", encoding="utf-8")
 
 
+# ---------------------------------------------------------------------------
+# LOS CINCO SUPERVIVIENTES del dictamen NO CONFORME. Cada uno salio VERDE con 0
+# errores contra la version anterior del gate. Si alguno vuelve a salir verde,
+# esta calibracion falla y se entera todo el mundo.
+# ---------------------------------------------------------------------------
+
+CI = REPO / ".github" / "workflows" / "ci.yml"
+BAJAS = REPO / ".github" / "suite-bajas.txt"
+
+
+def m_s1_apagar_test_a_test() -> None:
+    """S1: decorar CADA test de la suite critica con `@pytest.mark.skip`.
+
+    El ataque original en otra sintaxis. La coleccion NO cambia (un test con
+    `skip` se sigue recolectando), asi que ni A a nivel de modulo ni el
+    trinquete de recuento lo veian. Baseline 22 passed -> 0 ejecutados.
+    """
+    lineas = PARCIALIDAD.read_text(encoding="utf-8").splitlines(keepends=True)
+    salida, tocados = [], 0
+    for linea in lineas:
+        if linea.startswith("def test_") or linea.startswith("class Test"):
+            salida.append("@pytest.mark.skip(reason='calibracion S1')\n")
+            tocados += 1
+        salida.append(linea)
+    if tocados == 0:
+        raise SystemExit("MUTACION IMPOSIBLE (S1): no hay tests de primer nivel")
+    PARCIALIDAD.write_text("".join(salida), encoding="utf-8")
+
+
+def m_s2_ignore_en_ci() -> None:
+    """S2: `--ignore=` de la suite critica en TODAS las invocaciones reales."""
+    texto = CI.read_text(encoding="utf-8")
+    nuevo_texto = texto.replace(
+        "python -m pytest ",
+        "python -m pytest --ignore=viewer/tests/test_parcialidad_declarada.py ")
+    if nuevo_texto == texto:
+        raise SystemExit("MUTACION IMPOSIBLE (S2): no se encontro invocacion")
+    CI.write_text(nuevo_texto, encoding="utf-8")
+
+
+def m_s3_k_en_ci() -> None:
+    """S3: `-k 'not parcialidad'` en todas las invocaciones reales."""
+    texto = CI.read_text(encoding="utf-8")
+    nuevo_texto = texto.replace("python -m pytest ",
+                                "python -m pytest -k not_parcialidad ")
+    if nuevo_texto == texto:
+        raise SystemExit("MUTACION IMPOSIBLE (S3): no se encontro invocacion")
+    CI.write_text(nuevo_texto, encoding="utf-8")
+
+
+def _quita_marcador_critico() -> None:
+    texto = PARCIALIDAD.read_text(encoding="utf-8")
+    ancla = "pytestmark = pytest.mark.critico"
+    if ancla not in texto:
+        raise SystemExit("MUTACION IMPOSIBLE (S4): no esta el marcador critico")
+    PARCIALIDAD.write_text(
+        texto.replace(ancla, "# marcador retirado por la calibracion"),
+        encoding="utf-8")
+
+
+def m_s4_descritificar_en_silencio() -> None:
+    """S4: borrar el marcador: los criticos bajan de 20 a 19 sin que nada avise."""
+    _quita_marcador_critico()
+
+
+def m_s5_baja_de_critica_borrando() -> None:
+    """S5a: quitar criticidad + declarar baja + borrar el fichero, en UN commit."""
+    _quita_marcador_critico()
+    BAJAS.write_text(
+        BAJAS.read_text(encoding="utf-8")
+        + "\nviewer/tests/test_parcialidad_declarada.py\n", encoding="utf-8")
+    PARCIALIDAD.unlink()
+
+
+def m_s5_baja_de_critica_vaciando() -> None:
+    """S5b: la misma jugada vaciando el fichero en vez de borrarlo."""
+    _quita_marcador_critico()
+    BAJAS.write_text(
+        BAJAS.read_text(encoding="utf-8")
+        + "\nviewer/tests/test_parcialidad_declarada.py\n", encoding="utf-8")
+    PARCIALIDAD.write_text("# vaciado por la calibracion\n", encoding="utf-8")
+
+
+def m_condicion_reescrita() -> None:
+    """Menor: reescribir la condicion de un `skipif` ya indultado.
+
+    A2 hace trinquete sobre la PERTENENCIA al conjunto de silenciados, no sobre
+    la condicion, asi que sin el control nuevo el modulo quedaba apagado por una
+    variable que nadie define y no salia del conjunto.
+    """
+    ruta = REPO / "viewer" / "tests" / "test_neo4j_integration_authz.py"
+    texto = ruta.read_text(encoding="utf-8")
+    ancla = "    not URI or not PASSWORD,"
+    if ancla not in texto:
+        raise SystemExit("MUTACION IMPOSIBLE: no esta la condicion del skipif")
+    ruta.write_text(
+        texto.replace(ancla, "    not os.environ.get('S9K_JAMAS_DEFINIDA'),"),
+        encoding="utf-8")
+
+
+def m_descritificar_declarado() -> None:
+    """Control POSITIVO: descritificar con la suite VIVA y declarandolo.
+
+    Tiene que salir VERDE: retirar la criticidad es legitimo, y es el primero
+    de los dos commits que exige retirar una suite critica. Si esto saliera
+    rojo, el gate no dejaria ningun camino y acabaria desactivado.
+    """
+    _quita_marcador_critico()
+    BAJAS.write_text(
+        BAJAS.read_text(encoding="utf-8")
+        + "\ndescritificar: viewer/tests/test_parcialidad_declarada.py\n",
+        encoding="utf-8")
+
+
 CASOS = [
     # (titulo, mutacion, paquete_bloqueado, ablacion, esperado)
     ("estado correcto (control positivo)", None, None, None, VERDE),
@@ -275,6 +395,24 @@ CASOS = [
      m_caida_de_recuento, None, None, ROJO),
     ("borrar una suite DELEGADA (trinquete de presencia, C-bis)",
      m_borra(NAVEGADOR), None, None, ROJO),
+
+    # --- los cinco supervivientes del dictamen NO CONFORME ---------------
+    ("S1: apagar la suite critica TEST A TEST (@pytest.mark.skip x20)",
+     m_s1_apagar_test_a_test, None, None, ROJO),
+    ("S2: `--ignore=` de la suite critica en las invocaciones de ci.yml",
+     m_s2_ignore_en_ci, None, None, ROJO),
+    ("S3: `-k` que descarta la suite critica en ci.yml",
+     m_s3_k_en_ci, None, None, ROJO),
+    ("S4: borrar `pytest.mark.critico` (criticos 20 -> 19 en silencio)",
+     m_s4_descritificar_en_silencio, None, None, ROJO),
+    ("S5a: descritificar + baja + BORRAR la suite critica en un commit",
+     m_s5_baja_de_critica_borrando, None, None, ROJO),
+    ("S5b: descritificar + baja + VACIAR la suite critica en un commit",
+     m_s5_baja_de_critica_vaciando, None, None, ROJO),
+    ("menor: reescribir la condicion de un `skipif` indultado",
+     m_condicion_reescrita, None, None, ROJO),
+    ("control positivo: descritificar DECLARANDOLO y con la suite viva",
+     m_descritificar_declarado, None, None, VERDE),
     ("RC-3a: `jsonschema` ausente (30+ modulos con importorskip)",
      None, "jsonschema", None, ROJO),
     ("RC-3b: `PyYAML` ausente", None, "yaml", None, ROJO),
@@ -296,6 +434,8 @@ CASOS = [
      m_caida_de_recuento, None, "D", VERDE),
     ("ABLACION E: dependencia no declarada con el preflight quitado",
      m_dependencia_no_declarada, None, "E", VERDE),
+    ("ABLACION F: `--ignore` en ci.yml con el control de filtros quitado",
+     m_s2_ignore_en_ci, None, "F", VERDE),
 
     ("restaurado (control positivo final)", None, None, None, VERDE),
 ]

@@ -173,6 +173,24 @@ def testpaths_de_pytest_ini() -> list[str]:
     return []
 
 
+def _banderas_de_linea(linea: str) -> list[str]:
+    """Las OPCIONES de una invocacion de pytest, que antes se tiraban.
+
+    `_rutas_de_linea` las descartaba para no confundirlas con rutas y ahi
+    moria la vigilancia: `--ignore` y `-k` viajaban en esas opciones. Ahora se
+    recogen para que `comprueba_filtros_de_exclusion` pueda mirarlas.
+    """
+    pos = linea.find("pytest")
+    if pos < 0:
+        return []
+    banderas = []
+    for bruto in linea[pos + len("pytest"):].split():
+        token = bruto.strip("\"'")
+        if token.startswith("-") and token not in ("-", "--"):
+            banderas.append(token)
+    return banderas
+
+
 def _rutas_de_linea(linea: str, cwd: Path) -> list[str]:
     """Argumentos posicionales de una invocacion de pytest que son rutas reales.
 
@@ -238,8 +256,69 @@ def derivar_invocaciones() -> list[dict]:
                     "paso": str(paso.get("name") or "(sin nombre)"),
                     "cwd": cwd_efectivo.relative_to(REPO).as_posix() or ".",
                     "raices": raices,
+                    "banderas": _banderas_de_linea(linea),
                 })
     return salida
+
+
+# Banderas que EXCLUYEN parte de lo que la invocacion recorre. Prohibidas en
+# los jobs vigilados, y la prohibicion nace de dos supervivientes MEDIDOS:
+#
+#   `--ignore=viewer/tests/test_parcialidad_declarada.py` en las 4 invocaciones
+#   reales de `ci.yml`  -> el gate salio VERDE.
+#   `-k 'not parcialidad'`                                -> VERDE tambien.
+#
+# La causa raiz es exacta y merece quedar escrita: `derivar_invocaciones()`
+# saca las RAICES que el job recorre y despues el gate construye SU PROPIO
+# argv. Los filtros del job se descartaban. F1 medía qué RECORRE el job, no qué
+# EXCLUYE, que es literalmente la familia de fallo que este fichero cierra.
+#
+# Se PROHIBEN en vez de replicarse. Replicarlas dejaria al gate midiendo el
+# recorte y certificandolo como si fuera la suite; prohibirlas obliga a que un
+# job requerido ejecute TODO lo que recorre. Es el mismo patron que la
+# autoguardia de `--sin-base`, que ya existia y funcionaba.
+#
+# `-p` NO esta aqui: carga un plugin, no recorta nada (`route-map-gate` lo
+# necesita para la sonda). `--tb`, `-q`, `-v` y `--no-header` tampoco tocan qué
+# se ejecuta.
+BANDERAS_QUE_EXCLUYEN = (
+    "--ignore", "--ignore-glob", "--deselect", "-k", "-m",
+    "--lf", "--last-failed", "--ff", "--failed-first", "--sw", "--stepwise",
+    "--co",
+)
+
+
+def comprueba_filtros_de_exclusion(invocaciones: list[dict],
+                                   raices: list[Path]) -> list[str]:
+    """Ningun job vigilado puede EXCLUIR parte de lo que recorre."""
+    protegidas = {r.relative_to(REPO).as_posix() for r in raices}
+    errores = []
+    for inv in invocaciones:
+        base = REPO / inv["cwd"]
+        suyas = set()
+        for r in inv["raices"]:
+            ruta = (base / r.split("::")[0]).resolve()
+            try:
+                rel = ruta.relative_to(REPO).as_posix()
+            except ValueError:
+                continue
+            if any(rel == p or rel.startswith(p + "/") for p in protegidas):
+                suyas.add(rel)
+        if not suyas:
+            continue
+        for bandera in inv.get("banderas", ()):
+            nombre = bandera.split("=", 1)[0]
+            if nombre in BANDERAS_QUE_EXCLUYEN:
+                errores.append(
+                    f"FILTRO DE EXCLUSION: el job `{inv['job']}`, paso "
+                    f"`{inv['paso']}`, invoca pytest con `{bandera}` sobre "
+                    f"{sorted(suyas)}. Esa bandera APAGA parte de la suite sin "
+                    f"tocar ni un fichero de test, y el inventario no la ve: "
+                    f"mide lo que el job RECORRE, no lo que EXCLUYE. Un job "
+                    f"requerido ejecuta todo lo que recorre; si de verdad sobra "
+                    f"algo, quitalo de las rutas, que se ve en el diff."
+                )
+    return errores
 
 
 def raices_invocadas() -> list[Path]:
@@ -413,6 +492,107 @@ def silenciado(texto: str) -> tuple[str, str] | None:
             if es_skip and any(k.arg == "allow_module_level" for k in llamada.keywords):
                 return INCONDICIONAL, "`pytest.skip(..., allow_module_level=True)`"
     return None
+
+
+def condicion_de_silencio(texto: str) -> str:
+    """El TEXTO de la condicion del `skipif` de modulo, normalizado por AST.
+
+    A2 hace trinquete sobre la PERTENENCIA al conjunto de silenciados, y eso
+    dejaba una rendija medida: a un modulo ya silenciado se le puede reescribir
+    la condicion —de `not NEO4J_TEST_URI` a `not S9K_LO_QUE_SEA`, que nadie
+    define nunca— sin entrar ni salir del conjunto, asi que nada enrojecia.
+    Se guarda la condicion desparseada con `ast.unparse`, no el texto crudo:
+    reformatear no es cambiar, y cambiar tiene que doler.
+    """
+    try:
+        arbol = ast.parse(texto)
+    except SyntaxError:
+        return ""
+    for nodo in arbol.body:
+        if not isinstance(nodo, ast.Assign):
+            continue
+        if not any(isinstance(d, ast.Name) and d.id == "pytestmark" for d in nodo.targets):
+            continue
+        candidatos = list(nodo.value.elts) if isinstance(nodo.value, (ast.List, ast.Tuple)) \
+            else [nodo.value]
+        for c in candidatos:
+            if isinstance(c, ast.Call) and _nucleo_marca(c) == "skipif" and c.args:
+                try:
+                    return ast.unparse(c.args[0])
+                except Exception:
+                    return "<no desparseable>"
+    return ""
+
+
+def _nucleo_marca(nodo: ast.AST) -> str:
+    """Nombre de la marca de pytest, este llamada o no: `mark.skip` -> "skip"."""
+    nucleo = nodo.func if isinstance(nodo, ast.Call) else nodo
+    return nucleo.attr if isinstance(nucleo, ast.Attribute) else ""
+
+
+def _es_test(nodo: ast.AST) -> bool:
+    if isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return nodo.name.startswith("test_")
+    if isinstance(nodo, ast.ClassDef):
+        return nodo.name.startswith("Test")
+    return False
+
+
+def apagados_por_decorador(texto: str) -> list[tuple[str, str]]:
+    """(nombre, motivo) de cada test apagado INCONDICIONALMENTE por decorador.
+
+    ESTE CONTROL EXISTE POR UN SUPERVIVIENTE MEDIDO. La primera version de este
+    gate solo miraba `pytestmark` a NIVEL DE MODULO. Un revisor decoro las 20
+    funciones y clases de `test_parcialidad_declarada.py` con
+    `@pytest.mark.skip` —el ataque original escrito en otra sintaxis— y el gate
+    salio VERDE con 0 errores: baseline `22 passed` -> `0 ejecutados`.
+
+    Y el trinquete de recuento TAMPOCO lo veia, y la razon importa: un test
+    decorado con `skip` SIGUE RECOLECTANDOSE. Comprobado, no supuesto. Por eso
+    contar lo recolectado nunca puede ser la garantia: hay que contar lo que
+    QUEDA EN PIE.
+
+    No hay indulto para los existentes porque no hay existentes: hoy el arbol
+    tiene CERO decoradores `skip` incondicionales (11 `skipif`, todos con
+    condicion real). Un gate que nace sin excepciones no las adquiere solo.
+    """
+    try:
+        arbol = ast.parse(texto)
+    except SyntaxError:
+        return []
+    hallazgos = []
+    for nodo in ast.walk(arbol):
+        if not _es_test(nodo):
+            continue
+        for dec in nodo.decorator_list:
+            marca = _nucleo_marca(dec)
+            if marca == "skip":
+                hallazgos.append((nodo.name, "@pytest.mark.skip"))
+            elif marca == "skipif" and _condicion_constante_verdadera(dec):
+                hallazgos.append((nodo.name, "@pytest.mark.skipif(<constante verdadera>)"))
+    return hallazgos
+
+
+def tests_en_pie(texto: str) -> int:
+    """Cuantos tests DEFINE el modulo que no estan apagados sin condicion.
+
+    Es una medida distinta de la coleccion —no expande `parametrize`— y esa es
+    justo su virtud: la coleccion no cambia cuando alguien decora un test con
+    `skip`, y esta si. Van las dos al inventario, y las dos con trinquete.
+    """
+    try:
+        arbol = ast.parse(texto)
+    except SyntaxError:
+        return 0
+    # SOLO se descuentan los apagados POR DECORADOR. El silencio a nivel de
+    # modulo NO se resta aqui, y es deliberado: si esta medida tambien cayera a
+    # cero con un `pytestmark`, D2 estaria cazando lo mismo que A y la ablacion
+    # de A no podria aislarse —lo dijo la propia calibracion, que salio ROJA
+    # con A ablacionado—. Cada control tiene que sujetar algo que solo el
+    # sujeta, o no se puede demostrar que sujete nada. El silencio de modulo lo
+    # cubren A1 (siempre, sin base) y A2 (trinquete).
+    apagados = {n for n, _ in apagados_por_decorador(texto)}
+    return sum(1 for nodo in ast.walk(arbol) if _es_test(nodo) and nodo.name not in apagados)
 
 
 # --------------------------------------------------------------------------
@@ -708,7 +888,12 @@ def inventario_base() -> tuple[dict[str, int] | None, str]:
         return None, "SIN TRINQUETE: no hay merge-base con origin/main"
     p = _git("show", f"{base}:.github/suite-inventario.json")
     if p.returncode != 0:
-        return None, f"SIN TRINQUETE: la base {base[:8]} no publica inventario"
+        # La base no publica inventario (rama anterior a este gate). ESPERAR
+        # "al primer merge" seria una eleccion, no una necesidad: el arbol de
+        # la base se puede MATERIALIZAR y medir aqui mismo. Sin esto, el primer
+        # PR que introduce el gate corre sin trinquete, que es justo el PR en
+        # el que mas falta hace.
+        return inventario_materializando(base)
     try:
         datos = json.loads(p.stdout)
         if "modulos" not in datos:
@@ -718,12 +903,86 @@ def inventario_base() -> tuple[dict[str, int] | None, str]:
         return None, f"SIN TRINQUETE: inventario de la base ilegible ({e})"
 
 
-def bajas_declaradas() -> set[str]:
+def inventario_materializando(base: str) -> tuple[dict | None, str]:
+    """Deriva el inventario del merge-base sacando su arbol a un temporal.
+
+    `git archive <base> | tar -x` en un directorio de usar y tirar, y alli se
+    ejecuta este mismo gate con `--escribir-inventario --sin-base`. La medida
+    de la base sale del ARBOL de la base, no de lo que la base dijera de si
+    misma, y no toca el arbol de trabajo ni por un instante.
+
+    Si algo falla se devuelve None y el gate lo dice como AVISO; lo que NO
+    puede pasar —y pasaba— es que el mensaje final afirme un trinquete que no
+    se aplico.
+    """
+    import shutil
+    import tempfile
+    tmp = Path(tempfile.mkdtemp(prefix="s9k-base-inventario-"))
+    try:
+        tar = subprocess.run(["git", "archive", "--format=tar", base],
+                             cwd=REPO, capture_output=True, timeout=300)
+        if tar.returncode != 0:
+            return None, f"SIN TRINQUETE: no se pudo materializar {base[:8]}"
+        ex = subprocess.run(["tar", "-x", "-C", str(tmp)], input=tar.stdout,
+                            capture_output=True, timeout=300)
+        if ex.returncode != 0:
+            return None, f"SIN TRINQUETE: no se pudo desempaquetar {base[:8]}"
+        gate = tmp / ".github" / "scripts" / "check_suite_inventory.py"
+        if not gate.is_file():
+            # La base es anterior al gate: se le presta ESTE, que es lo unico
+            # honesto que se puede hacer. Se mide el arbol de la base con el
+            # instrumento de hoy.
+            gate.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(Path(__file__).resolve(), gate)
+            propio = REPO / ".github" / "scripts" / "check_ci_config.py"
+            destino = tmp / ".github" / "scripts" / "check_ci_config.py"
+            if propio.is_file() and not destino.is_file():
+                shutil.copy2(propio, destino)
+        entorno = dict(os.environ)
+        entorno["PYTHONDONTWRITEBYTECODE"] = "1"
+        entorno.pop("S9K_INVENTARIO_ABLACION", None)
+        entorno.setdefault("S9K_ALLOW_REAL_INGEST", "")
+        r = subprocess.run(
+            [sys.executable, str(gate), "--escribir-inventario", "--sin-base"],
+            cwd=tmp, capture_output=True, text=True, env=entorno, timeout=1800)
+        destino = tmp / ".github" / "suite-inventario.json"
+        if not destino.is_file():
+            return None, (f"SIN TRINQUETE: la medida de {base[:8]} no produjo "
+                          f"inventario (rc={r.returncode})")
+        datos = json.loads(destino.read_text(encoding="utf-8"))
+        return datos, f"base {base[:8]} MATERIALIZADA y medida en el sitio"
+    except (OSError, ValueError, subprocess.SubprocessError) as e:
+        return None, f"SIN TRINQUETE: fallo al materializar {base[:8]} ({e})"
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _lineas_de_bajas() -> list[str]:
     if not BAJAS.exists():
-        return set()
-    return {l.split("#")[0].strip()
+        return []
+    return [l.split("#")[0].strip()
             for l in BAJAS.read_text(encoding="utf-8").splitlines()
-            if l.split("#")[0].strip()}
+            if l.split("#")[0].strip()]
+
+
+def bajas_declaradas() -> set[str]:
+    """Modulos retirados a proposito. NO sirve para retirar un CRITICO."""
+    return {l for l in _lineas_de_bajas() if not l.startswith("descritificar:")}
+
+
+def descritificaciones_declaradas() -> set[str]:
+    """Modulos a los que se les retira la CRITICIDAD, que es otra cosa.
+
+    Separado de las bajas a proposito, y no es burocracia: un revisor demostro
+    que juntarlo permitia retirar una suite critica en UN SOLO commit —quitar
+    el marcador, escribir la baja y borrar el fichero— porque la criticidad se
+    recalcula desde HEAD y en HEAD ya no habia marcador. Ahora descritificar y
+    dar de baja son dos actos distintos, y el gate exige que el modulo siga
+    VIVO Y RECOLECTADO cuando se le quita la criticidad. Retirarlo de verdad
+    necesita un segundo commit, con la descritificacion ya mergeada.
+    """
+    return {l[len("descritificar:"):].strip() for l in _lineas_de_bajas()
+            if l.startswith("descritificar:")}
 
 
 # --------------------------------------------------------------------------
@@ -843,26 +1102,47 @@ def main() -> int:
                     f"convierten en skips verdes."
                 )
 
+    # --- F: ningun job puede EXCLUIR parte de lo que recorre ---------------
+    if ABLACION != "F":
+        errores += comprueba_filtros_de_exclusion(invocaciones, raices)
+
     # --- A: anti-silenciado ------------------------------------------------
     # A1 incondicional: rojo siempre, no necesita base. Es la mutacion del
     # ejercicio RC. A2 (mas abajo, con la base): el conjunto de silenciados
     # CONDICIONALES no puede crecer.
     silenciados_ahora: dict[str, str] = {}
+    condiciones_ahora: dict[str, str] = {}
+    en_pie_ahora: dict[str, int] = {}
     for rel in sorted(en_disco):
-        veredicto = silenciado((REPO / rel).read_text(encoding="utf-8", errors="replace"))
-        if not veredicto:
-            continue
-        clase, motivo = veredicto
-        silenciados_ahora[rel] = clase
-        if ABLACION == "A" or clase != INCONDICIONAL:
-            continue
-        etiqueta = "CRITICO " if rel in criticos else ""
-        errores.append(
-            f"SILENCIADO: el modulo {etiqueta}`{rel}` esta apagado ENTERO e "
-            f"INCONDICIONALMENTE ({motivo}). El recuento `N passed` no lo delata: "
-            f"sus tests se siguen recolectando. Un fichero de gate silenciado es "
-            f"un gate que no existe."
-        )
+        cuerpo = (REPO / rel).read_text(encoding="utf-8", errors="replace")
+        if rel not in delegados:
+            en_pie_ahora[rel] = tests_en_pie(cuerpo)
+        veredicto = silenciado(cuerpo)
+        if veredicto:
+            clase, motivo = veredicto
+            silenciados_ahora[rel] = clase
+            if clase == CONDICIONAL:
+                condiciones_ahora[rel] = condicion_de_silencio(cuerpo)
+            if ABLACION != "A" and clase == INCONDICIONAL:
+                etiqueta = "CRITICO " if rel in criticos else ""
+                errores.append(
+                    f"SILENCIADO: el modulo {etiqueta}`{rel}` esta apagado ENTERO e "
+                    f"INCONDICIONALMENTE ({motivo}). El recuento `N passed` no lo "
+                    f"delata: sus tests se siguen recolectando. Un fichero de gate "
+                    f"silenciado es un gate que no existe."
+                )
+        # A4: el mismo apagado, test a test. Es el superviviente que decoro las
+        # 20 funciones de `test_parcialidad_declarada.py` y dejo el gate verde.
+        if ABLACION != "A":
+            for nombre, motivo in apagados_por_decorador(cuerpo):
+                etiqueta = "CRITICO " if rel in criticos else ""
+                errores.append(
+                    f"TEST APAGADO: `{rel}::{nombre}` del modulo {etiqueta}esta "
+                    f"apagado INCONDICIONALMENTE ({motivo}). Apagar una suite test "
+                    f"a test es el mismo ataque que apagar el modulo, escrito en "
+                    f"otra sintaxis, y NO cambia el recuento de coleccion: un test "
+                    f"con `skip` se sigue recolectando. Si de verdad sobra, borralo."
+                )
 
     # --- B: anti-desaparicion ---------------------------------------------
     if ABLACION != "B":
@@ -919,6 +1199,18 @@ def main() -> int:
         # muere el `skipif` sobre una condicion inventada, que A1 no ve.
         if ABLACION != "A":
             silenciados_antes = set(datos_base.get("silenciados") or {})
+            condiciones_antes = datos_base.get("condiciones") or {}
+            for rel, cond in sorted(condiciones_ahora.items()):
+                antes = condiciones_antes.get(rel)
+                if antes is None or antes == cond:
+                    continue
+                errores.append(
+                    f"CONDICION DE SILENCIO REESCRITA: `{rel}` sigue silenciado, "
+                    f"pero su condicion paso de `{antes}` a `{cond}`. A2 hace "
+                    f"trinquete sobre la PERTENENCIA al conjunto, asi que sin esto "
+                    f"se le podia cambiar la condicion por una que nadie define "
+                    f"nunca y el modulo quedaba apagado sin salir del conjunto."
+                )
             for rel in sorted(set(silenciados_ahora) - silenciados_antes):
                 etiqueta = "CRITICO " if rel in criticos else ""
                 errores.append(
@@ -945,7 +1237,51 @@ def main() -> int:
                         f"—queda a la vista en el diff—; si no lo es, acabas de "
                         f"perder {base[rel]} pruebas en silencio."
                     )
+        # G: el conjunto de CRITICOS solo puede crecer.
+        #
+        # Dos supervivientes medidos vivian aqui. (1) Borrar
+        # `pytestmark = pytest.mark.critico` bajaba los criticos de 20 a 19 en
+        # silencio: el JSON los PUBLICABA y ningun control los comparaba.
+        # (2) Peor: se podia retirar una suite critica en UN SOLO commit
+        # —quitar el marcador, escribir la baja, borrar el fichero— porque la
+        # criticidad se recalcula desde HEAD y en HEAD ya no habia marcador.
+        # La afirmacion "un critico no se puede dar de baja" era FALSA.
+        if ABLACION != "C":
+            criticos_antes = set(datos_base.get("criticos") or [])
+            descritificados = descritificaciones_declaradas()
+            for rel in sorted(criticos_antes - criticos):
+                if rel not in inventario:
+                    errores.append(
+                        f"CRITICIDAD RETIRADA Y SUITE PERDIDA A LA VEZ: `{rel}` era "
+                        f"CRITICO en la base y ahora ni es critico ni se recolecta. "
+                        f"Descritificar y dar de baja son dos actos y necesitan dos "
+                        f"commits: primero se retira la criticidad con la suite VIVA "
+                        f"—queda mergeado y a la vista—, y solo despues se puede "
+                        f"retirar la suite."
+                    )
+                elif rel not in descritificados:
+                    errores.append(
+                        f"CRITICIDAD RETIRADA EN SILENCIO: `{rel}` era CRITICO en la "
+                        f"base y ya no lo es. El conjunto de criticos solo puede "
+                        f"CRECER. Si es deliberado, declaralo en "
+                        f".github/suite-bajas.txt como `descritificar: {rel}` "
+                        f"—se ve en el diff— y deja la suite viva."
+                    )
+
         if ABLACION != "D":
+            # D2: trinquete sobre los tests QUE QUEDAN EN PIE, no sobre los
+            # recolectados. Un test decorado con `skip` se sigue recolectando,
+            # asi que el recuento de coleccion no baja y no delataba nada.
+            en_pie_antes = datos_base.get("en_pie") or {}
+            for rel, antes in sorted(en_pie_antes.items()):
+                ahora = en_pie_ahora.get(rel)
+                if ahora is None or ahora >= antes:
+                    continue
+                errores.append(
+                    f"TESTS EN PIE A LA BAJA: `{rel}` definia {antes} tests sin "
+                    f"apagar y ahora {ahora}. Esta medida no la mueve `parametrize` "
+                    f"ni la maquilla un `skip`: cuenta lo que queda por ejecutar."
+                )
             for rel, antes in sorted(base.items()):
                 ahora = inventario.get(rel)
                 if ahora is None or ahora >= antes:
@@ -970,6 +1306,8 @@ def main() -> int:
             "raices": [r.relative_to(REPO).as_posix() for r in raices],
             "criticos": sorted(criticos),
             "silenciados": dict(sorted(silenciados_ahora.items())),
+            "condiciones": dict(sorted(condiciones_ahora.items())),
+            "en_pie": dict(sorted(en_pie_ahora.items())),
             "delegados": sorted(delegados & en_disco),
             "total": sum(inventario.values()),
             "modulos": dict(sorted(inventario.items())),
@@ -984,13 +1322,32 @@ def main() -> int:
             print("(la coleccion salio VACIA; ultimas lineas de pytest:)")
             print(salida[-4000:])
         return 1
-    print(
-        f"\nOK: {len(inventario)} modulos recolectados ({sum(inventario.values())} "
-        f"tests), ninguno silenciado, ninguno desaparecido, {len(criticos)} "
-        f"criticos derivados de fuentes ejecutables, trinquete de presencia y de "
-        f"recuento satisfecho, y ninguna dependencia ausente convirtiendo pruebas "
-        f"en skips verdes"
-    )
+    # El mensaje de exito NO puede afirmar un control que no se ejecuto. La
+    # version anterior imprimia "trinquete de presencia y de recuento
+    # satisfecho" incluso cuando NO habia base, y ademas el aviso de que
+    # faltaba era un `print` corriente: la ejecucion no emitia ni una
+    # anotacion. Un OK que miente sobre un control que no corrio es peor que
+    # no tener el control, porque compra la confianza sin dar la garantia.
+    aplicados = [
+        f"{len(inventario)} modulos recolectados ({sum(inventario.values())} tests)",
+        "ninguno silenciado entero ni test a test",
+        "ninguna suite desaparecida",
+        "ningun job excluye parte de lo que recorre",
+        f"{len(criticos)} criticos derivados de fuentes ejecutables",
+        "ninguna dependencia ausente convirtiendo pruebas en skips verdes",
+    ]
+    if base is None:
+        print("::warning::SIN TRINQUETE: no hay base de comparacion "
+              f"({nota}). NO se han comprobado el anti-borrado (C/C-bis), el "
+              f"trinquete de recuento (D), el de tests en pie (D2), el de "
+              f"criticos (G) ni el de silenciados (A2). Este verde NO los "
+              f"incluye.")
+    else:
+        aplicados += [
+            f"trinquete de presencia, de recuento, de tests en pie, de criticos "
+            f"y de silenciados satisfecho contra la {nota}",
+        ]
+    print("\nOK: " + ", ".join(aplicados))
     return 0
 
 
