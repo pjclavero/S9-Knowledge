@@ -73,8 +73,13 @@ NAVEGADOR = REPO / "viewer" / "tests" / "browser" / "test_browser_navigation.py"
 # Cualquier fichero que una mutacion pueda tocar. Se salvan enteros y se
 # restauran verificando el SHA-256.
 AUTHZ_NEO4J = REPO / "viewer" / "tests" / "test_neo4j_integration_authz.py"
+# Un modulo del inventario que NO es critico. Hace falta para aislar la ablacion
+# de C: ahora que G tiene bandera propia, borrar un modulo CRITICO con C
+# ablacionado seguiria saliendo rojo por G, y el caso no demostraria nada.
+NO_CRITICO = REPO / "viewer" / "tests" / "test_auth_core.py"
 TOCABLES = TRES_DEL_RC + (
     NAVEGADOR,
+    NO_CRITICO,
     AUTHZ_NEO4J,
     REPO / ".github" / "workflows" / "ci.yml",
     REPO / ".github" / "suite-bajas.txt",
@@ -359,6 +364,43 @@ def m_condicion_reescrita() -> None:
         encoding="utf-8")
 
 
+ADDOPTS = '"--ignore=viewer/tests/test_parcialidad_declarada.py"'
+
+
+def m_n4_addopts_en_job() -> None:
+    """N4: `PYTEST_ADDOPTS` en el `env:` de un job que ejecuta la suite."""
+    texto = CI.read_text(encoding="utf-8")
+    ancla = """      - name: Run viewer tests
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+"""
+    if ancla not in texto:
+        raise SystemExit("MUTACION IMPOSIBLE (N4): no esta el paso de viewer")
+    CI.write_text(texto.replace(
+        ancla, ancla + f"          PYTEST_ADDOPTS: {ADDOPTS}\n", 1), encoding="utf-8")
+
+
+def m_n5_addopts_en_workflow() -> None:
+    """N5: la misma variable a nivel de WORKFLOW: afecta a TODOS los jobs."""
+    texto = CI.read_text(encoding="utf-8")
+    if "\njobs:\n" not in texto:
+        raise SystemExit("MUTACION IMPOSIBLE (N5): no se encuentra `jobs:`")
+    CI.write_text(texto.replace(
+        "\njobs:\n", f"\nenv:\n  PYTEST_ADDOPTS: {ADDOPTS}\n\njobs:\n", 1),
+        encoding="utf-8")
+
+
+def m_n12_export_en_run() -> None:
+    """N12: `export PYTEST_ADDOPTS=` DENTRO del `run:` que el control F parsea."""
+    texto = CI.read_text(encoding="utf-8")
+    ancla = '          out="$(python -m pytest viewer/tests/ -v --tb=short --no-header 2>&1)"'
+    if ancla not in texto:
+        raise SystemExit("MUTACION IMPOSIBLE (N12): no esta la invocacion del visor")
+    CI.write_text(texto.replace(
+        ancla,
+        f"          export PYTEST_ADDOPTS={ADDOPTS}\n" + ancla, 1), encoding="utf-8")
+
+
 def m_descritificar_declarado() -> None:
     """Control POSITIVO: descritificar con la suite VIVA y declarandolo.
 
@@ -413,6 +455,14 @@ CASOS = [
      m_condicion_reescrita, None, None, ROJO),
     ("control positivo: descritificar DECLARANDOLO y con la suite viva",
      m_descritificar_declarado, None, None, VERDE),
+
+    # --- el superviviente nuevo: filtros POR ENTORNO ---------------------
+    ("N4: `PYTEST_ADDOPTS` en el `env:` de un job",
+     m_n4_addopts_en_job, None, None, ROJO),
+    ("N5: `PYTEST_ADDOPTS` a nivel de WORKFLOW (afecta a todos los jobs)",
+     m_n5_addopts_en_workflow, None, None, ROJO),
+    ("N12: `export PYTEST_ADDOPTS` dentro del propio `run:`",
+     m_n12_export_en_run, None, None, ROJO),
     ("RC-3a: `jsonschema` ausente (30+ modulos con importorskip)",
      None, "jsonschema", None, ROJO),
     ("RC-3b: `PyYAML` ausente", None, "yaml", None, ROJO),
@@ -428,14 +478,18 @@ CASOS = [
      m_silencia(PARCIALIDAD), None, "A", VERDE),
     ("ABLACION B: modulo que no colecciona con la anti-desaparicion quitada",
      m_modulo_no_recolecta, None, "B", VERDE),
-    ("ABLACION C: borrar el fichero con el anti-borrado quitado",
-     m_borra(IDENTIDAD), None, "C", VERDE),
+    ("ABLACION C: borrar un modulo NO critico con el anti-borrado quitado",
+     m_borra(NO_CRITICO), None, "C", VERDE),
     ("ABLACION D: caida de recuento con el trinquete de recuento quitado",
      m_caida_de_recuento, None, "D", VERDE),
     ("ABLACION E: dependencia no declarada con el preflight quitado",
      m_dependencia_no_declarada, None, "E", VERDE),
     ("ABLACION F: `--ignore` en ci.yml con el control de filtros quitado",
      m_s2_ignore_en_ci, None, "F", VERDE),
+    ("ABLACION F: `PYTEST_ADDOPTS` por entorno con el control de filtros quitado",
+     m_n5_addopts_en_workflow, None, "F", VERDE),
+    ("ABLACION G: descritificar en silencio con el trinquete de criticos quitado",
+     m_s4_descritificar_en_silencio, None, "G", VERDE),
 
     ("restaurado (control positivo final)", None, None, None, VERDE),
 ]

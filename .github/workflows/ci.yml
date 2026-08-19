@@ -697,6 +697,13 @@ jobs:
   deployment-validation:
     name: Deployment scripts validation
     runs-on: ubuntu-latest
+    # Este job se quedo 18 min colgado en `Install validation tools` (apt-get +
+    # pip) en sus dos ejecuciones, cuando su marca normal es ~57 s. Sin tope,
+    # un cuelgue de infraestructura no se distingue de un job lento: se queda
+    # PENDIENTE, y un check que nunca concluye no bloquea ni aprueba, solo
+    # consume la paciencia de quien mira. Con tope se convierte en ROJO rapido,
+    # que es una senal, y relanzarlo es una decision consciente.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 

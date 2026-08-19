@@ -106,7 +106,7 @@ QUE COMPRUEBA
 
 ABLACION
 ========
-`S9K_INVENTARIO_ABLACION=A|B|C|D|E` desactiva UN control. Existe para que
+`S9K_INVENTARIO_ABLACION=A|B|C|D|E|F|G` desactiva UN control. Existe para que
 `calibra_suite_inventory.py` demuestre que quitar cada control hace que una
 mutacion que estaba ROJA vuelva a VERDE. Un control que puede desaparecer sin
 que ningun resultado cambie no es un control. Fuera de la calibracion no se
@@ -286,6 +286,96 @@ BANDERAS_QUE_EXCLUYEN = (
     "--lf", "--last-failed", "--ff", "--failed-first", "--sw", "--stepwise",
     "--co",
 )
+
+
+# Variables de entorno que inyectan OPCIONES de pytest sin tocar la linea de
+# comandos. Prohibidas en `ci.yml` alla donde aparezcan.
+#
+# ESTO ES UN SUPERVIVIENTE MEDIDO, y de los caros: el control F prohibia
+# `--ignore` y `-k` en los ARGUMENTOS, y `PYTEST_ADDOPTS` mete exactamente esas
+# mismas opciones POR ENTORNO. Tres variantes salieron VERDES con 0 errores:
+#
+#   N4  `PYTEST_ADDOPTS: "--ignore=..."` en el `env:` de un job.
+#   N5  las mismas lineas a nivel de WORKFLOW, encima de `jobs:`, que afecta a
+#       TODOS los jobs de una vez.
+#   N12 `export PYTEST_ADDOPTS=...` DENTRO del mismo bloque `run:` que el
+#       control F ya parseaba.
+#
+# Consecuencia medida: `pytest viewer/tests/` pasa de recolectar 22 tests de
+# `test_parcialidad_declarada.py` a recolectar CERO. Y hay un detalle que
+# conviene no olvidar: la invocacion por RUTA EXPLICITA no lo delata; la
+# invocacion por DIRECTORIO —la que usan `test-viewer`, `test-combined` y
+# `route-map-gate`— si.
+#
+# Causa raiz: `_banderas_de_linea()` lee los ARGUMENTOS de la invocacion, y
+# esto viaja por otra puerta. Es la familia de S2/S3 otra vez, asi que se cierra
+# igual: PROHIBIR, no replicar. Replicarlo dejaria al gate midiendo el recorte y
+# certificandolo como si fuera la suite.
+#
+# `PYTEST_DISABLE_PLUGIN_AUTOLOAD` va en la misma lista por la misma razon y no
+# por simetria: apaga los plugins que se cargan solos, y una suite que dependa
+# de uno de ellos desaparece o se auto-omite sin que cambie ni un argumento.
+# Hoy `ci.yml` no usa ninguna de las dos, asi que la prohibicion nace sin
+# excepciones; una exencion que hoy no hace falta es la rendija por la que
+# manana entra el apagado.
+VARIABLES_QUE_FILTRAN = ("PYTEST_ADDOPTS", "PYTEST_DISABLE_PLUGIN_AUTOLOAD")
+
+# `export VAR=...`, `VAR=...` suelta, y `VAR=... pytest ...` como prefijo.
+RE_ASIGNA_ENTORNO = re.compile(
+    r"(?:^|;|&&|\|\||\bexport\s+)\s*([A-Z_][A-Z0-9_]*)\s*=")
+
+
+def _env_de(nodo) -> dict:
+    valor = nodo.get("env") if isinstance(nodo, dict) else None
+    return valor if isinstance(valor, dict) else {}
+
+
+def comprueba_addopts_por_entorno(datos: dict) -> list[str]:
+    """Ninguna variable de entorno puede inyectar opciones de pytest.
+
+    Se miran los TRES niveles de `env:` que GitHub aplica —workflow, job y
+    paso— y ademas las asignaciones dentro del `run:`. Los cuatro sitios, no
+    los que se recuerden: el que se olvide es por donde entra.
+    """
+    errores = []
+
+    def revisa(env: dict, donde: str) -> None:
+        for clave in env or {}:
+            nombre = str(clave).strip().upper()
+            if nombre in VARIABLES_QUE_FILTRAN:
+                errores.append(
+                    f"FILTRO DE EXCLUSION POR ENTORNO: `{clave}` definida en "
+                    f"{donde}. Inyecta opciones de pytest SIN tocar la linea de "
+                    f"comandos, asi que la prohibicion de `--ignore`/`-k` sobre "
+                    f"los argumentos no la ve. Medido: con ella puesta, "
+                    f"`pytest viewer/tests/` recolecta 0 tests de una suite que "
+                    f"tenia 22, y la invocacion por directorio no lo delata."
+                )
+
+    revisa(_env_de(datos), "el `env:` del WORKFLOW (afecta a TODOS los jobs)")
+    for job_id, job in (datos.get("jobs") or {}).items():
+        revisa(_env_de(job), f"el `env:` del job `{job_id}`")
+        for paso in (job or {}).get("steps") or []:
+            if not isinstance(paso, dict):
+                continue
+            nombre_paso = str(paso.get("name") or "(sin nombre)")
+            revisa(_env_de(paso), f"el `env:` del paso `{job_id}` / `{nombre_paso}`")
+            cuerpo = paso.get("run")
+            if not isinstance(cuerpo, str):
+                continue
+            for linea in cuerpo.splitlines():
+                if linea.lstrip().startswith("#"):
+                    continue
+                for m in RE_ASIGNA_ENTORNO.finditer(linea):
+                    if m.group(1) in VARIABLES_QUE_FILTRAN:
+                        errores.append(
+                            f"FILTRO DE EXCLUSION POR ENTORNO: `{m.group(1)}` se "
+                            f"asigna dentro del `run:` de `{job_id}` / "
+                            f"`{nombre_paso}`. Es el mismo apagado que por `env:`, "
+                            f"una capa mas abajo y dentro del propio bloque que "
+                            f"este gate ya parsea."
+                        )
+    return errores
 
 
 def comprueba_filtros_de_exclusion(invocaciones: list[dict],
@@ -1105,6 +1195,8 @@ def main() -> int:
     # --- F: ningun job puede EXCLUIR parte de lo que recorre ---------------
     if ABLACION != "F":
         errores += comprueba_filtros_de_exclusion(invocaciones, raices)
+        errores += comprueba_addopts_por_entorno(
+            yaml.safe_load(CI.read_text(encoding="utf-8")))
 
     # --- A: anti-silenciado ------------------------------------------------
     # A1 incondicional: rojo siempre, no necesita base. Es la mutacion del
@@ -1246,7 +1338,11 @@ def main() -> int:
         # —quitar el marcador, escribir la baja, borrar el fichero— porque la
         # criticidad se recalcula desde HEAD y en HEAD ya no habia marcador.
         # La afirmacion "un critico no se puede dar de baja" era FALSA.
-        if ABLACION != "C":
+        # G tiene su PROPIA ablacion, y no es un detalle de contabilidad: mientras
+        # compartio la de C, el trinquete de criticos —el control mas nuevo y el
+        # que mas sujeta— era el unico sin demostrar que sujetase algo por si
+        # solo. La regla vale para todos o no vale.
+        if ABLACION != "G":
             criticos_antes = set(datos_base.get("criticos") or [])
             descritificados = descritificaciones_declaradas()
             for rel in sorted(criticos_antes - criticos):
