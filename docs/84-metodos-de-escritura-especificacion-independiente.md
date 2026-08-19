@@ -96,14 +96,18 @@ Lo que no se pueda clasificar por falta de fuente sale ROJO
 «lectura», y es la red (2) —no la clasificación— la que impide que eso pase
 mudo.
 
-Cifra de la base (`aaf9695` + este carril), **actualizada tras meter `app.health`
-en la derivación de durabilidad** (§«la lista de módulos…»): **70 rutas
-montadas, 15 de escritura, 55 de lectura, 22 contratos de cliente (13 de
-escritura)**, especificación **ROJA** (`rc=1`) con **exactamente 2 hallazgos**,
-ambos `lectura-que-escribe`. Las cifras «13 de escritura / 57 de lectura / `rc=0`
-VERDE» que aparecían aquí eran de la ronda anterior y se quedaron vivas al
-cambiar la medida: es el mismo patrón que este carril persigue —la afirmación
-sobreviviendo al hecho— y por eso consta el error en vez de borrarse.
+Cifra de la base, **tras arreglar los dos GET que escribían** (§«el defecto
+estaba en las rutas»): **71 rutas montadas, 14 de escritura, 57 de lectura, 23
+contratos de cliente (14 de escritura)**, especificación **VERDE** (`rc=0`,
+**cero hallazgos**).
+
+Las cifras han cambiado tres veces en este carril, y las tres constan porque
+cada cambio dice algo: «13 de escritura / 57 de lectura / VERDE» era la primera
+medida, con la clasificación aún ciega a `app.health`; «15 / 55 / ROJA con 2
+`lectura-que-escribe`» fue la medida honesta del defecto; **«14 / 57 / VERDE» es
+la de ahora**, con los dos GET de salud convertidos en lectura pura y la
+escritura movida a un `POST`. Una cifra que sobrevive al cambio de la cosa que
+mide es el error que este carril persigue.
 
 ### La atribución se hace por EJECUCIÓN, no por path
 
@@ -160,19 +164,53 @@ los **5 nuevos son el mismo falso positivo** —`Path(indirecto)`: se desciende 
 `pathlib` y allí escribe cualquier cosa—. Antes de acotarlo eran 12 rutas de
 lectura marcadas por error.
 
-**Consecuencia, y es un ROJO REAL sobre esta base:** `GET /admin/health` y
-`GET /api/admin/health` llaman a `app.health.storage.save_report` dentro del
-propio `GET` (`viewer/app/routers/health_admin.py:28,40`), que hace `mkdir` +
-`write_text` + `os.replace` + `chmod 0600`. Salen como **`lectura-que-escribe`**
-—un motivo propio, para no confundirlos con «una escritura mal montada»— y la
-especificación termina con `rc=1`. **El job nace ROJO por ellos, a propósito.**
-Sacar el `save_report` del GET cambia el comportamiento del panel de operaciones
-(que lee el último informe guardado), y esa decisión es del operador, no de este
-carril. Registrado con evidencia y fecha en
-`viewer/tests/test_metodos_escritura_http.py` (2026-08-18), donde impide que un
-check **exigido** se ponga rojo por un defecto que este carril no puede
-arreglar, pero **no** lo silencia: cualquier lectura-que-escribe NUEVA rompe esa
-suite.
+**Consecuencia inmediata, que fue un ROJO REAL:** `GET /admin/health` y
+`GET /api/admin/health` llamaban a `app.health.storage.save_report` dentro del
+propio `GET` —`mkdir` + `write_text` + `os.replace` + `chmod 0600`—, y salieron
+como **`lectura-que-escribe`**, con la especificación en `rc=1`.
+
+### El defecto estaba en las rutas, y se arregló ahí
+
+Decisión del operador (2026-08-19), textual: *«si esos dos GET provocan
+escritura, el defecto está en las rutas, no en la puerta»*. Y explícitamente: no
+se acepta un `GET` que escribe por ser «sólo administración», «sólo health» o
+«ya estaba así», ni una whitelist tipo `health_admin.py permitido`, porque eso
+**destruiría la independencia del censo**. Se arreglaron las rutas
+(`viewer/app/routers/health_admin.py`), endpoint por endpoint y por semántica:
+
+| endpoint | qué pretende hacer | qué era la escritura | resolución |
+|---|---|---|---|
+| `GET /api/admin/health` | **consultar** salud y devolver JSON | **incidental**: una caché para que el panel B tuviera algo que enseñar | **se elimina**; queda de lectura pura |
+| `GET /admin/health` | **consultar** salud y pintarla | **incidental**, misma caché | **se elimina**; queda de lectura pura |
+| `POST /admin/health/snapshot` *(nuevo)* | **guardar** la instantánea | **es la operación** | verbo mutador, `require_admin` + **CSRF**, con su formulario en la plantilla |
+
+Ejecutar comprobaciones **no** es escribir: `runner.run_report()` no deja estado
+durable propio. Lo que lo dejaba era `save_report`, y ahora vive donde la
+semántica lo pedía.
+
+**Quién consume el informe guardado, comprobado ANTES de romper nada:**
+`app.health.storage.load_last` lo leen `app/routers/chassis_operations.py`
+(panel B) y `app/cli/health.py`. El CLI **también lo escribe**, y es el camino
+previsto en producción (el timer horario), así que quitar la escritura del `GET`
+no deja al panel sin fuente; y la capacidad de refrescarlo desde la interfaz no
+se pierde: cambia de verbo. Comprobado por HTTP en
+`viewer/tests/test_health_admin_get_sin_escritura.py` (7 casos: los dos GET no
+crean el fichero, el POST sí lo crea y redirige, sin CSRF da 403 sin escribir,
+el anónimo no escribe, y ningún verbo de escritura se cuela por los GET).
+
+**Efecto sobre este carril:** la base vuelve a `rc=0`, el job **deja de nacer
+rojo — porque el defecto ya no existe, no porque se haya eximido**, y el
+contrato `rc == 0` vuelve a vivir en un check EXIGIDO (la suite del visor), que
+es donde debe estar. El registro fechado de excepciones que hubo entre el 18 y
+el 19 de agosto **queda vacío**, y la constante se conserva sólo para que
+cualquier lectura-que-escriba futura rompa esa suite.
+
+**Higiene que descubrió el propio arreglo:** `storage.default_report_path()`
+devuelve una ruta **relativa**, así que una sonda que consiguiera escribir
+—contra el endpoint sin guardián que inyecta la calibración, por ejemplo—
+dejaba el fichero en el árbol REAL aunque el auditado fuese una copia. Medido y
+corregido: `write_spec.bootstrap` apunta `S9K_HEALTH_REPORT_PATH` a un temporal.
+Un instrumento que escribe en lo que mide invalida su propia medida.
 
 ## 3. El contrato, punto por punto
 
@@ -202,33 +240,40 @@ Los casos **no están escritos a mano**: el arnés ejecuta la especificación so
 el árbol limpio, toma de ahí los endpoints de escritura y muta **cada uno**. Si
 mañana aparece uno nuevo, se muta también sin que nadie lo añada aquí.
 
-Corrida completa: **44 casos, veredicto OK, 0 en fallo**, hash del árbol
-idéntico antes y después (`65f6b300…3d7a`), **8 ablaciones cobradas**.
+Corrida completa: **49 casos, veredicto OK, 0 en fallo**, hash del árbol
+idéntico antes y después (`32d820e4…36f8`), **8 ablaciones cobradas**.
 
 | familia | mutación | n | resultado |
 |---|---|---|---|
-| **W0** | árbol limpio | 1 | **ROJO, y correctamente**: 2 `lectura-que-escribe` (los GET de health). Ningún otro hallazgo |
-| **MET-\<endpoint\>** | `@router.post` → `@router.get` | **13/13** | **ROJO** por `metodo-seguro-en-endpoint-de-escritura` nombrando al endpoint. Corroborado por ejecución en 9/13 y por contrato de cliente en **13/13** |
-| **ALI-\<endpoint\>** | se **añade** `@router.get(<misma ruta>)` | **13/13** | **ROJO**, mismo motivo. Corroborado por ejecución en 9/13 |
-| **PUT-\<endpoint\>** | `@router.post` → `@router.put` | **13/13** | **detectados por C3**, incluido `admin_users_new_submit`, que antes se escapaba (ver abajo) |
+| **W0** | árbol limpio | 1 | **VERDE** (`rc=0`, cero hallazgos). Lo era también antes del 18/8; entre medias salió ROJO por un defecto real, y ahora vuelve a serlo **porque el defecto se arregló**, no porque se eximiera |
+| **MET-\<endpoint\>** | `@router.post` → `@router.get` | **14/14** | **ROJO** por `metodo-seguro-en-endpoint-de-escritura` nombrando al endpoint. Corroborado por ejecución en 10/14 y por contrato de cliente en **14/14** |
+| **ALI-\<endpoint\>** | se **añade** `@router.get(<misma ruta>)` | **14/14** | **ROJO**, mismo motivo. Corroborado por ejecución en 10/14 |
+| **PUT-\<endpoint\>** | `@router.post` → `@router.put` | **14/14** | **detectados por C3** (`put_no_detectados: []`) |
 | **ADV-annotated / -alias / -clasico** | endpoint de escritura **NUEVO** con `Annotated[str, Form()]` / alias de `Form` / `Form` clásico, montado con `@router.get` | 3/3 | **ROJO** por `metodo-seguro-en-endpoint-de-escritura` |
-| **ADV-mudo** | `POST` nuevo **sin ninguna evidencia** clasificable | 1/1 | **ROJO** por `metodo-de-escritura-sin-evidencia` (la red que no depende de F1) |
+| **ADV-mudo** | `POST` nuevo **sin ninguna evidencia** clasificable | 1/1 | **ROJO** por `metodo-de-escritura-sin-evidencia` |
+| **ADV-lectura-que-escribe** | `GET` nuevo que llama a `storage.save_report` | 1/1 | **ROJO** por `lectura-que-escribe` — el defecto que el operador se negó a eximir, ahora reproducido a voluntad |
+| **FP-lectura-genuina** | `GET` nuevo que **sólo lee** | 1/1 | **VERDE**, cero hallazgos |
 
-Los 15 endpoints de escritura, nombre a nombre: `login_submit`, `logout`,
+Los tres casos que el operador exigió medir tras el arreglo están ahí, y salen
+como debían: **`POST → GET` = ROJO** (familia MET), **alias `GET` mutador =
+ROJO** (familia ALI y `ADV-*`), **`GET` genuino de lectura = VERDE**
+(`FP-lectura-genuina`). El tercero no es adorno: sin él, «se pone rojo con todo»
+pasaría por buena señal, y el modo de fallo por exceso —volverse estricto de
+más— no se ve mirando sólo los rojos.
+
+Los 14 endpoints de escritura, nombre a nombre: `login_submit`, `logout`,
 `change_password_submit`, `admin_users_new_submit`, `admin_user_update`,
 `admin_user_unlock`, `admin_revoke_sessions`, `admin_partidas_grant`,
 `admin_partidas_revoke`, `select_partida`, `reviews_console.decide`,
-`v3_review.decide`, `v3_review.undo` —los 13 con método de escritura, mutados
-uno a uno— más `admin_health_panel` y `api_admin_health`, que **no tienen ningún
-`post` que cambiar** (son los GET que escriben) y por eso no generan casos
-MET/ALI/PUT: su ausencia consta en el artefacto
-(`endpoints_sin_metodo_de_escritura`), no se calla.
+`v3_review.decide`, `v3_review.undo` y **`admin_health_snapshot`** —el nuevo, que
+el arnés muta como a cualquier otro **sin que nadie lo haya escrito en ninguna
+lista**: apareció y quedó cubierto—. Y `endpoints_sin_metodo_de_escritura` está
+**vacío**: ya no hay ningún endpoint de escritura sin verbo mutador.
 
-Los 4 casos en que la ejecución no corrobora (`login_submit`,
-`change_password_submit`, `admin_users_new_submit`, `admin_user_update`) son
-**exactamente** los endpoints cuyo path comparte una pantalla `GET`: al mutar, la
-petición la sigue atendiendo el manejador de lectura y C2 no puede pronunciarse.
-El rojo lo da C1. **Se registra, no se disimula.**
+Los 4 casos en que la ejecución no corrobora son **exactamente** los endpoints
+cuyo path comparte una pantalla `GET`: al mutar, la petición la sigue atendiendo
+el manejador de lectura y C2 no puede pronunciarse. El rojo lo da C1. **Se
+registra, no se disimula.**
 
 ### `POST → PUT` en `/admin/users/new`: cerrado sin escribir ningún nombre
 
@@ -260,8 +305,7 @@ Medido: **0 casos con hallazgos ajenos** en los 40. Ningún rojo es prestado.
 ### Ablaciones (necesidad): 8 cobradas
 
 Se cobra una ablación sólo si **el caso deja de detectarse**, y sobre el caso que
-**sólo ese control** ve. (Ya no puede cobrarse por «rc=0»: el árbol limpio sale
-rojo por los GET de health.)
+**sólo ese control** ve.
 
 | ablación | caso que deja de detectarse | qué se quita |
 |---|---|---|
@@ -270,54 +314,49 @@ rojo por los GET de health.)
 | `AB-C3` | `PUT-auth.change_password_submit` | el contrato de cliente |
 | `AB-C3-especificidad` | `PUT-admin.admin_users_new_submit` | la regla de «la ruta que manda» |
 | `AB-F1` | `ALI-auth.change_password_submit` | las señales de clasificación + el suelo `espec-vacia` |
-| `AB-F1-annotated` | `ADV-annotated` | el recorrido de la **anotación** (vuelve el superviviente) |
+| `AB-F1-annotated` | `ADV-annotated` | el recorrido de la **anotación** |
 | `AB-F1-alias` | `ADV-alias` | la resolución de **alias de importación** |
-| `AB-durabilidad` | los 2 `lectura-que-escribe` de la base | la derivación de durabilidad por el código del invocable |
+| `AB-durabilidad` | `ADV-lectura-que-escribe` | la derivación de durabilidad por el código del invocable |
 
-Las tres últimas son la prueba de que las correcciones de esta ronda son
-**cargantes**: al quitarlas, el defecto vuelve a ser invisible.
+`AB-durabilidad` se cobraba antes sobre los dos GET de health de la línea base;
+al arreglarse el producto ya no hay ninguno, así que **pasa a cobrarse sobre el
+GET inyectado**. Es mejor control: no depende de que exista un defecto en el
+árbol.
 
 **Lo que NO se puede cobrar, y consta:** C1 y C2 no son individualmente
 necesarios —quitar uno deja el caso rojo por el otro—. Es redundancia
-deliberada (enumeración + ejecución), y decirlo es más honesto que fabricar un
-caso artificial que sólo uno pudiera ver.
+deliberada (enumeración + ejecución).
 
 ## 5. Lo que NO se midió, y en qué estado queda el job
 
 - **No se ejecutó nada contra producción, VM105, Neo4j ni ningún despliegue.**
-  Todo corre sobre `app.main.app` con proveedor `mock` y una auth DB **vacía y
-  efímera** en un temporal.
-- **El job `metodos-de-escritura` nace ROJO**, y es un rojo REAL: las dos
-  `lectura-que-escribe` de `health_admin.py`. Arreglarlo —sacar `save_report`
-  del GET— cambia el comportamiento del panel de operaciones, que lee el último
-  informe guardado; es decisión del operador y no de este carril.
-- **Por eso NO se propone todavía como check exigido.** Un check obligatorio
-  que nace rojo enseña a la gente a no mirarlo. La promoción va en el mismo
-  commit que cierre el punto anterior, y ese commit debe dejar
-  `ci_running_but_not_required` con **una sola entrada** y `ci_checks_required`
-  en **16**.
-- **Profundidad de la derivación de durabilidad: un salto A SÍMBOLOS
-  IMPORTADOS de `app.*`.** Los **helpers del mismo módulo tienen cero saltos y
-  son mudos** (`"." not in canon`), igual que dos helpers encadenados y los
-  objetos instanciados en ejecución. Un `GET` que escribiera a través de un
-  `_persistir()` local **sería invisible**, y C1bis no puede rescatarlo
-  precisamente por ser un `GET`. Frontera declarada, no medida — y no se
-  ensancha porque hacerlo enrojecería media docena de GET de administración por
-  el `mkdir` de `admin._get_db_path`.
-- **La primitiva que se reporta es la PRIMERA encontrada, no la más grave.** La
-  evidencia de los dos endpoints de health dice `(mkdir)` cuando la escritura
-  durable de `save_report` es `write_text` + `os.replace`: el recorrido corta en
-  cuanto encuentra una primitiva. Sirve para atribuir, no para calificar el
-  daño.
-- **El contrato `rc == 0` de la especificación ya NO vive en ningún check
-  exigido.** La suite del visor comprueba las clases de hallazgo y el registro
-  fechado, no el código de salida; quien exige `rc == 0` es el job
-  `metodos-de-escritura`, que **no** es exigido. Es consecuencia deliberada de
-  que la base nazca roja, y conviene tenerlo escrito para que nadie lea «la
-  suite exigida garantiza rc=0».
+  Todo corre sobre `app.main.app` con proveedor `mock`, una auth DB **vacía y
+  efímera** y `S9K_HEALTH_REPORT_PATH` en un temporal.
+- **El job `metodos-de-escritura` ya NO nace rojo**, y la diferencia importa:
+  no se ha eximido nada, se arreglaron las dos rutas. Con la base en `rc=0`, el
+  contrato completo vuelve a estar bajo un check EXIGIDO (la suite del visor
+  comprueba también el código de salida). **Promoverlo a check exigido nº 17 es
+  decisión del operador**, y con ella el número final de puertas.
+- **Profundidad de la derivación de durabilidad: un salto A SÍMBOLOS IMPORTADOS
+  de `app.*`.** Los **helpers del mismo módulo tienen cero saltos y son mudos**
+  (`"." not in canon`), igual que dos helpers encadenados y los objetos
+  instanciados en ejecución. Un `GET` que escribiera a través de un
+  `_persistir()` local **sería invisible**, y C1bis no puede rescatarlo por ser
+  un `GET`. Frontera declarada, no medida — y no se ensancha porque hacerlo
+  enrojecería media docena de GET de administración por el `mkdir` de
+  `admin._get_db_path`.
+- **La primitiva que se reporta es la PRIMERA encontrada, no la más grave**
+  (`mkdir` antes que `write_text` + `os.replace`). Sirve para atribuir, no para
+  calificar el daño.
+- **Formas de declarar cuerpo que la clasificación NO ve**: anotación como
+  cadena, alias de tipo reutilizado, `*args`/`**kwargs`. Quedan cubiertas por
+  C1bis **en cuanto el endpoint va montado con método de escritura**; sobre un
+  `GET`, no las ve nadie.
 - **Verbos exóticos** (`TRACE`, `PROPFIND`…) sobre estos endpoints: no se
   sondean aquí.
-- **Cobertura de la clasificación**: los casos `ADV` prueban tres estilos de
-  declarar cuerpo y uno sin evidencia. No prueban todas las formas imaginables
-  de escribir un endpoint; lo que sí cubre a todas es la red C1bis, que no
-  depende del estilo.
+- **Documentación de otros carriles que este arreglo deja obsoleta, declarada y
+  NO tocada**: `viewer/app/routers/chassis_operations.py:9-17`, `docs/80` y el
+  docstring de `test_el_panel_no_ejecuta_healthchecks_ni_escribe_el_informe`
+  describen que `/admin/health` escribe dentro del `GET`. Ya no es cierto. Sus
+  aserciones siguen siendo válidas (hablan del panel B), pero el texto miente y
+  **corregirlo es de ese carril**, no de éste.

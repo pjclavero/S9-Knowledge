@@ -33,11 +33,11 @@ docstring afirmaba de más—:
     durabilidad sigue un salto **a símbolos importados** de `app.*`). Todas
     quedan cubiertas por la red anterior EN CUANTO el endpoint va montado con
     método de escritura; sobre un `GET`, no las ve nadie.
-  - **Esta suite NO comprueba `rc == 0`**, y es deliberado: sobre esta base la
-    especificación sale `rc=1` por dos `lectura-que-escribe` reales del producto
-    (ver el registro de abajo). Se afirma sobre las CLASES de hallazgo. Quien
-    exige `rc == 0` es el job `metodos-de-escritura`, que NO es exigido; hoy
-    ningún check exigido comprueba ese código de salida.
+  - **Esta suite vuelve a comprobar `rc == 0`** (2026-08-19). Durante un día no
+    lo hizo, porque la base salía `rc=1` por dos `lectura-que-escribe` REALES
+    del producto; arreglada la causa en `health_admin.py`, el contrato completo
+    —código de salida incluido— vuelve a vivir en un check EXIGIDO, que es donde
+    debe estar.
 
 Se ejecuta en un SUBPROCESO a propósito: `app.main` y `route_map` son
 singletons en `sys.modules` y la especificación necesita la app arrancada con
@@ -62,27 +62,26 @@ WRITE_SPEC = REPO / "scripts" / "route_map" / "write_spec.py"
 #: endpoints de escritura no está protegiendo nada, y saldría "verde".
 MINIMO_ENDPOINTS_DE_ESCRITURA = 10
 
-#: LECTURAS QUE ESCRIBEN ya presentes en el producto, con evidencia y fecha.
+#: LECTURAS QUE ESCRIBEN admitidas: **NINGUNA**.
 #:
-#: 2026-08-18 — `GET /admin/health` y `GET /api/admin/health` ejecutan los
-#: healthchecks y llaman a `app.health.storage.save_report` DENTRO del propio
-#: GET (`viewer/app/routers/health_admin.py:28,40`), que hace `mkdir` +
-#: `write_text` + `os.replace` + `chmod 0600`. El propio repositorio ya lo
-#: admite por escrito en `viewer/app/routers/chassis_operations.py:9-17`.
+#: Aquí hubo, entre el 2026-08-18 y el 2026-08-19, un registro fechado con dos
+#: entradas: `GET /admin/health` y `GET /api/admin/health` escribían un fichero
+#: dentro de la propia petición. El operador rechazó la exención —*«si esos dos
+#: GET provocan escritura, el defecto está en las rutas, no en la puerta»*—, se
+#: arreglaron las rutas (`viewer/app/routers/health_admin.py`: los GET quedaron
+#: de lectura pura y la escritura pasó a `POST /admin/health/snapshot`, con
+#: guardián de administración y CSRF) y el registro se quedó vacío.
 #:
-#: NO es una exención: la especificación los declara ROJOS y el job
-#: `metodos-de-escritura` sale ROJO por ellos. Lo que hace este registro es
-#: impedir que un check EXIGIDO (la suite del visor) se ponga rojo por un
-#: defecto que este carril no está autorizado a arreglar —tocar ese router
-#: cambia el comportamiento del panel de operaciones, y esa decisión es del
-#: operador—. Cualquier lectura-que-escribe NUEVA rompe esta suite.
-LECTURAS_QUE_ESCRIBEN_REGISTRADAS = {
-    "app.routers.health_admin.api_admin_health",
-    "app.routers.health_admin.admin_health_panel",
-}
+#: Se conserva la CONSTANTE, no la excepción: cualquier lectura-que-escriba que
+#: aparezca rompe esta suite, que es un check EXIGIDO. Escribir un nombre aquí
+#: para dejar de mirar es justo el antipatrón que este repositorio ya pagó una
+#: vez (`test_provider_authz_fields_contract.py`), así que si alguna vez vuelve
+#: a haber una, la respuesta es arreglar la ruta.
+LECTURAS_QUE_ESCRIBEN_REGISTRADAS: set[str] = set()
 
 #: Hallazgos que NUNCA pueden aparecer aquí.
 HALLAZGOS_DUROS = (
+    "lectura-que-escribe",
     "metodo-seguro-en-endpoint-de-escritura",
     "escritura-servida-por-get",
     "escritura-sin-metodo",
@@ -144,14 +143,22 @@ def test_ninguna_escritura_admite_metodo_seguro(informe):
     assert not hallazgos, json.dumps(hallazgos, indent=2, ensure_ascii=False)
 
 
-def test_ninguna_lectura_que_escribe_nueva(informe):
-    """Un `GET` que escribe es escritura. Los conocidos están registrados."""
+def test_ningun_get_escribe(informe):
+    """Un `GET` que escribe es escritura, y no hay ninguno admitido."""
     entradas = (informe.get("hallazgos") or {}).get("lectura-que-escribe") or []
     nuevas = [e for e in entradas
               if e.get("endpoint") not in LECTURAS_QUE_ESCRIBEN_REGISTRADAS]
     assert not nuevas, (
-        "hay lecturas que escriben SIN registrar:\n"
+        "hay métodos seguros que escriben estado durable:\n"
         + json.dumps(nuevas, indent=2, ensure_ascii=False))
+
+
+def test_la_especificacion_sale_conforme(informe):
+    """El código de salida, otra vez bajo un check exigido."""
+    assert informe["_rc"] == 0, (
+        f"rc={informe['_rc']}\n"
+        + json.dumps(informe.get("hallazgos"), indent=2, ensure_ascii=False)
+        + "\n" + informe["_stderr"])
 
 
 def test_no_hay_hallazgos_de_clase_desconocida(informe):

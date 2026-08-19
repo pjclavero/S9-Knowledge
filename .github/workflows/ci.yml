@@ -856,13 +856,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r viewer/requirements.txt
 
-      # ATENCION, y no es un fallo del instrumento: sobre esta base el paso sale
-      # ROJO. La especificacion encuentra DOS `lectura-que-escribe` reales
-      # (`GET /admin/health` y `GET /api/admin/health` escriben un fichero
-      # dentro del propio GET, ver docs/84 y health_admin.py:28,40). Arreglarlo
-      # cambia el comportamiento del panel de operaciones y es decision del
-      # operador, no de este carril. El job NO es exigido todavia; promoverlo va
-      # en el mismo commit que cierre eso.
+      # Este paso salio ROJO entre el 18 y el 19 de agosto por DOS
+      # `lectura-que-escribe` reales: los dos GET de salud escribian un fichero
+      # dentro de la propia peticion. El operador rechazo eximirlos ("el defecto
+      # esta en las rutas, no en la puerta") y se arreglaron las rutas
+      # (health_admin.py: GET de lectura pura + POST /admin/health/snapshot).
+      # Desde entonces la base sale VERDE. El job sigue SIN ser exigido:
+      # promoverlo al nº 17 es decision del operador.
       - name: Especificacion ejecutable de escritura
         env:
           PYTHONPATH: scripts

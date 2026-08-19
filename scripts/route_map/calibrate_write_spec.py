@@ -40,7 +40,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-MINIMO_CASOS = 40
+MINIMO_CASOS = 44
 MINIMO_ABLACIONES = 6
 
 METODOS_HTTP = {"get", "post", "put", "patch", "delete", "head", "options"}
@@ -150,14 +150,15 @@ def anadir_alias_get(fichero: Path, funcion: str) -> str:
 # ---------------------------------------------------------------------------
 # casos
 # ---------------------------------------------------------------------------
-#: Hallazgos que el árbol LIMPIO ya tiene, y por qué el arnés no los confunde
-#: con detecciones suyas: `GET /admin/health` y `GET /api/admin/health` escriben
-#: un fichero dentro del propio GET (`app.health.storage.save_report`). Es un
-#: defecto REAL del producto, no del instrumento, y este carril no está
-#: autorizado a cambiar ese router. Se RESTA de la atribución de cada caso —si
-#: no, cada mutación arrastraría dos hallazgos ajenos— pero NO se silencia: la
-#: base sale ROJA por ellos y así consta en el informe.
-HALLAZGOS_DE_BASE_ADMITIDOS = ("lectura-que-escribe",)
+#: Hallazgos que se admiten en el árbol LIMPIO: **NINGUNO**.
+#:
+#: Hasta 2026-08-19 aquí figuraba `lectura-que-escribe`, porque los dos GET de
+#: `health_admin.py` escribían dentro de la propia petición. El operador decidió
+#: que eso era un defecto de las RUTAS y no de la puerta —sin exenciones ni
+#: whitelists—, se arreglaron las rutas (la escritura pasó a
+#: `POST /admin/health/snapshot`) y esta tupla vuelve a estar vacía. Es la
+#: diferencia entre «el instrumento ya no se queja» y «el defecto ya no existe».
+HALLAZGOS_DE_BASE_ADMITIDOS: tuple[str, ...] = ()
 
 
 def linea_base(base: Path) -> tuple[list[dict], dict]:
@@ -215,6 +216,30 @@ def hallazgos_nombran(hallazgos: dict, path: str, clave: str,
     return not ajenos, ajenos
 
 
+def caso_verde(nombre: str, mutar, path: str) -> dict:
+    """Control de FALSO POSITIVO: la mutación es legítima y debe salir VERDE.
+
+    Es tan obligatorio como los rojos. Un instrumento que se pone rojo con todo
+    no distingue nada, y el modo de fallo —volverse estricto de más— no se ve
+    mirando sólo los casos que deben detectarse.
+    """
+    with tempfile.TemporaryDirectory(prefix="s9k-calws-") as td:
+        raiz = copia(Path(td))
+        detalle = mutar(raiz)
+        r = ejecutar(raiz)
+        return {
+            "caso": nombre, "endpoint": path, "path": path,
+            "mutacion": detalle, "rc": r["rc"],
+            "hallazgos": sorted(r["hallazgos"]), "esperados": [],
+            "faltan": [], "ancla_unica": True,
+            "hallazgos_ajenos": [{"hallazgo": k, "entrada": v}
+                                 for k, v in r["hallazgos"].items()],
+            "corroborado_por": [], "obligatorio": True,
+            "detectado": r["rc"] == 0 and not r["hallazgos"],
+            "estado": "OK" if (r["rc"] == 0 and not r["hallazgos"]) else "FALLO",
+        }
+
+
 def caso(nombre: str, mutar, path: str, clave: str, esperados: list[str],
          corroboran: list[str] | None = None, obligatorio: bool = True,
          base: dict | None = None) -> dict:
@@ -266,7 +291,9 @@ def caso(nombre: str, mutar, path: str, clave: str, esperados: list[str],
 PREAMBULO_ADV = ("from __future__ import annotations\n"
                  "from typing import Annotated\n"
                  "from pathlib import Path as _RutaAdv\n"
-                 "from fastapi import Form as _FormAlias")
+                 "from fastapi import Form as _FormAlias\n"
+                 "from app.health import storage as _AlmacenAdv\n"
+                 "from app.health.models import HealthReport as _InformeAdv")
 
 ADVERSARIOS = {
     # estilo `Annotated[..., Form()]`, el que recomienda hoy la documentación de
@@ -294,6 +321,15 @@ async def adversarial_clasico(nombre: str = Form(...)):
     _RutaAdv("/tmp/s9k-adv-clasico.txt").write_text(nombre)
     return {"ok": True}
 '''),
+    # un GET que escribe estado durable: exactamente el defecto que el operador
+    # se negó a eximir. Lo coge la derivación de durabilidad, y sólo ella.
+    "ADV-lectura-que-escribe": ("/admin/adversarial/escribe", '''
+
+@router.get("/adversarial/escribe")
+async def adversarial_lectura_que_escribe():
+    _AlmacenAdv.save_report(_InformeAdv())
+    return {"ok": True}
+'''),
     # escritura montada SIN ninguna evidencia que la clasificación pueda ver:
     # la red que no depende de que F1 acierte.
     "ADV-mudo": ("/admin/adversarial/mudo", '''
@@ -309,7 +345,18 @@ ESPERADO_ADV = {
     "ADV-alias": ["metodo-seguro-en-endpoint-de-escritura"],
     "ADV-clasico": ["metodo-seguro-en-endpoint-de-escritura"],
     "ADV-mudo": ["metodo-de-escritura-sin-evidencia"],
+    "ADV-lectura-que-escribe": ["lectura-que-escribe"],
 }
+
+#: CONTROL DE FALSO POSITIVO, tan obligatorio como los rojos: un `GET` GENUINO
+#: de lectura tiene que salir VERDE. Sin él, «todo rojo» pasaría por bueno y el
+#: instrumento se volvería estricto de más sin que nadie lo notara.
+LECTURA_GENUINA = ("/admin/adversarial/lectura", '''
+
+@router.get("/adversarial/lectura")
+async def adversarial_lectura_genuina():
+    return {"componentes": len(_AlmacenAdv.load_last() or {}), "ok": True}
+''')
 
 
 def inyectar(raiz: Path, codigo: str) -> str:
@@ -371,9 +418,10 @@ ABLACIONES = [
     ("AB-F1-alias", "ADV-alias", [
         ('    canon = importaciones.get(raiz, raiz)', '    canon = raiz'),
     ]),
-    # Sin derivar la durabilidad del CÓDIGO del invocable, los GET que escriben
-    # de la línea base desaparecen del informe: vuelven a ser invisibles.
-    ("AB-durabilidad", "W0-lectura-que-escribe", [
+    # Sin derivar la durabilidad del CÓDIGO del invocable, un GET que escribe
+    # vuelve a ser invisible. Se cobra sobre el GET INYECTADO (la línea base ya
+    # no tiene ninguno: se arreglaron las rutas).
+    ("AB-durabilidad", "ADV-lectura-que-escribe", [
         ('        primitiva = _escribe_de_verdad(canon)', '        primitiva = ""'),
     ]),
 ]
@@ -450,6 +498,11 @@ def main(argv=None) -> int:
                               path, clave, ["contrato-de-cliente-roto"],
                               obligatorio=False, base=base_hallazgos))
 
+    # --- control de falso positivo: un GET GENUINO de lectura sale VERDE -----
+    casos.append(caso_verde("FP-lectura-genuina",
+                            lambda raiz, c=LECTURA_GENUINA[1]: inyectar(raiz, c),
+                            LECTURA_GENUINA[0]))
+
     # --- supervivientes: endpoints de escritura NUEVOS, en varios estilos ---
     for nombre_adv, (ruta_adv, codigo_adv) in ADVERSARIOS.items():
         casos.append(caso(nombre_adv,
@@ -467,7 +520,7 @@ def main(argv=None) -> int:
         return exacto or next((c for c in casos
                                if c["caso"].startswith(clave_ref.split("-")[0] + "-")), None)
     for aid, familia, subs in ABLACIONES:
-        if familia == "W0-lectura-que-escribe":
+        if familia == "W0-lectura-que-escribe":  # histórico: la base ya es verde
             # No hay mutación: la detección que debe desaparecer es la de la
             # LÍNEA BASE (los GET que escriben del árbol limpio).
             with tempfile.TemporaryDirectory(prefix="s9k-abl-") as td:

@@ -144,6 +144,13 @@ def bootstrap(repo: Path) -> None:
                           str(viewer / "examples" / "sample_graph.json"))
     os.environ.setdefault("S9K_CSRF_SECRET", secrets.token_urlsafe(48))
     os.environ.setdefault("S9K_SESSION_SECURE", "false")
+    # HIGIENE, y costó una medición: `storage.default_report_path()` devuelve una
+    # ruta RELATIVA (`viewer/state/health/last_report.json`), así que una sonda
+    # que consiga escribir —por ejemplo contra un endpoint inyectado por la
+    # calibración, que no tiene guardián— dejaría el fichero en el árbol REAL
+    # aunque el árbol auditado sea una copia. Un instrumento que escribe en lo
+    # que mide invalida su propia medida. Se apunta a un temporal.
+    os.environ.setdefault("S9K_HEALTH_REPORT_PATH", str(tmp / "health_report.json"))
 
 
 def cargar_app(repo: Path):
