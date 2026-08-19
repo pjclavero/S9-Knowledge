@@ -82,7 +82,7 @@ llegue a un pintor solo hay dos caminos:
 Y lo que no es ninguna de las dos (dict-dispatch, `(lambda...)()`, `f()()`) cae
 en «invocado irresoluble», que tambien es motivo.
 
-`FORMAS_DE_PINTOR` ejerce VEINTE formas: 8 reconocidas y 12 denunciadas.
+`FORMAS_DE_PINTOR` ejerce VEINTIDOS formas: 9 reconocidas y 13 denunciadas.
 Ninguna desaparece. La afirmacion que se sostiene es esa: **una sembradora o se
 llama --y se reconoce-- o se menciona --y se denuncia--**; no que hayamos
 imaginado todas las sintaxis posibles.
@@ -266,8 +266,38 @@ def _nombre_llamado(c: ast.Call) -> str | None:
 
 
 def _llamadas(nodo: ast.AST) -> set[str]:
-    return {n for n in (_nombre_llamado(c) for c in ast.walk(nodo)
-                        if isinstance(c, ast.Call)) if n}
+    por_nombre, por_atributo = _llamadas_por_forma(nodo)
+    return por_nombre | por_atributo
+
+
+def _llamadas_por_forma(nodo: ast.AST) -> tuple[set[str], set[str]]:
+    """Llamadas, separadas segun se invoquen por VARIABLE o por ATRIBUTO.
+
+    La distincion no es estetica: el filtro anticolision (`importados_ajenos`)
+    exime nombres que un `import` liga EN ESTE MODULO, y un import liga una
+    VARIABLE, nunca el atributo `.x` de otro objeto. Mezclar las dos formas
+    hacia que el filtro eximiera de mas -- y eso abrio un silencio, medido:
+
+        from app.api import entities as api_entities   # impostor homonimo
+        from app import readonly
+        def v(request, n):
+            api_entities.listar()
+            return templates.TemplateResponse(
+                request, "entity.html", {"e": readonly.api_entities(n)})
+
+    `readonly.api_entities` es una sembradora de verdad y el pintor es
+    legitimo, pero el nombre desnudo coincidia con el impostor y quedaba
+    exento: ni reconocido ni denunciado.
+    """
+    por_nombre, por_atributo = set(), set()
+    for c in ast.walk(nodo):
+        if not isinstance(c, ast.Call):
+            continue
+        if isinstance(c.func, ast.Name):
+            por_nombre.add(c.func.id)
+        elif isinstance(c.func, ast.Attribute):
+            por_atributo.add(c.func.attr)
+    return por_nombre, por_atributo
 
 
 #: Nombres que envuelven una funcion sin llamarla: `partial(f)` es `f` diferido.
@@ -365,7 +395,11 @@ def _expandir(nodo: ast.AST, sembradoras_: set[str],
             bare = n.attr
         else:
             continue
-        if bare not in conocidas or bare in impostores:
+        if bare not in conocidas:
+            continue
+        # El filtro anticolision vale para la VARIABLE que el import liga, no
+        # para el atributo homonimo de otro objeto (ver `_llamadas_por_forma`).
+        if isinstance(n, ast.Name) and bare in impostores:
             continue
         p = padre.get(n)
         # invocarla no la rebautiza: `serialize_node(x)`, `mod.serialize_node(x)`
@@ -396,7 +430,9 @@ def _sembrado(nodo: ast.AST, sembradoras_: set[str],
               impostores: frozenset[str] = frozenset()) -> tuple[bool, list[str]]:
     """``(siembra, motivos)`` para UNA funcion, con los nombres ya extendidos."""
     nombres, motivos = _expandir(nodo, sembradoras_, impostores)
-    return bool((_llamadas(nodo) - impostores) & nombres), motivos
+    por_nombre, por_atributo = _llamadas_por_forma(nodo)
+    llamadas = (por_nombre - impostores) | por_atributo
+    return bool(llamadas & nombres), motivos
 
 
 def _anotaciones(pila) -> dict[str, str]:
@@ -927,6 +963,36 @@ pintar = partial(serialize_node)
 def v(request, n):
     return templates.TemplateResponse(request, "entity.html", {"e": pintar(n)})
 """),
+    # El silencio que abrio el propio filtro anticolision: el pintor es
+    # LEGITIMO (`readonly.api_entities` serializa de verdad) pero su nombre
+    # desnudo coincide con el de un impostor importado en el mismo modulo. Se
+    # RECONOCE porque el filtro solo exime la VARIABLE que el import liga,
+    # nunca el atributo homonimo de otro objeto.
+    ("atributo homonimo de un impostor", "reconocida", """
+from app.api import entities as api_entities
+from app import readonly
+def v(request, n):
+    api_entities.listar()
+    return templates.TemplateResponse(request, "entity.html",
+                                      {"e": readonly.api_entities(n)})
+"""),
+    # Gemela de la anterior por el otro lado de la regla: aqui la sembradora
+    # legitima se MENCIONA por atributo (`readonly.api_entities`) para meterla
+    # en una lista, y la llamada posterior es por variable, asi que el motivo
+    # de «invocado irresoluble» no salta. Si la exencion anticolision se
+    # aplicara tambien a los `Attribute`, esta mencion quedaria exenta y el
+    # pintor volveria a desaparecer en silencio.
+    ("mencion por atributo homonima de un impostor", "no clasificable", """
+from app.api import entities as api_entities
+from app import readonly
+def v(request, n):
+    api_entities.listar()
+    pares = [(readonly.api_entities, 1)]
+    ctx = {}
+    for f, _ in pares:
+        ctx["e"] = f(n)
+    return templates.TemplateResponse(request, "entity.html", ctx)
+"""),
     ("helper renombrado al importar", "reconocida", """
 from app.routers.readonly import _with_other as h
 def v(request, e):
@@ -1061,7 +1127,7 @@ def test_el_recuento_de_la_cabecera_no_puede_MENTIR():
     reconocidas = [f for f in FORMAS_DE_PINTOR if f[1] == "reconocida"]
     denunciadas = [f for f in FORMAS_DE_PINTOR if f[1] != "reconocida"]
     palabras = {8: "OCHO", 11: "ONCE", 12: "DOCE", 19: "DIECINUEVE",
-                20: "VEINTE", 21: "VEINTIUNA"}
+                20: "VEINTE", 21: "VEINTIUNA", 22: "VEINTIDOS"}
     esperado = (f"{palabras.get(len(FORMAS_DE_PINTOR), len(FORMAS_DE_PINTOR))} formas: "
                 f"{len(reconocidas)} reconocidas y {len(denunciadas)} denunciadas")
     assert esperado in __doc__, (
@@ -1069,7 +1135,7 @@ def test_el_recuento_de_la_cabecera_no_puede_MENTIR():
 
     ids = [f[0] for f in FORMAS_DE_PINTOR]
     assert len(set(ids)) == len(ids), f"hay formas repetidas: {ids}"
-    assert _re.search(r"VEINTE|DIECINUEVE|VEINTIUNA", __doc__)
+    assert _re.search(r"VEINTE|DIECINUEVE|VEINTIUNA|VEINTIDOS", __doc__)
 
 
 def test_una_COLISION_DE_NOMBRES_por_import_no_es_un_pintor():
@@ -1099,6 +1165,50 @@ def v(request):
                                         lambda: None)
     assert not sueltos, f"falso positivo por colision de nombres: {sueltos}"
     assert not pintadas, "y tampoco puede contarse como pintora"
+
+
+def test_el_filtro_anticolision_NO_exime_atributos():
+    """CONTROL NEGATIVO del arreglo. El filtro anticolision se justifica con la
+    semantica de Python: un `import` liga una VARIABLE. Aplicarlo tambien al
+    atributo `.x` de otro objeto va MAS ALLA de esa justificacion, y eso abria
+    un silencio: un pintor legitimo que llega por `readonly.api_entities`
+    quedaba exento por llamarse igual que un impostor importado al lado.
+
+    Aqui se ejerce el arreglo y su ausencia: con la exencion aplicada a las dos
+    formas --como estaba-- el pintor DESAPARECE; separando `Name` de
+    `Attribute`, se reconoce.
+    """
+    fuente = """
+from app.api import entities as api_entities
+from app import readonly
+def v(request, n):
+    api_entities.listar()
+    return templates.TemplateResponse(request, "entity.html",
+                                      {"e": readonly.api_entities(n)})
+"""
+    arbol = ast.parse(fuente)
+    fn = next(f for f, _ in _funciones_con_pila(arbol))
+    impostores = frozenset(importados_ajenos(arbol, sembradoras()))
+    assert "api_entities" in impostores, "el caso deja de medir la exencion"
+    assert "api_entities" in sembradoras(), (
+        "el caso exige que el nombre sea sembradora DE VERDAD por otra via")
+
+    por_nombre, por_atributo = _llamadas_por_forma(fn)
+    assert "api_entities" in por_atributo, "la llamada legitima es por atributo"
+    assert "api_entities" not in por_nombre
+
+    # (a) como estaba: exencion por nombre desnudo -> el pintor desaparece
+    mezclado = (por_nombre | por_atributo) - impostores
+    assert not (mezclado & sembradoras()), (
+        "este caso ya no reproduce el silencio que el arreglo cierra")
+
+    # (b) con el arreglo: solo se exime la VARIABLE
+    separado = (por_nombre - impostores) | por_atributo
+    assert separado & sembradoras(), "el arreglo no reconoce al pintor legitimo"
+
+    pintadas, sueltos = _analizar_arbol(arbol, sembradoras(), Path("sintetico.py"),
+                                        lambda: None)
+    assert "entity.html" in pintadas, f"el pintor sigue perdido: {sueltos}"
 
 
 def test_el_ensanchamiento_esta_ATADO_a_la_anotacion():
