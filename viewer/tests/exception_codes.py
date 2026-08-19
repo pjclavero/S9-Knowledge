@@ -27,7 +27,10 @@ DEUDA EXPLÍCITA, NO convertida (se declara, no se arregla en silencio):
 
   (La cifra «~222» que circuló antes salía de un grep más laxo, que contaba
   cualquier línea con `match=` incluidas las que no son comprobaciones de
-  excepción. Queda corregida.) Cubre ledger V3, safe writer, supersede_review,
+  excepción. Queda corregida. Una segunda medición por AST, contando LLAMADAS
+  en vez de líneas y sólo en directorios de test, da 175 (126 + 49): la
+  diferencia es de método de recuento, no de hecho; el comando de arriba es el
+  reproducible.) Cubre ledger V3, safe writer, supersede_review,
   proveedores externos y benchmarks. Varias SÍ sostienen garantías del RC (unicidad e identidad
   durable en el ledger, no-escritura del writer en dry-run); quedan fuera
   porque pertenecen a otra superficie que este carril no posee y su conversión
