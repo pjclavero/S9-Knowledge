@@ -242,9 +242,14 @@ def test_ninguna_prueba_en_alcance_vuelve_a_medir_subcadenas(rel):
     """
     inventario = carril5_deuda.censo_inventario("data-engine")
     clave = f"data-engine/app/{rel}"
-    hallazgos = inventario["por_fichero"].get(clave, {})
-    ofensores = (hallazgos.get("estricto_match", [])
-                 + hallazgos.get("estricto_in_str", []))
+    # FAIL-CLOSED: si el fichero no esta en el censo, la guarda no ha mirado
+    # nada y pasaria en vacio. Un instrumento que no encuentra su objetivo tiene
+    # que gritar, no callar.
+    assert clave in inventario["por_fichero"], (
+        f"{clave} no aparece en el censo del detector: la guarda no esta "
+        "midiendo este fichero (renombrado, sin versionar, o fuera de ambito).")
+    hallazgos = inventario["por_fichero"][clave]
+    ofensores = hallazgos["estricto_match"] + hallazgos["estricto_in_str"]
     assert not ofensores, (
         f"{rel}: comprobaciones por subcadena en las lineas {sorted(ofensores)}. "
         "En estos ficheros se mide CONDUCTA: usa `raises_code(tipo, codigo)`.")
