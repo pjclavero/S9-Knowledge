@@ -68,11 +68,36 @@ SIN_ANCLA_MEDIDA = 31
 SITIOS_SELLADOS = 71
 SITIOS_CON_ANCLA = 40
 
-#: Total del inventario y conversion, medidos por ejecucion completa.
+#: Total del inventario y conversion, medidos por ejecucion completa (AST sobre
+#: TODOS los ficheros, no muestra), con el detector AMPLIO sobre `aaf9695`.
 INVENTARIO_TOTAL = 259
 INVENTARIO_MATCH = 130
 INVENTARIO_IN_STR = 129
 CONVERTIDAS = 52
+
+#: RECONCILIACION DE CIFRAS. Circularon tres numeros distintos y ninguno estaba
+#: mal: median cosas distintas. Medido aqui por ejecucion completa, con DOS
+#: detectores y sobre el arbol de `aaf9695`:
+#:
+#:   detector ESTRICTO = `pytest.raises(..., match=)` + `"lit" in str(...)`
+#:   detector AMPLIO   = ademas `pytest.warns(match=)` y `"lit" in`
+#:                       msg/err/detail/stdout/stderr (no solo `str(...)`)
+#:
+#:   ambito                 ESTRICTO            AMPLIO
+#:   data-engine/app/tests  185 (127+58)        259 (130+129)
+#:   repo completo          226 (153+73)        337 (156+181)
+#:
+#: - El "~190 en data-engine" del encargo = 185 ESTRICTO en data-engine. Correcto.
+#: - El "~175 en todo el repo" del revisor del carril 3 (126 match + 49 in str)
+#:   NO cuadra con 226 repo-wide; su cifra de `match=` (126) coincide con la de
+#:   data-engine SOLO (127), asi que muy probablemente midio `match=` en
+#:   data-engine y un `in str(exc)` mas estrecho. Se deja anotado, no corregido:
+#:   quien quiera reproducirlo tiene aqui el detector y el ref exactos.
+#: - Tras este carril, data-engine baja a 135 ESTRICTO / 209 AMPLIO: 52 menos
+#:   por la conversion y 2 mas por las guardas nuevas (127-52+2 = 77 `match=`).
+INVENTARIO_ESTRICTO_DATA_ENGINE = 185
+INVENTARIO_ESTRICTO_REPO = 226
+INVENTARIO_AMPLIO_REPO = 337
 
 #: Unificacion pendiente con el carril 3: cuando `viewer/tests/exception_codes.py`
 #: (PR #198) este en `main`, los dos modulos comparten contrato y pueden fundirse.
