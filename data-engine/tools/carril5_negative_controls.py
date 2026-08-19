@@ -314,9 +314,61 @@ def purge_pycache(root: Path) -> None:
         shutil.rmtree(d, ignore_errors=True)
 
 
+def veredicto_guards(resultados: list) -> dict:
+    """Verdicto del modo `guards`, restando el baseline.
+
+    Por que la resta y no el recuento crudo: al correr la suite ENTERA dentro
+    del arbol copiado hay ~19 rojos y ~24 errores que no dependen de ninguna
+    mutacion --pruebas que buscan runners congelados, corpus y artefactos por
+    ruta absoluta del repo real, y el censo de rutas, que desde una copia no
+    encuentra el indice de git--. Contarlos como deteccion seria justo el falso
+    hallazgo de medir contra el propio montaje. La linea `baseline_sin_mutar`
+    los mide sin tocar nada, y aqui se restan.
+
+    Un ancla es UNICA si, tras la resta, el unico rojo exclusivo es su propia
+    prueba. Se admite ademas la prueba de la lista nominal
+    (`test_los_sitios_sin_ancla...`): la mutacion inserta una linea y esa lista
+    guarda `fichero:linea`, asi que enrojecer es la conducta correcta, no un
+    rojo prestado.
+    """
+    base = None
+    for e in resultados:
+        if e.get("control") == "baseline_sin_mutar":
+            base = set(e["failed"])
+    if base is None:
+        return {"veredicto": "sin baseline: no se puede restar el montaje"}
+    tolerado = "test_los_sitios_sin_ancla_estan_nombrados_uno_a_uno"
+    filas, todas_ok = [], True
+    for e in resultados:
+        if e.get("control") != "guard_neutralizada":
+            continue
+        exclusivas = sorted(set(e["failed"]) - base)
+        propias = [x for x in exclusivas if e["code"].lower() in x.lower()
+                   or x.split("::")[-1].startswith("test_ancla_")]
+        colaterales = [x for x in exclusivas if x not in propias]
+        ok = len(propias) == 1 and all(tolerado in x for x in colaterales)
+        todas_ok &= ok
+        filas.append({
+            "code": e["code"], "site": e["site"],
+            "rojas_exclusivas": exclusivas, "ancla": propias,
+            "colaterales_admitidos": colaterales,
+            "ancla_unica_tras_restar_baseline": ok,
+        })
+    return {
+        "baseline_rojas_del_montaje": len(base),
+        "guardas": filas,
+        "veredicto": ("LAS 8 GUARDAS TIENEN ANCLA UNICA (sin rojos prestados)"
+                      if todas_ok and len(filas) == 8
+                      else "HAY GUARDAS SIN ANCLA UNICA"),
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["text", "code", "baseline", "ablation", "guards", "all"])
+    ap.add_argument("mode", choices=["text", "code", "baseline", "ablation", "guards",
+                                     "informe", "all"])
+    ap.add_argument("--informe-de", default=None,
+                    help="con `informe`: fichero JSON de una ejecucion previa de `guards`")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--full", action="store_true",
                     help="corre TODA la suite del data-engine, no sólo las de alcance: "
@@ -324,6 +376,11 @@ def main() -> int:
     ap.add_argument("--timeout", type=int, default=900,
                     help="plazo por ejecucion de pytest; un colgado NO es un verde")
     args = ap.parse_args()
+
+    if args.mode == "informe":
+        previo = json.load(open(args.informe_de))
+        print(json.dumps(veredicto_guards(previo["results"]), indent=1, ensure_ascii=False))
+        return 0
 
     before = tree_hashes(DE, SOURCES + TESTS)
     report = {"mode": args.mode, "results": []}
@@ -426,6 +483,8 @@ def main() -> int:
                 "ancla_unica": len(failed) == 1,
             })
         restore(root, SOURCES)
+        if args.full:
+            report["veredicto_guards"] = veredicto_guards(report["results"])
 
     if args.mode in ("ablation", "all"):
         base = fresh_copy()

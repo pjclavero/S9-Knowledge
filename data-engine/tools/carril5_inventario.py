@@ -161,6 +161,16 @@ def censar(scope: str = "data-engine", ref: str | None = None) -> dict:
         except SyntaxError:
             ilegibles.append(rel)
 
+    # FAIL-CLOSED. Un censo sobre cero ficheros no es "cero hallazgos": es un
+    # censo que no ha mirado nada, y devolverlo como 0 convierte cualquier
+    # comprobacion que lo use en un verde vacio. Pasa de verdad --al ejecutar
+    # desde una copia del arbol, `git ls-files` no lista nada-- y ahi se
+    # detecto.
+    if not por_fichero:
+        raise RuntimeError(
+            f"censo vacio: ningun fichero .py bajo {SCOPES[scope]} (ref={ref or 'arbol'}). "
+            "Un censo que no encuentra su objetivo tiene que gritar, no devolver 0.")
+
     def _tot(clave):
         return sum(len(v[clave]) for v in por_fichero.values())
 
