@@ -53,15 +53,59 @@ ruidoso, que es exactamente el defecto que este fichero existe para impedir.
   pintora, pero en la que ha quedado algo sin resolver, sale TAMBIEN como no
   clasificable. La respuesta honesta ahi no es «no pinta»: es «no lo se».
 
-Lo que si se RESUELVE (y por tanto no cuesta un falso positivo): llamada
-directa, alias de importacion (``... as sn``), uso por atributo
-(``serializers.serialize_node``), helper en otro modulo (punto fijo transitivo
-a->b->c), render bajo condicional, **alias encadenado** (``sn2 = sn``, incluido
-el de ambito de modulo) y **envoltorio** (``partial(sn)``) cuando su argumento
-es un nombre. Lo que se DENUNCIA: dict-dispatch (``FUNCS['s'](x)``) y cualquier
-invocado que no sea ``Name`` ni ``Attribute``, y los envoltorios sobre algo que
-no es un nombre. Las NUEVE formas estan en ``FORMAS_DE_PINTOR`` y cada una se
-ejerce: o reconocida, o denunciada. Ninguna puede desaparecer.
+LA CLASE, NO LAS INSTANCIAS
+---------------------------
+La primera version de esta seccion enumeraba nueve formas y afirmaba «ningun
+pintor desaparece en silencio». Era FALSO, y el revisor lo midio: encontro SEIS
+que ni se reconocian ni se denunciaban (`sn: Callable = serialize_node`,
+`a, b = serialize_node, None`, `def v(..., ser=serialize_node)`,
+`self.ser = serialize_node`, `(sn := serialize_node)`,
+`for f in (serialize_node,)`). Causa raiz UNICA: el punto fijo solo propagaba
+por `Assign` simple con un destino `Name`, asi que cualquier otra ligadura
+REBAUTIZABA la sembradora bajo un nombre desconocido -- y la llamada resultante
+si era `Name`/`Attribute`, de modo que el motivo de «invocado irresoluble»
+tampoco saltaba. Una garantia enumerada vale para lo enumerado: eso no es una
+garantia, es una lista.
+
+Se cierra la CLASE con una regla, no con diez parches. Para que una sembradora
+llegue a un pintor solo hay dos caminos:
+
+* **se la llama** -- `serialize_node(n)`, `mod.serialize_node(n)`, un alias, un
+  helper (punto fijo transitivo entre modulos), un helper RENOMBRADO al
+  importarlo, un `partial(sn)`: RECONOCIDO;
+* **se la menciona sin llamarla** (posicion de valor) para bautizarla con otro
+  nombre: eso es precisamente lo que el analisis no puede seguir, y por eso es
+  MOTIVO. No importa la sintaxis de la ligadura -- anotada, desempaquetada, por
+  defecto, atributo, walrus, bucle, lista, retorno, argumento, dict--: todas
+  pasan por una mencion en posicion de valor.
+
+Y lo que no es ninguna de las dos (dict-dispatch, `(lambda...)()`, `f()()`) cae
+en «invocado irresoluble», que tambien es motivo.
+
+`FORMAS_DE_PINTOR` ejerce VEINTE formas: 8 reconocidas y 12 denunciadas.
+Ninguna desaparece. La afirmacion que se sostiene es esa: **una sembradora o se
+llama --y se reconoce-- o se menciona --y se denuncia--**; no que hayamos
+imaginado todas las sintaxis posibles.
+
+COLISION DE NOMBRES: el precio, medido y pagado
+-----------------------------------------------
+Cerrar la clase saco a la luz la cara fea del emparejamiento por nombre:
+`app/main.py` importa `from app.api import entities as api_entities`, y
+`api_entities` es tambien el nombre de una funcion de `readonly.py` que
+serializa. Eso produjo OCHO falsos positivos de golpe. Se cierra con la
+semantica de Python, no con una excepcion: un nombre ligado aqui por un import
+cuyo ORIGEN no es una sembradora no es, en este modulo, la sembradora homonima
+de otro fichero (`importados_ajenos`); y al reves, un import cuyo origen SI lo
+es liga su nombre local como sembradora (`alias_locales_de_sembradoras`). Con
+las dos, los falsos positivos vuelven a CERO.
+
+COTA QUE QUEDA
+--------------
+El emparejamiento sigue siendo por NOMBRE, no por resolucion completa de
+imports. Con los dos filtros de arriba las colisiones conocidas estan cubiertas,
+pero un caso patologico (dos funciones homonimas, una sembradora y otra no, sin
+import de por medio) denunciaria de mas. Es una cota de PRECISION -- puede
+gritar sin motivo -- no de SILENCIO.
 
 ENSANCHAR SOLO DONDE CONSTA EL TIPO
 -----------------------------------
@@ -171,6 +215,47 @@ def _alias_de_la_semilla(arbol: ast.AST) -> set[str]:
     return nombres
 
 
+def importados_ajenos(arbol: ast.AST, conocidas: set[str]) -> set[str]:
+    """Nombres que en ESTE modulo estan ligados por un `import` a OTRA cosa.
+
+    El emparejamiento por nombre tiene una cara fea y medida: `app/main.py`
+    importa `from app.api import entities as api_entities`, y resulta que
+    `api_entities` es TAMBIEN el nombre de una funcion de `readonly.py` que
+    serializa. Sin este filtro, ocho renderizadores de `main.py` salian como no
+    clasificables por una colision de nombres: ocho falsos positivos.
+
+    La regla es la semantica de Python, no una excepcion: si el nombre esta
+    ligado aqui por un import cuyo ORIGEN no es una sembradora, en este modulo
+    ese nombre NO es la sembradora homonima de otro fichero.
+    """
+    ajenos = set()
+    for n in ast.walk(arbol):
+        if isinstance(n, (ast.Import, ast.ImportFrom)):
+            for a in n.names:
+                ligado = a.asname or a.name.split(".")[0]
+                origen = a.name.split(".")[-1]
+                if origen not in conocidas:
+                    ajenos.add(ligado)
+    return ajenos
+
+
+def alias_locales_de_sembradoras(arbol: ast.AST, conocidas: set[str]) -> set[str]:
+    """La otra mitad del import: `from otro import helper as h` con `helper`
+    sembradora liga `h` a una sembradora EN ESTE MODULO.
+
+    Sin esto, `h(n)` no se reconocia (el nombre local no esta en el conjunto) y
+    tampoco se denunciaba (importar no es mencionar en posicion de valor): otro
+    caso silencioso, esta vez a traves de modulos.
+    """
+    out = set()
+    for n in ast.walk(arbol):
+        if isinstance(n, (ast.Import, ast.ImportFrom)):
+            for a in n.names:
+                if a.name.split(".")[-1] in conocidas:
+                    out.add(a.asname or a.name.split(".")[0])
+    return out
+
+
 def _nombre_llamado(c: ast.Call) -> str | None:
     """El nombre «desnudo» de lo que se llama: `f`, `mod.f`, `self.f` -> `f`."""
     if isinstance(c.func, ast.Name):
@@ -189,7 +274,8 @@ def _llamadas(nodo: ast.AST) -> set[str]:
 _ENVOLTORIOS = {"partial", "singledispatch", "wraps", "lru_cache", "cache"}
 
 
-def _expandir(nodo: ast.AST, sembradoras_: set[str]) -> tuple[set[str], list[str]]:
+def _expandir(nodo: ast.AST, sembradoras_: set[str],
+              impostores: frozenset[str] = frozenset()) -> tuple[set[str], list[str]]:
     """``(siembra, motivos por los que NO se puede afirmar que no siembre)``.
 
     ESTE ES EL AGUJERO QUE CIERRA (revision de `9217381`)
@@ -252,13 +338,65 @@ def _expandir(nodo: ast.AST, sembradoras_: set[str]) -> tuple[set[str], list[str
             motivos.append(
                 f"invocado irresoluble `{type(c.func).__name__}` (linea {c.lineno})")
 
-    return sembradoras_ | locales, motivos
+    # (c) LA CLASE, no nueve instancias: una sembradora en POSICION DE VALOR.
+    #
+    # El arreglo de (a) solo propaga por `Assign` simple con UN destino `Name`.
+    # Cualquier otra ligadura --`sn: Callable = serialize_node`, `a, b =
+    # serialize_node, None`, `def v(..., ser=serialize_node)`, `self.ser =
+    # serialize_node`, `(sn := serialize_node)`, `for f in (serialize_node,)`--
+    # REBAUTIZA la sembradora bajo un nombre desconocido, y la llamada que
+    # sigue SI es `Name`/`Attribute`, asi que (b) tampoco salta. Resultado: el
+    # pintor desaparecia, otra vez, en silencio.
+    #
+    # La regla general: si una sembradora se MENCIONA sin llamarla (posicion de
+    # valor) y esa mencion no es una de las ligaduras que (a) resolvio, entonces
+    # se ha bautizado algo que no sabemos seguir. Eso es motivo. No enumera
+    # formas: enumera el UNICO sitio por el que la clase entera se escapa.
+    conocidas = sembradoras_ | locales
+    padre = {}
+    for n in ast.walk(nodo):
+        for h in ast.iter_child_nodes(n):
+            padre[h] = n
+
+    for n in ast.walk(nodo):
+        if isinstance(n, ast.Name):
+            bare = n.id
+        elif isinstance(n, ast.Attribute):
+            bare = n.attr
+        else:
+            continue
+        if bare not in conocidas or bare in impostores:
+            continue
+        p = padre.get(n)
+        # invocarla no la rebautiza: `serialize_node(x)`, `mod.serialize_node(x)`
+        if isinstance(p, ast.Call) and p.func is n:
+            continue
+        # la ligadura que (a) SI resolvio: `sn2 = sn`, `pintar = partial(sn)`
+        if isinstance(p, ast.Assign) and p.value is n \
+           and len(p.targets) == 1 and isinstance(p.targets[0], ast.Name) \
+           and p.targets[0].id in locales:
+            continue
+        if isinstance(p, ast.Call) and _nombre_llamado(p) in _ENVOLTORIOS:
+            abuelo = padre.get(p)
+            if isinstance(abuelo, ast.Assign) and len(abuelo.targets) == 1 \
+               and isinstance(abuelo.targets[0], ast.Name) \
+               and abuelo.targets[0].id in locales:
+                continue
+        # importarla tampoco: el alias ya se resolvio en `_alias_de_la_semilla`
+        if isinstance(p, (ast.ImportFrom, ast.Import, ast.alias)):
+            continue
+        motivos.append(
+            f"sembradora `{bare}` en POSICION DE VALOR sin resolver, dentro de "
+            f"`{type(p).__name__}` (linea {getattr(n, 'lineno', '?')})")
+
+    return conocidas, motivos
 
 
-def _sembrado(nodo: ast.AST, sembradoras_: set[str]) -> tuple[bool, list[str]]:
+def _sembrado(nodo: ast.AST, sembradoras_: set[str],
+              impostores: frozenset[str] = frozenset()) -> tuple[bool, list[str]]:
     """``(siembra, motivos)`` para UNA funcion, con los nombres ya extendidos."""
-    nombres, motivos = _expandir(nodo, sembradoras_)
-    return bool(_llamadas(nodo) & nombres), motivos
+    nombres, motivos = _expandir(nodo, sembradoras_, impostores)
+    return bool((_llamadas(nodo) - impostores) & nombres), motivos
 
 
 def _anotaciones(pila) -> dict[str, str]:
@@ -404,7 +542,10 @@ def _analizar_arbol(arbol, nombres, ruta, dame_modulo):
     # Los alias de ESTE modulo y los encadenados de su ambito global: `sn2 = sn`
     # vive fuera de la funcion que lo usa, asi que mirar solo dentro de la
     # funcion lo perdia -- y perderlo era, otra vez, un pintor en silencio.
-    nombres, motivos_modulo = _expandir(arbol, nombres | _alias_de_la_semilla(arbol))
+    base = nombres | _alias_de_la_semilla(arbol)
+    base |= alias_locales_de_sembradoras(arbol, base)
+    impostores = frozenset(importados_ajenos(arbol, base))
+    nombres, motivos_modulo = _expandir(arbol, base, impostores)
     for fn, pila in _funciones_con_pila(arbol):
         renders = _renders(fn)
         if not renders:
@@ -413,7 +554,14 @@ def _analizar_arbol(arbol, nombres, ruta, dame_modulo):
             modulo = dame_modulo()
         donde = f"{ruta}::{fn.name}"
         anot = _anotaciones(pila)
-        pinta, motivos = _sembrado(fn, nombres)
+        pinta, motivos = _sembrado(fn, nombres, impostores)
+        # Los motivos del AMBITO DE MODULO cuentan para toda funcion que
+        # renderice: `sn: Callable = serialize_node` o `self.ser =
+        # serialize_node` ligan la sembradora FUERA de la funcion que pinta.
+        # Esta linea se perdio en una refactorizacion y dejo cuatro de las
+        # seis formas del revisor otra vez SILENCIOSAS: sin ella, la regla
+        # de posicion de valor se calcula y no se usa.
+        motivos = motivos + motivos_modulo
 
         for c in renders:
             candidatos = [
@@ -779,6 +927,11 @@ pintar = partial(serialize_node)
 def v(request, n):
     return templates.TemplateResponse(request, "entity.html", {"e": pintar(n)})
 """),
+    ("helper renombrado al importar", "reconocida", """
+from app.routers.readonly import _with_other as h
+def v(request, e):
+    return templates.TemplateResponse(request, "entity.html", {"e": h(e, "to")})
+"""),
     ("dict-dispatch", "no clasificable", """
 from app.serializers import serialize_node
 FUNCS = {"s": serialize_node}
@@ -791,6 +944,77 @@ FUNCS = {"s": None}
 def v(request, n):
     pintar = partial(FUNCS["s"])
     return templates.TemplateResponse(request, "entity.html", {"e": pintar(n)})
+"""),
+    # --- LIGADURAS FUERA DE `Assign` SIMPLE. Las seis del revisor mas cuatro
+    #     propias. Todas comparten causa raiz: rebautizan la sembradora bajo un
+    #     nombre que el punto fijo no sigue, y la llamada resultante SI es
+    #     `Name`/`Attribute`, asi que el motivo de «invocado irresoluble»
+    #     tampoco saltaba. Las diez se DENUNCIAN por la regla de POSICION DE
+    #     VALOR, que ataca la clase entera y no diez instancias.
+    ("AnnAssign", "no clasificable", """
+from typing import Callable
+from app.serializers import serialize_node
+sn: Callable = serialize_node
+def v(request, n):
+    return templates.TemplateResponse(request, "entity.html", {"e": sn(n)})
+"""),
+    ("desempaquetado", "no clasificable", """
+from app.serializers import serialize_node
+a, b = serialize_node, None
+def v(request, n):
+    return templates.TemplateResponse(request, "entity.html", {"e": a(n)})
+"""),
+    ("argumento por defecto", "no clasificable", """
+from app.serializers import serialize_node
+def v(request, n, ser=serialize_node):
+    return templates.TemplateResponse(request, "entity.html", {"e": ser(n)})
+"""),
+    ("atributo de instancia", "no clasificable", """
+from app.serializers import serialize_node
+class V:
+    def __init__(self):
+        self.ser = serialize_node
+    def v(self, request, n):
+        return templates.TemplateResponse(request, "entity.html", {"e": self.ser(n)})
+"""),
+    ("walrus", "no clasificable", """
+from app.serializers import serialize_node
+def v(request, n):
+    return templates.TemplateResponse(request, "entity.html", {"e": (sn := serialize_node)(n)})
+"""),
+    ("bucle sobre una tupla", "no clasificable", """
+from app.serializers import serialize_node
+def v(request, n):
+    ctx = {}
+    for f in (serialize_node,):
+        ctx["e"] = f(n)
+    return templates.TemplateResponse(request, "entity.html", ctx)
+"""),
+    ("lista de pintores", "no clasificable", """
+from app.serializers import serialize_node
+PINTORES = [serialize_node]
+def v(request, n):
+    return templates.TemplateResponse(request, "entity.html", {"e": PINTORES[0](n)})
+"""),
+    ("devuelta por otra funcion", "no clasificable", """
+from app.serializers import serialize_node
+def dame():
+    return serialize_node
+def v(request, n):
+    f = dame()
+    return templates.TemplateResponse(request, "entity.html", {"e": f(n)})
+"""),
+    ("pasada como argumento", "no clasificable", """
+from app.serializers import serialize_node
+def v(request, n):
+    ctx = aplicar(serialize_node, n)
+    return templates.TemplateResponse(request, "entity.html", ctx)
+"""),
+    ("dentro de un dict literal", "no clasificable", """
+from app.serializers import serialize_node
+def v(request, n):
+    d = {"s": serialize_node}
+    return templates.TemplateResponse(request, "entity.html", {"e": d["s"](n)})
 """),
 )
 
@@ -824,6 +1048,57 @@ def test_ningun_pintor_DESAPARECE_en_silencio(nombre, esperado, fuente):
 
     # En los dos casos hay respuesta. El silencio se comprueba explicitamente.
     assert pintadas or sueltos, f"la forma «{nombre}» no produjo NINGUNA respuesta"
+
+
+def test_el_recuento_de_la_cabecera_no_puede_MENTIR():
+    """La cabecera dice cuantas formas se ejercen y como se reparten. Un numero
+    escrito a mano se queda viejo en cuanto alguien anade una forma, y entonces
+    la documentacion afirma una cobertura que no existe. Se comprueba contra la
+    tabla real.
+    """
+    import re as _re
+
+    reconocidas = [f for f in FORMAS_DE_PINTOR if f[1] == "reconocida"]
+    denunciadas = [f for f in FORMAS_DE_PINTOR if f[1] != "reconocida"]
+    palabras = {8: "OCHO", 11: "ONCE", 12: "DOCE", 19: "DIECINUEVE",
+                20: "VEINTE", 21: "VEINTIUNA"}
+    esperado = (f"{palabras.get(len(FORMAS_DE_PINTOR), len(FORMAS_DE_PINTOR))} formas: "
+                f"{len(reconocidas)} reconocidas y {len(denunciadas)} denunciadas")
+    assert esperado in __doc__, (
+        f"la cabecera no dice «{esperado}»: el recuento escrito ha quedado viejo")
+
+    ids = [f[0] for f in FORMAS_DE_PINTOR]
+    assert len(set(ids)) == len(ids), f"hay formas repetidas: {ids}"
+    assert _re.search(r"VEINTE|DIECINUEVE|VEINTIUNA", __doc__)
+
+
+def test_una_COLISION_DE_NOMBRES_por_import_no_es_un_pintor():
+    """El emparejamiento por nombre tiene una cara fea, y esta medida.
+
+    `app/main.py` hace `from app.api import entities as api_entities`, y
+    `api_entities` es TAMBIEN el nombre de una funcion de `readonly.py` que
+    serializa. Al cerrar la clase de «posicion de valor», esa colision produjo
+    OCHO falsos positivos en `main.py` -- ocho renderizadores denunciados por
+    llamarse igual que otra cosa. Se cierra con la semantica de Python: si el
+    nombre esta ligado aqui por un import cuyo origen no es una sembradora, en
+    este modulo ese nombre NO es la sembradora homonima.
+    """
+    fuente = """
+from app.api import entities as api_entities
+app.include_router(api_entities.router)
+def v(request):
+    return templates.TemplateResponse(request, "entity.html", {})
+"""
+    arbol = ast.parse(fuente)
+    assert "api_entities" in sembradoras(), (
+        "este caso deja de medir la colision si `api_entities` ya no es una "
+        "sembradora: buscar otro nombre colisionante")
+    assert "api_entities" in importados_ajenos(arbol, sembradoras())
+
+    pintadas, sueltos = _analizar_arbol(arbol, sembradoras(), Path("sintetico.py"),
+                                        lambda: None)
+    assert not sueltos, f"falso positivo por colision de nombres: {sueltos}"
+    assert not pintadas, "y tampoco puede contarse como pintora"
 
 
 def test_el_ensanchamiento_esta_ATADO_a_la_anotacion():
