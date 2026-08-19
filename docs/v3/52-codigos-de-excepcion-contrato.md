@@ -65,10 +65,21 @@ plantilla. Perder el token del texto de la excepción no pierde garantía.
 ## Cómo se comprueba
 
 `viewer/tests/exception_codes.py::raises_code(tipo, código)`. Cubre las dos
-formas (`code` único y pertenencia en `codes`), **rehúsa `code=None`** y
-**rehúsa** una excepción que no exponga ninguno de los dos: un verificador que
-puede aprobar sin comprobar es el mismo defecto con otra cara. Tiene sus
-propios negativos en `viewer/tests/test_exception_codes_instrumento.py`.
+formas (`code` único y pertenencia en `codes`), **rehúsa `code=None`**,
+**rehúsa** una excepción que no exponga ninguno de los dos y **rehúsa que
+`codes` sea una cadena**: un verificador que puede aprobar sin comprobar es el
+mismo defecto con otra cara. Tiene sus propios negativos en
+`viewer/tests/test_exception_codes_instrumento.py`.
+
+Sobre lo último: si `codes` fuese una cadena, `code in codes` no comprobaría
+pertenencia sino **subcadena**, y `raises_code(X, "CSRF")` aprobaría contra
+`codes="CSRF_SECRET_TOO_SHORT_Y_MAS"`. Medido: sin el `assert not
+isinstance(varios, (str, bytes))` el negativo
+`test_negativo_codes_como_cadena_enrojece` **pasa en verde aprobando el
+parecido**; con él, enrojece. Hoy no hay superviviente en el producto
+—`AuthSecurityError.codes` se construye siempre con `tuple(...)` y es la única
+forma `codes` que existe—, pero aprobar por parecido es justo el vicio que este
+carril erradica, así que la puerta se cierra antes de que alguien la abra.
 
 ## Deuda declarada
 
@@ -80,6 +91,44 @@ identidad durable en el ledger, no-escritura del writer en dry-run— y **piden
 carril propio**: necesitan códigos en `LedgerError` y en el writer. El detalle
 y las exclusiones justificadas están en el docstring de
 `viewer/tests/exception_codes.py`.
+
+### La discrepancia de cifras, cerrada
+
+Circularon dos recuentos (208 y 175). **Queda cerrado a favor de 153 + 55.** El
+revisor independiente reprodujo el comando publicado sobre `aaf9695` y obtuvo
+las mismas cifras: **153** `match=` y **55** `in str(exc` en todo el repo;
+acotado a `data-engine/app/tests/`, **127** y **49**. Su propio recuento previo
+por AST (175) **perdía 27 llamadas reales** —tipos escritos con punto
+(`V.ContractV3Error`, `sqlite3.ProgrammingError`) y tuplas de tipos—, de modo
+que **era un SUELO, no una cifra rival**. No hay dos hechos: hay una cifra y una
+cota inferior de un recuento incompleto.
+
+### Hallazgo nuevo: fragilidad en el PRODUCTO (fuera de este carril)
+
+De esas 55 líneas `in str(exc…)`, **3 no son pruebas: son código de producto**
+que **ramifica sobre el texto de un mensaje de sqlite**.
+
+| Ruta | Línea | Ramifica sobre |
+|---|---|---|
+| `viewer/app/auth/db.py` | 259 | `"duplicate column" not in str(exc).lower()` |
+| `viewer/app/auth/db.py` | 270 | `"duplicate column" not in str(exc).lower()` |
+| `viewer/app/services/v3_review_store.py` | 75 | `"locked" not in str(exc).lower()` |
+
+Motivo por el que es deuda: la decisión de control de flujo (¿tragar el error de
+migración?, ¿reintentar el bloqueo?) depende de la **redacción de un mensaje de
+una biblioteca de terceros**, que puede cambiar entre versiones de SQLite o de
+CPython **sin aviso ni rojo**. Es el mismo defecto que este carril erradica en
+las pruebas, pero **en el producto**, donde el precio no es un falso verde sino
+una migración que deja de aplicarse en silencio o un reintento que deja de
+reintentar.
+
+Con esto, el desglose real de las 55 es **52 en pruebas + 3 en producto**, y el
+total de comprobaciones por subcadena **en pruebas** es **205** (153 + 52).
+
+**Queda ANOTADA COMO DEUDA DECLARADA Y NO SE ARREGLA AQUÍ**: es superficie de
+`auth/db` y del store de revisión, no del instrumento de excepciones; su
+conversión pide códigos propios (o el uso de `sqlite3.Error.sqlite_errorname` /
+códigos de error nativos) y su propio carril con negativos calibrados.
 
 ## Excepción deliberada
 

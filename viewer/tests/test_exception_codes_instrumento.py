@@ -73,3 +73,35 @@ def test_negativo_no_lanzar_nada_sigue_enrojeciendo():
         with raises_code(_ConCodigo, "CODIGO_A"):
             pass
     assert "DID NOT RAISE" in str(exc.value)
+
+
+class _CodesComoCadena(RuntimeError):
+    """El caso degenerado del OTRO lado: `codes` no es una secuencia de
+    códigos sino una CADENA. `code in varios` sobre una cadena no comprueba
+    pertenencia: comprueba SUBCADENA, que es justo la aprobación por parecido
+    que este carril erradica."""
+
+    codes = "CSRF_SECRET_TOO_SHORT_Y_MAS"
+
+
+def test_negativo_codes_como_cadena_enrojece():
+    """`raises_code(X, "CSRF")` NO puede aprobar contra `codes="CSRF_..."`.
+
+    Sin el `assert not isinstance(varios, str)`, la rama de pertenencia
+    degenera en `"CSRF" in "CSRF_SECRET_TOO_SHORT_Y_MAS"` -> True, y el
+    instrumento sella un prefijo como si fuera un código. Hoy ninguna
+    excepción del producto expone `codes` como cadena (`AuthSecurityError`
+    la construye siempre con `tuple(...)`), así que esto no es un
+    superviviente: es la puerta cerrada antes de que alguien la abra.
+    """
+    with pytest.raises(AssertionError):
+        with raises_code(_CodesComoCadena, "CSRF"):
+            raise _CodesComoCadena("x")
+
+
+def test_negativo_codes_cadena_exacta_tampoco_aprueba():
+    """Ni siquiera con el texto completo: una cadena no es una secuencia de
+    códigos, y aprobar ahí sería aprobar por forma equivocada."""
+    with pytest.raises(AssertionError):
+        with raises_code(_CodesComoCadena, "CSRF_SECRET_TOO_SHORT_Y_MAS"):
+            raise _CodesComoCadena("x")
