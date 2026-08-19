@@ -226,7 +226,26 @@ def m_caida_de_recuento():
 # basura ejecutandose en CI.
 NUEVO_ROTO = REPO / "viewer" / "tests" / "test_calibracion_modulo_que_no_colecciona.py"
 NUEVO_SIN_DECLARAR = REPO / "viewer" / "tests" / "test_calibracion_dependencia_no_declarada.py"
-CREADOS = (NUEVO_ROTO, NUEVO_SIN_DECLARAR)
+# SUP-9 (E3): un directorio de arranque. `sitecustomize.py` lo importa CPython
+# por el mero hecho de estar en el path, y ahi dentro cabe el apagado entero
+# sin que `ci.yml` mencione ninguna variable prohibida.
+DIR_ARRANQUE = REPO / "ci-tools"
+ARRANQUE = DIR_ARRANQUE / "sitecustomize.py"
+
+CREADOS = (NUEVO_ROTO, NUEVO_SIN_DECLARAR, ARRANQUE)
+
+
+def limpia_creados() -> None:
+    """Los ficheros que las mutaciones CREAN no se restauran: se borran.
+
+    El directorio de arranque se borra tambien cuando queda vacio: dejarlo
+    puesto haria que el caso siguiente arrancara sobre un arbol contaminado, y
+    ninguna medida vale sobre un arbol contaminado.
+    """
+    for f in CREADOS:
+        f.unlink(missing_ok=True)
+    if DIR_ARRANQUE.is_dir() and not any(DIR_ARRANQUE.iterdir()):
+        DIR_ARRANQUE.rmdir()
 
 
 def m_modulo_no_recolecta():
@@ -367,40 +386,6 @@ def m_condicion_reescrita() -> None:
 ADDOPTS = '"--ignore=viewer/tests/test_parcialidad_declarada.py"'
 
 
-def m_n4_addopts_en_job() -> None:
-    """N4: `PYTEST_ADDOPTS` en el `env:` de un job que ejecuta la suite."""
-    texto = CI.read_text(encoding="utf-8")
-    ancla = """      - name: Run viewer tests
-        env:
-          S9K_ALLOW_REAL_INGEST: ""
-"""
-    if ancla not in texto:
-        raise SystemExit("MUTACION IMPOSIBLE (N4): no esta el paso de viewer")
-    CI.write_text(texto.replace(
-        ancla, ancla + f"          PYTEST_ADDOPTS: {ADDOPTS}\n", 1), encoding="utf-8")
-
-
-def m_n5_addopts_en_workflow() -> None:
-    """N5: la misma variable a nivel de WORKFLOW: afecta a TODOS los jobs."""
-    texto = CI.read_text(encoding="utf-8")
-    if "\njobs:\n" not in texto:
-        raise SystemExit("MUTACION IMPOSIBLE (N5): no se encuentra `jobs:`")
-    CI.write_text(texto.replace(
-        "\njobs:\n", f"\nenv:\n  PYTEST_ADDOPTS: {ADDOPTS}\n\njobs:\n", 1),
-        encoding="utf-8")
-
-
-def m_n12_export_en_run() -> None:
-    """N12: `export PYTEST_ADDOPTS=` DENTRO del `run:` que el control F parsea."""
-    texto = CI.read_text(encoding="utf-8")
-    ancla = '          out="$(python -m pytest viewer/tests/ -v --tb=short --no-header 2>&1)"'
-    if ancla not in texto:
-        raise SystemExit("MUTACION IMPOSIBLE (N12): no esta la invocacion del visor")
-    CI.write_text(texto.replace(
-        ancla,
-        f"          export PYTEST_ADDOPTS={ADDOPTS}\n" + ancla, 1), encoding="utf-8")
-
-
 def m_descritificar_declarado() -> None:
     """Control POSITIVO: descritificar con la suite VIVA y declarandolo.
 
@@ -414,6 +399,209 @@ def m_descritificar_declarado() -> None:
         + "\ndescritificar: viewer/tests/test_parcialidad_declarada.py\n",
         encoding="utf-8")
 
+
+
+# ---------------------------------------------------------------------------
+# UN CASO POR SUPERFICIE (SUP-1..SUP-9), CADA UNO CON SU ANCLA PROPIA
+# ---------------------------------------------------------------------------
+# Exigencia textual del operador: «no confiaria unicamente en "quitar el `^` al
+# regex" como demostracion suficiente. La calibracion debe cubrir, como minimo,
+# cada sintaxis que realmente usa el repo». Asi que no hay un caso generico de
+# "variable prohibida": hay uno por VIA REAL de introducirla, y cada mutacion
+# usa un ancla distinta para que ninguna herede el rojo de otra.
+
+# El ancla que el reconocedor viejo NO veia: en este repo TODA invocacion va
+# envuelta en `out="$(...)"`, asi que el prefijo `VAR=valor comando` cae dentro
+# de una sustitucion de comando y jamas iba tras `^`, `;`, `&&`, `||` ni
+# `export `. Es E2, la grave: medido, recolectaba 0 de 22 tests con EXIT=0.
+ANCLA_INVOCACION = ('          out="$(python -m pytest viewer/tests/ -v '
+                    '--tb=short --no-header 2>&1)"')
+ANCLA_JOB_VIEWER = ("  test-viewer:\n"
+                    "    name: Viewer Tests\n"
+                    "    runs-on: ubuntu-latest\n")
+ANCLA_PASO_VIEWER = ("      - name: Run viewer tests\n"
+                     "        env:\n"
+                     '          S9K_ALLOW_REAL_INGEST: ""\n')
+ANCLA_SERVICIO = "          NEO4J_AUTH: neo4j/testtesttest\n"
+
+# Un directorio de arranque: `sitecustomize.py` lo importa CPython por el mero
+# hecho de estar en el path, y ahi dentro cabe el apagado entero sin que
+# `ci.yml` mencione ninguna variable prohibida. Es E3, el truco del propio
+# calibrador puesto del reves.
+
+
+def _sustituye_en_ci(ancla: str, nuevo: str, etiqueta: str) -> None:
+    texto = CI.read_text(encoding="utf-8")
+    if ancla not in texto:
+        raise SystemExit(f"MUTACION IMPOSIBLE ({etiqueta}): el ancla ya no esta "
+                         f"en ci.yml. Un caso que no puede mutar no demuestra "
+                         f"nada, y callarlo seria peor.")
+    CI.write_text(texto.replace(ancla, nuevo, 1), encoding="utf-8")
+
+
+def m_sup1_env_workflow() -> None:
+    """SUP-1: `env:` a nivel de WORKFLOW: afecta a TODOS los jobs de una vez."""
+    texto = CI.read_text(encoding="utf-8")
+    if "\njobs:\n" not in texto:
+        raise SystemExit("MUTACION IMPOSIBLE (SUP-1): no se encuentra `jobs:`")
+    CI.write_text(texto.replace(
+        "\njobs:\n", f"\nenv:\n  PYTEST_ADDOPTS: {ADDOPTS}\n\njobs:\n", 1),
+        encoding="utf-8")
+
+
+def m_sup2_env_job() -> None:
+    """SUP-2: `env:` del JOB que ejecuta la suite del visor."""
+    _sustituye_en_ci(
+        ANCLA_JOB_VIEWER,
+        ANCLA_JOB_VIEWER + f"    env:\n      PYTEST_ADDOPTS: {ADDOPTS}\n",
+        "SUP-2")
+
+
+def m_sup3_env_paso() -> None:
+    """SUP-3: `env:` del PASO que ejecuta la suite."""
+    _sustituye_en_ci(
+        ANCLA_PASO_VIEWER,
+        ANCLA_PASO_VIEWER + f"          PYTEST_ADDOPTS: {ADDOPTS}\n",
+        "SUP-3")
+
+
+def m_sup4_env_container() -> None:
+    """SUP-4: `container.env` del job. GitHub lo inyecta en todos sus pasos."""
+    _sustituye_en_ci(
+        ANCLA_JOB_VIEWER,
+        ANCLA_JOB_VIEWER + "    container:\n      image: python:3.13\n"
+                           f"      env:\n        PYTEST_ADDOPTS: {ADDOPTS}\n",
+        "SUP-4")
+
+
+def m_sup5_env_servicio() -> None:
+    """SUP-5: `services.<id>.env` de un job. Superficie propia de YAML."""
+    _sustituye_en_ci(
+        ANCLA_SERVICIO,
+        ANCLA_SERVICIO + f"          PYTEST_ADDOPTS: {ADDOPTS}\n",
+        "SUP-5")
+
+
+def m_sup6a_prefijo_en_sustitucion() -> None:
+    """SUP-6a (E2, la grave): `VAR=valor comando` DENTRO de `out="$(...)"`.
+
+    El comentario del reconocedor viejo decia cubrir el prefijo `VAR=... pytest`
+    y no lo cubria: su ancla estaba escrita contra un repo donde la invocacion
+    empieza la linea. Aqui NUNCA lo hace.
+    """
+    _sustituye_en_ci(
+        ANCLA_INVOCACION,
+        ANCLA_INVOCACION.replace('$(python', f'$(PYTEST_ADDOPTS={ADDOPTS} python'),
+        "SUP-6a")
+
+
+def m_sup6b_export_en_run() -> None:
+    """SUP-6b: `export PYTEST_ADDOPTS=` en el mismo `run:` (N12 original)."""
+    _sustituye_en_ci(
+        ANCLA_INVOCACION,
+        f"          export PYTEST_ADDOPTS={ADDOPTS}\n" + ANCLA_INVOCACION,
+        "SUP-6b")
+
+
+def m_sup6c_env_comando() -> None:
+    """SUP-6c: `env VAR=valor comando`, la forma que no usa el shell builtin."""
+    _sustituye_en_ci(
+        ANCLA_INVOCACION,
+        ANCLA_INVOCACION.replace(
+            '$(python', f'$(env PYTEST_ADDOPTS={ADDOPTS} python'),
+        "SUP-6c")
+
+
+def m_sup7_github_env() -> None:
+    """SUP-7 (E1): `echo "VAR=..." >> "$GITHUB_ENV"` en un paso ANTERIOR.
+
+    Es el mecanismo DOCUMENTADO de GitHub para pasar entorno entre pasos: el
+    paso siguiente lo hereda. No es un truco, y por eso tiene que enrojecer.
+    """
+    _sustituye_en_ci(
+        ANCLA_PASO_VIEWER,
+        "      - name: Preparar entorno\n        run: |\n"
+        f'          echo "PYTEST_ADDOPTS={ADDOPTS}" >> "$GITHUB_ENV"\n\n'
+        + ANCLA_PASO_VIEWER,
+        "SUP-7")
+
+
+def m_sup8_nombre_construido() -> None:
+    """SUP-8: el NOMBRE se construye, asi que ningun control de nombres lo ve.
+
+    Se prohibe la FORMA. Si esto saliera verde, SUP-6 y SUP-7 serian teatro:
+    bastaria una variable de shell para no escribir nunca el nombre prohibido.
+    """
+    _sustituye_en_ci(
+        ANCLA_PASO_VIEWER,
+        "      - name: Preparar entorno\n        run: |\n"
+        "          N=PYTEST_ADDOPTS\n"
+        f'          echo "$N={ADDOPTS}" >> "$GITHUB_ENV"\n\n'
+        + ANCLA_PASO_VIEWER,
+        "SUP-8")
+
+
+def m_sup9_sitecustomize() -> None:
+    """SUP-9 (E3): `sitecustomize.py` en el repo, SIN tocar `ci.yml`.
+
+    Aislado a proposito: no cambia el workflow, asi que su rojo no puede venir
+    de ninguna de las otras ocho superficies.
+    """
+    DIR_ARRANQUE.mkdir(exist_ok=True)
+    ARRANQUE.write_text(
+        "import os\n"
+        'os.environ.setdefault("PYTEST_ADDOPTS", '
+        '"--ignore=viewer/tests/test_parcialidad_declarada.py")\n',
+        encoding="utf-8")
+
+
+def m_pythonpath_no_inspeccionable() -> None:
+    """`PYTHONPATH` con un valor que este gate NO puede inspeccionar.
+
+    `PYTHONPATH` es LEGAL —`ci.yml` la usa hoy en tres pasos del censo— asi que
+    lo que se restringe es el VALOR: si la entrada es dinamica o sale del
+    repositorio, nadie puede afirmar que no lleva un `sitecustomize.py`.
+    """
+    _sustituye_en_ci(
+        ANCLA_PASO_VIEWER,
+        ANCLA_PASO_VIEWER + '          PYTHONPATH: "$(pwd)/ci-tools"\n',
+        "PYTHONPATH")
+
+
+def m_uses_local() -> None:
+    """Accion local: trae su propio `env:` que este gate NO parsea.
+
+    El alcance se declara en el codigo y ademas se hace cumplir: mientras el
+    gate no sepa mirar dentro, usarla esta prohibido.
+    """
+    _sustituye_en_ci(
+        ANCLA_PASO_VIEWER,
+        "      - name: Accion local\n        uses: ./.github/actions/preparar\n\n"
+        + ANCLA_PASO_VIEWER,
+        "USES-LOCAL")
+
+
+def m_control_positivo_entorno() -> None:
+    """CONTROL POSITIVO: lo inocuo NO puede enrojecer.
+
+    Un reconocedor sin ancla es ancho, y un gate que se pasa de estricto acaba
+    desactivado. Aqui van juntas las formas que MENCIONAN lo prohibido sin
+    inyectarlo: un comentario, un `unset`, un nombre que solo CONTIENE el
+    prohibido, una variable ajena por `$GITHUB_ENV` y un `PYTHONPATH` legitimo
+    dentro del repositorio. Todo esto tiene que salir VERDE.
+    """
+    _sustituye_en_ci(
+        ANCLA_PASO_VIEWER,
+        ANCLA_PASO_VIEWER + "          PYTHONPATH: viewer\n",
+        "POSITIVO-env")
+    _sustituye_en_ci(
+        ANCLA_INVOCACION,
+        "          # nota: PYTEST_ADDOPTS=--ignore=... esta PROHIBIDO aqui\n"
+        "          unset PYTEST_ADDOPTS\n"
+        "          MI_PYTEST_ADDOPTS=1\n"
+        '          echo "S9K_VARIABLE_INOCUA=1" >> "$GITHUB_ENV"\n'
+        + ANCLA_INVOCACION,
+        "POSITIVO-run")
 
 CASOS = [
     # (titulo, mutacion, paquete_bloqueado, ablacion, esperado)
@@ -456,13 +644,40 @@ CASOS = [
     ("control positivo: descritificar DECLARANDOLO y con la suite viva",
      m_descritificar_declarado, None, None, VERDE),
 
-    # --- el superviviente nuevo: filtros POR ENTORNO ---------------------
-    ("N4: `PYTEST_ADDOPTS` en el `env:` de un job",
-     m_n4_addopts_en_job, None, None, ROJO),
-    ("N5: `PYTEST_ADDOPTS` a nivel de WORKFLOW (afecta a todos los jobs)",
-     m_n5_addopts_en_workflow, None, None, ROJO),
-    ("N12: `export PYTEST_ADDOPTS` dentro del propio `run:`",
-     m_n12_export_en_run, None, None, ROJO),
+    # --- filtros POR ENTORNO: UN CASO POR SUPERFICIE REAL ----------------
+    # El tercer dictamen NO CONFORME no fue por la LISTA de variables, que era
+    # correcta, sino por el ANCLA del reconocedor. Se cierra enumerando las
+    # vias, no ensanchando el regex: cada linea de aqui es una superficie
+    # distinta con su ancla propia, y ninguna se apoya en el rojo de otra.
+    ("SUP-1: `PYTEST_ADDOPTS` en el `env:` del WORKFLOW (todos los jobs)",
+     m_sup1_env_workflow, None, None, ROJO),
+    ("SUP-2: `PYTEST_ADDOPTS` en el `env:` del JOB",
+     m_sup2_env_job, None, None, ROJO),
+    ("SUP-3: `PYTEST_ADDOPTS` en el `env:` del PASO",
+     m_sup3_env_paso, None, None, ROJO),
+    ("SUP-4: `PYTEST_ADDOPTS` en `container.env` del job",
+     m_sup4_env_container, None, None, ROJO),
+    ("SUP-5: `PYTEST_ADDOPTS` en `services.<id>.env` del job",
+     m_sup5_env_servicio, None, None, ROJO),
+    ("SUP-6a (E2): `VAR=valor comando` DENTRO de `out=\"$(...)\"`",
+     m_sup6a_prefijo_en_sustitucion, None, None, ROJO),
+    ("SUP-6b: `export PYTEST_ADDOPTS` dentro del propio `run:`",
+     m_sup6b_export_en_run, None, None, ROJO),
+    ("SUP-6c: `env VAR=valor comando`",
+     m_sup6c_env_comando, None, None, ROJO),
+    ("SUP-7 (E1): `echo \"VAR=...\" >> \"$GITHUB_ENV\"` heredado por el paso siguiente",
+     m_sup7_github_env, None, None, ROJO),
+    ("SUP-8: `$GITHUB_ENV` con el NOMBRE CONSTRUIDO (`$N=...`)",
+     m_sup8_nombre_construido, None, None, ROJO),
+    ("SUP-9 (E3): `ci-tools/sitecustomize.py` SIN tocar `ci.yml`",
+     m_sup9_sitecustomize, None, None, ROJO),
+    ("PYTHONPATH con valor dinamico: el gate no puede inspeccionarlo",
+     m_pythonpath_no_inspeccionable, None, None, ROJO),
+    ("alcance declarado: accion local `uses: ./...` con `env:` no parseado",
+     m_uses_local, None, None, ROJO),
+    ("control positivo del entorno: comentario, `unset`, nombre que solo "
+     "CONTIENE el prohibido, `$GITHUB_ENV` ajeno y `PYTHONPATH` legitimo",
+     m_control_positivo_entorno, None, None, VERDE),
     ("RC-3a: `jsonschema` ausente (30+ modulos con importorskip)",
      None, "jsonschema", None, ROJO),
     ("RC-3b: `PyYAML` ausente", None, "yaml", None, ROJO),
@@ -486,8 +701,17 @@ CASOS = [
      m_dependencia_no_declarada, None, "E", VERDE),
     ("ABLACION F: `--ignore` en ci.yml con el control de filtros quitado",
      m_s2_ignore_en_ci, None, "F", VERDE),
-    ("ABLACION F: `PYTEST_ADDOPTS` por entorno con el control de filtros quitado",
-     m_n5_addopts_en_workflow, None, "F", VERDE),
+    # H tiene bandera PROPIA, distinta de F: mientras compartieron bandera, un
+    # caso de entorno podia estar apoyandose en el rojo del control de
+    # ARGUMENTOS. Tres ablaciones, una por familia de superficie (YAML, `run:`
+    # y arranque oculto), porque un solo `VERDE` no demuestra que las tres
+    # dependan del control.
+    ("ABLACION H: SUP-1 (`env:` del workflow) con el control de entorno quitado",
+     m_sup1_env_workflow, None, "H", VERDE),
+    ("ABLACION H: SUP-6a (prefijo en `$(...)`) con el control de entorno quitado",
+     m_sup6a_prefijo_en_sustitucion, None, "H", VERDE),
+    ("ABLACION H: SUP-9 (`sitecustomize.py`) con el control de entorno quitado",
+     m_sup9_sitecustomize, None, "H", VERDE),
     ("ABLACION G: descritificar en silencio con el trinquete de criticos quitado",
      m_s4_descritificar_en_silencio, None, "G", VERDE),
 
@@ -518,8 +742,7 @@ def main() -> int:
             # arrastrar la mutacion del caso anterior.
             for f, datos in respaldo.items():
                 f.write_bytes(datos)
-            for f in CREADOS:
-                f.unlink(missing_ok=True)
+            limpia_creados()
             entorno = dict(os.environ)
             entorno.pop("S9K_INVENTARIO_ABLACION", None)
             if bloqueado:
@@ -548,8 +771,7 @@ def main() -> int:
         # borrado en el arbol seria peor que no haber calibrado.
         for f, datos in respaldo.items():
             f.write_bytes(datos)
-        for f in CREADOS:
-            f.unlink(missing_ok=True)
+        limpia_creados()
         for tmp in temporales:
             subprocess.run(["rm", "-rf", tmp], timeout=30)
         fcntl.flock(cerrojo, fcntl.LOCK_UN)

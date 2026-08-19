@@ -106,7 +106,8 @@ QUE COMPRUEBA
 
 ABLACION
 ========
-`S9K_INVENTARIO_ABLACION=A|B|C|D|E|F|G` desactiva UN control. Existe para que
+`S9K_INVENTARIO_ABLACION=A|B|C|D|E|F|G|H` desactiva UN control (H son los
+filtros por VARIABLE DE ENTORNO, SUP-1..SUP-9). Existe para que
 `calibra_suite_inventory.py` demuestre que quitar cada control hace que una
 mutacion que estaba ROJA vuelva a VERDE. Un control que puede desaparecer sin
 que ningun resultado cambie no es un control. Fuera de la calibracion no se
@@ -318,11 +319,89 @@ BANDERAS_QUE_EXCLUYEN = (
 # Hoy `ci.yml` no usa ninguna de las dos, asi que la prohibicion nace sin
 # excepciones; una exencion que hoy no hace falta es la rendija por la que
 # manana entra el apagado.
-VARIABLES_QUE_FILTRAN = ("PYTEST_ADDOPTS", "PYTEST_DISABLE_PLUGIN_AUTOLOAD")
+# ---------------------------------------------------------------------------
+# ENUMERACION DE SUPERFICIES (control F-env)
+# ---------------------------------------------------------------------------
+# El reconocedor anterior fue atravesado por un revisor independiente con dos
+# formas triviales, ambas con EXIT=0 y cero errores. La causa no fue la LISTA
+# de variables --era correcta-- sino el ANCLA del reconocedor: exigia que el
+# nombre fuese tras inicio de linea, `;`, `&&`, `||` o `export `.
+#
+#   E2  out="$(PYTEST_ADDOPTS=--ignore=... python -m pytest viewer/tests/ ...)"
+#       El comentario del propio codigo decia cubrir `VAR=... pytest ...` como
+#       PREFIJO y no lo cubria, porque en ESTE repo toda invocacion va envuelta
+#       en `out="$(...)"` (el idioma que el propio autor documento en
+#       `_rutas_de_linea`). El ancla estaba escrita contra otro repo.
+#       Medido: recolecta 0 de los 22 tests de `test_parcialidad_declarada.py`.
+#   E1  `echo "PYTEST_ADDOPTS=..." >> $GITHUB_ENV` en un paso anterior del
+#       mismo job: el siguiente lo HEREDA. Es el mecanismo DOCUMENTADO de
+#       GitHub, no un truco.
+#   E3  `PYTHONPATH: ci-tools` + `ci-tools/sitecustomize.py` que hace
+#       `os.environ.setdefault("PYTEST_ADDOPTS", ...)`. Es el truco del propio
+#       calibrador, del reves.
+#
+# Ensanchar el regex habria tapado E1 y E2 de una vez, y eso es exactamente lo
+# que el operador rechazo como demostracion: «no es tener un regex mas ancho;
+# es que cada via real de introducir una variable prohibida tenga un control
+# negativo permanente». Asi que las superficies se ENUMERAN, y cada una tiene
+# su caso en `calibra_suite_inventory.py` con su ancla propia:
+#
+#   SUP-1  `env:` del WORKFLOW           (afecta a TODOS los jobs)
+#   SUP-2  `env:` del JOB
+#   SUP-3  `env:` del PASO
+#   SUP-4  `jobs.<id>.container.env`     (el contenedor del job)
+#   SUP-5  `jobs.<id>.services.<s>.env`  (contenedores de servicio)
+#   SUP-6  asignacion DENTRO del `run:`, en CUALQUIER posicion de la linea:
+#          `VAR=v cmd`, `export VAR=v`, `env VAR=v cmd`, `VAR=v; cmd`,
+#          y --la que fallaba-- `out="$(VAR=v cmd)"`.
+#   SUP-7  `echo "VAR=v" >> "$GITHUB_ENV"` y variantes (printf, heredoc):
+#          es SUP-6 en otra sintaxis, y el mismo reconocedor sin ancla la ve.
+#   SUP-8  escritura a `$GITHUB_ENV` con el NOMBRE CONSTRUIDO
+#          (`N=PYTEST_ADDOPTS; echo "$N=..." >> $GITHUB_ENV`): ningun regex
+#          sobre nombres literales puede verla, asi que se prohibe la forma.
+#   SUP-9  `sitecustomize.py` / `usercustomize.py` en el arbol del repo: Python
+#          los importa SOLO por estar en el path, sin que ninguna variable
+#          prohibida aparezca en `ci.yml`. Es E3.
+#
+# ALCANCE DECLARADO --lo que esta politica NO cubre, dicho explicitamente en
+# vez de callado:
+#   * `defaults:` de GitHub NO admite `env:`. No es una superficie; aun asi se
+#     comprueba que no aparezca uno, para que no lo sea en silencio manana.
+#   * Acciones compuestas y workflows reutilizables locales (`uses: ./...`)
+#     traen su propio `env:` que este gate no parsea. Hoy `ci.yml` no usa
+#     ninguno: se prohibe usarlos hasta que el gate sepa mirarlos, en vez de
+#     dejar la puerta entornada.
+#   * Los `secrets`/`vars` de la organizacion y las variables del RUNNER no se
+#     ven desde el repositorio. Quedan FUERA de esta garantia, y se dice aqui.
+VARIABLES_QUE_FILTRAN = (
+    "PYTEST_ADDOPTS",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+    "PYTEST_PLUGINS",
+)
 
-# `export VAR=...`, `VAR=...` suelta, y `VAR=... pytest ...` como prefijo.
-RE_ASIGNA_ENTORNO = re.compile(
-    r"(?:^|;|&&|\|\||\bexport\s+)\s*([A-Z_][A-Z0-9_]*)\s*=")
+# `PYTHONPATH` no se puede PROHIBIR y decir la verdad: `ci.yml` la usa HOY en
+# tres pasos legitimos del censo de rutas (`PYTHONPATH: scripts:viewer` y
+# `PYTHONPATH: scripts`). Prohibirla pondria el CI en rojo por un uso correcto,
+# que es la forma mas rapida de que un gate acabe desactivado. Lo que la hace
+# peligrosa es concreto y se ataca concreto: un directorio del path puede
+# llevar un `sitecustomize.py` que inyecte lo prohibido desde dentro (E3). Asi
+# que la variable es LEGAL y su VALOR es lo que se restringe.
+VARIABLES_CON_POLITICA_DE_VALOR = ("PYTHONPATH",)
+
+VARIABLES_VIGILADAS = VARIABLES_QUE_FILTRAN + VARIABLES_CON_POLITICA_DE_VALOR
+
+# Los dos nombres que CPython importa por el mero hecho de estar en el path.
+FICHEROS_DE_ARRANQUE = ("sitecustomize.py", "usercustomize.py")
+
+# SIN ANCLA, a proposito: el nombre cuenta DONDEQUIERA que aparezca en la
+# linea. `\b` sigue impidiendo el falso positivo de `MI_PYTEST_ADDOPTS=`, que
+# es otro nombre y no esta en la lista.
+RE_ASIGNA_ENTORNO = re.compile(r"\b([A-Z_][A-Z0-9_]*)\s*=")
+
+# Escritura al fichero que GitHub convierte en entorno del PASO SIGUIENTE.
+RE_GITHUB_ENV = re.compile(r">>\s*\"?\$\{?GITHUB_ENV\}?\"?")
+# Un nombre que no es literal: `$N=`, `${N}=`, `$(cmd)=`.
+RE_NOMBRE_CONSTRUIDO = re.compile(r"\$[({]?\w")
 
 
 def _env_de(nodo) -> dict:
@@ -330,51 +409,173 @@ def _env_de(nodo) -> dict:
     return valor if isinstance(valor, dict) else {}
 
 
+def _politica_de_pythonpath(valor: str, donde: str) -> list[str]:
+    """`PYTHONPATH` es legal; sus entradas no pueden ser un arranque oculto."""
+    errores = []
+    for entrada in str(valor).split(os.pathsep):
+        entrada = entrada.strip().strip("\"'")
+        if not entrada:
+            continue
+        if "$" in entrada or entrada.startswith("/") or ".." in entrada.split("/"):
+            errores.append(
+                f"PYTHONPATH NO INSPECCIONABLE: la entrada `{entrada}` de "
+                f"`PYTHONPATH` en {donde} es dinamica o sale del repositorio, "
+                f"asi que este gate NO puede comprobar si lleva un "
+                f"`sitecustomize.py`. Un path que no se puede inspeccionar no "
+                f"se puede certificar."
+            )
+            continue
+        directorio = REPO / entrada
+        for arranque in FICHEROS_DE_ARRANQUE:
+            if (directorio / arranque).exists():
+                errores.append(
+                    f"ARRANQUE OCULTO: `PYTHONPATH` en {donde} incluye "
+                    f"`{entrada}`, que contiene `{arranque}`. Python lo importa "
+                    f"solo por estar en el path, y ahi dentro un "
+                    f"`os.environ.setdefault('PYTEST_ADDOPTS', ...)` apaga la "
+                    f"suite sin que ninguna variable prohibida aparezca en "
+                    f"`ci.yml`. Es el truco del propio calibrador, del reves."
+                )
+    return errores
+
+
+def _revisa_env(env: dict, donde: str) -> list[str]:
+    """SUP-1..SUP-5: un mapa `env:` de YAML, venga del nivel que venga."""
+    errores = []
+    for clave, valor in (env or {}).items():
+        nombre = str(clave).strip().upper()
+        if nombre in VARIABLES_QUE_FILTRAN:
+            errores.append(
+                f"FILTRO DE EXCLUSION POR ENTORNO: `{clave}` definida en "
+                f"{donde}. Inyecta opciones de pytest SIN tocar la linea de "
+                f"comandos, asi que la prohibicion de `--ignore`/`-k` sobre "
+                f"los argumentos no la ve. Medido: con ella puesta, "
+                f"`pytest viewer/tests/` recolecta 0 tests de una suite que "
+                f"tenia 22, y la invocacion por directorio no lo delata."
+            )
+        elif nombre in VARIABLES_CON_POLITICA_DE_VALOR:
+            errores.extend(_politica_de_pythonpath(valor, donde))
+    return errores
+
+
+def _revisa_run(cuerpo: str, donde: str) -> list[str]:
+    """SUP-6/7/8: lo que ocurre DENTRO de un bloque `run:`."""
+    errores = []
+    for linea in cuerpo.splitlines():
+        if linea.lstrip().startswith("#"):
+            continue
+        for m in RE_ASIGNA_ENTORNO.finditer(linea):
+            nombre = m.group(1)
+            if nombre in VARIABLES_QUE_FILTRAN:
+                errores.append(
+                    f"FILTRO DE EXCLUSION POR ENTORNO: `{nombre}` se asigna "
+                    f"dentro del `run:` de {donde}. Es el mismo apagado que por "
+                    f"`env:`, una capa mas abajo. Cuenta en CUALQUIER posicion "
+                    f"de la linea: como prefijo, tras `export`, tras `env`, y "
+                    f"dentro de `out=\"$(...)\"`, que es como este repo envuelve "
+                    f"TODAS sus invocaciones. Si va a `$GITHUB_ENV`, ademas la "
+                    f"hereda el paso siguiente."
+                )
+            elif nombre in VARIABLES_CON_POLITICA_DE_VALOR:
+                resto = linea[m.end():].split()
+                if resto:
+                    errores.extend(_politica_de_pythonpath(resto[0], donde))
+        if RE_GITHUB_ENV.search(linea):
+            # SUP-8: el nombre tiene que ser LITERAL para que SUP-6/7 puedan
+            # verlo. Si se construye, ningun reconocedor de nombres lo cazara.
+            escrito = linea[:linea.index(">>")]
+            trozos = escrito.split("=", 1)[0].split() if "=" in escrito else []
+            if trozos and RE_NOMBRE_CONSTRUIDO.search(trozos[-1]):
+                errores.append(
+                    f"NOMBRE CONSTRUIDO HACIA `$GITHUB_ENV` en {donde}: "
+                    f"`{linea.strip()[:90]}`. El nombre de la variable no es "
+                    f"literal, asi que NINGUN control sobre nombres puede "
+                    f"decidir si es una de las prohibidas. Se prohibe la FORMA: "
+                    f"escribe el nombre literal y este gate lo comprobara."
+                )
+    return errores
+
+
 def comprueba_addopts_por_entorno(datos: dict) -> list[str]:
     """Ninguna variable de entorno puede inyectar opciones de pytest.
 
-    Se miran los TRES niveles de `env:` que GitHub aplica —workflow, job y
-    paso— y ademas las asignaciones dentro del `run:`. Los cuatro sitios, no
-    los que se recuerden: el que se olvide es por donde entra.
+    Recorre las NUEVE superficies enumeradas arriba, no las que se recuerden:
+    la que se olvide es por donde entra. Cada una tiene su caso de calibracion
+    con ancla propia, para que ninguna se apoye en el rojo de otra.
     """
-    errores = []
+    errores = list(_revisa_env(_env_de(datos),
+                               "el `env:` del WORKFLOW (SUP-1, afecta a TODOS "
+                               "los jobs)"))
 
-    def revisa(env: dict, donde: str) -> None:
-        for clave in env or {}:
-            nombre = str(clave).strip().upper()
-            if nombre in VARIABLES_QUE_FILTRAN:
-                errores.append(
-                    f"FILTRO DE EXCLUSION POR ENTORNO: `{clave}` definida en "
-                    f"{donde}. Inyecta opciones de pytest SIN tocar la linea de "
-                    f"comandos, asi que la prohibicion de `--ignore`/`-k` sobre "
-                    f"los argumentos no la ve. Medido: con ella puesta, "
-                    f"`pytest viewer/tests/` recolecta 0 tests de una suite que "
-                    f"tenia 22, y la invocacion por directorio no lo delata."
-                )
+    if isinstance(datos.get("defaults"), dict) and "env" in datos["defaults"]:
+        errores.append(
+            "ALCANCE ROTO: ha aparecido un `env:` bajo `defaults:`. GitHub no "
+            "lo admitia cuando se escribio esta politica, asi que no se parsea "
+            "como superficie. O deja de estar ahi, o hay que anadir su "
+            "superficie y su caso de calibracion."
+        )
 
-    revisa(_env_de(datos), "el `env:` del WORKFLOW (afecta a TODOS los jobs)")
     for job_id, job in (datos.get("jobs") or {}).items():
-        revisa(_env_de(job), f"el `env:` del job `{job_id}`")
-        for paso in (job or {}).get("steps") or []:
+        job = job or {}
+        errores += _revisa_env(_env_de(job), f"el `env:` del job `{job_id}` (SUP-2)")
+        contenedor = job.get("container")
+        if isinstance(contenedor, dict):
+            errores += _revisa_env(_env_de(contenedor),
+                                   f"el `container.env` del job `{job_id}` (SUP-4)")
+        for sid, servicio in (job.get("services") or {}).items():
+            if isinstance(servicio, dict):
+                errores += _revisa_env(
+                    _env_de(servicio),
+                    f"el `services.{sid}.env` del job `{job_id}` (SUP-5)")
+        if isinstance(job.get("defaults"), dict) and "env" in job["defaults"]:
+            errores.append(
+                f"ALCANCE ROTO: `env:` bajo `defaults:` del job `{job_id}`; "
+                f"ver la nota de alcance de esta politica."
+            )
+        for paso in job.get("steps") or []:
             if not isinstance(paso, dict):
                 continue
             nombre_paso = str(paso.get("name") or "(sin nombre)")
-            revisa(_env_de(paso), f"el `env:` del paso `{job_id}` / `{nombre_paso}`")
+            donde = f"`{job_id}` / `{nombre_paso}`"
+            errores += _revisa_env(_env_de(paso), f"el `env:` del paso {donde} (SUP-3)")
+            usa = paso.get("uses")
+            if isinstance(usa, str) and usa.strip().startswith("./"):
+                errores.append(
+                    f"FUERA DE ALCANCE DECLARADO: el paso {donde} usa la accion "
+                    f"local `{usa}`, que trae su propio `env:` y este gate NO "
+                    f"parsea. Mientras no lo parsee, usarla esta prohibido: una "
+                    f"exencion que hoy no hace falta es la rendija de manana."
+                )
             cuerpo = paso.get("run")
-            if not isinstance(cuerpo, str):
-                continue
-            for linea in cuerpo.splitlines():
-                if linea.lstrip().startswith("#"):
-                    continue
-                for m in RE_ASIGNA_ENTORNO.finditer(linea):
-                    if m.group(1) in VARIABLES_QUE_FILTRAN:
-                        errores.append(
-                            f"FILTRO DE EXCLUSION POR ENTORNO: `{m.group(1)}` se "
-                            f"asigna dentro del `run:` de `{job_id}` / "
-                            f"`{nombre_paso}`. Es el mismo apagado que por `env:`, "
-                            f"una capa mas abajo y dentro del propio bloque que "
-                            f"este gate ya parsea."
-                        )
+            if isinstance(cuerpo, str):
+                errores += _revisa_run(cuerpo, f"{donde} (SUP-6/7/8)")
+    return errores
+
+
+def comprueba_arranque_oculto() -> list[str]:
+    """SUP-9: ningun `sitecustomize.py`/`usercustomize.py` en el repositorio.
+
+    No depende de `PYTHONPATH`: el directorio de trabajo y cualquier entrada
+    del path los importan solos. Se pregunta a git con `--cached --others
+    --exclude-standard`, no al arbol crudo: cuenta lo versionado Y lo no
+    versionado que SI se subiria, y no cuenta lo que `.gitignore` descarta
+    (cache, artefactos, entornos). Un fichero recien creado y sin `git add`
+    tambien apaga la suite, asi que tambien cuenta.
+    """
+    p = _git("ls-files", "-z", "--cached", "--others", "--exclude-standard",
+             "*sitecustomize.py", "*usercustomize.py")
+    if p.returncode != 0:
+        return ["ARRANQUE OCULTO: no se pudo preguntar a git por los ficheros "
+                "de arranque; sin esa respuesta el control no puede afirmar "
+                "nada."]
+    errores = []
+    for ruta in [r for r in p.stdout.split("\0") if r.strip()]:
+        errores.append(
+            f"ARRANQUE OCULTO: el repositorio versiona `{ruta}`. Python lo "
+            f"importa por el mero hecho de estar en el path, y dentro cabe un "
+            f"`os.environ.setdefault('PYTEST_ADDOPTS', ...)` que apaga la suite "
+            f"sin que ninguna variable prohibida asome en `ci.yml`."
+        )
     return errores
 
 
@@ -1195,8 +1396,15 @@ def main() -> int:
     # --- F: ningun job puede EXCLUIR parte de lo que recorre ---------------
     if ABLACION != "F":
         errores += comprueba_filtros_de_exclusion(invocaciones, raices)
+
+    # --- H: ninguna VARIABLE DE ENTORNO puede inyectar filtros -------------
+    # Bandera PROPIA, separada de F: mientras compartieron bandera, un caso de
+    # entorno podia estar apoyandose en el rojo del control de ARGUMENTOS sin
+    # que nadie lo notara. Con dos banderas, cada familia demuestra su rojo.
+    if ABLACION != "H":
         errores += comprueba_addopts_por_entorno(
             yaml.safe_load(CI.read_text(encoding="utf-8")))
+        errores += comprueba_arranque_oculto()
 
     # --- A: anti-silenciado ------------------------------------------------
     # A1 incondicional: rojo siempre, no necesita base. Es la mutacion del
