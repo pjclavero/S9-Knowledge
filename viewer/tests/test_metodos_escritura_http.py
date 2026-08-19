@@ -26,6 +26,18 @@ docstring afirmaba de más—:
   - Un endpoint que no se pueda clasificar por falta de fuente sale ROJO
     (`endpoint-sin-fuente`); uno clasificado SIN evidencia cae en «lectura», y
     es la red anterior —no la clasificación— la que impide que eso pase mudo.
+  - Formas que la clasificación NO ve, medidas: anotación escrita como CADENA
+    (`x: "Annotated[str, Form()]"`), alias de tipo reutilizado
+    (`Formulario = Annotated[str, Form()]`), `*args`/`**kwargs`, y las
+    escrituras que pasan por un helper del MISMO módulo (la derivación de
+    durabilidad sigue un salto **a símbolos importados** de `app.*`). Todas
+    quedan cubiertas por la red anterior EN CUANTO el endpoint va montado con
+    método de escritura; sobre un `GET`, no las ve nadie.
+  - **Esta suite NO comprueba `rc == 0`**, y es deliberado: sobre esta base la
+    especificación sale `rc=1` por dos `lectura-que-escribe` reales del producto
+    (ver el registro de abajo). Se afirma sobre las CLASES de hallazgo. Quien
+    exige `rc == 0` es el job `metodos-de-escritura`, que NO es exigido; hoy
+    ningún check exigido comprueba ese código de salida.
 
 Se ejecuta en un SUBPROCESO a propósito: `app.main` y `route_map` son
 singletons en `sys.modules` y la especificación necesita la app arrancada con

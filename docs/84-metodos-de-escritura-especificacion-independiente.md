@@ -70,8 +70,20 @@ cadenas.
 Corregido, y **con la afirmación rebajada a lo que se puede sostener**:
 
 1. F1 recorre el **árbol de la anotación** (no su texto) y resuelve cada nombre
-   por los `import` del módulo, así que `Annotated`, los alias y las anotaciones
-   como cadena entran. Casos `ADV-annotated`, `ADV-alias`, `ADV-clasico`.
+   por los `import` del módulo, así que entran `Annotated[str, Form()]` y los
+   **alias de importación** (`Form as _F`). Casos `ADV-annotated`, `ADV-alias`,
+   `ADV-clasico`.
+
+   **Lo que NO entra, y la versión anterior de este documento decía lo
+   contrario:** la anotación escrita **como cadena** (`x: "Annotated[str,
+   Form()]"`) sale `[]`, porque `_evidencia_en_anotacion` trata
+   `Call`/`Name`/`Attribute` y no `ast.Constant`. Mudos por la misma razón el
+   **alias de tipo reutilizado** —`Formulario = Annotated[str, Form()]` y luego
+   `x: Formulario`, patrón que la propia documentación de FastAPI recomienda— y
+   las anotaciones de `*args`/`**kwargs`. Los tres son **irrelevantes hoy
+   mientras el endpoint vaya montado con `POST/PUT/PATCH/DELETE`, porque
+   entonces los coge la red (2)**; lo que no cubre nadie es esa forma sobre un
+   `GET`.
 2. Y sobre todo: **hay una red que NO depende de que F1 acierte**. Toda ruta
    montada con `POST/PUT/PATCH/DELETE` cuya clasificación no encontró **ni una**
    evidencia sale `metodo-de-escritura-sin-evidencia`. Hoy ese conjunto está
@@ -84,9 +96,14 @@ Lo que no se pueda clasificar por falta de fuente sale ROJO
 «lectura», y es la red (2) —no la clasificación— la que impide que eso pase
 mudo.
 
-Cifra de la base (`aaf9695` + este carril): **70 rutas montadas, 13 de escritura,
-57 de lectura, 22 contratos de cliente (13 de escritura)**, especificación
-**VERDE** (`rc=0`, cero hallazgos).
+Cifra de la base (`aaf9695` + este carril), **actualizada tras meter `app.health`
+en la derivación de durabilidad** (§«la lista de módulos…»): **70 rutas
+montadas, 15 de escritura, 55 de lectura, 22 contratos de cliente (13 de
+escritura)**, especificación **ROJA** (`rc=1`) con **exactamente 2 hallazgos**,
+ambos `lectura-que-escribe`. Las cifras «13 de escritura / 57 de lectura / `rc=0`
+VERDE» que aparecían aquí eran de la ronda anterior y se quedaron vivas al
+cambiar la medida: es el mismo patrón que este carril persigue —la afirmación
+sobreviviendo al hecho— y por eso consta el error en vez de borrarse.
 
 ### La atribución se hace por EJECUCIÓN, no por path
 
@@ -120,10 +137,28 @@ escriben en el repositorio.
 Sustituida por `_escribe_de_verdad()`, que **lee el código del invocable**
 (resuelto por `sys.modules` a partir de los `import` del módulo) y busca
 primitivas de escritura: `write_text`/`write_bytes`, `mkdir`, `os.replace`,
-`os.chmod`, `open(..., "w")`, SQL de escritura, `commit`. Un salto de
-profundidad, y **sólo dentro de código del proyecto**: seguir a `pathlib` o a la
-biblioteca estándar declaraba «mutador» cualquier cosa —medido: 12 rutas de
-lectura marcadas por error antes de acotarlo—.
+`os.chmod`, `open(..., "w")`, SQL de escritura, `commit`.
+
+**La cota, enunciada como es y no como suena mejor: se sigue UN SALTO A
+SÍMBOLOS IMPORTADOS de `app.*`.** Medido, función a función: `write_text`
+directo → detectado; helper **importado** → detectado; **helper del MISMO
+módulo → MUDO**; dos helpers encadenados → mudo; objeto instanciado en tiempo
+de ejecución → mudo. La causa es concreta: `_escribe_de_verdad` resuelve el
+invocable con `_importaciones_del_modulo`, y un nombre local no lleva punto, así
+que sale por `"." not in canon`. Decir «un salto» a secas prometía más de lo que
+da: los helpers locales tienen **cero**.
+
+**Y no se arregla a la ligera, también medido:** seguir helpers locales sin más
+criterio convierte media docena de GET de administración en
+`lectura-que-escribe` por el `mkdir` de `admin._get_db_path`. Un rojo por el
+motivo equivocado es peor que un verde, así que la cota se declara en vez de
+ensancharse a ciegas.
+
+**La restricción a `app.*` sí está medida y gana precisión**: quitándola, la
+base pasa de 15 a 20 endpoints de escritura y de 2 a 7 `lectura-que-escribe`, y
+los **5 nuevos son el mismo falso positivo** —`Path(indirecto)`: se desciende a
+`pathlib` y allí escribe cualquier cosa—. Antes de acotarlo eran 12 rutas de
+lectura marcadas por error.
 
 **Consecuencia, y es un ROJO REAL sobre esta base:** `GET /admin/health` y
 `GET /api/admin/health` llaman a `app.health.storage.save_report` dentro del
@@ -261,10 +296,25 @@ caso artificial que sólo uno pudiera ver.
   commit que cierre el punto anterior, y ese commit debe dejar
   `ci_running_but_not_required` con **una sola entrada** y `ci_checks_required`
   en **16**.
-- **Profundidad de la derivación de durabilidad: un salto**, y sólo dentro de
-  `app.*`. Una escritura escondida a dos saltos, o a través de un objeto
-  guardado en un atributo, no se ve. No hay caso que lo mida: es una frontera
-  declarada, no una medida.
+- **Profundidad de la derivación de durabilidad: un salto A SÍMBOLOS
+  IMPORTADOS de `app.*`.** Los **helpers del mismo módulo tienen cero saltos y
+  son mudos** (`"." not in canon`), igual que dos helpers encadenados y los
+  objetos instanciados en ejecución. Un `GET` que escribiera a través de un
+  `_persistir()` local **sería invisible**, y C1bis no puede rescatarlo
+  precisamente por ser un `GET`. Frontera declarada, no medida — y no se
+  ensancha porque hacerlo enrojecería media docena de GET de administración por
+  el `mkdir` de `admin._get_db_path`.
+- **La primitiva que se reporta es la PRIMERA encontrada, no la más grave.** La
+  evidencia de los dos endpoints de health dice `(mkdir)` cuando la escritura
+  durable de `save_report` es `write_text` + `os.replace`: el recorrido corta en
+  cuanto encuentra una primitiva. Sirve para atribuir, no para calificar el
+  daño.
+- **El contrato `rc == 0` de la especificación ya NO vive en ningún check
+  exigido.** La suite del visor comprueba las clases de hallazgo y el registro
+  fechado, no el código de salida; quien exige `rc == 0` es el job
+  `metodos-de-escritura`, que **no** es exigido. Es consecuencia deliberada de
+  que la base nazca roja, y conviene tenerlo escrito para que nadie lea «la
+  suite exigida garantiza rc=0».
 - **Verbos exóticos** (`TRACE`, `PROPFIND`…) sobre estos endpoints: no se
   sondean aquí.
 - **Cobertura de la clasificación**: los casos `ADV` prueban tres estilos de

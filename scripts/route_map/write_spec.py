@@ -33,10 +33,23 @@ tres fuentes independientes, ninguna mantenida a mano:
       escritura tiene que dar **405**. 404 (la ruta no existe) o cualquier 2xx/
       3xx/401/403 (la ruta responde a GET) son ROJO, y por motivos distintos.
 
-Ninguna de las tres es una lista de endpoints. Un endpoint de escritura NUEVO
-queda cubierto **solo**: en cuanto tiene cuerpo, CSRF o mutación, F1 lo clasifica
-y F3 lo sondea. Y si un endpoint no se puede clasificar (no hay fuente que
-inspeccionar), la especificación **se pone roja**: `endpoint-sin-fuente`.
+Ninguna de las tres es una lista de endpoints. Pero **la cobertura de un
+endpoint NUEVO no se promete aquí**, y decirlo importa: una versión anterior de
+este docstring afirmaba que «queda cubierto solo», y un revisor la tumbó por
+ejecución —F1 era muda ante `Annotated[str, Form()]`, el estilo que recomienda
+hoy FastAPI—. Lo que se sostiene, exactamente:
+
+  - **F1 depende de reconocer el estilo.** Entran `Form/Body/File/UploadFile` en
+    parámetro con valor por defecto o dentro de `Annotated`, los alias de
+    importación y los modelos de pydantic. **NO entran**: la anotación escrita
+    como CADENA (`x: "Annotated[str, Form()]"`), el alias de tipo reutilizado
+    (`Formulario = Annotated[str, Form()]`) ni `*args`/`**kwargs`.
+  - **Lo que sí cubre a todos los montados con método de escritura es C1bis**
+    (`metodo-de-escritura-sin-evidencia`), que no mira el estilo sino el
+    enrutador. Un endpoint declarado de las formas mudas de arriba queda
+    cubierto en cuanto va montado con `POST/PUT/PATCH/DELETE`; sobre un `GET`,
+    no lo ve nadie.
+  - **Sin fuente que inspeccionar, ROJO**: `endpoint-sin-fuente`.
 
 Hallazgos (todos DUROS)
 -----------------------
@@ -47,12 +60,25 @@ Hallazgos (todos DUROS)
         del enumerador; corrobora el anterior por ejecución).
   escritura-sin-metodo                     el endpoint no tiene ningún método
         montado que pueda escribir.
+  metodo-de-escritura-sin-evidencia        ruta montada con POST/PUT/PATCH/
+        DELETE que la clasificación no supo explicar. Es la red que NO depende
+        de que F1 acierte: vacía sobre esta base, y por eso cubre a todo
+        endpoint de escritura montado.
+  lectura-que-escribe                      método SEGURO que muta estado
+        durable. Un `GET` que escribe es escritura, y es el motivo por el que la
+        base de este carril sale ROJA (los dos `/admin/health`).
   contrato-de-cliente-roto                 un formulario/fetch que la app sirve
-        declara `METODO URL` y la app real responde 405 (método) o 404 (ruta).
+        declara `METODO URL` y la app real responde 405 (método) o 404 (ruta),
+        o lo atiende un manejador que no es el de la ruta más específica.
   endpoint-sin-fuente                      no se pudo clasificar un endpoint.
   espec-vacia                              cero endpoints de escritura o cero
         contratos de cliente: una espec que no afirma nada no protege nada.
   espec-no-inspecciono-la-app-real         no hubo sondeo HTTP.
+
+OJO CON EL CÓDIGO DE SALIDA: sobre esta base `rc=1` es lo ESPERADO (los dos
+`lectura-que-escribe`), y **ningún check exigido comprueba `rc == 0`**: la suite
+del visor afirma sobre las CLASES de hallazgo y sobre un registro fechado. Quien
+exige `rc == 0` es el job `metodos-de-escritura`, que no es exigido.
 
 Uso:
     python3 scripts/route_map/write_spec.py --repo . --out artefacto.json
@@ -264,8 +290,27 @@ def _escribe_de_verdad(canon: str, visto: set[str] | None = None) -> str:
     (`app.health`) para que el endpoint saliera verde. Ahora la durabilidad se
     DERIVA del cuerpo del invocable: se resuelve por `sys.modules`, se lee su
     fuente y se buscan primitivas de escritura (fichero, `os.replace`, SQL de
-    escritura, `commit`). Un salto de profundidad, para no recorrer la
-    biblioteca estándar entera.
+    escritura, `commit`).
+
+    COTA, dicha como es: **se sigue UN SALTO A SÍMBOLOS IMPORTADOS de `app.*`**.
+    El invocable se resuelve con `_importaciones_del_modulo`, y un nombre LOCAL
+    no lleva punto, así que sale por `"." not in canon`: los helpers del MISMO
+    módulo tienen **cero** saltos y son **mudos**. Medido: `write_text` directo
+    -> detectado; helper importado -> detectado; helper local, dos helpers
+    encadenados y objeto instanciado en ejecución -> `[]`. Un `GET` que
+    escribiera a través de un `_persistir()` local sería invisible, y C1bis no
+    puede rescatarlo por ser un `GET`.
+
+    No se ensancha a ciegas, también medido: seguir helpers locales sin más
+    criterio convierte media docena de GET de administración en
+    `lectura-que-escribe` por el `mkdir` de `admin._get_db_path`. La restricción
+    a `app.*`, en cambio, SÍ gana precisión: sin ella la base pasa de 15 a 20
+    endpoints de escritura y de 2 a 7 `lectura-que-escribe`, y los 5 nuevos son
+    el mismo falso positivo (`Path(indirecto)`).
+
+    Se devuelve la PRIMERA primitiva encontrada, no la más grave: para los
+    endpoints de health sale `mkdir` aunque la escritura sea `write_text` +
+    `os.replace`. Sirve para atribuir, no para calificar el daño.
     """
     visto = visto or set()
     if canon in visto or "." not in canon or len(visto) > 3:
