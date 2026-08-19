@@ -59,9 +59,19 @@ DEUDA EXPLÍCITA, NO convertida (se declara, no se arregla en silencio):
   reintentar ante el bloqueo) depende de la REDACCIÓN de una biblioteca de
   terceros, que puede cambiar entre versiones de SQLite o de CPython sin aviso
   ni rojo. Es el mismo vicio que este carril erradica en las pruebas, pero en
-  el producto, donde el precio es una migración que deja de aplicarse en
-  silencio o un reintento que deja de reintentar. Su conversión pide códigos
-  nativos (`sqlite3.Error.sqlite_errorname`) y carril propio con negativos.
+  el producto. Las dos direcciones NO son simétricas:
+
+  - La peligrosa es el FALSO POSITIVO de subcadena, y es la SILENCIOSA: un
+    `OperationalError` ajeno cuyo texto contenga por casualidad
+    "duplicate column" se TRAGA y el ALTER no se aplica, sin rojo ni aviso
+    (y `schema_version` se marca igualmente como migrada). Igual con "locked":
+    otro error consume los 60 reintentos en vez de propagarse.
+  - Si SQLite REESCRIBE el mensaje, en cambio, ambos sitios fallan
+    RUIDOSAMENTE: `raise` en db.py:259/270 y fin de reintentos en
+    v3_review_store.py:75. Eso se ve.
+
+  Su conversión pide códigos nativos (`sqlite3.Error.sqlite_errorname`) y
+  carril propio con negativos.
   Con esto, el desglose real de las 55 es 52 EN PRUEBAS + 3 EN PRODUCTO, y el
   total de comprobaciones por subcadena EN PRUEBAS es 205 (153 + 52).
 * `contracts/**`: NO por «no hay conducta detrás» — era inexacto. En al menos

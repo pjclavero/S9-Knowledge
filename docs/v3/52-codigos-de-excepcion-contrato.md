@@ -118,9 +118,23 @@ Motivo por el que es deuda: la decisión de control de flujo (¿tragar el error 
 migración?, ¿reintentar el bloqueo?) depende de la **redacción de un mensaje de
 una biblioteca de terceros**, que puede cambiar entre versiones de SQLite o de
 CPython **sin aviso ni rojo**. Es el mismo defecto que este carril erradica en
-las pruebas, pero **en el producto**, donde el precio no es un falso verde sino
-una migración que deja de aplicarse en silencio o un reintento que deja de
-reintentar.
+las pruebas, pero **en el producto**.
+
+Conviene decir **en qué dirección** duele, porque las dos no son simétricas:
+
+* **La peligrosa es el FALSO POSITIVO de subcadena**, y es la silenciosa: un
+  `sqlite3.OperationalError` ajeno cuyo texto contenga por casualidad
+  `"duplicate column"` se **traga**, y el `ALTER` correspondiente **no se
+  aplica** — sin excepción, sin rojo y sin aviso. La base queda a medio migrar
+  y el `INSERT OR REPLACE INTO schema_version` de después la marca igualmente
+  como migrada. Lo mismo en el store: un error que contenga `"locked"` por otra
+  razón consume los 60 reintentos en vez de propagarse.
+* **En la dirección contraria no hay riesgo silencioso**: si SQLite
+  **reescribe** el mensaje, ambos sitios fallan **ruidosamente** — `raise` en
+  `db.py` (líneas 259 y 270) y fin de los reintentos en
+  `v3_review_store.py:75`. Se rompe fuerte y se ve.
+
+La deuda y su clasificación no cambian; el motivo queda exacto.
 
 Con esto, el desglose real de las 55 es **52 en pruebas + 3 en producto**, y el
 total de comprobaciones por subcadena **en pruebas** es **205** (153 + 52).
