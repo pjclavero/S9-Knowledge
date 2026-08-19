@@ -37,16 +37,58 @@ _LOCKS: dict[Path, threading.RLock] = {}
 _LOCKS_GUARD = threading.Lock()
 
 
+# Códigos ESTABLES de rechazo de la cola de revisión (contrato observable).
+# Sostienen garantías del RC (identidad durable de la historia append-only,
+# unicidad de `request_id`, parcialidad de la cola). Las pruebas que sostienen
+# esas garantías comprueban TIPO + CÓDIGO, nunca la redacción del mensaje.
+REVIEW_ERROR = "REVIEW_ERROR"
+MISSING_FIELD = "MISSING_FIELD"
+EVIDENCE_OFFSETS_REQUIRED = "EVIDENCE_OFFSETS_REQUIRED"
+EVIDENCE_OFFSETS_OUT_OF_RANGE = "EVIDENCE_OFFSETS_OUT_OF_RANGE"
+EVIDENCE_LITERAL_MISMATCH = "EVIDENCE_LITERAL_MISMATCH"
+PACKAGE_CORRUPT = "PACKAGE_CORRUPT"
+PACKAGE_INVALID = "PACKAGE_INVALID"
+PROPOSAL_INVALID = "PROPOSAL_INVALID"
+INVALID_HUMAN_DECISION = "INVALID_HUMAN_DECISION"
+REQUEST_ID_REUSED = "REQUEST_ID_REUSED"
+PROPOSAL_NOT_FOUND = "PROPOSAL_NOT_FOUND"
+SUPERSEDED_DECISION_MISMATCH = "SUPERSEDED_DECISION_MISMATCH"
+NO_ACTIVE_DECISION = "NO_ACTIVE_DECISION"
+STALE_REVIEW = "STALE_REVIEW"
+
+HISTORY_INTEGRITY = "HISTORY_INTEGRITY"
+HISTORY_ENTRY_NOT_OBJECT = "HISTORY_ENTRY_NOT_OBJECT"
+HISTORY_CHAIN_BROKEN = "HISTORY_CHAIN_BROKEN"
+HISTORY_HASH_INVALID = "HISTORY_HASH_INVALID"
+HISTORY_DUPLICATE_ID = "HISTORY_DUPLICATE_ID"
+HISTORY_INVALID_JSON = "HISTORY_INVALID_JSON"
+
+
 class ReviewError(ValueError):
-    """Invalid proposal, decision or append-only history."""
+    """Invalid proposal, decision or append-only history.
+
+    Carries a stable ``code``: behaviour, not wording, is what callers and
+    tests are allowed to depend on.
+    """
+
+    code = REVIEW_ERROR
+
+    def __init__(self, message: str, code: str | None = None):
+        super().__init__(message)
+        if code is not None:
+            self.code = code
 
 
 class HistoryIntegrityError(ReviewError):
     """The JSONL decision history is malformed or its hash chain is broken."""
 
+    code = HISTORY_INTEGRITY
+
 
 class StaleReviewError(ReviewError):
     """The proposal changed after it was rendered to the reviewer."""
+
+    code = STALE_REVIEW
 
     def __init__(self, current: dict[str, Any]):
         super().__init__("STALE_REVIEW: la propuesta cambió; revisa su versión actual")
@@ -85,7 +127,7 @@ def _now() -> str:
 def _non_empty(value: Any, field: str) -> str:
     text = str(value or "").strip()
     if not text:
-        raise ReviewError(f"falta {field}")
+        raise ReviewError(f"falta {field}", MISSING_FIELD)
     return text
 
 
@@ -103,13 +145,16 @@ def _evidence_parts(proposal: dict[str, Any]) -> tuple[str, str, str]:
         start = int(evidence["start"])
         end = int(evidence["end"])
     except (KeyError, TypeError, ValueError) as exc:
-        raise ReviewError("evidence.start y evidence.end son obligatorios") from exc
+        raise ReviewError("evidence.start y evidence.end son obligatorios",
+                          EVIDENCE_OFFSETS_REQUIRED) from exc
     if start < 0 or end < start or end > len(episode_text):
-        raise ReviewError("offsets de evidencia fuera del episodio")
+        raise ReviewError("offsets de evidencia fuera del episodio",
+                          EVIDENCE_OFFSETS_OUT_OF_RANGE)
     literal = episode_text[start:end]
     declared = evidence.get("literal_text")
     if declared is not None and declared != literal:
-        raise ReviewError("evidence.literal_text no coincide con los offsets")
+        raise ReviewError("evidence.literal_text no coincide con los offsets",
+                          EVIDENCE_LITERAL_MISMATCH)
     return episode_text[:start], literal, episode_text[end:]
 
 
@@ -194,13 +239,13 @@ def load_proposals(directory: Path) -> list[dict[str, Any]]:
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            raise ReviewError(f"paquete corrupto: {path}") from exc
+            raise ReviewError(f"paquete corrupto: {path}", PACKAGE_CORRUPT) from exc
         documents = raw if isinstance(raw, list) else raw.get("items", [raw])
         if not isinstance(documents, list):
-            raise ReviewError(f"paquete inválido: {path}")
+            raise ReviewError(f"paquete inválido: {path}", PACKAGE_INVALID)
         for proposal in documents:
             if not isinstance(proposal, dict):
-                raise ReviewError(f"propuesta inválida: {path}")
+                raise ReviewError(f"propuesta inválida: {path}", PROPOSAL_INVALID)
             identifier = _proposal_id(proposal)
             workspace = _non_empty(proposal.get("workspace"), "workspace")
             _non_empty(proposal.get("source_id"), "source_id")
@@ -248,16 +293,20 @@ def _validate_history(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]
     request_ids: set[str] = set()
     for line_number, record in enumerate(records, start=1):
         if not isinstance(record, dict):
-            raise HistoryIntegrityError(f"entrada {line_number} no es un objeto")
+            raise HistoryIntegrityError(f"entrada {line_number} no es un objeto",
+                                        HISTORY_ENTRY_NOT_OBJECT)
         body = {key: value for key, value in record.items() if key != "record_hash"}
         if record.get("previous_hash") != previous_hash:
-            raise HistoryIntegrityError(f"cadena rota en entrada {line_number}")
+            raise HistoryIntegrityError(f"cadena rota en entrada {line_number}",
+                                        HISTORY_CHAIN_BROKEN)
         if record.get("record_hash") != _sha256(body):
-            raise HistoryIntegrityError(f"hash inválido en entrada {line_number}")
+            raise HistoryIntegrityError(f"hash inválido en entrada {line_number}",
+                                        HISTORY_HASH_INVALID)
         decision_id = _non_empty(record.get("decision_id"), "decision_id")
         request_id = _non_empty(record.get("request_id"), "request_id")
         if decision_id in decision_ids or request_id in request_ids:
-            raise HistoryIntegrityError(f"identificador duplicado en entrada {line_number}")
+            raise HistoryIntegrityError(f"identificador duplicado en entrada {line_number}",
+                                        HISTORY_DUPLICATE_ID)
         decision_ids.add(decision_id)
         request_ids.add(request_id)
         previous_hash = record["record_hash"]
@@ -275,7 +324,8 @@ def read_history(path: Path) -> list[dict[str, Any]]:
         try:
             records.append(json.loads(line))
         except json.JSONDecodeError as exc:
-            raise HistoryIntegrityError(f"JSON inválido en entrada {line_number}") from exc
+            raise HistoryIntegrityError(f"JSON inválido en entrada {line_number}",
+                                        HISTORY_INVALID_JSON) from exc
     return _validate_history(records)
 
 
@@ -450,7 +500,7 @@ class ReviewService:
         scope: "VisibilityScope | None" = None,
     ) -> dict[str, Any]:
         if human_decision not in VALID_HUMAN_DECISIONS:
-            raise ReviewError(f"human_decision inválida: {human_decision}")
+            raise ReviewError(f"human_decision inválida: {human_decision}", INVALID_HUMAN_DECISION)
         request_id = _non_empty(request_id, "request_id")
         reviewer = _non_empty(reviewer, "reviewer")
         workspace = _non_empty(workspace, "workspace")
@@ -465,7 +515,7 @@ class ReviewService:
                         or existing["reviewer"] != reviewer
                         or existing["human_decision"] != human_decision
                     ):
-                        raise ReviewError("request_id reutilizado con otra decisión")
+                        raise ReviewError("request_id reutilizado con otra decisión", REQUEST_ID_REUSED)
                     return existing
             proposal = next(
                 (
@@ -476,7 +526,8 @@ class ReviewService:
                 None,
             )
             if proposal is None:
-                raise ReviewError("propuesta inexistente en el workspace seleccionado")
+                raise ReviewError("propuesta inexistente en el workspace seleccionado",
+                                  PROPOSAL_NOT_FOUND)
             actual_proposal_hash = proposal_hash(proposal)
             # None is retained for programmatic backwards compatibility. The HTML
             # route always supplies the hash the reviewer actually saw.
@@ -494,7 +545,8 @@ class ReviewService:
                 and item["proposal"]["proposal_id"] == proposal_id
                 for item in history
             ):
-                raise ReviewError("la decisión supersedida no pertenece a esta propuesta y workspace")
+                raise ReviewError("la decisión supersedida no pertenece a esta propuesta y workspace",
+                                  SUPERSEDED_DECISION_MISMATCH)
 
             engine_decision = proposal.get("engine_decision") or {}
             record: dict[str, Any] = {
@@ -534,7 +586,7 @@ class ReviewService:
                     or stored["reviewer"] != reviewer
                     or stored["human_decision"] != human_decision
                 ):
-                    raise ReviewError("request_id reutilizado con otra decisión")
+                    raise ReviewError("request_id reutilizado con otra decisión", REQUEST_ID_REUSED)
                 return stored
             # JSONL remains a compatibility/audit export, never the authority.
             self.decisions_path.parent.mkdir(parents=True, exist_ok=True)
@@ -641,7 +693,7 @@ class ReviewService:
                 if record["workspace"] == workspace and allowed.allows(record["proposal"])
             ]
             if not active:
-                raise ReviewError("no hay una decisión activa que deshacer")
+                raise ReviewError("no hay una decisión activa que deshacer", NO_ACTIVE_DECISION)
             latest = max(active, key=lambda record: (record["timestamp"], record["decision_id"]))
             return self.record(
                 proposal_id=latest["proposal"]["proposal_id"],
