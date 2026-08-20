@@ -238,6 +238,16 @@ def derivar_invocaciones() -> list[dict]:
                 continue
             cwd = REPO
             for linea in paso["run"].splitlines():
+                # Los COMENTARIOS no invocan nada. Sin esta linea, la PROSA era
+                # portante: un comentario que contuviera el token `tests`
+                # producia una invocacion fantasma, y de esa invocacion salia
+                # una raiz del inventario. Comprobado reescribiendo SOLO la
+                # prosa de `ci.yml`: `raices` cambiaba. Era inocuo y del lado
+                # seguro —sobraban raices, no faltaban—, pero es exactamente la
+                # clase de defecto que persigue este carril: una lista DERIVADA
+                # que depende de algo que nadie considera portante.
+                if linea.lstrip().startswith("#"):
+                    continue
                 m = RE_CD.search(linea)
                 if m:
                     candidato = (cwd / m.group(1)).resolve()
@@ -415,7 +425,16 @@ FICHEROS_DE_ARRANQUE = ("sitecustomize.py", "usercustomize.py")
 RE_ASIGNA_ENTORNO = re.compile(r"\b([A-Z_][A-Z0-9_]*)\s*=")
 
 # Escritura al fichero que GitHub convierte en entorno del PASO SIGUIENTE.
-RE_GITHUB_ENV = re.compile(r">>\s*\"?\$\{?GITHUB_ENV\}?\"?")
+# TODA mencion del fichero, no solo la REDIRECCION. La version anterior exigia
+# `>>`, y por eso cuatro variantes con TUBERIA salieron verdes de punta a punta:
+#   printf 'PYTEST_ADD%sOPTS=...\n' '' | tee -a "$GITHUB_ENV"
+#   printf 'PYTEST_ADD%s\n' 'OPTS=...'  | tee -a "$GITHUB_ENV"
+#   echo "PYTEST_ADD$(echo)OPTS=..."     | tee -a "$GITHUB_ENV"
+#   A=PYTEST_ADD; B=OPTS; echo "${A}${B}=..." | tee -a "$GITHUB_ENV"
+# `tee -a` escribe igual que `>>` y la lista blanca ni se activaba. Lo que
+# importa no es el operador: es que ese fichero se convierte en el entorno del
+# paso SIGUIENTE, asi que cualquier forma de escribir en el esta gobernada.
+RE_GITHUB_ENV = re.compile(r"\$\{?GITHUB_ENV\}?")
 # G1: `RE_NOMBRE_CONSTRUIDO` exigia un `$`, y un revisor lo esquivo SIN `$`:
 #   echo "PYTEST_ADD""OPTS=--ignore=..." >> $GITHUB_ENV     -> EXIT=0
 # Las comillas vacias no son un `$`, y `RE_ASIGNA_ENTORNO` solo veia `OPTS=`.
@@ -434,6 +453,19 @@ RE_ECHO_LITERAL_A_GITHUB_ENV = re.compile(
 # `PYTEST_ADD""OPTS=` se lee tambien como `PYTEST_ADDOPTS=` y lo caza el
 # reconocedor de nombres de SUP-6/7, no solo la lista blanca de arriba.
 RE_COMILLAS = re.compile(r"[\"']")
+
+# Lo que el shell COLAPSA al construir una palabra: comillas vacias, `%s` de
+# `printf`, `$(...)`, `${VAR}` y `$VAR`. La relectura sin comillas sola no
+# bastaba —solo rejuntaba nombres partidos con comillas— y un `%s`, un `$()` o
+# dos variables metian un caracter que no es de nombre. Se prueban VARIAS
+# normalizaciones y basta que UNA revele un nombre prohibido.
+RE_SUSTITUCION = re.compile(r"\$\([^)]*\)|\$\{\w+\}|\$\w+|%[sd]")
+
+# Un nombre de variable CONSTRUIDO con expansiones, en cualquier asignacion del
+# `run:`: `${A}${B}=v`, `$X=v`. Sin espacio antes del `=`, que es lo que
+# distingue una asignacion de shell de una comparacion `[ "$x" = "y" ]`.
+RE_ASIGNA_NOMBRE_CONSTRUIDO = re.compile(
+    r"(?:^|[\s;&|(])((?:\$\{?\w+\}?|[A-Za-z_][A-Za-z0-9_]*){2,})=")
 
 
 def _env_de(nodo) -> dict:
@@ -529,13 +561,17 @@ def _revisa_run(cuerpo: str, donde: str) -> list[str]:
     for linea in cuerpo.splitlines():
         if linea.lstrip().startswith("#"):
             continue
-        # G1: la linea se lee DOS veces, tal cual y sin comillas. El shell
-        # concatena `PYTEST_ADD""OPTS` en un solo nombre antes de ejecutar
-        # nada, asi que leerla sin comillas es leer lo que el shell ve.
+        # G1: la linea se lee VARIAS veces, normalizando lo que el shell
+        # COLAPSA al construir una palabra. Leerla sin comillas rejunta
+        # `PYTEST_ADD""OPTS`; quitar ademas `%s`, `$(...)`, `${VAR}` y `$VAR`
+        # rejunta `PYTEST_ADD%sOPTS`, `PYTEST_ADD$(echo)OPTS` y compania. Basta
+        # que UNA normalizacion revele un nombre prohibido.
         vistas = [linea]
         sin_comillas = RE_COMILLAS.sub("", linea)
-        if sin_comillas != linea:
-            vistas.append(sin_comillas)
+        sin_sustituciones = RE_SUSTITUCION.sub("", sin_comillas)
+        for variante in (sin_comillas, sin_sustituciones):
+            if variante not in vistas:
+                vistas.append(variante)
         nombres = {m.group(1) for v in vistas for m in RE_ASIGNA_ENTORNO.finditer(v)}
         for m in RE_ASIGNA_ENTORNO.finditer(linea):
             nombre = m.group(1)
@@ -558,18 +594,35 @@ def _revisa_run(cuerpo: str, donde: str) -> list[str]:
             if nombre in VARIABLES_QUE_FILTRAN:
                 errores.append(
                     f"NOMBRE CONCATENADO (G1) en {donde}: `{linea.strip()[:90]}`. "
-                    f"Quitando las comillas la linea asigna `{nombre}`, que esta "
-                    f"prohibida. El shell junta `PYTEST_ADD\"\"OPTS` en un solo "
-                    f"nombre antes de ejecutar nada; partirlo en dos trozos no lo "
+                    f"Normalizando lo que el shell colapsa —comillas vacias, "
+                    f"`%s`, `$(...)`, `${{VAR}}`— la linea asigna `{nombre}`, que "
+                    f"esta prohibida. El shell junta `PYTEST_ADD\"\"OPTS` en un "
+                    f"solo nombre antes de ejecutar nada; partirlo en trozos no lo "
                     f"convierte en otra variable."
                 )
+
+        # Nombre CONSTRUIDO con expansiones en cualquier asignacion del `run:`,
+        # no solo hacia `$GITHUB_ENV`: `${A}${B}=v` no lo puede resolver ningun
+        # reconocedor de nombres literales, asi que se prohibe la FORMA.
+        for m in RE_ASIGNA_NOMBRE_CONSTRUIDO.finditer(linea):
+            if "$" in m.group(1):
+                errores.append(
+                    f"NOMBRE DE VARIABLE CONSTRUIDO en {donde}: "
+                    f"`{linea.strip()[:90]}`. El nombre se arma con expansiones "
+                    f"(`{m.group(1)}`), asi que NINGUN control sobre nombres puede "
+                    f"decidir si es una de las prohibidas. Escribe el nombre "
+                    f"literal y este gate lo comprobara."
+                )
+                break
 
         if RE_GITHUB_ENV.search(linea):
             # SUP-8, en lista blanca (G1): la UNICA forma de escribir en
             # `$GITHUB_ENV` que este gate puede verificar es un `echo` con el
             # nombre LITERAL y un valor sin expansiones. Todo lo demas —nombre
-            # partido en comillas, `$N`, `printf` con `%s`, heredoc, `tee`— es
-            # rojo por la FORMA, sin intentar adivinar que emite.
+            # partido en comillas, `$N`, `printf` con `%s`, heredoc, `cat`, y
+            # cualquier TUBERIA a `tee -a`— es rojo por la FORMA, sin intentar
+            # adivinar que emite. La condicion ya no es "hay un `>>`" sino "se
+            # menciona el fichero": `tee -a` escribe igual y no lleva `>>`.
             if not RE_ECHO_LITERAL_A_GITHUB_ENV.match(linea.strip()):
                 errores.append(
                     f"ESCRITURA NO VERIFICABLE A `$GITHUB_ENV` en {donde}: "
@@ -577,9 +630,14 @@ def _revisa_run(cuerpo: str, donde: str) -> list[str]:
                     f"SIGUIENTE tiene que poder leerse aqui. Solo se admite "
                     f"`echo \"NOMBRE=valor\" >> \"$GITHUB_ENV\"` con el nombre "
                     f"literal y un valor sin `$`, comillas, backtick, `%` ni "
-                    f"barra invertida. Enumerar las formas MALAS de construir un "
-                    f"nombre no acaba nunca —se probo con `$` y se esquivo con "
-                    f"comillas—, asi que se admite solo la buena."
+                    f"barra invertida; cualquier otra forma de escribir en ese "
+                    f"fichero —`tee -a`, `printf`, heredoc, `cat`— tambien cuenta. "
+                    f"Enumerar las formas MALAS de construir un nombre no acaba "
+                    f"nunca —se probo con `$`, se esquivo con comillas; se cerro "
+                    f"la redireccion, se esquivo con una tuberia—, asi que se "
+                    f"admite solo la buena. Hoy `ci.yml` no escribe en "
+                    f"`$GITHUB_ENV` ni una vez, asi que esto es fail-closed sin "
+                    f"coste."
                 )
     return errores
 
@@ -812,14 +870,34 @@ def modulos_en_disco(raices: list[Path]) -> set[str]:
 # A: silenciado a nivel de modulo, por AST
 # --------------------------------------------------------------------------
 
+# `xfail` entra aqui por un superviviente MEDIDO, no por simetria. Diferencial
+# con un defecto inyectado de verdad en una suite critica:
+#
+#   el defecto SIN xfail   -> 1 failed, 21 passed      EXIT=1  (CI ROJO)
+#   el MISMO CON xfail     -> 1 xfailed, 21 xpassed    EXIT=0  (CI VERDE)
+#
+# Y las DOS capas de este carril salian verdes: el reconocedor porque
+# `silenciado()` solo modelaba `skip`/`skipif` —`tests_en_pie` seguia contando
+# la prueba y `apagados_por_decorador` salia vacio—, y la capa de ejecucion real
+# porque el informe JUnit trae las 22 `<testcase>` con `xfail` puesto, asi que
+# `reportadas != 0`. Una suite critica que YA NO PUEDE FALLAR, con todos los
+# instrumentos en verde.
+#
+# `xfail` es peor que `skip`, no igual: `skip` dice en voz alta que no se
+# ejecuta; `xfail` FINGE ejecucion y ademas se traga el fallo. Y no es
+# rebuscado: `xfail(reason="infra inestable")` es exactamente lo que alguien
+# escribe un viernes para acallar un test que molesta.
+MARCAS_QUE_APAGAN = ("skip", "skipif", "xfail")
+
+
 def _menciona_skip(nodo: ast.AST) -> bool:
     for hijo in ast.walk(nodo):
-        if isinstance(hijo, ast.Attribute) and hijo.attr in ("skip", "skipif"):
+        if isinstance(hijo, ast.Attribute) and hijo.attr in MARCAS_QUE_APAGAN:
             return True
-        if isinstance(hijo, ast.Name) and hijo.id in ("skip", "skipif"):
+        if isinstance(hijo, ast.Name) and hijo.id in MARCAS_QUE_APAGAN:
             return True
         if isinstance(hijo, ast.Constant) and isinstance(hijo.value, str) \
-                and hijo.value in ("skip", "skipif"):
+                and hijo.value in MARCAS_QUE_APAGAN:
             return True
     return False
 
@@ -833,6 +911,18 @@ def _condicion_constante_verdadera(nodo: ast.AST) -> bool:
         prim = nodo.args[0]
         return isinstance(prim, ast.Constant) and bool(prim.value)
     return False
+
+
+def _tiene_condicion_real(nodo: ast.AST) -> bool:
+    """Un `xfail` con condicion POSICIONAL real es condicional; uno pelado no.
+
+    `pytest.mark.xfail`, `xfail(reason=...)` y `xfail(strict=True)` apagan
+    SIEMPRE. `xfail(sys.platform == "win32", reason=...)` solo a veces, y eso
+    lo gobierna el trinquete A2 igual que un `skipif`.
+    """
+    if not isinstance(nodo, ast.Call):
+        return False  # `pytest.mark.xfail` pelado
+    return bool(nodo.args) and not _condicion_constante_verdadera(nodo)
 
 
 def silenciado(texto: str) -> tuple[str, str] | None:
@@ -880,11 +970,17 @@ def silenciado(texto: str) -> tuple[str, str] | None:
                 nombre_marca = nucleo.attr if isinstance(nucleo, ast.Attribute) else ""
                 if nombre_marca == "skip":
                     return INCONDICIONAL, "`pytestmark = pytest.mark.skip` a nivel de modulo"
-                if nombre_marca == "skipif" and _condicion_constante_verdadera(c):
+                if nombre_marca == "xfail" and not _tiene_condicion_real(c):
                     return (INCONDICIONAL,
-                            "`pytestmark = pytest.mark.skipif(<constante verdadera>)`, "
-                            "que es un `skip` disfrazado")
-                return CONDICIONAL, "`pytestmark` a nivel de modulo con `skipif`"
+                            "`pytestmark = pytest.mark.xfail` a nivel de modulo: la "
+                            "suite ya no puede fallar. Medido: el mismo defecto da "
+                            "`1 failed` (EXIT=1) sin la marca y `1 xfailed, 21 "
+                            "xpassed` (EXIT=0) con ella")
+                if nombre_marca in ("skipif", "xfail") and _condicion_constante_verdadera(c):
+                    return (INCONDICIONAL,
+                            f"`pytestmark = pytest.mark.{nombre_marca}(<constante "
+                            f"verdadera>)`, que es un apagado disfrazado de condicional")
+                return CONDICIONAL, f"`pytestmark` a nivel de modulo con `{nombre_marca or 'skipif'}`"
         if isinstance(nodo, ast.Expr) and isinstance(nodo.value, ast.Call):
             llamada = nodo.value
             fn = llamada.func
@@ -974,6 +1070,56 @@ def apagados_por_decorador(texto: str) -> list[tuple[str, str]]:
     return hallazgos
 
 
+def xfail_por_decorador(texto: str) -> list[tuple[str, str]]:
+    """(nombre, motivo) de cada test que no puede fallar por `@xfail`.
+
+    VA APARTE DE `apagados_por_decorador` Y NO ES ORDEN: es que la evidencia es
+    distinta. Aquel control nacio SIN excepciones porque el arbol tenia CERO
+    decoradores `skip` incondicionales. Con `xfail` no se puede decir lo mismo:
+    HAY 13 hoy, en 5 modulos, medidos con este mismo codigo. Prohibirlos de
+    plano pondria el CI en rojo por codigo legitimo que ademas es de otros
+    carriles, y un gate que grita sin motivo acaba desactivado.
+
+    Asi que se trata como el gate ya trata los `skipif` de modulo, que tambien
+    tienen siete casos legitimos:
+
+      * en un modulo CRITICO -> ROJO SIEMPRE. Hoy hay CERO, asi que la
+        prohibicion nace sin excepciones. Es donde vive el ataque: apagar la
+        suite que sujeta la garantia.
+      * en el resto -> TRINQUETE. `tests_en_pie` los descuenta, asi que un
+        `xfail` NUEVO baja esa medida y el trinquete D2 —ya calibrado— se pone
+        rojo. La defensa sale de un control que ya existia, no de uno nuevo sin
+        calibrar.
+
+    A nivel de MODULO no hay matiz y por eso no esta aqui: `silenciado()` lo
+    trata como INCONDICIONAL y hoy el arbol tiene CERO, asi que ahi la
+    prohibicion es total y sin coste.
+
+    HUECO DECLARADO: de los 13 `xfail` medidos, 7 estan en modulos que el
+    inventario cuenta en `en_pie` —esos los sujeta el trinquete D2— y 6 estan
+    en modulos DELEGADOS, que no entran en `en_pie` porque su trinquete es de
+    PRESENCIA. Para esos 6 el trinquete no aplica: los cubre el job que los
+    ejecuta, que ya falla si ve `skipped`. Ninguno es critico. Se dice aqui en
+    vez de dejarlo implicito.
+    """
+    try:
+        arbol = ast.parse(texto)
+    except SyntaxError:
+        return []
+    hallazgos = []
+    for nodo in ast.walk(arbol):
+        if not _es_test(nodo):
+            continue
+        for dec in nodo.decorator_list:
+            if _nucleo_marca(dec) != "xfail":
+                continue
+            if _tiene_condicion_real(dec) and not _condicion_constante_verdadera(dec):
+                continue
+            hallazgos.append((nodo.name, "@pytest.mark.xfail: la prueba ya no "
+                                         "puede fallar, y ademas finge ejecucion"))
+    return hallazgos
+
+
 def tests_en_pie(texto: str) -> int:
     """Cuantos tests DEFINE el modulo que no estan apagados sin condicion.
 
@@ -992,7 +1138,11 @@ def tests_en_pie(texto: str) -> int:
     # con A ablacionado—. Cada control tiene que sujetar algo que solo el
     # sujeta, o no se puede demostrar que sujete nada. El silencio de modulo lo
     # cubren A1 (siempre, sin base) y A2 (trinquete).
+    # Tambien los `xfail`: una prueba que no puede fallar no esta EN PIE. Ese
+    # descuento es lo que convierte el trinquete D2 en el guardian de los
+    # `xfail` no criticos sin escribir un control nuevo.
     apagados = {n for n, _ in apagados_por_decorador(texto)}
+    apagados |= {n for n, _ in xfail_por_decorador(texto)}
     return sum(1 for nodo in ast.walk(arbol) if _es_test(nodo) and nodo.name not in apagados)
 
 
@@ -1552,6 +1702,24 @@ def main() -> int:
                     f"a test es el mismo ataque que apagar el modulo, escrito en "
                     f"otra sintaxis, y NO cambia el recuento de coleccion: un test "
                     f"con `skip` se sigue recolectando. Si de verdad sobra, borralo."
+                )
+
+        # A5: `@pytest.mark.xfail` en un modulo CRITICO. Prohibido siempre y sin
+        # excepciones, porque hoy hay CERO en modulos criticos (medido: 13
+        # `xfail` en 5 modulos, ninguno critico). Los NO criticos no se
+        # prohiben —seria rojo por codigo legitimo de otros carriles— y los
+        # sujeta el trinquete D2, porque `tests_en_pie` los descuenta.
+        if ABLACION != "A" and rel in criticos:
+            for nombre, motivo in xfail_por_decorador(cuerpo):
+                errores.append(
+                    f"PRUEBA QUE NO PUEDE FALLAR: `{rel}::{nombre}` en un modulo "
+                    f"CRITICO ({motivo}). Medido con un defecto inyectado de "
+                    f"verdad en una suite critica: sin la marca, `1 failed` y "
+                    f"EXIT=1; con ella, `1 xfailed, 21 xpassed` y EXIT=0. Ni el "
+                    f"recuento ni el informe JUnit lo delatan —las 22 `<testcase>` "
+                    f"siguen ahi—, asi que una suite critica dejaba de sujetar "
+                    f"nada con todos los instrumentos en verde. Si la prueba esta "
+                    f"rota, arreglala o borrala; no la vuelvas incapaz de fallar."
                 )
 
     # --- B: anti-desaparicion ---------------------------------------------

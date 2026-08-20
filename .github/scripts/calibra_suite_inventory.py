@@ -386,6 +386,95 @@ def m_condicion_reescrita() -> None:
 ADDOPTS = '"--ignore=viewer/tests/test_parcialidad_declarada.py"'
 
 
+def m_xfail_de_modulo() -> None:
+    """X1: `pytestmark = pytest.mark.xfail` en la suite critica.
+
+    EL SUPERVIVIENTE DEL CUARTO DICTAMEN. Diferencial con un defecto inyectado
+    de verdad en esta misma suite:
+
+        el defecto SIN xfail  -> 1 failed, 21 passed    EXIT=1  (CI ROJO)
+        el MISMO CON xfail    -> 1 xfailed, 21 xpassed  EXIT=0  (CI VERDE)
+
+    Y las DOS capas salian verdes: el reconocedor porque `silenciado()` solo
+    modelaba `skip`/`skipif`, y la capa de ejecucion real porque el informe
+    JUnit trae las 22 `<testcase>` con `xfail` puesto, asi que `reportadas != 0`.
+    Una suite critica que ya no puede fallar con todos los instrumentos en
+    verde. `xfail` es PEOR que `skip`: `skip` dice que no se ejecuta; `xfail`
+    finge ejecucion y ademas se traga el fallo.
+    """
+    PARCIALIDAD.write_text(
+        PARCIALIDAD.read_text(encoding="utf-8")
+        + "\nimport pytest as _pytest_xfail  # INYECTADO POR LA CALIBRACION\n"
+          "pytestmark = _pytest_xfail.mark.xfail(reason='infra inestable')\n",
+        encoding="utf-8")
+
+
+def m_xfail_por_decorador() -> None:
+    """X2: el mismo apagado test a test, que es como se escribe en la vida real.
+
+    `xfail(reason="infra inestable")` sobre las pruebas que molestan un viernes.
+    Ancla distinta de X1 —decoradores, no `pytestmark`— y control distinto
+    (`apagados_por_decorador`, no `silenciado`), asi que su rojo es suyo.
+    """
+    lineas = IDENTIDAD.read_text(encoding="utf-8").splitlines(keepends=True)
+    salida, tocados = [], 0
+    for linea in lineas:
+        if linea.startswith("def test_") or linea.startswith("class Test"):
+            salida.append("@pytest.mark.xfail(reason='infra inestable')\n")
+            tocados += 1
+        salida.append(linea)
+    if tocados == 0:
+        raise SystemExit("MUTACION IMPOSIBLE (X2): no hay tests de primer nivel")
+    IDENTIDAD.write_text("".join(salida), encoding="utf-8")
+
+
+def m_g1_tee_a_github_env() -> None:
+    """G1-bis: escribir en `$GITHUB_ENV` por TUBERIA en vez de por redireccion.
+
+    La lista blanca anterior solo se activaba con `>>`, asi que `tee -a` la
+    esquivaba entera. Ancla propia: un paso NUEVO antes del del visor.
+    """
+    _sustituye_en_ci(
+        ANCLA_PASO_VIEWER,
+        "      - name: Preparar entorno por tuberia\n        run: |\n"
+        f"          printf 'PYTEST_ADD%s\\n' 'OPTS={ADDOPTS}' | tee -a \"$GITHUB_ENV\"\n\n"
+        + ANCLA_PASO_VIEWER,
+        "G1-tee")
+
+
+def m_g1_nombre_por_variables() -> None:
+    """G1-ter: el nombre armado con DOS variables de shell, sin comillas ni `%s`.
+
+    Ninguna normalizacion de texto puede resolverlo, asi que lo que se prohibe
+    es la FORMA. Ancla propia: usa `export`, no `$GITHUB_ENV`, para no apoyarse
+    en el rojo de la lista blanca.
+    """
+    _sustituye_en_ci(
+        ANCLA_INVOCACION,
+        "          A=PYTEST_ADD; B=OPTS\n"
+        f"          export ${{A}}${{B}}={ADDOPTS}\n" + ANCLA_INVOCACION,
+        "G1-variables")
+
+
+def m_prosa_con_invocacion_falsa() -> None:
+    """CONTROL POSITIVO: la PROSA no puede mover el censo de invocaciones.
+
+    `derivar_invocaciones()` no saltaba las lineas `#`, asi que un comentario
+    que contuviera un token de ruta producia una invocacion FANTASMA y de ahi
+    salia una raiz del inventario. Comprobado reescribiendo solo la prosa:
+    `raices` cambiaba. Este caso mete un comentario que MENCIONA una invocacion
+    con `--ignore` de la suite critica: tiene que salir VERDE, porque un
+    comentario no ejecuta nada. Si saliera rojo, el gate estaria leyendo prosa.
+    """
+    _sustituye_en_ci(
+        ANCLA_INVOCACION,
+        "          # ejemplo de lo PROHIBIDO, en prosa: python -m pytest "
+        f"viewer/tests/ --ignore={{}} tests\n".format(
+            "viewer/tests/test_parcialidad_declarada.py")
+        + ANCLA_INVOCACION,
+        "PROSA")
+
+
 def m_descritificar_declarado() -> None:
     """Control POSITIVO: descritificar con la suite VIVA y declarandolo.
 
@@ -678,6 +767,25 @@ CASOS = [
     ("control positivo del entorno: comentario, `unset`, nombre que solo "
      "CONTIENE el prohibido, `$GITHUB_ENV` ajeno y `PYTHONPATH` legitimo",
      m_control_positivo_entorno, None, None, VERDE),
+
+    # --- el superviviente del CUARTO dictamen: `xfail` -------------------
+    # No es una superficie mas de entorno: es una suite critica que YA NO PUEDE
+    # FALLAR, y las dos capas la daban por viva. Va al control A porque `xfail`
+    # es un `skip` que ademas finge ejecucion.
+    ("X1: `pytestmark = pytest.mark.xfail` en la suite critica",
+     m_xfail_de_modulo, None, None, ROJO),
+    ("X2: `@pytest.mark.xfail(reason=...)` test a test",
+     m_xfail_por_decorador, None, None, ROJO),
+
+    # --- G1 por las dos vias que la lista blanca no gobernaba ------------
+    ("G1-bis: `tee -a \"$GITHUB_ENV\"` (tuberia, sin `>>`)",
+     m_g1_tee_a_github_env, None, None, ROJO),
+    ("G1-ter: nombre armado con dos variables (`${A}${B}=`)",
+     m_g1_nombre_por_variables, None, None, ROJO),
+
+    # --- la prosa NO es portante ------------------------------------------
+    ("control positivo: un COMENTARIO que menciona `--ignore` de la suite critica",
+     m_prosa_con_invocacion_falsa, None, None, VERDE),
     ("RC-3a: `jsonschema` ausente (30+ modulos con importorskip)",
      None, "jsonschema", None, ROJO),
     ("RC-3b: `PyYAML` ausente", None, "yaml", None, ROJO),
@@ -712,6 +820,10 @@ CASOS = [
      m_sup6a_prefijo_en_sustitucion, None, "H", VERDE),
     ("ABLACION H: SUP-9 (`sitecustomize.py`) con el control de entorno quitado",
      m_sup9_sitecustomize, None, "H", VERDE),
+    ("ABLACION H: G1-bis (`tee -a`) con el control de entorno quitado",
+     m_g1_tee_a_github_env, None, "H", VERDE),
+    ("ABLACION A: `xfail` de modulo con el anti-silenciado quitado",
+     m_xfail_de_modulo, None, "A", VERDE),
     ("ABLACION G: descritificar en silencio con el trinquete de criticos quitado",
      m_s4_descritificar_en_silencio, None, "G", VERDE),
 

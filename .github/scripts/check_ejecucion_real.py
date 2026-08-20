@@ -78,6 +78,28 @@ excluyen de la obligacion: aqui su `importorskip` los deja sin ninguna entrada,
 y exigirselos seria un rojo falso permanente. Su trinquete es el de PRESENCIA
 en `check_suite_inventory.py`, no este.
 
+PRECIO CONOCIDO DE ESTA CAPA (escrito aqui para que nadie lo descubra tarde)
+===========================================================================
+Esta capa ve la DESAPARICION de un modulo, no el recorte de UNA prueba dentro
+de el. Un `--deselect` de una sola prueba deja el modulo reportando 21 de 22:
+el modulo sigue presente, asi que aqui sale VERDE.
+
+Ese caso lo cubre hoy el control F de `check_suite_inventory.py` (filtros en la
+LINEA de comandos) y los controles SUP-1..SUP-11 (filtros por ENTORNO). Queda
+un hueco real y conviene decirlo en voz alta: un recorte PARCIAL entregado por
+una via de entorno que NADIE haya enumerado todavia sobrevive a las dos capas.
+Es el residuo que queda tras decidir —a proposito— no comparar recuentos aqui,
+y la alternativa era peor: habria hecho falta un umbral elegido para que el
+control callara, que no es una medida sino un silenciador con formato de
+numero.
+
+Lo que SI esta cerrado es lo que importaba: apagar una suite ENTERA no se puede
+por ninguna via, conocida o no. Para el recorte parcial la defensa es el
+trinquete D (coleccion contra coleccion, unidades iguales) mas la enumeracion
+de superficies, y esa combinacion es vigilancia, no construccion. Si algun dia
+hace falta cerrarlo del todo, el camino honesto es un baseline de INSTANCIAS
+reportadas —unidades iguales a las de JUnit—, no bajar un umbral.
+
 ABLACION
 ========
 `S9K_EJECUCION_ABLACION=1` desactiva la comparacion contra el inventario y deja
