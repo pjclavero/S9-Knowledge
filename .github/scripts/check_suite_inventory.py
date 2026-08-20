@@ -362,6 +362,22 @@ BANDERAS_QUE_EXCLUYEN = (
 #   SUP-9  `sitecustomize.py` / `usercustomize.py` en el arbol del repo: Python
 #          los importa SOLO por estar en el path, sin que ninguna variable
 #          prohibida aparezca en `ci.yml`. Es E3.
+#   SUP-10 `container.options` / `services.<id>.options` con `-e VAR=v`: el
+#          paso-through documentado a `docker create`. Lo heredan TODOS los
+#          pasos del job sin tocar ningun `env:`. Es G2.
+#   SUP-11 `uses:` a nivel de JOB (workflow reutilizable local): trae su propio
+#          `env:` y sus propios pasos. Es G3, el mismo agujero que ya estaba
+#          cerrado en el paso, un nivel mas arriba.
+#
+# ADVERTENCIA QUE NO SE PUEDE BORRAR: esta enumeracion se ha quedado corta
+# TRES veces seguidas, y cada vez el hueco fue una superficie que GitHub o
+# Docker documentan y aqui nadie habia mirado. La superficie de CAUSAS es
+# ABIERTA. Por eso desde esta ronda estos once controles NO son la unica linea:
+# `check_ejecucion_real.py` compara, modulo a modulo, lo que el job EJECUTO de
+# verdad (`--junitxml`) contra el inventario, y enrojece SIN IMPORTAR POR QUE
+# desaparecio una suite. Estos SUP se quedan como defensa en profundidad —una
+# capa que mira la causa avisa antes y dice QUE se rompio—, pero la garantia
+# ya no depende de haberlos enumerado todos.
 #
 # ALCANCE DECLARADO --lo que esta politica NO cubre, dicho explicitamente en
 # vez de callado:
@@ -400,8 +416,24 @@ RE_ASIGNA_ENTORNO = re.compile(r"\b([A-Z_][A-Z0-9_]*)\s*=")
 
 # Escritura al fichero que GitHub convierte en entorno del PASO SIGUIENTE.
 RE_GITHUB_ENV = re.compile(r">>\s*\"?\$\{?GITHUB_ENV\}?\"?")
-# Un nombre que no es literal: `$N=`, `${N}=`, `$(cmd)=`.
-RE_NOMBRE_CONSTRUIDO = re.compile(r"\$[({]?\w")
+# G1: `RE_NOMBRE_CONSTRUIDO` exigia un `$`, y un revisor lo esquivo SIN `$`:
+#   echo "PYTEST_ADD""OPTS=--ignore=..." >> $GITHUB_ENV     -> EXIT=0
+# Las comillas vacias no son un `$`, y `RE_ASIGNA_ENTORNO` solo veia `OPTS=`.
+# La linea emite literalmente el nombre prohibido. `printf 'PYTEST_ADD%s'
+# 'OPTS=...'` es la misma familia. Prohibir "construir con `$`" solo obligaba a
+# construir con dos comillas: teatro un caracter mas alla.
+#
+# Se invierte la polaridad: en vez de enumerar las formas MALAS de construir un
+# nombre —que son infinitas— se pone en lista blanca la UNICA forma que este
+# gate puede verificar, y todo lo demas es rojo. Fail-closed.
+RE_ECHO_LITERAL_A_GITHUB_ENV = re.compile(
+    r"""^\s*echo\s+(?P<c>["']?)(?P<carga>[A-Za-z_][A-Za-z0-9_]*=[^"'$`%\\]*)(?P=c)"""
+    r"""\s*>>\s*"?\$\{?GITHUB_ENV\}?"?\s*$""")
+
+# Cualquier par de comillas, para volver a leer la linea SIN ellas. Asi
+# `PYTEST_ADD""OPTS=` se lee tambien como `PYTEST_ADDOPTS=` y lo caza el
+# reconocedor de nombres de SUP-6/7, no solo la lista blanca de arriba.
+RE_COMILLAS = re.compile(r"[\"']")
 
 
 def _env_de(nodo) -> dict:
@@ -458,12 +490,53 @@ def _revisa_env(env: dict, donde: str) -> list[str]:
     return errores
 
 
+
+
+# G2: `container.env` y `services.<id>.env` estaban enumerados y `options` no.
+# `options` es el paso-through DOCUMENTADO a `docker create`, asi que `-e VAR=v`
+# ahi dentro inyecta entorno en TODOS los pasos del job sin tocar ningun `env:`.
+# Medido por un revisor independiente: EXIT=0.
+RE_OPCION_ENV_DOCKER = re.compile(
+    r"(?:^|\s)(?:-e|--env)(?:=|\s+)\"?'?([A-Za-z_][A-Za-z0-9_]*)")
+
+
+def _revisa_options(opciones, donde: str) -> list[str]:
+    """G2: `-e VAR=valor` dentro de `options:` de un container o un service."""
+    if not isinstance(opciones, str):
+        return []
+    errores = []
+    for m in RE_OPCION_ENV_DOCKER.finditer(opciones):
+        nombre = m.group(1).upper()
+        if nombre in VARIABLES_QUE_FILTRAN:
+            errores.append(
+                f"FILTRO DE EXCLUSION POR ENTORNO: `{nombre}` llega por "
+                f"`-e`/`--env` dentro de `options:` en {donde}. `options` es el "
+                f"paso-through a `docker create`, asi que el entorno lo heredan "
+                f"TODOS los pasos del job sin que aparezca en ningun `env:`."
+            )
+        elif nombre in VARIABLES_CON_POLITICA_DE_VALOR:
+            errores.append(
+                f"PYTHONPATH NO INSPECCIONABLE: llega por `-e`/`--env` dentro de "
+                f"`options:` en {donde}. Ahi el gate no puede comprobar sus "
+                f"entradas; declara `PYTHONPATH` en un `env:` normal."
+            )
+    return errores
+
+
 def _revisa_run(cuerpo: str, donde: str) -> list[str]:
     """SUP-6/7/8: lo que ocurre DENTRO de un bloque `run:`."""
     errores = []
     for linea in cuerpo.splitlines():
         if linea.lstrip().startswith("#"):
             continue
+        # G1: la linea se lee DOS veces, tal cual y sin comillas. El shell
+        # concatena `PYTEST_ADD""OPTS` en un solo nombre antes de ejecutar
+        # nada, asi que leerla sin comillas es leer lo que el shell ve.
+        vistas = [linea]
+        sin_comillas = RE_COMILLAS.sub("", linea)
+        if sin_comillas != linea:
+            vistas.append(sin_comillas)
+        nombres = {m.group(1) for v in vistas for m in RE_ASIGNA_ENTORNO.finditer(v)}
         for m in RE_ASIGNA_ENTORNO.finditer(linea):
             nombre = m.group(1)
             if nombre in VARIABLES_QUE_FILTRAN:
@@ -480,18 +553,33 @@ def _revisa_run(cuerpo: str, donde: str) -> list[str]:
                 resto = linea[m.end():].split()
                 if resto:
                     errores.extend(_politica_de_pythonpath(resto[0], donde))
-        if RE_GITHUB_ENV.search(linea):
-            # SUP-8: el nombre tiene que ser LITERAL para que SUP-6/7 puedan
-            # verlo. Si se construye, ningun reconocedor de nombres lo cazara.
-            escrito = linea[:linea.index(">>")]
-            trozos = escrito.split("=", 1)[0].split() if "=" in escrito else []
-            if trozos and RE_NOMBRE_CONSTRUIDO.search(trozos[-1]):
+        # Nombres que solo aparecen al quitar las comillas: es G1.
+        for nombre in sorted(nombres - {m.group(1) for m in RE_ASIGNA_ENTORNO.finditer(linea)}):
+            if nombre in VARIABLES_QUE_FILTRAN:
                 errores.append(
-                    f"NOMBRE CONSTRUIDO HACIA `$GITHUB_ENV` en {donde}: "
-                    f"`{linea.strip()[:90]}`. El nombre de la variable no es "
-                    f"literal, asi que NINGUN control sobre nombres puede "
-                    f"decidir si es una de las prohibidas. Se prohibe la FORMA: "
-                    f"escribe el nombre literal y este gate lo comprobara."
+                    f"NOMBRE CONCATENADO (G1) en {donde}: `{linea.strip()[:90]}`. "
+                    f"Quitando las comillas la linea asigna `{nombre}`, que esta "
+                    f"prohibida. El shell junta `PYTEST_ADD\"\"OPTS` en un solo "
+                    f"nombre antes de ejecutar nada; partirlo en dos trozos no lo "
+                    f"convierte en otra variable."
+                )
+
+        if RE_GITHUB_ENV.search(linea):
+            # SUP-8, en lista blanca (G1): la UNICA forma de escribir en
+            # `$GITHUB_ENV` que este gate puede verificar es un `echo` con el
+            # nombre LITERAL y un valor sin expansiones. Todo lo demas —nombre
+            # partido en comillas, `$N`, `printf` con `%s`, heredoc, `tee`— es
+            # rojo por la FORMA, sin intentar adivinar que emite.
+            if not RE_ECHO_LITERAL_A_GITHUB_ENV.match(linea.strip()):
+                errores.append(
+                    f"ESCRITURA NO VERIFICABLE A `$GITHUB_ENV` en {donde}: "
+                    f"`{linea.strip()[:90]}`. Lo que acabe en el entorno del paso "
+                    f"SIGUIENTE tiene que poder leerse aqui. Solo se admite "
+                    f"`echo \"NOMBRE=valor\" >> \"$GITHUB_ENV\"` con el nombre "
+                    f"literal y un valor sin `$`, comillas, backtick, `%` ni "
+                    f"barra invertida. Enumerar las formas MALAS de construir un "
+                    f"nombre no acaba nunca —se probo con `$` y se esquivo con "
+                    f"comillas—, asi que se admite solo la buena."
                 )
     return errores
 
@@ -522,11 +610,33 @@ def comprueba_addopts_por_entorno(datos: dict) -> list[str]:
         if isinstance(contenedor, dict):
             errores += _revisa_env(_env_de(contenedor),
                                    f"el `container.env` del job `{job_id}` (SUP-4)")
+            errores += _revisa_options(
+                contenedor.get("options"),
+                f"`container.options` del job `{job_id}` (SUP-10)")
+        elif isinstance(contenedor, str):
+            pass  # `container: imagen` a secas no trae entorno
         for sid, servicio in (job.get("services") or {}).items():
             if isinstance(servicio, dict):
                 errores += _revisa_env(
                     _env_de(servicio),
                     f"el `services.{sid}.env` del job `{job_id}` (SUP-5)")
+                errores += _revisa_options(
+                    servicio.get("options"),
+                    f"`services.{sid}.options` del job `{job_id}` (SUP-10)")
+
+        # G3: la prohibicion de `uses: ./...` estaba SOLO en el paso. A nivel de
+        # JOB, un workflow reutilizable local trae su propio `env:` y sus
+        # propios `jobs:`, que este gate tampoco parsea. El agujero era el mismo
+        # un nivel mas arriba.
+        usa_job = job.get("uses")
+        if isinstance(usa_job, str):
+            errores.append(
+                f"FUERA DE ALCANCE DECLARADO (SUP-11): el job `{job_id}` delega "
+                f"en el workflow `{usa_job}`, que trae su propio `env:` y sus "
+                f"propios pasos, y este gate NO los parsea. Mientras no sepa "
+                f"mirarlos, delegar un job esta prohibido: la misma razon por la "
+                f"que lo esta `uses: ./...` en un paso."
+            )
         if isinstance(job.get("defaults"), dict) and "env" in job["defaults"]:
             errores.append(
                 f"ALCANCE ROTO: `env:` bajo `defaults:` del job `{job_id}`; "

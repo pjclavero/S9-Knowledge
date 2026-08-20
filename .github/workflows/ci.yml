@@ -321,7 +321,8 @@ jobs:
         run: |
           # Guardia anti-cero (ver `check-ci-config`).
           set +e
-          out="$(python -m pytest --tb=short --no-header -q 2>&1)"
+          mkdir -p artifacts/junit
+          out="$(python -m pytest --tb=short --no-header -q --junitxml=artifacts/junit/combined.xml 2>&1)"
           rc=$?
           set -e
           echo "$out"
@@ -330,6 +331,38 @@ jobs:
             echo "::error::la suite combinada no ejecuto ninguna prueba"
             exit 1
           fi
+
+      # -----------------------------------------------------------------
+      # VERIFICAR EL RESULTADO, NO LA CAUSA
+      # -----------------------------------------------------------------
+      # `N passed` dice que se ejecuto ALGO. El paso anterior lo comprueba y no
+      # basta: un revisor independiente apago suites criticas UNA RONDA TRAS
+      # OTRA con vias nuevas cada vez (`PYTEST_ADDOPTS` por cinco niveles de
+      # `env:`, por `$GITHUB_ENV`, con el nombre concatenado sin `$`, por
+      # `container.options -e`, por un `uses:` a nivel de job, por un
+      # `sitecustomize.py`), y en cada ronda el gate cerraba la via encontrada.
+      # La superficie de CAUSAS es abierta; el RESULTADO no.
+      #
+      # Este paso compara, modulo a modulo, lo que el job EJECUTO DE VERDAD
+      # —el informe `--junitxml`— contra `.github/suite-inventario.json`. Si
+      # `test_parcialidad_declarada.py` no reporta sus pruebas aqui, ROJO, sin
+      # importar por que. Es la misma logica que `test-neo4j-authz` ya usa con
+      # `grep -qi skipped`, generalizada.
+      #
+      # NO sustituye a los nueve SUP de `check_suite_inventory.py`: se SUMA.
+      # Aquella capa mira la causa y avisa antes; esta mira el efecto y no se
+      # puede rodear.
+      #
+      # Vive en ESTE job y no en uno nuevo por lo mismo que el inventario: un
+      # job nuevo cambiaria el recuento de checks requeridos, y eso es decision
+      # del operador. Ademas este es el unico job con TODAS las dependencias
+      # instaladas, que es lo que hace honesta la comparacion: el inventario se
+      # midio en este mismo entorno.
+      - name: Lo ejecutado de verdad tiene que ser lo que el inventario declara
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/check_ejecucion_real.py \
+            --junit artifacts/junit
 
       # -----------------------------------------------------------------
       # Inventario de suites como PUERTA (ejercicio RC 1)
@@ -553,6 +586,23 @@ jobs:
           S9K_ALLOW_REAL_INGEST: ""
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 .github/scripts/calibra_suite_inventory.py
+
+      # Y la calibracion de la capa que mira el RESULTADO. Apaga la suite del
+      # visor por cada vector CONOCIDO —incluidos los tres que un revisor
+      # independiente encontro despues de que el reconocedor los diera por
+      # cerrados: nombre concatenado sin `$` hacia `$GITHUB_ENV` (G1),
+      # `container.options -e` (G2) y `uses:` a nivel de job (G3)— y exige que
+      # el informe `--junitxml` lo delate. Cada caso apaga un MODULO DISTINTO,
+      # asi que ningun rojo es prestado. Con la ablacion puesta, esos mismos
+      # casos vuelven a VERDE.
+      #
+      # No muta ningun fichero del repositorio: los artefactos van a un
+      # directorio temporal. Publica igualmente el SHA-256 antes y despues,
+      # porque "no lo toco" tambien hay que medirlo.
+      - name: La capa de ejecucion real se pone ROJA ante cada vector (y ablacion)
+        env:
+          S9K_ALLOW_REAL_INGEST: ""
+        run: python3 .github/scripts/calibra_ejecucion_real.py
 
   # Instalado desde .github/ci-fragments/check-env-reproducibility.yml. Si un
   # merge se lleva por delante este bloque, el fragmento es la copia canonica.
