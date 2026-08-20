@@ -12,6 +12,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests.exception_codes import raises_code
+from review.codes import WriterCodes
+
 _APP = Path(__file__).resolve().parents[1]
 if str(_APP) not in sys.path:
     sys.path.insert(0, str(_APP))
@@ -96,7 +99,7 @@ def test_2_one_match_blocks(tmp_path):
     os.environ["S9K_ALLOW_REAL_INGEST"] = "true"
     try:
         ctx, _ = _patch({"Otosan Uchi": 1})
-        with ctx, pytest.raises(RuntimeError, match="preflight no seguro|CONFLICT"):
+        with ctx, raises_code(RuntimeError, WriterCodes.PREFLIGHT_UNSAFE):
             ingest(_write(tmp_path, [_ent()]), dry_run=False, neo4j_password="x")
     finally:
         del os.environ["S9K_ALLOW_REAL_INGEST"]
@@ -181,13 +184,13 @@ def test_15_zero_relations(tmp_path):
     rel = {"kind": "relation", "from_entity": "A", "to_entity": "B", "relation_type": "KNOWS",
            "evidence": "e", "source_id": "s", "workspace": "leyenda"}
     ctx, _ = _patch({})
-    with ctx, pytest.raises(ValueError, match="no admite relaciones"):
+    with ctx, raises_code(ValueError, WriterCodes.RELATIONS_NOT_ALLOWED):
         ingest(_write(tmp_path, [_ent(), rel]), dry_run=True, neo4j_password="x")
 
 # 16. Transacción completa hace rollback ante conflicto (atómica)
 def test_16_atomic_rollback():
     counts = {"Río Kanji": 1}; created = []  # segundo conflicta
-    with pytest.raises(RuntimeError, match="CONFLICT"):
+    with raises_code(RuntimeError, WriterCodes.CONFLICT_EXISTING_NODE):
         _tx_create_all(_Tx(counts, created), [_ent("Otosan Uchi"), _ent("Río Kanji")], [], "batch-rollback-001")
     assert created == []  # ninguna creada (rollback total)
 
@@ -261,7 +264,7 @@ def test_22_conflicting_review_report(tmp_path):
     assert status == "CONFLICTING_REVIEW_REPORT"
     ctx, _ = _patch({})
     with ctx:
-        with pytest.raises(ValueError, match="CONFLICTING_REVIEW_REPORT"):
+        with raises_code(ValueError, WriterCodes.CONFLICTING_REVIEW_REPORT):
             ingest(p, dry_run=True, neo4j_password="x", audit_log_path=audit)
 
 
@@ -309,9 +312,9 @@ def test_25_rollback_cypher_correct():
 
 # 26. Rollback cypher con batch_id vacío lanza error
 def test_26_rollback_empty_batch_id():
-    with pytest.raises(ValueError, match="batch_id"):
+    with raises_code(ValueError, WriterCodes.ROLLBACK_BATCH_ID_EMPTY):
         build_rollback_cypher("")
-    with pytest.raises(ValueError, match="batch_id"):
+    with raises_code(ValueError, WriterCodes.ROLLBACK_BATCH_ID_EMPTY):
         build_rollback_cypher("   ")
 
 
@@ -325,7 +328,7 @@ def test_27_assert_readonly_query_blocks_writes():
         "MATCH (n) DELETE n",
     ]
     for cypher in write_cyphers:
-        with pytest.raises(AssertionError, match="DRY-RUN VIOLATION"):
+        with raises_code(AssertionError, WriterCodes.DRY_RUN_VIOLATION):
             _assert_readonly_query(cypher)
 
 
@@ -346,7 +349,7 @@ def test_29_toctou_detected_inside_transaction():
     detecta 1 (race condition). El lote debe abortar completamente."""
     counts = {"Otosan Uchi": 1}  # dentro de la tx hay conflicto
     created = []
-    with pytest.raises(RuntimeError, match="CONFLICT_EXISTING_NODE"):
+    with raises_code(RuntimeError, WriterCodes.CONFLICT_EXISTING_NODE):
         _tx_create_all(_Tx(counts, created), [_ent("Otosan Uchi")], [], "batch-toctou-001")
     assert created == []  # nada creado
 
@@ -420,7 +423,7 @@ def test_35_allow_relationships_flag(tmp_path):
            "relation_type": "KNOWS", "evidence": "e",
            "source_id": "s", "workspace": "leyenda"}
     ctx, _ = _patch({})
-    with ctx, pytest.raises(ValueError, match="no admite relaciones"):
+    with ctx, raises_code(ValueError, WriterCodes.RELATIONS_NOT_ALLOWED):
         ingest(_write(tmp_path, [_ent(), rel]), dry_run=True,
                neo4j_password="x", allow_relationships=False)
 
