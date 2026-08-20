@@ -82,6 +82,11 @@ SANDBOX_INCOLECTABLES = [
 #: de sitios sellados) y los 5255 tests seguían verdes. Cada una lleva ahora su
 #: ancla de conducta en `app/tests/test_carril5_anclas_rc.py`, y el modo `guards`
 #: mide que neutralizarla pone roja ESA prueba y sólo ésa.
+#:
+#: Las OCHO estaban verdes allí, `SUPERSESSION_CYCLE` incluida: allí no había
+#: ninguna prueba que entrase en el bucle. Que hoy esa mutación CUELGUE en vez
+#: de dar verde es consecuencia de haberla anclado, no un cuelgue que estuviera
+#: escondido antes. Ver `_plazo` en el fichero de anclas.
 GUARDS = [
     ("app/knowledge_v3/ledger/assertions.py", "CHAIN_SEQ_GAP"),
     ("app/knowledge_v3/ledger/assertions.py", "SUPERSEDE_TARGET_EXISTS"),
@@ -289,10 +294,12 @@ def restore(root: Path, rels) -> None:
 def run_tests(root: Path, only: list[str] | None = None, timeout: int | None = None):
     """Devuelve `(returncode, salida)`. `returncode` es -1 si expiro el plazo.
 
-    El plazo existe por un hallazgo real: neutralizar `SUPERSESSION_CYCLE` no
-    deja la suite verde, la deja COLGADA --sin esa guarda, `chain_from` recorre
-    un ciclo para siempre--. Sin timeout el arnes se queda esperando y un
-    colgado se confunde con "sigue corriendo"."""
+    El plazo existe por un hallazgo real, contado exacto: con el ancla de ciclo
+    presente, neutralizar `SUPERSESSION_CYCLE` no deja la suite verde, la deja
+    COLGADA --sin esa guarda `chain_from` recorre el ciclo para siempre--. Ojo
+    al matiz: en el arbol de la revision, SIN ese ancla, la misma mutacion daba
+    un verde limpio, porque ninguna prueba entraba en el bucle. Sin timeout el
+    arnes se queda esperando y un colgado se confunde con "sigue corriendo"."""
     args = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
             "--no-header", "--tb=no", "-rf", "--color=no", *(only or [t.split("app/", 1)[1] for t in TESTS])]
     try:
@@ -330,6 +337,20 @@ def veredicto_guards(resultados: list) -> dict:
     (`test_los_sitios_sin_ancla...`): la mutacion inserta una linea y esa lista
     guarda `fichero:linea`, asi que enrojecer es la conducta correcta, no un
     rojo prestado.
+
+    QUE CUENTA COMO "SU PROPIA PRUEBA", y por que se estrecho el criterio: una
+    roja es propia SOLO si su nombre contiene el CODIGO de la guarda mutada. La
+    version anterior aceptaba ademas cualquier nombre que empezara por
+    `test_ancla_`. Era inocuo hoy --las 8 casan por codigo, que es el criterio
+    fuerte-- pero es un rojo prestado esperando su ocasion DENTRO del propio
+    veredicto: una mutacion que enrojeciera SOLO un ancla AJENA se habria
+    contado como anclada. Con el criterio por codigo, ese caso sale como NO
+    anclada. Tiene control negativo:
+    `tests/test_carril5_exception_codes.py::test_el_veredicto_no_acepta_un_ancla_ajena`.
+
+    La resta, ademas, falla hacia el lado seguro: si un ancla real cayese dentro
+    del baseline, restarla la BORRARIA y la guarda saldria SIN ancla. No puede
+    fabricar un ancla que no exista.
     """
     base = None
     for e in resultados:
@@ -343,8 +364,10 @@ def veredicto_guards(resultados: list) -> dict:
         if e.get("control") != "guard_neutralizada":
             continue
         exclusivas = sorted(set(e["failed"]) - base)
-        propias = [x for x in exclusivas if e["code"].lower() in x.lower()
-                   or x.split("::")[-1].startswith("test_ancla_")]
+        # SOLO por codigo. El prefijo `test_ancla_` NO cuenta: aceptarlo dejaba
+        # que una mutacion que enrojeciera unicamente un ancla AJENA se contase
+        # como anclada, o sea un rojo prestado dentro del propio veredicto.
+        propias = [x for x in exclusivas if e["code"].lower() in x.lower()]
         colaterales = [x for x in exclusivas if x not in propias]
         ok = len(propias) == 1 and all(tolerado in x for x in colaterales)
         todas_ok &= ok

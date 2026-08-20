@@ -336,3 +336,55 @@ def test_la_deuda_por_familias_suma_el_censo_y_no_deja_huerfanos():
     conteo = carril5_deuda.deuda_por_familia(censo)
     assert sum(conteo.values()) == censo["estricto"]["total"]
     assert set(conteo) == {f for f, _, _ in carril5_deuda.DEUDA_FUERA_DE_ALCANCE}
+
+
+# --------------------------------------------------------------------------
+# El veredicto del arnes tampoco puede aceptar un rojo prestado
+# --------------------------------------------------------------------------
+def _veredicto_guards():
+    """Carga la funcion REAL del arnes. No se reimplementa: una copia acabaria
+    divergiendo y el control estaria calibrando otra cosa."""
+    import importlib.util
+    ruta = _APP.parent / "tools" / "carril5_negative_controls.py"
+    spec = importlib.util.spec_from_file_location("_c5_controls", ruta)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.veredicto_guards
+
+
+def _resultados(rojas_de_la_guarda):
+    """Informe sintetico de `guards`: un baseline y UNA guarda mutada."""
+    return [
+        {"control": "baseline_sin_mutar", "failed": ["tests/test_del_montaje.py::test_ruido"]},
+        {"control": "guard_neutralizada", "code": "CHAIN_SEQ_GAP",
+         "site": "app/knowledge_v3/ledger/assertions.py:232",
+         "failed": ["tests/test_del_montaje.py::test_ruido"] + rojas_de_la_guarda},
+    ]
+
+
+def test_el_veredicto_reconoce_el_ancla_propia():
+    """Control positivo: la roja lleva el codigo de la guarda mutada."""
+    fila = _veredicto_guards()(_resultados(
+        ["tests/test_carril5_anclas_rc.py::test_ancla_chain_seq_gap_algo"]))["guardas"][0]
+    assert fila["ancla_unica_tras_restar_baseline"] is True
+
+
+def test_el_veredicto_no_acepta_un_ancla_ajena():
+    """CONTROL NEGATIVO del propio veredicto.
+
+    Si al neutralizar `CHAIN_SEQ_GAP` la unica roja exclusiva fuese el ancla de
+    OTRA guarda, esa guarda NO esta anclada: es un rojo prestado. El clasificador
+    aceptaba antes cualquier nombre que empezara por `test_ancla_`, asi que se lo
+    habria tragado. Ahora exige que el nombre contenga el CODIGO mutado.
+    """
+    fila = _veredicto_guards()(_resultados(
+        ["tests/test_carril5_anclas_rc.py::test_ancla_written_sha_mismatch_otra_cosa"]
+    ))["guardas"][0]
+    assert fila["ancla"] == [], "un ancla ajena no puede contar como propia"
+    assert fila["ancla_unica_tras_restar_baseline"] is False
+
+
+def test_el_veredicto_no_da_por_anclada_una_guarda_sin_ninguna_roja():
+    """Una guarda que no enrojece nada tras restar el montaje esta INDEFENSA."""
+    fila = _veredicto_guards()(_resultados([]))["guardas"][0]
+    assert fila["ancla_unica_tras_restar_baseline"] is False

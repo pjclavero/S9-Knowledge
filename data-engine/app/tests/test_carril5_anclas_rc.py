@@ -137,12 +137,25 @@ def test_ancla_validity_inverted_no_se_puede_cerrar_antes_de_empezar():
 class _plazo:
     """Convierte un cuelgue en un ROJO atribuible.
 
-    Existe por una medida, no por precaucion: al neutralizar la guarda de
-    `SUPERSESSION_CYCLE` el arnes no obtuvo un fallo, obtuvo `rc=-9` --el bucle
-    de `chain_from` no termina y el kernel mata el proceso-. Un proceso muerto
-    no es un rojo: no se atribuye a ninguna prueba y, en CI, se parece
-    demasiado a "todavia esta corriendo". Con este plazo, la ausencia de la
-    guarda falla esta prueba y solo esta.
+    Existe por una medida, y conviene contarla EXACTA porque la primera version
+    de este comentario la conto mal.
+
+    En el arbol de la revision, neutralizar `SUPERSESSION_CYCLE` daba un VERDE
+    de verdad, no un cuelgue: ninguna prueba ejercitaba un ciclo, asi que el
+    bucle no llegaba a recorrerse. Es decir, era una guarda genuinamente
+    indefensa, como las otras siete.
+
+    El `rc=-9` aparece en ESTE arbol, y aparece PRECISAMENTE porque el ancla de
+    abajo si ejercita un ciclo. O sea: anadir el ancla no descubrio un cuelgue
+    preexistente; convirtio aquel verde en un cuelgue. Las dos medidas son
+    correctas sobre arboles distintos.
+
+    Que la guarda sea lo UNICO que acota el bucle esta verificado aparte por la
+    revision: neutralizada, `chain_from` sobre `a -> b -> a` bajo `RLIMIT_AS`
+    levanta `MemoryError`. De ahi este plazo: un proceso muerto no es un rojo
+    --no se atribuye a ninguna prueba y, en CI, se parece demasiado a "todavia
+    esta corriendo"--, y con el plazo la ausencia de la guarda falla esta prueba
+    y solo esta.
     """
 
     def __init__(self, segundos: float) -> None:
@@ -171,8 +184,14 @@ def test_ancla_supersession_cycle_una_cadena_que_se_muerde_la_cola_es_corrupcion
     """SUPERSESION. Un ciclo no es un caso raro: es un ledger corrupto.
 
     Sin esta guarda `chain_from` no devuelve nunca: la guarda es lo UNICO que
-    acota el recorrido. Por eso la prueba lleva plazo (ver `_plazo`): sin el, la
-    ausencia de la guarda mata el proceso en vez de poner rojo.
+    acota el recorrido (verificado por la revision: neutralizada, un ciclo
+    `a -> b -> a` bajo `RLIMIT_AS` levanta `MemoryError`).
+
+    Y por eso ESTA prueba es la que convierte aquella guarda de indefendida en
+    anclada: antes de existir, ninguna prueba entraba en el bucle, asi que
+    neutralizar la guarda daba un verde limpio. Al ejercitar el ciclo, la
+    ausencia de la guarda pasa a matar el proceso; el plazo (ver `_plazo`) la
+    convierte en un rojo atribuible.
     """
     docs = {
         "assertion:0001": {"superseded_by": "assertion:0002"},
