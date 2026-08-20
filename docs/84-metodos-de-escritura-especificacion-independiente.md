@@ -236,6 +236,10 @@ dejaba el fichero en el árbol REAL aunque el auditado fuese una copia. Medido y
 corregido: `write_spec.bootstrap` apunta `S9K_HEALTH_REPORT_PATH` a un temporal.
 Un instrumento que escribe en lo que mide invalida su propia medida.
 
+Ese `setdefault`, sin embargo, resuelve **una** variable, y cerrar variable a
+variable es la lista mantenida a mano que este censo existe para desmontar. La
+causa raíz es el **CWD**, y se cierra en el arnés: ver §4.
+
 ## 3. El contrato, punto por punto
 
 | control | afirma | hallazgo |
