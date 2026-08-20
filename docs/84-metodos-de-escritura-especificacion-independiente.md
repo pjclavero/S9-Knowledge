@@ -194,9 +194,33 @@ semántica lo pedía.
 previsto en producción (el timer horario), así que quitar la escritura del `GET`
 no deja al panel sin fuente; y la capacidad de refrescarlo desde la interfaz no
 se pierde: cambia de verbo. Comprobado por HTTP en
-`viewer/tests/test_health_admin_get_sin_escritura.py` (7 casos: los dos GET no
+`viewer/tests/test_health_admin_get_sin_escritura.py` (9 casos: los dos GET no
 crean el fichero, el POST sí lo crea y redirige, sin CSRF da 403 sin escribir,
-el anónimo no escribe, y ningún verbo de escritura se cuela por los GET).
+el anónimo no escribe, un **autenticado no admin** tampoco, y ningún verbo de
+escritura se cuela por los GET).
+
+**El guardián de admin del POST no lo probaba nadie, y se midió.** Con los 7
+casos originales, **quitar `require_admin` de `admin_health_snapshot` dejaba la
+suite en verde**: al anónimo no lo para el rol, lo para que **no consigue token
+CSRF**, porque el token lo acuña un `GET` que ya es admin-only. Es decir, la
+autorización del POST estaba sostenida por el CSRF. El caso que faltaba —*«un
+usuario autenticado NO admin no puede tomar la instantánea»*— le inyecta un
+**CSRF válido de su propia sesión**, acuñado como lo hace el middleware a partir
+de su `session_id` y su `session_hash` y **no leído del panel de administración**
+(si se leyera de ahí, el caso volvería a medir el CSRF en lugar del rol).
+Calibrado en las dos direcciones, ancla única por AST sobre el argumento `admin`
+de ese endpoint y reversión verificada por SHA-256:
+
+| dirección | resultado |
+|---|---|
+| `require_admin` en su sitio | **9 passed** — verde |
+| `require_admin` ablado **sólo en el POST** | **1 failed, 8 passed** — ROJO, y el fallo es el caso nuevo: el no-admin obtiene `302` y el informe aparece en disco |
+
+Los 8 restantes siguieron verdes bajo la ablación, que es exactamente la
+constatación del revisor: sin este caso, nadie cazaba la retirada del guardián.
+El producto ya era correcto; lo que faltaba era la prueba capaz de ponerse roja.
+El otro negativo se deja como está: afirma «403 **sin escribir**», no sólo
+«403», y por eso ya es cargante.
 
 **Efecto sobre este carril:** la base vuelve a `rc=0`, el job **deja de nacer
 rojo — porque el defecto ya no existe, no porque se haya eximido**, y el
@@ -231,17 +255,45 @@ inseguro** (`POST → PUT`), donde «no hay método seguro» sigue siendo cierto
 ## 4. Controles negativos: medidos endpoint a endpoint
 
 `python3 scripts/route_map/calibrate_write_spec.py`. **Una mutación por vez, un
-subproceso por mutación, sobre copias del árbol**, con `__pycache__` purgado y
-`PYTHONDONTWRITEBYTECODE=1`; al terminar se comprueba por **SHA-256 del
-contenido** de `viewer/`, `scripts/route_map/` y `contracts/` que el árbol real
-no cambió ni un byte.
+subproceso por mutación, sobre copias del árbol**, con `__pycache__` purgado,
+`PYTHONDONTWRITEBYTECODE=1` y **`cwd` anclado a la raíz auditada**; al terminar
+se comprueba por **SHA-256 del contenido** de `viewer/`, `scripts/route_map/` y
+`contracts/` que el árbol real no cambió ni un byte.
+
+El `cwd` no es un detalle de higiene, es **la causa raíz** de la contaminación
+del árbol, y está medida con el camino de escritura del propio producto: varias
+rutas por defecto son **relativas** (`viewer/state/health/last_report.json`), de
+modo que se resuelven contra el CWD del proceso. Sin `cwd=`, los subprocesos
+heredaban el directorio del **auditor** aunque estuvieran auditando una **copia**,
+y la escritura caía en el árbol real; con `cwd=` cae en la copia. Cerrarlo aquí
+lo cierra **por construcción**, para toda variable relativa presente o futura,
+en lugar de ir neutralizando variables una a una en la lista mantenida a mano
+que este censo lleva tres rondas desmontando. El `setdefault` de
+`write_spec.bootstrap` se queda como **cinturón**, ya no como única defensa, y
+la diferencia se midió en las dos direcciones:
+
+| arnés | corrida completa | `viewer/state` en el árbol real |
+|---|---|---|
+| `cwd=` + cinturón (lo entregado) | 49 casos, **OK**, hash idéntico | **no existe** |
+| `cwd=`, **cinturón ablado** | 49 casos, **OK**, hash idéntico | **no existe** |
+| **ambos ablados** (control positivo) | 49 casos, **FALLO** (hash del árbol cambió) | **aparece** `viewer/state/health/last_report.json` |
+
+La tercera fila es lo que hace válida a la primera: la comprobación es capaz de
+ponerse roja.
 
 Los casos **no están escritos a mano**: el arnés ejecuta la especificación sobre
 el árbol limpio, toma de ahí los endpoints de escritura y muta **cada uno**. Si
 mañana aparece uno nuevo, se muta también sin que nadie lo añada aquí.
 
 Corrida completa: **49 casos, veredicto OK, 0 en fallo**, hash del árbol
-idéntico antes y después (`32d820e4…36f8`), **8 ablaciones cobradas**.
+idéntico antes y después (`9475b893…7236`), **8 ablaciones cobradas**.
+
+> El hash se toma **siempre del objeto de git** (`git show <commit>:<ruta>` /
+> `git archive <commit>`), nunca del árbol de trabajo. Una edición anterior de
+> este documento publicó `32d820e4…36f8`, que era el hash de **otro estado del
+> árbol**: la propiedad que importa —antes == después— se cumplía, pero la cifra
+> no correspondía al commit. El valor de arriba es el del árbol de este commit y
+> sale idéntico en el worktree y en un checkout limpio.
 
 | familia | mutación | n | resultado |
 |---|---|---|---|
