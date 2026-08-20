@@ -82,7 +82,16 @@ def ejecutar(raiz: Path) -> dict:
     env = {k: v for k, v in os.environ.items() if not k.startswith("S9K_")}
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     env["PYTHONPATH"] = str(raiz / "scripts")
-    proc = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=900)
+    # CAUSA RAIZ de la contaminacion del arbol, demostrada: varias rutas por
+    # defecto del producto son RELATIVAS (p.ej. `viewer/state/...`), asi que se
+    # resuelven contra el CWD del proceso. Sin `cwd=`, el subproceso hereda el
+    # directorio del AUDITOR aunque este auditando una COPIA, y cualquier
+    # escritura cae en el arbol real. Anclar el CWD a la raiz auditada lo cierra
+    # POR CONSTRUCCION, para toda variable relativa presente o futura, en vez de
+    # ir neutralizando variables una a una en una lista mantenida a mano.
+    # El `setdefault` de `write_spec.bootstrap` se queda como cinturon.
+    proc = subprocess.run(cmd, env=env, cwd=str(raiz),
+                          capture_output=True, text=True, timeout=900)
     informe = {}
     if salida.exists():
         informe = json.loads(salida.read_text(encoding="utf-8"))

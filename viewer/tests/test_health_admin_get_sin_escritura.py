@@ -13,6 +13,17 @@ el módulo:
  3. `POST /admin/health/snapshot` con CSRF válido **sí** lo crea y redirige.
  4. Ese POST sin CSRF válido da 403 **y no escribe**.
  5. Anónimo: el POST no escribe (401 o redirección a login).
+ 6. Un usuario **autenticado NO admin**, con un CSRF **válido de su propia
+    sesión**, tampoco puede tomar la instantánea: 403 y **sin escribir**.
+
+El punto 6 existe porque el 5 no basta y se midió: quitando `require_admin` del
+POST, la suite seguía en verde. Al anónimo no lo para el guardián de admin sino
+que **no consigue token CSRF** (lo acuña un `GET` que ya es admin-only), así que
+la autorización del POST estaba sostenida por el CSRF y **nadie probaba al
+guardián de admin**. Por eso aquí el token se **acuña desde la propia sesión del
+no-admin** —igual que hace el middleware, a partir de su `session_id` y su
+`session_hash`— y NO se lee del panel de administración: si se leyera de ahí, el
+caso volvería a medir el CSRF en lugar del rol.
 
 El punto 3 no es decorativo: si la instantánea dejara de poder guardarse, el
 panel de operaciones se quedaría sin fuente desde la interfaz. Se comprueba que
@@ -131,6 +142,81 @@ def test_el_post_anonimo_no_escribe(informe):
     r = c.post("/admin/health/snapshot", data={"csrf_token": "loquesea"})
     assert r.status_code in (401, 302, 303, 403), r.status_code
     assert not informe.exists(), "un anónimo consiguió escribir el informe"
+
+
+@pytest.fixture
+def cliente_no_admin(_entorno_auth, monkeypatch):
+    """TestClient de un usuario autenticado con rol `viewer` (NO admin).
+
+    Devuelve `(cliente, csrf_propio)`. El CSRF se **acuña desde su propia
+    sesión** reproduciendo la derivación del middleware (`app/auth/middleware.py`:
+    HMAC de `csrf:<session_id>:<session_hash[:8]>` y luego
+    `get_csrf_token_for_session`). No se toma del panel admin: el objetivo del
+    caso es el guardián de rol, no el CSRF.
+    """
+    import hashlib
+    import hmac
+
+    from fastapi.testclient import TestClient
+
+    from app.auth import db as auth_db
+    from app.auth.config import get_auth_settings
+    from app.auth.csrf import get_csrf_token_for_session
+    from app.auth.passwords import hash_password
+    from app.auth.sessions import create_session
+    from app.health.models import ComponentResult, HealthReport, HealthStatus
+    from app.main import app
+
+    monkeypatch.setattr(
+        "app.routers.health_admin.runner.run_report",
+        lambda **k: HealthReport([ComponentResult("x", HealthStatus.HEALTHY)]),
+    )
+    db, _informe = _entorno_auth
+    with auth_db.get_conn(db) as conn:
+        u = auth_db.create_user(conn, username="no_adm_health", display_name="curioso",
+                                password_hash=hash_password("x" * 14), role="viewer")
+        token, sesion = create_session(conn, u)
+    assert not u.is_admin(), "el caso exige un usuario NO admin"
+
+    cfg = get_auth_settings()
+    csrf_raw = hmac.new(
+        cfg.S9K_CSRF_SECRET.encode(),
+        f"csrf:{sesion.id}:{sesion.session_hash[:8]}".encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    csrf_propio = get_csrf_token_for_session(
+        sesion.id, csrf_raw, secret=cfg.S9K_CSRF_SECRET
+    )
+
+    c = TestClient(app, raise_server_exceptions=False, follow_redirects=False)
+    c.cookies.set(cfg.S9K_SESSION_COOKIE_NAME, token)
+    return c, csrf_propio
+
+
+def test_el_no_admin_no_puede_tomar_la_instantanea(cliente_no_admin, informe):
+    """Con CSRF VÁLIDO propio, al no-admin lo para `require_admin` y sólo él.
+
+    Calibrado en las dos direcciones: quitando `require_admin` del POST este
+    caso se pone ROJO (el no-admin escribiría, 302 + fichero en disco); con el
+    guardián en su sitio, verde. Sin este caso, quitar `require_admin` no lo
+    cazaba nadie.
+    """
+    cliente, csrf_propio = cliente_no_admin
+    # El CSRF acuñado es REALMENTE válido para su sesión: si no lo fuera, el
+    # caso mediría el CSRF y no el rol, y pasaría por buena razón equivocada.
+    r_control = cliente.post("/admin/health/snapshot", data={"csrf_token": csrf_propio})
+    assert r_control.status_code == 403, r_control.status_code
+    assert "CSRF" not in (r_control.text or ""), (
+        "lo paró el CSRF, no el guardián de admin: el token acuñado no era válido"
+    )
+    assert not informe.exists(), "un usuario no admin escribió el informe de salud"
+
+
+def test_el_no_admin_ni_siquiera_ve_el_panel_que_acuna_el_csrf(cliente_no_admin):
+    """Por qué el token hay que acuñarlo: el panel que lo daba es admin-only."""
+    cliente, _ = cliente_no_admin
+    r = cliente.get("/admin/health")
+    assert r.status_code in (403, 302, 303), r.status_code
 
 
 def test_el_get_no_admite_escritura_por_ningun_verbo(cliente_admin):
