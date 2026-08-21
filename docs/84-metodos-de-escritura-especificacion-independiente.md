@@ -205,9 +205,15 @@ suite en verde**: al anónimo no lo para el rol, lo para que **no consigue token
 CSRF**, porque el token lo acuña un `GET` que ya es admin-only. Es decir, la
 autorización del POST estaba sostenida por el CSRF. El caso que faltaba —*«un
 usuario autenticado NO admin no puede tomar la instantánea»*— le inyecta un
-**CSRF válido de su propia sesión**, acuñado como lo hace el middleware a partir
-de su `session_id` y su `session_hash` y **no leído del panel de administración**
-(si se leyera de ahí, el caso volvería a medir el CSRF en lugar del rol).
+**CSRF válido de su propia sesión** y **no leído de ninguna página admin** (si
+se leyera de ahí, el caso volvería a medir el CSRF en lugar del rol). El token
+lo emite la **propia aplicación** en `GET /account`, que es una página que ese
+usuario sí puede abrir; se toma de ahí en vez de recalcularlo en el test para
+que el caso no pueda derivar en falso verde el día que cambie la derivación del
+middleware —un token recalculado a mano dejaría de ser válido y el POST seguiría
+dando 403, pero por CSRF y no por rol, que es justo el fallo que este caso
+existe para no repetir—. La derivación documentada del middleware se conserva
+como **comprobación cruzada** dentro del propio fixture.
 Calibrado en las dos direcciones, ancla única por AST sobre el argumento `admin`
 de ese endpoint y reversión verificada por SHA-256:
 
