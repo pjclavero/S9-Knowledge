@@ -1116,12 +1116,57 @@ def xfail_por_decorador(texto: str) -> list[tuple[str, str]]:
         arbol = ast.parse(texto)
     except SyntaxError:
         return []
+
+    # ALIAS de modulo: `XF_TABLA = pytest.mark.xfail(...)` y luego
+    # `pytest.param(..., marks=XF_TABLA)`. Sin esto el censo se queda corto y el
+    # trinquete deja pasar `xfail` nuevos por la puerta de al lado. Medido en
+    # CI: el arnes de navegador declara 6 decoradores `@pytest.mark.xfail` que
+    # el AST veia, y la corrida real dio `12 xfailed` -los que faltaban
+    # llegaban por alias dentro de `parametrize`-.
+    alias_xfail = set()
+    for nodo in arbol.body:
+        if not isinstance(nodo, ast.Assign) or len(nodo.targets) != 1:
+            continue
+        destino = nodo.targets[0]
+        if isinstance(destino, ast.Name) and _nucleo_marca(nodo.value) == "xfail":
+            alias_xfail.add(destino.id)
+
+    def _es_xfail(nodo_marca) -> bool:
+        if _nucleo_marca(nodo_marca) == "xfail":
+            return True
+        base = nodo_marca.func if isinstance(nodo_marca, ast.Call) else nodo_marca
+        return isinstance(base, ast.Name) and base.id in alias_xfail
+
     hallazgos = []
+    # `pytest.param(..., marks=...)` DENTRO de un `parametrize`: la marca no
+    # decora la funcion, viaja en el caso. Se cuenta una vez por cada `param`
+    # marcado, que es lo que pytest ejecuta como prueba `xfail`.
+    for nodo in ast.walk(arbol):
+        if not isinstance(nodo, ast.Call):
+            continue
+        base = nodo.func
+        nombre = base.attr if isinstance(base, ast.Attribute) else \
+            (base.id if isinstance(base, ast.Name) else "")
+        if nombre != "param":
+            continue
+        for kw in nodo.keywords:
+            if kw.arg != "marks":
+                continue
+            marcas = kw.value.elts if isinstance(kw.value, (ast.List, ast.Tuple)) \
+                else [kw.value]
+            for marca in marcas:
+                if _es_xfail(marca):
+                    hallazgos.append((
+                        f"<param en linea {getattr(nodo, 'lineno', 0)}>",
+                        "`pytest.param(..., marks=xfail)`: la marca viaja en el "
+                        "caso, no en el decorador, y el censo por decorador no "
+                        "la veia"))
+
     for nodo in ast.walk(arbol):
         if not _es_test(nodo):
             continue
         for dec in nodo.decorator_list:
-            if _nucleo_marca(dec) != "xfail":
+            if not _es_xfail(dec):
                 continue
             # SIN EXENCION POR CONDICION, y esto es la correccion del quinto
             # dictamen. La version anterior eximia el decorador con condicion
@@ -1775,10 +1820,17 @@ def main() -> int:
     silenciados_ahora: dict[str, str] = {}
     condiciones_ahora: dict[str, str] = {}
     en_pie_ahora: dict[str, int] = {}
+    # Censo de `xfail` por modulo, DELEGADOS INCLUIDOS. `en_pie` los deja fuera
+    # -su trinquete es de presencia-, y ahi estaba el hueco: los 6 `xfail` del
+    # arnes de navegador no los descontaba nadie. Este censo si los ve.
+    xfail_ahora: dict[str, int] = {}
     for rel in sorted(en_disco):
         cuerpo = (REPO / rel).read_text(encoding="utf-8", errors="replace")
         if rel not in delegados:
             en_pie_ahora[rel] = tests_en_pie(cuerpo)
+        n_xfail = len(xfail_por_decorador(cuerpo))
+        if n_xfail:
+            xfail_ahora[rel] = n_xfail
         veredicto = silenciado(cuerpo)
         if veredicto:
             clase, motivo = veredicto
@@ -1992,6 +2044,35 @@ def main() -> int:
                     f"base y ahora {ahora}. El trinquete es POR MODULO a proposito: "
                     f"anadir tests en otro sitio no compensa esta caida."
                 )
+            # X-T: trinquete sobre el censo de `xfail`, delegados incluidos.
+            #
+            # POR QUE UN TRINQUETE Y NO UNA PROHIBICION, y esto lo ensenó un
+            # rojo mio en CI: se puso un `grep -qE '[0-9]+ (xfailed|xpassed)'`
+            # en el job del navegador y ENROJECIO, porque esa suite lleva 6
+            # `xfail(strict=True)` que NO son silenciadores. Son un registro de
+            # DEFECTOS CONOCIDOS: la prueba que deberia pasar, escrita ya, para
+            # que el dia que alguien arregle el defecto el XPASS se convierta en
+            # fallo (`strict`) y obligue a quitar la marca. Eso es lo contrario
+            # de apagar una prueba, y ademas esta documentado.
+            #
+            # Un `grep` no distingue el patron declarado del apagado nuevo:
+            # solo sabe contar hasta uno. Un trinquete si, porque compara contra
+            # una BASE. Los 6 existentes se quedan; lo que no puede es CRECER.
+            xfail_antes = datos_base.get("xfail") or {}
+            for rel in sorted(set(xfail_ahora) | set(xfail_antes)):
+                antes, ahora = xfail_antes.get(rel, 0), xfail_ahora.get(rel, 0)
+                if ahora <= antes:
+                    continue
+                errores.append(
+                    f"MAS PRUEBAS QUE NO PUEDEN FALLAR: `{rel}` tenia {antes} "
+                    f"`xfail` en la base y ahora {ahora}. El trinquete cubre "
+                    f"tambien los modulos DELEGADOS, que no entran en `en_pie`. "
+                    f"Si es un DEFECTO CONOCIDO que documentas con "
+                    f"`xfail(strict=True)`, dilo en el PR y regenera el "
+                    f"inventario; si es una prueba que molesta, arreglala o "
+                    f"borrala, pero no la vuelvas incapaz de fallar."
+                )
+
             total_antes, total_ahora = sum(base.values()), sum(inventario.values())
             if total_ahora < total_antes * (1 - TOLERANCIA_GLOBAL):
                 errores.append(
@@ -2009,6 +2090,7 @@ def main() -> int:
             "silenciados": dict(sorted(silenciados_ahora.items())),
             "condiciones": dict(sorted(condiciones_ahora.items())),
             "en_pie": dict(sorted(en_pie_ahora.items())),
+            "xfail": dict(sorted(xfail_ahora.items())),
             "delegados": sorted(delegados & en_disco),
             "total": sum(inventario.values()),
             "modulos": dict(sorted(inventario.items())),

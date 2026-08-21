@@ -538,6 +538,35 @@ def m_conftest_inyecta_xfail() -> None:
         encoding="utf-8")
 
 
+def m_xfail_en_delegado() -> None:
+    """X6: un `xfail` NUEVO en una suite DELEGADA (el arnes de navegador).
+
+    EL HUECO QUE UN ROJO MIO EN CI DEJO AL DESCUBIERTO. Los delegados no entran
+    en `en_pie`, asi que D2 no los descuenta, y no son criticos, asi que A5 no
+    los alcanza. La ronda anterior afirmo que "los cubre el job que los ejecuta,
+    que ya falla si ve `skipped`", y era FALSO: pytest imprime `xfailed`, no
+    `skipped`.
+
+    El primer intento de arreglo fue un `grep -qE '[0-9]+ (xfailed|xpassed)'` en
+    ese job, y ENROJECIO CI: esa suite lleva 6 `xfail(strict=True)` que son un
+    registro de DEFECTOS CONOCIDOS —la prueba que deberia pasar, ya escrita,
+    para que al arreglar el defecto el XPASS se vuelva fallo y obligue a quitar
+    la marca—. Un `grep` no distingue eso de un apagado nuevo. El trinquete X-T
+    si, porque compara contra una base: los 6 se quedan, el septimo no.
+    """
+    lineas = NAVEGADOR.read_text(encoding="utf-8").splitlines(keepends=True)
+    salida, tocados = [], 0
+    for linea in lineas:
+        if tocados == 0 and linea.startswith("def test_"):
+            salida.append("@pytest.mark.xfail(reason='calibracion X6')\n")
+            tocados += 1
+        salida.append(linea)
+    if tocados == 0:
+        raise SystemExit("MUTACION IMPOSIBLE (X6): el arnes delegado no tiene "
+                         "tests de primer nivel")
+    NAVEGADOR.write_text("".join(salida), encoding="utf-8")
+
+
 def m_descritificar_declarado() -> None:
     """Control POSITIVO: descritificar con la suite VIVA y declarandolo.
 
@@ -845,6 +874,8 @@ CASOS = [
      m_xfail_condicional_no_critico, None, None, ROJO),
     ("X5: `xfail` inyectado desde `conftest.py` (S-C)",
      m_conftest_inyecta_xfail, None, None, ROJO),
+    ("X6: un `xfail` NUEVO en una suite DELEGADA (trinquete X-T)",
+     m_xfail_en_delegado, None, None, ROJO),
 
     # --- G1 por las dos vias que la lista blanca no gobernaba ------------
     ("G1-bis: `tee -a \"$GITHUB_ENV\"` (tuberia, sin `>>`)",
@@ -910,6 +941,8 @@ CASOS = [
      m_conftest_inyecta_xfail, None, "A", VERDE),
     ("ABLACION D: `xfail` condicional NO critico con el trinquete de recuento quitado",
      m_xfail_condicional_no_critico, None, "D", VERDE),
+    ("ABLACION D: `xfail` NUEVO en un DELEGADO con el trinquete de recuento quitado",
+     m_xfail_en_delegado, None, "D", VERDE),
     ("ABLACION G: descritificar en silencio con el trinquete de criticos quitado",
      m_s4_descritificar_en_silencio, None, "G", VERDE),
 

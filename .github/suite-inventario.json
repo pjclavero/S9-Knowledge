@@ -324,6 +324,13 @@
     "viewer/tests/test_visibility_contract_adapter.py": 15,
     "viewer/tests/test_visibility_policy.py": 14
   },
+  "xfail": {
+    "data-engine/app/tests/test_knowledge_v3_gate4_negation_e2e.py": 3,
+    "data-engine/app/tests/test_m0_partida_id_adversarial.py": 1,
+    "deploy/tests/test_docs_consistency.py": 3,
+    "viewer/tests/browser/test_browser_accessibility.py": 7,
+    "viewer/tests/browser/test_browser_navigation.py": 2
+  },
   "delegados": [
     "viewer/tests/browser/test_browser_accessibility.py",
     "viewer/tests/browser/test_browser_auth_flows.py",

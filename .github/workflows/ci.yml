@@ -293,21 +293,17 @@ jobs:
             echo "ERROR: se saltaron tests de navegador con el navegador disponible"
             exit 1
           fi
-          # `xfailed`/`xpassed` TAMBIEN, y no es simetria: pytest NO imprime
-          # `skipped` para un `xfail`, imprime `xfailed`, asi que el grep de
-          # arriba no lo veia. Estos modulos son DELEGADOS: no entran en
-          # `en_pie`, asi que el trinquete D2 no los descuenta, y no son
-          # criticos, asi que A5 tampoco los alcanza. Medido: un
-          # `@pytest.mark.xfail` pelado en `test_browser_navigation.py` dejaba
-          # el gate en EXIT=0 y ningun control lo delataba. Aqui es donde vive
-          # el contrato del navegador -escribir = 0 POST, Enter = 1 POST-, que
-          # es propiedad declarada del RC: no puede dejar de poder fallar.
-          if grep -qE '[0-9]+ (xfailed|xpassed)' <<<"${out}"; then
-            echo "ERROR: hay tests de navegador que YA NO PUEDEN FALLAR (xfail)"
-            echo "Con el navegador disponible, un xfail es una prueba que finge"
-            echo "ejecutarse y se traga el fallo. Arreglala o borrala."
-            exit 1
-          fi
+          # AQUI NO VA UN `grep` DE `xfailed`, y conviene saber por que.
+          # Se puso uno y ENROJECIO ESTE JOB en CI: esta suite lleva 6
+          # `xfail(strict=True)` que NO son silenciadores sino un registro de
+          # DEFECTOS CONOCIDOS -la prueba que deberia pasar, escrita ya, para
+          # que el dia que alguien arregle el defecto el XPASS se convierta en
+          # fallo y obligue a quitar la marca-. Un `grep` no distingue ese
+          # patron declarado de un apagado nuevo: solo sabe contar.
+          # Lo que hace falta aqui no es una prohibicion sino un TRINQUETE, y
+          # vive donde se puede comparar contra una base: el censo `xfail` del
+          # inventario (control X-T en `check_suite_inventory.py`), que si
+          # cubre los modulos DELEGADOS y deja crecer cero.
 
   test-combined:
     name: Combined Test Suite (no collection errors)
