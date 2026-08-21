@@ -148,11 +148,17 @@ def test_el_post_anonimo_no_escribe(informe):
 def cliente_no_admin(_entorno_auth, monkeypatch):
     """TestClient de un usuario autenticado con rol `viewer` (NO admin).
 
-    Devuelve `(cliente, csrf_propio)`. El CSRF se **acuña desde su propia
-    sesión** reproduciendo la derivación del middleware (`app/auth/middleware.py`:
-    HMAC de `csrf:<session_id>:<session_hash[:8]>` y luego
-    `get_csrf_token_for_session`). No se toma del panel admin: el objetivo del
-    caso es el guardián de rol, no el CSRF.
+    Devuelve `(cliente, csrf_propio)`. El CSRF es un token **real de su propia
+    sesión**, y lo emite la **propia aplicación** en `GET /account`, que es una
+    página que este usuario SÍ puede abrir. No se toma del panel de salud ni de
+    ninguna página admin: el objetivo del caso es el guardián de rol, no el CSRF.
+
+    Se usa el token que emite la app en vez de recalcularlo aquí para que el
+    caso no pueda **derivar en falso verde**: si mañana cambiara la derivación
+    del middleware, un token recalculado a mano dejaría de ser válido y el POST
+    seguiría dando 403 —pero por CSRF, no por rol—, que es justo el fallo que
+    este caso existe para no repetir. Aun así se comprueba de forma cruzada que
+    el token emitido coincide con la derivación documentada.
     """
     import hashlib
     import hmac
@@ -179,17 +185,25 @@ def cliente_no_admin(_entorno_auth, monkeypatch):
     assert not u.is_admin(), "el caso exige un usuario NO admin"
 
     cfg = get_auth_settings()
+    c = TestClient(app, raise_server_exceptions=False, follow_redirects=False)
+    c.cookies.set(cfg.S9K_SESSION_COOKIE_NAME, token)
+
+    # Token emitido por la app en una página NO admin de este mismo usuario.
+    r = c.get("/account")
+    assert r.status_code == 200, f"/account no accesible para el no-admin: {r.status_code}"
+    m = re.search(r'name="csrf_token"\s+value="([^"]+)"', r.text)
+    assert m, "/account no trae token CSRF: el caso no podría medir el rol"
+    csrf_propio = m.group(1)
+
+    # Comprobación cruzada: es exactamente la derivación del middleware.
     csrf_raw = hmac.new(
         cfg.S9K_CSRF_SECRET.encode(),
         f"csrf:{sesion.id}:{sesion.session_hash[:8]}".encode(),
         hashlib.sha256,
     ).hexdigest()
-    csrf_propio = get_csrf_token_for_session(
+    assert csrf_propio == get_csrf_token_for_session(
         sesion.id, csrf_raw, secret=cfg.S9K_CSRF_SECRET
-    )
-
-    c = TestClient(app, raise_server_exceptions=False, follow_redirects=False)
-    c.cookies.set(cfg.S9K_SESSION_COOKIE_NAME, token)
+    ), "el token de /account no es el de la sesión del no-admin"
     return c, csrf_propio
 
 
